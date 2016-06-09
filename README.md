@@ -35,25 +35,25 @@ Here is how to install and setup the Janus project:
   
 ##  Run in dev mode
 
-1. Install GoDep in order to install project dependencies in GOPATH
+Install GoDep in order to install project dependencies in GOPATH
 
-    `go get -v -u github.com/tools/godep`
-    `godep restore -v`
+    go get -v -u github.com/tools/godep
+    godep restore -v
     
-2. Build and run consul
+Build and run consul
 
-    `cd ${GOPATH}/src/github.com/hashicorp/consul`
-    `make dev`
-    `./bin/consul agent -dev -advertise 127.0.0.1`
+    cd ${GOPATH}/src/github.com/hashicorp/consul
+    make dev
+    ./bin/consul agent -dev -advertise 127.0.0.1
     
-3. Run Janus
+Run Janus
 
-    `cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus`
-    `make`
-    `./janus server`
+    cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus
+    make
+    ./janus server
     
-4. Deploy a first node
+Deploy a first node
 
-    `cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus/testdata/deployment`
-    `zip dep.zip dep.yaml`
-    `curl -X POST localhost:8800/deployments -v --data-binary @dep.zip`
+    cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus/testdata/deployment
+    zip dep.zip dep.yaml
+    curl -X POST localhost:8800/deployments -v --data-binary @dep.zip
