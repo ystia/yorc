@@ -46,14 +46,28 @@ Build and run consul
     make dev
     ./bin/consul agent -dev -advertise 127.0.0.1
     
+Build terraform
+
+    cd ${GOPATH}/src/github.com/hashicorp/terraform
+    make dev
+    
 Run Janus
 
     cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus
     make
     ./janus server
+
+For now OpenStack config should be exported before run Janus
+
+     export OS_AUTH_URL=...
+     export OS_USERNAME=...
+     export OS_PASSWORD=...
+     export OS_TENANT_NAME=...
+     
     
 Deploy a first node
-
+ 
     cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus/testdata/deployment
     zip dep.zip dep.yaml
     curl -X POST localhost:8800/deployments -v --data-binary @dep.zip
+
