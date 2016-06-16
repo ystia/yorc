@@ -7,6 +7,7 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
 
 build: test
 	@echo "--> Running go build"
+	@go generate $(PACKAGES)
 	@go build
 
 test:

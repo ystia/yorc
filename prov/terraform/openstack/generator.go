@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 )
 
 type Generator struct {
@@ -36,7 +37,7 @@ func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error
 
 func (g *Generator) GenerateTerraformInfra(id string) error {
 	log.Printf("Generating infrastructure for deployment with id %s", id)
-	topoUrl := strings.Join([]string{"_janus", id, "topology", "nodes"}, "/")
+	topoUrl := strings.Join([]string{deployments.DeploymentKVPrefix, id, "topology", "nodes"}, "/")
 	infrastructure := terraform.Infrastructure{}
 	nodesKeys, _, err := g.kv.Keys(topoUrl+"/", "/", nil)
 	if err != nil {
