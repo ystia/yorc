@@ -29,7 +29,9 @@ Here is how to install and setup the Janus project:
     cd $GOPATH/src/novaforge.bull.com/starlings-janus
     git clone ssh://git@novaforge.bull.com:2222/starlings-janus/janus.git
     cd janus
-    
+
+    go get -v golang.org/x/tools/cmd/stringer
+
     # Build 
     make
   
@@ -48,6 +50,7 @@ Build and run consul
     
 Build terraform
 
+    go get -v github.com/hashicorp/terraform
     cd ${GOPATH}/src/github.com/hashicorp/terraform
     make dev
     
@@ -69,5 +72,11 @@ Deploy a first node
  
     cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus/testdata/deployment
     zip dep.zip dep.yaml
-    curl -X POST localhost:8800/deployments -v --data-binary @dep.zip
+    curl -X POST localhost:8800/deployments -v --data-binary @dep.zip -H "Accept: application/zip"
+
+The location header give the URI that should be used to get info on this particular deployment
+
+Check Deployment status
+
+    curl localhost:8800/deployments/<deployment_uuid> -v -H "Content-Type: application/json"
 
