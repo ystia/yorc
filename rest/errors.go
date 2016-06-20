@@ -2,8 +2,8 @@ package rest
 
 import (
 	"encoding/json"
-	"net/http"
 	"fmt"
+	"net/http"
 )
 
 // Errors
@@ -26,7 +26,7 @@ func WriteError(w http.ResponseWriter, err *Error) {
 }
 
 var (
-	ErrNotFound = &Error{"not_found", 404, "Not Found", "Requested content not found."}
+	ErrNotFound       = &Error{"not_found", 404, "Not Found", "Requested content not found."}
 	ErrInternalServer = &Error{"internal_server_error", 500, "Internal Server Error", "Something went wrong."}
 )
 

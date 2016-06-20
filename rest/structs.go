@@ -10,13 +10,13 @@ const (
 )
 
 type AtomLink struct {
-Rel      string  `json:"rel"`
-Href     string  `json:"href"`
-LinkType string  `json:"type"`
+	Rel      string `json:"rel"`
+	Href     string `json:"href"`
+	LinkType string `json:"type"`
 }
 
 func newAtomLink(rel, href string) AtomLink {
-	return AtomLink{Rel:rel, Href:href, LinkType:"application/json"}
+	return AtomLink{Rel: rel, Href: href, LinkType: "application/json"}
 }
 
 type DeploymentsCollection struct {

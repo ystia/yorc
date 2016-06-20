@@ -1,19 +1,20 @@
 package tosca
 
 type Topology struct {
-	TOSCAVersion string `yaml:"tosca_definitions_version"`
-	Description  string `yaml:",omitempty"`
-	Name         string `yaml:"template_name"`
-	Version      string `yaml:"template_version"`
-	Author       string `yaml:"template_author"`
+	TOSCAVersion     string `yaml:"tosca_definitions_version"`
+	Description      string `yaml:"description,omitempty"`
+	Name             string `yaml:"template_name"`
+	Version          string `yaml:"template_version"`
+	Author           string `yaml:"template_author"`
 
-	Imports []string
+	Imports          []string `yaml:"imports"`
 
-	TopologyTemplate TopologyTemplate `yaml:"topology_template"`
+	NodeTypes        map[string]NodeType `yaml:"node_types,omitempty"`
+	TopologyTemplate TopologyTemplate    `yaml:"topology_template"`
 }
 
 type TopologyTemplate struct {
-	Description string `yaml:",omitempty"`
+	Description   string `yaml:"description,omitempty"`
 	//Inputs                []ParameterDefinition  `yaml:",omitempty"`
 	NodeTemplates map[string]NodeTemplate `yaml:"node_templates"`
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
@@ -21,19 +22,15 @@ type TopologyTemplate struct {
 	//Policies              []Policy                 `yaml:",omitempty"`
 	//Outputs               []ParameterDefinition  `yaml:",omitempty"`
 	//substitution_mappings
-	Workflows map[string]Workflow
+	Workflows     map[string]Workflow
 }
 
 type NodeTemplate struct {
-	Type         string
-	Description  string                          `yaml:",omitempty"`
-	Directives   []string                        `yaml:",omitempty"`
-	Properties   map[string]string               `yaml:",omitempty"`
-	Attributes   map[string]string               `yaml:",omitempty"`
-	Capabilities map[string]CapabilityAssignment `yaml:",omitempty"`
-}
-
-type CapabilityAssignment struct {
-	Properties map[string]string `yaml:",omitempty"`
-	Attributes map[string]string `yaml:",omitempty"`
+	Type         string                          `yaml:"type"`
+	Description  string                          `yaml:"description,omitempty"`
+	Directives   []string                        `yaml:"directives,omitempty"`
+	Properties   map[string]ValueAssignment      `yaml:"properties,omitempty"`
+	Attributes   map[string]ValueAssignment      `yaml:"attributes,omitempty"`
+	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
+	Requirements []RequirementAssignmentMap `yaml:"requirements,omitempty"`
 }

@@ -1,6 +1,7 @@
 package tosca
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -53,13 +54,13 @@ func TestParsing(t *testing.T) {
 	// Check node's properties
 	assert.Len(t, compute.Properties, 4)
 	assert.Contains(t, compute.Properties, "user")
-	assert.Equal(t, "cloud-user", compute.Properties["user"])
+	assert.Equal(t, "cloud-user", fmt.Sprint(compute.Properties["user"]))
 	assert.Contains(t, compute.Properties, "image")
-	assert.Equal(t, "89ec515c-3251-4c2f-8402-bda280c31650", compute.Properties["image"])
+	assert.Equal(t, "89ec515c-3251-4c2f-8402-bda280c31650", fmt.Sprint(compute.Properties["image"]))
 	assert.Contains(t, compute.Properties, "flavor")
-	assert.Equal(t, "2", compute.Properties["flavor"])
+	assert.Equal(t, "2", fmt.Sprint(compute.Properties["flavor"]))
 	assert.Contains(t, compute.Properties, "availability_zone")
-	assert.Equal(t, "nova", compute.Properties["availability_zone"])
+	assert.Equal(t, "nova", fmt.Sprint(compute.Properties["availability_zone"]))
 
 	// Check node's capabilities
 	assert.Len(t, compute.Capabilities, 2)
@@ -71,19 +72,19 @@ func TestParsing(t *testing.T) {
 	assert.Contains(t, endpointCap.Properties, "initiator")
 	assert.Contains(t, endpointCap.Properties, "secure")
 	assert.Contains(t, endpointCap.Properties, "network_name")
-	assert.Equal(t, "tcp", endpointCap.Properties["protocol"])
-	assert.Equal(t, "source", endpointCap.Properties["initiator"])
-	assert.Equal(t, "true", endpointCap.Properties["secure"])
-	assert.Equal(t, "private_starlings", endpointCap.Properties["network_name"])
+	assert.Equal(t, "tcp", fmt.Sprint(endpointCap.Properties["protocol"]))
+	assert.Equal(t, "source", fmt.Sprint(endpointCap.Properties["initiator"]))
+	assert.Equal(t, "true", fmt.Sprint(endpointCap.Properties["secure"]))
+	assert.Equal(t, "private_starlings", fmt.Sprint(endpointCap.Properties["network_name"]))
 
 	scalableCap := compute.Capabilities["scalable"]
 	assert.Len(t, scalableCap.Properties, 3)
 	assert.Contains(t, scalableCap.Properties, "max_instances")
 	assert.Contains(t, scalableCap.Properties, "min_instances")
 	assert.Contains(t, scalableCap.Properties, "default_instances")
-	assert.Equal(t, "1", scalableCap.Properties["max_instances"])
-	assert.Equal(t, "1", scalableCap.Properties["min_instances"])
-	assert.Equal(t, "1", scalableCap.Properties["default_instances"])
+	assert.Equal(t, "1", fmt.Sprint(scalableCap.Properties["max_instances"]))
+	assert.Equal(t, "1", fmt.Sprint(scalableCap.Properties["min_instances"]))
+	assert.Equal(t, "1", fmt.Sprint(scalableCap.Properties["default_instances"]))
 
 	// check workflow
 	assert.NotNil(t, topologyTemplate.Workflows)

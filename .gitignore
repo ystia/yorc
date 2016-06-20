@@ -10,3 +10,4 @@ gen
 work
 janus
 /testdata/deployment/*.zip
+/testdata/deployment/*/*.zip

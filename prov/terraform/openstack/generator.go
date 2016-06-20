@@ -6,11 +6,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"io/ioutil"
 	"log"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
 	"os"
 	"path"
 	"strings"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
 )
 
 type Generator struct {
