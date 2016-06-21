@@ -346,7 +346,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 			if step.Activity.Delegate != "" {
 				storeConsulKey(kv, stepPrefix + "/activity/delegate", step.Activity.Delegate)
 			}
-			if step.Activity.CallOperation != "" {
+			if step.Activity.SetState != "" {
 				storeConsulKey(kv, stepPrefix + "/activity/set-state", step.Activity.SetState)
 			}
 			for nextId, next := range step.OnSuccess {
