@@ -1,4 +1,4 @@
-package terraform
+package commons
 
 type Infrastructure struct {
 	Variable map[string]interface{} `json:"variable,omitempty"`

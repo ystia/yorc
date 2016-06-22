@@ -6,8 +6,8 @@ import (
 	"log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 	"strings"
+	"sync"
 )
 
 type Worker struct {
@@ -30,6 +30,59 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
+func (w Worker) processStep(step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error) {
+	defer wg.Done()
+	log.Printf("Processing step %s", step.Name)
+	for _, activity := range step.Activities {
+		actType := activity.ActivityType()
+		switch {
+		case actType == "delegate":
+			provisioner := terraform.NewProvisioner(w.consulClient.KV())
+			delegateOp := activity.ActivityValue()
+			switch delegateOp {
+			case "install":
+				if err := provisioner.ProvisionNode(deploymentId, step.Node); err != nil {
+					log.Printf("Sending error %v to error channel", err)
+					errc <- err
+					return
+				}
+			case "uninstall":
+				if err := provisioner.DestroyNode(deploymentId, step.Node); err != nil {
+					errc <- err
+					return
+				}
+			default:
+				errc <- fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, step.Name)
+				return
+			}
+		case actType == "set-state":
+		case actType == "call-operation":
+		}
+	}
+	for _, next := range step.Next {
+		wg.Add(1)
+		go w.processStep(next, deploymentId, wg, errc)
+	}
+}
+
+func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
+	var wg sync.WaitGroup
+	errc := make(chan error)
+	for _, step := range wfRoots {
+		wg.Add(1)
+		go w.processStep(step, deploymentId, &wg, errc)
+	}
+	wg.Wait()
+	log.Printf("All step done. Checking if there was an error")
+	var err error
+	select {
+	case err = <-errc:
+	default:
+	}
+	log.Printf("Workflow ended with error: '%v'", err)
+	return err
+}
+
 // Start method starts the run loop for the worker, listening for a quit channel in
 // case we need to stop it
 func (w Worker) Start() {
@@ -42,20 +95,20 @@ func (w Worker) Start() {
 			case task := <-w.TaskChannel:
 				// we have received a work request.
 				log.Printf("Worker got task with id %s", task.Id)
+
 				switch task.TaskType {
 
 				case DEPLOY:
 					w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
-					osGenerator := openstack.NewGenerator(w.consulClient)
-					if err := osGenerator.GenerateTerraformInfra(task.TargetId); err != nil {
+					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), strings.Join([]string{deployments.DeploymentKVPrefix, task.TargetId, "workflows/install"}, "/"))
+					if err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 						continue
 
 					}
-					executor := &terraform.Executor{}
-					if err := executor.ApplyInfrastructure(task.TargetId); err != nil {
+					if err = w.processWorkflow(wf, task.TargetId); err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
@@ -63,10 +116,16 @@ func (w Worker) Start() {
 					}
 					w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
 				case UNDEPLOY:
-					// TODO as it may be done on another instance we should not expect that infrastructure description is stored locally
 					w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_IN_PROGRESS)
-					executor := &terraform.Executor{}
-					if err := executor.DestroyInfrastructure(task.TargetId); err != nil {
+					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), strings.Join([]string{deployments.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"}, "/"))
+					if err != nil {
+						task.WithStatus("failed")
+						log.Printf("%v. Aborting", err)
+						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
+						continue
+
+					}
+					if err = w.processWorkflow(wf, task.TargetId); err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)

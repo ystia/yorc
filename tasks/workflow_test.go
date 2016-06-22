@@ -1,10 +1,10 @@
 package tasks
 
 import (
-	"testing"
-	"github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestReadStepFromConsulFailing(t *testing.T) {
@@ -60,9 +60,9 @@ func TestReadStepFromConsul(t *testing.T) {
 	assert.Equal(t, "nodeName", step.Node)
 	assert.Equal(t, "stepName", step.Name)
 	assert.Len(t, step.Activities, 3)
-	assert.Contains(t, step.Activities, DelegateActivity{delegate:"install"})
-	assert.Contains(t, step.Activities, SetStateActivity{state:"installed"})
-	assert.Contains(t, step.Activities, CallOperationActivity{operation:"script.sh"})
+	assert.Contains(t, step.Activities, DelegateActivity{delegate: "install"})
+	assert.Contains(t, step.Activities, SetStateActivity{state: "installed"})
+	assert.Contains(t, step.Activities, CallOperationActivity{operation: "script.sh"})
 
 	assert.Len(t, visitedMap, 1)
 	assert.Contains(t, visitedMap, "stepName")
@@ -109,8 +109,6 @@ func TestReadStepWithNext(t *testing.T) {
 	assert.Equal(t, 1, visitedMap["downstream"].refCount)
 }
 
-
-
 func TestReadWorkFlowFromConsul(t *testing.T) {
 	t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
@@ -141,13 +139,11 @@ func TestReadWorkFlowFromConsul(t *testing.T) {
 	data["wf/steps/step12/next/step13"] = []byte("")
 	data["wf/steps/step12/node"] = []byte("nodeName")
 
-
 	data["wf/steps/step13/activity/delegate"] = []byte("install")
 	data["wf/steps/step13/node"] = []byte("nodeName")
 
 	data["wf/steps/step20/activity/delegate"] = []byte("install")
 	data["wf/steps/step20/node"] = []byte("nodeName")
-
 
 	srv1.PopulateKV(data)
 	//kv.Put(&api.KVPair{Key: "/wf/steps/stepName/activity/delegate", Value:[]byte("install")}, nil)
@@ -157,7 +153,7 @@ func TestReadWorkFlowFromConsul(t *testing.T) {
 	assert.Len(t, steps, 2)
 	for _, step := range steps {
 		stepName := step.Name
-		switch  {
+		switch {
 		case stepName == "step11":
 
 		case stepName == "step20":
@@ -166,6 +162,3 @@ func TestReadWorkFlowFromConsul(t *testing.T) {
 		}
 	}
 }
-
-
-

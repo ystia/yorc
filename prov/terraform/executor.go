@@ -1,7 +1,6 @@
 package terraform
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -11,8 +10,8 @@ import (
 type Executor struct {
 }
 
-func (e *Executor) ApplyInfrastructure(id string) error {
-	infraPath := path.Join("work", "deployments", fmt.Sprint(id), "infra")
+func (e *Executor) ApplyInfrastructure(depId, nodeName string) error {
+	infraPath := path.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.Command("terraform", "apply")
 	cmd.Dir = infraPath
 	cmd.Stdout = os.Stdout
@@ -26,8 +25,8 @@ func (e *Executor) ApplyInfrastructure(id string) error {
 	return cmd.Wait()
 
 }
-func (e *Executor) DestroyInfrastructure(id string) error {
-	infraPath := path.Join("work", "deployments", fmt.Sprint(id), "infra")
+func (e *Executor) DestroyInfrastructure(depId, nodeName string) error {
+	infraPath := path.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.Command("terraform", "destroy", "-force")
 	cmd.Dir = infraPath
 	cmd.Stdout = os.Stdout

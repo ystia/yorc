@@ -7,19 +7,18 @@ import (
 	"io/ioutil"
 	"log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"os"
 	"path"
 	"strings"
 )
 
 type Generator struct {
-	consulClient *api.Client
-	kv           *api.KV
+	kv *api.KV
 }
 
-func NewGenerator(consulClient *api.Client) *Generator {
-	return &Generator{consulClient: consulClient, kv: consulClient.KV()}
+func NewGenerator(kv *api.KV) *Generator {
+	return &Generator{kv: kv}
 }
 
 func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error) {
@@ -35,61 +34,58 @@ func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error
 	return string(getResult.Value), nil
 }
 
-func (g *Generator) GenerateTerraformInfra(id string) error {
-	log.Printf("Generating infrastructure for deployment with id %s", id)
-	topoUrl := strings.Join([]string{deployments.DeploymentKVPrefix, id, "topology", "nodes"}, "/")
-	infrastructure := terraform.Infrastructure{}
-	nodesKeys, _, err := g.kv.Keys(topoUrl+"/", "/", nil)
+func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
+	log.Printf("Generating infrastructure for deployment with id %s", depId)
+	nodeKey := strings.Join([]string{deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName}, "/")
+	infrastructure := commons.Infrastructure{}
+	log.Printf("inspecting node %s", nodeKey)
+	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
 		log.Print(err)
 		return err
 	}
-	for _, nodeKey := range nodesKeys {
-		log.Printf("inspecting node %s", nodeKey)
-		kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
+	nodeType := string(kvPair.Value)
+	switch nodeType {
+	case "janus.nodes.openstack.Compute":
+		compute, err := g.generateOSInstance(nodeKey)
 		if err != nil {
-			log.Print(err)
 			return err
 		}
-		switch string(kvPair.Value) {
-		case "janus.nodes.openstack.Compute":
-			compute, err := g.generateOSInstance(nodeKey)
-			if err != nil {
-				return err
-			}
-			if len(infrastructure.Resource) != 0 {
-				if infrastructure.Resource["openstack_compute_instance_v2"] != nil && len(infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})) != 0 {
-					osInstancesMap := infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})
-					osInstancesMap[compute.Name] = compute
-				} else {
-					osInstancesMap := make(map[string]interface{})
-					osInstancesMap[compute.Name] = compute
-					infrastructure.Resource["openstack_compute_instance_v2"] = osInstancesMap
-				}
-
+		if len(infrastructure.Resource) != 0 {
+			if infrastructure.Resource["openstack_compute_instance_v2"] != nil && len(infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})) != 0 {
+				osInstancesMap := infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})
+				osInstancesMap[compute.Name] = compute
 			} else {
-				resourceMap := make(map[string]interface{})
-				infrastructure.Resource = resourceMap
 				osInstancesMap := make(map[string]interface{})
 				osInstancesMap[compute.Name] = compute
 				infrastructure.Resource["openstack_compute_instance_v2"] = osInstancesMap
 			}
 
-			consulKey := terraform.ConsulKey{Name: compute.Name + "-ip_address-key", Path: nodeKey + "capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
-			consulKeys := terraform.ConsulKeys{Keys: []terraform.ConsulKey{consulKey}}
-			if infrastructure.Resource["consul_keys"] != nil && len(infrastructure.Resource["consul_keys"].(map[string]interface{})) != 0 {
-				consulKeysMap := infrastructure.Resource["consul_keys"].(map[string]interface{})
-				consulKeysMap[compute.Name] = consulKeys
-			} else {
-				consulKeysMap := make(map[string]interface{})
-				consulKeysMap[compute.Name] = consulKeys
-				infrastructure.Resource["consul_keys"] = consulKeysMap
-			}
+		} else {
+			resourceMap := make(map[string]interface{})
+			infrastructure.Resource = resourceMap
+			osInstancesMap := make(map[string]interface{})
+			osInstancesMap[compute.Name] = compute
+			infrastructure.Resource["openstack_compute_instance_v2"] = osInstancesMap
 		}
+
+		consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: nodeKey + "capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+		if infrastructure.Resource["consul_keys"] != nil && len(infrastructure.Resource["consul_keys"].(map[string]interface{})) != 0 {
+			consulKeysMap := infrastructure.Resource["consul_keys"].(map[string]interface{})
+			consulKeysMap[compute.Name] = consulKeys
+		} else {
+			consulKeysMap := make(map[string]interface{})
+			consulKeysMap[compute.Name] = consulKeys
+			infrastructure.Resource["consul_keys"] = consulKeysMap
+		}
+
+	default:
+		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
-	infraPath := path.Join("work", "deployments", fmt.Sprint(id), "infra")
+	infraPath := path.Join("work", "deployments", fmt.Sprint(depId), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		log.Printf("%+v", err)
 		return err
@@ -100,6 +96,6 @@ func (g *Generator) GenerateTerraformInfra(id string) error {
 		return err
 	}
 
-	log.Printf("Infrastructure generated for deployment with id %s", id)
+	log.Printf("Infrastructure generated for deployment with id %s", depId)
 	return nil
 }

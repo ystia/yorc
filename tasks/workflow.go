@@ -1,10 +1,10 @@
 package tasks
 
 import (
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"log"
 	"strings"
-	"fmt"
 )
 
 type Step struct {
@@ -63,8 +63,8 @@ type visitStep struct {
 
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
 	stepPrefix := stepsPrefix + stepName
-	step := &Step{Name:stepName}
-	kvPair, _, err := kv.Get(stepPrefix + "/node", nil)
+	step := &Step{Name: stepName}
+	kvPair, _, err := kv.Get(stepPrefix+"/node", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
@@ -74,7 +74,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 	}
 	step.Node = string(kvPair.Value)
 
-	kvPairs, _, err := kv.List(stepPrefix + "/activity", nil)
+	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 	}
 	step.Activities = make([]Activity, 0)
 	for _, actKV := range kvPairs {
-		key := strings.TrimPrefix(actKV.Key, stepPrefix + "/activity/")
+		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activity/")
 		switch {
 		case key == "delegate":
 			step.Activities = append(step.Activities, DelegateActivity{delegate: string(actKV.Value)})
@@ -96,14 +96,14 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		}
 	}
 
-	kvPairs, _, err = kv.List(stepPrefix + "/next", nil)
+	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
 	if err != nil {
 		return nil, err
 	}
 	step.Next = make([]*Step, 0)
 	for _, nextKV := range kvPairs {
 		var nextStep *Step
-		nextStepName := strings.TrimPrefix(nextKV.Key, stepPrefix + "/next/")
+		nextStepName := strings.TrimPrefix(nextKV.Key, stepPrefix+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
 			log.Printf("Found existing step %s", nextStepName)
 			nextStep = visitStep.step
@@ -119,7 +119,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		visitedMap[nextStepName].refCount++
 		log.Printf("RefCount for step %s set to %d", nextStepName, visitedMap[nextStepName].refCount)
 	}
-	visitedMap[stepName] = &visitStep{refCount:0, step: step}
+	visitedMap[stepName] = &visitStep{refCount: 0, step: step}
 	return step, nil
 
 }
@@ -139,7 +139,7 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 		stepFields := strings.FieldsFunc(stepPrefix, func(r rune) bool {
 			return r == rune('/')
 		})
-		stepName := stepFields[len(stepFields) - 1]
+		stepName := stepFields[len(stepFields)-1]
 		if _, ok := visitedMap[stepName]; !ok {
 			step, err := readStep(kv, stepsPrefix, stepName, visitedMap)
 			if err != nil {
@@ -158,5 +158,3 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 
 	return roots, nil
 }
-
-
