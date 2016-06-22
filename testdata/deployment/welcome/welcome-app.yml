@@ -55,7 +55,12 @@ topology_template:
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     Compute:
-      type: tosca.nodes.Compute
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
       capabilities:
         endpoint:
           properties:
