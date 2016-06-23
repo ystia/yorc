@@ -37,7 +37,7 @@ func (w Worker) processStep(step *Step, deploymentId string, wg *sync.WaitGroup,
 		actType := activity.ActivityType()
 		switch {
 		case actType == "delegate":
-			provisioner := terraform.NewProvisioner(w.consulClient.KV())
+			provisioner := terraform.NewExecutor(w.consulClient.KV())
 			delegateOp := activity.ActivityValue()
 			switch delegateOp {
 			case "install":
