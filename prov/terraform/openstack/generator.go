@@ -69,7 +69,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 			infrastructure.Resource["openstack_compute_instance_v2"] = osInstancesMap
 		}
 
-		consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: nodeKey + "capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
+		consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		if infrastructure.Resource["consul_keys"] != nil && len(infrastructure.Resource["consul_keys"].(map[string]interface{})) != 0 {
 			consulKeysMap := infrastructure.Resource["consul_keys"].(map[string]interface{})
