@@ -3,13 +3,13 @@ package terraform
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	"strings"
-	"path"
-	"os/exec"
 	"os"
-	"log"
+	"os/exec"
+	"path"
+	"strings"
 )
 
 type Executor interface {
