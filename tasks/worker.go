@@ -56,6 +56,7 @@ func (w Worker) processStep(step *Step, deploymentId string, wg *sync.WaitGroup,
 				return
 			}
 		case actType == "set-state":
+			w.consulClient.KV().Put(&api.KVPair{Key: strings.Join([]string{deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", step.Node, "status"}, "/"), Value: []byte(activity.ActivityValue())}, nil)
 		case actType == "call-operation":
 		}
 	}
