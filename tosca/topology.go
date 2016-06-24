@@ -33,4 +33,5 @@ type NodeTemplate struct {
 	Attributes   map[string]ValueAssignment      `yaml:"attributes,omitempty"`
 	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
 	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
+	Artifacts    map[string]ArtifactDefinition   `yaml:"artifacts,omitempty"`
 }
