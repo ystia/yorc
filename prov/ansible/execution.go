@@ -253,7 +253,8 @@ func (e *execution) execute() error {
 	buffer.WriteString("[all]\n")
 	for _, host := range e.hosts {
 		buffer.WriteString(host)
-		buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/cloudify.pem\n")
+		// TODO should not be hard-coded
+		buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/janus.pem\n")
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		log.Printf("Failed to write hosts file")

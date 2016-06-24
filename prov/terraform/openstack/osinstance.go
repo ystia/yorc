@@ -88,7 +88,8 @@ func (g *Generator) generateOSInstance(url string) (ComputeInstance, error) {
 	}
 
 	// Do this in order to be sure that ansible will be able to log on the instance
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/cloudify.pem")}`}}
+	// TODO private key should not be hard-coded
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	instance.Provisioners = make(map[string]interface{})
 	instance.Provisioners["remote-exec"] = re
 	return instance, nil
