@@ -10,7 +10,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"os"
 	"path"
-	"strings"
+	"path/filepath"
 )
 
 type Generator struct {
@@ -36,7 +36,7 @@ func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error
 
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
 	log.Printf("Generating infrastructure for deployment with id %s", depId)
-	nodeKey := strings.Join([]string{deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName}, "/")
+	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
 	infrastructure := commons.Infrastructure{}
 	log.Printf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
@@ -85,13 +85,13 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
-	infraPath := path.Join("work", "deployments", fmt.Sprint(depId), "infra", nodeName)
+	infraPath := filepath.Join("work", "deployments", fmt.Sprint(depId), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		log.Printf("%+v", err)
 		return err
 	}
 
-	if err = ioutil.WriteFile(path.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
+	if err = ioutil.WriteFile(filepath.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
 		log.Printf("Failed to write file")
 		return err
 	}

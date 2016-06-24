@@ -47,7 +47,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var file *os.File
-	uploadPath := path.Join("work", "deployments", uuid)
+	uploadPath := filepath.Join("work", "deployments", uuid)
 	if err = os.MkdirAll(uploadPath, 0775); err != nil {
 		log.Panicf("%+v", err)
 	}
@@ -62,7 +62,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panicf("%+v", err)
 	}
-	destDir := path.Join(uploadPath, "overlay")
+	destDir := filepath.Join(uploadPath, "overlay")
 	if err = os.MkdirAll(destDir, 0775); err != nil {
 		log.Panicf("%+v", err)
 	}
@@ -76,7 +76,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	// and extract them.
 	// TODO: USe go routines to process files concurrently
 	for _, f := range zipReader.File {
-		path := path.Join(destDir, f.Name)
+		path := filepath.Join(destDir, f.Name)
 		if f.FileInfo().IsDir() {
 			if err = os.MkdirAll(path, f.Mode()); err != nil {
 				log.Panicf("%+v", err)
@@ -206,8 +206,8 @@ func storeAttributeDefinition(kv *api.KV, attrPrefix, attrName string, attrDefin
 func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 	// Get a handle to the KV API
 	kv := s.consulClient.KV()
-	prefix := strings.Join([]string{deployments.DeploymentKVPrefix, id}, "/")
-	topologyPrefix := strings.Join([]string{prefix, "topology"}, "/")
+	prefix := path.Join(deployments.DeploymentKVPrefix, id)
+	topologyPrefix := path.Join(prefix, "topology")
 
 	storeConsulKey(kv, topologyPrefix+"/tosca_version", topology.TOSCAVersion)
 	storeConsulKey(kv, topologyPrefix+"/description", topology.Description)
@@ -216,7 +216,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 	storeConsulKey(kv, topologyPrefix+"/author", topology.Author)
 	// TODO deal with imports
 
-	nodesPrefix := strings.Join([]string{topologyPrefix, "nodes"}, "/")
+	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
 		storeConsulKey(kv, nodePrefix+"/name", nodeName)
@@ -253,7 +253,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 		}
 	}
 
-	nodesTypesPrefix := strings.Join([]string{topologyPrefix, "types"}, "/")
+	nodesTypesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := nodesTypesPrefix + "/" + nodeTypeName
 		storeConsulKey(kv, nodeTypePrefix+"/name", nodeTypeName)
@@ -305,12 +305,12 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 		interfacesPrefix := nodeTypePrefix + "/interfaces"
 		for intTypeName, intMap := range nodeType.Interfaces {
 			for intName, intDef := range intMap {
-				intPrefix := strings.Join([]string{interfacesPrefix, intTypeName, intName}, "/")
+				intPrefix := path.Join(interfacesPrefix, intTypeName, intName)
 				storeConsulKey(kv, intPrefix+"/name", intName)
 				storeConsulKey(kv, intPrefix+"/description", intDef.Description)
 
 				for inputName, inputDef := range intDef.Inputs {
-					inputPrefix := strings.Join([]string{intPrefix, "inputs", inputName}, "/")
+					inputPrefix := path.Join(intPrefix, "inputs", inputName)
 					storeConsulKey(kv, inputPrefix+"/name", inputName)
 					storeConsulKey(kv, inputPrefix+"/expression", inputDef.String())
 				}
@@ -333,7 +333,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 
 	}
 
-	workflowsPrefix := strings.Join([]string{deployments.DeploymentKVPrefix, id, "workflows"}, "/")
+	workflowsPrefix := path.Join(deployments.DeploymentKVPrefix, id, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
 		workflowPrefix := workflowsPrefix + "/" + wfName
 		for stepName, step := range workflow.Steps {

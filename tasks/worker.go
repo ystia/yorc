@@ -5,8 +5,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
-	"strings"
+	"path"
 	"sync"
 )
 
@@ -25,7 +26,7 @@ func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClien
 }
 
 func (w Worker) setDeploymentStatus(deploymentId string, status deployments.DeploymentStatus) {
-	p := &api.KVPair{Key: strings.Join([]string{deployments.DeploymentKVPrefix, deploymentId, "status"}, "/"), Value: []byte(fmt.Sprint(status))}
+	p := &api.KVPair{Key: path.Join(deployments.DeploymentKVPrefix, deploymentId, "status"), Value: []byte(fmt.Sprint(status))}
 	kv := w.consulClient.KV()
 	kv.Put(p, nil)
 }
@@ -56,8 +57,13 @@ func (w Worker) processStep(step *Step, deploymentId string, wg *sync.WaitGroup,
 				return
 			}
 		case actType == "set-state":
-			w.consulClient.KV().Put(&api.KVPair{Key: strings.Join([]string{deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", step.Node, "status"}, "/"), Value: []byte(activity.ActivityValue())}, nil)
+			w.consulClient.KV().Put(&api.KVPair{Key: path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", step.Node, "status"), Value: []byte(activity.ActivityValue())}, nil)
 		case actType == "call-operation":
+			exec := ansible.NewExecutor(w.consulClient.KV())
+			if err := exec.ExecOperation(deploymentId, step.Node, activity.ActivityValue()); err != nil {
+				errc <- err
+				return
+			}
 		}
 	}
 	for _, next := range step.Next {
@@ -101,7 +107,7 @@ func (w Worker) Start() {
 
 				case DEPLOY:
 					w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
-					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), strings.Join([]string{deployments.DeploymentKVPrefix, task.TargetId, "workflows/install"}, "/"))
+					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/install"))
 					if err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
@@ -118,7 +124,7 @@ func (w Worker) Start() {
 					w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
 				case UNDEPLOY:
 					w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_IN_PROGRESS)
-					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), strings.Join([]string{deployments.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"}, "/"))
+					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
 					if err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)

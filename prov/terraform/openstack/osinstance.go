@@ -54,6 +54,13 @@ func (g *Generator) generateOSInstance(url string) (ComputeInstance, error) {
 		instance.Region = "RegionOne"
 	}
 
+	if keyPair, err := g.getStringFormConsul(url, "properties/key_pair"); err != nil {
+		return ComputeInstance{}, err
+	} else {
+		// TODO if empty use a default one or fail ?
+		instance.KeyPair = keyPair
+	}
+
 	if instance.ImageId == "" && instance.ImageName == "" {
 		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", url)
 	}

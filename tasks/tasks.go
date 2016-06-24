@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"github.com/hashicorp/consul/api"
-	"strings"
+	"path"
 )
 
 const tasksPrefix = "_janus/tasks"
@@ -32,7 +32,7 @@ func (t *Task) Status() string {
 }
 
 func (t *Task) WithStatus(status string) error {
-	p := &api.KVPair{Key: strings.Join([]string{tasksPrefix, t.Id, "status"}, "/"), Value: []byte(status)}
+	p := &api.KVPair{Key: path.Join(tasksPrefix, t.Id, "status"), Value: []byte(status)}
 	_, err := t.kv.Put(p, nil)
 	t.status = status
 	return err

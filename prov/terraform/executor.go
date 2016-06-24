@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -27,7 +28,7 @@ func NewExecutor(kv *api.KV) Executor {
 
 func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
 
-	kvPair, _, err := e.kv.Get(strings.Join([]string{deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"}, "/"), nil)
+	kvPair, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
 	if err != nil {
 		return err
 	}
@@ -60,7 +61,7 @@ func (e *defaultExecutor) DestroyNode(deploymentId, nodeName string) error {
 }
 
 func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
-	infraPath := path.Join("work", "deployments", depId, "infra", nodeName)
+	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.Command("terraform", "apply")
 	cmd.Dir = infraPath
 	cmd.Stdout = os.Stdout
@@ -75,7 +76,7 @@ func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
 
 }
 func (e *defaultExecutor) destroyInfrastructure(depId, nodeName string) error {
-	infraPath := path.Join("work", "deployments", depId, "infra", nodeName)
+	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.Command("terraform", "destroy", "-force")
 	cmd.Dir = infraPath
 	cmd.Stdout = os.Stdout

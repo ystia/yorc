@@ -29,6 +29,7 @@ node_types:
         default: 8111
     interfaces:
       Standard:
+        configure: scripts/welcome_configure.sh
         start:
           inputs:
             PORT: { get_property: [SELF, port] }
@@ -61,6 +62,7 @@ topology_template:
         flavor: 2
         image: 89ec515c-3251-4c2f-8402-bda280c31650
         availability_zone: nova
+        key_pair: cloudify
       capabilities:
         endpoint:
           properties:

@@ -7,13 +7,13 @@ import (
 	"io/ioutil"
 	_ "log"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 )
 
 func TestParsing(t *testing.T) {
 
-	definition, err := os.Open(path.Join("..", "testdata", "deployment", "dep.yaml"))
+	definition, err := os.Open(filepath.Join("..", "testdata", "deployment", "dep.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
