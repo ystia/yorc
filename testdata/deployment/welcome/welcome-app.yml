@@ -36,10 +36,10 @@ node_types:
           implementation: scripts/welcome_start.sh
         stop: scripts/welcome_stop.sh
     artifacts:
-      - scripts:
+      scripts:
         file: scripts
         type: tosca.artifacts.File
-      - utils_scripts:
+      utils_scripts:
         file: utils_scripts
         type: tosca.artifacts.File
 

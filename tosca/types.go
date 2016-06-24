@@ -9,5 +9,5 @@ type NodeType struct {
 	Requirements RequirementDefinitionMap          `yaml:"requirements,omitempty,flow"`
 	Capabilities map[string]CapabilityDefinition   `yaml:"capabilities,omitempty"`
 	Interfaces   map[string]InterfaceDefinitionMap `yaml:"interfaces,omitempty"`
-	Artifacts    ArtifactDefinitionMap             `yaml:"artifacts,omitempty"`
+	Artifacts    map[string]ArtifactDefinition     `yaml:"artifacts,omitempty"`
 }

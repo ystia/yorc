@@ -1,6 +1,5 @@
 package tosca
 
-type ArtifactDefinitionMap map[string]ArtifactDefinition
 type ArtifactDefinition struct {
 	Type        string `yaml:"type"`
 	File        string `yaml:"file"`

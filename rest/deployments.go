@@ -320,7 +320,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 			}
 		}
 
-		artifactsPrefix := nodesTypesPrefix + "/artifacts"
+		artifactsPrefix := nodeTypePrefix + "/artifacts"
 		for artName, artDef := range nodeType.Artifacts {
 			artPrefix := artifactsPrefix + "/" + artName
 			storeConsulKey(kv, artPrefix+"/name", artName)
