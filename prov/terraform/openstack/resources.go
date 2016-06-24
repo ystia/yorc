@@ -12,6 +12,8 @@ type ComputeInstance struct {
 	AvailabilityZone string           `json:"availability_zone,omitempty"`
 	Networks         []ComputeNetwork `json:"network,omitempty"`
 	KeyPair          string           `json:"key_pair,omitempty"`
+
+	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
 }
 
 type ComputeNetwork struct {

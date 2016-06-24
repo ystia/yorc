@@ -2,6 +2,7 @@ package openstack
 
 import (
 	"fmt"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 )
 
 func (g *Generator) generateOSInstance(url string) (ComputeInstance, error) {
@@ -78,5 +79,17 @@ func (g *Generator) generateOSInstance(url string) (ComputeInstance, error) {
 			instance.Networks = networkSlice
 		}
 	}
+
+	var user string
+	if user, err = g.getStringFormConsul(url, "properties/user"); err != nil {
+		return ComputeInstance{}, err
+	} else if user == "" {
+		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'user' node type for %s", url)
+	}
+
+	// Do this in order to be sure that ansible will be able to log on the instance
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/cloudify.pem")}`}}
+	instance.Provisioners = make(map[string]interface{})
+	instance.Provisioners["remote-exec"] = re
 	return instance, nil
 }

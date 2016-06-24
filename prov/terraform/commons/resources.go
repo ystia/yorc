@@ -20,3 +20,20 @@ type ConsulKey struct {
 	Value   string `json:"value,omitempty"`
 	Delete  bool   `json:"delete,omitempty"`
 }
+
+type RemoteExec struct {
+	Connection Connection `json:"connection,omitempty"`
+	Inline     []string   `json:"inline,omitempty"`
+	Script     string     `json:"script,omitempty"`
+	Scripts    []string   `json:"scripts,omitempty"`
+}
+
+type Connection struct {
+	ConnType   string `json:"type,omitempty"`
+	User       string `json:"user,omitempty"`
+	Password   string `json:"password,omitempty"`
+	Host       string `json:"host,omitempty"`
+	Port       string `json:"port,omitempty"`
+	Timeout    string `json:"timeout,omitempty"` // defaults to "5m"
+	PrivateKey string `json:"private_key,omitempty"`
+}
