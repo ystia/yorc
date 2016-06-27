@@ -247,5 +247,3 @@ fi
 touch ${log_dir}/${LOG_FILE}.log
 exec > >(tee -a "${log_dir}/${LOG_FILE}.log") 2>&1
 
-# Exit on error
-set -e

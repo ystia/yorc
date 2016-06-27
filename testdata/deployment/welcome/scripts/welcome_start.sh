@@ -13,11 +13,11 @@ SAMPLEWEBSERVER_SRC=SampleWebServer.py
 SAMPLEWEBSERVER_LOGS=${scripts}/SampleWebServer.logs
 SAMPLEWEBSERVER_PID=${scripts}/SampleWebServer.pid
 
-
-. ${utils_scripts}/utils.sh
+source ${utils_scripts}/utils.sh
 
 echo "Start python ${scripts}/${SAMPLEWEBSERVER_SRC} on port ${PORT}"
 nohup python ${scripts}/${SAMPLEWEBSERVER_SRC} ${PORT} >> ${SAMPLEWEBSERVER_LOGS} 2>&1 &
 echo "$!" > ${SAMPLEWEBSERVER_PID}
 
 wait_for_port_to_be_open "127.0.0.1" "${PORT}"
+exit $?
