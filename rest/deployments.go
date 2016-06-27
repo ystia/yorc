@@ -29,7 +29,7 @@ func extractFile(f *zip.File, path string) {
 	}
 	defer fileReader.Close()
 
-	targetFile, err := os.OpenFile(path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC, f.Mode())
+	targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 	if err != nil {
 		log.Panic(err)
 	}
@@ -116,7 +116,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("%+v", topology)
 
-	storeConsulKey(s.consulClient.KV(), deployments.DeploymentKVPrefix + "/" + uuid + "/status", fmt.Sprint(deployments.INITIAL))
+	storeConsulKey(s.consulClient.KV(), deployments.DeploymentKVPrefix+"/"+uuid+"/status", fmt.Sprint(deployments.INITIAL))
 
 	s.storeDeploymentDefinition(topology, uuid)
 
@@ -144,7 +144,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 
 	kv := s.consulClient.KV()
-	result, _, err := kv.Get(deployments.DeploymentKVPrefix + "/" + id + "/status", nil)
+	result, _, err := kv.Get(deployments.DeploymentKVPrefix+"/"+id+"/status", nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -160,7 +160,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	kv := s.consulClient.KV()
-	depPaths, _, err := kv.Keys(deployments.DeploymentKVPrefix + "/", "/", nil)
+	depPaths, _, err := kv.Keys(deployments.DeploymentKVPrefix+"/", "/", nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -172,7 +172,7 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 	depCol := DeploymentsCollection{Deployments: make([]AtomLink, len(depPaths))}
 	for depIndex, depPath := range depPaths {
 		depId := strings.TrimRight(strings.TrimPrefix(depPath, deployments.DeploymentKVPrefix), "/ ")
-		link := newAtomLink(LINK_REL_DEPLOYMENT, "/deployments" + depId)
+		link := newAtomLink(LINK_REL_DEPLOYMENT, "/deployments"+depId)
 		depCol.Deployments[depIndex] = link
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -188,19 +188,19 @@ func storeConsulKey(kv *api.KV, key, value string) {
 }
 
 func storePropertyDefinition(kv *api.KV, propPrefix, propName string, propDefinition tosca.PropertyDefinition) {
-	storeConsulKey(kv, propPrefix + "/name", propName)
-	storeConsulKey(kv, propPrefix + "/description", propDefinition.Description)
-	storeConsulKey(kv, propPrefix + "/type", propDefinition.Type)
-	storeConsulKey(kv, propPrefix + "/default", propDefinition.Default)
-	storeConsulKey(kv, propPrefix + "/required", fmt.Sprint(propDefinition.Required))
+	storeConsulKey(kv, propPrefix+"/name", propName)
+	storeConsulKey(kv, propPrefix+"/description", propDefinition.Description)
+	storeConsulKey(kv, propPrefix+"/type", propDefinition.Type)
+	storeConsulKey(kv, propPrefix+"/default", propDefinition.Default)
+	storeConsulKey(kv, propPrefix+"/required", fmt.Sprint(propDefinition.Required))
 }
 
 func storeAttributeDefinition(kv *api.KV, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
-	storeConsulKey(kv, attrPrefix + "/name", attrName)
-	storeConsulKey(kv, attrPrefix + "/description", attrDefinition.Description)
-	storeConsulKey(kv, attrPrefix + "/type", attrDefinition.Type)
-	storeConsulKey(kv, attrPrefix + "/default", attrDefinition.Default)
-	storeConsulKey(kv, attrPrefix + "/status", attrDefinition.Status)
+	storeConsulKey(kv, attrPrefix+"/name", attrName)
+	storeConsulKey(kv, attrPrefix+"/description", attrDefinition.Description)
+	storeConsulKey(kv, attrPrefix+"/type", attrDefinition.Type)
+	storeConsulKey(kv, attrPrefix+"/default", attrDefinition.Default)
+	storeConsulKey(kv, attrPrefix+"/status", attrDefinition.Status)
 }
 
 func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
@@ -209,67 +209,67 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 	prefix := path.Join(deployments.DeploymentKVPrefix, id)
 	topologyPrefix := path.Join(prefix, "topology")
 
-	storeConsulKey(kv, topologyPrefix + "/tosca_version", topology.TOSCAVersion)
-	storeConsulKey(kv, topologyPrefix + "/description", topology.Description)
-	storeConsulKey(kv, topologyPrefix + "/name", topology.Name)
-	storeConsulKey(kv, topologyPrefix + "/version", topology.Version)
-	storeConsulKey(kv, topologyPrefix + "/author", topology.Author)
+	storeConsulKey(kv, topologyPrefix+"/tosca_version", topology.TOSCAVersion)
+	storeConsulKey(kv, topologyPrefix+"/description", topology.Description)
+	storeConsulKey(kv, topologyPrefix+"/name", topology.Name)
+	storeConsulKey(kv, topologyPrefix+"/version", topology.Version)
+	storeConsulKey(kv, topologyPrefix+"/author", topology.Author)
 	// TODO deal with imports
 
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
-		storeConsulKey(kv, nodePrefix + "/name", nodeName)
-		storeConsulKey(kv, nodePrefix + "/type", node.Type)
+		storeConsulKey(kv, nodePrefix+"/name", nodeName)
+		storeConsulKey(kv, nodePrefix+"/type", node.Type)
 		propertiesPrefix := nodePrefix + "/properties"
 		for propName, propValue := range node.Properties {
-			storeConsulKey(kv, propertiesPrefix + "/" + propName, fmt.Sprint(propValue))
+			storeConsulKey(kv, propertiesPrefix+"/"+propName, fmt.Sprint(propValue))
 		}
 		attributesPrefix := nodePrefix + "/attributes"
 		for attrName, attrValue := range node.Attributes {
-			storeConsulKey(kv, attributesPrefix + "/" + attrName, fmt.Sprint(attrValue))
+			storeConsulKey(kv, attributesPrefix+"/"+attrName, fmt.Sprint(attrValue))
 		}
 		capabilitiesPrefix := nodePrefix + "/capabilities"
 		for capName, capability := range node.Capabilities {
 			capabilityPrefix := capabilitiesPrefix + "/" + capName
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
-				storeConsulKey(kv, capabilityPropsPrefix + "/" + propName, fmt.Sprint(propValue))
+				storeConsulKey(kv, capabilityPropsPrefix+"/"+propName, fmt.Sprint(propValue))
 			}
 			capabilityAttrPrefix := capabilityPrefix + "/attributes"
 			for attrName, attrValue := range capability.Attributes {
-				storeConsulKey(kv, capabilityAttrPrefix + "/" + attrName, fmt.Sprint(attrValue))
+				storeConsulKey(kv, capabilityAttrPrefix+"/"+attrName, fmt.Sprint(attrValue))
 			}
 		}
 		requirementsPrefix := nodePrefix + "/requirements"
 		for _, reqValueMap := range node.Requirements {
 			for reqName, reqValue := range reqValueMap {
 				reqPrefix := requirementsPrefix + "/" + reqName
-				storeConsulKey(kv, reqPrefix + "/name", reqName)
-				storeConsulKey(kv, reqPrefix + "/node", reqValue.Node)
-				storeConsulKey(kv, reqPrefix + "/relationship", reqValue.Relationship)
-				storeConsulKey(kv, reqPrefix + "/capability", reqValue.Capability)
+				storeConsulKey(kv, reqPrefix+"/name", reqName)
+				storeConsulKey(kv, reqPrefix+"/node", reqValue.Node)
+				storeConsulKey(kv, reqPrefix+"/relationship", reqValue.Relationship)
+				storeConsulKey(kv, reqPrefix+"/capability", reqValue.Capability)
 			}
 		}
 		artifactsPrefix := nodePrefix + "/artifacts"
 		for artName, artDef := range node.Artifacts {
 			artPrefix := artifactsPrefix + "/" + artName
-			storeConsulKey(kv, artPrefix + "/name", artName)
-			storeConsulKey(kv, artPrefix + "/description", artDef.Description)
-			storeConsulKey(kv, artPrefix + "/file", artDef.File)
-			storeConsulKey(kv, artPrefix + "/type", artDef.Type)
-			storeConsulKey(kv, artPrefix + "/repository", artDef.Repository)
-			storeConsulKey(kv, artPrefix + "/deploy_path", artDef.DeployPath)
+			storeConsulKey(kv, artPrefix+"/name", artName)
+			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
+			storeConsulKey(kv, artPrefix+"/file", artDef.File)
+			storeConsulKey(kv, artPrefix+"/type", artDef.Type)
+			storeConsulKey(kv, artPrefix+"/repository", artDef.Repository)
+			storeConsulKey(kv, artPrefix+"/deploy_path", artDef.DeployPath)
 		}
 	}
 
 	nodesTypesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
 		nodeTypePrefix := nodesTypesPrefix + "/" + nodeTypeName
-		storeConsulKey(kv, nodeTypePrefix + "/name", nodeTypeName)
-		storeConsulKey(kv, nodeTypePrefix + "/derived_from", nodeType.DerivedFrom)
-		storeConsulKey(kv, nodeTypePrefix + "/description", nodeType.Description)
-		storeConsulKey(kv, nodeTypePrefix + "/version", nodeType.Version)
+		storeConsulKey(kv, nodeTypePrefix+"/name", nodeTypeName)
+		storeConsulKey(kv, nodeTypePrefix+"/derived_from", nodeType.DerivedFrom)
+		storeConsulKey(kv, nodeTypePrefix+"/description", nodeType.Description)
+		storeConsulKey(kv, nodeTypePrefix+"/version", nodeType.Version)
 		propertiesPrefix := nodeTypePrefix + "/properties"
 		for propName, propDefinition := range nodeType.Properties {
 			propPrefix := propertiesPrefix + "/" + propName
@@ -284,22 +284,22 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 		requirementsPrefix := nodeTypePrefix + "/requirements"
 		for reqName, reqDefinition := range nodeType.Requirements {
 			reqPrefix := requirementsPrefix + "/" + reqName
-			storeConsulKey(kv, reqPrefix + "/name", reqName)
-			storeConsulKey(kv, reqPrefix + "/node", reqDefinition.Node)
-			storeConsulKey(kv, reqPrefix + "/occurences", reqDefinition.Occurrences)
-			storeConsulKey(kv, reqPrefix + "/relationship", reqDefinition.Relationship)
-			storeConsulKey(kv, reqPrefix + "/capability", reqDefinition.Capability)
+			storeConsulKey(kv, reqPrefix+"/name", reqName)
+			storeConsulKey(kv, reqPrefix+"/node", reqDefinition.Node)
+			storeConsulKey(kv, reqPrefix+"/occurences", reqDefinition.Occurrences)
+			storeConsulKey(kv, reqPrefix+"/relationship", reqDefinition.Relationship)
+			storeConsulKey(kv, reqPrefix+"/capability", reqDefinition.Capability)
 		}
 
 		capabilitiesPrefix := nodeTypePrefix + "/capabilities"
 		for capName, capability := range nodeType.Capabilities {
 			capabilityPrefix := capabilitiesPrefix + "/" + capName
 
-			storeConsulKey(kv, capabilityPrefix + "/name", capName)
-			storeConsulKey(kv, capabilityPrefix + "/type", capability.Type)
-			storeConsulKey(kv, capabilityPrefix + "/description", capability.Description)
-			storeConsulKey(kv, capabilityPrefix + "/occurences", capability.Occurrences)
-			storeConsulKey(kv, capabilityPrefix + "/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
+			storeConsulKey(kv, capabilityPrefix+"/name", capName)
+			storeConsulKey(kv, capabilityPrefix+"/type", capability.Type)
+			storeConsulKey(kv, capabilityPrefix+"/description", capability.Description)
+			storeConsulKey(kv, capabilityPrefix+"/occurences", capability.Occurrences)
+			storeConsulKey(kv, capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
 				propPrefix := capabilityPropsPrefix + "/" + propName
@@ -316,29 +316,29 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 		for intTypeName, intMap := range nodeType.Interfaces {
 			for intName, intDef := range intMap {
 				intPrefix := path.Join(interfacesPrefix, intTypeName, intName)
-				storeConsulKey(kv, intPrefix + "/name", intName)
-				storeConsulKey(kv, intPrefix + "/description", intDef.Description)
+				storeConsulKey(kv, intPrefix+"/name", intName)
+				storeConsulKey(kv, intPrefix+"/description", intDef.Description)
 
 				for inputName, inputDef := range intDef.Inputs {
 					inputPrefix := path.Join(intPrefix, "inputs", inputName)
-					storeConsulKey(kv, inputPrefix + "/name", inputName)
-					storeConsulKey(kv, inputPrefix + "/expression", inputDef.String())
+					storeConsulKey(kv, inputPrefix+"/name", inputName)
+					storeConsulKey(kv, inputPrefix+"/expression", inputDef.String())
 				}
 
-				storeConsulKey(kv, intPrefix + "/implementation/primary", intDef.Implementation.Primary)
-				storeConsulKey(kv, intPrefix + "/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+				storeConsulKey(kv, intPrefix+"/implementation/primary", intDef.Implementation.Primary)
+				storeConsulKey(kv, intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
 			}
 		}
 
 		artifactsPrefix := nodeTypePrefix + "/artifacts"
 		for artName, artDef := range nodeType.Artifacts {
 			artPrefix := artifactsPrefix + "/" + artName
-			storeConsulKey(kv, artPrefix + "/name", artName)
-			storeConsulKey(kv, artPrefix + "/description", artDef.Description)
-			storeConsulKey(kv, artPrefix + "/file", artDef.File)
-			storeConsulKey(kv, artPrefix + "/type", artDef.Type)
-			storeConsulKey(kv, artPrefix + "/repository", artDef.Repository)
-			storeConsulKey(kv, artPrefix + "/deploy_path", artDef.DeployPath)
+			storeConsulKey(kv, artPrefix+"/name", artName)
+			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
+			storeConsulKey(kv, artPrefix+"/file", artDef.File)
+			storeConsulKey(kv, artPrefix+"/type", artDef.Type)
+			storeConsulKey(kv, artPrefix+"/repository", artDef.Repository)
+			storeConsulKey(kv, artPrefix+"/deploy_path", artDef.DeployPath)
 		}
 
 	}
@@ -348,15 +348,15 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 		workflowPrefix := workflowsPrefix + "/" + wfName
 		for stepName, step := range workflow.Steps {
 			stepPrefix := workflowPrefix + "/steps/" + stepName
-			storeConsulKey(kv, stepPrefix + "/node", step.Node)
+			storeConsulKey(kv, stepPrefix+"/node", step.Node)
 			if step.Activity.CallOperation != "" {
-				storeConsulKey(kv, stepPrefix + "/activity/operation", step.Activity.CallOperation)
+				storeConsulKey(kv, stepPrefix+"/activity/operation", step.Activity.CallOperation)
 			}
 			if step.Activity.Delegate != "" {
-				storeConsulKey(kv, stepPrefix + "/activity/delegate", step.Activity.Delegate)
+				storeConsulKey(kv, stepPrefix+"/activity/delegate", step.Activity.Delegate)
 			}
 			if step.Activity.SetState != "" {
-				storeConsulKey(kv, stepPrefix + "/activity/set-state", step.Activity.SetState)
+				storeConsulKey(kv, stepPrefix+"/activity/set-state", step.Activity.SetState)
 			}
 			for _, next := range step.OnSuccess {
 				storeConsulKey(kv, fmt.Sprintf("%s/next/%s", stepPrefix, next), "")
