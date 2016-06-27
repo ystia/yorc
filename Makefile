@@ -10,6 +10,10 @@ build: test
 	@go generate $(PACKAGES)
 	@go build
 
+dist: build
+	@echo "--> Creating an archive"
+	@tar czvf janus.tgz janus
+
 test:
 	@echo "--> Running go test"
 	@go test $(PACKAGES) $(TESTARGS) -timeout=30s -parallel=4
