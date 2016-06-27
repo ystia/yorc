@@ -78,8 +78,8 @@ func NewServer(client *api.Client) (*Server, error) {
 
 func (s *Server) registerHandlers() {
 	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler)
-	s.router.Post("/deployments", commonHandlers.Append(acceptHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
+	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
 	s.router.Delete("/deployments/:id", commonHandlers.ThenFunc(s.deleteDeploymentHandler))
-	s.router.Get("/deployments/:id", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.getDeploymentHandler))
-	s.router.Get("/deployments", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
+	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getDeploymentHandler))
+	s.router.Get("/deployments", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
 }

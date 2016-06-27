@@ -72,11 +72,11 @@ Deploy a first node
  
     cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus/testdata/deployment
     zip dep.zip dep.yaml
-    curl -X POST localhost:8800/deployments -v --data-binary @dep.zip -H "Accept: application/zip"
+    curl -X POST localhost:8800/deployments -v --data-binary @dep.zip -H "Content-Type: application/zip"
 
 The location header give the URI that should be used to get info on this particular deployment
 
 Check Deployment status
 
-    curl localhost:8800/deployments/<deployment_uuid> -v -H "Content-Type: application/json"
+    curl localhost:8800/deployments/<deployment_uuid> -v -H "Accept: application/json"
 
