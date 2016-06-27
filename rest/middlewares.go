@@ -51,7 +51,7 @@ func acceptHandler(cType string) func(http.Handler) http.Handler {
 func contentTypeHandler(cType string) func(http.Handler) http.Handler {
 	m := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Content-Type") != "application/json" {
+			if r.Header.Get("Content-Type") != cType {
 				WriteError(w, NewUnsupportedMediaTypeError(cType))
 				return
 			}
