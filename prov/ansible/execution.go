@@ -14,14 +14,25 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"text/template"
 )
 
 const ansible_playbook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
   tasks:
-    - script: "{{ script_to_run }}"
+    - file: path="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" state=directory mode=0755
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" mode=0744
+    [[[ range $artName, $art := .Artifacts -]]]
+    [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/.janus/%s/%s\"" $.OverlayPath $art $.NodeName $.Operation]]]
+    [[[end]]]
+    - shell: "{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]/[[[.BasePrimary]]]"
       environment:
+        [[[ range $index, $input := .Inputs -]]]
+        [[[print $input]]]
+        [[[end]]][[[ range $artName, $art := .Artifacts -]]]
+        [[[printf "%s: \"{{ ansible_env.HOME}}/.janus/%v/%v/%s\"" $artName $.NodeName $.Operation $art]]]
+        [[[end]]]
 `
 
 const ansible_config = `[defaults]
@@ -31,24 +42,27 @@ timeout=600
 
 type execution struct {
 	kv            *api.KV
-	deploymentId  string
-	nodeName      string
-	operation     string
-	nodeType      string
-	inputs        []string
-	primary       string
-	dependencies  []string
-	hosts         []string
-	operationPath string
-	nodePath      string
-	nodeTypePath  string
+	DeploymentId  string
+	NodeName      string
+	Operation     string
+	NodeType      string
+	Inputs        []string
+	Primary       string
+	BasePrimary   string
+	Dependencies  []string
+	Hosts         []string
+	OperationPath string
+	NodePath      string
+	NodeTypePath  string
+	Artifacts     map[string]string
+	OverlayPath   string
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
 	exec := &execution{kv: kv,
-		deploymentId: deploymentId,
-		nodeName:     nodeName,
-		operation:    operation}
+		DeploymentId: deploymentId,
+		NodeName:     nodeName,
+		Operation:    operation}
 	return exec, exec.resolveExecution()
 }
 
@@ -61,7 +75,7 @@ func (e *execution) resolveToscaFunction(function, nodePath, nodeTypePath string
 	if kvPair == nil {
 		// Look for a default in node type
 		// TODO deal with type inheritance
-		kvPair, _, err = e.kv.Get(e.nodeTypePath+"/"+function+"/"+params[1]+"/default", nil)
+		kvPair, _, err = e.kv.Get(e.NodeTypePath+"/"+function+"/"+params[1]+"/default", nil)
 		if err != nil {
 			return "", err
 		}
@@ -92,20 +106,20 @@ func (e *execution) resolveExpression(node *tosca.TreeNode) (string, error) {
 		}
 		switch params[0] {
 		case "SELF":
-			return e.resolveToscaFunction("properties", e.nodePath, e.nodeTypePath, params)
+			return e.resolveToscaFunction("properties", e.NodePath, e.NodeTypePath, params)
 		case "SOURCE", "TARGET", "HOST":
 			return "", fmt.Errorf("get_property on %q is not yet supported", params[0])
 		default:
-			nodePath := path.Join(deployments.DeploymentKVPrefix, e.deploymentId, "topology/nodes", params[0])
+			nodePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", params[0])
 			kvPair, _, err := e.kv.Get(nodePath+"/type", nil)
 			if err != nil {
 				return "", err
 			}
 			if kvPair == nil {
-				return "", fmt.Errorf("type for node %s in deployment %s is missing", params[0], e.deploymentId)
+				return "", fmt.Errorf("type for node %s in deployment %s is missing", params[0], e.DeploymentId)
 			}
 			nodeType := string(kvPair.Value)
-			nodeTypePath := path.Join(deployments.DeploymentKVPrefix, e.deploymentId, "topology/types", nodeType)
+			nodeTypePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", nodeType)
 			return e.resolveToscaFunction("properties", nodePath, nodeTypePath, params)
 		}
 	case "get_attribute":
@@ -114,20 +128,20 @@ func (e *execution) resolveExpression(node *tosca.TreeNode) (string, error) {
 		}
 		switch params[0] {
 		case "SELF":
-			return e.resolveToscaFunction("attributes", e.nodePath, e.nodeTypePath, params)
+			return e.resolveToscaFunction("attributes", e.NodePath, e.NodeTypePath, params)
 		case "SOURCE", "TARGET", "HOST":
 			return "", fmt.Errorf("get_attribute on %q is not yet supported", params[0])
 		default:
-			nodePath := path.Join(deployments.DeploymentKVPrefix, e.deploymentId, "topology/nodes", params[0])
+			nodePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", params[0])
 			kvPair, _, err := e.kv.Get(nodePath+"/type", nil)
 			if err != nil {
 				return "", err
 			}
 			if kvPair == nil {
-				return "", fmt.Errorf("type for node %s in deployment %s is missing", params[0], e.deploymentId)
+				return "", fmt.Errorf("type for node %s in deployment %s is missing", params[0], e.DeploymentId)
 			}
 			nodeType := string(kvPair.Value)
-			nodeTypePath := path.Join(deployments.DeploymentKVPrefix, e.deploymentId, "topology/types", nodeType)
+			nodeTypePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", nodeType)
 			return e.resolveToscaFunction("attributes", nodePath, nodeTypePath, params)
 		}
 	case "concat":
@@ -136,10 +150,46 @@ func (e *execution) resolveExpression(node *tosca.TreeNode) (string, error) {
 	return "", fmt.Errorf("Can't resolve expression %q", node.Value)
 }
 
+func (e *execution) resolveArtifacts() error {
+	log.Printf("Resolving artifacts")
+	artifacts := make(map[string]string)
+	// First resolve node type artifacts then node template artifact if the is a conflict then node template will have the precedence
+	// TODO deal with type inheritance
+	paths := []string{path.Join(e.NodePath, "artifacts"), path.Join(e.NodeTypePath, "artifacts")}
+	for _, apath := range paths {
+		artsPaths, _, err := e.kv.Keys(apath+"/", "/", nil)
+		if err != nil {
+			return err
+		}
+		for _, artPath := range artsPaths {
+			kvp, _, err := e.kv.Get(path.Join(artPath, "name"), nil)
+			if err != nil {
+				return err
+			}
+			if kvp == nil {
+				return fmt.Errorf("Missing mandatory key in consul %q", path.Join(artPath, "name"))
+			}
+			artName := string(kvp.Value)
+			kvp, _, err = e.kv.Get(path.Join(artPath, "file"), nil)
+			if err != nil {
+				return err
+			}
+			if kvp == nil {
+				return fmt.Errorf("Missing mandatory key in consul %q", path.Join(artPath, "file"))
+			}
+			artifacts[artName] = string(kvp.Value)
+		}
+	}
+
+	e.Artifacts = artifacts
+	log.Printf("Resolved artifacts: %v", e.Artifacts)
+	return nil
+}
+
 func (e *execution) resolveInputs() error {
 	log.Printf("resolving inputs")
 	inputs := make([]string, 0)
-	inputKeys, _, err := e.kv.Keys(e.operationPath+"/inputs/", "/", nil)
+	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
 	if err != nil {
 		return err
 	}
@@ -167,9 +217,9 @@ func (e *execution) resolveInputs() error {
 		}
 		inputs = append(inputs, inputName+": "+inputValue)
 	}
-	e.inputs = inputs
+	e.Inputs = inputs
 
-	log.Printf("Resolved inputs: %v", e.inputs)
+	log.Printf("Resolved inputs: %v", e.Inputs)
 	return nil
 }
 
@@ -192,66 +242,74 @@ func (e *execution) resolveHosts(nodePath string) error {
 		if kvPair == nil {
 			return fmt.Errorf("can't resolve attribute ip_address no more host to inspect")
 		}
-		return e.resolveHosts(path.Join(deployments.DeploymentKVPrefix, e.deploymentId, "topology/nodes", string(kvPair.Value)))
+		return e.resolveHosts(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", string(kvPair.Value)))
 	}
-	e.hosts = append(hosts, string(kvPair.Value))
-	log.Printf("Resolved hosts: %v", e.hosts)
+	e.Hosts = append(hosts, string(kvPair.Value))
+	log.Printf("Resolved hosts: %v", e.Hosts)
 	return nil
 }
 
 func (e *execution) resolveExecution() error {
-	log.Printf("Resolving execution for deployment %q / node %q / operation %q", e.deploymentId, e.nodeName, e.operation)
-	e.nodePath = path.Join(deployments.DeploymentKVPrefix, e.deploymentId, "topology/nodes", e.nodeName)
+	log.Printf("Resolving execution for deployment %q / node %q / operation %q", e.DeploymentId, e.NodeName, e.Operation)
+	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.DeploymentId, "overlay"))
+	if err != nil {
+		return err
+	}
+	e.OverlayPath = ovPath
+	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
 
-	kvPair, _, err := e.kv.Get(e.nodePath+"/type", nil)
+	kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
 	if err != nil {
 		return err
 	}
 	if kvPair == nil {
-		return fmt.Errorf("type for node %s in deployment %s is missing", e.nodeName, e.deploymentId)
+		return fmt.Errorf("type for node %s in deployment %s is missing", e.NodeName, e.DeploymentId)
 	}
 
-	e.nodeType = string(kvPair.Value)
+	e.NodeType = string(kvPair.Value)
 	//TODO deal with inheritance operation may be not in the direct node type
-	e.nodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.deploymentId, "topology/types", e.nodeType)
+	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
 
-	e.operationPath = e.nodeTypePath + "/interfaces/" + strings.Replace(strings.TrimPrefix(e.operation, "tosca.interfaces.node.lifecycle."), ".", "/", -1)
-	log.Printf("Operation Path: %q", e.operationPath)
-	kvPair, _, err = e.kv.Get(e.operationPath+"/implementation/primary", nil)
+	e.OperationPath = e.NodeTypePath + "/interfaces/" + strings.Replace(strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle."), ".", "/", -1)
+	log.Printf("Operation Path: %q", e.OperationPath)
+	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/primary", nil)
 	if err != nil {
 		return err
 	}
 	if kvPair == nil {
-		return fmt.Errorf("primary implementation missing for type %s in deployment %s is missing", e.nodeType, e.deploymentId)
+		return fmt.Errorf("primary implementation missing for type %s in deployment %s is missing", e.NodeType, e.DeploymentId)
 	}
-	e.primary = string(kvPair.Value)
-	kvPair, _, err = e.kv.Get(e.operationPath+"/implementation/dependencies", nil)
+	e.Primary = string(kvPair.Value)
+	e.BasePrimary = path.Base(e.Primary)
+	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/dependencies", nil)
 	if err != nil {
 		return err
 	}
 	if kvPair == nil {
-		return fmt.Errorf("dependencies implementation missing for type %s in deployment %s is missing", e.nodeType, e.deploymentId)
+		return fmt.Errorf("dependencies implementation missing for type %s in deployment %s is missing", e.NodeType, e.DeploymentId)
 	}
-	e.dependencies = strings.Split(string(kvPair.Value), ",")
+	e.Dependencies = strings.Split(string(kvPair.Value), ",")
 
 	if err = e.resolveInputs(); err != nil {
 		return err
 	}
+	if err = e.resolveArtifacts(); err != nil {
+		return err
+	}
 
-	return e.resolveHosts(e.nodePath)
+	return e.resolveHosts(e.NodePath)
 }
 
 func (e *execution) execute() error {
 
-	ansibleRecipePath := filepath.Join("work", "deployments", e.deploymentId, "ansible", e.nodeName, e.operation)
-	overlayPath := filepath.Join("work", "deployments", e.deploymentId, "overlay")
+	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
 		log.Printf("%+v", err)
 		return err
 	}
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
-	for _, host := range e.hosts {
+	for _, host := range e.Hosts {
 		buffer.WriteString(host)
 		// TODO should not be hard-coded
 		buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/janus.pem\n")
@@ -261,12 +319,13 @@ func (e *execution) execute() error {
 		return err
 	}
 	buffer.Reset()
-	buffer.WriteString(ansible_playbook)
-	for _, input := range e.inputs {
-		buffer.WriteString("        ")
-		buffer.WriteString(input)
+	tmpl := template.New("execTemplate")
+	tmpl = tmpl.Delims("[[[", "]]]")
+	tmpl, err := tmpl.Parse(ansible_playbook)
+	if err := tmpl.Execute(&buffer, e); err != nil {
+		log.Printf("Failed to Generate ansible playbook template")
+		return err
 	}
-
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		log.Printf("Failed to write playbook file")
 		return err
@@ -276,11 +335,11 @@ func (e *execution) execute() error {
 		log.Printf("Failed to write ansible.cfg file")
 		return err
 	}
-	scriptPath, err := filepath.Abs(filepath.Join(overlayPath, e.primary))
+	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
 		return err
 	}
-	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.deploymentId, scriptPath)
+	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
 	cmd := exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	cmd.Dir = ansibleRecipePath
 	cmd.Stdout = os.Stdout
