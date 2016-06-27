@@ -1,4 +1,4 @@
-
+GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep
 
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 
@@ -35,5 +35,7 @@ vet:
 		echo "and fix them if necessary before submitting the code for reviewal."; \
 	fi
 
+tools:
+	go get -u -v $(GOTOOLS)
 
-.PHONY: cov test cover format vet
+.PHONY: cov test cover format vet tools
