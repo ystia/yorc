@@ -8,7 +8,7 @@ VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
 build: test
 	@echo "--> Running go build"
 	@go generate $(PACKAGES)
-	@go build
+	@CGO_ENABLED=0 go build
 
 dist: build
 	@echo "--> Creating an archive"

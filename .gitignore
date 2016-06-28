@@ -8,7 +8,7 @@ gen
 
 # Project specific
 work
-janus
+/janus
 /testdata/deployment/*.zip
 /testdata/deployment/*/*.zip
 /janus.tgz
