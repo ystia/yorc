@@ -7,7 +7,7 @@ RUN apk add --update ansible && \
     rm -rf /var/cache/apk/*
 
 RUN cd /tmp && \
-    wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
+    curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     cd /usr/local/bin && \
     unzip /tmp/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     addgroup janus && \
