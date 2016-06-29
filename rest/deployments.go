@@ -11,9 +11,9 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"os"
@@ -114,7 +114,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = yaml.Unmarshal(defBytes, &topology)
 
-	log.Printf("%+v", topology)
+	log.Debugf("%+v", topology)
 
 	storeConsulKey(s.consulClient.KV(), deployments.DeploymentKVPrefix+"/"+uuid+"/status", fmt.Sprint(deployments.INITIAL))
 

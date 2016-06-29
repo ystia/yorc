@@ -1,8 +1,8 @@
 package rest
 
 import (
-	"log"
 	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func loggingHandler(next http.Handler) http.Handler {
 		t1 := time.Now()
 		next.ServeHTTP(w, r)
 		t2 := time.Now()
-		log.Printf("[%s] %q %v\n", r.Method, r.URL.String(), t2.Sub(t1))
+		log.Debugf("[%s] %q %v\n", r.Method, r.URL.String(), t2.Sub(t1))
 	}
 
 	return http.HandlerFunc(fn)

@@ -3,8 +3,8 @@ package tasks
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
 	"path"
@@ -33,7 +33,7 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 
 func (w Worker) processStep(step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error) {
 	defer wg.Done()
-	log.Printf("Processing step %s", step.Name)
+	log.Debugf("Processing step %s", step.Name)
 	for _, activity := range step.Activities {
 		actType := activity.ActivityType()
 		switch {
@@ -80,13 +80,13 @@ func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
 		go w.processStep(step, deploymentId, &wg, errc)
 	}
 	wg.Wait()
-	log.Printf("All step done. Checking if there was an error")
+	log.Debugf("All step done. Checking if there was an error")
 	var err error
 	select {
 	case err = <-errc:
 	default:
 	}
-	log.Printf("Workflow ended with error: '%v'", err)
+	log.Debugf("Workflow ended with error: '%v'", err)
 	return err
 }
 

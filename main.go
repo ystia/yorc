@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/mitchellh/cli"
-	"log"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"

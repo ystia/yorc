@@ -3,7 +3,7 @@ package tosca
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"strings"
 	"sync"
 )
@@ -19,18 +19,18 @@ func (p ValueAssignment) String() string {
 func parseExprNode(value interface{}, t *TreeNode) error {
 	switch v := value.(type) {
 	case string:
-		log.Printf("Found string value %v %T", v, v)
+		log.Debugf("Found string value %v %T", v, v)
 		t.Add(v)
 	case []interface{}:
-		log.Printf("Found array value %v %T", v, v)
+		log.Debugf("Found array value %v %T", v, v)
 		for _, tabVal := range v {
-			log.Printf("Found sub expression node %v %T", tabVal, tabVal)
+			log.Debugf("Found sub expression node %v %T", tabVal, tabVal)
 			if err := parseExprNode(tabVal, t); err != nil {
 				return err
 			}
 		}
 	case map[interface{}]interface{}:
-		log.Printf("Found map value %v %T", v, v)
+		log.Debugf("Found map value %v %T", v, v)
 		c, err := parseExpression(v)
 		if err != nil {
 			return err
@@ -46,13 +46,13 @@ func parseExpression(e map[interface{}]interface{}) (*TreeNode, error) {
 	if len(e) != 1 {
 		return nil, fmt.Errorf("Expecting only one element in expression found %d", len(e))
 	}
-	log.Printf("parsing %+v", e)
+	log.Debugf("parsing %+v", e)
 	for key, value := range e {
 		keyS, ok := key.(string)
 		if !ok {
 			return nil, fmt.Errorf("Expecting a string for key element '%+v'", key)
 		}
-		log.Printf("Found expression node with name '%s' and value '%+v' (type '%T')", keyS, value, value)
+		log.Debugf("Found expression node with name '%s' and value '%+v' (type '%T')", keyS, value, value)
 		t := newTreeNode(keyS)
 		err := parseExprNode(value, t)
 		return t, err

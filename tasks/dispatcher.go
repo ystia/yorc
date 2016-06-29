@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"github.com/hashicorp/consul/api"
-	"log"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"
 	"time"
@@ -41,7 +41,7 @@ func (d *Dispatcher) Run() {
 		default:
 		}
 		q := &api.QueryOptions{WaitIndex: waitIndex}
-		log.Printf("Long pooling task list")
+		log.Debugf("Long pooling task list")
 		tasksKeys, rMeta, err := kv.Keys(tasksPrefix+"/", "/", q)
 		if err != nil {
 			log.Printf("Error getting tasks list: %+v", err)
@@ -53,13 +53,13 @@ func (d *Dispatcher) Run() {
 			continue
 		}
 		waitIndex = rMeta.LastIndex
-		log.Printf("Got response new wait index is %d", waitIndex)
+		log.Debugf("Got response new wait index is %d", waitIndex)
 		for _, taskKey := range tasksKeys {
-			log.Printf("Check if createLock exists for task %s", taskKey)
+			log.Debugf("Check if createLock exists for task %s", taskKey)
 			for {
 				if createLock, _, _ := kv.Get(taskKey+".createLock", nil); createLock != nil {
 					// Locked in creation let's it finish
-					log.Printf("CreateLock exists for task %s wait for few ms", taskKey)
+					log.Debugf("CreateLock exists for task %s wait for few ms", taskKey)
 					time.Sleep(100 * time.Millisecond)
 				} else {
 					break
@@ -80,7 +80,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			log.Printf("Try to acquire processing lock for task %s", taskKey)
+			log.Debugf("Try to acquire processing lock for task %s", taskKey)
 			opts := &api.LockOptions{
 				Key:          taskKey + ".processingLock",
 				Value:        []byte(nodeName),
@@ -98,10 +98,10 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 			if leaderChan == nil {
-				log.Printf("Another instance got the lock for key %s", taskKey)
+				log.Debugf("Another instance got the lock for key %s", taskKey)
 				continue
 			}
-			log.Printf("Got processing lock for task %s", taskKey)
+			log.Debugf("Got processing lock for task %s", taskKey)
 			// Got lock
 			kvPairContent, _, err = kv.Get(taskKey+"targetId", nil)
 			if err != nil {
@@ -130,7 +130,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			keyPath := strings.Split(taskKey, "/")
-			log.Printf("%+q", keyPath)
+			log.Debugf("%+q", keyPath)
 			var taskId string
 			for i := len(keyPath) - 1; i >= 0; i-- {
 				if keyPath[i] != "" {
@@ -139,8 +139,9 @@ func (d *Dispatcher) Run() {
 				}
 			}
 
+			log.Printf("Processing task %q linked to deployment %q", taskId, targetId)
 			task := NewTask(taskId, targetId, status, lock, kv, TaskType(taskType))
-			log.Printf("New task created %+v: pushing it to a work channel", task)
+			log.Debugf("New task created %+v: pushing it to a work channel", task)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle
 			select {

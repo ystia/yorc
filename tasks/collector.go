@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/satori/go.uuid"
-	"log"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 type Collector struct {
@@ -34,7 +34,7 @@ func (c *Collector) RegisterTask(targetId string, taskType TaskType) error {
 		return fmt.Errorf("Failed to acquire lock for task with id %s", taskId)
 	}
 	defer func() {
-		log.Printf("Unlocking newly created task with id %s", taskId)
+		log.Debugf("Unlocking newly created task with id %s", taskId)
 		if err := taskLock.Unlock(); err != nil {
 			log.Printf("Can't unlock createLock for task %s: %+v", taskId, err)
 		}

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"io/ioutil"
-	"log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"os"
 	"path"
@@ -28,17 +28,17 @@ func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error
 		return "", fmt.Errorf("Can't get property %s for node %s: %v", property, baseUrl, err)
 	}
 	if getResult == nil {
-		log.Printf("Can't get property %s for node %s (not found)", property, baseUrl)
+		log.Debugf("Can't get property %s for node %s (not found)", property, baseUrl)
 		return "", nil
 	}
 	return string(getResult.Value), nil
 }
 
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
-	log.Printf("Generating infrastructure for deployment with id %s", depId)
+	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
 	infrastructure := commons.Infrastructure{}
-	log.Printf("inspecting node %s", nodeKey)
+	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
 		log.Print(err)
@@ -92,7 +92,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
-		log.Printf("Failed to write file")
+		log.Print("Failed to write file")
 		return err
 	}
 

@@ -6,8 +6,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"os"
 	"os/exec"
@@ -87,7 +87,7 @@ func (e *execution) resolveToscaFunction(function, nodePath, nodeTypePath string
 }
 
 func (e *execution) resolveExpression(node *tosca.TreeNode) (string, error) {
-	log.Printf("Resolving expression %q", node.Value)
+	log.Debugf("Resolving expression %q", node.Value)
 	if node.IsLiteral() {
 		return node.Value, nil
 	}
@@ -151,7 +151,7 @@ func (e *execution) resolveExpression(node *tosca.TreeNode) (string, error) {
 }
 
 func (e *execution) resolveArtifacts() error {
-	log.Printf("Resolving artifacts")
+	log.Debugf("Resolving artifacts")
 	artifacts := make(map[string]string)
 	// First resolve node type artifacts then node template artifact if the is a conflict then node template will have the precedence
 	// TODO deal with type inheritance
@@ -182,12 +182,12 @@ func (e *execution) resolveArtifacts() error {
 	}
 
 	e.Artifacts = artifacts
-	log.Printf("Resolved artifacts: %v", e.Artifacts)
+	log.Debugf("Resolved artifacts: %v", e.Artifacts)
 	return nil
 }
 
 func (e *execution) resolveInputs() error {
-	log.Printf("resolving inputs")
+	log.Debug("resolving inputs")
 	inputs := make([]string, 0)
 	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
 	if err != nil {
@@ -219,14 +219,14 @@ func (e *execution) resolveInputs() error {
 	}
 	e.Inputs = inputs
 
-	log.Printf("Resolved inputs: %v", e.Inputs)
+	log.Debugf("Resolved inputs: %v", e.Inputs)
 	return nil
 }
 
 func (e *execution) resolveHosts(nodePath string) error {
 	// e.nodePath
-	log.Printf("Resolving hosts.")
-	log.Printf("ip_address kv path %s/capabilities/endpoint/attributes/ip_address", nodePath)
+	log.Debugf("Resolving hosts.")
+	log.Debugf("ip_address kv path %s/capabilities/endpoint/attributes/ip_address", nodePath)
 	hosts := make([]string, 0)
 	kvPair, _, err := e.kv.Get(nodePath+"/capabilities/endpoint/attributes/ip_address", nil)
 	if err != nil {
@@ -245,12 +245,12 @@ func (e *execution) resolveHosts(nodePath string) error {
 		return e.resolveHosts(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", string(kvPair.Value)))
 	}
 	e.Hosts = append(hosts, string(kvPair.Value))
-	log.Printf("Resolved hosts: %v", e.Hosts)
+	log.Debugf("Resolved hosts: %v", e.Hosts)
 	return nil
 }
 
 func (e *execution) resolveExecution() error {
-	log.Printf("Resolving execution for deployment %q / node %q / operation %q", e.DeploymentId, e.NodeName, e.Operation)
+	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.DeploymentId)
 	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.DeploymentId, "overlay"))
 	if err != nil {
 		return err
@@ -271,7 +271,7 @@ func (e *execution) resolveExecution() error {
 	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
 
 	e.OperationPath = e.NodeTypePath + "/interfaces/" + strings.Replace(strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle."), ".", "/", -1)
-	log.Printf("Operation Path: %q", e.OperationPath)
+	log.Debugf("Operation Path: %q", e.OperationPath)
 	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/primary", nil)
 	if err != nil {
 		return err
@@ -315,7 +315,7 @@ func (e *execution) execute() error {
 		buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/janus.pem\n")
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
-		log.Printf("Failed to write hosts file")
+		log.Print("Failed to write hosts file")
 		return err
 	}
 	buffer.Reset()
@@ -323,16 +323,16 @@ func (e *execution) execute() error {
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl, err := tmpl.Parse(ansible_playbook)
 	if err := tmpl.Execute(&buffer, e); err != nil {
-		log.Printf("Failed to Generate ansible playbook template")
+		log.Print("Failed to Generate ansible playbook template")
 		return err
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
-		log.Printf("Failed to write playbook file")
+		log.Print("Failed to write playbook file")
 		return err
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(ansible_config), 0664); err != nil {
-		log.Printf("Failed to write ansible.cfg file")
+		log.Print("Failed to write ansible.cfg file")
 		return err
 	}
 	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))

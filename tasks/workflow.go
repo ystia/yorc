@@ -3,7 +3,7 @@ package tasks
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"log"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"strings"
 )
 
@@ -105,10 +105,10 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		var nextStep *Step
 		nextStepName := strings.TrimPrefix(nextKV.Key, stepPrefix+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
-			log.Printf("Found existing step %s", nextStepName)
+			log.Debugf("Found existing step %s", nextStepName)
 			nextStep = visitStep.step
 		} else {
-			log.Printf("Reading new step %s from Consul", nextStepName)
+			log.Debugf("Reading new step %s from Consul", nextStepName)
 			nextStep, err = readStep(kv, stepsPrefix, nextStepName, visitedMap)
 			if err != nil {
 				return nil, err
@@ -117,7 +117,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 
 		step.Next = append(step.Next, nextStep)
 		visitedMap[nextStepName].refCount++
-		log.Printf("RefCount for step %s set to %d", nextStepName, visitedMap[nextStepName].refCount)
+		log.Debugf("RefCount for step %s set to %d", nextStepName, visitedMap[nextStepName].refCount)
 	}
 	visitedMap[stepName] = &visitStep{refCount: 0, step: step}
 	return step, nil
