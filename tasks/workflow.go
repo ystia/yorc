@@ -3,8 +3,13 @@ package tasks
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
+	"path"
 	"strings"
+	"sync"
 )
 
 type Step struct {
@@ -12,6 +17,8 @@ type Step struct {
 	Node       string
 	Activities []Activity
 	Next       []*Step
+	Previous   []*Step
+	NotifyChan chan struct{}
 }
 
 type Activity interface {
@@ -61,6 +68,59 @@ type visitStep struct {
 	step     *Step
 }
 
+func (s *Step) run(deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}) {
+
+	defer wg.Done()
+
+	for i := 0; i < len(s.Previous); i++ {
+		// Wait for previous be done
+		select {
+		case <-s.NotifyChan:
+			log.Debugf("Step %q caught a notification", s.Name)
+		case <-shutdownChan:
+			log.Printf("Step %q cancelled", s.Name)
+			return
+		}
+	}
+
+	log.Debugf("Processing step %s", s.Name)
+	for _, activity := range s.Activities {
+		actType := activity.ActivityType()
+		switch {
+		case actType == "delegate":
+			provisioner := terraform.NewExecutor(kv)
+			delegateOp := activity.ActivityValue()
+			switch delegateOp {
+			case "install":
+				if err := provisioner.ProvisionNode(deploymentId, s.Node); err != nil {
+					log.Printf("Sending error %v to error channel", err)
+					errc <- err
+					return
+				}
+			case "uninstall":
+				if err := provisioner.DestroyNode(deploymentId, s.Node); err != nil {
+					errc <- err
+					return
+				}
+			default:
+				errc <- fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
+				return
+			}
+		case actType == "set-state":
+			kv.Put(&api.KVPair{Key: path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", s.Node, "status"), Value: []byte(activity.ActivityValue())}, nil)
+		case actType == "call-operation":
+			exec := ansible.NewExecutor(kv)
+			if err := exec.ExecOperation(deploymentId, s.Node, activity.ActivityValue()); err != nil {
+				errc <- err
+				return
+			}
+		}
+	}
+	for _, next := range s.Next {
+		next.NotifyChan <- struct{}{}
+	}
+}
+
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
 	stepPrefix := stepsPrefix + stepName
 	step := &Step{Name: stepName}
@@ -95,12 +155,14 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 			return nil, fmt.Errorf("Unsupported activity type: %s", key)
 		}
 	}
+	step.NotifyChan = make(chan struct{})
 
 	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
 	if err != nil {
 		return nil, err
 	}
 	step.Next = make([]*Step, 0)
+	step.Previous = make([]*Step, 0)
 	for _, nextKV := range kvPairs {
 		var nextStep *Step
 		nextStepName := strings.TrimPrefix(nextKV.Key, stepPrefix+"/next/")
@@ -116,6 +178,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		}
 
 		step.Next = append(step.Next, nextStep)
+		nextStep.Previous = append(nextStep.Previous, step)
 		visitedMap[nextStepName].refCount++
 		log.Debugf("RefCount for step %s set to %d", nextStepName, visitedMap[nextStepName].refCount)
 	}

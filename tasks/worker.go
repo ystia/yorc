@@ -5,8 +5,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
 	"path"
 	"sync"
 )
@@ -31,53 +29,29 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
-func (w Worker) processStep(step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error) {
-	defer wg.Done()
-	log.Debugf("Processing step %s", step.Name)
-	for _, activity := range step.Activities {
-		actType := activity.ActivityType()
-		switch {
-		case actType == "delegate":
-			provisioner := terraform.NewExecutor(w.consulClient.KV())
-			delegateOp := activity.ActivityValue()
-			switch delegateOp {
-			case "install":
-				if err := provisioner.ProvisionNode(deploymentId, step.Node); err != nil {
-					log.Printf("Sending error %v to error channel", err)
-					errc <- err
-					return
-				}
-			case "uninstall":
-				if err := provisioner.DestroyNode(deploymentId, step.Node); err != nil {
-					errc <- err
-					return
-				}
-			default:
-				errc <- fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, step.Name)
-				return
-			}
-		case actType == "set-state":
-			w.consulClient.KV().Put(&api.KVPair{Key: path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", step.Node, "status"), Value: []byte(activity.ActivityValue())}, nil)
-		case actType == "call-operation":
-			exec := ansible.NewExecutor(w.consulClient.KV())
-			if err := exec.ExecOperation(deploymentId, step.Node, activity.ActivityValue()); err != nil {
-				errc <- err
-				return
-			}
-		}
+func (w Worker) runStep(step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, runningSteps map[string]struct{}) {
+	if _, ok := runningSteps[step.Name]; ok {
+		// Already running
+		log.Debugf("step %q already running", step.Name)
+		return
 	}
+	log.Debugf("Running step %q", step.Name)
+	runningSteps[step.Name] = struct{}{}
+	wg.Add(1)
+	go step.run(deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh)
 	for _, next := range step.Next {
-		wg.Add(1)
-		go w.processStep(next, deploymentId, wg, errc)
+		log.Debugf("Try run next step %q", next.Name)
+		w.runStep(next, deploymentId, wg, errc, runningSteps)
 	}
 }
 
 func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
 	var wg sync.WaitGroup
+	runningSteps := make(map[string]struct{})
 	errc := make(chan error)
 	for _, step := range wfRoots {
 		wg.Add(1)
-		go w.processStep(step, deploymentId, &wg, errc)
+		go w.runStep(step, deploymentId, &wg, errc, runningSteps)
 	}
 	wg.Wait()
 	log.Debugf("All step done. Checking if there was an error")
