@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	std = slog.New(os.Stdout, "", slog.LstdFlags)
+	std   = slog.New(os.Stdout, "", slog.LstdFlags)
 	debug = false
 	mutex sync.Mutex
 )
@@ -59,7 +59,7 @@ func SetPrefix(prefix string) {
 // Print calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Print.
 func Print(v ...interface{}) {
-	a := make([]interface{}, len(v) + 1)
+	a := make([]interface{}, len(v)+1)
 	a[0] = "[INFO] "
 	std.Print(append(a, v...))
 }
@@ -67,51 +67,51 @@ func Print(v ...interface{}) {
 // Printf calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Printf.
 func Printf(format string, v ...interface{}) {
-	std.Printf("[INFO]  " + format, v...)
+	std.Printf("[INFO]  "+format, v...)
 }
 
 // Println calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Println.
 func Println(v ...interface{}) {
-	a := make([]interface{}, len(v) + 1)
+	a := make([]interface{}, len(v)+1)
 	a[0] = "[INFO] "
 	std.Println(append(a, v...))
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
-	a := make([]interface{}, len(v) + 1)
+	a := make([]interface{}, len(v)+1)
 	a[0] = "[FATAL]"
 	std.Fatal(append(a, v...))
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
 func Fatalf(format string, v ...interface{}) {
-	std.Fatalf("[FATAL] " + format, v...)
+	std.Fatalf("[FATAL] "+format, v...)
 }
 
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
 func Fatalln(v ...interface{}) {
-	a := make([]interface{}, len(v) + 1)
+	a := make([]interface{}, len(v)+1)
 	a[0] = "[FATAL]"
 	std.Fatalln(append(a, v...))
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
 func Panic(v ...interface{}) {
-	a := make([]interface{}, len(v) + 1)
+	a := make([]interface{}, len(v)+1)
 	a[0] = "[PANIC]"
 	std.Panic(append(a, v...))
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
 func Panicf(format string, v ...interface{}) {
-	std.Printf("[PANIC] " + format, v...)
+	std.Printf("[PANIC] "+format, v...)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
 func Panicln(v ...interface{}) {
-	a := make([]interface{}, len(v) + 1)
+	a := make([]interface{}, len(v)+1)
 	a[0] = "[PANIC]"
 	std.Panicln(append(a, v...))
 }
@@ -124,14 +124,14 @@ func Panicln(v ...interface{}) {
 // if Llongfile or Lshortfile is set; a value of 1 will print the details
 // for the caller of Output.
 func Output(calldepth int, s string) error {
-	return std.Output(calldepth + 1, "[INFO] " + s) // +1 for this frame.
+	return std.Output(calldepth+1, "[INFO] "+s) // +1 for this frame.
 }
 
 // Print calls Output to print to the standard logger if debug is enable.
 // Arguments are handled in the manner of fmt.Print.
 func Debug(v ...interface{}) {
 	if debug {
-		a := make([]interface{}, len(v) + 1)
+		a := make([]interface{}, len(v)+1)
 		a[0] = "[DEBUG]"
 		std.Print(append(a, v...))
 	}
@@ -142,7 +142,7 @@ func Debug(v ...interface{}) {
 // Arguments are handled in the manner of fmt.Printf.
 func Debugf(format string, v ...interface{}) {
 	if debug {
-		std.Printf("[DEBUG] " + format, v...)
+		std.Printf("[DEBUG] "+format, v...)
 	}
 }
 
@@ -150,7 +150,7 @@ func Debugf(format string, v ...interface{}) {
 // Arguments are handled in the manner of fmt.Println.
 func Debugln(v ...interface{}) {
 	if debug {
-		a := make([]interface{}, len(v) + 1)
+		a := make([]interface{}, len(v)+1)
 		a[0] = "[DEBUG]"
 		std.Println(append(a, v...))
 	}
