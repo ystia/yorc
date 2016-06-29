@@ -10,4 +10,4 @@ do
 done
 
 cd /var/janus
-exec s6-setuidgid janus /usr/local/bin/janus server;
+exec s6-setuidgid janus env HOME=/var/janus /bin/bash --login -c "/usr/local/bin/janus server";

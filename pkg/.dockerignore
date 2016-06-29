@@ -33,6 +33,4 @@ _testmain.go
 out
 gen
 
-### Project specific
-/docker_build.sh
 
