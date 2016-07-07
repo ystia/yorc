@@ -3,9 +3,15 @@ package openstack
 import (
 	"fmt"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"path"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"gopkg.in/yaml.v2"
+	"time"
 )
 
-func (g *Generator) generateOSInstance(url string) (ComputeInstance, error) {
+func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstance, error) {
 	var nodeType string
 	var err error
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
@@ -85,6 +91,49 @@ func (g *Generator) generateOSInstance(url string) (ComputeInstance, error) {
 		return ComputeInstance{}, err
 	} else if user == "" {
 		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'user' node type for %s", url)
+	}
+
+	storagePrefix := path.Join(url, "requirements", "local_storage")
+	if volumeNodeName, err := g.getStringFormConsul(storagePrefix, "node"); err != nil {
+		return ComputeInstance{}, err
+	} else if volumeNodeName != "" {
+		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
+		var device string
+		if device, err = g.getStringFormConsul(storagePrefix, "properties/location"); err != nil {
+			return ComputeInstance{}, err
+		}
+		if device != "" {
+			resolver := deployments.NewResolver(g.kv, deploymentId, url, nodeType)
+			expr := tosca.ValueAssignment{}
+			if err := yaml.Unmarshal([]byte(device), &expr); err != nil {
+				return ComputeInstance{}, err
+			}
+			if device, err = resolver.ResolveExpression(expr.Expression); err != nil {
+				return ComputeInstance{}, err
+			}
+		}
+		var volumeId string
+		resultChan := make(chan string, 1)
+		go func() {
+			for {
+				log.Debugf("Looking for volume_id")
+				// ignore errors and retry
+				if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "properties/volume_id"), nil); kp != nil {
+					if dId := string(kp.Value); dId != "" {
+						resultChan <- dId
+						return
+					}
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}()
+		// TODO add a cancellation signal
+		select {
+		case volumeId = <- resultChan:
+		}
+
+		vol := Volume{VolumeId: volumeId, Device:device}
+		instance.Volumes = []Volume{vol}
 	}
 
 	// Do this in order to be sure that ansible will be able to log on the instance

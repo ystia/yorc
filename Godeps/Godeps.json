@@ -5,6 +5,8 @@
 	"Packages": [
 		"novaforge.bull.com/starlings-janus/janus",
 		"novaforge.bull.com/starlings-janus/janus/deployments",
+		"novaforge.bull.com/starlings-janus/janus/helper/mathutil",
+		"novaforge.bull.com/starlings-janus/janus/log",
 		"novaforge.bull.com/starlings-janus/janus/prov/ansible",
 		"novaforge.bull.com/starlings-janus/janus/prov/terraform",
 		"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons",
@@ -25,6 +27,10 @@
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/dustin/go-humanize",
+			"Rev": "fef948f2d241bd1fd0631108ecc2c9553bae60bf"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",

@@ -13,7 +13,14 @@ type ComputeInstance struct {
 	Networks         []ComputeNetwork `json:"network,omitempty"`
 	KeyPair          string           `json:"key_pair,omitempty"`
 
-	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
+	Provisioners     map[string]interface{} `json:"provisioner,omitempty"`
+
+	Volumes          []Volume          `json:"volume,omitempty"`
+}
+
+type Volume struct {
+	VolumeId string    `json:"volume_id"`
+	Device   string    `json:"device,omitempty"`
 }
 
 type ComputeNetwork struct {
@@ -23,4 +30,12 @@ type ComputeNetwork struct {
 	FixedIpV4     string `json:"fixed_ip_v4,omitempty"`
 	FloatingIp    string `json:"floating_ip,omitempty"`
 	AccessNetwork string `json:"access_network,omitempty"`
+}
+
+type BlockStorageVolume struct {
+	Region           string   `json:"region"`
+	Size             int         `json:"size"`
+	Name             string     `json:"name,omitempty"`
+	Description      string     `json:"description,omitempty"`
+	AvailabilityZone string           `json:"availability_zone,omitempty"`
 }

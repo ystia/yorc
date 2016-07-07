@@ -22,7 +22,7 @@ func NewGenerator(kv *api.KV) *Generator {
 }
 
 func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error) {
-	getResult, _, err := g.kv.Get(baseUrl+"/"+property, nil)
+	getResult, _, err := g.kv.Get(baseUrl + "/" + property, nil)
 	if err != nil {
 		log.Printf("Can't get property %s for node %s", property, baseUrl)
 		return "", fmt.Errorf("Can't get property %s for node %s: %v", property, baseUrl, err)
@@ -34,12 +34,32 @@ func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error
 	return string(getResult.Value), nil
 }
 
+func addResource(infrastructure *commons.Infrastructure, resourceType, resourceName string, resource interface{}) {
+	if len(infrastructure.Resource) != 0 {
+		if infrastructure.Resource[resourceType] != nil && len(infrastructure.Resource[resourceType].(map[string]interface{})) != 0 {
+			resourcesMap := infrastructure.Resource[resourceType].(map[string]interface{})
+			resourcesMap[resourceName] = resource
+		} else {
+			resourcesMap := make(map[string]interface{})
+			resourcesMap[resourceName] = resource
+			infrastructure.Resource[resourceType] = resourcesMap
+		}
+
+	} else {
+		resourcesMap := make(map[string]interface{})
+		infrastructure.Resource = resourcesMap
+		resourcesMap = make(map[string]interface{})
+		resourcesMap[resourceName] = resource
+		infrastructure.Resource[resourceType] = resourcesMap
+	}
+}
+
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
 	infrastructure := commons.Infrastructure{}
 	log.Debugf("inspecting node %s", nodeKey)
-	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
+	kvPair, _, err := g.kv.Get(nodeKey + "/type", nil)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -47,39 +67,25 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	nodeType := string(kvPair.Value)
 	switch nodeType {
 	case "janus.nodes.openstack.Compute":
-		compute, err := g.generateOSInstance(nodeKey)
+		compute, err := g.generateOSInstance(nodeKey, depId)
 		if err != nil {
 			return err
 		}
-		if len(infrastructure.Resource) != 0 {
-			if infrastructure.Resource["openstack_compute_instance_v2"] != nil && len(infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})) != 0 {
-				osInstancesMap := infrastructure.Resource["openstack_compute_instance_v2"].(map[string]interface{})
-				osInstancesMap[compute.Name] = compute
-			} else {
-				osInstancesMap := make(map[string]interface{})
-				osInstancesMap[compute.Name] = compute
-				infrastructure.Resource["openstack_compute_instance_v2"] = osInstancesMap
-			}
-
-		} else {
-			resourceMap := make(map[string]interface{})
-			infrastructure.Resource = resourceMap
-			osInstancesMap := make(map[string]interface{})
-			osInstancesMap[compute.Name] = compute
-			infrastructure.Resource["openstack_compute_instance_v2"] = osInstancesMap
-		}
+		addResource(&infrastructure, "openstack_compute_instance_v2", compute.Name, &compute)
 
 		consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-		if infrastructure.Resource["consul_keys"] != nil && len(infrastructure.Resource["consul_keys"].(map[string]interface{})) != 0 {
-			consulKeysMap := infrastructure.Resource["consul_keys"].(map[string]interface{})
-			consulKeysMap[compute.Name] = consulKeys
-		} else {
-			consulKeysMap := make(map[string]interface{})
-			consulKeysMap[compute.Name] = consulKeys
-			infrastructure.Resource["consul_keys"] = consulKeysMap
+		addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
+	case "janus.nodes.openstack.BlockStorage":
+		bsvol, err := g.generateOSBSVolume(nodeKey)
+		if err != nil {
+			return err
 		}
 
+		addResource(&infrastructure, "openstack_blockstorage_volume_v1", nodeName, &bsvol)
+		consulKey := commons.ConsulKey{Name: nodeName + "-bsVolumeID", Path: nodeKey + "/properties/volume_id", Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", nodeName)}
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 	default:
 		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}

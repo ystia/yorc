@@ -66,90 +66,6 @@ func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execut
 	return exec, exec.resolveExecution()
 }
 
-func (e *execution) resolveToscaFunction(function, nodePath, nodeTypePath string, params []string) (string, error) {
-
-	kvPair, _, err := e.kv.Get(nodePath+"/"+function+"/"+params[1], nil)
-	if err != nil {
-		return "", err
-	}
-	if kvPair == nil {
-		// Look for a default in node type
-		// TODO deal with type inheritance
-		kvPair, _, err = e.kv.Get(e.NodeTypePath+"/"+function+"/"+params[1]+"/default", nil)
-		if err != nil {
-			return "", err
-		}
-		if kvPair == nil || string(kvPair.Value) == "" {
-			return "", fmt.Errorf("Can't retrieve %s %q for type %q either in node definition or node type default", function, params[1], params[0])
-		}
-	}
-	return string(kvPair.Value), nil
-}
-
-func (e *execution) resolveExpression(node *tosca.TreeNode) (string, error) {
-	log.Debugf("Resolving expression %q", node.Value)
-	if node.IsLiteral() {
-		return node.Value, nil
-	}
-	params := make([]string, 0)
-	for _, child := range node.Children() {
-		exp, err := e.resolveExpression(child)
-		if err != nil {
-			return "", err
-		}
-		params = append(params, exp)
-	}
-	switch node.Value {
-	case "get_property":
-		if len(params) != 2 {
-			return "", fmt.Errorf("get_property on requirement or capabability or in nested property is not yet supported")
-		}
-		switch params[0] {
-		case "SELF":
-			return e.resolveToscaFunction("properties", e.NodePath, e.NodeTypePath, params)
-		case "SOURCE", "TARGET", "HOST":
-			return "", fmt.Errorf("get_property on %q is not yet supported", params[0])
-		default:
-			nodePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", params[0])
-			kvPair, _, err := e.kv.Get(nodePath+"/type", nil)
-			if err != nil {
-				return "", err
-			}
-			if kvPair == nil {
-				return "", fmt.Errorf("type for node %s in deployment %s is missing", params[0], e.DeploymentId)
-			}
-			nodeType := string(kvPair.Value)
-			nodeTypePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", nodeType)
-			return e.resolveToscaFunction("properties", nodePath, nodeTypePath, params)
-		}
-	case "get_attribute":
-		if len(params) != 2 {
-			return "", fmt.Errorf("get_attribute on requirement or capabability or in nested property is not yet supported")
-		}
-		switch params[0] {
-		case "SELF":
-			return e.resolveToscaFunction("attributes", e.NodePath, e.NodeTypePath, params)
-		case "SOURCE", "TARGET", "HOST":
-			return "", fmt.Errorf("get_attribute on %q is not yet supported", params[0])
-		default:
-			nodePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", params[0])
-			kvPair, _, err := e.kv.Get(nodePath+"/type", nil)
-			if err != nil {
-				return "", err
-			}
-			if kvPair == nil {
-				return "", fmt.Errorf("type for node %s in deployment %s is missing", params[0], e.DeploymentId)
-			}
-			nodeType := string(kvPair.Value)
-			nodeTypePath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", nodeType)
-			return e.resolveToscaFunction("attributes", nodePath, nodeTypePath, params)
-		}
-	case "concat":
-		return strings.Join(params, ""), nil
-	}
-	return "", fmt.Errorf("Can't resolve expression %q", node.Value)
-}
-
 func (e *execution) resolveArtifacts() error {
 	log.Debugf("Resolving artifacts")
 	artifacts := make(map[string]string)
@@ -188,6 +104,7 @@ func (e *execution) resolveArtifacts() error {
 
 func (e *execution) resolveInputs() error {
 	log.Debug("resolving inputs")
+	resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
 	inputs := make([]string, 0)
 	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
 	if err != nil {
@@ -211,7 +128,7 @@ func (e *execution) resolveInputs() error {
 		}
 		va := tosca.ValueAssignment{}
 		yaml.Unmarshal(kvPair.Value, &va)
-		inputValue, err := e.resolveExpression(va.Expression)
+		inputValue, err := resolver.ResolveExpression(va.Expression)
 		if err != nil {
 			return err
 		}
