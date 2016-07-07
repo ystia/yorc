@@ -119,6 +119,7 @@ func (s *Step) run(deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc cha
 	for _, next := range s.Next {
 		next.NotifyChan <- struct{}{}
 	}
+	log.Debugf("Step %s done without error.", s.Name)
 }
 
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*Step, error) {

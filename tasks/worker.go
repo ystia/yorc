@@ -37,11 +37,11 @@ func (w Worker) runStep(step *Step, deploymentId string, wg *sync.WaitGroup, err
 	}
 	log.Debugf("Running step %q", step.Name)
 	runningSteps[step.Name] = struct{}{}
-	wg.Add(1)
 	go step.run(deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh)
 	for _, next := range step.Next {
+		wg.Add(1)
 		log.Debugf("Try run next step %q", next.Name)
-		w.runStep(next, deploymentId, wg, errc, runningSteps)
+		go w.runStep(next, deploymentId, wg, errc, runningSteps)
 	}
 }
 
