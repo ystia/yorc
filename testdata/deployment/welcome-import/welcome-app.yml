@@ -1,0 +1,138 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+description: Alien4Cloud generated service template
+template_name: Test
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - welcome/welcome-types.yml
+
+topology_template:
+  node_templates:
+    Welcome:
+      type: starlings.samples.nodes.Welcome
+      properties:
+        component_version: "2.1-SNAPSHOT"
+        port: 8111
+      requirements:
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Compute:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: cloudify
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          node: Compute
+          activity:
+            delegate: install
+          on-success:
+            - Welcome_initial
+        Welcome_initial:
+          node: Welcome
+          activity:
+            set_state: initial
+          on-success:
+            - Welcome_creating
+        Welcome_creating:
+          node: Welcome
+          activity:
+            set_state: creating
+          on-success:
+            - Welcome_created
+        Welcome_created:
+          node: Welcome
+          activity:
+            set_state: created
+          on-success:
+            - Welcome_configuring
+        Welcome_configuring:
+          node: Welcome
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Welcome
+        configure_Welcome:
+          node: Welcome
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Welcome_configured
+        Welcome_configured:
+          node: Welcome
+          activity:
+            set_state: configured
+          on-success:
+            - Welcome_starting
+        Welcome_starting:
+          node: Welcome
+          activity:
+            set_state: starting
+          on-success:
+            - start_Welcome
+        start_Welcome:
+          node: Welcome
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Welcome_started
+        Welcome_started:
+          node: Welcome
+          activity:
+            set_state: started
+    uninstall:
+      steps:
+        Compute_uninstall:
+          node: Compute
+          activity:
+            delegate: uninstall
+        Welcome_stopping:
+          node: Welcome
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Welcome
+        stop_Welcome:
+          node: Welcome
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Welcome_stopped
+        Welcome_stopped:
+          node: Welcome
+          activity:
+            set_state: stopped
+          on-success:
+            - Welcome_deleting
+        Welcome_deleting:
+          node: Welcome
+          activity:
+            set_state: deleting
+          on-success:
+            - Welcome_deleted
+        Welcome_deleted:
+          node: Welcome
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
