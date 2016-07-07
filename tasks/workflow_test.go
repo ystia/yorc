@@ -8,7 +8,7 @@ import (
 )
 
 func TestReadStepFromConsulFailing(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
@@ -31,7 +31,7 @@ func TestReadStepFromConsulFailing(t *testing.T) {
 }
 
 func TestReadStepFromConsul(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
@@ -69,7 +69,7 @@ func TestReadStepFromConsul(t *testing.T) {
 }
 
 func TestReadStepWithNext(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
@@ -110,7 +110,7 @@ func TestReadStepWithNext(t *testing.T) {
 }
 
 func TestReadWorkFlowFromConsul(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
