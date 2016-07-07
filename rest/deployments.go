@@ -249,6 +249,9 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 				storeConsulKey(kv, reqPrefix+"/node", reqValue.Node)
 				storeConsulKey(kv, reqPrefix+"/relationship", reqValue.Relationship)
 				storeConsulKey(kv, reqPrefix+"/capability", reqValue.Capability)
+				for propName, propValue := range reqValue.RelationshipProps {
+					storeConsulKey(kv, reqPrefix + "/properties/" + propName, fmt.Sprint(propValue))
+				}
 			}
 		}
 		artifactsPrefix := nodePrefix + "/artifacts"

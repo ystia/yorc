@@ -10,10 +10,16 @@ type RequirementDefinition struct {
 
 type RequirementAssignmentMap map[string]RequirementAssignment
 type RequirementAssignment struct {
-	Capability   string `yaml:"capability"`
-	Node         string `yaml:"node,omitempty"`
-	Relationship string `yaml:"relationship,omitempty"`
+	Capability        string `yaml:"capability"`
+	Node              string `yaml:"node,omitempty"`
+	Relationship      string `yaml:"relationship,omitempty"`
+	RelationshipProps map[string]ValueAssignment
 	// NodeFilter
+}
+
+type RequirementRelationship struct {
+	Type       string `yaml:"type"`
+	Properties map[string]ValueAssignment      `yaml:"properties,omitempty"`
 }
 
 func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -29,11 +35,24 @@ func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error)
 		Relationship string `yaml:"relationship,omitempty"`
 	}
 
-	if err := unmarshal(&ra); err != nil {
+	if err := unmarshal(&ra); err == nil {
+		r.Capability = ra.Capability
+		r.Node = ra.Node
+		r.Relationship = ra.Relationship
+		return nil
+	}
+
+	var rac struct {
+		Capability   string `yaml:"capability"`
+		Node         string `yaml:"node,omitempty"`
+		Relationship RequirementRelationship `yaml:"relationship,omitempty"`
+	}
+	if err := unmarshal(&rac); err != nil {
 		return err
 	}
-	r.Capability = ra.Capability
-	r.Node = ra.Node
-	r.Relationship = ra.Relationship
+	r.Capability = rac.Capability
+	r.Node = rac.Node
+	r.Relationship = rac.Relationship.Type
+	r.RelationshipProps = rac.Relationship.Properties
 	return nil
 }
