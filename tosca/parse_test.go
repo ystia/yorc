@@ -36,7 +36,8 @@ func TestParsing(t *testing.T) {
 	assert.Equal(t, "admin", topology.Author)
 
 	assert.Len(t, topology.Imports, 1)
-	assert.Equal(t, "tosca-normative-types:1.0.0-ALIEN11", topology.Imports[0])
+	importDefMap := topology.Imports[0]
+	assert.Equal(t, "1.0.0-ALIEN11", importDefMap["tosca-normative-types"].File)
 
 	//Check topology template
 	topologyTemplate := topology.TopologyTemplate
