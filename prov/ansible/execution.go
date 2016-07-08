@@ -24,7 +24,7 @@ const ansible_playbook = `
     - file: path="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" state=directory mode=0755
     - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
-    [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/.janus/%s/%s\"" $.OverlayPath $art $.NodeName $.Operation]]]
+    [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/.janus/%s/%s/%s\"" $.OverlayPath $art $.NodeName $.Operation (path $art)]]]
     [[[end]]]
     - shell: "{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]/[[[.BasePrimary]]]"
       environment:
@@ -236,8 +236,13 @@ func (e *execution) execute() error {
 		return err
 	}
 	buffer.Reset()
+	funcMap := template.FuncMap{
+		// The name "path" is what the function will be called in the template text.
+		"path": filepath.Dir,
+	}
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
+	tmpl = tmpl.Funcs(funcMap)
 	tmpl, err := tmpl.Parse(ansible_playbook)
 	if err := tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
