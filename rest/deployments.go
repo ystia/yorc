@@ -118,7 +118,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	storeConsulKey(s.consulClient.KV(), deployments.DeploymentKVPrefix+"/"+uuid+"/status", fmt.Sprint(deployments.INITIAL))
 
-	s.storeDeploymentDefinition(topology, uuid)
+	s.storeDeploymentDefinition(topology, uuid, false, "")
 
 	if err := s.tasksCollector.RegisterTask(uuid, tasks.DEPLOY); err != nil {
 		log.Panic(err)
@@ -203,7 +203,7 @@ func storeAttributeDefinition(kv *api.KV, attrPrefix, attrName string, attrDefin
 	storeConsulKey(kv, attrPrefix+"/status", attrDefinition.Status)
 }
 
-func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
+func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, imports bool, pathImport string) {
 	// Get a handle to the KV API
 	kv := s.consulClient.KV()
 	prefix := path.Join(deployments.DeploymentKVPrefix, id)
@@ -214,7 +214,28 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 	storeConsulKey(kv, topologyPrefix+"/name", topology.Name)
 	storeConsulKey(kv, topologyPrefix+"/version", topology.Version)
 	storeConsulKey(kv, topologyPrefix+"/author", topology.Author)
-	// TODO deal with imports
+	// Imports
+	log.Debug(topology.Imports)
+	for _, element := range topology.Imports  {
+		for _, value := range element {
+			topology := tosca.Topology{}
+
+			uploadFile := filepath.Join("work", "deployments", id, "overlay", value.File)
+
+			definition, err := os.Open(uploadFile)
+			if err != nil {
+				panic(err)
+			}
+
+			defBytes, err := ioutil.ReadAll(definition)
+
+			err = yaml.Unmarshal(defBytes, &topology)
+
+			log.Debugf("%+v", topology)
+
+			s.storeDeploymentDefinition(topology, id, true, filepath.Dir(value.File))
+		}
+	}
 
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
@@ -259,7 +280,11 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 			artPrefix := artifactsPrefix + "/" + artName
 			storeConsulKey(kv, artPrefix+"/name", artName)
 			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
-			storeConsulKey(kv, artPrefix+"/file", artDef.File)
+			if imports {
+				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport,artDef.File))
+			} else {
+				storeConsulKey(kv, artPrefix+"/file", artDef.File)
+			}
 			storeConsulKey(kv, artPrefix+"/type", artDef.Type)
 			storeConsulKey(kv, artPrefix+"/repository", artDef.Repository)
 			storeConsulKey(kv, artPrefix+"/deploy_path", artDef.DeployPath)
@@ -327,8 +352,11 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 					storeConsulKey(kv, inputPrefix+"/name", inputName)
 					storeConsulKey(kv, inputPrefix+"/expression", inputDef.String())
 				}
-
-				storeConsulKey(kv, intPrefix+"/implementation/primary", intDef.Implementation.Primary)
+				if imports {
+					storeConsulKey(kv, intPrefix+"/implementation/primary", filepath.Join(pathImport,intDef.Implementation.Primary))
+				} else {
+					storeConsulKey(kv, intPrefix+"/implementation/primary", intDef.Implementation.Primary)
+				}
 				storeConsulKey(kv, intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
 			}
 		}
@@ -338,7 +366,11 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string) {
 			artPrefix := artifactsPrefix + "/" + artName
 			storeConsulKey(kv, artPrefix+"/name", artName)
 			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
-			storeConsulKey(kv, artPrefix+"/file", artDef.File)
+			if imports {
+				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport,artDef.File))
+			} else {
+				storeConsulKey(kv, artPrefix+"/file", artDef.File)
+			}
 			storeConsulKey(kv, artPrefix+"/type", artDef.Type)
 			storeConsulKey(kv, artPrefix+"/repository", artDef.Repository)
 			storeConsulKey(kv, artPrefix+"/deploy_path", artDef.DeployPath)
