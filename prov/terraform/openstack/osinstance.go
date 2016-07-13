@@ -141,5 +141,30 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	instance.Provisioners = make(map[string]interface{})
 	instance.Provisioners["remote-exec"] = re
+
+	floatingIPPrefix := path.Join(url, "requirements", "network")
+	if networkNodeName, err := g.getStringFormConsul(floatingIPPrefix, "node"); err != nil {
+		return ComputeInstance{}, err
+	} else if networkNodeName != "" {
+		log.Debugf("Looking for Floating IP")
+		var floatingIP string
+		resultChan := make(chan string, 1)
+		go func() {
+			for {
+				if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
+					if dId := string(kp.Value); dId != "" {
+						resultChan <- dId
+						return
+					}
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}()
+		select {
+		case floatingIP = <- resultChan:
+		}
+		instance.FloatingIp = floatingIP
+	}
+
 	return instance, nil
 }

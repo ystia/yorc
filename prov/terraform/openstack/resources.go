@@ -39,3 +39,7 @@ type BlockStorageVolume struct {
 	Description      string     `json:"description,omitempty"`
 	AvailabilityZone string           `json:"availability_zone,omitempty"`
 }
+
+type FloatingIP struct {
+	Pool 		string `json:"pool,omitempty"`
+}

@@ -39,3 +39,16 @@ node_types:
       utils_scripts:
         file: utils_scripts
         type: tosca.artifacts.File
+  janus.nodes.openstack.FloatIP:
+    derived_from: tosca.nodes.Root
+    description: Nodes used to connect to Network
+    properties:
+      floating_network_name:
+        required: true
+        type: string
+      ip:
+        required: false
+        type: string
+
+
+
