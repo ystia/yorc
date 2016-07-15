@@ -34,8 +34,8 @@ type ComputeNetwork struct {
 
 type BlockStorageVolume struct {
 	Region           string   `json:"region"`
-	Size             int         `json:"size"`
-	Name             string     `json:"name,omitempty"`
-	Description      string     `json:"description,omitempty"`
-	AvailabilityZone string           `json:"availability_zone,omitempty"`
+	Size             int      `json:"size"`
+	Name             string   `json:"name,omitempty"`
+	Description      string   `json:"description,omitempty"`
+	AvailabilityZone string   `json:"availability_zone,omitempty"`
 }

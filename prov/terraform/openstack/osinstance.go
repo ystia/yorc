@@ -7,13 +7,18 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"novaforge.bull.com/starlings-janus/janus/commands"
 	"gopkg.in/yaml.v2"
 	"time"
 )
 
+
 func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstance, error) {
 	var nodeType string
 	var err error
+
+	PREFIX := viper.GetString("TF_VAR_prefix")
+
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return ComputeInstance{}, err
 	}
@@ -24,48 +29,48 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	if nodeName, err := g.getStringFormConsul(url, "name"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.Name = nodeName
+		instance.Name = PREFIX+nodeName
 	}
 	if image, err := g.getStringFormConsul(url, "properties/image"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.ImageId = image
+		instance.ImageId = PREFIX+image
 	}
 	if image, err := g.getStringFormConsul(url, "properties/imageName"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.ImageName = image
+		instance.ImageName = PREFIX+image
 	}
 	if flavor, err := g.getStringFormConsul(url, "properties/flavor"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.FlavorId = flavor
+		instance.FlavorId = PREFIX+flavor
 	}
 	if flavor, err := g.getStringFormConsul(url, "properties/flavorName"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.FlavorName = flavor
+		instance.FlavorName = PREFIX+flavor
 	}
 
 	if az, err := g.getStringFormConsul(url, "properties/availability_zone"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.AvailabilityZone = az
+		instance.AvailabilityZone = PREFIX+az
 	}
 	if region, err := g.getStringFormConsul(url, "properties/region"); err != nil {
 		return ComputeInstance{}, err
 	} else if region != "" {
-		instance.Region = region
+		instance.Region = PREFIX+region
 	} else {
 		//TODO make this configurable
-		instance.Region = "RegionOne"
+		instance.Region = PREFIX+"RegionOne"
 	}
 
 	if keyPair, err := g.getStringFormConsul(url, "properties/key_pair"); err != nil {
 		return ComputeInstance{}, err
 	} else {
 		// TODO if empty use a default one or fail ?
-		instance.KeyPair = keyPair
+		instance.KeyPair = PREFIX+keyPair
 	}
 
 	if instance.ImageId == "" && instance.ImageName == "" {
@@ -82,7 +87,7 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 			// TODO Deal with networks aliases (PUBLIC/PRIVATE)
 			var networkSlice []ComputeNetwork
 			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName})
-			instance.Networks = networkSlice
+			instance.Networks = PREFIX+networkSlice
 		}
 	}
 
