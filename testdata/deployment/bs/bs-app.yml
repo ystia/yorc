@@ -11,6 +11,7 @@ topology_template:
       properties:
         size: 2 GiB
         availability_zone: r423-03.share.ops
+        deletable: true
       requirements:
         - attachment:
             node: Compute
