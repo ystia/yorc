@@ -77,6 +77,12 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
 	case "janus.nodes.openstack.BlockStorage":
+		if volumeId, err := g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
+			return err
+		} else if volumeId != "" {
+			log.Debugf("Reusing existing volume with id %q for node %q", volumeId, nodeName)
+			return nil
+		}
 		bsvol, err := g.generateOSBSVolume(nodeKey)
 		if err != nil {
 			return err
