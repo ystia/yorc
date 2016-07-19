@@ -6,6 +6,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/slurm"
 	"os"
 	"os/exec"
 	"path"
@@ -40,6 +41,11 @@ func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
 	switch {
 	case strings.HasPrefix(nodeType, "janus.nodes.openstack."):
 		osGenerator := openstack.NewGenerator(e.kv)
+		if err := osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
+			return err
+		}
+	case strings.HasPrefix(nodeType, "janus.nodes.slurm."):
+		osGenerator := slurm.NewGenerator(e.kv)
 		if err := osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
 			return err
 		}
