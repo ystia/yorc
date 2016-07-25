@@ -54,10 +54,6 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 	}
 }
 
-func (g *Generator) generateFloatingIPRessource(pool string) FloatingIP {
-	return FloatingIP{Pool:pool}
-}
-
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
