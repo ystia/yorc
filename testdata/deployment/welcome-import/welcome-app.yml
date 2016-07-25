@@ -117,6 +117,10 @@ topology_template:
             set_state: started
     uninstall:
       steps:
+        Network_unistall:
+         node: Network
+         activity:
+            delegate: uninstall
         Compute_uninstall:
           node: Compute
           activity:
