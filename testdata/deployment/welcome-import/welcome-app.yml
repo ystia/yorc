@@ -125,6 +125,8 @@ topology_template:
           node: Compute
           activity:
             delegate: uninstall
+          on-success:
+            - Network_unistall
         Welcome_stopping:
           node: Welcome
           activity:
