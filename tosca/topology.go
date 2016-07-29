@@ -10,6 +10,8 @@ type Topology struct {
 	Imports      []ImportMap `yaml:"imports,omitempty"`
 
 	NodeTypes        map[string]NodeType `yaml:"node_types,omitempty"`
+	RelationshipTypes map[string]RelationshipType `yaml:"relationship_types,omitempty"`
+
 	TopologyTemplate TopologyTemplate    `yaml:"topology_template"`
 }
 
