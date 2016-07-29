@@ -291,9 +291,9 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		}
 	}
 
-	nodesTypesPrefix := path.Join(topologyPrefix, "types")
+	typesPrefix := path.Join(topologyPrefix, "types")
 	for nodeTypeName, nodeType := range topology.NodeTypes {
-		nodeTypePrefix := nodesTypesPrefix + "/" + nodeTypeName
+		nodeTypePrefix := typesPrefix + "/" + nodeTypeName
 		storeConsulKey(kv, nodeTypePrefix+"/name", nodeTypeName)
 		storeConsulKey(kv, nodeTypePrefix+"/derived_from", nodeType.DerivedFrom)
 		storeConsulKey(kv, nodeTypePrefix+"/description", nodeType.Description)
@@ -374,6 +374,51 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			storeConsulKey(kv, artPrefix+"/type", artDef.Type)
 			storeConsulKey(kv, artPrefix+"/repository", artDef.Repository)
 			storeConsulKey(kv, artPrefix+"/deploy_path", artDef.DeployPath)
+		}
+
+	}
+
+	for relationName, relationType := range topology.RelationshipTypes{
+		relationTypePrefix := typesPrefix + "/" + relationName
+		storeConsulKey(kv, relationTypePrefix+"/name", relationName)
+		storeConsulKey(kv, relationTypePrefix+"/derived_from", relationType.DerivedFrom)
+		storeConsulKey(kv, relationTypePrefix+"/description", relationType.Description)
+		storeConsulKey(kv, relationTypePrefix+"/version", relationType.Version)
+		propertiesPrefix := relationTypePrefix + "/properties"
+		for propName, propDefinition := range relationType.Properties {
+			propPrefix := propertiesPrefix + "/" + propName
+			storePropertyDefinition(kv, propPrefix, propName, propDefinition)
+		}
+		attributesPrefix := relationTypePrefix + "/attributes"
+		for attrName, attrDefinition := range relationType.Attributes {
+			attrPrefix := attributesPrefix + "/" + attrName
+			storeAttributeDefinition(kv, attrPrefix, attrName, attrDefinition)
+		}
+
+		interfacesPrefix := relationTypePrefix + "/interfaces"
+		for intTypeName, intMap := range relationType.Interfaces {
+			for intName, intDef := range intMap {
+				intPrefix := path.Join(interfacesPrefix, intTypeName, intName)
+				storeConsulKey(kv, intPrefix+"/name", intName)
+				storeConsulKey(kv, intPrefix+"/description", intDef.Description)
+
+				for inputName, inputDef := range intDef.Inputs {
+					inputPrefix := path.Join(intPrefix, "inputs", inputName)
+					storeConsulKey(kv, inputPrefix+"/name", inputName)
+					storeConsulKey(kv, inputPrefix+"/expression", inputDef.String())
+				}
+				if imports {
+					storeConsulKey(kv, intPrefix+"/implementation/primary", filepath.Join(pathImport,intDef.Implementation.Primary))
+				} else {
+					storeConsulKey(kv, intPrefix+"/implementation/primary", intDef.Implementation.Primary)
+				}
+				storeConsulKey(kv, intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+			}
+		}
+		stringByte := "\x00" + strings.Join(relationType.ValidTargetTypes, ", ")
+		p := &api.KVPair{Key: relationTypePrefix+"/valid_target_type" , Value: []byte(stringByte)}
+		if _, err := kv.Put(p, nil); err != nil {
+			log.Panic(err)
 		}
 
 	}
