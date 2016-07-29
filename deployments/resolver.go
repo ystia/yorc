@@ -152,7 +152,7 @@ func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
 		case "SELF":
 			return r.ResolveToscaFunction("attributes", r.nodePath, r.nodeTypePath, params)
 		case "HOST":
-			return r.ResolveHost("properties", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveHost("attributes", r.nodePath, r.nodeTypePath, params)
 		case "SOURCE", "TARGET":
 			return "", fmt.Errorf("get_attribute on %q is not yet supported", params[0])
 		default:
