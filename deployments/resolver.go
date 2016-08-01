@@ -8,6 +8,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"github.com/hashicorp/consul/api"
 	"path/filepath"
+	"errors"
 )
 
 type Resolver struct {
@@ -41,7 +42,7 @@ func (r *Resolver) ResolveToscaFunction(function, nodePath, nodeTypePath string,
 	return string(kvPair.Value), nil
 }
 
-func (r *Resolver) isDerivedOfHostedOn(typePath string) (bool) {
+func (r *Resolver) isDerivedOf(connection string, typePath string) (bool) {
 
 	result := false
 
@@ -52,10 +53,10 @@ func (r *Resolver) isDerivedOfHostedOn(typePath string) (bool) {
 		return result
 	}
 
-	if string(kvPair.Value) != "tosca.relationships.HostedOn" {
+	if string(kvPair.Value) != "tosca.relationships." + connection {
 		typePath = filepath.Join(filepath.Dir(typePath),string(kvPair.Value))
-		return r.isDerivedOfHostedOn(typePath)
-	} else if string(kvPair.Value) == "tosca.relationships.HostedOn" {
+		return r.isDerivedOf(connection,typePath)
+	} else if string(kvPair.Value) == "tosca.relationships." + connection {
 		result = true
 	}
 
@@ -90,7 +91,7 @@ func (r *Resolver) ResolveHost(function string, nodePath string, nodeTypePath st
 			} else {
 				splittedTypePath := strings.Split(nodeTypePath,"/")
 				nodeTypePath2 := strings.Replace(nodeTypePath,splittedTypePath[len(splittedTypePath)-1],string(kvPair.Value),-1)
-				if !r.isDerivedOfHostedOn(nodeTypePath2) {
+				if !r.isDerivedOf("HostedOn", nodeTypePath2) {
 					continue
 				} else {
 					kvPair, _, _ := r.kv.Get(nodePath + "/requirements/" + splitedPath[len(splitedPath)-2] + "/node", nil)
@@ -104,6 +105,58 @@ func (r *Resolver) ResolveHost(function string, nodePath string, nodeTypePath st
 	}
 
 	return r.ResolveToscaFunction(function, nodePath, nodeTypePath, params)
+}
+
+func (r *Resolver) ResolveSourceOrTarget(position string, function string, nodePath string, nodeTypePath string, params []string) (string, error){
+
+	kvPair, _, err := r.kv.Keys(nodePath + "/requirements/", "", nil)
+
+	if err != nil {
+		return "", err
+	}
+
+	splitedPath2 := strings.Split(nodePath, "/")
+
+	for _,path := range kvPair {
+		if strings.HasSuffix(path,"relationship") {
+			splitedPath := strings.Split(path, "/")
+			suffix := splitedPath[len(splitedPath)-2] + "/" + splitedPath[len(splitedPath)-1]
+			kvPair, _, err := r.kv.Get(nodePath + "/requirements/" + suffix, nil)
+
+			if err != nil {
+				return "",err
+			}
+
+			if string(kvPair.Value) == "tosca.relationships.ConnectsTo" {
+
+				if position == "source"{
+					return r.ResolveToscaFunction(function, nodePath, nodeTypePath, params)
+				} else if position == "target" {
+					kvPair, _, _ := r.kv.Get(nodePath + "/requirements/" + splitedPath[len(splitedPath)-2]  + "/node", nil)
+					nodePath = strings.Replace(nodePath,splitedPath2[len(splitedPath2)-1],string(kvPair.Value),-1)
+					return r.ResolveToscaFunction(function, nodePath, nodeTypePath, params)
+				}
+
+			} else {
+				splittedTypePath := strings.Split(nodeTypePath,"/")
+				nodeTypePath2 := strings.Replace(nodeTypePath,splittedTypePath[len(splittedTypePath)-1],string(kvPair.Value),-1)
+				if !r.isDerivedOf("ConnectsTo", nodeTypePath2) {
+					continue
+				} else {
+					if position == "source"{
+						return r.ResolveToscaFunction(function, nodePath, nodeTypePath, params)
+					} else if position == "target" {
+						kvPair, _, _ := r.kv.Get(nodePath + "/requirements/" + splitedPath[len(splitedPath)-2]  + "/node", nil)
+						nodePath = strings.Replace(nodePath,splitedPath2[len(splitedPath2)-1],string(kvPair.Value),-1)
+						return r.ResolveToscaFunction(function, nodePath, nodeTypePath, params)
+					}
+				}
+			}
+		}
+
+	}
+
+	return "", errors.New("Not found")
 }
 
 func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
@@ -129,8 +182,10 @@ func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
 			return r.ResolveToscaFunction("properties", r.nodePath, r.nodeTypePath, params)
 		case "HOST":
 			return r.ResolveHost("properties", r.nodePath, r.nodeTypePath, params)
-		case "SOURCE", "TARGET":
-			return "", fmt.Errorf("get_property on %q is not yet supported", params[0])
+		case "SOURCE":
+			return r.ResolveSourceOrTarget("source","properties", r.nodePath, r.nodeTypePath, params)
+		case "TARGET":
+			return r.ResolveSourceOrTarget("target","properties", r.nodePath, r.nodeTypePath, params)
 		default:
 			nodePath := path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", params[0])
 			kvPair, _, err := r.kv.Get(nodePath + "/type", nil)
@@ -153,8 +208,10 @@ func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
 			return r.ResolveToscaFunction("attributes", r.nodePath, r.nodeTypePath, params)
 		case "HOST":
 			return r.ResolveHost("attributes", r.nodePath, r.nodeTypePath, params)
-		case "SOURCE", "TARGET":
-			return "", fmt.Errorf("get_attribute on %q is not yet supported", params[0])
+		case "SOURCE":
+			return r.ResolveSourceOrTarget("source","attributes", r.nodePath, r.nodeTypePath, params)
+		case "TARGET":
+			return r.ResolveSourceOrTarget("target","attributes", r.nodePath, r.nodeTypePath, params)
 		default:
 			nodePath := path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", params[0])
 			kvPair, _, err := r.kv.Get(nodePath + "/type", nil)
