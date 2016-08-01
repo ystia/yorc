@@ -2,7 +2,7 @@ package openstack
 
 import "fmt"
 
-func (g *Generator) generateFloatIP(url string) (string, error, bool) {
+func (g *Generator) generateFloatingIP(url string) (string, error, bool) {
 	var ret string
 	var nodeType string
 	var err error
@@ -10,7 +10,7 @@ func (g *Generator) generateFloatIP(url string) (string, error, bool) {
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return "", err, isIp
 	}
-	if nodeType != "janus.nodes.openstack.FloatIP" {
+	if nodeType != "janus.nodes.openstack.FloatingIP" {
 		return "", fmt.Errorf("Unsupported node type for %s: %s", url, nodeType), isIp
 	}
 	if networkName, err := g.getStringFormConsul(url, "properties/floating_network_name"); err != nil {
