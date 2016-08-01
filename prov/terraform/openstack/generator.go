@@ -94,16 +94,16 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
-	case "janus.nodes.openstack.FloatIP":
-		floatIPString, err, isIp := g.generateFloatIP(nodeKey)
+	case "janus.nodes.openstack.FloatingIP":
+		floatingIPString, err, isIp := g.generateFloatingIP(nodeKey)
 		if err != nil {
 			return  err
 		}
 
 		consulKey := commons.ConsulKey{}
 		if !isIp {
-			floatIP := FloatingIP{Pool: floatIPString}
-			addResource(&infrastructure, "openstack_compute_floatingip_v2", nodeName, &floatIP)
+			floatingIP := FloatingIP{Pool: floatingIPString}
+			addResource(&infrastructure, "openstack_compute_floatingip_v2", nodeName, &floatingIP)
 			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", nodeName)}
 		} else {
 			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatIPString }
