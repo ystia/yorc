@@ -76,6 +76,23 @@ func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
 
 }
 func (e *defaultExecutor) destroyInfrastructure(depId, nodeName string) error {
+	nodePath := path.Join(deployments.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
+	if kp, _, err := e.kv.Get(nodePath + "/type", nil); err != nil {
+		return err
+	} else if kp == nil {
+		return fmt.Errorf("Can't retrieve node type for node %q, in deployment %q", nodeName, depId)
+	} else {
+		if string(kp.Value) == "janus.nodes.openstack.BlockStorage" {
+			if kp, _, err = e.kv.Get(nodePath + "/properties/deletable", nil); err != nil {
+				return err
+			} else if kp == nil || strings.ToLower(string(kp.Value)) != "true" {
+				// False by default
+				log.Printf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
+				return nil
+			}
+		}
+	}
+
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.Command("terraform", "destroy", "-force")
 	cmd.Dir = infraPath

@@ -5,7 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
-  - tosca-normative-types:1.0.0-ALIEN11
+  - tosca-normative-types: 1.0.0-ALIEN11
 
 node_types:
   starlings.samples.nodes.Welcome:

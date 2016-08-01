@@ -4,6 +4,7 @@
 	"GodepVersion": "v74",
 	"Packages": [
 		"novaforge.bull.com/starlings-janus/janus",
+		"novaforge.bull.com/starlings-janus/janus/commands",
 		"novaforge.bull.com/starlings-janus/janus/deployments",
 		"novaforge.bull.com/starlings-janus/janus/helper/mathutil",
 		"novaforge.bull.com/starlings-janus/janus/log",
@@ -153,6 +154,14 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "a83829b6f1293c91addabc89d0571c246397bbf4"
+		},
+		{
+			"ImportPath": "github.com/spf13/cobra",
+			"Rev": "f62e98d28ab7ad31d707ba837a966378465c7b57"
+		},
+		{
+			"ImportPath": "github.com/spf13/viper",
+			"Rev": "b53595fb56a492ecef90ee0457595a999eb6ec15"
 		}
 	]
 }

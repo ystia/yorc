@@ -23,26 +23,38 @@ var serverCmd = &cobra.Command{
 			Run: func(cmd *cobra.Command, args []string) {	
 				
 				c:= new(Command)
-				
-				CONSUL_ADDRESS:= viper.GetString("consul_address")
-				CONSUL_SCHEME := viper.GetString("consul_scheme")
-				CONSUL_DATACENTER := viper.GetString("consul_datacenter")
-				CONSUL_TOKEN := viper.GetString("consul_token")
+				/*
+				if viper.IsSet("cl_auth-url") {
+					AUTH_URL := viper.GetString("cl_auth-url") // case insensitive Setting & Getting
+				} else { 
+					if viper.IsSet("auth-url") {
+						AUTH_URL := viper.GetString("auth-url") }
+				}
+				*/
+				//WARNING: If we define default value for the flags, the following settings are useless
+
+				if viper.IsSet("cl_consul_datacenter") {
+					CONSUL_DATACENTER := viper.GetString("cl_consul_datacenter")
+				} else {
+						if viper.IsSet("consul_datacenter") {
+							CONSUL_DATACENTER := viper.GetString("consul_datacenter") }
+				}
+
+				if viper.IsSet("cl_consul_token") {
+					CONSUL_TOKEN := viper.GetString("cl_consul_token")
+				} else {
+						if viper.IsSet("consul_token") {
+							CONSUL_TOKEN := viper.GetString("consul_token") }
+				}
 
 				//Custom configuration for Consul
-				lenConsulAddress := len(CONSUL_ADDRESS)
-				lenConsulScheme := len(CONSUL_SCHEME) 
 				lenConsulDC := len(CONSUL_DATACENTER)
 				lenConsulToken := len(CONSUL_TOKEN)
-				if (lenConsulAddress > 0) && (lenConsulScheme > 0) && (lenConsulDC > 0) {
+				if (lenConsulToken > 0) && (lenConsulDC > 0) {
 
 					ConsulCustomConfig := api.DefaultConfig()
-					ConsulCustomConfig.Address = fmt.Sprintf("%s", CONSUL_ADDRESS)
-					ConsulCustomConfig.Scheme = fmt.Sprintf("%s", CONSUL_SCHEME)
 					ConsulCustomConfig.Datacenter = fmt.Sprintf("%s", CONSUL_DATACENTER)
-					if (lenConsulToken > 0) {
-						ConsulCustomConfig.Token = fmt.Sprintf("%s", CONSUL_TOKEN)
-					}
+					ConsulCustomConfig.Token = fmt.Sprintf("%s", CONSUL_TOKEN)
 
 					client, err := api.NewClient(ConsulCustomConfig)
 					if err != nil {

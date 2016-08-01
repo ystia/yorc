@@ -7,18 +7,13 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"novaforge.bull.com/starlings-janus/janus/commands"
 	"gopkg.in/yaml.v2"
 	"time"
 )
 
-
 func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstance, error) {
 	var nodeType string
 	var err error
-
-	PREFIX := viper.GetString("TF_VAR_prefix")
-
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return ComputeInstance{}, err
 	}
@@ -29,48 +24,48 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	if nodeName, err := g.getStringFormConsul(url, "name"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.Name = PREFIX+nodeName
+		instance.Name = nodeName
 	}
 	if image, err := g.getStringFormConsul(url, "properties/image"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.ImageId = PREFIX+image
+		instance.ImageId = image
 	}
 	if image, err := g.getStringFormConsul(url, "properties/imageName"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.ImageName = PREFIX+image
+		instance.ImageName = image
 	}
 	if flavor, err := g.getStringFormConsul(url, "properties/flavor"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.FlavorId = PREFIX+flavor
+		instance.FlavorId = flavor
 	}
 	if flavor, err := g.getStringFormConsul(url, "properties/flavorName"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.FlavorName = PREFIX+flavor
+		instance.FlavorName = flavor
 	}
 
 	if az, err := g.getStringFormConsul(url, "properties/availability_zone"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.AvailabilityZone = PREFIX+az
+		instance.AvailabilityZone = az
 	}
 	if region, err := g.getStringFormConsul(url, "properties/region"); err != nil {
 		return ComputeInstance{}, err
 	} else if region != "" {
-		instance.Region = PREFIX+region
+		instance.Region = region
 	} else {
 		//TODO make this configurable
-		instance.Region = PREFIX+"RegionOne"
+		instance.Region = "RegionOne"
 	}
 
 	if keyPair, err := g.getStringFormConsul(url, "properties/key_pair"); err != nil {
 		return ComputeInstance{}, err
 	} else {
 		// TODO if empty use a default one or fail ?
-		instance.KeyPair = PREFIX+keyPair
+		instance.KeyPair = keyPair
 	}
 
 	if instance.ImageId == "" && instance.ImageName == "" {
@@ -87,7 +82,7 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 			// TODO Deal with networks aliases (PUBLIC/PRIVATE)
 			var networkSlice []ComputeNetwork
 			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName})
-			instance.Networks = PREFIX+networkSlice
+			instance.Networks = networkSlice
 		}
 	}
 
@@ -146,5 +141,30 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	instance.Provisioners = make(map[string]interface{})
 	instance.Provisioners["remote-exec"] = re
+
+	floatingIPPrefix := path.Join(url, "requirements", "network")
+	if networkNodeName, err := g.getStringFormConsul(floatingIPPrefix, "node"); err != nil {
+		return ComputeInstance{}, err
+	} else if networkNodeName != "" {
+		log.Debugf("Looking for Floating IP")
+		var floatingIP string
+		resultChan := make(chan string, 1)
+		go func() {
+			for {
+				if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
+					if dId := string(kp.Value); dId != "" {
+						resultChan <- dId
+						return
+					}
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}()
+		select {
+		case floatingIP = <- resultChan:
+		}
+		instance.FloatingIp = floatingIP
+	}
+
 	return instance, nil
 }
