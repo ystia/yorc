@@ -415,6 +415,22 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				storeConsulKey(kv, intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
 			}
 		}
+		artifactsPrefix := relationTypePrefix + "/artifacts"
+		for artName, artDef := range relationType.Artifacts {
+			artPrefix := artifactsPrefix + "/" + artName
+			storeConsulKey(kv, artPrefix+"/name", artName)
+			storeConsulKey(kv, artPrefix+"/metatype", "artifact")
+			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
+			if imports {
+				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport,artDef.File))
+			} else {
+				storeConsulKey(kv, artPrefix+"/file", artDef.File)
+			}
+			storeConsulKey(kv, artPrefix+"/type", artDef.Type)
+			storeConsulKey(kv, artPrefix+"/repository", artDef.Repository)
+			storeConsulKey(kv, artPrefix+"/deploy_path", artDef.DeployPath)
+		}
+
 		stringByte := "\x00" + strings.Join(relationType.ValidTargetTypes, ", ")
 		p := &api.KVPair{Key: relationTypePrefix+"/valid_target_type" , Value: []byte(stringByte)}
 		if _, err := kv.Put(p, nil); err != nil {
