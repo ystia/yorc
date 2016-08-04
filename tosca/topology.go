@@ -7,12 +7,16 @@ type Topology struct {
 	Version      string `yaml:"template_version"`
 	Author       string `yaml:"template_author"`
 
-	Imports      []ImportMap `yaml:"imports,omitempty"`
+	Imports []ImportMap `yaml:"imports,omitempty"`
 
-	NodeTypes        map[string]NodeType `yaml:"node_types,omitempty"`
+	// TODO Data Types
+	NodeTypes         map[string]NodeType         `yaml:"node_types,omitempty"`
+	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty"`
 	RelationshipTypes map[string]RelationshipType `yaml:"relationship_types,omitempty"`
+	// TODO Group Types
+	// TODO Policy Types
 
-	TopologyTemplate TopologyTemplate    `yaml:"topology_template"`
+	TopologyTemplate TopologyTemplate `yaml:"topology_template"`
 }
 
 type TopologyTemplate struct {

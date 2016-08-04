@@ -13,7 +13,7 @@ func (g *Generator) generateFloatingIP(url string) (string, error, bool) {
 	if nodeType != "janus.nodes.openstack.FloatingIP" {
 		return "", fmt.Errorf("Unsupported node type for %s: %s", url, nodeType), isIp
 	}
-	if ip, err :=  g.getStringFormConsul(url, "properties/ip"); err != nil {
+	if ip, err := g.getStringFormConsul(url, "properties/ip"); err != nil {
 		return "", err, isIp
 	} else if ip != "" {
 		ret = ip
@@ -22,7 +22,7 @@ func (g *Generator) generateFloatingIP(url string) (string, error, bool) {
 		return "", err, isIp
 	} else if networkName != "" {
 		ret = networkName
-	}  else {
+	} else {
 		return "", fmt.Errorf("A network name or IP need to be provided"), isIp
 	}
 
