@@ -279,6 +279,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		for artName, artDef := range node.Artifacts {
 			artPrefix := artifactsPrefix + "/" + artName
 			storeConsulKey(kv, artPrefix+"/name", artName)
+			storeConsulKey(kv, artPrefix+"/metatype", "artifact")
 			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
 			if imports {
 				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport,artDef.File))
@@ -297,6 +298,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		storeConsulKey(kv, nodeTypePrefix+"/name", nodeTypeName)
 		storeConsulKey(kv, nodeTypePrefix+"/derived_from", nodeType.DerivedFrom)
 		storeConsulKey(kv, nodeTypePrefix+"/description", nodeType.Description)
+		storeConsulKey(kv, nodeTypePrefix+"/metatype", "Node")
 		storeConsulKey(kv, nodeTypePrefix+"/version", nodeType.Version)
 		propertiesPrefix := nodeTypePrefix + "/properties"
 		for propName, propDefinition := range nodeType.Properties {
@@ -384,6 +386,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		storeConsulKey(kv, relationTypePrefix+"/derived_from", relationType.DerivedFrom)
 		storeConsulKey(kv, relationTypePrefix+"/description", relationType.Description)
 		storeConsulKey(kv, relationTypePrefix+"/version", relationType.Version)
+		storeConsulKey(kv, relationTypePrefix+"/metatype", "Relationship")
 		propertiesPrefix := relationTypePrefix + "/properties"
 		for propName, propDefinition := range relationType.Properties {
 			propPrefix := propertiesPrefix + "/" + propName
