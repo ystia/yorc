@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/dustin/go-humanize"
 	"novaforge.bull.com/starlings-janus/janus/helper/mathutil"
-	"strconv"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"strconv"
 )
 
 func (g *Generator) generateOSBSVolume(url string) (BlockStorageVolume, error) {

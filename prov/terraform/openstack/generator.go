@@ -22,7 +22,7 @@ func NewGenerator(kv *api.KV) *Generator {
 }
 
 func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error) {
-	getResult, _, err := g.kv.Get(baseUrl + "/" + property, nil)
+	getResult, _, err := g.kv.Get(baseUrl+"/"+property, nil)
 	if err != nil {
 		log.Printf("Can't get property %s for node %s", property, baseUrl)
 		return "", fmt.Errorf("Can't get property %s for node %s: %v", property, baseUrl, err)
@@ -59,7 +59,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
 	infrastructure := commons.Infrastructure{}
 	log.Debugf("inspecting node %s", nodeKey)
-	kvPair, _, err := g.kv.Get(nodeKey + "/type", nil)
+	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -108,7 +108,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	case "janus.nodes.openstack.FloatingIP":
 		floatingIPString, err, isIp := g.generateFloatingIP(nodeKey)
 		if err != nil {
-			return  err
+			return err
 		}
 
 		consulKey := commons.ConsulKey{}
@@ -117,11 +117,10 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 			addResource(&infrastructure, "openstack_compute_floatingip_v2", nodeName, &floatingIP)
 			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", nodeName)}
 		} else {
-			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatingIPString }
+			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatingIPString}
 		}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
-
 
 	default:
 		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)

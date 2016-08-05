@@ -3,9 +3,9 @@ package ansible
 import (
 	"github.com/stretchr/testify/assert"
 	"os"
+	"path/filepath"
 	"testing"
 	"text/template"
-	"path/filepath"
 )
 
 func TestTemplates(t *testing.T) {

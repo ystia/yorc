@@ -2,10 +2,10 @@ package tosca
 
 type RequirementDefinitionMap map[string]RequirementDefinition
 type RequirementDefinition struct {
-	Capability   string `yaml:"capability"`
-	Node         string `yaml:"node,omitempty"`
-	Relationship string `yaml:"relationship,omitempty"`
-	Occurrences  string `yaml:"occurrences,omitempty"`
+	Capability   string     `yaml:"capability"`
+	Node         string     `yaml:"node,omitempty"`
+	Relationship string     `yaml:"relationship,omitempty"`
+	Occurrences  ToscaRange `yaml:"occurrences,omitempty"`
 }
 
 type RequirementAssignmentMap map[string]RequirementAssignment
@@ -18,8 +18,8 @@ type RequirementAssignment struct {
 }
 
 type RequirementRelationship struct {
-	Type       string `yaml:"type"`
-	Properties map[string]ValueAssignment      `yaml:"properties,omitempty"`
+	Type       string                     `yaml:"type"`
+	Properties map[string]ValueAssignment `yaml:"properties,omitempty"`
 }
 
 func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -43,8 +43,8 @@ func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error)
 	}
 
 	var rac struct {
-		Capability   string `yaml:"capability"`
-		Node         string `yaml:"node,omitempty"`
+		Capability   string                  `yaml:"capability"`
+		Node         string                  `yaml:"node,omitempty"`
 		Relationship RequirementRelationship `yaml:"relationship,omitempty"`
 	}
 	if err := unmarshal(&rac); err != nil {
