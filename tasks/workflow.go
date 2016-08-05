@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"golang.org/x/net/context"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
@@ -68,7 +69,7 @@ type visitStep struct {
 	step     *Step
 }
 
-func (s *Step) run(deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}) {
+func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}) {
 
 	defer wg.Done()
 
@@ -79,6 +80,9 @@ func (s *Step) run(deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc cha
 			log.Debugf("Step %q caught a notification", s.Name)
 		case <-shutdownChan:
 			log.Printf("Step %q cancelled", s.Name)
+			return
+		case <-ctx.Done():
+			log.Printf("Step %q cancelled: %q", s.Name, ctx.Err())
 			return
 		}
 	}

@@ -87,7 +87,6 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 
 		addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
 
-
 	case "janus.nodes.openstack.BlockStorage":
 		if volumeId, err := g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
 			return err
