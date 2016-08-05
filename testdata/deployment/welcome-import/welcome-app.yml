@@ -5,6 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
+  - openstack-types: <janus-openstack-types.yml>
   - welcome: welcome/welcome-types.yml
 
 topology_template:
