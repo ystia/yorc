@@ -9,7 +9,7 @@ import (
 func TestArtifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
 	var data = `artifact: ./artifact.txt`
 
-	artMap := make(map[string]ArtifactDefinition)
+	var artMap map[string]ArtifactDefinition
 
 	err := yaml.Unmarshal([]byte(data), &artMap)
 	assert.Nil(t, err, "Expecting no error when unmarshaling artifact with simple grammar")
@@ -28,7 +28,7 @@ artifact:
   repository: artifact_repository_name
   deploy_path: file_deployment_path`
 
-	artMap := make(map[string]ArtifactDefinition)
+	var artMap map[string]ArtifactDefinition
 
 	err := yaml.Unmarshal([]byte(data), &artMap)
 	assert.Nil(t, err, "Expecting no error when unmarshaling artifact with simple grammar")
@@ -51,7 +51,7 @@ artifact:
   repository: artifact_repository_name
   deploy_path: file_deployment_path`
 
-	artMap := make(map[string]ArtifactDefinition)
+	var artMap map[string]ArtifactDefinition
 
 	err := yaml.Unmarshal([]byte(data), &artMap)
 	assert.NotNil(t, err, "Expecting error when unmarshaling artifact with an array as file")
@@ -67,15 +67,99 @@ nodes.ANode:
     utils_scripts: utils_scripts
 `
 
-	nodeType := make(map[string]NodeType)
-	err := yaml.Unmarshal([]byte(data), nodeType)
+	var nodeType map[string]NodeType
+	err := yaml.Unmarshal([]byte(data), &nodeType)
 	assert.Nil(t, err)
-	t.Log(nodeType["nodes.ANode"].Artifacts)
+	//t.Log(nodeType["nodes.ANode"].Artifacts)
 	assert.Contains(t, nodeType["nodes.ANode"].Artifacts, "scripts")
 	assert.Contains(t, nodeType["nodes.ANode"].Artifacts, "utils_scripts")
 	artScripts := nodeType["nodes.ANode"].Artifacts["scripts"]
 	assert.Equal(t, "scripts", artScripts.File)
 	assert.Equal(t, "tosca.artifacts.File", artScripts.Type)
 	artUtilsScripts := nodeType["nodes.ANode"].Artifacts["utils_scripts"]
+	assert.Equal(t, "utils_scripts", artUtilsScripts.File)
+}
+
+func TestArtifactsAlien(t *testing.T) {
+	var data = `
+- scripts: scripts
+  type: tosca.artifacts.File
+- utils_scripts: utils_scripts
+- test_scripts: test_scripts
+  description: blahblah
+  deploy_path: /my/path
+`
+
+	var arts ArtifactDefMap
+	err := yaml.Unmarshal([]byte(data), &arts)
+	//t.Log("Alien1", arts)
+	assert.Nil(t, err)
+	assert.Len(t, arts, 3)
+	assert.Equal(t, "scripts", arts["scripts"].File)
+	assert.Equal(t, "tosca.artifacts.File", arts["scripts"].Type)
+	assert.Equal(t, "utils_scripts", arts["utils_scripts"].File)
+	assert.Equal(t, "test_scripts", arts["test_scripts"].File)
+	assert.Equal(t, "blahblah", arts["test_scripts"].Description)
+	assert.Equal(t, "/my/path", arts["test_scripts"].DeployPath)
+
+}
+
+func TestArtifactsAlien2(t *testing.T) {
+	var data = `
+- scripts: scripts
+- utils_scripts: utils_scripts
+`
+
+	var arts ArtifactDefMap
+	err := yaml.Unmarshal([]byte(data), &arts)
+	//t.Log("Alien2", arts)
+	assert.Nil(t, err)
+	assert.Len(t, arts, 2)
+	assert.Equal(t, "scripts", arts["scripts"].File)
+	//	assert.Equal(t, "tosca.artifacts.File", arts[0].Type)
+	assert.Equal(t, "utils_scripts", arts["utils_scripts"].File)
+}
+
+func TestArtifactsInNodeTypeAlien(t *testing.T) {
+	var data = `
+nodes.ANode:
+  artifacts:
+    - scripts: scripts
+      type: tosca.artifacts.File
+    - utils_scripts: utils_scripts
+`
+
+	var nodeType map[string]NodeType
+	err := yaml.Unmarshal([]byte(data), &nodeType)
+	assert.Nil(t, err)
+	//t.Log(nodeType["nodes.ANode"].Artifacts)
+	assert.Contains(t, nodeType["nodes.ANode"].Artifacts, "scripts")
+	assert.Contains(t, nodeType["nodes.ANode"].Artifacts, "utils_scripts")
+	artScripts := nodeType["nodes.ANode"].Artifacts["scripts"]
+	assert.Equal(t, "scripts", artScripts.File)
+	assert.Equal(t, "tosca.artifacts.File", artScripts.Type)
+	artUtilsScripts := nodeType["nodes.ANode"].Artifacts["utils_scripts"]
+	assert.Equal(t, "utils_scripts", artUtilsScripts.File)
+}
+
+func TestArtifactsInNodeTemplateAlien(t *testing.T) {
+	var data = `
+nodes.ANode:
+  artifacts:
+    - scripts: scripts
+      type: tosca.artifacts.File
+    - utils_scripts: utils_scripts
+`
+
+	var nodeTemplate map[string]NodeTemplate
+	err := yaml.Unmarshal([]byte(data), &nodeTemplate)
+	assert.Nil(t, err)
+	//t.Log(nodeTemplate["nodes.ANode"].Artifacts)
+	assert.Contains(t, nodeTemplate["nodes.ANode"].Artifacts, "scripts")
+	assert.Contains(t, nodeTemplate["nodes.ANode"].Artifacts, "utils_scripts")
+	artScripts := nodeTemplate["nodes.ANode"].Artifacts["scripts"]
+	assert.Equal(t, "scripts", artScripts.File)
+	assert.Equal(t, "tosca.artifacts.File", artScripts.Type)
+	artUtilsScripts := nodeTemplate["nodes.ANode"].Artifacts["utils_scripts"]
 	assert.Equal(t, "utils_scripts", artUtilsScripts.File)
 }

@@ -4,6 +4,9 @@ template_name: welcome-types
 template_version: 1.0.0
 template_author: admin
 
+imports:
+  - normative-types: <normative-types.yml>
+
 node_types:
   starlings.samples.nodes.Welcome:
     derived_from: tosca.nodes.SoftwareComponent
