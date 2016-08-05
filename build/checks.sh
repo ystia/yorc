@@ -21,6 +21,8 @@ if [[ -z "$GOPATH" ]]; then
 fi
 
 for tool in $@; do
+    #Suppress trailing /... in url if any
+    tool="${tool%%/...*}"
     if [[ ! -x $GOPATH/bin/${tool##*/} ]]; then
         error_exit "Tool not found $GOPATH/bin/${tool##*/} doesn't exist. This could be fixed by running 'make tools'"
     fi

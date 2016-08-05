@@ -1,4 +1,4 @@
-GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep github.com/jteeuwen/go-bindata
+GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep github.com/jteeuwen/go-bindata/...
 
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 PACKAGES_MINUS_TASKS=$(shell go list ./... | grep -v '/vendor/' | grep -v 'tasks')
