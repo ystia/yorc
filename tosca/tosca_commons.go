@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -145,4 +146,37 @@ func (t *TreeNode) String() string {
 	}
 	buf.WriteString("]")
 	return buf.String()
+}
+
+// Max uint64 as per https://golang.org/ref/spec#Numeric_types
+const UNBOUNDED uint64 = 18446744073709551615
+
+type ToscaRange struct {
+	LowerBound uint64
+	UpperBound uint64
+}
+
+func (r *ToscaRange) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var v []string
+	if err := unmarshal(&v); err != nil {
+		return err
+	}
+	if len(v) != 2 {
+		return fmt.Errorf("Invalid range definition expected %d elements, actually found %d", 2, len(v))
+	}
+	if bound, err := strconv.ParseUint(v[0], 10, 0); err != nil {
+		return fmt.Errorf("Expecting a unsigned integer as lower bound of the range")
+	} else {
+		r.LowerBound = bound
+	}
+	if bound, err := strconv.ParseUint(v[1], 10, 0); err != nil {
+		if v[1] != "UNBOUNDED" {
+			return fmt.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range")
+		}
+		r.UpperBound = UNBOUNDED
+	} else {
+		r.UpperBound = bound
+	}
+
+	return nil
 }

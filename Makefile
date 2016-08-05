@@ -1,4 +1,4 @@
-GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep
+GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep github.com/jteeuwen/go-bindata/...
 
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 PACKAGES_MINUS_TASKS=$(shell go list ./... | grep -v '/vendor/' | grep -v 'tasks')
@@ -11,17 +11,20 @@ build: test
 	@go generate $(PACKAGES)
 	@CGO_ENABLED=0 go build
 
+checks:
+	@./build/checks.sh $(GOTOOLS)
+
 dist: build
 	@echo "--> Creating an archive"
 	@tar czvf janus.tgz janus
 
-test:
+test: checks
 	@echo "--> Running go test"
 	@go test $(PACKAGES_MINUS_TASKS) $(TESTARGS) -timeout=30s -parallel=0
 	@go test ./tasks/... $(TESTARGS) -timeout=30s -parallel=0
 
 
-cover:
+cover: build
 	go list ./... | xargs -n1 go test --cover
 
 format:

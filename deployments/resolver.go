@@ -1,8 +1,10 @@
 package deployments
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"fmt"
+	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"path"
 	"strings"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -18,20 +20,20 @@ type Resolver struct {
 	nodeTypePath string
 }
 
-func NewResolver(kv *api.KV, deploymentId, nodePath, nodeTypePath string) (*Resolver) {
-	return &Resolver{kv: kv, deploymentId: deploymentId, nodePath:nodePath, nodeTypePath:nodeTypePath}
+func NewResolver(kv *api.KV, deploymentId, nodePath, nodeTypePath string) *Resolver {
+	return &Resolver{kv: kv, deploymentId: deploymentId, nodePath: nodePath, nodeTypePath: nodeTypePath}
 }
 
 func (r *Resolver) ResolveToscaFunction(function, nodePath, nodeTypePath string, params []string) (string, error) {
 
-	kvPair, _, err := r.kv.Get(nodePath + "/" + function + "/" + params[1], nil)
+	kvPair, _, err := r.kv.Get(nodePath+"/"+function+"/"+params[1], nil)
 	if err != nil {
 		return "", err
 	}
 	if kvPair == nil {
 		// Look for a default in node type
 		// TODO deal with type inheritance
-		kvPair, _, err = r.kv.Get(nodeTypePath + "/" + function + "/" + params[1] + "/default", nil)
+		kvPair, _, err = r.kv.Get(nodeTypePath+"/"+function+"/"+params[1]+"/default", nil)
 		if err != nil {
 			return "", err
 		}
@@ -188,7 +190,7 @@ func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
 			return r.ResolveSourceOrTarget("target","properties", r.nodePath, r.nodeTypePath, params)
 		default:
 			nodePath := path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", params[0])
-			kvPair, _, err := r.kv.Get(nodePath + "/type", nil)
+			kvPair, _, err := r.kv.Get(nodePath+"/type", nil)
 			if err != nil {
 				return "", err
 			}
@@ -214,7 +216,7 @@ func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
 			return r.ResolveSourceOrTarget("target","attributes", r.nodePath, r.nodeTypePath, params)
 		default:
 			nodePath := path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", params[0])
-			kvPair, _, err := r.kv.Get(nodePath + "/type", nil)
+			kvPair, _, err := r.kv.Get(nodePath+"/type", nil)
 			if err != nil {
 				return "", err
 			}

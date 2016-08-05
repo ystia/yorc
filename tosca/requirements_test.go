@@ -1,14 +1,15 @@
 package tosca
 
 import (
-	"testing"
-	"gopkg.in/yaml.v2"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
+	"testing"
 )
 
 type ReqTestNode struct {
-	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
+	Requirements []RequirementAssignmentMap `yaml:"requirements,omitempty"`
 }
+
 func TestRequirementAssignment_Complex(t *testing.T) {
 	data := `Compute:
   requirements:
@@ -26,7 +27,7 @@ func TestRequirementAssignment_Complex(t *testing.T) {
 	compute := nodes["Compute"]
 
 	assert.Contains(t, compute.Requirements[0], "local_storage")
-	lc :=  compute.Requirements[0]["local_storage"]
+	lc := compute.Requirements[0]["local_storage"]
 
 	assert.Equal(t, "tosca.relationships.AttachesTo", lc.Relationship)
 	assert.Contains(t, lc.RelationshipProps, "location")
