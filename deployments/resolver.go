@@ -61,18 +61,18 @@ func (r *Resolver) isDerivedOf(connection string, typePath string) (bool) {
 }
 
 func (r *Resolver) ResolveHost(function string, nodePath string, nodeTypePath string, params []string) (string, error) {
-	return r.factor("host","",function,nodePath,nodeTypePath,params)
+	return r.resolving("host","",function,nodePath,nodeTypePath,params)
 }
 
 func (r *Resolver) FindInHost(nodePath string, nodeTypePath string, function string, params []string ) (string, error) {
-	return  r.factor("find","",function,nodePath,nodeTypePath,params)
+	return  r.resolving("find","",function,nodePath,nodeTypePath,params)
 }
 
 func (r *Resolver) ResolveSourceOrTarget(position string, function string, nodePath string, nodeTypePath string, params []string) (string, error){
-	return r.factor("", position, function,nodePath,nodeTypePath,params)
+	return r.resolving("", position, function,nodePath,nodeTypePath,params)
 }
 
-func (r *Resolver) factor(resolveType string,position string, function string, nodePath string, nodeTypePath string, params []string) (string, error) {
+func (r *Resolver) resolving(resolveType string,position string, function string, nodePath string, nodeTypePath string, params []string) (string, error) {
 
 	var kvPair *api.KVPair
 	var err  error
@@ -118,7 +118,7 @@ func (r *Resolver) factor(resolveType string,position string, function string, n
 					kvPair, _, _ := r.kv.Get(nodePath + "/requirements/" + splitedPath[len(splitedPath)-2]  + "/node", nil)
 					nodePath = strings.Replace(nodePath,splitedPath2[len(splitedPath2)-1],string(kvPair.Value),-1)
 					log.Debugf(nodePath)
-					return r.factor(resolveType,position,function,nodePath,nodeTypePath,params)
+					return r.resolving(resolveType,position,function,nodePath,nodeTypePath,params)
 					if err != nil {
 						return "", err
 					}
@@ -144,7 +144,7 @@ func (r *Resolver) factor(resolveType string,position string, function string, n
 					} else {
 						kvPair, _, _ := r.kv.Get(nodePath + "/requirements/" + splitedPath[len(splitedPath)-2] + "/node", nil)
 						nodePath = strings.Replace(nodePath,splitedPath2[len(splitedPath2)-1],string(kvPair.Value),-1)
-						return r.factor(resolveType, position,function, nodePath, nodeTypePath, params)
+						return r.resolving(resolveType, position,function, nodePath, nodeTypePath, params)
 					}
 				}
 			}
