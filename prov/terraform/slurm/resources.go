@@ -2,7 +2,7 @@ package slurm
 
 type ComputeInstance struct {
 	Name             string           `json:"name,omitempty"`
-	GpuType          string           `json:"gputype,omitempty"`
+	GpuType          string           `json:"gpuType,omitempty"`
 
 	Provisioners     map[string]interface{} `json:"provisioner,omitempty"`
 

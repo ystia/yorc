@@ -85,6 +85,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		return err
 	}
 	nodeType := string(kvPair.Value)
+	log.Printf("GenerateTerraformInfraForNode switch begin")
 	switch nodeType {
 	case "janus.nodes.slurm.Compute":
 		compute, err := g.generateOSInstance(nodeKey, depId)
@@ -94,7 +95,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		addResource(&infrastructure, "slurm_node", compute.Name, &compute)
 		addProvider(&infrastructure, "slurm", compute.Name, &compute)
 	default:
-		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
+		return fmt.Errorf("In Slurm : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")

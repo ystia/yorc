@@ -2,16 +2,18 @@ package slurm
 
 import (
 	"fmt"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstance, error) {
 	var nodeType string
 	var err error
+	log.Printf("generateOSInstance begin")
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return ComputeInstance{}, err
 	}
 	if nodeType != "janus.nodes.slurm.Compute" {
-		return ComputeInstance{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return ComputeInstance{}, fmt.Errorf("In slurm/generateOSInstance : Unsupported node type for %s: %s", url, nodeType)
 	}
 	instance := ComputeInstance{}
 	if nodeName, err := g.getStringFormConsul(url, "name"); err != nil {
