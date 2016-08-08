@@ -32,6 +32,8 @@ const ansible_playbook = `
         [[[print $input]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]
         [[[printf "%s: \"{{ ansible_env.HOME}}/.janus/%v/%v/%s\"" $artName $.NodeName $.Operation $art]]]
+        [[[end]]][[[ range $contextK, $contextV := .Context -]]]
+        [[[printf "%s: %s" $contextK $contextV]]]
         [[[end]]]
 `
 
@@ -56,6 +58,7 @@ type execution struct {
 	NodeTypePath  string
 	Artifacts     map[string]string
 	OverlayPath   string
+	Context       map[string]string
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
@@ -166,6 +169,68 @@ func (e *execution) resolveHosts(nodePath string) error {
 	return nil
 }
 
+func (e *execution) resolveContext() error {
+	metatype, _, err := e.kv.Get(path.Join(e.NodeTypePath,"metatype"), nil)
+	if err != nil {
+		return err
+	}
+	context := make(map[string]string)
+
+	//TODO: Need to be improved with the execute (INSTANCE,INSTANCES)
+	context["NODE"] = e.NodeName
+	context["INSTANCE"] = e.NodeName
+	context["INSTANCES"] = e.NodeName
+	context["HOST"] = e.Hosts[0]
+
+	if strings.Contains(string(metatype.Value), "Relationship") {
+
+		context["SOURCE_NODE"] = e.NodeName
+		context["SOURCE_INSTANCE"] = e.NodeName
+		context["SOURCE_INSTANCES"] = e.NodeName
+
+		require, _, err := e.kv.Keys(path.Join(e.NodePath,"requirement"), "", nil)
+		if err != nil {
+			return err
+		}
+		for _, path := range require {
+			if !strings.Contains(path, "host") {
+				splitedPath := strings.Split(path, "/")
+				splitedPath2 := strings.Split(e.NodePath, "/")
+				kvPair, _, _ := e.kv.Get(e.NodePath + "/requirements/" + splitedPath[len(splitedPath)-2]  + "/node", nil)
+				nodePath := strings.Replace(e.NodePath,splitedPath2[len(splitedPath2)-1],string(kvPair.Value),-1)
+
+				context["TARGET_NODE"] = filepath.Base(nodePath)
+				context["TARGET_INSTANCE"] = filepath.Base(nodePath)
+				context["TARGET_INSTANCES"] = filepath.Base(nodePath)
+
+				resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
+				params := make([]string,0)
+				params = append(params,"", "ip_address")
+				nodePath2, err := resolver.FindInHost(nodePath,e.NodeTypePath,"capabilities/endpoint/attributes",params)
+
+				if err != nil {
+					return err
+				}
+
+				ip_addr, _, err := e.kv.Get(nodePath2 + "/capabilities/endpoint/attributes/ip_address",nil)
+
+				if err != nil {
+					return err
+				}
+
+				context["TARGET_IP"] = string(ip_addr.Value)
+				context[filepath.Base(nodePath) + "_TARGET_IP"] = string(ip_addr.Value)
+
+			}
+		}
+
+	}
+
+	e.Context = context
+
+	return nil
+}
+
 func (e *execution) resolveExecution() error {
 	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.DeploymentId)
 	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.DeploymentId, "overlay"))
@@ -174,22 +239,41 @@ func (e *execution) resolveExecution() error {
 	}
 	e.OverlayPath = ovPath
 	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
+	if strings.Contains(e.Operation,"Standard") {
+		kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
+		if err != nil {
+			return err
+		}
+		if kvPair == nil {
+			return fmt.Errorf("type for node %s in deployment %s is missing", e.NodeName, e.DeploymentId)
+		}
 
-	kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
-	if err != nil {
-		return err
-	}
-	if kvPair == nil {
-		return fmt.Errorf("type for node %s in deployment %s is missing", e.NodeName, e.DeploymentId)
+		e.NodeType = string(kvPair.Value)
+		e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+	} else {
+		kvPair, _, err := e.kv.Keys(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName), "", nil)
+		if err != nil {
+			return err
+		}
+		for _, key := range kvPair {
+			if strings.Contains(key, "relationship") && !strings.Contains(key, "host"){
+				kvPair, _, err := e.kv.Get(path.Join(key), nil)
+				if err != nil {
+					return err
+				}
+				e.NodeType = string(kvPair.Value)
+				e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types",string(kvPair.Value))
+			}
+		}
 	}
 
-	e.NodeType = string(kvPair.Value)
+
 	//TODO deal with inheritance operation may be not in the direct node type
-	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+
 
 	e.OperationPath = e.NodeTypePath + "/interfaces/" + strings.Replace(strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle."), ".", "/", -1)
 	log.Debugf("Operation Path: %q", e.OperationPath)
-	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/primary", nil)
+	kvPair, _, err := e.kv.Get(e.OperationPath+"/implementation/primary", nil)
 	if err != nil {
 		return err
 	}
@@ -213,9 +297,14 @@ func (e *execution) resolveExecution() error {
 	if err = e.resolveArtifacts(); err != nil {
 		return err
 	}
+	if err = e.resolveHosts(e.NodePath); err != nil {
+		return err
+	}
 
-	return e.resolveHosts(e.NodePath)
+	return e.resolveContext()
+
 }
+
 
 func (e *execution) execute() error {
 
