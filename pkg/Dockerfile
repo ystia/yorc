@@ -22,4 +22,9 @@ RUN apk add --update ansible openssh-client && \
 
 COPY ./janus /usr/local/bin/
 
+COPY terraform-provider-slurm /usr/local/bin/
+
+COPY .terraformrc /var/janus/
+
+
 EXPOSE 8800
