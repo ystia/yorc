@@ -22,7 +22,7 @@ func NewGenerator(kv *api.KV) *Generator {
 }
 
 func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error) {
-	getResult, _, err := g.kv.Get(baseUrl + "/" + property, nil)
+	getResult, _, err := g.kv.Get(baseUrl+"/"+property, nil)
 	if err != nil {
 		log.Printf("Can't get property %s for node %s", property, baseUrl)
 		return "", fmt.Errorf("Can't get property %s for node %s: %v", property, baseUrl, err)
@@ -59,7 +59,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
 	infrastructure := commons.Infrastructure{}
 	log.Debugf("inspecting node %s", nodeKey)
-	kvPair, _, err := g.kv.Get(nodeKey + "/type", nil)
+	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -74,8 +74,19 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		addResource(&infrastructure, "openstack_compute_instance_v2", compute.Name, &compute)
 
 		consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
-		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+		consulKeyFixedIP := commons.ConsulKey{Name: compute.Name + "-ip_fixed_address-key", Path: nodeKey + "/attributes/private_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.fixed_ip_v4}", compute.Name)}
+
+		var consulKeys commons.ConsulKeys
+		if compute.FloatingIp != "" {
+			consulKeyFloatingIP := commons.ConsulKey{Name: compute.Name + "-ip_floating_address-key", Path: nodeKey + "/attributes/public_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.floating_ip}", compute.Name)}
+			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyFixedIP, consulKeyFloatingIP}}
+
+		} else {
+			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyFixedIP}}
+		}
+
 		addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
+
 	case "janus.nodes.openstack.BlockStorage":
 		if volumeId, err := g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
 			return err
@@ -92,6 +103,24 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		consulKey := commons.ConsulKey{Name: nodeName + "-bsVolumeID", Path: nodeKey + "/properties/volume_id", Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", nodeName)}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
+
+	case "janus.nodes.openstack.FloatingIP":
+		floatingIPString, err, isIp := g.generateFloatingIP(nodeKey)
+		if err != nil {
+			return err
+		}
+
+		consulKey := commons.ConsulKey{}
+		if !isIp {
+			floatingIP := FloatingIP{Pool: floatingIPString}
+			addResource(&infrastructure, "openstack_compute_floatingip_v2", nodeName, &floatingIP)
+			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", nodeName)}
+		} else {
+			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatingIPString}
+		}
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
+
 	default:
 		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}

@@ -5,6 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
+  - openstack-types: <janus-openstack-types.yml>
   - welcome: welcome/welcome-types.yml
 
 topology_template:
@@ -27,6 +28,11 @@ topology_template:
         image: 89ec515c-3251-4c2f-8402-bda280c31650
         availability_zone: nova
         key_pair: cloudify
+      requirements:
+        - network:
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
       capabilities:
         endpoint:
           properties:
@@ -39,9 +45,19 @@ topology_template:
             max_instances: 1
             min_instances: 1
             default_instances: 1
+    Network:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
   workflows:
     install:
       steps:
+        Network_install:
+          node: Network
+          activity:
+            delegate: install
+          on-success:
+            - Compute_install
         Compute_install:
           node: Compute
           activity:
@@ -102,10 +118,16 @@ topology_template:
             set_state: started
     uninstall:
       steps:
+        Network_unistall:
+         node: Network
+         activity:
+            delegate: uninstall
         Compute_uninstall:
           node: Compute
           activity:
             delegate: uninstall
+          on-success:
+            - Network_unistall
         Welcome_stopping:
           node: Welcome
           activity:

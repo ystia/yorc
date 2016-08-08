@@ -21,6 +21,10 @@ type ConsulKey struct {
 	Delete  bool   `json:"delete,omitempty"`
 }
 
+type ConsulKeyIP struct {
+	Pool string `json:"pool"`
+}
+
 type RemoteExec struct {
 	Connection Connection `json:"connection,omitempty"`
 	Inline     []string   `json:"inline,omitempty"`
