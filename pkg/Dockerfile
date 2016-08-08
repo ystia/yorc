@@ -22,4 +22,9 @@ RUN addgroup janus && \
 
 COPY ./janus /usr/local/bin/
 
+COPY terraform-provider-slurm /usr/local/bin/
+
+COPY .terraformrc /var/janus/
+
+
 EXPOSE 8800
