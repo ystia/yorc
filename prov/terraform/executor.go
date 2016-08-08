@@ -50,7 +50,7 @@ func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
+		return fmt.Errorf("In executor : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
 	}
 
 	if err := e.applyInfrastructure(deploymentId, nodeName); err != nil {
