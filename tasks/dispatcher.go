@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"
@@ -13,16 +14,18 @@ type Dispatcher struct {
 	shutdownCh chan struct{}
 	WorkerPool chan chan *Task
 	maxWorkers int
+	cfg        jconfig.Configuration
 }
 
-func NewDispatcher(maxWorkers int, shutdownCh chan struct{}, client *api.Client) *Dispatcher {
+func NewDispatcher(maxWorkers int, shutdownCh chan struct{}, client *api.Client, cfg jconfig.Configuration) *Dispatcher {
 	pool := make(chan chan *Task, maxWorkers)
-	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: maxWorkers}
+	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: maxWorkers, cfg: cfg}
 }
 
 func (d *Dispatcher) Run() {
+
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := NewWorker(d.WorkerPool, d.shutdownCh, d.client)
+		worker := NewWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
 		worker.Start()
 	}
 	log.Printf("%d worker started", d.maxWorkers)

@@ -18,8 +18,8 @@ type RequirementAssignment struct {
 }
 
 type RequirementRelationship struct {
-	Type       string `yaml:"type"`
-	Properties map[string]ValueAssignment      `yaml:"properties,omitempty"`
+	Type       string                     `yaml:"type"`
+	Properties map[string]ValueAssignment `yaml:"properties,omitempty"`
 }
 
 func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -43,8 +43,8 @@ func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error)
 	}
 
 	var rac struct {
-		Capability   string `yaml:"capability"`
-		Node         string `yaml:"node,omitempty"`
+		Capability   string                  `yaml:"capability"`
+		Node         string                  `yaml:"node,omitempty"`
 		Relationship RequirementRelationship `yaml:"relationship,omitempty"`
 	}
 	if err := unmarshal(&rac); err != nil {

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/commands"
+	"novaforge.bull.com/starlings-janus/janus/commands/cmd"
 )
 
 func main() {
 
-	commands.RootCmd.Execute()
+	cmd.RootCmd.Execute()
 
 }

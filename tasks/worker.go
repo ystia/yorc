@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
@@ -14,13 +15,16 @@ type Worker struct {
 	TaskChannel  chan *Task
 	shutdownCh   chan struct{}
 	consulClient *api.Client
+	cfg          jconfig.Configuration
 }
 
-func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClient *api.Client) Worker {
+func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClient *api.Client, cfg jconfig.Configuration) Worker {
 	return Worker{
-		workerPool:  workerPool,
-		TaskChannel: make(chan *Task),
-		shutdownCh:  shutdownCh, consulClient: consulClient}
+		workerPool:   workerPool,
+		TaskChannel:  make(chan *Task),
+		shutdownCh:   shutdownCh,
+		consulClient: consulClient,
+		cfg:          cfg}
 }
 
 func (w Worker) setDeploymentStatus(deploymentId string, status deployments.DeploymentStatus) {
@@ -37,7 +41,7 @@ func (w Worker) runStep(step *Step, deploymentId string, wg *sync.WaitGroup, err
 	}
 	log.Debugf("Running step %q", step.Name)
 	runningSteps[step.Name] = struct{}{}
-	go step.run(deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh)
+	go step.run(deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh, w.cfg)
 	for _, next := range step.Next {
 		wg.Add(1)
 		log.Debugf("Try run next step %q", next.Name)

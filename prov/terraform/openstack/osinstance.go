@@ -2,18 +2,21 @@ package openstack
 
 import (
 	"fmt"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
-	"path"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"path"
 	"time"
 )
 
 func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstance, error) {
 	var nodeType string
 	var err error
+
+	var Prefix string = g.cfg.Prefix
+
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return ComputeInstance{}, err
 	}
@@ -24,7 +27,7 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	if nodeName, err := g.getStringFormConsul(url, "name"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.Name = nodeName
+		instance.Name = Prefix + nodeName
 	}
 	if image, err := g.getStringFormConsul(url, "properties/image"); err != nil {
 		return ComputeInstance{}, err
@@ -129,10 +132,10 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 		}()
 		// TODO add a cancellation signal
 		select {
-		case volumeId = <- resultChan:
+		case volumeId = <-resultChan:
 		}
 
-		vol := Volume{VolumeId: volumeId, Device:device}
+		vol := Volume{VolumeId: volumeId, Device: device}
 		instance.Volumes = []Volume{vol}
 	}
 
@@ -161,7 +164,7 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 			}
 		}()
 		select {
-		case floatingIP = <- resultChan:
+		case floatingIP = <-resultChan:
 		}
 		instance.FloatingIp = floatingIP
 	}

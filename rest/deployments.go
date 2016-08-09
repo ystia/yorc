@@ -216,7 +216,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 	storeConsulKey(kv, topologyPrefix+"/author", topology.Author)
 	// Imports
 	log.Debug(topology.Imports)
-	for _, element := range topology.Imports  {
+	for _, element := range topology.Imports {
 		for _, value := range element {
 			topology := tosca.Topology{}
 
@@ -271,7 +271,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				storeConsulKey(kv, reqPrefix+"/relationship", reqValue.Relationship)
 				storeConsulKey(kv, reqPrefix+"/capability", reqValue.Capability)
 				for propName, propValue := range reqValue.RelationshipProps {
-					storeConsulKey(kv, reqPrefix + "/properties/" + propName, fmt.Sprint(propValue))
+					storeConsulKey(kv, reqPrefix+"/properties/"+propName, fmt.Sprint(propValue))
 				}
 			}
 		}
@@ -281,7 +281,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			storeConsulKey(kv, artPrefix+"/name", artName)
 			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
 			if imports {
-				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport,artDef.File))
+				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport, artDef.File))
 			} else {
 				storeConsulKey(kv, artPrefix+"/file", artDef.File)
 			}
@@ -353,7 +353,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 					storeConsulKey(kv, inputPrefix+"/expression", inputDef.String())
 				}
 				if imports {
-					storeConsulKey(kv, intPrefix+"/implementation/primary", filepath.Join(pathImport,intDef.Implementation.Primary))
+					storeConsulKey(kv, intPrefix+"/implementation/primary", filepath.Join(pathImport, intDef.Implementation.Primary))
 				} else {
 					storeConsulKey(kv, intPrefix+"/implementation/primary", intDef.Implementation.Primary)
 				}
@@ -367,7 +367,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			storeConsulKey(kv, artPrefix+"/name", artName)
 			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
 			if imports {
-				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport,artDef.File))
+				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport, artDef.File))
 			} else {
 				storeConsulKey(kv, artPrefix+"/file", artDef.File)
 			}

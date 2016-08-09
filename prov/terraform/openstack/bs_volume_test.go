@@ -1,11 +1,12 @@
 package openstack
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/assert"
+	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"testing"
 )
 
 func Test_generateOSBSVolumeSizeConvert(t *testing.T) {
@@ -20,7 +21,9 @@ func Test_generateOSBSVolumeSizeConvert(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := jconfig.Configuration{}
+	// jconfig.Configuration{} // make(jconfig.Configuration)
+	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
 		volUrl       string
@@ -41,8 +44,8 @@ func Test_generateOSBSVolumeSizeConvert(t *testing.T) {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volUrl + "/type"] = []byte("janus.nodes.openstack.BlockStorage")
-		data[tt.volUrl + "/properties/size"] = []byte(tt.inputSize)
+		data[tt.volUrl+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+		data[tt.volUrl+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(data)
 		bsv, err := g.generateOSBSVolume(tt.volUrl)
@@ -64,7 +67,8 @@ func Test_generateOSBSVolumeSizeConvertError(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := jconfig.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
 		volUrl    string
@@ -79,8 +83,8 @@ func Test_generateOSBSVolumeSizeConvertError(t *testing.T) {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volUrl + "/type"] = []byte("janus.nodes.openstack.BlockStorage")
-		data[tt.volUrl + "/properties/size"] = []byte(tt.inputSize)
+		data[tt.volUrl+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+		data[tt.volUrl+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(data)
 		_, err := g.generateOSBSVolume(tt.volUrl)
@@ -100,7 +104,8 @@ func Test_generateOSBSVolumeMissingSize(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := jconfig.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -124,7 +129,8 @@ func Test_generateOSBSVolumeWrongType(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := jconfig.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -136,7 +142,6 @@ func Test_generateOSBSVolumeWrongType(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
-
 
 func Test_generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	log.SetDebug(true)
@@ -150,7 +155,8 @@ func Test_generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := jconfig.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
 	// Create a test key/value pair

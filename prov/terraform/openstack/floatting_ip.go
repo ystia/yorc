@@ -17,7 +17,7 @@ func (g *Generator) generateFloatIP(url string) (string, error, bool) {
 		return "", err, isIp
 	} else if networkName != "" {
 		ret = networkName
-	} else if ip, err :=  g.getStringFormConsul(url, "properties/ip"); err != nil {
+	} else if ip, err := g.getStringFormConsul(url, "properties/ip"); err != nil {
 		return "", err, isIp
 	} else if ip != "" {
 		ret = ip

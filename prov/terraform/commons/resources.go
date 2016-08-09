@@ -22,7 +22,7 @@ type ConsulKey struct {
 }
 
 type ConsulKeyIP struct {
-	Pool    string `json:"pool"`
+	Pool string `json:"pool"`
 }
 
 type RemoteExec struct {

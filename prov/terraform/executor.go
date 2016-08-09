@@ -3,6 +3,7 @@ package terraform
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
@@ -19,11 +20,12 @@ type Executor interface {
 }
 
 type defaultExecutor struct {
-	kv *api.KV
+	kv  *api.KV
+	cfg jconfig.Configuration
 }
 
-func NewExecutor(kv *api.KV) Executor {
-	return &defaultExecutor{kv: kv}
+func NewExecutor(kv *api.KV, cfg jconfig.Configuration) Executor {
+	return &defaultExecutor{kv: kv, cfg: cfg}
 }
 
 func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
@@ -39,7 +41,7 @@ func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
 
 	switch {
 	case strings.HasPrefix(nodeType, "janus.nodes.openstack."):
-		osGenerator := openstack.NewGenerator(e.kv)
+		osGenerator := openstack.NewGenerator(e.kv, e.cfg)
 		if err := osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
 			return err
 		}
@@ -77,13 +79,13 @@ func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
 }
 func (e *defaultExecutor) destroyInfrastructure(depId, nodeName string) error {
 	nodePath := path.Join(deployments.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
-	if kp, _, err := e.kv.Get(nodePath + "/type", nil); err != nil {
+	if kp, _, err := e.kv.Get(nodePath+"/type", nil); err != nil {
 		return err
 	} else if kp == nil {
 		return fmt.Errorf("Can't retrieve node type for node %q, in deployment %q", nodeName, depId)
 	} else {
 		if string(kp.Value) == "janus.nodes.openstack.BlockStorage" {
-			if kp, _, err = e.kv.Get(nodePath + "/properties/deletable", nil); err != nil {
+			if kp, _, err = e.kv.Get(nodePath+"/properties/deletable", nil); err != nil {
 				return err
 			} else if kp == nil || strings.ToLower(string(kp.Value)) != "true" {
 				// False by default

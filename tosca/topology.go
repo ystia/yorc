@@ -7,7 +7,7 @@ type Topology struct {
 	Version      string `yaml:"template_version"`
 	Author       string `yaml:"template_author"`
 
-	Imports      []ImportMap `yaml:"imports,omitempty"`
+	Imports []ImportMap `yaml:"imports,omitempty"`
 
 	NodeTypes        map[string]NodeType `yaml:"node_types,omitempty"`
 	TopologyTemplate TopologyTemplate    `yaml:"topology_template"`
