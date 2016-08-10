@@ -4,6 +4,9 @@ template_name: welcome-types
 template_version: 1.0.0
 template_author: admin
 
+imports:
+  - normative-types: <normative-types.yml>
+
 node_types:
   starlings.samples.nodes.Welcome:
     derived_from: tosca.nodes.SoftwareComponent
@@ -39,12 +42,11 @@ node_types:
       utils_scripts:
         file: utils_scripts
         type: tosca.artifacts.File
-  janus.nodes.openstack.FloatIP:
+  janus.nodes.openstack.FloatingIP:
     derived_from: tosca.nodes.Root
     description: Nodes used to connect to Network
     properties:
       floating_network_name:
-        required: true
         type: string
       ip:
         required: false

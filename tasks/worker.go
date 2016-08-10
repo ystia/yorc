@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
+	"golang.org/x/net/context"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
@@ -33,7 +34,7 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
-func (w Worker) runStep(step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, runningSteps map[string]struct{}) {
+func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, runningSteps map[string]struct{}) {
 	if _, ok := runningSteps[step.Name]; ok {
 		// Already running
 		log.Debugf("step %q already running", step.Name)
@@ -41,30 +42,40 @@ func (w Worker) runStep(step *Step, deploymentId string, wg *sync.WaitGroup, err
 	}
 	log.Debugf("Running step %q", step.Name)
 	runningSteps[step.Name] = struct{}{}
-	go step.run(deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh, w.cfg)
+	go step.run(ctx, deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh, w.cfg)
 	for _, next := range step.Next {
 		wg.Add(1)
 		log.Debugf("Try run next step %q", next.Name)
-		go w.runStep(next, deploymentId, wg, errc, runningSteps)
+		go w.runStep(ctx, next, deploymentId, wg, errc, runningSteps)
 	}
 }
 
 func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
 	var wg sync.WaitGroup
 	runningSteps := make(map[string]struct{})
+	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(ctx)
 	errc := make(chan error)
 	for _, step := range wfRoots {
 		wg.Add(1)
-		go w.runStep(step, deploymentId, &wg, errc, runningSteps)
+		go w.runStep(ctx, step, deploymentId, &wg, errc, runningSteps)
 	}
-	wg.Wait()
-	log.Debugf("All step done. Checking if there was an error")
+
+	go func(wg *sync.WaitGroup, cancel context.CancelFunc) {
+		wg.Wait()
+		// Canceling context so below ctx.Done() will be closed and not considered as an error
+		cancel()
+	}(&wg, cancel)
+
 	var err error
 	select {
 	case err = <-errc:
-	default:
+		log.Printf("Error '%v' happened in workflow.", err)
+		log.Debug("Canceling it.")
+		cancel()
+	case <-ctx.Done():
+		log.Printf("Workflow ended without error")
 	}
-	log.Debugf("Workflow ended with error: '%v'", err)
 	return err
 }
 

@@ -2,10 +2,10 @@ package tosca
 
 type RequirementDefinitionMap map[string]RequirementDefinition
 type RequirementDefinition struct {
-	Capability   string `yaml:"capability"`
-	Node         string `yaml:"node,omitempty"`
-	Relationship string `yaml:"relationship,omitempty"`
-	Occurrences  string `yaml:"occurrences,omitempty"`
+	Capability   string     `yaml:"capability"`
+	Node         string     `yaml:"node,omitempty"`
+	Relationship string     `yaml:"relationship,omitempty"`
+	Occurrences  ToscaRange `yaml:"occurrences,omitempty"`
 }
 
 type RequirementAssignmentMap map[string]RequirementAssignment

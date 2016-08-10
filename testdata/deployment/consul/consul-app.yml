@@ -1,0 +1,330 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+description: Alien4Cloud generated service template
+template_name: Test
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - openstack-types: <janus-openstack-types.yml>
+  - consul-types: consul/consul-types.yaml
+
+topology_template:
+  node_templates:
+    Consul-2:
+      type: starlings.nodes.Consul
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/consul
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: Compute-2
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - server_endpoint:
+            node: Consul
+            capability: starlings.capabilities.ConsulServer
+            relationship: starlings.relationships.ConnectsConsulAgentToServer
+    Compute-2:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: cloudify
+      requirements:
+        - network:
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Network:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+    Consul:
+      type: starlings.nodes.Consul
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/consul
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Compute:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: cloudify
+      requirements:
+        - network:
+            node: Net
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Net:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+  workflows:
+    install:
+      steps:
+        Network_install:
+          node: Network
+          activity:
+            delegate: install
+          on-success:
+            - Compute-2_install
+        Net_install:
+          node: Net
+          activity:
+            delegate: install
+          on-success:
+            - Compute_install
+        Compute_install:
+          node: Compute
+          activity:
+            delegate: install
+          on-success:
+            - Consul_initial
+        Compute-2_install:
+          node: Compute-2
+          activity:
+            delegate: install
+          on-success:
+            - Consul-2_initial
+        Consul-2_initial:
+          node: Consul-2
+          activity:
+            set_state: initial
+          on-success:
+            - Consul-2_creating
+        Consul-2_creating:
+          node: Consul-2
+          activity:
+            set_state: creating
+          on-success:
+            - create_Consul-2
+        create_Consul-2:
+          node: Consul-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - pre_conf_consul
+        pre_conf_consul:
+          node: Consul-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source
+          on-success:
+            - Consul-2_created
+        Consul-2_created:
+          node: Consul-2
+          activity:
+            set_state: created
+          on-success:
+            - Consul-2_configuring
+            - Consul_configuring
+        Consul-2_configuring:
+          node: Consul-2
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Consul-2
+        configure_Consul-2:
+          node: Consul-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Consul-2_configured
+        Consul-2_configured:
+          node: Consul-2
+          activity:
+            set_state: configured
+          on-success:
+            - Consul-2_starting
+        Consul-2_starting:
+          node: Consul-2
+          activity:
+            set_state: starting
+          on-success:
+            - start_Consul-2
+        start_Consul-2:
+          node: Consul-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Consul-2_started
+        Consul-2_started:
+          node: Consul-2
+          activity:
+            set_state: started
+        Consul_initial:
+          node: Consul
+          activity:
+            set_state: initial
+          on-success:
+            - Consul_creating
+        Consul_creating:
+          node: Consul
+          activity:
+            set_state: creating
+          on-success:
+            - create_Consul
+        create_Consul:
+          node: Consul
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Consul_created
+        Consul_created:
+          node: Consul
+          activity:
+            set_state: created
+          on-success:
+            - Consul_configuring
+        Consul_configuring:
+          node: Consul
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Consul
+        configure_Consul:
+          node: Consul
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Consul_configured
+        Consul_configured:
+          node: Consul
+          activity:
+            set_state: configured
+          on-success:
+            - Consul_starting
+        Consul_starting:
+          node: Consul
+          activity:
+            set_state: starting
+          on-success:
+            - start_Consul
+        start_Consul:
+          node: Consul
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Consul_started
+        Consul_started:
+          node: Consul
+          activity:
+            set_state: started
+          on-success:
+            - Consul-2_configuring
+    uninstall:
+      steps:
+        Network_uninstall:
+          node: Network
+          activity:
+            delegate: unistall
+        Net_uninstall:
+          node: Net
+          activity:
+            delegate: uninstall
+        Compute_uninstall:
+          node: Compute
+          activity:
+            delegate: uninstall
+          on-success:
+            - Net_uninstall
+        Compute-2_uninstall:
+          node: Compute-2
+          activity:
+            delegate: uninstall
+          on-success:
+            - Network_uninstall
+        Consul-2_stopping:
+          node: Consul-2
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Consul-2
+        stop_Consul-2:
+          node: Consul-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Consul-2_stopped
+        Consul-2_stopped:
+          node: Consul-2
+          activity:
+            set_state: stopped
+          on-success:
+            - Consul-2_deleting
+        Consul-2_deleting:
+          node: Consul-2
+          activity:
+            set_state: deleting
+          on-success:
+            - Consul-2_deleted
+        Consul-2_deleted:
+          node: Consul-2
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute-2_uninstall
+        Consul_stopping:
+          node: Consul
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Consul
+        stop_Consul:
+          node: Consul
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Consul_stopped
+        Consul_stopped:
+          node: Consul
+          activity:
+            set_state: stopped
+          on-success:
+            - Consul_deleting
+        Consul_deleting:
+          node: Consul
+          activity:
+            set_state: deleting
+          on-success:
+            - Consul_deleted
+        Consul_deleted:
+          node: Consul
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall

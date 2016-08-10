@@ -5,6 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
+  - openstack-types: <janus-openstack-types.yml>
   - welcome: welcome/welcome-types.yml
 
 topology_template:
@@ -45,7 +46,7 @@ topology_template:
             min_instances: 1
             default_instances: 1
     Network:
-      type: janus.nodes.openstack.FloatIP
+      type: janus.nodes.openstack.FloatingIP
       properties:
         floating_network_name: Public_Network
   workflows:

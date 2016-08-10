@@ -108,7 +108,17 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		addResource(&infrastructure, "openstack_compute_instance_v2", compute.Name, &compute)
 
 		consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
-		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+		consulKeyFixedIP := commons.ConsulKey{Name: compute.Name + "-ip_fixed_address-key", Path: nodeKey + "/attributes/private_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.fixed_ip_v4}", compute.Name)}
+
+		var consulKeys commons.ConsulKeys
+		if compute.FloatingIp != "" {
+			consulKeyFloatingIP := commons.ConsulKey{Name: compute.Name + "-ip_floating_address-key", Path: nodeKey + "/attributes/public_address", Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.floating_ip}", compute.Name)}
+			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyFixedIP, consulKeyFloatingIP}}
+
+		} else {
+			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyFixedIP}}
+		}
+
 		addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
 
 	case "janus.nodes.openstack.BlockStorage":
@@ -128,19 +138,19 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
-	case "janus.nodes.openstack.FloatIP":
-		floatIPString, err, isIp := g.generateFloatIP(nodeKey)
+	case "janus.nodes.openstack.FloatingIP":
+		floatingIPString, err, isIp := g.generateFloatingIP(nodeKey)
 		if err != nil {
 			return err
 		}
 
 		consulKey := commons.ConsulKey{}
 		if !isIp {
-			floatIP := FloatingIP{Pool: floatIPString}
-			addResource(&infrastructure, "openstack_compute_floatingip_v2", nodeName, &floatIP)
+			floatingIP := FloatingIP{Pool: floatingIPString}
+			addResource(&infrastructure, "openstack_compute_floatingip_v2", nodeName, &floatingIP)
 			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", nodeName)}
 		} else {
-			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatIPString}
+			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatingIPString}
 		}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
