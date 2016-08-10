@@ -90,10 +90,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 			"default": g.cfg.Keystone_tenant},
 
 		"keystone_url": map[string]interface{}{
-			"default": g.cfg.Keystone_url},
-
-		"prefix": map[string]interface{}{
-			"default": g.cfg.Prefix}}
+			"default": g.cfg.Keystone_url}}
 
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)

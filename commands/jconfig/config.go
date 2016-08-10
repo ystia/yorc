@@ -16,5 +16,4 @@ type Configuration struct {
 	Keystone_url        string `json:"keystone_url,omitempty"`
 	Consul_token        string `json:"consul_token,omitempty"`
 	Consul_datacenter   string `json:"consul_datacenter,omitempty"`
-	Path                string `json:"path,omitempty"`
 }
