@@ -3,8 +3,8 @@ package tasks
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"golang.org/x/net/context"
+	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"

@@ -445,7 +445,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			storeConsulKey(kv, artPrefix+"/metatype", "artifact")
 			storeConsulKey(kv, artPrefix+"/description", artDef.Description)
 			if imports {
-				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport,artDef.File))
+				storeConsulKey(kv, artPrefix+"/file", filepath.Join(pathImport, artDef.File))
 			} else {
 				storeConsulKey(kv, artPrefix+"/file", artDef.File)
 			}
@@ -480,7 +480,6 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		}
 		storeConsulKey(kv, capabilityTypePrefix+"/valid_source_types", strings.Join(capabilityType.ValidSourceTypes, ","))
 	}
-
 
 	workflowsPrefix := path.Join(deployments.DeploymentKVPrefix, id, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {

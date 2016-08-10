@@ -14,8 +14,6 @@ import (
 	"path/filepath"
 )
 
-var Prefix string
-
 type Generator struct {
 	kv  *api.KV
 	cfg jconfig.Configuration

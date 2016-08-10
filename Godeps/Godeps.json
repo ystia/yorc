@@ -2,36 +2,20 @@
 	"ImportPath": "novaforge.bull.com/starlings-janus/janus",
 	"GoVersion": "go1.6",
 	"GodepVersion": "v74",
-	"Packages": [
-		"novaforge.bull.com/starlings-janus/janus",
-		"novaforge.bull.com/starlings-janus/janus/commands",
-		"novaforge.bull.com/starlings-janus/janus/deployments",
-		"novaforge.bull.com/starlings-janus/janus/helper/mathutil",
-		"novaforge.bull.com/starlings-janus/janus/log",
-		"novaforge.bull.com/starlings-janus/janus/prov/ansible",
-		"novaforge.bull.com/starlings-janus/janus/prov/terraform",
-		"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons",
-		"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack",
-		"novaforge.bull.com/starlings-janus/janus/rest",
-		"novaforge.bull.com/starlings-janus/janus/tasks",
-		"novaforge.bull.com/starlings-janus/janus/tosca"
-	],
 	"Deps": [
 		{
-			"ImportPath": "github.com/armon/go-radix",
-			"Rev": "4239b77079c7b5d1243b7b4736304ce8ddb6f0f2"
-		},
-		{
-			"ImportPath": "github.com/bgentry/speakeasy",
-			"Rev": "e1439544d8ecd0f3e9373a636d447668096a8f81"
-		},
-		{
-			"ImportPath": "github.com/davecgh/go-spew/spew",
-			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.2.0-21-g9906417",
+			"Rev": "99064174e013895bbd9b025c31100bd1d9b590ca"
 		},
 		{
 			"ImportPath": "github.com/dustin/go-humanize",
 			"Rev": "fef948f2d241bd1fd0631108ecc2c9553bae60bf"
+		},
+		{
+			"ImportPath": "github.com/fsnotify/fsnotify",
+			"Comment": "v1.3.1",
+			"Rev": "a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -39,40 +23,13 @@
 			"Rev": "aed02d124ae4a0e94fea4541c8effd05bf0c8296"
 		},
 		{
-			"ImportPath": "github.com/hashicorp/consul/acl",
-			"Comment": "v0.6.4",
-			"Rev": "26a0ef8c41aa2252ab4cf0844fc6470c8e1d8256"
-		},
-		{
 			"ImportPath": "github.com/hashicorp/consul/api",
-			"Comment": "v0.6.4",
-			"Rev": "26a0ef8c41aa2252ab4cf0844fc6470c8e1d8256"
-		},
-		{
-			"ImportPath": "github.com/hashicorp/consul/consul/structs",
-			"Comment": "v0.6.4",
-			"Rev": "26a0ef8c41aa2252ab4cf0844fc6470c8e1d8256"
-		},
-		{
-			"ImportPath": "github.com/hashicorp/consul/testutil",
 			"Comment": "v0.6.4",
 			"Rev": "26a0ef8c41aa2252ab4cf0844fc6470c8e1d8256"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-cleanhttp",
 			"Rev": "ad28ea4487f05916463e2423a55166280e8254b5"
-		},
-		{
-			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
-			"Rev": "fa3f63826f7c23912c15263591e65d54d080b458"
-		},
-		{
-			"ImportPath": "github.com/hashicorp/golang-lru",
-			"Rev": "a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4"
-		},
-		{
-			"ImportPath": "github.com/hashicorp/golang-lru/simplelru",
-			"Rev": "a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/hcl",
@@ -116,6 +73,10 @@
 			"Rev": "6c4672d66fc6312ddde18399262943e21175d831"
 		},
 		{
+			"ImportPath": "github.com/inconshreveable/mousetrap",
+			"Rev": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+		},
+		{
 			"ImportPath": "github.com/julienschmidt/httprouter",
 			"Comment": "v1.1-29-g77366a4",
 			"Rev": "77366a47451a56bb3ba682481eed85b64fea14e8"
@@ -126,16 +87,13 @@
 			"Rev": "052b8b6c18edb9db317af86806d8e00ebaa94160"
 		},
 		{
-			"ImportPath": "github.com/mattn/go-isatty",
-			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
+			"ImportPath": "github.com/magiconair/properties",
+			"Comment": "v1.7.0-3-gb3f6dd5",
+			"Rev": "b3f6dd549956e8a61ea4a686a1c02a33d5bdda4b"
 		},
 		{
-			"ImportPath": "github.com/mitchellh/cli",
-			"Rev": "168daae10d6ff81b8b1201b0a4c9607d7e9b82e3"
-		},
-		{
-			"ImportPath": "github.com/pmezard/go-difflib/difflib",
-			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
+			"ImportPath": "github.com/mitchellh/mapstructure",
+			"Rev": "21a35fb16463dfb7c8eee579c65d995d95e64d1e"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",
@@ -143,9 +101,24 @@
 			"Rev": "f9ab0dce87d815821e221626b772e3475a0d2749"
 		},
 		{
-			"ImportPath": "github.com/stretchr/testify/assert",
-			"Comment": "v1.1.3-18-g8d64eb7",
-			"Rev": "8d64eb7173c7753d6419fd4a9caf057398611364"
+			"ImportPath": "github.com/spf13/cast",
+			"Rev": "e31f36ffc91a2ba9ddb72a4b6a607ff9b3d3cb63"
+		},
+		{
+			"ImportPath": "github.com/spf13/cobra",
+			"Rev": "f62e98d28ab7ad31d707ba837a966378465c7b57"
+		},
+		{
+			"ImportPath": "github.com/spf13/jwalterweatherman",
+			"Rev": "33c24e77fb80341fe7130ee7c594256ff08ccc46"
+		},
+		{
+			"ImportPath": "github.com/spf13/pflag",
+			"Rev": "1560c1005499d61b80f865c04d39ca7505bf7f0b"
+		},
+		{
+			"ImportPath": "github.com/spf13/viper",
+			"Rev": "b53595fb56a492ecef90ee0457595a999eb6ec15"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
@@ -158,14 +131,6 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "a83829b6f1293c91addabc89d0571c246397bbf4"
-		},
-		{
-			"ImportPath": "github.com/spf13/cobra",
-			"Rev": "f62e98d28ab7ad31d707ba837a966378465c7b57"
-		},
-		{
-			"ImportPath": "github.com/spf13/viper",
-			"Rev": "b53595fb56a492ecef90ee0457595a999eb6ec15"
 		}
 	]
 }
