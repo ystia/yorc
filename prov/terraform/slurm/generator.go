@@ -54,26 +54,6 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 	}
 }
 
-func addProvider(infrastructure *commons.Infrastructure, providerType, providerName string, provider interface{}) {
-	if len(infrastructure.Provider) != 0 {
-		if infrastructure.Provider[providerType] != nil && len(infrastructure.Provider[providerType].(map[string]interface{})) != 0 {
-			providersMap := infrastructure.Provider[providerType].(map[string]interface{})
-			providersMap[providerName] = provider
-		} else {
-			providersMap := make(map[string]interface{})
-			providersMap[providerName] = provider
-			infrastructure.Provider[providerType] = providersMap
-		}
-
-	} else {
-		providersMap := make(map[string]interface{})
-		infrastructure.Provider = providersMap
-		providersMap = make(map[string]interface{})
-		providersMap[providerName] = provider
-		infrastructure.Provider[providerType] = providersMap
-	}
-}
-
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
@@ -88,12 +68,16 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	log.Printf("GenerateTerraformInfraForNode switch begin")
 	switch nodeType {
 	case "janus.nodes.slurm.Compute":
-		compute, err := g.generateOSInstance(nodeKey, depId)
+		compute, err := g.generateSlurmNode(nodeKey, depId)
+
 		if err != nil {
 			return err
 		}
 		addResource(&infrastructure, "slurm_node", compute.Name, &compute)
-		addProvider(&infrastructure, "slurm", compute.Name, &compute)
+
+		infrastructure.Provider["username"] = "user";
+		infrastructure.Provider["name"] = "name";
+		infrastructure.Provider["url"] = "url";
 	default:
 		return fmt.Errorf("In Slurm : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}
