@@ -84,7 +84,7 @@ func janusOpenstackTypesYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "janus-openstack-types.yml", size: 2620, mode: os.FileMode(436), modTime: time.Unix(1470391648, 0)}
+	info := bindataFileInfo{name: "janus-openstack-types.yml", size: 2620, mode: os.FileMode(436), modTime: time.Unix(1470819150, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -104,7 +104,7 @@ func normativeTypesYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "normative-types.yml", size: 38941, mode: os.FileMode(436), modTime: time.Unix(1470391648, 0)}
+	info := bindataFileInfo{name: "normative-types.yml", size: 38941, mode: os.FileMode(436), modTime: time.Unix(1470819150, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -162,7 +162,7 @@ func AssetNames() []string {
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
 	"janus-openstack-types.yml": janusOpenstackTypesYml,
-	"normative-types.yml": normativeTypesYml,
+	"normative-types.yml":       normativeTypesYml,
 }
 
 // AssetDir returns the file names below a certain
@@ -204,9 +204,10 @@ type bintree struct {
 	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
+
 var _bintree = &bintree{nil, map[string]*bintree{
 	"janus-openstack-types.yml": &bintree{janusOpenstackTypesYml, map[string]*bintree{}},
-	"normative-types.yml": &bintree{normativeTypesYml, map[string]*bintree{}},
+	"normative-types.yml":       &bintree{normativeTypesYml, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
@@ -255,4 +256,3 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
-

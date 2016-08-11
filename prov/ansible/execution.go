@@ -170,7 +170,7 @@ func (e *execution) resolveHosts(nodePath string) error {
 }
 
 func (e *execution) resolveContext() error {
-	metatype, _, err := e.kv.Get(path.Join(e.NodeTypePath,"metatype"), nil)
+	metatype, _, err := e.kv.Get(path.Join(e.NodeTypePath, "metatype"), nil)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func (e *execution) resolveContext() error {
 		context["SOURCE_INSTANCE"] = e.NodeName
 		context["SOURCE_INSTANCES"] = e.NodeName
 
-		require, _, err := e.kv.Keys(path.Join(e.NodePath,"requirement"), "", nil)
+		require, _, err := e.kv.Keys(path.Join(e.NodePath, "requirement"), "", nil)
 		if err != nil {
 			return err
 		}
@@ -196,30 +196,30 @@ func (e *execution) resolveContext() error {
 			if !strings.Contains(path, "host") {
 				splitedPath := strings.Split(path, "/")
 				splitedPath2 := strings.Split(e.NodePath, "/")
-				kvPair, _, _ := e.kv.Get(e.NodePath + "/requirements/" + splitedPath[len(splitedPath)-2]  + "/node", nil)
-				nodePath := strings.Replace(e.NodePath,splitedPath2[len(splitedPath2)-1],string(kvPair.Value),-1)
+				kvPair, _, _ := e.kv.Get(e.NodePath+"/requirements/"+splitedPath[len(splitedPath)-2]+"/node", nil)
+				nodePath := strings.Replace(e.NodePath, splitedPath2[len(splitedPath2)-1], string(kvPair.Value), -1)
 
 				context["TARGET_NODE"] = filepath.Base(nodePath)
 				context["TARGET_INSTANCE"] = filepath.Base(nodePath)
 				context["TARGET_INSTANCES"] = filepath.Base(nodePath)
 
 				resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
-				params := make([]string,0)
-				params = append(params,"", "ip_address")
-				nodePath2, err := resolver.FindInHost(nodePath,e.NodeTypePath,"capabilities/endpoint/attributes",params)
+				params := make([]string, 0)
+				params = append(params, "", "ip_address")
+				nodePath2, err := resolver.FindInHost(nodePath, e.NodeTypePath, "capabilities/endpoint/attributes", params)
 
 				if err != nil {
 					return err
 				}
 
-				ip_addr, _, err := e.kv.Get(nodePath2 + "/capabilities/endpoint/attributes/ip_address",nil)
+				ip_addr, _, err := e.kv.Get(nodePath2+"/capabilities/endpoint/attributes/ip_address", nil)
 
 				if err != nil {
 					return err
 				}
 
 				context["TARGET_IP"] = string(ip_addr.Value)
-				context[filepath.Base(nodePath) + "_TARGET_IP"] = string(ip_addr.Value)
+				context[filepath.Base(nodePath)+"_TARGET_IP"] = string(ip_addr.Value)
 
 			}
 		}
@@ -239,7 +239,7 @@ func (e *execution) resolveExecution() error {
 	}
 	e.OverlayPath = ovPath
 	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
-	if strings.Contains(e.Operation,"Standard") {
+	if strings.Contains(e.Operation, "Standard") {
 		kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
 		if err != nil {
 			return err
@@ -256,20 +256,18 @@ func (e *execution) resolveExecution() error {
 			return err
 		}
 		for _, key := range kvPair {
-			if strings.Contains(key, "relationship") && !strings.Contains(key, "host"){
+			if strings.Contains(key, "relationship") && !strings.Contains(key, "host") {
 				kvPair, _, err := e.kv.Get(path.Join(key), nil)
 				if err != nil {
 					return err
 				}
 				e.NodeType = string(kvPair.Value)
-				e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types",string(kvPair.Value))
+				e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", string(kvPair.Value))
 			}
 		}
 	}
 
-
 	//TODO deal with inheritance operation may be not in the direct node type
-
 
 	e.OperationPath = e.NodeTypePath + "/interfaces/" + strings.Replace(strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle."), ".", "/", -1)
 	log.Debugf("Operation Path: %q", e.OperationPath)
@@ -304,7 +302,6 @@ func (e *execution) resolveExecution() error {
 	return e.resolveContext()
 
 }
-
 
 func (e *execution) execute() error {
 

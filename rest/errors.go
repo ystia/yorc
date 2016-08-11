@@ -37,3 +37,7 @@ func NewNotAcceptableError(accept string) *Error {
 func NewUnsupportedMediaTypeError(contentType string) *Error {
 	return &Error{"unsupported_media_type", 415, "Unsupported Media Type", fmt.Sprintf("Content-Type header must be set to: '%s'.", contentType)}
 }
+
+func NewBadRequestParameter(param string, err error) *Error {
+	return &Error{"bad_request", http.StatusBadRequest, "Bad Request", fmt.Sprintf("Invalid %q parameter %v", param, err)}
+}

@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/net/context"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
@@ -69,10 +70,16 @@ type visitStep struct {
 	step     *Step
 }
 
+func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName, status string) {
+	kv.Put(&api.KVPair{Key: path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "status"), Value: []byte(status)}, nil)
+	// Publish status change event
+	eventPub.StatusChange(nodeName, status)
+}
+
 func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}) {
 
 	defer wg.Done()
-
+	eventPub := events.NewPublisher(kv, deploymentId)
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
 		select {
@@ -97,24 +104,30 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 			switch delegateOp {
 			case "install":
 				if err := provisioner.ProvisionNode(deploymentId, s.Node); err != nil {
+					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 					log.Printf("Sending error %v to error channel", err)
 					errc <- err
 					return
 				}
+				setNodeStatus(kv, eventPub, deploymentId, s.Node, "started")
 			case "uninstall":
 				if err := provisioner.DestroyNode(deploymentId, s.Node); err != nil {
+					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 					errc <- err
 					return
 				}
+				setNodeStatus(kv, eventPub, deploymentId, s.Node, "initial")
 			default:
+				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 				errc <- fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
 				return
 			}
 		case actType == "set-state":
-			kv.Put(&api.KVPair{Key: path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", s.Node, "status"), Value: []byte(activity.ActivityValue())}, nil)
+			setNodeStatus(kv, eventPub, deploymentId, s.Node, activity.ActivityValue())
 		case actType == "call-operation":
 			exec := ansible.NewExecutor(kv)
 			if err := exec.ExecOperation(deploymentId, s.Node, activity.ActivityValue()); err != nil {
+				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 				errc <- err
 				return
 			}

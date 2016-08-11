@@ -13,14 +13,14 @@ type NodeType struct {
 }
 
 type RelationshipType struct {
-	DerivedFrom      string                        		`yaml:"derived_from,omitempty"`
-	Version          string                        		`yaml:"version,omitempty"`
-	Description      string                        		`yaml:"description,omitempty"`
-	Properties       map[string]PropertyDefinition 		`yaml:"properties,omitempty"`
-	Attributes       map[string]AttributeDefinition    	`yaml:"attributes,omitempty"`
-	Interfaces       map[string]InterfaceDefinitionMap 	`yaml:"interfaces,omitempty"`
-	Artifacts   	 map[string]ArtifactDefinition     	`yaml:"artifacts,omitempty"`
-	ValidTargetTypes []string                     		`yaml:"valid_target_types,omitempty"`
+	DerivedFrom      string                            `yaml:"derived_from,omitempty"`
+	Version          string                            `yaml:"version,omitempty"`
+	Description      string                            `yaml:"description,omitempty"`
+	Properties       map[string]PropertyDefinition     `yaml:"properties,omitempty"`
+	Attributes       map[string]AttributeDefinition    `yaml:"attributes,omitempty"`
+	Interfaces       map[string]InterfaceDefinitionMap `yaml:"interfaces,omitempty"`
+	Artifacts        map[string]ArtifactDefinition     `yaml:"artifacts,omitempty"`
+	ValidTargetTypes []string                          `yaml:"valid_target_types,omitempty"`
 }
 
 type CapabilityType struct {
