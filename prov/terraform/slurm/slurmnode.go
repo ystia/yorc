@@ -5,10 +5,10 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstance, error) {
+func (g *Generator) generateSlurmNode(url, deploymentId string) (ComputeInstance, error) {
 	var nodeType string
 	var err error
-	log.Printf("generateOSInstance begin")
+	log.Printf("generateSlurmNode begin")
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return ComputeInstance{}, err
 	}
@@ -16,19 +16,16 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 		return ComputeInstance{}, fmt.Errorf("In slurm/generateOSInstance : Unsupported node type for %s: %s", url, nodeType)
 	}
 	instance := ComputeInstance{}
-	if nodeName, err := g.getStringFormConsul(url, "name"); err != nil {
+	if nodeName, err := g.getStringFormConsul(url, "properties/name"); err != nil {
 		return ComputeInstance{}, err
 	} else {
 		instance.Name = nodeName
 	}
-	if gpuType, err := g.getStringFormConsul(url, "gpuType"); err != nil {
+	if gpuType, err := g.getStringFormConsul(url, "properties/gpuType"); err != nil {
 		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'gpuType' for %s", url)
 	} else {
 		instance.GpuType = gpuType
 	}
-
-	// Do this in order to be sure that ansible will be able to log on the instance
-	instance.Provisioners = make(map[string]interface{})
 	return instance, nil
 }
 
