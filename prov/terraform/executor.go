@@ -3,8 +3,8 @@ package terraform
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 	"os"

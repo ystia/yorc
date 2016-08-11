@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"

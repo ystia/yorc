@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
-	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"testing"
 )

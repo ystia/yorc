@@ -15,7 +15,8 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	var nodeType string
 	var err error
 
-	var Prefix string = g.cfg.Prefix
+	var OS_prefix string = g.cfg.OS_PREFIX
+	var OS_region string = g.cfg.OS_REGION
 
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return ComputeInstance{}, err
@@ -27,7 +28,7 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	if nodeName, err := g.getStringFormConsul(url, "name"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.Name = Prefix + nodeName
+		instance.Name = OS_prefix + nodeName
 	}
 	if image, err := g.getStringFormConsul(url, "properties/image"); err != nil {
 		return ComputeInstance{}, err
@@ -60,8 +61,7 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 	} else if region != "" {
 		instance.Region = region
 	} else {
-		//TODO make this configurable
-		instance.Region = "RegionOne"
+		instance.Region = OS_region
 	}
 
 	if keyPair, err := g.getStringFormConsul(url, "properties/key_pair"); err != nil {

@@ -1,16 +1,9 @@
 {
-        "auth-url": "http://10.197.132.150:5000/v2.0",
-        "tenant-id": "1f219ffcff2342e189ef47c0e9689dfb",
-        "tenant-name": "starlings",
-        "user-name": "starlingsuser",
-        "password": "starlingsuser",
-        "region": "RegionOne",
-        "external-gateway": "672a4127-41a1-482e-99c4-12ab31654ed2",
-        "public-network-name": "Public_Network",
-        "prefix": "KW-",
-        "keystone-user": "starlingsuser",
-        "keystone-password": "starlingsuser",
-        "keystone-tenant": "starlings",
-        "keystone-url": "http://10.197.132.150:5000/v2.0",
-        "availability-zone": "r423-01.share.ops"
+        "os_auth_url": "http://10.197.132.150:5000/v2.0",
+        "os_tenant_id": "1f219ffcff2342e189ef47c0e9689dfb",
+        "os_tenant_name": "starlings",
+        "os_user_name": "starlingsuser",
+        "os_password": "starlingsuser",
+        "os_region": "RegionOne",
+        "os_prefix": "JANUS-"
 }

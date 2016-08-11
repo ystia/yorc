@@ -5,14 +5,20 @@
 
 Janus provide two commands: "server" & "version". 
 
-In order to configure Janus, there are two ways: 
+In order to configure Janus, there are three ways powered by Cobra and Viper (two libraries to create CLI applications) : 
 
 
 ====> To use a Configuration file
 
-The first one is to use a configuration file. By default, the configuration directory is "/etc/janus".
+The first way is to use a configuration file. By default, the configuration directory is "/etc/janus". 
+If there isn't configuration file, Janus will check in the current directory.
+
 The name of the configuration file is "config.janus.json".
 
+
+====> To use environment variable
+
+Janus can retrieve environment variables beginning by "JANUS". 
 
 ====> To use Flags
 
@@ -29,28 +35,28 @@ Available Commands:
   version     Print the version
 
 Flags:
-  -a, --auth-url string              will use the 1.1 *compute api*
-      --config string                config file (default is /etc/janus/config.janus.json)
-  -v, --consul-datacenter string     The datacenter of Consul node
-  -u, --consul-token string          The token by default
-  -e, --external-gateway string      The external gateway
-  -m, --keystone-password string     The keystone password
-  -n, --keystone-tenant string       The keystone tenant
-  -o, --keystone-url string          The keystone URL
-  -l, --keystone-user string         The keystone user
-  -p, --password string              The password to authenticate
-  -w, --path string                  the path to the configuration file
-  -k, --prefix string                Prefix of the user
-  -f, --public-network-name string   The public network name
-  -r, --region string                The region name
-  -b, --tenant-id string             The ID of the tenant
-  -c, --tenant-name string           The name of the tenant
-  -t, --toggle                       Help message for toggle
-  -d, --user-name string             The username to authenticate
+      --config string              config file (default is /etc/janus/config.janus.json)
+  -v, --consul_datacenter string   The datacenter of Consul node
+  -u, --consul_token string        The token by default
+  -a, --os_auth_url string         will use the 1.1 *compute api*
+  -p, --os_password string         The password to authenticate
+  -k, --os_prefix string           Prefix of the user
+  -r, --os_region string           The region name
+  -b, --os_tenant_id string        The ID of the tenant
+  -c, --os_tenant_name string      The name of the tenant
+  -d, --os_user_name string        The username to authenticate
+  -t, --toggle                     Help message for toggle
 
 Use "janus [command] --help" for more information about a command.
 
 
+===========
+| Running |
+===========
 
+Viper configuration keys are case insensitive. Note that Viper uses the following precedence order -  each item takes 
+precedence over the item below it: 1)explicit call to Set  2)flag  3)env  4)config  5)key/value store  6)default
 
-
+For more details about Cobra and Viper:
+https://github.com/spf13/cobra
+https://github.com/spf13/viper

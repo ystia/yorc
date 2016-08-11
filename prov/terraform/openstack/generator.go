@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"io/ioutil"
-	"novaforge.bull.com/starlings-janus/janus/commands/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/jconfig"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"os"
@@ -65,30 +65,10 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	infrastructure := commons.Infrastructure{}
 	infrastructure.Provider = map[string]interface{}{
 		"openstack": map[string]interface{}{
-			"user_name":   g.cfg.User_name,
-			"tenant_name": g.cfg.Tenant_name,
-			"password":    g.cfg.Password,
-			"auth_url":    g.cfg.Auth_url}}
-
-	infrastructure.Variable = map[string]interface{}{
-
-		"public_network_name": map[string]interface{}{
-			"default": g.cfg.Public_network_name},
-
-		"external_gateway": map[string]interface{}{
-			"default": g.cfg.External_gateway},
-
-		"keystone_user": map[string]interface{}{
-			"default": g.cfg.Keystone_user},
-
-		"keystone_password": map[string]interface{}{
-			"default": g.cfg.Keystone_password},
-
-		"keystone_tenant": map[string]interface{}{
-			"default": g.cfg.Keystone_tenant},
-
-		"keystone_url": map[string]interface{}{
-			"default": g.cfg.Keystone_url}}
+			"user_name":   g.cfg.OS_USER_NAME,
+			"tenant_name": g.cfg.OS_TENANT_NAME,
+			"password":    g.cfg.OS_PASSWORD,
+			"auth_url":    g.cfg.OS_AUTH_URL}}
 
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
