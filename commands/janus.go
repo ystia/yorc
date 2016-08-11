@@ -90,14 +90,14 @@ func setConfig() {
 	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 	//Environment Variables
-	viper.SetEnvPrefix("os")
+	viper.SetEnvPrefix("os") // will be uppercased automatically - Become "OS_"
 	viper.AutomaticEnv() // read in environment variables that match
-	viper.BindEnv("OS_AUTH_URL")
-	viper.BindEnv("OS_TENANT_ID")
-	viper.BindEnv("OS_TENANT_NAME")
-	viper.BindEnv("OS_USERNAME")
-	viper.BindEnv("OS_PASSWORD")
-	viper.BindEnv("OS_REGION")
+	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
+	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
+	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
+	viper.BindEnv("os_user_name", "OS_USERNAME")
+	viper.BindEnv("os_password", "OS_PASSWORD")
+	viper.BindEnv("os_prefix", "OS_REGION")
 
 	//Setting Defaults
 	viper.SetDefault("os_prefix", "Janus-")
