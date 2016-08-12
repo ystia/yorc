@@ -73,7 +73,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		if err != nil {
 			return err
 		}
-		addResource(&infrastructure, "slurm_node", compute.Name, &compute)
+		addResource(&infrastructure, "slurm_node", "SlurmNode", &compute)
 		infrastructure.Provider = make(map[string]interface{})
 		infrastructure.Provider["username"] = "user"
 		infrastructure.Provider["name"] = "name"

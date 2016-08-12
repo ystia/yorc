@@ -1,7 +1,6 @@
 package slurm
 
 type ComputeInstance struct {
-	Name             string           `json:"name,omitempty"`
 	GpuType          string           `json:"gpu,omitempty"`
 }
 
