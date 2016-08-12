@@ -16,11 +16,6 @@ func (g *Generator) generateSlurmNode(url, deploymentId string) (ComputeInstance
 		return ComputeInstance{}, fmt.Errorf("In slurm/generateOSInstance : Unsupported node type for %s: %s", url, nodeType)
 	}
 	instance := ComputeInstance{}
-	if nodeName, err := g.getStringFormConsul(url, "properties/name"); err != nil {
-		return ComputeInstance{}, err
-	} else {
-		instance.Name = nodeName
-	}
 	if gpuType, err := g.getStringFormConsul(url, "properties/gpuType"); err != nil {
 		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'gpuType' for %s", url)
 	} else {
