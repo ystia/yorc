@@ -74,10 +74,16 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 			return err
 		}
 		addResource(&infrastructure, "slurm_node", "SlurmNode", &compute)
+
+		// Add Provider
 		infrastructure.Provider = make(map[string]interface{})
-		infrastructure.Provider["username"] = "user"
-		infrastructure.Provider["name"] = "name"
-		infrastructure.Provider["url"] = "url"
+		providerSlurmMap := make(map[string]interface{})
+		infrastructure.Provider["slurm"] = providerSlurmMap
+		providerSlurmMap["username"] = "user"
+		providerSlurmMap["name"] = "name"
+		providerSlurmMap["url"] = "url"
+
+
 	default:
 		return fmt.Errorf("In Slurm : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}
