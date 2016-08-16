@@ -97,8 +97,9 @@ func setConfig() {
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
 	viper.BindEnv("os_user_name", "OS_USERNAME")
 	viper.BindEnv("os_password", "OS_PASSWORD")
-	viper.BindEnv("os_prefix", "OS_REGION")
-
+	viper.BindEnv("os_region", "OS_REGION_NAME")
+	viper.BindEnv("os_prefix", "OS_PREFIX")
+	
 	//Setting Defaults
 	viper.SetDefault("os_prefix", "Janus-")
 	viper.SetDefault("os_region", "RegionOne")
@@ -107,7 +108,7 @@ func setConfig() {
 
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
-	viper.AddConfigPath("/etc/janus/")         // adding home directory as first search path
+	viper.AddConfigPath("/etc/janus/")  // adding home directory as first search path
 	viper.AddConfigPath(".")	
 
 	// If a config file is found, read it in.
