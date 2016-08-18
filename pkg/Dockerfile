@@ -18,6 +18,9 @@ ADD rootfs /
 
 RUN addgroup janus && \
     adduser -D -h /var/janus -G janus janus && \
+    umask 0077 && \
+    mkdir -p /var/janus/.ansible/tmp && \
+    umask 0022 && \
     chown -R janus:janus /var/janus
 
 COPY ./janus /usr/local/bin/
