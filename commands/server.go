@@ -24,7 +24,7 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Perform the server command",
 	Long:  `Perform the server command`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		configuration := config.Configuration{}
 		configuration = getConfig(configuration)
@@ -39,15 +39,15 @@ var serverCmd = &cobra.Command{
 		client, err := api.NewClient(ConsulCustomConfig)
 		if err != nil {
 			log.Printf("Can't connect to Consul")
-
+			return err
 		}
 		shutdownCh := make(chan struct{})
 		dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
 		go dispatcher.Run()
 		httpServer, err := rest.NewServer(client)
 		if err != nil {
-			log.Print(err)
-
+			close(shutdownCh)
+			return err
 		}
 		defer httpServer.Shutdown()
 		signalCh := make(chan os.Signal, 4)
@@ -70,7 +70,7 @@ var serverCmd = &cobra.Command{
 				if !shutdownChClosed {
 					close(shutdownCh)
 				}
-				return
+				return nil
 			}
 		}
 	},

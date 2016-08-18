@@ -17,7 +17,7 @@ var RootCmd = &cobra.Command{
 Janus is a new generation orchestrator.  
 It is cloud-agnostic, flexible and secure.
 `,
-
+	SilenceErrors: true,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Println("Available Commands for Janus:")
