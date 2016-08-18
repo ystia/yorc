@@ -70,7 +70,7 @@ var serverCmd = &cobra.Command{
 				if !shutdownChClosed {
 					close(shutdownCh)
 				}
-
+				return
 			}
 		}
 	},
