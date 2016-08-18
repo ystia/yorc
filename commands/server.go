@@ -26,7 +26,6 @@ var serverCmd = &cobra.Command{
 	Long:  `Perform the server command`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		c := new(Command)
 		configuration := config.Configuration{}
 		configuration = getConfig(configuration)
 
@@ -42,8 +41,8 @@ var serverCmd = &cobra.Command{
 			log.Printf("Can't connect to Consul")
 
 		}
-
-		dispatcher := tasks.NewDispatcher(3, c.ShutdownCh, client, configuration)
+		shutdownCh := make(chan struct{})
+		dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
 		go dispatcher.Run()
 		httpServer, err := rest.NewServer(client)
 		if err != nil {
@@ -59,7 +58,7 @@ var serverCmd = &cobra.Command{
 			select {
 			case s := <-signalCh:
 				sig = s
-			case <-c.ShutdownCh:
+			case <-shutdownCh:
 				sig = os.Interrupt
 				shutdownChClosed = true
 			}
@@ -69,7 +68,7 @@ var serverCmd = &cobra.Command{
 				// TODO reload
 			} else {
 				if !shutdownChClosed {
-					close(c.ShutdownCh)
+					close(shutdownCh)
 				}
 
 			}

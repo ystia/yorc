@@ -5,22 +5,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/config"
-	"os"
 )
 
 var cfgFile string
 
-type Command struct {
-	ShutdownCh chan struct{}
-}
-
-func Execute() {
-
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-}
 
 var RootCmd = &cobra.Command{
 	Use:   "janus",
