@@ -18,7 +18,7 @@ The name of the configuration file is "config.janus.json".
 
 ====> To use environment variable
 
-Janus can retrieve environment variables beginning by "JANUS". 
+Janus can retrieve environment variables beginning by "JANUS_".
 
 ====> To use Flags
 
@@ -27,27 +27,20 @@ The second way is to use the flags. Use "--help" or "-h" to access to Janus help
 Here are the flags available:
 
 Usage:
-  janus [flags]
-  janus [command]
-
-Available Commands:
-  server      Perform the server command
-  version     Print the version
+  janus server [flags]
 
 Flags:
-      --config string              config file (default is /etc/janus/config.janus.json)
-  -v, --consul_datacenter string   The datacenter of Consul node
-  -u, --consul_token string        The token by default
+  -c, --config string              config file (default is /etc/janus/config.janus.json)
+  -d, --consul_datacenter string   The datacenter of Consul node
+  -t, --consul_token string        The token by default
   -a, --os_auth_url string         will use the 1.1 *compute api*
   -p, --os_password string         The password to authenticate
-  -k, --os_prefix string           Prefix of the user
+  -x, --os_prefix string           Prefix of the user
   -r, --os_region string           The region name
-  -b, --os_tenant_id string        The ID of the tenant
-  -c, --os_tenant_name string      The name of the tenant
-  -d, --os_user_name string        The username to authenticate
-  -t, --toggle                     Help message for toggle
+  -i, --os_tenant_id string        The ID of the tenant
+  -n, --os_tenant_name string      The name of the tenant
+  -u, --os_user_name string        The username to authenticate
 
-Use "janus [command] --help" for more information about a command.
 
 
 ===========

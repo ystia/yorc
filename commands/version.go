@@ -7,6 +7,11 @@ import (
 
 const version = "Janus v0.1.0"
 
+
+func init() {
+	RootCmd.AddCommand(versionCmd)
+}
+
 var versionCmd = &cobra.Command{
 
 	Use:   "version",
