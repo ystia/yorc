@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"os"
@@ -16,10 +16,10 @@ import (
 
 type Generator struct {
 	kv  *api.KV
-	cfg jconfig.Configuration
+	cfg config.Configuration
 }
 
-func NewGenerator(kv *api.KV, cfg jconfig.Configuration) *Generator {
+func NewGenerator(kv *api.KV, cfg config.Configuration) *Generator {
 	return &Generator{kv: kv, cfg: cfg}
 }
 

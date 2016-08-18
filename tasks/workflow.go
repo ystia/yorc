@@ -5,7 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/net/context"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
@@ -70,7 +70,7 @@ type visitStep struct {
 	step     *Step
 }
 
-func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}, cfg jconfig.Configuration) {
+func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}, cfg config.Configuration) {
 
 	defer wg.Done()
 

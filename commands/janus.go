@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"novaforge.bull.com/starlings-janus/janus/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"os"
 )
 
@@ -121,7 +121,7 @@ func setConfig() {
 
 }
 
-func getConfig(configuration jconfig.Configuration) jconfig.Configuration {
+func getConfig(configuration config.Configuration) config.Configuration {
 
 	configuration.OS_AUTH_URL = viper.GetString("os_auth_url")
 	configuration.OS_TENANT_ID = viper.GetString("os_tenant_id")

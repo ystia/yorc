@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 	"os"
@@ -21,10 +21,10 @@ type Executor interface {
 
 type defaultExecutor struct {
 	kv  *api.KV
-	cfg jconfig.Configuration
+	cfg config.Configuration
 }
 
-func NewExecutor(kv *api.KV, cfg jconfig.Configuration) Executor {
+func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
 	return &defaultExecutor{kv: kv, cfg: cfg}
 }
 

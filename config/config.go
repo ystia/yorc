@@ -1,4 +1,4 @@
-package jconfig
+package config
 
 type Configuration struct {
 	OS_AUTH_URL       string `json:"os_auth_url,omitempty"`

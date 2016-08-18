@@ -5,7 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/spf13/cobra"
 	"log"
-	"novaforge.bull.com/starlings-janus/janus/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"
@@ -27,7 +27,7 @@ var serverCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		c := new(Command)
-		configuration := jconfig.Configuration{}
+		configuration := config.Configuration{}
 		configuration = getConfig(configuration)
 
 		var ConsulDC string = configuration.CONSUL_DATACENTER

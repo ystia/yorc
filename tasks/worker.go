@@ -5,7 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/net/context"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/jconfig"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
 	"sync"
@@ -16,10 +16,10 @@ type Worker struct {
 	TaskChannel  chan *Task
 	shutdownCh   chan struct{}
 	consulClient *api.Client
-	cfg          jconfig.Configuration
+	cfg          config.Configuration
 }
 
-func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClient *api.Client, cfg jconfig.Configuration) Worker {
+func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) Worker {
 	return Worker{
 		workerPool:   workerPool,
 		TaskChannel:  make(chan *Task),
