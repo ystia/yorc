@@ -4,9 +4,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"testing"
-	"novaforge.bull.com/starlings-janus/janus/config"
 )
 
 func Test_generateOSBSVolumeSizeConvert(t *testing.T) {

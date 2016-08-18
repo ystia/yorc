@@ -16,4 +16,3 @@ It is cloud-agnostic, flexible and secure.
 		cmd.Help()
 	},
 }
-

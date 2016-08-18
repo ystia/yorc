@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -123,7 +123,7 @@ func setConfig() {
 
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
-	viper.AutomaticEnv() // read in environment variables that match
+	viper.AutomaticEnv()        // read in environment variables that match
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
