@@ -4,6 +4,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"testing"
 )
@@ -13,14 +14,15 @@ func Test_generateOSBSVolumeSizeConvert(t *testing.T) {
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
-	config := api.DefaultConfig()
-	config.Address = srv1.HTTPAddr
+	consulConfig := api.DefaultConfig()
+	consulConfig.Address = srv1.HTTPAddr
 
-	client, err := api.NewClient(config)
+	client, err := api.NewClient(consulConfig)
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := config.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
 		volUrl       string
@@ -57,14 +59,15 @@ func Test_generateOSBSVolumeSizeConvertError(t *testing.T) {
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
-	config := api.DefaultConfig()
-	config.Address = srv1.HTTPAddr
+	consulConfig := api.DefaultConfig()
+	consulConfig.Address = srv1.HTTPAddr
 
-	client, err := api.NewClient(config)
+	client, err := api.NewClient(consulConfig)
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := config.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
 		volUrl    string
@@ -93,14 +96,15 @@ func Test_generateOSBSVolumeMissingSize(t *testing.T) {
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
-	config := api.DefaultConfig()
-	config.Address = srv1.HTTPAddr
+	consulConfig := api.DefaultConfig()
+	consulConfig.Address = srv1.HTTPAddr
 
-	client, err := api.NewClient(config)
+	client, err := api.NewClient(consulConfig)
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := config.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -117,14 +121,15 @@ func Test_generateOSBSVolumeWrongType(t *testing.T) {
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
-	config := api.DefaultConfig()
-	config.Address = srv1.HTTPAddr
+	consulConfig := api.DefaultConfig()
+	consulConfig.Address = srv1.HTTPAddr
 
-	client, err := api.NewClient(config)
+	client, err := api.NewClient(consulConfig)
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := config.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -142,14 +147,15 @@ func Test_generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
-	config := api.DefaultConfig()
-	config.Address = srv1.HTTPAddr
+	consulConfig := api.DefaultConfig()
+	consulConfig.Address = srv1.HTTPAddr
 
-	client, err := api.NewClient(config)
+	client, err := api.NewClient(consulConfig)
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	g := NewGenerator(kv)
+	cfg := config.Configuration{}
+	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
 	// Create a test key/value pair

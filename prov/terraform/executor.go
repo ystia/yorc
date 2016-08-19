@@ -3,6 +3,7 @@ package terraform
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
@@ -19,11 +20,12 @@ type Executor interface {
 }
 
 type defaultExecutor struct {
-	kv *api.KV
+	kv  *api.KV
+	cfg config.Configuration
 }
 
-func NewExecutor(kv *api.KV) Executor {
-	return &defaultExecutor{kv: kv}
+func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
+	return &defaultExecutor{kv: kv, cfg: cfg}
 }
 
 func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
@@ -39,7 +41,7 @@ func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
 
 	switch {
 	case strings.HasPrefix(nodeType, "janus.nodes.openstack."):
-		osGenerator := openstack.NewGenerator(e.kv)
+		osGenerator := openstack.NewGenerator(e.kv, e.cfg)
 		if err := osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
 			return err
 		}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"io/ioutil"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
@@ -14,11 +15,12 @@ import (
 )
 
 type Generator struct {
-	kv *api.KV
+	kv  *api.KV
+	cfg config.Configuration
 }
 
-func NewGenerator(kv *api.KV) *Generator {
-	return &Generator{kv: kv}
+func NewGenerator(kv *api.KV, cfg config.Configuration) *Generator {
+	return &Generator{kv: kv, cfg: cfg}
 }
 
 func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error) {
@@ -55,9 +57,19 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 }
 
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
+
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
+
+	// Management of variables for Terraform
 	infrastructure := commons.Infrastructure{}
+	infrastructure.Provider = map[string]interface{}{
+		"openstack": map[string]interface{}{
+			"user_name":   g.cfg.OS_USER_NAME,
+			"tenant_name": g.cfg.OS_TENANT_NAME,
+			"password":    g.cfg.OS_PASSWORD,
+			"auth_url":    g.cfg.OS_AUTH_URL}}
+
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
