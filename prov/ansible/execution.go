@@ -17,24 +17,43 @@ import (
 	"text/template"
 )
 
+const output_custom_wrapper = `
+[[[printf ". $HOME/.janus/%s/%s/%s" .NodeName .Operation .BasePrimary]]]
+[[[range $artName, $art := .Output -]]]
+[[[printf "echo %s,$%s >> $HOME/out.csv" $artName $artName]]]
+[[[printf "chmod 777 $HOME/out.csv" ]]]
+[[[printf "echo $%s" $artName]]]
+[[[end]]]
+`
+
 const ansible_playbook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
   tasks:
     - file: path="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" state=directory mode=0755
+    [[[if .HaveOutput]]]
+    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/.janus/wrapper.sh\" mode=0744" ]]]
+    [[[end]]]
     - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/.janus/%s/%s/%s\"" $.OverlayPath $art $.NodeName $.Operation (path $art)]]]
     [[[end]]]
-    - shell: "{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]/[[[.BasePrimary]]]"
+    [[[if not .HaveOutput]]]
+    [[[printf "- shell: \"{{ ansible_env.HOME}}/.janus/%s/%s/%s\"" .NodeName .Operation .BasePrimary]]][[[else]]]
+    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/.janus/wrapper.sh\""]]][[[end]]]
       environment:
-        [[[ range $index, $input := .Inputs -]]]
-        [[[print $input]]]
+        [[[ range $key, $input := .Inputs -]]]
+        [[[ if (len $input) gt 0]]][[[printf  "%s: %s" $key $input]]][[[else]]]
+        [[[printf  "%s: \"\"" $key]]]
+        [[[end]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]
         [[[printf "%s: \"{{ ansible_env.HOME}}/.janus/%v/%v/%s\"" $artName $.NodeName $.Operation $art]]]
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
         [[[printf "%s: %s" $contextK $contextV]]]
         [[[end]]]
+    [[[if .HaveOutput]]]
+    [[[printf "- fetch: src={{ ansible_env.HOME}}/out.csv dest={{dest_folder}} flat=yes" ]]]
+    [[[end]]]
 `
 
 const ansible_config = `[defaults]
