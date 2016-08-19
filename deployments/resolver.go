@@ -34,8 +34,10 @@ func (r *Resolver) ResolveToscaFunction(function, nodePath, nodeTypePath string,
 		if err != nil {
 			return "", err
 		}
+		//TODO Do verefication
 		if kvPair == nil || string(kvPair.Value) == "" {
-			return "", fmt.Errorf("Can't retrieve %s %q for type %q either in node definition or node type default", function, params[1], params[0])
+			return "", nil
+			//return "", fmt.Errorf("Can't retrieve %s %q for type %q either in node definition or node type default", function, params[1], params[0])
 		}
 	}
 	return string(kvPair.Value), nil
