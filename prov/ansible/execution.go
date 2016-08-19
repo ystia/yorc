@@ -67,7 +67,7 @@ type execution struct {
 	NodeName      string
 	Operation     string
 	NodeType      string
-	Inputs        []string
+	Inputs        map[string]string
 	Primary       string
 	BasePrimary   string
 	Dependencies  []string
@@ -78,6 +78,8 @@ type execution struct {
 	Artifacts     map[string]string
 	OverlayPath   string
 	Context       map[string]string
+	Output        map[string]string
+	HaveOutput    bool
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
