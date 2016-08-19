@@ -168,6 +168,11 @@
 			"Rev": "8d64eb7173c7753d6419fd4a9caf057398611364"
 		},
 		{
+			"ImportPath": "github.com/stretchr/testify/require",
+			"Comment": "v1.1.3-18-g8d64eb7",
+			"Rev": "8d64eb7173c7753d6419fd4a9caf057398611364"
+		},
+		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "7c62cfdcccc65f87b0120ec841012ba816fc1aec"
 		},
