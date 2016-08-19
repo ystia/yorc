@@ -382,10 +382,28 @@ func (e *execution) execute() error {
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
+		"abs":  filepath.Abs,
 	}
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
+	if e.HaveOutput {
+		wrap_template := template.New("execTemplate")
+		wrap_template = wrap_template.Delims("[[[", "]]]")
+		wrap_template, err := tmpl.Parse(output_custom_wrapper)
+		if err != nil {
+			return err
+		}
+		var buffer bytes.Buffer
+		if err := wrap_template.Execute(&buffer, e); err != nil {
+			log.Print("Failed to Generate wrapper template")
+			return err
+		}
+		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
+			log.Print("Failed to write playbook file")
+			return err
+		}
+	}
 	tmpl, err := tmpl.Parse(ansible_playbook)
 	if err := tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
@@ -405,15 +423,51 @@ func (e *execution) execute() error {
 		return err
 	}
 	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
-	cmd := exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+	var cmd *exec.Cmd
+	var wrapperPath string
+	if e.HaveOutput {
+		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
+		cmd = exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+	} else {
+		cmd = exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+	}
 	cmd.Dir = ansibleRecipePath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Start(); err != nil {
-		log.Print(err)
-		return err
+	if e.HaveOutput {
+		if err := cmd.Run(); err != nil {
+			log.Print(err)
+			return err
+		}
+		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
+		if err != nil {
+			panic(err)
+		}
+		r := csv.NewReader(fi)
+		records, err := r.ReadAll()
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, line := range records {
+			storeConsulKey(e.kv, e.Output[line[0]], line[1])
+		}
+		return nil
+
+	} else {
+		if err := cmd.Start(); err != nil {
+			log.Print(err)
+			return err
+		}
 	}
 
 	return cmd.Wait()
+}
+
+func storeConsulKey(kv *api.KV, key, value string) {
+	// PUT a new KV pair
+	p := &api.KVPair{Key: key, Value: []byte(value)}
+	if _, err := kv.Put(p, nil); err != nil {
+		log.Panic(err)
+	}
 }
