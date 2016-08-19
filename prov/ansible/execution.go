@@ -219,9 +219,14 @@ func (e *execution) resolveContext() error {
 			return err
 		}
 		for _, path := range require {
-				splitedPath := strings.Split(path, "/")
-				splitedPath2 := strings.Split(e.NodePath, "/")
-				kvPair, _, _ := e.kv.Get(e.NodePath+"/requirements/"+splitedPath[len(splitedPath)-2]+"/node", nil)
+			if !strings.HasSuffix(path, "node") {
+				continue
+			}
+			splitedPath2 := strings.Split(e.NodePath, "/")
+			kvPair, _, _ := e.kv.Get(path, nil)
+			log.Debugf(string(kvPair.Value))
+			if !strings.Contains(string(kvPair.Value), "Storage") {
+
 				nodePath := strings.Replace(e.NodePath, splitedPath2[len(splitedPath2)-1], string(kvPair.Value), -1)
 
 				context["TARGET_NODE"] = e.ReplaceMinus(filepath.Base(nodePath))
