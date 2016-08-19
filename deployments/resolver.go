@@ -132,19 +132,40 @@ func (r *Resolver) resolving(resolveType string, position string, function strin
 	return r.ResolveToscaFunction(function, nodePath, nodeTypePath, params)
 }
 
-func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
+func (r *Resolver) ResolveExpression(node *tosca.TreeNode, isRelationship bool) (string, error) {
+	var nodePath string
+
 	log.Debugf("Resolving expression %q", node.Value)
 	if node.IsLiteral() {
 		return node.Value, nil
 	}
 	params := make([]string, 0)
 	for _, child := range node.Children() {
-		exp, err := r.ResolveExpression(child)
+		exp, err := r.ResolveExpression(child, isRelationship)
 		if err != nil {
 			return "", err
 		}
 		params = append(params, exp)
 	}
+	if isRelationship && params[0] == "SELF" {
+		keys, _, err := r.kv.Keys(r.nodePath, "", nil)
+		if err != nil {
+			return "", err
+		}
+
+		for _, path := range keys {
+			if strings.Contains(path, params[1]) {
+				res := strings.Split(path, "/")
+				res = res[:len(res)-2]
+				nodePath = strings.Join(res, string(os.PathSeparator))
+				break
+			}
+		}
+
+	} else {
+		nodePath = r.nodePath
+	}
+
 	switch node.Value {
 	case "get_property":
 		if len(params) != 2 {
@@ -152,13 +173,13 @@ func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
 		}
 		switch params[0] {
 		case "SELF":
-			return r.ResolveToscaFunction("properties", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveToscaFunction("properties", nodePath, r.nodeTypePath, params)
 		case "HOST":
-			return r.ResolveHost("properties", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveHost("properties", nodePath, r.nodeTypePath, params)
 		case "SOURCE":
-			return r.ResolveSourceOrTarget("source", "properties", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveSourceOrTarget("source", "properties", nodePath, r.nodeTypePath, params)
 		case "TARGET":
-			return r.ResolveSourceOrTarget("target", "properties", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveSourceOrTarget("target", "properties", nodePath, r.nodeTypePath, params)
 		default:
 			nodePath := path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", params[0])
 			kvPair, _, err := r.kv.Get(nodePath+"/type", nil)
@@ -178,13 +199,13 @@ func (r *Resolver) ResolveExpression(node *tosca.TreeNode) (string, error) {
 		}
 		switch params[0] {
 		case "SELF":
-			return r.ResolveToscaFunction("attributes", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveToscaFunction("attributes", nodePath, r.nodeTypePath, params)
 		case "HOST":
-			return r.ResolveHost("attributes", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveHost("attributes", nodePath, r.nodeTypePath, params)
 		case "SOURCE":
-			return r.ResolveSourceOrTarget("source", "attributes", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveSourceOrTarget("source", "attributes", nodePath, r.nodeTypePath, params)
 		case "TARGET":
-			return r.ResolveSourceOrTarget("target", "attributes", r.nodePath, r.nodeTypePath, params)
+			return r.ResolveSourceOrTarget("target", "attributes", nodePath, r.nodeTypePath, params)
 		default:
 			nodePath := path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", params[0])
 			kvPair, _, err := r.kv.Get(nodePath+"/type", nil)
