@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
