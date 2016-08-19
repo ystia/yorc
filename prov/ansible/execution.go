@@ -169,6 +169,10 @@ func (e *execution) resolveHosts(nodePath string) error {
 	return nil
 }
 
+func (e *execution) ReplaceMinus(str string) string  {
+	return strings.Replace(str, "-", "_", -1)
+}
+
 func (e *execution) resolveContext() error {
 	metatype, _, err := e.kv.Get(path.Join(e.NodeTypePath, "metatype"), nil)
 	if err != nil {
@@ -176,32 +180,32 @@ func (e *execution) resolveContext() error {
 	}
 	context := make(map[string]string)
 
-	//TODO: Need to be improved with the execute (INSTANCE,INSTANCES)
-	context["NODE"] = e.NodeName
-	context["INSTANCE"] = e.NodeName
-	context["INSTANCES"] = e.NodeName
+	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
+	new_node := e.ReplaceMinus(e.NodeName)
+	context["NODE"] = new_node
+	context["INSTANCE"] = new_node
+	context["INSTANCES"] = new_node
 	context["HOST"] = e.Hosts[0]
 
 	if strings.Contains(string(metatype.Value), "Relationship") {
 
-		context["SOURCE_NODE"] = e.NodeName
-		context["SOURCE_INSTANCE"] = e.NodeName
-		context["SOURCE_INSTANCES"] = e.NodeName
+		context["SOURCE_NODE"] = new_node
+		context["SOURCE_INSTANCE"] = new_node
+		context["SOURCE_INSTANCES"] = new_node
 
-		require, _, err := e.kv.Keys(path.Join(e.NodePath, "requirement"), "", nil)
+		require, _, err := e.kv.Keys(filepath.Join(e.NodePath, "requirements"), "", nil)
 		if err != nil {
 			return err
 		}
 		for _, path := range require {
-			if !strings.Contains(path, "host") {
 				splitedPath := strings.Split(path, "/")
 				splitedPath2 := strings.Split(e.NodePath, "/")
 				kvPair, _, _ := e.kv.Get(e.NodePath+"/requirements/"+splitedPath[len(splitedPath)-2]+"/node", nil)
 				nodePath := strings.Replace(e.NodePath, splitedPath2[len(splitedPath2)-1], string(kvPair.Value), -1)
 
-				context["TARGET_NODE"] = filepath.Base(nodePath)
-				context["TARGET_INSTANCE"] = filepath.Base(nodePath)
-				context["TARGET_INSTANCES"] = filepath.Base(nodePath)
+				context["TARGET_NODE"] = e.ReplaceMinus(filepath.Base(nodePath))
+				context["TARGET_INSTANCE"] = e.ReplaceMinus(filepath.Base(nodePath))
+				context["TARGET_INSTANCES"] = e.ReplaceMinus(filepath.Base(nodePath))
 
 				resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
 				params := make([]string, 0)
@@ -219,9 +223,8 @@ func (e *execution) resolveContext() error {
 				}
 
 				context["TARGET_IP"] = string(ip_addr.Value)
-				context[filepath.Base(nodePath)+"_TARGET_IP"] = string(ip_addr.Value)
+				context[e.ReplaceMinus(filepath.Base(nodePath))+"_TARGET_IP"] = string(ip_addr.Value)
 
-			}
 		}
 
 	}
