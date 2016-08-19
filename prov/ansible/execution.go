@@ -2,6 +2,7 @@ package ansible
 
 import (
 	"bytes"
+	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"gopkg.in/yaml.v2"
@@ -126,10 +127,17 @@ func (e *execution) resolveArtifacts() error {
 	return nil
 }
 
+func (e *execution) isRelationship() bool {
+	if strings.Contains(e.OperationPath, "relationship") {
+		return true
+	}
+	return false
+}
+
 func (e *execution) resolveInputs() error {
 	log.Debug("resolving inputs")
 	resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
-	inputs := make([]string, 0)
+	inputs := make(map[string]string)
 	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
 	if err != nil {
 		return err
@@ -152,11 +160,11 @@ func (e *execution) resolveInputs() error {
 		}
 		va := tosca.ValueAssignment{}
 		yaml.Unmarshal(kvPair.Value, &va)
-		inputValue, err := resolver.ResolveExpression(va.Expression)
+		inputValue, err := resolver.ResolveExpression(va.Expression, e.isRelationship())
 		if err != nil {
 			return err
 		}
-		inputs = append(inputs, inputName+": "+inputValue)
+		inputs[inputName] = inputValue
 	}
 	e.Inputs = inputs
 
@@ -190,7 +198,7 @@ func (e *execution) resolveHosts(nodePath string) error {
 	return nil
 }
 
-func (e *execution) ReplaceMinus(str string) string  {
+func (e *execution) ReplaceMinus(str string) string {
 	return strings.Replace(str, "-", "_", -1)
 }
 
@@ -250,7 +258,7 @@ func (e *execution) resolveContext() error {
 
 				context["TARGET_IP"] = string(ip_addr.Value)
 				context[e.ReplaceMinus(filepath.Base(nodePath))+"_TARGET_IP"] = string(ip_addr.Value)
-
+			}
 		}
 
 	}
@@ -353,6 +361,9 @@ func (e *execution) resolveExecution() error {
 		return err
 	}
 	if err = e.resolveHosts(e.NodePath); err != nil {
+		return err
+	}
+	if err = e.resolveOutput(); err != nil {
 		return err
 	}
 
