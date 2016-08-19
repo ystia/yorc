@@ -79,9 +79,9 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		infrastructure.Provider = make(map[string]interface{})
 		providerSlurmMap := make(map[string]interface{})
 		infrastructure.Provider["slurm"] = providerSlurmMap
-		providerSlurmMap["username"] = "user"
+		providerSlurmMap["username"] = "root"
 		providerSlurmMap["name"] = "name"
-		providerSlurmMap["url"] = "url"
+		providerSlurmMap["url"] = "172.16.118.80"
 
 
 	default:
