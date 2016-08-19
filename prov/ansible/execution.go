@@ -260,6 +260,34 @@ func (e *execution) resolveContext() error {
 	return nil
 }
 
+func (e *execution) resolveOutput() error {
+	log.Debugf(e.OperationPath)
+	log.Debugf(e.Operation)
+
+	//We get all the output of the NodeType
+	pathList, _, err := e.kv.Keys(e.NodeTypePath+"/output/", "", nil)
+
+	if err != nil {
+		return err
+	}
+
+	output := make(map[string]string)
+
+	//For each type we compare if we are in the good lifecycle operation
+	for _, path := range pathList {
+		tmp := strings.Split(e.Operation, ".")
+		if strings.Contains(path, tmp[len(tmp)-1]) {
+			nodeOutPath := filepath.Join(e.NodePath, "attributes", strings.ToLower(filepath.Base(path)))
+			e.HaveOutput = true
+			output[filepath.Base(path)] = nodeOutPath
+		}
+	}
+
+	log.Debugf("%v", output)
+	e.Output = output
+	return nil
+}
+
 func (e *execution) resolveExecution() error {
 	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.DeploymentId)
 	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.DeploymentId, "overlay"))
