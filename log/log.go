@@ -59,7 +59,7 @@ func SetPrefix(prefix string) {
 // Print calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Print.
 func Print(v ...interface{}) {
-	a := make([]interface{}, len(v)+1)
+	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[INFO] "
 	std.Print(append(a, v...))
 }
@@ -73,14 +73,14 @@ func Printf(format string, v ...interface{}) {
 // Println calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Println.
 func Println(v ...interface{}) {
-	a := make([]interface{}, len(v)+1)
+	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[INFO] "
 	std.Println(append(a, v...))
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
-	a := make([]interface{}, len(v)+1)
+	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[FATAL]"
 	std.Fatal(append(a, v...))
 }
@@ -92,14 +92,14 @@ func Fatalf(format string, v ...interface{}) {
 
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
 func Fatalln(v ...interface{}) {
-	a := make([]interface{}, len(v)+1)
+	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[FATAL]"
 	std.Fatalln(append(a, v...))
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
 func Panic(v ...interface{}) {
-	a := make([]interface{}, len(v)+1)
+	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[PANIC]"
 	std.Panic(append(a, v...))
 }
@@ -111,7 +111,7 @@ func Panicf(format string, v ...interface{}) {
 
 // Panicln is equivalent to Println() followed by a call to panic().
 func Panicln(v ...interface{}) {
-	a := make([]interface{}, len(v)+1)
+	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[PANIC]"
 	std.Panicln(append(a, v...))
 }
@@ -131,7 +131,7 @@ func Output(calldepth int, s string) error {
 // Arguments are handled in the manner of fmt.Print.
 func Debug(v ...interface{}) {
 	if debug {
-		a := make([]interface{}, len(v)+1)
+		a := make([]interface{}, 1, len(v)+1)
 		a[0] = "[DEBUG]"
 		std.Print(append(a, v...))
 	}
@@ -150,7 +150,7 @@ func Debugf(format string, v ...interface{}) {
 // Arguments are handled in the manner of fmt.Println.
 func Debugln(v ...interface{}) {
 	if debug {
-		a := make([]interface{}, len(v)+1)
+		a := make([]interface{}, 1, len(v)+1)
 		a[0] = "[DEBUG]"
 		std.Println(append(a, v...))
 	}

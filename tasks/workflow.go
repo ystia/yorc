@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/net/context"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
@@ -69,7 +70,7 @@ type visitStep struct {
 	step     *Step
 }
 
-func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}) {
+func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}, cfg config.Configuration) {
 
 	defer wg.Done()
 
@@ -92,7 +93,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 		actType := activity.ActivityType()
 		switch {
 		case actType == "delegate":
-			provisioner := terraform.NewExecutor(kv)
+			provisioner := terraform.NewExecutor(kv, cfg)
 			delegateOp := activity.ActivityValue()
 			switch delegateOp {
 			case "install":
