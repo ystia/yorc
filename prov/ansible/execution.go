@@ -268,7 +268,7 @@ func (e *execution) resolveContext() error {
 	return nil
 }
 
-func (e *execution) resolveOutput() error {
+func (e *execution) resolveOperationOutput() error {
 	log.Debugf(e.OperationPath)
 	log.Debugf(e.Operation)
 
@@ -363,7 +363,7 @@ func (e *execution) resolveExecution() error {
 	if err = e.resolveHosts(e.NodePath); err != nil {
 		return err
 	}
-	if err = e.resolveOutput(); err != nil {
+	if err = e.resolveOperationOutput(); err != nil {
 		return err
 	}
 
