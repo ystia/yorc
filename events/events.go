@@ -16,7 +16,7 @@ type Publisher interface {
 }
 
 type Subscriber interface {
-	NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error)
+	NewEvents(waitIndex uint64, timeout time.Duration, nodeName string) ([]deployments.Event, uint64, error)
 }
 
 type consulPubSub struct {
@@ -34,16 +34,26 @@ func NewSubscriber(kv *api.KV, deploymentId string) Subscriber {
 
 func (cp *consulPubSub) StatusChange(nodeName, status string) (string, error) {
 	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events")
+	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
+	eventsNodePrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName)
 	eventEntry := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(nodeName + "\n" + status)}
+	eventNodeEntry := &api.KVPair{Key: path.Join(eventsNodePrefix, now), Value: []byte(nodeName + "\n" + status)}
 	if _, err := cp.kv.Put(eventEntry, nil); err != nil {
+		return "", err
+	}
+	if _, err := cp.kv.Put(eventNodeEntry, nil); err != nil {
 		return "", err
 	}
 	return now, nil
 }
 
-func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error) {
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events")
+func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration, nodeName string) ([]deployments.Event, uint64, error) {
+	var eventsPrefix string
+	if nodeName != "" {
+		eventsPrefix = path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName)
+	} else {
+		eventsPrefix = path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
+	}
 	events := make([]deployments.Event, 0)
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
