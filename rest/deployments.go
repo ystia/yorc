@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/context"
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/satori/go.uuid"
@@ -80,7 +79,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		path := filepath.Join(destDir, f.Name)
 		if f.FileInfo().IsDir() {
 			// Ensure that we have full rights on directory to be able to extract files into them
-			if err = os.MkdirAll(path, f.Mode() | 0700); err != nil {
+			if err = os.MkdirAll(path, f.Mode()|0700); err != nil {
 				log.Panicf("%+v", err)
 			}
 			continue
@@ -132,7 +131,8 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
-	params = context.Get(r, "params").(httprouter.Params)
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 	if err := s.tasksCollector.RegisterTask(id, tasks.UNDEPLOY); err != nil {
 		log.Panic(err)
@@ -142,7 +142,8 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 
 func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
-	params = context.Get(r, "params").(httprouter.Params)
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 
 	kv := s.consulClient.KV()

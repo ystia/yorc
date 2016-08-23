@@ -2,7 +2,6 @@ package rest
 
 import (
 	"encoding/json"
-	"github.com/gorilla/context"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -13,7 +12,8 @@ import (
 
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
-	params = context.Get(r, "params").(httprouter.Params)
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 	sub := events.NewSubscriber(s.consulClient.KV(), id)
 	values := r.URL.Query()
@@ -32,7 +32,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, NewBadRequestParameter("index", err))
 			return
 		}
-		if timeout > 10 * time.Minute {
+		if timeout > 10*time.Minute {
 			timeout = 10 * time.Minute
 		}
 	}
