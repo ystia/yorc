@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestGroupedVolumeParallel(t *testing.T)  {
+func TestGroupedVolumeParallel(t *testing.T) {
 	t.Run("groupVolume", func(t *testing.T) {
 		t.Run("generateOSBSVolumeSizeConvert", generateOSBSVolumeSizeConvert)
 		t.Run("Test_generateOSBSVolumeSizeConvertError", generateOSBSVolumeSizeConvertError)
