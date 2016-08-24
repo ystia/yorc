@@ -69,11 +69,22 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	switch nodeType {
 	case "janus.nodes.slurm.Compute":
 		compute, err := g.generateSlurmNode(nodeKey, depId)
-
 		if err != nil {
 			return err
 		}
-		addResource(&infrastructure, "slurm_node", "SlurmNode", &compute)
+
+		var computeName string
+		computeName = "janus-Compute"
+		addResource(&infrastructure, "slurm_node", computeName, &compute)
+
+
+		consulKeyNodeName := commons.ConsulKey{Name: computeName + "-node_name", Path: nodeKey + "/capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
+		consulKeyJobId := commons.ConsulKey{Name: computeName + "-job_id", Path: nodeKey + "/capabilities/endpoint/attributes/job_id", Value: fmt.Sprintf("${slurm_node.%s.job_id}", computeName)}
+
+		var consulKeys commons.ConsulKeys
+		consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKeyNodeName, consulKeyJobId}}
+		addResource(&infrastructure, "consul_keys", computeName, &consulKeys)
+
 
 		// Add Provider
 		infrastructure.Provider = make(map[string]interface{})
