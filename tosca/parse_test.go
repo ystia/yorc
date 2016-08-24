@@ -11,8 +11,14 @@ import (
 	"testing"
 )
 
-func TestParsing(t *testing.T) {
+func TestGroupedParsingParallel(t *testing.T)  {
+	t.Run("groupParsing", func(t *testing.T) {
+		t.Run("TestParsing", parsing)
+	})
+}
 
+func parsing(t *testing.T) {
+	t.Parallel()
 	definition, err := os.Open(filepath.Join("..", "testdata", "deployment", "dep.yaml"))
 	if err != nil {
 		t.Fatal(err)

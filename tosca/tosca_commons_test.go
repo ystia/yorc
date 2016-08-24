@@ -7,7 +7,17 @@ import (
 	"testing"
 )
 
-func TestValueAssignment_String(t *testing.T) {
+func TestGroupedCommonsParallel(t *testing.T)  {
+	t.Run("groupCommons", func(t *testing.T) {
+		t.Run("TestValueAssignment_String", valueAssignment_String)
+		t.Run("TestValueAssignment_ReadWrite", valueAssignment_ReadWrite)
+		t.Run("TestValueAssignment_Malformed1", valueAssignment_Malformed1)
+		t.Run("TestValueAssignment_Malformed2", valueAssignment_Malformed2)
+	})
+}
+
+func valueAssignment_String(t *testing.T) {
+	t.Parallel()
 	data := `{ concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_property: [SELF, port] ] }`
 	va := ValueAssignment{}
 
@@ -16,7 +26,8 @@ func TestValueAssignment_String(t *testing.T) {
 	assert.Equal(t, `concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_property: [SELF, port]]`, va.String())
 }
 
-func TestValueAssignment_ReadWrite(t *testing.T) {
+func valueAssignment_ReadWrite(t *testing.T) {
+	t.Parallel()
 	data := `{ concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_property: [SELF, port] ] }`
 	va := ValueAssignment{}
 
@@ -30,7 +41,8 @@ func TestValueAssignment_ReadWrite(t *testing.T) {
 	assert.Equal(t, va.String(), va2.String())
 }
 
-func TestValueAssignment_Malformed1(t *testing.T) {
+func valueAssignment_Malformed1(t *testing.T) {
+	t.Parallel()
 	data := `{ concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_property: [SELF, port] ], 2: 3 }`
 	va := ValueAssignment{}
 
@@ -38,7 +50,8 @@ func TestValueAssignment_Malformed1(t *testing.T) {
 	log.Printf("%v", err)
 	assert.Error(t, err)
 }
-func TestValueAssignment_Malformed2(t *testing.T) {
+func valueAssignment_Malformed2(t *testing.T) {
+	t.Parallel()
 	data := `{ concat: ["http://", [get_attribute, get_property]: [HOST, public_ip_address], ":", get_property: [SELF, port] ]}`
 	va := ValueAssignment{}
 

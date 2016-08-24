@@ -6,11 +6,22 @@ import (
 	"testing"
 )
 
+func TestGroupedImplementationsParallel(t *testing.T)  {
+	t.Run("groupImplementations", func(t *testing.T) {
+		t.Run("TestImplementationSimpleGrammar", implementationSimpleGrammar)
+		t.Run("TestImplementationComplexGrammar", implementationComplexGrammar)
+		t.Run("TestImplementationComplexGrammarWithDependencies", implementationComplexGrammarWithDependencies)
+		t.Run("TestImplementationFailing", implementationFailing)
+	})
+}
+
+
 type implementationTestType struct {
 	Implementation Implementation
 }
 
-func TestImplementationSimpleGrammar(t *testing.T) {
+func implementationSimpleGrammar(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `implementation: scripts/start_server.sh`
 	implem := implementationTestType{}
 
@@ -20,7 +31,8 @@ func TestImplementationSimpleGrammar(t *testing.T) {
 	assert.Len(t, implem.Implementation.Dependencies, 0, "Expecting no dependencies but found %d", len(implem.Implementation.Dependencies))
 }
 
-func TestImplementationComplexGrammar(t *testing.T) {
+func implementationComplexGrammar(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 implementation:
   primary: scripts/start_server.sh`
@@ -32,7 +44,8 @@ implementation:
 	assert.Len(t, implem.Implementation.Dependencies, 0, "Expecting no dependencies but found %d", len(implem.Implementation.Dependencies))
 }
 
-func TestImplementationComplexGrammarWithDependencies(t *testing.T) {
+func implementationComplexGrammarWithDependencies(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 implementation:
   primary: scripts/start_server.sh
@@ -49,7 +62,8 @@ implementation:
 	assert.Contains(t, implem.Implementation.Dependencies, "utils/log.sh")
 }
 
-func TestImplementationFailing(t *testing.T) {
+func implementationFailing(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 implementation:
   primary: [scripts/start_server.sh, scripts/start_server.sh]

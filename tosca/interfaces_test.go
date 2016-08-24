@@ -7,7 +7,19 @@ import (
 	"testing"
 )
 
-func TestInterfaceSimpleGrammar(t *testing.T) {
+func TestGroupedInterfacesParallel(t *testing.T)  {
+	t.Run("groupInterfaces", func(t *testing.T) {
+		t.Run("TestInterfaceSimpleGrammar", interfaceSimpleGrammar)
+		t.Run("TestInterfaceComplexGrammar", interfaceComplexGrammar)
+		t.Run("TestInterfaceExpressionInputs", interfaceExpressionInputs)
+		t.Run("TestInterfaceExpressionInputsComplexExpression", interfaceExpressionInputsComplexExpression)
+		t.Run("TestInterfaceMixed", interfaceMixed)
+		t.Run("TestInterfaceFailing", interfaceFailing)
+	})
+}
+
+func interfaceSimpleGrammar(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `start: scripts/start_server.sh`
 	ifDefMap := InterfaceDefinitionMap{}
 
@@ -20,7 +32,8 @@ func TestInterfaceSimpleGrammar(t *testing.T) {
 	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
 
-func TestInterfaceComplexGrammar(t *testing.T) {
+func interfaceComplexGrammar(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 start:
   inputs:
@@ -39,7 +52,8 @@ start:
 	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
 
-func TestInterfaceExpressionInputs(t *testing.T) {
+func interfaceExpressionInputs(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 start:
   inputs:
@@ -70,7 +84,8 @@ start:
 
 	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
-func TestInterfaceExpressionInputsComplexExpression(t *testing.T) {
+func interfaceExpressionInputsComplexExpression(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 start:
   inputs:
@@ -148,7 +163,8 @@ start:
 	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
 
-func TestInterfaceMixed(t *testing.T) {
+func interfaceMixed(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 start:
   inputs:
@@ -172,7 +188,8 @@ stop: scripts/stop_server.sh`
 	assert.Equal(t, "scripts/stop_server.sh", ifDefConcreteStop.Implementation.Primary)
 }
 
-func TestInterfaceFailing(t *testing.T) {
+func interfaceFailing(t *testing.T) {
+	t.Parallel()
 	var inputYaml = `
 start:
   inputs: ["Y" , "Z" ]

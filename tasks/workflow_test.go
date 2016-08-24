@@ -5,11 +5,22 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func TestReadStepFromConsulFailing(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func TestGroupedTaskParallel(t *testing.T)  {
+	t.Run("groupTask", func(t *testing.T) {
+		t.Run("generateOSBSVolumeSizeConvert", readStepFromConsul)
+		t.Run("Test_generateOSBSVolumeSizeConvertError", readStepFromConsulFailing)
+		t.Run("Test_generateOSBSVolumeMissingSize", readStepWithNext)
+		t.Run("Test_generateOSBSVolumeCheckOptionalValues", testReadWorkFlowFromConsul)
+	})
+}
+
+func readStepFromConsulFailing(t *testing.T) {
+	t.Parallel()
+	log.SetDebug(true)
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
@@ -30,9 +41,9 @@ func TestReadStepFromConsulFailing(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestReadStepFromConsul(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func readStepFromConsul(t *testing.T) {
+	t.Parallel()
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
@@ -68,9 +79,9 @@ func TestReadStepFromConsul(t *testing.T) {
 	assert.Contains(t, visitedMap, "stepName")
 }
 
-func TestReadStepWithNext(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func readStepWithNext(t *testing.T) {
+	t.Parallel()
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
@@ -109,9 +120,9 @@ func TestReadStepWithNext(t *testing.T) {
 	assert.Equal(t, 1, visitedMap["downstream"].refCount)
 }
 
-func TestReadWorkFlowFromConsul(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func testReadWorkFlowFromConsul(t *testing.T) {
+	t.Parallel()
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()

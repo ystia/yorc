@@ -1,7 +1,7 @@
 GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep github.com/jteeuwen/go-bindata/...
 
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
-PACKAGES_MINUS_CONSUL_TESTS=$(shell go list ./... | grep -v '/vendor/' | grep -v '/tasks' | grep -v '/events')
+PACKAGES_MINUS_CONSUL_TESTS=$(shell go list ./... | grep -v '/vendor/')
 
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
@@ -20,9 +20,7 @@ dist: build
 
 test: checks
 	@echo "--> Running go test"
-	@go test $(PACKAGES_MINUS_CONSUL_TESTS) $(TESTARGS) -timeout=30s -parallel=0
-	@go test ./tasks/... $(TESTARGS) -timeout=30s -parallel=0
-	@go test ./events/... $(TESTARGS) -timeout=30s -parallel=0
+	@go test $(PACKAGES_MINUS_CONSUL_TESTS) $(TESTARGS) -timeout=30s -p=1
 
 
 cover: build
