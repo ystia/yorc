@@ -2,6 +2,7 @@ package ansible
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"gopkg.in/yaml.v2"
@@ -303,7 +304,7 @@ func (e *execution) resolveExecution() error {
 
 }
 
-func (e *execution) execute() error {
+func (e *execution) execute(ctx context.Context) error {
 
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
@@ -348,7 +349,7 @@ func (e *execution) execute() error {
 		return err
 	}
 	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
-	cmd := exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+	cmd := exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	cmd.Dir = ansibleRecipePath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

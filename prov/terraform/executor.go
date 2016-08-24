@@ -1,6 +1,7 @@
 package terraform
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -15,8 +16,8 @@ import (
 )
 
 type Executor interface {
-	ProvisionNode(deploymentId, nodeName string) error
-	DestroyNode(deploymentId, nodeName string) error
+	ProvisionNode(ctx context.Context, deploymentId, nodeName string) error
+	DestroyNode(ctx context.Context, deploymentId, nodeName string) error
 }
 
 type defaultExecutor struct {
@@ -28,7 +29,7 @@ func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
 	return &defaultExecutor{kv: kv, cfg: cfg}
 }
 
-func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
+func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeName string) error {
 
 	kvPair, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
 	if err != nil {
@@ -49,22 +50,22 @@ func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
 		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
 	}
 
-	if err := e.applyInfrastructure(deploymentId, nodeName); err != nil {
+	if err := e.applyInfrastructure(ctx, deploymentId, nodeName); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *defaultExecutor) DestroyNode(deploymentId, nodeName string) error {
-	if err := e.destroyInfrastructure(deploymentId, nodeName); err != nil {
+func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeName string) error {
+	if err := e.destroyInfrastructure(ctx, deploymentId, nodeName); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
+func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeName string) error {
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
-	cmd := exec.Command("terraform", "apply")
+	cmd := exec.CommandContext(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -77,7 +78,8 @@ func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
 	return cmd.Wait()
 
 }
-func (e *defaultExecutor) destroyInfrastructure(depId, nodeName string) error {
+
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, nodeName string) error {
 	nodePath := path.Join(deployments.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
 	if kp, _, err := e.kv.Get(nodePath+"/type", nil); err != nil {
 		return err
@@ -96,7 +98,7 @@ func (e *defaultExecutor) destroyInfrastructure(depId, nodeName string) error {
 	}
 
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
-	cmd := exec.Command("terraform", "destroy", "-force")
+	cmd := exec.CommandContext(ctx, "terraform", "destroy", "-force")
 	cmd.Dir = infraPath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
