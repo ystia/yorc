@@ -13,8 +13,7 @@ import (
 	"time"
 )
 
-
-func TestGroupedEventParallel(t *testing.T)  {
+func TestGroupedEventParallel(t *testing.T) {
 	t.Run("groupEvent", func(t *testing.T) {
 		t.Run("TestConsulPubSub_StatusChange", ConsulPubSub_StatusChange)
 		t.Run("TestConsulPubSub_NewEvents", ConsulPubSub_NewEvents)

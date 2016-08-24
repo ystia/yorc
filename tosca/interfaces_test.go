@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestGroupedInterfacesParallel(t *testing.T)  {
+func TestGroupedInterfacesParallel(t *testing.T) {
 	t.Run("groupInterfaces", func(t *testing.T) {
 		t.Run("TestInterfaceSimpleGrammar", interfaceSimpleGrammar)
 		t.Run("TestInterfaceComplexGrammar", interfaceComplexGrammar)

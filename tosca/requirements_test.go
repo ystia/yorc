@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestGroupedRequirementParallel(t *testing.T)  {
+func TestGroupedRequirementParallel(t *testing.T) {
 	t.Run("groupRequirement", func(t *testing.T) {
 		t.Run("TestRequirementAssignment_Complex", requirementAssignment_Complex)
 		t.Run("TestRequirementAssignment_Simple", requirementAssignment_Simple)

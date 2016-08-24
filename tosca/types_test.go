@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestGroupedTypesParallel(t *testing.T)  {
+func TestGroupedTypesParallel(t *testing.T) {
 	t.Run("groupTypes", func(t *testing.T) {
 		t.Run("TestNodeTypeParsing", nodeTypeParsing)
 	})

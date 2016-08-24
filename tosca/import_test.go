@@ -6,13 +6,11 @@ import (
 	"testing"
 )
 
-
-func TestGroupedImportsParallel(t *testing.T)  {
+func TestGroupedImportsParallel(t *testing.T) {
 	t.Run("groupImports", func(t *testing.T) {
 		t.Run("TestImportDefinitionConcrete_UnmarshalYAML_SimpleGrammar", importDefinitionConcrete_UnmarshalYAML_SimpleGrammar)
 	})
 }
-
 
 func importDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
 	t.Parallel()

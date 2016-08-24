@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestGroupedParsingParallel(t *testing.T)  {
+func TestGroupedParsingParallel(t *testing.T) {
 	t.Run("groupParsing", func(t *testing.T) {
 		t.Run("TestParsing", parsing)
 	})

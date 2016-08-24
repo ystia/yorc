@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestGroupedImplementationsParallel(t *testing.T)  {
+func TestGroupedImplementationsParallel(t *testing.T) {
 	t.Run("groupImplementations", func(t *testing.T) {
 		t.Run("TestImplementationSimpleGrammar", implementationSimpleGrammar)
 		t.Run("TestImplementationComplexGrammar", implementationComplexGrammar)
@@ -14,7 +14,6 @@ func TestGroupedImplementationsParallel(t *testing.T)  {
 		t.Run("TestImplementationFailing", implementationFailing)
 	})
 }
-
 
 type implementationTestType struct {
 	Implementation Implementation

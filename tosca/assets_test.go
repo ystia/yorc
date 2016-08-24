@@ -6,14 +6,12 @@ import (
 	"testing"
 )
 
-
-func TestGroupedAssetsParallel(t *testing.T)  {
+func TestGroupedAssetsParallel(t *testing.T) {
 	t.Run("groupAssets", func(t *testing.T) {
 		t.Run("TestAssetNormativeParsing", assetNormativeParsing)
 		t.Run("TestAssetJanusOpenStackParsing", assetJanusOpenStackParsing)
 	})
 }
-
 
 func assetNormativeParsing(t *testing.T) {
 	t.Parallel()

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestGroupedCommonsParallel(t *testing.T)  {
+func TestGroupedCommonsParallel(t *testing.T) {
 	t.Run("groupCommons", func(t *testing.T) {
 		t.Run("TestValueAssignment_String", valueAssignment_String)
 		t.Run("TestValueAssignment_ReadWrite", valueAssignment_ReadWrite)

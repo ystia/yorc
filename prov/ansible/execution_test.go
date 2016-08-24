@@ -8,7 +8,7 @@ import (
 	"text/template"
 )
 
-func TestGroupedVolumeParallel(t *testing.T)  {
+func TestGroupedVolumeParallel(t *testing.T) {
 	t.Run("group", func(t *testing.T) {
 		t.Run("templatesTest", templatesTest)
 	})

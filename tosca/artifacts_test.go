@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestGroupedArtifactParallel(t *testing.T)  {
+func TestGroupedArtifactParallel(t *testing.T) {
 	t.Run("groupArtifact", func(t *testing.T) {
 		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar", artifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar)
 		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar", artifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar)

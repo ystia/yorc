@@ -4,11 +4,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
-	"testing"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"testing"
 )
 
-func TestGroupedTaskParallel(t *testing.T)  {
+func TestGroupedTaskParallel(t *testing.T) {
 	t.Run("groupTask", func(t *testing.T) {
 		t.Run("generateOSBSVolumeSizeConvert", readStepFromConsul)
 		t.Run("Test_generateOSBSVolumeSizeConvertError", readStepFromConsulFailing)
