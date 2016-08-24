@@ -304,7 +304,6 @@ func (e *execution) resolveExecution() error {
 }
 
 func (e *execution) execute() error {
-
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
 		log.Printf("%+v", err)
@@ -315,7 +314,10 @@ func (e *execution) execute() error {
 	for _, host := range e.Hosts {
 		buffer.WriteString(host)
 		// TODO should not be hard-coded
-		buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/janus.pem\n")
+		//buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/janus.pem\n")
+		// TODO : private key need to be set at /root/.ssh/id_rsa for HPC
+		buffer.WriteString(" ansible_ssh_user=root\n")
+
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write hosts file")
