@@ -56,7 +56,10 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 	}
 }
 
-func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
+// GenerateTerraformInfraForNode generates the Terraform infrastructure file for the given node.
+// It returns 'true' if a file was generated and 'false' otherwise (in case of a infrastructure component
+// already exists for this node and should just be reused).
+func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool, error) {
 
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
@@ -74,14 +77,14 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
 		log.Print(err)
-		return err
+		return false, err
 	}
 	nodeType := string(kvPair.Value)
 	switch nodeType {
 	case "janus.nodes.openstack.Compute":
 		compute, err := g.generateOSInstance(nodeKey, depId)
 		if err != nil {
-			return err
+			return false, err
 		}
 		addResource(&infrastructure, "openstack_compute_instance_v2", compute.Name, &compute)
 
@@ -102,14 +105,14 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 
 	case "janus.nodes.openstack.BlockStorage":
 		if volumeId, err := g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
-			return err
+			return false, err
 		} else if volumeId != "" {
 			log.Debugf("Reusing existing volume with id %q for node %q", volumeId, nodeName)
-			return nil
+			return false, nil
 		}
 		bsvol, err := g.generateOSBSVolume(nodeKey)
 		if err != nil {
-			return err
+			return false, err
 		}
 
 		addResource(&infrastructure, "openstack_blockstorage_volume_v1", nodeName, &bsvol)
@@ -120,7 +123,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 	case "janus.nodes.openstack.FloatingIP":
 		floatingIPString, err, isIp := g.generateFloatingIP(nodeKey)
 		if err != nil {
-			return err
+			return false, err
 		}
 
 		consulKey := commons.ConsulKey{}
@@ -135,21 +138,21 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 	default:
-		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
+		return false, fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
 	infraPath := filepath.Join("work", "deployments", fmt.Sprint(depId), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		log.Printf("%+v", err)
-		return err
+		return false, err
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
 		log.Print("Failed to write file")
-		return err
+		return false, err
 	}
 
 	log.Printf("Infrastructure generated for deployment with id %s", depId)
-	return nil
+	return true, nil
 }
