@@ -3,12 +3,11 @@ FROM loicalbertin/alpine-consul
 # 0.6.16 is dynamically linked which causes problems (wait for 0.6.17 or 0.7.0)
 ENV TERRAFORM_VERSION=0.6.15
 
-RUN apk add --update ansible openssh-client && \
-    rm -rf /var/cache/apk/*
-
 ADD rootfs /
 
-RUN cd /tmp && \
+RUN apk add --update ansible openssh-client && \
+    rm -rf /var/cache/apk/* && \
+    cd /tmp && \
     curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     cd /usr/local/bin && \
     unzip /tmp/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \

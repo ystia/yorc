@@ -15,3 +15,9 @@ const (
 )
 
 const DeploymentKVPrefix string = "_janus/deployments"
+
+type Event struct {
+	Timestamp string `json:"timestamp"`
+	Node      string `json:"node"`
+	Status    string `json:"status"`
+}

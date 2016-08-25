@@ -1,5 +1,7 @@
 package rest
 
+import "novaforge.bull.com/starlings-janus/janus/deployments"
+
 type Deployment struct {
 	Id     string `json:"id"`
 	Status string `json:"status"`
@@ -21,4 +23,9 @@ func newAtomLink(rel, href string) AtomLink {
 
 type DeploymentsCollection struct {
 	Deployments []AtomLink `json:"deployments"`
+}
+
+type EventsCollection struct {
+	Events    []deployments.Event `json:"events"`
+	LastIndex uint64              `json:"last_index"`
 }
