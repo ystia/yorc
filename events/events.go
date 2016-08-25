@@ -17,7 +17,7 @@ type Publisher interface {
 
 type Subscriber interface {
 	NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error)
-	NewNodeEvents(waitIndex uint64, timeout time.Duration, nodeName string) (deployments.Status, error)
+	NewNodeEvents(nodeName string) (deployments.Status, error)
 }
 
 type consulPubSub struct {
@@ -75,30 +75,26 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 	return events, qm.LastIndex, nil
 }
 
-func (cp *consulPubSub) NewNodeEvents(waitIndex uint64, timeout time.Duration, nodeName string) (deployments.Status, error){
+func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, error){
 
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName)
+	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName, "statut")
 
-	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+	kvp, _, err := cp.kv.Get(eventsPrefix,nil)
 
 	var statut deployments.Status
 
 	if err != nil {
 		return statut, err
 	}
-	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex {
-			continue
-		}
 
-		values := strings.Split(string(kvp.Value), "\n")
-		if len(values) != 1 {
-			return statut, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-		}
-		statut = deployments.Status{Status:values[0]}
-
+	values := strings.Split(string(kvp.Value), "\n")
+	if len(values) != 1 {
+		return statut, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 	}
+
+	statut = deployments.Status{Status:values[0]}
+
+
 
 	return statut, nil
 }

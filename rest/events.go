@@ -54,28 +54,9 @@ func (s *Server) pollNodeEvents(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 	name := params.ByName("name")
 	sub := events.NewSubscriber(s.consulClient.KV(), id)
-	values := r.URL.Query()
 	var err error
-	var waitIndex uint64 = 1
-	var timeout time.Duration = 5 * time.Minute
-	if idx := values.Get("index"); idx != "" {
-		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
-			return
-		}
-	}
 
-	if dur := values.Get("wait"); dur != "" {
-		if timeout, err = time.ParseDuration(dur); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
-			return
-		}
-		if timeout > 10*time.Minute {
-			timeout = 10 * time.Minute
-		}
-	}
-
-	statut, err := sub.NewNodeEvents(waitIndex, timeout, name)
+	statut, err := sub.NewNodeEvents(name)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}

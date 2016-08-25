@@ -194,12 +194,10 @@ func TestConsulPubSub_NewNodeEvents(t *testing.T) {
 	nodeName := "node1"
 	nodeStatus := "error"
 
-	go func() {
-		events, err := sub.NewNodeEvents(1, 5*time.Minute, nodeName)
-		assert.Nil(t, err)
-		assert.Equal(t, events.Status, nodeStatus)
-	}()
-
 	_, err = pub.StatusChange(nodeName, nodeStatus)
 	assert.Nil(t, err)
+
+	events, err := sub.NewNodeEvents(nodeName)
+	assert.Nil(t, err)
+	assert.Equal(t, events.Status, nodeStatus)
 }
