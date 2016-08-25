@@ -81,7 +81,7 @@ func TestConsulPubSub_NewEvents(t *testing.T) {
 	nodeStatus := "error"
 
 	go func() {
-		events, _, err := sub.NewEvents(1, 5*time.Minute, "")
+		events, _, err := sub.NewEvents(1, 5*time.Minute)
 		assert.Nil(t, err)
 		require.Len(t, events, 1)
 		assert.Equal(t, events[0].Node, nodeName)
@@ -109,7 +109,7 @@ func TestConsulPubSub_NewEventsTimeout(t *testing.T) {
 	timeout := 25 * time.Millisecond
 
 	t1 := time.Now()
-	events, _, err := sub.NewEvents(1, timeout, "")
+	events, _, err := sub.NewEvents(1, timeout)
 	t2 := time.Now()
 	assert.Nil(t, err)
 	require.Len(t, events, 0)
@@ -144,7 +144,7 @@ func TestConsulPubSub_NewEventsWithIndex(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err := sub.NewEvents(1, 5*time.Minute, "")
+	events, lastIdx, err := sub.NewEvents(1, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, events, 2)
 	for index, event := range events {
@@ -166,7 +166,7 @@ func TestConsulPubSub_NewEventsWithIndex(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err = sub.NewEvents(lastIdx, 5*time.Minute, "")
+	events, lastIdx, err = sub.NewEvents(lastIdx, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, events, 3)
 
@@ -195,11 +195,9 @@ func TestConsulPubSub_NewNodeEvents(t *testing.T) {
 	nodeStatus := "error"
 
 	go func() {
-		events, _, err := sub.NewEvents(1, 5*time.Minute, nodeName)
+		events, err := sub.NewNodeEvents(1, 5*time.Minute, nodeName)
 		assert.Nil(t, err)
-		require.Len(t, events, 1)
-		assert.Equal(t, events[0].Node, nodeName)
-		assert.Equal(t, events[0].Status, nodeStatus)
+		assert.Equal(t, events.Status, nodeStatus)
 	}()
 
 	_, err = pub.StatusChange(nodeName, nodeStatus)

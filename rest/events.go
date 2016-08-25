@@ -37,7 +37,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	events, lastIdx, err := sub.NewEvents(waitIndex, timeout, "")
+	events, lastIdx, err := sub.NewEvents(waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
@@ -75,13 +75,11 @@ func (s *Server) pollNodeEvents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	events, lastIdx, err := sub.NewEvents(waitIndex, timeout, name)
+	statut, err := sub.NewNodeEvents(waitIndex, timeout, name)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
 
-	eventsCollection := EventsCollection{Events: events, LastIndex: lastIdx}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(eventsCollection)
+	json.NewEncoder(w).Encode(statut)
 }
