@@ -39,19 +39,20 @@ func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeN
 		return fmt.Errorf("Type for node '%s' in deployment '%s' not found", nodeName, deploymentId)
 	}
 	nodeType := string(kvPair.Value)
-
+	infraGenerated := true
 	switch {
 	case strings.HasPrefix(nodeType, "janus.nodes.openstack."):
 		osGenerator := openstack.NewGenerator(e.kv, e.cfg)
-		if err := osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
+		if infraGenerated, err = osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
 			return err
 		}
 	default:
 		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
 	}
-
-	if err := e.applyInfrastructure(ctx, deploymentId, nodeName); err != nil {
-		return err
+	if infraGenerated {
+		if err := e.applyInfrastructure(deploymentId, nodeName); err != nil {
+			return err
+		}
 	}
 	return nil
 }
