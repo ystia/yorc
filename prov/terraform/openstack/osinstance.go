@@ -111,28 +111,34 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 			if err := yaml.Unmarshal([]byte(device), &expr); err != nil {
 				return ComputeInstance{}, err
 			}
-			if device, err = resolver.ResolveExpression(expr.Expression); err != nil {
+			if device, err = resolver.ResolveExpression(expr.Expression, false); err != nil {
 				return ComputeInstance{}, err
 			}
 		}
 		var volumeId string
-		resultChan := make(chan string, 1)
-		go func() {
-			for {
-				log.Debugf("Looking for volume_id")
-				// ignore errors and retry
-				if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "properties/volume_id"), nil); kp != nil {
-					if dId := string(kp.Value); dId != "" {
-						resultChan <- dId
-						return
-					}
-				}
-				time.Sleep(1 * time.Second)
+		log.Debugf("Looking for volume_id")
+		if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "properties/volume_id"), nil); kp != nil {
+			if dId := string(kp.Value); dId != "" {
+				volumeId = dId
 			}
-		}()
-		// TODO add a cancellation signal
-		select {
-		case volumeId = <-resultChan:
+		} else {
+			resultChan := make(chan string, 1)
+			go func() {
+				for {
+					// ignore errors and retry
+					if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "attributes/volume_id"), nil); kp != nil {
+						if dId := string(kp.Value); dId != "" {
+							resultChan <- dId
+							return
+						}
+					}
+					time.Sleep(1 * time.Second)
+				}
+			}()
+			// TODO add a cancellation signal
+			select {
+			case volumeId = <-resultChan:
+			}
 		}
 
 		vol := Volume{VolumeId: volumeId, Device: device}

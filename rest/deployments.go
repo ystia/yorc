@@ -200,7 +200,7 @@ func storePropertyDefinition(kv *api.KV, propPrefix, propName string, propDefini
 func storeAttributeDefinition(kv *api.KV, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
 	storeConsulKey(kv, attrPrefix+"/name", attrName)
 	storeConsulKey(kv, attrPrefix+"/description", attrDefinition.Description)
-	storeConsulKey(kv, attrPrefix+"/type", attrDefinition.Type)
+	storeConsulKey(kv, attrPrefix+"/type", attrDefinition.Type.Expression.Value)
 	storeConsulKey(kv, attrPrefix+"/default", attrDefinition.Default)
 	storeConsulKey(kv, attrPrefix+"/status", attrDefinition.Status)
 }
@@ -325,7 +325,11 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		attributesPrefix := nodeTypePrefix + "/attributes"
 		for attrName, attrDefinition := range nodeType.Attributes {
 			attrPrefix := attributesPrefix + "/" + attrName
-			storeAttributeDefinition(kv, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Type.Expression.IsLiteral() {
+				storeAttributeDefinition(kv, attrPrefix, attrName, attrDefinition)
+			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
+				storeConsulKey(kv, nodeTypePrefix+"/output/"+attrDefinition.Type.Expression.Children()[1].Value+"/"+attrDefinition.Type.Expression.Children()[2].Value+"/"+attrDefinition.Type.Expression.Children()[3].Value, attrDefinition.Type.Expression.Children()[3].Value)
+			}
 		}
 
 		requirementsPrefix := nodeTypePrefix + "/requirements"
@@ -415,7 +419,11 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		attributesPrefix := relationTypePrefix + "/attributes"
 		for attrName, attrDefinition := range relationType.Attributes {
 			attrPrefix := attributesPrefix + "/" + attrName
-			storeAttributeDefinition(kv, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Type.Expression.IsLiteral() {
+				storeAttributeDefinition(kv, attrPrefix, attrName, attrDefinition)
+			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
+				storeConsulKey(kv, relationTypePrefix+"/output/"+attrDefinition.Type.Expression.Children()[1].Value+"/"+attrDefinition.Type.Expression.Children()[2].Value+"/"+attrDefinition.Type.Expression.Children()[3].Value, attrDefinition.Type.Expression.Children()[3].Value)
+			}
 		}
 
 		interfacesPrefix := relationTypePrefix + "/interfaces"
