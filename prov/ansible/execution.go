@@ -2,6 +2,7 @@ package ansible
 
 import (
 	"bytes"
+	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"gopkg.in/yaml.v2"
@@ -17,24 +18,43 @@ import (
 	"text/template"
 )
 
+const output_custom_wrapper = `
+[[[printf ". $HOME/.janus/%s/%s/%s" .NodeName .Operation .BasePrimary]]]
+[[[range $artName, $art := .Output -]]]
+[[[printf "echo %s,$%s >> $HOME/out.csv" $artName $artName]]]
+[[[printf "chmod 777 $HOME/out.csv" ]]]
+[[[printf "echo $%s" $artName]]]
+[[[end]]]
+`
+
 const ansible_playbook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
   tasks:
     - file: path="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" state=directory mode=0755
+    [[[if .HaveOutput]]]
+    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/.janus/wrapper.sh\" mode=0744" ]]]
+    [[[end]]]
     - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/.janus/%s/%s/%s\"" $.OverlayPath $art $.NodeName $.Operation (path $art)]]]
     [[[end]]]
-    - shell: "{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]/[[[.BasePrimary]]]"
+    [[[if not .HaveOutput]]]
+    [[[printf "- shell: \"{{ ansible_env.HOME}}/.janus/%s/%s/%s\"" .NodeName .Operation .BasePrimary]]][[[else]]]
+    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/.janus/wrapper.sh\""]]][[[end]]]
       environment:
-        [[[ range $index, $input := .Inputs -]]]
-        [[[print $input]]]
+        [[[ range $key, $input := .Inputs -]]]
+        [[[ if (len $input) gt 0]]][[[printf  "%s: %s" $key $input]]][[[else]]]
+        [[[printf  "%s: \"\"" $key]]]
+        [[[end]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]
         [[[printf "%s: \"{{ ansible_env.HOME}}/.janus/%v/%v/%s\"" $artName $.NodeName $.Operation $art]]]
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
         [[[printf "%s: %s" $contextK $contextV]]]
         [[[end]]]
+    [[[if .HaveOutput]]]
+    [[[printf "- fetch: src={{ ansible_env.HOME}}/out.csv dest={{dest_folder}} flat=yes" ]]]
+    [[[end]]]
 `
 
 const ansible_config = `[defaults]
@@ -48,7 +68,7 @@ type execution struct {
 	NodeName      string
 	Operation     string
 	NodeType      string
-	Inputs        []string
+	Inputs        map[string]string
 	Primary       string
 	BasePrimary   string
 	Dependencies  []string
@@ -59,6 +79,8 @@ type execution struct {
 	Artifacts     map[string]string
 	OverlayPath   string
 	Context       map[string]string
+	Output        map[string]string
+	HaveOutput    bool
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
@@ -105,10 +127,17 @@ func (e *execution) resolveArtifacts() error {
 	return nil
 }
 
+func (e *execution) isRelationship() bool {
+	if strings.Contains(e.OperationPath, "relationship") {
+		return true
+	}
+	return false
+}
+
 func (e *execution) resolveInputs() error {
 	log.Debug("resolving inputs")
 	resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
-	inputs := make([]string, 0)
+	inputs := make(map[string]string)
 	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
 	if err != nil {
 		return err
@@ -131,11 +160,11 @@ func (e *execution) resolveInputs() error {
 		}
 		va := tosca.ValueAssignment{}
 		yaml.Unmarshal(kvPair.Value, &va)
-		inputValue, err := resolver.ResolveExpression(va.Expression)
+		inputValue, err := resolver.ResolveExpression(va.Expression, e.isRelationship())
 		if err != nil {
 			return err
 		}
-		inputs = append(inputs, inputName+": "+inputValue)
+		inputs[inputName] = inputValue
 	}
 	e.Inputs = inputs
 
@@ -169,6 +198,10 @@ func (e *execution) resolveHosts(nodePath string) error {
 	return nil
 }
 
+func (e *execution) ReplaceMinus(str string) string {
+	return strings.Replace(str, "-", "_", -1)
+}
+
 func (e *execution) resolveContext() error {
 	metatype, _, err := e.kv.Get(path.Join(e.NodeTypePath, "metatype"), nil)
 	if err != nil {
@@ -176,32 +209,37 @@ func (e *execution) resolveContext() error {
 	}
 	context := make(map[string]string)
 
-	//TODO: Need to be improved with the execute (INSTANCE,INSTANCES)
-	context["NODE"] = e.NodeName
-	context["INSTANCE"] = e.NodeName
-	context["INSTANCES"] = e.NodeName
+	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
+	new_node := e.ReplaceMinus(e.NodeName)
+	context["NODE"] = new_node
+	context["INSTANCE"] = new_node
+	context["INSTANCES"] = new_node
 	context["HOST"] = e.Hosts[0]
 
 	if strings.Contains(string(metatype.Value), "Relationship") {
 
-		context["SOURCE_NODE"] = e.NodeName
-		context["SOURCE_INSTANCE"] = e.NodeName
-		context["SOURCE_INSTANCES"] = e.NodeName
+		context["SOURCE_NODE"] = new_node
+		context["SOURCE_INSTANCE"] = new_node
+		context["SOURCE_INSTANCES"] = new_node
 
-		require, _, err := e.kv.Keys(path.Join(e.NodePath, "requirement"), "", nil)
+		require, _, err := e.kv.Keys(filepath.Join(e.NodePath, "requirements"), "", nil)
 		if err != nil {
 			return err
 		}
 		for _, path := range require {
-			if !strings.Contains(path, "host") {
-				splitedPath := strings.Split(path, "/")
-				splitedPath2 := strings.Split(e.NodePath, "/")
-				kvPair, _, _ := e.kv.Get(e.NodePath+"/requirements/"+splitedPath[len(splitedPath)-2]+"/node", nil)
+			if !strings.HasSuffix(path, "node") {
+				continue
+			}
+			splitedPath2 := strings.Split(e.NodePath, "/")
+			kvPair, _, _ := e.kv.Get(path, nil)
+			log.Debugf(string(kvPair.Value))
+			if !strings.Contains(string(kvPair.Value), "Storage") {
+
 				nodePath := strings.Replace(e.NodePath, splitedPath2[len(splitedPath2)-1], string(kvPair.Value), -1)
 
-				context["TARGET_NODE"] = filepath.Base(nodePath)
-				context["TARGET_INSTANCE"] = filepath.Base(nodePath)
-				context["TARGET_INSTANCES"] = filepath.Base(nodePath)
+				context["TARGET_NODE"] = e.ReplaceMinus(filepath.Base(nodePath))
+				context["TARGET_INSTANCE"] = e.ReplaceMinus(filepath.Base(nodePath))
+				context["TARGET_INSTANCES"] = e.ReplaceMinus(filepath.Base(nodePath))
 
 				resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
 				params := make([]string, 0)
@@ -219,8 +257,7 @@ func (e *execution) resolveContext() error {
 				}
 
 				context["TARGET_IP"] = string(ip_addr.Value)
-				context[filepath.Base(nodePath)+"_TARGET_IP"] = string(ip_addr.Value)
-
+				context[e.ReplaceMinus(filepath.Base(nodePath))+"_TARGET_IP"] = string(ip_addr.Value)
 			}
 		}
 
@@ -228,6 +265,34 @@ func (e *execution) resolveContext() error {
 
 	e.Context = context
 
+	return nil
+}
+
+func (e *execution) resolveOperationOutput() error {
+	log.Debugf(e.OperationPath)
+	log.Debugf(e.Operation)
+
+	//We get all the output of the NodeType
+	pathList, _, err := e.kv.Keys(e.NodeTypePath+"/output/", "", nil)
+
+	if err != nil {
+		return err
+	}
+
+	output := make(map[string]string)
+
+	//For each type we compare if we are in the good lifecycle operation
+	for _, path := range pathList {
+		tmp := strings.Split(e.Operation, ".")
+		if strings.Contains(path, tmp[len(tmp)-1]) {
+			nodeOutPath := filepath.Join(e.NodePath, "attributes", strings.ToLower(filepath.Base(path)))
+			e.HaveOutput = true
+			output[filepath.Base(path)] = nodeOutPath
+		}
+	}
+
+	log.Debugf("%v", output)
+	e.Output = output
 	return nil
 }
 
@@ -298,6 +363,9 @@ func (e *execution) resolveExecution() error {
 	if err = e.resolveHosts(e.NodePath); err != nil {
 		return err
 	}
+	if err = e.resolveOperationOutput(); err != nil {
+		return err
+	}
 
 	return e.resolveContext()
 
@@ -325,10 +393,28 @@ func (e *execution) execute() error {
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
+		"abs":  filepath.Abs,
 	}
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
+	if e.HaveOutput {
+		wrap_template := template.New("execTemplate")
+		wrap_template = wrap_template.Delims("[[[", "]]]")
+		wrap_template, err := tmpl.Parse(output_custom_wrapper)
+		if err != nil {
+			return err
+		}
+		var buffer bytes.Buffer
+		if err := wrap_template.Execute(&buffer, e); err != nil {
+			log.Print("Failed to Generate wrapper template")
+			return err
+		}
+		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
+			log.Print("Failed to write playbook file")
+			return err
+		}
+	}
 	tmpl, err := tmpl.Parse(ansible_playbook)
 	if err := tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
@@ -348,15 +434,51 @@ func (e *execution) execute() error {
 		return err
 	}
 	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
-	cmd := exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+	var cmd *exec.Cmd
+	var wrapperPath string
+	if e.HaveOutput {
+		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
+		cmd = exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+	} else {
+		cmd = exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+	}
 	cmd.Dir = ansibleRecipePath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Start(); err != nil {
-		log.Print(err)
-		return err
+	if e.HaveOutput {
+		if err := cmd.Run(); err != nil {
+			log.Print(err)
+			return err
+		}
+		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
+		if err != nil {
+			panic(err)
+		}
+		r := csv.NewReader(fi)
+		records, err := r.ReadAll()
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, line := range records {
+			storeConsulKey(e.kv, e.Output[line[0]], line[1])
+		}
+		return nil
+
+	} else {
+		if err := cmd.Start(); err != nil {
+			log.Print(err)
+			return err
+		}
 	}
 
 	return cmd.Wait()
+}
+
+func storeConsulKey(kv *api.KV, key, value string) {
+	// PUT a new KV pair
+	p := &api.KVPair{Key: key, Value: []byte(value)}
+	if _, err := kv.Put(p, nil); err != nil {
+		log.Panic(err)
+	}
 }
