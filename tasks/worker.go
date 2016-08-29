@@ -34,7 +34,7 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
-func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, runningSteps map[string]struct{}) {
+func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, uninstallerrc chan error, runningSteps map[string]struct{}, isUndeploy bool) {
 	if _, ok := runningSteps[step.Name]; ok {
 		// Already running
 		log.Debugf("step %q already running", step.Name)
@@ -42,23 +42,24 @@ func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg
 	}
 	log.Debugf("Running step %q", step.Name)
 	runningSteps[step.Name] = struct{}{}
-	go step.run(ctx, deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh, w.cfg)
+	go step.run(ctx, deploymentId, wg, w.consulClient.KV(), errc, uninstallerrc, w.shutdownCh, w.cfg, isUndeploy)
 	for _, next := range step.Next {
 		wg.Add(1)
 		log.Debugf("Try run next step %q", next.Name)
-		go w.runStep(ctx, next, deploymentId, wg, errc, runningSteps)
+		go w.runStep(ctx, next, deploymentId, wg, errc, uninstallerrc, runningSteps, isUndeploy)
 	}
 }
 
-func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
+func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy bool) error {
 	var wg sync.WaitGroup
 	runningSteps := make(map[string]struct{})
 	ctx := context.TODO()
 	ctx, cancel := context.WithCancel(ctx)
 	errc := make(chan error)
+	unistallerrc := make(chan error)
 	for _, step := range wfRoots {
 		wg.Add(1)
-		go w.runStep(ctx, step, deploymentId, &wg, errc, runningSteps)
+		go w.runStep(ctx, step, deploymentId, &wg, errc, unistallerrc, runningSteps, isUndeploy)
 	}
 
 	go func(wg *sync.WaitGroup, cancel context.CancelFunc) {
@@ -69,6 +70,8 @@ func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
 
 	var err error
 	select {
+	case err = <- unistallerrc:
+		log.Printf("One or more error appear in unistall workflow, please check : %v", err)
 	case err = <-errc:
 		log.Printf("Error '%v' happened in workflow.", err)
 		log.Debug("Canceling it.")
@@ -104,7 +107,7 @@ func (w Worker) Start() {
 						continue
 
 					}
-					if err = w.processWorkflow(wf, task.TargetId); err != nil {
+					if err = w.processWorkflow(wf, task.TargetId, false); err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
@@ -121,7 +124,7 @@ func (w Worker) Start() {
 						continue
 
 					}
-					if err = w.processWorkflow(wf, task.TargetId); err != nil {
+					if err = w.processWorkflow(wf, task.TargetId, true); err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
