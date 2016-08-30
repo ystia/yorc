@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func extractFile(f *zip.File, path string) {
@@ -118,8 +119,11 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%+v", topology)
 
 	storeConsulKey(s.consulClient.KV(), deployments.DeploymentKVPrefix+"/"+uuid+"/status", fmt.Sprint(deployments.INITIAL))
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go s.storeDeploymentDefinition(topology, uuid, false, "", &wg)
 
-	s.storeDeploymentDefinition(topology, uuid, false, "")
+	wg.Wait()
 
 	if err := s.tasksCollector.RegisterTask(uuid, tasks.DEPLOY); err != nil {
 		log.Panic(err)
@@ -206,7 +210,7 @@ func storeAttributeDefinition(kv *api.KV, attrPrefix, attrName string, attrDefin
 	storeConsulKey(kv, attrPrefix+"/status", attrDefinition.Status)
 }
 
-func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, imports bool, pathImport string) {
+func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, imports bool, pathImport string, wg *sync.WaitGroup) {
 	// Get a handle to the KV API
 	kv := s.consulClient.KV()
 	prefix := path.Join(deployments.DeploymentKVPrefix, id)
@@ -235,7 +239,8 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 					panic(fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err))
 				}
 				log.Debugf("%+v", topology)
-				s.storeDeploymentDefinition(topology, id, false, "")
+				wg.Add(1)
+				go s.storeDeploymentDefinition(topology, id, false, "", wg)
 			} else {
 				uploadFile := filepath.Join("work", "deployments", id, "overlay", value.File)
 
@@ -248,8 +253,8 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 
 				err = yaml.Unmarshal(defBytes, &topology)
 				log.Debugf("%+v", topology)
-
-				s.storeDeploymentDefinition(topology, id, true, filepath.Dir(value.File))
+				wg.Add(1)
+				go s.storeDeploymentDefinition(topology, id, true, filepath.Dir(value.File), wg)
 			}
 
 		}
@@ -511,5 +516,5 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			}
 		}
 	}
-
+	wg.Done()
 }
