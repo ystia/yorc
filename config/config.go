@@ -10,4 +10,5 @@ type Configuration struct {
 	OS_PREFIX         string `json:"os_prefix,omitempty"`
 	CONSUL_TOKEN      string `json:"consul_token,omitempty"`
 	CONSUL_DATACENTER string `json:"consul_datacenter,omitempty"`
+	CONSUL_ADDRESS    string `json:"consul_address,omitempty"`
 }

@@ -1,17 +1,11 @@
 package commands
 
 import (
-	"fmt"
-	"github.com/hashicorp/consul/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"os"
-	"os/signal"
-	"syscall"
+	"novaforge.bull.com/starlings-janus/janus/server"
 )
 
 func init() {
@@ -30,51 +24,8 @@ var serverCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		configuration := getConfig()
-
-		var ConsulDC string = configuration.CONSUL_DATACENTER
-		var ConsulToken string = configuration.CONSUL_TOKEN
-
-		ConsulCustomConfig := api.DefaultConfig()
-		ConsulCustomConfig.Datacenter = fmt.Sprintf("%s", ConsulDC)
-		ConsulCustomConfig.Token = fmt.Sprintf("%s", ConsulToken)
-
-		client, err := api.NewClient(ConsulCustomConfig)
-		if err != nil {
-			log.Printf("Can't connect to Consul")
-			return err
-		}
 		shutdownCh := make(chan struct{})
-		dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
-		go dispatcher.Run()
-		httpServer, err := rest.NewServer(client)
-		if err != nil {
-			close(shutdownCh)
-			return err
-		}
-		defer httpServer.Shutdown()
-		signalCh := make(chan os.Signal, 4)
-		signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-		for {
-			var sig os.Signal
-			shutdownChClosed := false
-			select {
-			case s := <-signalCh:
-				sig = s
-			case <-shutdownCh:
-				sig = os.Interrupt
-				shutdownChClosed = true
-			}
-
-			// Check if this is a SIGHUP
-			if sig == syscall.SIGHUP {
-				// TODO reload
-			} else {
-				if !shutdownChClosed {
-					close(shutdownCh)
-				}
-				return nil
-			}
-		}
+		return server.RunServer(configuration, shutdownCh)
 	},
 }
 
