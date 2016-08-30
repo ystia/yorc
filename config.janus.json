@@ -5,5 +5,7 @@
         "os_user_name": "starlingsuser",
         "os_password": "starlingsuser",
         "os_region": "RegionOne",
-        "os_prefix": "JANUS-"
+        "os_prefix": "JANUS-",
+        "os_private_network_name": "private_starlings",
+        "os_public_network_name": "not_supported"
 }

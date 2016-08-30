@@ -80,7 +80,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		path := filepath.Join(destDir, f.Name)
 		if f.FileInfo().IsDir() {
 			// Ensure that we have full rights on directory to be able to extract files into them
-			if err = os.MkdirAll(path, f.Mode() | 0700); err != nil {
+			if err = os.MkdirAll(path, f.Mode()|0700); err != nil {
 				log.Panicf("%+v", err)
 			}
 			continue

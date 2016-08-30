@@ -70,7 +70,7 @@ func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy
 
 	var err error
 	select {
-	case err = <- unistallerrc:
+	case err = <-unistallerrc:
 		log.Printf("One or more error appear in unistall workflow, please check : %v", err)
 	case err = <-errc:
 		log.Printf("Error '%v' happened in workflow.", err)
