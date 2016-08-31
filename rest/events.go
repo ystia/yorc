@@ -32,7 +32,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, NewBadRequestParameter("index", err))
 			return
 		}
-		if timeout > 10 * time.Minute {
+		if timeout > 10*time.Minute {
 			timeout = 10 * time.Minute
 		}
 	}

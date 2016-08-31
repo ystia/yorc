@@ -102,6 +102,8 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("os_password", "p", "", "The password to authenticate")
 	serverCmd.PersistentFlags().StringP("os_region", "r", "", "The region name")
 	serverCmd.PersistentFlags().StringP("os_prefix", "x", "", "Prefix of the user")
+	serverCmd.PersistentFlags().StringP("os_private_network_name", "m", "", "Name of the private network")
+	serverCmd.PersistentFlags().StringP("os_public_network_name", "e", "", "Name of the public network")
 
 	//Flags definition for Consul
 	serverCmd.PersistentFlags().StringP("consul_token", "t", "", "The token by default")
@@ -115,6 +117,8 @@ func setConfig() {
 	viper.BindPFlag("os_password", serverCmd.PersistentFlags().Lookup("os_password"))
 	viper.BindPFlag("os_region", serverCmd.PersistentFlags().Lookup("os_region"))
 	viper.BindPFlag("os_prefix", serverCmd.PersistentFlags().Lookup("os_prefix"))
+	viper.BindPFlag("os_private_network_name", serverCmd.PersistentFlags().Lookup("os_private_network_name"))
+	viper.BindPFlag("os_public_network_name", serverCmd.PersistentFlags().Lookup("os_public_network_name"))
 	//Bind flags for Consul
 	viper.BindPFlag("consul_token", serverCmd.PersistentFlags().Lookup("consul_token"))
 	viper.BindPFlag("consul_datacenter", serverCmd.PersistentFlags().Lookup("consul_datacenter"))
@@ -131,6 +135,8 @@ func setConfig() {
 	viper.BindEnv("os_password", "OS_PASSWORD")
 	viper.BindEnv("os_region", "OS_REGION_NAME")
 	viper.BindEnv("os_prefix", "OS_PREFIX")
+	viper.BindEnv("os_private_network_name", "OS_PRIVATE_NETWORK_NAME")
+	viper.BindEnv("os_public_network_name", "OS_PUBLIC_NETWORK_NAME")
 
 	//Setting Defaults
 	viper.SetDefault("os_prefix", "janus-")
@@ -154,6 +160,8 @@ func getConfig() config.Configuration {
 	configuration.OS_PASSWORD = viper.GetString("os_password")
 	configuration.OS_REGION = viper.GetString("os_region")
 	configuration.OS_PREFIX = viper.GetString("os_prefix")
+	configuration.OS_PRIVATE_NETWORK_NAME = viper.GetString("os_private_network_name")
+	configuration.OS_PUBLIC_NETWORK_NAME = viper.GetString("os_public_network_name")
 	configuration.CONSUL_DATACENTER = viper.GetString("consul_datacenter")
 	configuration.CONSUL_TOKEN = viper.GetString("consul_token")
 
