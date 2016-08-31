@@ -469,11 +469,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			storeConsulKey(kv, artPrefix+"/deploy_path", artDef.DeployPath)
 		}
 
-		stringByte := "\x00" + strings.Join(relationType.ValidTargetTypes, ", ")
-		p := &api.KVPair{Key: relationTypePrefix + "/valid_target_type", Value: []byte(stringByte)}
-		if _, err := kv.Put(p, nil); err != nil {
-			log.Panic(err)
-		}
+		storeConsulKey(kv, relationTypePrefix + "/valid_target_type", strings.Join(relationType.ValidTargetTypes, ", "))
 
 	}
 
