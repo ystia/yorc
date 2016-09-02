@@ -43,9 +43,7 @@ type BufferedConsulWriter struct {
 func NewWriterSize(api *api.KV, depId string) *BufferedConsulWriter {
 	return &BufferedConsulWriter{
 		buf:       make([]byte, 1),
-		completed: make([]byte, 1),
 		kv:        api,
-		n:         0,
 		depId:     depId,
 	}
 }
@@ -122,6 +120,7 @@ func (e *defaultExecutor) DestroyNode(deploymentId, nodeName string) error {
 }
 
 func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
+	log.StoreInConsul(e.kv,depId,"Applying the infrastructure")
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.Command("terraform", "apply")
 	cmd.Dir = infraPath
@@ -132,12 +131,15 @@ func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
 
 	quit := make(chan bool)
 	out.run(quit)
+	errbuf.run(quit)
+
 	if err := cmd.Start(); err != nil {
 		log.Print(err)
 	}
 
 	err := cmd.Wait()
 	quit <- true
+
 	return err
 
 }

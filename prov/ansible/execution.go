@@ -22,6 +22,8 @@ import (
 	"time"
 )
 
+const ANSIBLE_OUTPUT_JSON_LOCATION = "plays.#.tasks.#.hosts.*.stdout"
+
 const output_custom_wrapper = `
 [[[printf ". $HOME/.janus/%s/%s/%s" .NodeName .Operation .BasePrimary]]]
 [[[range $artName, $art := .Output -]]]
@@ -118,8 +120,8 @@ func (b *BufferedConsulWriter) Write(p []byte) (nn int, err error) {
 
 func (b *BufferedConsulWriter) Flush() error {
 	//fmt.Printf(string(p))
-	if gjson.Get(string(b.buf), "plays.#.tasks.#.hosts.*.stdout").Exists() {
-		out := gjson.Get(string(b.buf), "plays.#.tasks.#.hosts.*.stdout").String()
+	if gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).Exists() {
+		out := gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).String()
 		out = strings.TrimPrefix(out, "[[,")
 		out = strings.TrimSuffix(out, "]]")
 		out, err := strconv.Unquote(out)
@@ -489,9 +491,9 @@ func (e *execution) execute() error {
 	}
 	cmd.Dir = ansibleRecipePath
 	outbuf := NewWriterSize(e.kv, e.DeploymentId)
-	//errbuf := NewCustomWriter(e.kv, e.DeploymentId)
+	errbuf := NewWriterSize(e.kv, e.DeploymentId)
 	cmd.Stdout = outbuf
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = errbuf
 
 	if e.HaveOutput {
 		if err := cmd.Run(); err != nil {
