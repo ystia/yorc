@@ -1,13 +1,13 @@
 package log
 
 import (
+	"github.com/hashicorp/consul/api"
 	"io"
 	slog "log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
-	"github.com/hashicorp/consul/api"
-	"path/filepath"
 	"time"
 )
 
@@ -158,10 +158,11 @@ func Debugln(v ...interface{}) {
 		std.Println(append(a, v...))
 	}
 }
+
 /**
 This function allow you to store log in consul
- */
-func StoreInConsul(kv *api.KV, depId , message string)  {
+*/
+func StoreInConsul(kv *api.KV, depId, message string) {
 	storeConsulKey(kv, filepath.Join("_janus/deployments", depId, "logs", "janus", time.Now().Format(time.RFC3339Nano)), []byte(message))
 }
 
