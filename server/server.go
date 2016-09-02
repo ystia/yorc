@@ -33,7 +33,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	}
 	dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
 	go dispatcher.Run()
-	httpServer, err := rest.NewServer(client)
+	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {
 		close(shutdownCh)
 		return err
