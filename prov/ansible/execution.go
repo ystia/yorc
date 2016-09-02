@@ -64,7 +64,6 @@ const ansible_playbook = `
 const ansible_config = `[defaults]
 host_key_checking=False
 timeout=600
-force_handlers = True
 stdout_callback = json
 `
 
