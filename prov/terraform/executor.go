@@ -3,6 +3,7 @@ package terraform
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"io"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -11,7 +12,9 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 )
 
 type Executor interface {
@@ -26,6 +29,61 @@ type defaultExecutor struct {
 
 func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
 	return &defaultExecutor{kv: kv, cfg: cfg}
+}
+
+type BufferedConsulWriter struct {
+	kv        *api.KV
+	depId     string
+	buf       []byte
+	completed []byte
+	n         int
+	io.Writer
+}
+
+func NewWriterSize(api *api.KV, depId string) *BufferedConsulWriter {
+	return &BufferedConsulWriter{
+		buf:       make([]byte, 1),
+		completed: make([]byte, 1),
+		kv:        api,
+		n:         0,
+		depId:     depId,
+	}
+}
+
+func (b *BufferedConsulWriter) Write(p []byte) (nn int, err error) {
+	b.buf = append(b.buf, p...)
+	return len(p), nil
+}
+
+func (b *BufferedConsulWriter) Flush() error {
+	//fmt.Printf(string(p))
+	if len(b.buf) == 0 {
+		return nil
+	}
+	fmt.Printf(string(b.buf))
+	reg := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]`)
+	out := reg.ReplaceAll(b.buf, []byte(""))
+	kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", "terraform", time.Now().Format(time.RFC3339Nano)), Value: out}
+	_, err := b.kv.Put(kv, nil)
+	if err != nil {
+		return err
+	}
+	b.buf = b.buf[:0]
+	return nil
+
+}
+
+func (b *BufferedConsulWriter) run(quit chan bool) {
+	go func() {
+		for {
+			select {
+			case <-quit:
+				return
+			case <-time.After(5 * time.Second):
+				b.Flush()
+			}
+		}
+	}()
 }
 
 func (e *defaultExecutor) ProvisionNode(deploymentId, nodeName string) error {
@@ -67,17 +125,23 @@ func (e *defaultExecutor) applyInfrastructure(depId, nodeName string) error {
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.Command("terraform", "apply")
 	cmd.Dir = infraPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	errbuf := NewWriterSize(e.kv, depId)
+	out := NewWriterSize(e.kv, depId)
+	cmd.Stdout = out
+	cmd.Stderr = errbuf
 
+	quit := make(chan bool)
+	out.run(quit)
 	if err := cmd.Start(); err != nil {
 		log.Print(err)
-		return err
 	}
 
-	return cmd.Wait()
+	err := cmd.Wait()
+	quit <- true
+	return err
 
 }
+
 func (e *defaultExecutor) destroyInfrastructure(depId, nodeName string) error {
 	nodePath := path.Join(deployments.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
 	if kp, _, err := e.kv.Get(nodePath+"/type", nil); err != nil {
