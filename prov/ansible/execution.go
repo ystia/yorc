@@ -5,7 +5,9 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
+	"io"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -14,8 +16,10 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 const output_custom_wrapper = `
@@ -60,6 +64,8 @@ const ansible_playbook = `
 const ansible_config = `[defaults]
 host_key_checking=False
 timeout=600
+force_handlers = True
+stdout_callback = json
 `
 
 type execution struct {
@@ -89,6 +95,46 @@ func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execut
 		NodeName:     nodeName,
 		Operation:    operation}
 	return exec, exec.resolveExecution()
+}
+
+type BufferedConsulWriter struct {
+	kv    *api.KV
+	depId string
+	buf   []byte
+	io.Writer
+}
+
+func NewWriterSize(api *api.KV, depId string) *BufferedConsulWriter {
+	return &BufferedConsulWriter{
+		buf:   make([]byte, 1),
+		kv:    api,
+		depId: depId,
+	}
+}
+
+func (b *BufferedConsulWriter) Write(p []byte) (nn int, err error) {
+	b.buf = append(b.buf, p...)
+	return len(p), nil
+}
+
+func (b *BufferedConsulWriter) Flush() error {
+	//fmt.Printf(string(p))
+	if gjson.Get(string(b.buf), "plays.#.tasks.#.hosts.*.stdout").Exists() {
+		out := gjson.Get(string(b.buf), "plays.#.tasks.#.hosts.*.stdout").String()
+		out = strings.TrimPrefix(out, "[[,")
+		out = strings.TrimSuffix(out, "]]")
+		out, err := strconv.Unquote(out)
+		if err != nil {
+			return err
+		}
+		kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", "ansible", time.Now().Format(time.RFC3339Nano)), Value: []byte(out)}
+		_, err = b.kv.Put(kv, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
 }
 
 func (e *execution) resolveArtifacts() error {
@@ -440,10 +486,12 @@ func (e *execution) execute() error {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
 		cmd = exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = exec.Command("ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	cmd.Dir = ansibleRecipePath
-	cmd.Stdout = os.Stdout
+	outbuf := NewWriterSize(e.kv, e.DeploymentId)
+	//errbuf := NewCustomWriter(e.kv, e.DeploymentId)
+	cmd.Stdout = outbuf
 	cmd.Stderr = os.Stderr
 
 	if e.HaveOutput {
@@ -472,7 +520,11 @@ func (e *execution) execute() error {
 		}
 	}
 
-	return cmd.Wait()
+	err = cmd.Wait()
+
+	outbuf.Flush()
+
+	return err
 }
 
 func storeConsulKey(kv *api.KV, key, value string) {
