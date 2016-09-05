@@ -43,7 +43,7 @@ type BufferedConsulWriter struct {
 
 func NewWriterSize(api *api.KV, depId string) *BufferedConsulWriter {
 	return &BufferedConsulWriter{
-		buf:   make([]byte, 1),
+		buf:   make([]byte, 0),
 		kv:    api,
 		depId: depId,
 	}
