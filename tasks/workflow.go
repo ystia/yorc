@@ -1,9 +1,9 @@
 package tasks
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"golang.org/x/net/context"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -77,8 +77,9 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName
 	eventPub.StatusChange(nodeName, status)
 }
 
-func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, shutdownChan chan struct{}, cfg config.Configuration) {
+func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) {
 	defer wg.Done()
+	haveErr := false
 	eventPub := events.NewPublisher(kv, deploymentId)
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
@@ -103,7 +104,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 			delegateOp := activity.ActivityValue()
 			switch delegateOp {
 			case "install":
-				if err := provisioner.ProvisionNode(deploymentId, s.Node); err != nil {
+				if err := provisioner.ProvisionNode(ctx, deploymentId, s.Node); err != nil {
 					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 					log.Printf("Sending error %v to error channel", err)
 					errc <- err
@@ -111,12 +112,13 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 				}
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "started")
 			case "uninstall":
-				if err := provisioner.DestroyNode(deploymentId, s.Node); err != nil {
+				if err := provisioner.DestroyNode(ctx, deploymentId, s.Node); err != nil {
 					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
-					errc <- err
-					return
+					uninstallerrc <- err
+					haveErr = true
+				} else {
+					setNodeStatus(kv, eventPub, deploymentId, s.Node, "initial")
 				}
-				setNodeStatus(kv, eventPub, deploymentId, s.Node, "initial")
 			default:
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 				errc <- fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
@@ -126,15 +128,25 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 			setNodeStatus(kv, eventPub, deploymentId, s.Node, activity.ActivityValue())
 		case actType == "call-operation":
 			exec := ansible.NewExecutor(kv)
-			if err := exec.ExecOperation(deploymentId, s.Node, activity.ActivityValue()); err != nil {
+			if err := exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue()); err != nil {
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
-				errc <- err
-				return
+				log.Debug(activity.ActivityValue())
+				if isUndeploy {
+					uninstallerrc <- err
+				} else {
+					errc <- err
+					return
+				}
+
 			}
 		}
 	}
 	for _, next := range s.Next {
 		next.NotifyChan <- struct{}{}
+	}
+	if haveErr {
+		log.Debug("Step %s genrate an error but workflow continue", s.Name)
+		return
 	}
 	log.Debugf("Step %s done without error.", s.Name)
 }

@@ -8,7 +8,14 @@ import (
 	"text/template"
 )
 
-func TestTemplates(t *testing.T) {
+func TestGroupedVolumeParallel(t *testing.T) {
+	t.Run("group", func(t *testing.T) {
+		t.Run("templatesTest", templatesTest)
+	})
+}
+
+func templatesTest(t *testing.T) {
+	t.Parallel()
 	e := &execution{Inputs: map[string]string{"A": "1", "B": "2", "C": "3"}, NodeName: "Welcome", Operation: "tosca.interfaces.node.lifecycle.Standard.start", Artifacts: map[string]string{"scripts": "my_scripts"}, OverlayPath: "/some/local/path"}
 
 	funcMap := template.FuncMap{

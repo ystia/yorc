@@ -21,3 +21,7 @@ type Event struct {
 	Node      string `json:"node"`
 	Status    string `json:"status"`
 }
+
+type Status struct {
+	Status string `json:"status"`
+}

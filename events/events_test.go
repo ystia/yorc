@@ -13,8 +13,17 @@ import (
 	"time"
 )
 
-func TestConsulPubSub_StatusChange(t *testing.T) {
-	//t.Parallel()
+func TestGroupedEventParallel(t *testing.T) {
+	t.Run("groupEvent", func(t *testing.T) {
+		t.Run("TestConsulPubSub_StatusChange", ConsulPubSub_StatusChange)
+		t.Run("TestConsulPubSub_NewEvents", ConsulPubSub_NewEvents)
+		t.Run("TestConsulPubSub_NewEventsTimeout", ConsulPubSub_NewEventsTimeout)
+		t.Run("TestConsulPubSub_NewEventsWithIndex", ConsulPubSub_NewEventsWithIndex)
+	})
+}
+
+func ConsulPubSub_StatusChange(t *testing.T) {
+	t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 
@@ -50,7 +59,7 @@ func TestConsulPubSub_StatusChange(t *testing.T) {
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
-	prefix := path.Join(deployments.DeploymentKVPrefix, deploymentId, "events")
+	prefix := path.Join(deployments.DeploymentKVPrefix, deploymentId, "events", "global")
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(testData))
@@ -62,7 +71,8 @@ func TestConsulPubSub_StatusChange(t *testing.T) {
 	}
 }
 
-func TestConsulPubSub_NewEvents(t *testing.T) {
+func ConsulPubSub_NewEvents(t *testing.T) {
+	t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 	log.SetDebug(true)
@@ -92,7 +102,8 @@ func TestConsulPubSub_NewEvents(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestConsulPubSub_NewEventsTimeout(t *testing.T) {
+func ConsulPubSub_NewEventsTimeout(t *testing.T) {
+	t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 	log.SetDebug(true)
@@ -116,7 +127,8 @@ func TestConsulPubSub_NewEventsTimeout(t *testing.T) {
 	assert.WithinDuration(t, t1, t2, timeout+50*time.Millisecond)
 }
 
-func TestConsulPubSub_NewEventsWithIndex(t *testing.T) {
+func ConsulPubSub_NewEventsWithIndex(t *testing.T) {
+	t.Parallel()
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 	log.SetDebug(true)
@@ -174,4 +186,30 @@ func TestConsulPubSub_NewEventsWithIndex(t *testing.T) {
 		assert.Equal(t, testData[index].node, event.Node)
 		assert.Equal(t, testData[index].status, event.Status)
 	}
+}
+
+func TestConsulPubSub_NewNodeEvents(t *testing.T) {
+	srv1 := testutil.NewTestServerConfig(t, nil)
+	defer srv1.Stop()
+	log.SetDebug(true)
+	config := api.DefaultConfig()
+	config.Address = srv1.HTTPAddr
+
+	client, err := api.NewClient(config)
+	assert.Nil(t, err)
+
+	kv := client.KV()
+	deploymentId := "test5"
+	pub := NewPublisher(kv, deploymentId)
+	sub := NewSubscriber(kv, deploymentId)
+
+	nodeName := "node1"
+	nodeStatus := "error"
+
+	_, err = pub.StatusChange(nodeName, nodeStatus)
+	assert.Nil(t, err)
+
+	events, err := sub.NewNodeEvents(nodeName)
+	assert.Nil(t, err)
+	assert.Equal(t, events.Status, nodeStatus)
 }
