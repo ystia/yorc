@@ -6,7 +6,13 @@ import (
 	"testing"
 )
 
-func TestNodeTypeParsing(t *testing.T) {
+func TestGroupedTypesParallel(t *testing.T) {
+	t.Run("groupTypes", func(t *testing.T) {
+		t.Run("TestNodeTypeParsing", nodeTypeParsing)
+	})
+}
+
+func nodeTypeParsing(t *testing.T) {
 
 	var data = `
   starlings.samples.nodes.Welcome:
