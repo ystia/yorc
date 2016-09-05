@@ -2,6 +2,7 @@ package ansible
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/consul/api"
@@ -418,7 +419,7 @@ func (e *execution) resolveExecution() error {
 
 }
 
-func (e *execution) execute() error {
+func (e *execution) execute(ctx context.Context) error {
 
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
@@ -485,9 +486,9 @@ func (e *execution) execute() error {
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = exec.Command("ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = exec.Command("ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	cmd.Dir = ansibleRecipePath
 	outbuf := NewWriterSize(e.kv, e.DeploymentId)

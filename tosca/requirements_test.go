@@ -6,11 +6,20 @@ import (
 	"testing"
 )
 
+func TestGroupedRequirementParallel(t *testing.T) {
+	t.Run("groupRequirement", func(t *testing.T) {
+		t.Run("TestRequirementAssignment_Complex", requirementAssignment_Complex)
+		t.Run("TestRequirementAssignment_Simple", requirementAssignment_Simple)
+		t.Run("TestRequirementAssignment_SimpleRelationship", requirementAssignment_SimpleRelationship)
+	})
+}
+
 type ReqTestNode struct {
 	Requirements []RequirementAssignmentMap `yaml:"requirements,omitempty"`
 }
 
-func TestRequirementAssignment_Complex(t *testing.T) {
+func requirementAssignment_Complex(t *testing.T) {
+	t.Parallel()
 	data := `Compute:
   requirements:
     - local_storage:
@@ -34,7 +43,8 @@ func TestRequirementAssignment_Complex(t *testing.T) {
 	assert.Equal(t, "/dev/vde", lc.RelationshipProps["location"].String())
 }
 
-func TestRequirementAssignment_Simple(t *testing.T) {
+func requirementAssignment_Simple(t *testing.T) {
+	t.Parallel()
 	data := `Compute:
   requirements:
     - req: nodeName`
@@ -50,7 +60,8 @@ func TestRequirementAssignment_Simple(t *testing.T) {
 	assert.Equal(t, "nodeName", req.Node)
 }
 
-func TestRequirementAssignment_SimpleRelationship(t *testing.T) {
+func requirementAssignment_SimpleRelationship(t *testing.T) {
+	t.Parallel()
 	data := `Compute:
   requirements:
     - req:

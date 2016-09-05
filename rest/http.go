@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"github.com/gorilla/context"
+	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
@@ -33,8 +33,8 @@ func (r *router) Delete(path string, handler http.Handler) {
 
 func wrapHandler(h http.Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		context.Set(r, "params", ps)
-		h.ServeHTTP(w, r)
+		ctx := r.Context()
+		h.ServeHTTP(w, r.WithContext(context.WithValue(ctx, "params", ps)))
 	}
 }
 
@@ -77,7 +77,7 @@ func NewServer(client *api.Client) (*Server, error) {
 }
 
 func (s *Server) registerHandlers() {
-	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler)
+	commonHandlers := alice.New(loggingHandler, recoverHandler)
 	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
 	s.router.Delete("/deployments/:id", commonHandlers.ThenFunc(s.deleteDeploymentHandler))
 	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getDeploymentHandler))
