@@ -73,6 +73,23 @@ Content-Type: application/json
 {"id":"55d54226-5ce5-4278-96e4-97dd4cbb4e62","status":"DEPLOYED"}
 ```
 
+### Get the deployment status of a node
+
+Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/node/<node_name>/events?index=1&wait=5s```
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{"events":[{"timestamp":"2016-08-22T07:48:44.405858316-04:00","node":"Welcome","status":"initial"},{"timestamp":"2016-08-22T07:48:44.407907145-04:00","node":"Welcome","status":"creating"},{"timestamp":"2016-08-22T07:48:44.409318025-04:00","node":"Welcome","status":"created"},{"timestamp":"2016-08-22T07:48:44.410589189-04:00","node":"Welcome","status":"configuring"},{"timestamp":"2016-08-22T07:48:54.166873401-04:00","node":"Welcome","status":"configured"},{"timestamp":"2016-08-22T07:48:54.168498939-04:00","node":"Welcome","status":"starting"},{"timestamp":"2016-08-22T07:49:08.28480537-04:00","node":"Welcome","status":"started"}],"last_index":1814}
+```
+
+
 ### List deployment events
 
 Retrieve a list of events. 'Accept' header should be set to 'application/json'.

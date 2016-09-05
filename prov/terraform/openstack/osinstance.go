@@ -8,6 +8,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -84,7 +85,14 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 		if networkName != "" {
 			// TODO Deal with networks aliases (PUBLIC/PRIVATE)
 			var networkSlice []ComputeNetwork
-			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName})
+			if strings.EqualFold(networkName, "private") {
+				networkSlice = append(networkSlice, ComputeNetwork{Name: g.cfg.OS_PRIVATE_NETWORK_NAME})
+			} else if strings.EqualFold(networkName, "public") {
+				//TODO
+				return ComputeInstance{}, fmt.Errorf("Public Network aliases currently not supported")
+			} else {
+				networkSlice = append(networkSlice, ComputeNetwork{Name: networkName})
+			}
 			instance.Networks = networkSlice
 		}
 	}
