@@ -59,7 +59,7 @@ func ConsulPubSub_StatusChange(t *testing.T) {
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
-	prefix := path.Join(deployments.DeploymentKVPrefix, deploymentId, "events")
+	prefix := path.Join(deployments.DeploymentKVPrefix, deploymentId, "events", "global")
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(testData))
@@ -186,4 +186,30 @@ func ConsulPubSub_NewEventsWithIndex(t *testing.T) {
 		assert.Equal(t, testData[index].node, event.Node)
 		assert.Equal(t, testData[index].status, event.Status)
 	}
+}
+
+func TestConsulPubSub_NewNodeEvents(t *testing.T) {
+	srv1 := testutil.NewTestServerConfig(t, nil)
+	defer srv1.Stop()
+	log.SetDebug(true)
+	config := api.DefaultConfig()
+	config.Address = srv1.HTTPAddr
+
+	client, err := api.NewClient(config)
+	assert.Nil(t, err)
+
+	kv := client.KV()
+	deploymentId := "test5"
+	pub := NewPublisher(kv, deploymentId)
+	sub := NewSubscriber(kv, deploymentId)
+
+	nodeName := "node1"
+	nodeStatus := "error"
+
+	_, err = pub.StatusChange(nodeName, nodeStatus)
+	assert.Nil(t, err)
+
+	events, err := sub.NewNodeEvents(nodeName)
+	assert.Nil(t, err)
+	assert.Equal(t, events.Status, nodeStatus)
 }
