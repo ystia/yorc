@@ -75,11 +75,11 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 	return events, qm.LastIndex, nil
 }
 
-func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, error){
+func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, error) {
 
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName, "statut")
 
-	kvp, _, err := cp.kv.Get(eventsPrefix,nil)
+	kvp, _, err := cp.kv.Get(eventsPrefix, nil)
 
 	var statut deployments.Status
 
@@ -92,9 +92,7 @@ func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, erro
 		return statut, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 	}
 
-	statut = deployments.Status{Status:values[0]}
-
-
+	statut = deployments.Status{Status: values[0]}
 
 	return statut, nil
 }

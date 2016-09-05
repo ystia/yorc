@@ -2,8 +2,8 @@ package ansible
 
 import (
 	"bytes"
-	"encoding/csv"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"gopkg.in/yaml.v2"
@@ -439,9 +439,9 @@ func (e *execution) execute(ctx context.Context) error {
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = exec.CommandContext(ctx,"ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = exec.CommandContext(ctx,"ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	cmd.Dir = ansibleRecipePath
 	cmd.Stdout = os.Stdout
