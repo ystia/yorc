@@ -9,7 +9,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -166,14 +165,22 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.CommandContext(ctx, "terraform", "destroy", "-force")
 	cmd.Dir = infraPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	errbuf := NewWriterSize(e.kv, depId)
+	out := NewWriterSize(e.kv, depId)
+	cmd.Stdout = out
+	cmd.Stderr = errbuf
+
+	quit := make(chan bool)
+	out.run(quit)
+	errbuf.run(quit)
 
 	if err := cmd.Start(); err != nil {
 		log.Print(err)
-		return err
 	}
 
-	return cmd.Wait()
+	err := cmd.Wait()
+	quit <- true
+
+	return err
 
 }
