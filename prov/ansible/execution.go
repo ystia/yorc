@@ -420,7 +420,7 @@ func (e *execution) resolveExecution() error {
 }
 
 func (e *execution) execute(ctx context.Context) error {
-
+	log.StoreInConsul(e.kv,e.DeploymentId,"Start the ansible execution of : " + e.NodeName + " with operation : " + e.Operation)
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
 		log.Printf("%+v", err)
@@ -488,7 +488,7 @@ func (e *execution) execute(ctx context.Context) error {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
 		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = exec.CommandContext(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	cmd.Dir = ansibleRecipePath
 	outbuf := NewWriterSize(e.kv, e.DeploymentId)
