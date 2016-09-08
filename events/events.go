@@ -114,7 +114,7 @@ func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time
 		}
 
 		index := strings.Index(kvp.Key, "__")
-		eventTimestamp := kvp.Key[index+2:len(kvp.Key)]
+		eventTimestamp := kvp.Key[index+2 : len(kvp.Key)]
 		logs = append(logs, deployments.Logs{Timestamp: eventTimestamp, Logs: string(kvp.Value)})
 
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
@@ -77,7 +78,6 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var waitIndex uint64 = 1
 	var timeout time.Duration = 5 * time.Minute
-	var filter string = "all"
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
 			WriteError(w, NewBadRequestParameter("index", err))
@@ -94,17 +94,28 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 			timeout = 10 * time.Minute
 		}
 	}
+	result := []string{"all"}
 	if filtr := values.Get("filter"); filtr != "" {
-		if strings.Contains(filtr, log.ENGINE_LOG_PREFIX) ||
+		res := strings.Split(filtr, ",")
+		if len(res) != 1 {
+			result = res
+		} else if strings.Contains(filtr, log.ENGINE_LOG_PREFIX) ||
 			strings.Contains(filtr, log.INFRA_LOG_PREFIX) ||
 			strings.Contains(filtr, log.SOFTWARE_LOG_PREFIX) {
-			filter = filtr
+			result[0] = filtr
 		}
 	}
 
-	logs, lastIdx, err := sub.LogsEvents(filter, waitIndex, timeout)
-	if err != nil {
-		log.Panicf("Can't retrieve events: %v", err)
+	var logs []deployments.Logs
+	var lastIdx uint64
+
+	for _, data := range result {
+		tmp, idx, err := sub.LogsEvents(data, waitIndex, timeout)
+		if err != nil {
+			log.Panicf("Can't retrieve events: %v", err)
+		}
+		logs = append(logs, tmp...)
+		lastIdx = idx
 	}
 
 	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
