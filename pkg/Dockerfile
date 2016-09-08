@@ -1,7 +1,7 @@
 FROM loicalbertin/alpine-consul
 
-# 0.6.16 is dynamically linked which causes problems (wait for 0.6.17 or 0.7.0)
-ENV TERRAFORM_VERSION=0.6.15
+# 0.7.3 last stable version
+ENV TERRAFORM_VERSION=0.7.3
 
 ADD rootfs /
 

@@ -7,6 +7,7 @@ import (
 	"github.com/justinas/alice"
 	"net"
 	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
@@ -43,10 +44,11 @@ func NewRouter() *router {
 }
 
 type Server struct {
-	router         *router
-	listener       net.Listener
-	consulClient   *api.Client
-	tasksCollector *tasks.Collector
+	router          *router
+	listener        net.Listener
+	consulClient    *api.Client
+	tasksCollector  *tasks.Collector
+	consulPublisher *consulPublisher
 }
 
 func (s *Server) Shutdown() {
@@ -56,18 +58,26 @@ func (s *Server) Shutdown() {
 	}
 }
 
-func NewServer(client *api.Client) (*Server, error) {
+func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
 	var listener net.Listener
 	var err error
 	if listener, err = net.Listen("tcp", ":8800"); err != nil {
 		return nil, err
 	}
-	httpServer := &Server{
-		router:         NewRouter(),
-		listener:       listener,
-		consulClient:   client,
-		tasksCollector: tasks.NewCollector(client),
+
+	maxConsulPubRoutines := configuration.REST_CONSUL_PUB_MAX_ROUTINES
+	if maxConsulPubRoutines <= 0 {
+		maxConsulPubRoutines = config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES
 	}
+
+	httpServer := &Server{
+		router:          NewRouter(),
+		listener:        listener,
+		consulClient:    client,
+		tasksCollector:  tasks.NewCollector(client),
+		consulPublisher: newConsulPublisher(maxConsulPubRoutines, client.KV(), shutdownCh),
+	}
+	go httpServer.consulPublisher.run()
 
 	httpServer.registerHandlers()
 	log.Printf("Starting HTTPServer on port 8800")

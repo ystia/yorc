@@ -1,0 +1,277 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+description: Alien4Cloud generated service template
+template_name: Test
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - openstack-types: <janus-openstack-types.yml>
+  - welcome: welcome/welcome-types.yml
+  - consul: consul/consul-types.yaml
+  - extended: extended/alien-extended-storage-types.yaml
+
+topology_template:
+  node_templates:
+    BlockStorage:
+       type: janus.nodes.openstack.BlockStorage
+       properties:
+         size: 2 GiB
+         availability_zone: r423-03.share.ops
+         deletable: true
+    XFS:
+      type: starlings.nodes.XFS
+      properties:
+        fs_type: ext4
+        location: /home/cloud-user/test
+      requirements:
+        - host:
+            node: ComputeConsulServer
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - partition:
+            node: BlockStorage
+            capability: tosca.capabilities.Node
+            relationship:
+             type: alien.relationships.LinuxPartition
+             properties:
+               device: /dev/vdb
+               partition_type: 83
+    ConsulAgent:
+      type: starlings.nodes.Consul
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/consul
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: ComputeConsulAgent
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - server_endpoint:
+            node: ConsulServer
+            capability: starlings.capabilities.ConsulServer
+            relationship: starlings.relationships.ConnectsConsulAgentToServer
+    ComputeConsulAgent:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: cloudify
+      requirements:
+        - network:
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Network:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+    ConsulServer:
+      type: starlings.nodes.Consul
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/consul
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: ComputeConsulServer
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ComputeConsulServer:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: cloudify
+      requirements:
+        - local_storage:
+            node: BlockStorage
+            capability: tosca.capabilities.Attachment
+            relationship:
+              type: tosca.relationships.AttachesTo
+              properties:
+                location: /dev/vdb
+        - network:
+            node: Net
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Net:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+    Welcome:
+      type: starlings.samples.nodes.Welcome
+      properties:
+        component_version: "2.1-SNAPSHOT"
+        port: 8111
+      requirements:
+        - host:
+            node: ComputeWelcome
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ComputeWelcome:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: cloudify
+      requirements:
+        - network:
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Network:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+  workflows:
+    install:
+      steps:
+        Network_install:
+          node: Network
+          activity:
+            set_state: installed
+          on-success:
+            - Compute_install
+        Compute_install:
+          node: ComputeWelcome
+          activity:
+            set_state: installed
+          on-success:
+            - Welcome_initial
+        Welcome_initial:
+          node: Welcome
+          activity:
+            set_state: initial
+          on-success:
+            - Welcome_creating
+        Welcome_creating:
+          node: Welcome
+          activity:
+            set_state: creating
+          on-success:
+            - Welcome_created
+        Welcome_created:
+          node: Welcome
+          activity:
+            set_state: created
+          on-success:
+            - Welcome_configuring
+        Welcome_configuring:
+          node: Welcome
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Welcome
+        configure_Welcome:
+          node: Welcome
+          activity:
+            set_state: working
+          on-success:
+            - Welcome_configured
+        Welcome_configured:
+          node: Welcome
+          activity:
+            set_state: configured
+          on-success:
+            - Welcome_starting
+        Welcome_starting:
+          node: Welcome
+          activity:
+            set_state: starting
+          on-success:
+            - start_Welcome
+        start_Welcome:
+          node: Welcome
+          activity:
+            set_state: working
+          on-success:
+            - Welcome_started
+        Welcome_started:
+          node: Welcome
+          activity:
+            set_state: started
+    uninstall:
+      steps:
+        Network_unistall:
+         node: Network
+         activity:
+            set_state: uninstalled
+        Compute_uninstall:
+          node: ComputeWelcome
+          activity:
+            set_state: uninstalled
+          on-success:
+            - Network_unistall
+        Welcome_stopping:
+          node: Welcome
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Welcome
+        stop_Welcome:
+          node: Welcome
+          activity:
+            set_state: working
+          on-success:
+            - Welcome_stopped
+        Welcome_stopped:
+          node: Welcome
+          activity:
+            set_state: stopped
+          on-success:
+            - Welcome_deleting
+        Welcome_deleting:
+          node: Welcome
+          activity:
+            set_state: deleting
+          on-success:
+            - Welcome_deleted
+        Welcome_deleted:
+          node: Welcome
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
