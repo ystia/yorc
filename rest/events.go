@@ -47,3 +47,21 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(eventsCollection)
 }
+
+func (s *Server) pollNodeEvents(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	name := params.ByName("name")
+	sub := events.NewSubscriber(s.consulClient.KV(), id)
+	var err error
+
+	statut, err := sub.NewNodeEvents(name)
+	if err != nil {
+		log.Panicf("Can't retrieve events: %v", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(statut)
+}
