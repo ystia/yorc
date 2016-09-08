@@ -18,9 +18,7 @@ type Publisher interface {
 type Subscriber interface {
 	NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error)
 	NewNodeEvents(nodeName string) (deployments.Status, error)
-	AnsibleEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error)
-	TerraformEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error)
-	JanusEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error)
+	LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error)
 }
 
 type consulPubSub struct {
@@ -100,9 +98,9 @@ func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, erro
 	return statut, nil
 }
 
-func (cp *consulPubSub) AnsibleEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {
+func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {
 
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "logs", "ansible")
+	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "logs")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	logs := make([]deployments.Logs, 0)
 	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
@@ -111,58 +109,14 @@ func (cp *consulPubSub) AnsibleEvents(waitIndex uint64, timeout time.Duration) (
 		return logs, 0, err
 	}
 	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex {
+		if kvp.ModifyIndex <= waitIndex || (filter != "all" && !strings.HasPrefix(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), filter)) {
 			continue
 		}
 
-		eventTimestamp := strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
+		index := strings.Index(kvp.Key, "__")
+		eventTimestamp := kvp.Key[0:index]
 		logs = append(logs, deployments.Logs{Timestamp: eventTimestamp, Logs: string(kvp.Value)})
-	}
 
-	log.Debugf("Found %d events after filtering", len(logs))
-	return logs, qm.LastIndex, nil
-}
-
-func (cp *consulPubSub) TerraformEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {
-
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "logs", "terraform")
-	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	logs := make([]deployments.Logs, 0)
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
-
-	if err != nil {
-		return logs, 0, err
-	}
-	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex {
-			continue
-		}
-
-		eventTimestamp := strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
-		logs = append(logs, deployments.Logs{Timestamp: eventTimestamp, Logs: string(kvp.Value)})
-	}
-
-	log.Debugf("Found %d events after filtering", len(logs))
-	return logs, qm.LastIndex, nil
-}
-
-func (cp *consulPubSub) JanusEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {
-
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "logs", "janus")
-	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	logs := make([]deployments.Logs, 0)
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
-
-	if err != nil {
-		return logs, 0, err
-	}
-	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex {
-			continue
-		}
-
-		eventTimestamp := strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
-		logs = append(logs, deployments.Logs{Timestamp: eventTimestamp, Logs: string(kvp.Value)})
 	}
 
 	log.Debugf("Found %d events after filtering", len(logs))

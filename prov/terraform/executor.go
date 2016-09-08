@@ -61,7 +61,7 @@ func (b *BufferedConsulWriter) Flush() error {
 	fmt.Printf(string(b.buf))
 	reg := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]`)
 	out := reg.ReplaceAll(b.buf, []byte(""))
-	kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", "terraform", time.Now().Format(time.RFC3339Nano)), Value: out}
+	kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", log.INFRA_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: out}
 	_, err := b.kv.Put(kv, nil)
 	if err != nil {
 		return err

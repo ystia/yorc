@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const INFRA_LOG_PREFIX = "infrastructure"
+const SOFTWARE_LOG_PREFIX = "software"
+const ENGINE_LOG_PREFIX = "engine"
+
 var (
 	std   = slog.New(os.Stdout, "", slog.LstdFlags)
 	debug = false
@@ -163,7 +167,7 @@ func Debugln(v ...interface{}) {
 This function allow you to store log in consul
 */
 func StoreInConsul(kv *api.KV, depId, message string) {
-	storeConsulKey(kv, filepath.Join("_janus/deployments", depId, "logs", "janus", time.Now().Format(time.RFC3339Nano)), []byte(message))
+	storeConsulKey(kv, filepath.Join("_janus/deployments", depId, "logs", ENGINE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), []byte(message))
 }
 
 func storeConsulKey(kv *api.KV, key string, value []byte) {

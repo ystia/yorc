@@ -7,6 +7,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -66,7 +67,7 @@ func (s *Server) pollNodeEvents(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(statut)
 }
 
-func (s *Server) pollAnsibleLogs(w http.ResponseWriter, r *http.Request) {
+func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
@@ -76,6 +77,7 @@ func (s *Server) pollAnsibleLogs(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var waitIndex uint64 = 1
 	var timeout time.Duration = 5 * time.Minute
+	var filter string = "all"
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
 			WriteError(w, NewBadRequestParameter("index", err))
@@ -92,86 +94,15 @@ func (s *Server) pollAnsibleLogs(w http.ResponseWriter, r *http.Request) {
 			timeout = 10 * time.Minute
 		}
 	}
-
-	logs, lastIdx, err := sub.AnsibleEvents(waitIndex, timeout)
-	if err != nil {
-		log.Panicf("Can't retrieve events: %v", err)
-	}
-
-	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(logCollection)
-
-}
-
-func (s *Server) pollTerraformLogs(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
-	sub := events.NewSubscriber(s.consulClient.KV(), id)
-	values := r.URL.Query()
-	var err error
-	var waitIndex uint64 = 1
-	var timeout time.Duration = 5 * time.Minute
-	if idx := values.Get("index"); idx != "" {
-		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
-			return
+	if filtr := values.Get("filter"); filtr != "" {
+		if strings.Contains(filtr, log.ENGINE_LOG_PREFIX) ||
+			strings.Contains(filtr, log.INFRA_LOG_PREFIX) ||
+			strings.Contains(filtr, log.SOFTWARE_LOG_PREFIX) {
+			filter = filtr
 		}
 	}
 
-	if dur := values.Get("wait"); dur != "" {
-		if timeout, err = time.ParseDuration(dur); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
-			return
-		}
-		if timeout > 10*time.Minute {
-			timeout = 10 * time.Minute
-		}
-	}
-
-	logs, lastIdx, err := sub.TerraformEvents(waitIndex, timeout)
-	if err != nil {
-		log.Panicf("Can't retrieve events: %v", err)
-	}
-
-	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(logCollection)
-
-}
-
-func (s *Server) pollJanusLogs(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
-	sub := events.NewSubscriber(s.consulClient.KV(), id)
-	values := r.URL.Query()
-	var err error
-	var waitIndex uint64 = 1
-	var timeout time.Duration = 5 * time.Minute
-	if idx := values.Get("index"); idx != "" {
-		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
-			return
-		}
-	}
-
-	if dur := values.Get("wait"); dur != "" {
-		if timeout, err = time.ParseDuration(dur); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
-			return
-		}
-		if timeout > 10*time.Minute {
-			timeout = 10 * time.Minute
-		}
-	}
-
-	logs, lastIdx, err := sub.JanusEvents(waitIndex, timeout)
+	logs, lastIdx, err := sub.LogsEvents(filter, waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}

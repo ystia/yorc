@@ -129,7 +129,7 @@ func (b *BufferedConsulWriter) Flush() error {
 		if err != nil {
 			return err
 		}
-		kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", "ansible", time.Now().Format(time.RFC3339Nano)), Value: []byte(out)}
+		kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", log.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(out)}
 		_, err = b.kv.Put(kv, nil)
 		if err != nil {
 			return err
@@ -420,7 +420,7 @@ func (e *execution) resolveExecution() error {
 }
 
 func (e *execution) execute(ctx context.Context) error {
-	log.StoreInConsul(e.kv,e.DeploymentId,"Start the ansible execution of : " + e.NodeName + " with operation : " + e.Operation)
+	log.StoreInConsul(e.kv, e.DeploymentId, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
 		log.Printf("%+v", err)

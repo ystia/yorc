@@ -130,7 +130,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/logs/[ansible, janus, terraform]?index=1&wait=5m```
+```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]```
 
 **Response**
 

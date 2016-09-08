@@ -84,7 +84,6 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
 	s.router.Get("/deployments/:id/events", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollEvents))
 	s.router.Get("/deployments/:id/node/:name/events", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollNodeEvents))
-	s.router.Get("/deployments/:id/logs/ansible", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollAnsibleLogs))
-	s.router.Get("/deployments/:id/logs/terraform", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollTerraformLogs))
-	s.router.Get("/deployments/:id/logs/janus", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollJanusLogs))
+	s.router.Get("/deployments/:id/logs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollLogs))
+
 }
