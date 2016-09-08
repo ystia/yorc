@@ -1,7 +1,7 @@
 FROM loicalbertin/alpine-consul
 
-# 0.7.0 last stable version
-ENV TERRAFORM_VERSION=0.7.0
+# 0.7.3 last stable version
+ENV TERRAFORM_VERSION=0.7.3
 
 ADD rootfs /
 
