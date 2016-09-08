@@ -126,11 +126,55 @@ Content-Type: application/json
 }
 ```
 
-### Get logs of applications
+### Get logs of an application
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
 ```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]```
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+    "logs":[
+      {"timestamp":"2016-09-05T07:46:09.91123229-04:00","logs":"Applying the infrastructure"},
+      {"timestamp":"2016-09-05T07:46:11.663880572-04:00","logs":"Applying the infrastructure"}
+     ],
+     "last_index":1781
+}
+```
+
+### Get logs of multiple applications
+
+Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=software,engine```
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+    "logs":[
+      {"timestamp":"2016-09-05T07:46:09.91123229-04:00","logs":"Applying the infrastructure"},
+      {"timestamp":"2016-09-05T07:46:11.663880572-04:00","logs":"Applying the infrastructure"}
+     ],
+     "last_index":1781
+}
+```
+
+### Get all logs
+
+Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=```
 
 **Response**
 
