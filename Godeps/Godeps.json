@@ -49,6 +49,11 @@
 			"Rev": "4a07a5cb78e604393ef0e28d40d32f77019eb6d6"
 		},
 		{
+			"ImportPath": "github.com/hashicorp/consul/types",
+			"Comment": "v0.7.0-rc1",
+			"Rev": "4a07a5cb78e604393ef0e28d40d32f77019eb6d6"
+		},
+		{
 			"ImportPath": "github.com/hashicorp/go-cleanhttp",
 			"Rev": "ad28ea4487f05916463e2423a55166280e8254b5"
 		},

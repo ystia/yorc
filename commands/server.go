@@ -1,17 +1,11 @@
 package commands
 
 import (
-	"fmt"
-	"github.com/hashicorp/consul/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"os"
-	"os/signal"
-	"syscall"
+	"novaforge.bull.com/starlings-janus/janus/server"
 )
 
 func init() {
@@ -30,51 +24,8 @@ var serverCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		configuration := getConfig()
-
-		var ConsulDC string = configuration.CONSUL_DATACENTER
-		var ConsulToken string = configuration.CONSUL_TOKEN
-
-		ConsulCustomConfig := api.DefaultConfig()
-		ConsulCustomConfig.Datacenter = fmt.Sprintf("%s", ConsulDC)
-		ConsulCustomConfig.Token = fmt.Sprintf("%s", ConsulToken)
-
-		client, err := api.NewClient(ConsulCustomConfig)
-		if err != nil {
-			log.Printf("Can't connect to Consul")
-			return err
-		}
 		shutdownCh := make(chan struct{})
-		dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
-		go dispatcher.Run()
-		httpServer, err := rest.NewServer(client)
-		if err != nil {
-			close(shutdownCh)
-			return err
-		}
-		defer httpServer.Shutdown()
-		signalCh := make(chan os.Signal, 4)
-		signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-		for {
-			var sig os.Signal
-			shutdownChClosed := false
-			select {
-			case s := <-signalCh:
-				sig = s
-			case <-shutdownCh:
-				sig = os.Interrupt
-				shutdownChClosed = true
-			}
-
-			// Check if this is a SIGHUP
-			if sig == syscall.SIGHUP {
-				// TODO reload
-			} else {
-				if !shutdownChClosed {
-					close(shutdownCh)
-				}
-				return nil
-			}
-		}
+		return server.RunServer(configuration, shutdownCh)
 	},
 }
 
@@ -109,6 +60,8 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("consul_token", "t", "", "The token by default")
 	serverCmd.PersistentFlags().StringP("consul_datacenter", "d", "", "The datacenter of Consul node")
 
+	serverCmd.PersistentFlags().Int("rest_consul_publisher_max_routines", config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES, "Maximum number of paralellism used by the REST API to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
+
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
 	viper.BindPFlag("os_tenant_id", serverCmd.PersistentFlags().Lookup("os_tenant_id"))
@@ -122,6 +75,8 @@ func setConfig() {
 	//Bind flags for Consul
 	viper.BindPFlag("consul_token", serverCmd.PersistentFlags().Lookup("consul_token"))
 	viper.BindPFlag("consul_datacenter", serverCmd.PersistentFlags().Lookup("consul_datacenter"))
+
+	viper.BindPFlag("rest_consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("rest_consul_publisher_max_routines"))
 
 	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
 
@@ -137,12 +92,14 @@ func setConfig() {
 	viper.BindEnv("os_prefix", "OS_PREFIX")
 	viper.BindEnv("os_private_network_name", "OS_PRIVATE_NETWORK_NAME")
 	viper.BindEnv("os_public_network_name", "OS_PUBLIC_NETWORK_NAME")
+	viper.BindEnv("rest_consul_publisher_max_routines")
 
 	//Setting Defaults
 	viper.SetDefault("os_prefix", "janus-")
 	viper.SetDefault("os_region", "RegionOne")
 	viper.SetDefault("consul_datacenter", "dc1")
 	viper.SetDefault("consul_token", "anonymous")
+	viper.SetDefault("rest_consul_publisher_max_routines", config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES)
 
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
@@ -164,6 +121,7 @@ func getConfig() config.Configuration {
 	configuration.OS_PUBLIC_NETWORK_NAME = viper.GetString("os_public_network_name")
 	configuration.CONSUL_DATACENTER = viper.GetString("consul_datacenter")
 	configuration.CONSUL_TOKEN = viper.GetString("consul_token")
+	configuration.REST_CONSUL_PUB_MAX_ROUTINES = viper.GetInt("rest_consul_publisher_max_routines")
 
 	return configuration
 }
