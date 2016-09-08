@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"io"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -12,9 +11,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
-	"time"
 )
 
 type Executor interface {
@@ -29,59 +26,6 @@ type defaultExecutor struct {
 
 func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
 	return &defaultExecutor{kv: kv, cfg: cfg}
-}
-
-type BufferedConsulWriter struct {
-	kv        *api.KV
-	depId     string
-	buf       []byte
-	completed []byte
-	n         int
-	io.Writer
-}
-
-func NewWriterSize(api *api.KV, depId string) *BufferedConsulWriter {
-	return &BufferedConsulWriter{
-		buf:   make([]byte, 0),
-		kv:    api,
-		depId: depId,
-	}
-}
-
-func (b *BufferedConsulWriter) Write(p []byte) (nn int, err error) {
-	b.buf = append(b.buf, p...)
-	return len(p), nil
-}
-
-func (b *BufferedConsulWriter) Flush() error {
-	//fmt.Printf(string(p))
-	if len(b.buf) == 0 {
-		return nil
-	}
-	fmt.Printf(string(b.buf))
-	reg := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]`)
-	out := reg.ReplaceAll(b.buf, []byte(""))
-	kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", log.INFRA_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: out}
-	_, err := b.kv.Put(kv, nil)
-	if err != nil {
-		return err
-	}
-	b.buf = b.buf[:0]
-	return nil
-
-}
-
-func (b *BufferedConsulWriter) run(quit chan bool) {
-	go func() {
-		for {
-			select {
-			case <-quit:
-				return
-			case <-time.After(5 * time.Second):
-				b.Flush()
-			}
-		}
-	}()
 }
 
 func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeName string) error {
@@ -124,14 +68,14 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeNa
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.CommandContext(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
-	errbuf := NewWriterSize(e.kv, depId)
-	out := NewWriterSize(e.kv, depId)
+	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 
 	quit := make(chan bool)
-	out.run(quit)
-	errbuf.run(quit)
+	out.Run(quit)
+	errbuf.Run(quit)
 
 	if err := cmd.Start(); err != nil {
 		log.Print(err)
@@ -165,14 +109,14 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.CommandContext(ctx, "terraform", "destroy", "-force")
 	cmd.Dir = infraPath
-	errbuf := NewWriterSize(e.kv, depId)
-	out := NewWriterSize(e.kv, depId)
+	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 
 	quit := make(chan bool)
-	out.run(quit)
-	errbuf.run(quit)
+	out.Run(quit)
+	errbuf.Run(quit)
 
 	if err := cmd.Start(); err != nil {
 		log.Print(err)

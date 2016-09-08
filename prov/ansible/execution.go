@@ -6,9 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
-	"io"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -17,13 +15,9 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"text/template"
-	"time"
 )
-
-const ANSIBLE_OUTPUT_JSON_LOCATION = "plays.#.tasks.#.hosts.*.stdout"
 
 const output_custom_wrapper = `
 [[[printf ". $HOME/.janus/%s/%s/%s" .NodeName .Operation .BasePrimary]]]
@@ -97,46 +91,6 @@ func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execut
 		NodeName:     nodeName,
 		Operation:    operation}
 	return exec, exec.resolveExecution()
-}
-
-type BufferedConsulWriter struct {
-	kv    *api.KV
-	depId string
-	buf   []byte
-	io.Writer
-}
-
-func NewWriterSize(api *api.KV, depId string) *BufferedConsulWriter {
-	return &BufferedConsulWriter{
-		buf:   make([]byte, 0),
-		kv:    api,
-		depId: depId,
-	}
-}
-
-func (b *BufferedConsulWriter) Write(p []byte) (nn int, err error) {
-	b.buf = append(b.buf, p...)
-	return len(p), nil
-}
-
-func (b *BufferedConsulWriter) Flush() error {
-	//fmt.Printf(string(p))
-	if gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).Exists() {
-		out := gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).String()
-		out = strings.TrimPrefix(out, "[[,")
-		out = strings.TrimSuffix(out, "]]")
-		out, err := strconv.Unquote(out)
-		if err != nil {
-			return err
-		}
-		kv := &api.KVPair{Key: filepath.Join(deployments.DeploymentKVPrefix, b.depId, "logs", log.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(out)}
-		_, err = b.kv.Put(kv, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-
 }
 
 func (e *execution) resolveArtifacts() error {
@@ -491,8 +445,8 @@ func (e *execution) execute(ctx context.Context) error {
 		cmd = exec.CommandContext(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	cmd.Dir = ansibleRecipePath
-	outbuf := NewWriterSize(e.kv, e.DeploymentId)
-	errbuf := NewWriterSize(e.kv, e.DeploymentId)
+	outbuf := log.NewWriterSize(e.kv, e.DeploymentId, deployments.DeploymentKVPrefix)
+	errbuf := log.NewWriterSize(e.kv, e.DeploymentId, deployments.DeploymentKVPrefix)
 	cmd.Stdout = outbuf
 	cmd.Stderr = errbuf
 
@@ -524,7 +478,7 @@ func (e *execution) execute(ctx context.Context) error {
 
 	err = cmd.Wait()
 
-	outbuf.Flush()
+	outbuf.FlushSoftware()
 
 	return err
 }
