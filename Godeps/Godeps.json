@@ -179,6 +179,10 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "a83829b6f1293c91addabc89d0571c246397bbf4"
+		},
+		{
+			"ImportPath": "github.com/tidwall/gjson",
+			"Rev": "7c631e98686a791e5fc60ff099512968122afb52"
 		}
 	]
 }
