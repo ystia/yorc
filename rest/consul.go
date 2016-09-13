@@ -22,24 +22,27 @@ type consulPublishRequest struct {
 
 type consulPublisher struct {
 	pubChannel chan consulPublishRequest
+	sem        chan struct{}
 	kv         *api.KV
 	shutdownCh chan struct{}
 }
 
 func newConsulPublisher(maxItems int, kv *api.KV, shutdownCh chan struct{}) *consulPublisher {
 	log.Debugf("Consul Publisher created for the REST API with a maximum of %d parallel routines.", maxItems)
-	return &consulPublisher{pubChannel: make(chan consulPublishRequest, maxItems), kv: kv, shutdownCh: shutdownCh}
+	return &consulPublisher{pubChannel: make(chan consulPublishRequest), sem: make(chan struct{}, maxItems), kv: kv, shutdownCh: shutdownCh}
 }
 
 func (c *consulPublisher) run() {
 	for {
 		select {
 		case cpr := <-c.pubChannel:
+			c.sem <- struct{}{}
 			go func(p *api.KVPair, wg *sync.WaitGroup, errCh chan error) {
 				defer wg.Done()
 				if _, err := c.kv.Put(p, nil); err != nil {
 					errCh <- err
 				}
+				<-c.sem
 			}(cpr.kvp, cpr.wg, cpr.errChan)
 		case <-c.shutdownCh:
 			log.Debugf("consul publisher recieved shutdown signal, exiting.")
