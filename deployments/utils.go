@@ -19,6 +19,10 @@ func NewDeploymentLogSender(api *api.KV, depId string) *DeploymentLogSender {
 	}
 }
 
+func (d *DeploymentLogSender) SetDeploymentId(depId string) {
+	d.depId = depId
+}
+
 /**
 This function allow you to store log in consul
 */
