@@ -1,6 +1,6 @@
 package config
 
-const DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES int = 1000
+const DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES int = 30
 
 type Configuration struct {
 	OS_AUTH_URL                  string `json:"os_auth_url,omitempty"`
