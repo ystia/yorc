@@ -162,18 +162,3 @@ func Debugln(v ...interface{}) {
 		std.Println(append(a, v...))
 	}
 }
-
-/**
-This function allow you to store log in consul
-*/
-func StoreInConsul(kv *api.KV, depId, message string) {
-	storeConsulKey(kv, filepath.Join("_janus/deployments", depId, "logs", ENGINE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), []byte(message))
-}
-
-func storeConsulKey(kv *api.KV, key string, value []byte) {
-	// PUT a new KV pair
-	p := &api.KVPair{Key: key, Value: value}
-	if _, err := kv.Put(p, nil); err != nil {
-		Panic(err)
-	}
-}
