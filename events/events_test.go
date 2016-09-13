@@ -209,7 +209,7 @@ func TestConsulPubSub_NewNodeEvents(t *testing.T) {
 	_, err = pub.StatusChange(nodeName, nodeStatus)
 	assert.Nil(t, err)
 
-	events, err := sub.NewNodeEvents(nodeName)
+	events, err := sub.NewNodeStatus(nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, events.Status, nodeStatus)
 }
