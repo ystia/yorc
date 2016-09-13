@@ -77,7 +77,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/node/<node_name>/events```
+```GET    /deployments/<deployment_id>/node/<node_name>/status```
 
 **Response**
 

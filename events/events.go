@@ -17,7 +17,7 @@ type Publisher interface {
 
 type Subscriber interface {
 	NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error)
-	NewNodeEvents(nodeName string) (deployments.Status, error)
+	NewNodeStatus(nodeName string) (deployments.Status, error)
 	LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error)
 }
 
@@ -76,7 +76,7 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 	return events, qm.LastIndex, nil
 }
 
-func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, error) {
+func (cp *consulPubSub) NewNodeStatus(nodeName string) (deployments.Status, error) {
 
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName, "statut")
 
