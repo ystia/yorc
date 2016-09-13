@@ -1,14 +1,11 @@
 package log
 
 import (
-	"github.com/hashicorp/consul/api"
 	"io"
 	slog "log"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 )
 
 const INFRA_LOG_PREFIX = "infrastructure"
