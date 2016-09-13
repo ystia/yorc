@@ -22,7 +22,7 @@ type Executor interface {
 type defaultExecutor struct {
 	kv  *api.KV
 	cfg config.Configuration
-	deploymentLogSender deployments.DeploymentLogSender
+	deploymentLogSender *deployments.DeploymentLogSender
 }
 
 func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {

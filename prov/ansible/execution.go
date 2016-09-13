@@ -83,7 +83,7 @@ type execution struct {
 	Context             map[string]string
 	Output              map[string]string
 	HaveOutput          bool
-	deploymentLogSender deployments.DeploymentLogSender
+	deploymentLogSender *deployments.DeploymentLogSender
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
