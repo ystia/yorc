@@ -8,9 +8,6 @@ import (
 	"sync"
 )
 
-const INFRA_LOG_PREFIX = "infrastructure"
-const SOFTWARE_LOG_PREFIX = "software"
-const ENGINE_LOG_PREFIX = "engine"
 
 var (
 	std   = slog.New(os.Stdout, "", slog.LstdFlags)
