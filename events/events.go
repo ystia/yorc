@@ -54,11 +54,13 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	events := make([]deployments.Event, 0)
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 
-	if err != nil {
+	if err != nil || qm == nil {
 		return events, 0, err
 	}
+
+	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex {
 			continue
@@ -103,11 +105,10 @@ func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "logs")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	logs := make([]deployments.Logs, 0)
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
-
-	if err != nil {
+	if err != nil || qm == nil {
 		return logs, 0, err
 	}
+	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex || (filter != "all" && !strings.HasPrefix(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), filter)) {
 			continue
