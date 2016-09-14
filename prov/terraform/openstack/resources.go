@@ -45,24 +45,24 @@ type FloatingIP struct {
 }
 
 type Network struct {
-	Region 		string `json:"region"`
-	Name		string `json:"name,omitempty"`
-	Shared		string `json:"shared,omitempty"`
-	AdminState	string `json:"admin_state_up,omitempty"`
+	Region     string `json:"region"`
+	Name       string `json:"name,omitempty"`
+	Shared     string `json:"shared,omitempty"`
+	AdminState string `json:"admin_state_up,omitempty"`
 }
 
 type Subnet struct {
-	Region 			string 		`json:"region"`
-	NetworkID 		string 		`json:"network_id"`
-	CIDR 			string		`json:"cidr"`
-	IPVersion 		int		`json:"ip_version,omitempty"`
-	Name			string 		`json:"name,omitempty"`
-	GatewayIP		string 		`json:"gateway_ip,omitempty"`
-	AllocationPools		AllocationPool 	`json:"allocation_pools,omitempty"`
-	EnableDHCP		bool		`json:"enable_dehcp,omitempty"`
+	Region          string         `json:"region"`
+	NetworkID       string         `json:"network_id"`
+	CIDR            string         `json:"cidr"`
+	IPVersion       int            `json:"ip_version,omitempty"`
+	Name            string         `json:"name,omitempty"`
+	GatewayIP       string         `json:"gateway_ip,omitempty"`
+	AllocationPools AllocationPool `json:"allocation_pools,omitempty"`
+	EnableDHCP      bool           `json:"enable_dehcp,omitempty"`
 }
 
 type AllocationPool struct {
-	Start	string `json:"start,omitempty"`
-	End	string `json:"end,omitempty"`
+	Start string `json:"start,omitempty"`
+	End   string `json:"end,omitempty"`
 }
