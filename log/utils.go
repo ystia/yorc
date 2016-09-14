@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"log"
 )
 
 
@@ -17,6 +18,8 @@ const INFRA_LOG_PREFIX = "infrastructure"
 const SOFTWARE_LOG_PREFIX = "software"
 const ENGINE_LOG_PREFIX = "engine"
 const ANSIBLE_OUTPUT_JSON_LOCATION = "plays.#.tasks.#.hosts.*.stdout"
+const ANSIBLE_OUTPUT_JSON_FAIL_LOCATION = "plays.#.tasks.#.hosts.*.failed"
+const ANSIBLE_OUTPUT_JSON_MSG_LOCATION = "plays.#.tasks.#.hosts.*.msg"
 
 type BufferedConsulWriter struct {
 	kv     *api.KV
@@ -41,7 +44,6 @@ func (b *BufferedConsulWriter) Write(p []byte) (nn int, err error) {
 }
 
 func (b *BufferedConsulWriter) Flush() error {
-	//fmt.Printf(string(p))
 	if len(b.buf) == 0 {
 		return nil
 	}
@@ -59,12 +61,27 @@ func (b *BufferedConsulWriter) Flush() error {
 }
 
 func (b *BufferedConsulWriter) FlushSoftware() error {
-	//fmt.Printf(string(p))
+	if gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_FAIL_LOCATION).Exists() {
+		out := gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_MSG_LOCATION).String()
+		out = strings.TrimPrefix(out, "[[,")
+		out = strings.TrimSuffix(out, "]]")
+		out, err := strconv.Unquote(out)
+		Debugf(out)
+		if err != nil {
+			return err
+		}
+		kv := &api.KVPair{Key: filepath.Join(b.prefix, b.depId, "logs", SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(out)}
+		_, err = b.kv.Put(kv, nil)
+		if err != nil {
+			return err
+		}
+	}
 	if gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).Exists() {
 		out := gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).String()
 		out = strings.TrimPrefix(out, "[[,")
 		out = strings.TrimSuffix(out, "]]")
 		out, err := strconv.Unquote(out)
+		Debugf(out)
 		if err != nil {
 			return err
 		}

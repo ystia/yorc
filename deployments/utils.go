@@ -11,9 +11,10 @@ import (
 This function allow you to store log in consul
 */
 func LogInConsul(kv *api.KV, depId, message string) {
-	if kv == nil || depId != "" {
+	if kv == nil || depId == "" {
 		log.Panic("Can't use LogInConsul function without KV or deployment ID")
 	}
+
 	storeConsulKey(kv, filepath.Join(DeploymentKVPrefix, depId, "logs", log.ENGINE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), []byte(message))
 }
 
