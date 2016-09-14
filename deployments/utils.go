@@ -7,27 +7,14 @@ import (
 	"time"
 )
 
-type DeploymentLogSender struct {
-	kv    *api.KV
-	depId string
-}
-
-func NewDeploymentLogSender(api *api.KV, depId string) *DeploymentLogSender {
-	return &DeploymentLogSender{
-		kv:    api,
-		depId: depId,
-	}
-}
-
-func (d *DeploymentLogSender) SetDeploymentId(depId string) {
-	d.depId = depId
-}
-
 /**
 This function allow you to store log in consul
 */
-func (d *DeploymentLogSender) LogInConsul(message string) {
-	storeConsulKey(d.kv, filepath.Join(DeploymentKVPrefix, d.depId, "logs", log.ENGINE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), []byte(message))
+func LogInConsul(kv *api.KV, depId, message string) {
+	if kv == nil || depId != "" {
+		log.Panic("Can't use LogInConsul function without KV or deployment ID")
+	}
+	storeConsulKey(kv, filepath.Join(DeploymentKVPrefix, depId, "logs", log.ENGINE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), []byte(message))
 }
 
 func storeConsulKey(kv *api.KV, key string, value []byte) {

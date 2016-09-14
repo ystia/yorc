@@ -17,7 +17,6 @@ type Worker struct {
 	shutdownCh   chan struct{}
 	consulClient *api.Client
 	cfg          config.Configuration
-	deploymentLogSender *deployments.DeploymentLogSender
 }
 
 func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) Worker {
@@ -26,8 +25,7 @@ func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClien
 		TaskChannel:  make(chan *Task),
 		shutdownCh:   shutdownCh,
 		consulClient: consulClient,
-		cfg:          cfg,
-		deploymentLogSender: deployments.NewDeploymentLogSender(consulClient.KV(),"")}
+		cfg:          cfg}
 }
 
 func (w Worker) setDeploymentStatus(deploymentId string, status deployments.DeploymentStatus) {
@@ -53,8 +51,7 @@ func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg
 }
 
 func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy bool) error {
-	w.deploymentLogSender.SetDeploymentId(deploymentId)
-	w.deploymentLogSender.LogInConsul("Start processing workflow")
+	deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Start processing workflow")
 	var wg sync.WaitGroup
 	runningSteps := make(map[string]struct{})
 	ctx := context.TODO()
@@ -75,15 +72,15 @@ func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy
 	var err error
 	select {
 	case err = <-unistallerrc:
-		w.deploymentLogSender.LogInConsul(fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", err))
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", err))
 		log.Printf("One or more error appear in unistall workflow, please check : %v", err)
 	case err = <-errc:
-		w.deploymentLogSender.LogInConsul(fmt.Sprintf("Error '%v' happened in workflow.", err))
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
 		log.Printf("Error '%v' happened in workflow.", err)
 		log.Debug("Canceling it.")
 		cancel()
 	case <-ctx.Done():
-		w.deploymentLogSender.LogInConsul("Workflow ended without error")
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Workflow ended without error")
 		log.Printf("Workflow ended without error")
 	}
 	return err
@@ -100,7 +97,6 @@ func (w Worker) Start() {
 			select {
 			case task := <-w.TaskChannel:
 				// we have received a work request.
-				w.deploymentLogSender.LogInConsul(fmt.Sprintf("Worker got task with id %s", task.Id))
 				log.Printf("Worker got task with id %s", task.Id)
 
 				switch task.TaskType {
@@ -110,7 +106,6 @@ func (w Worker) Start() {
 					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/install"))
 					if err != nil {
 						task.WithStatus("failed")
-						w.deploymentLogSender.LogInConsul(fmt.Sprintf("%v. Aborting", err))
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 						continue
@@ -118,7 +113,6 @@ func (w Worker) Start() {
 					}
 					if err = w.processWorkflow(wf, task.TargetId, false); err != nil {
 						task.WithStatus("failed")
-						w.deploymentLogSender.LogInConsul(fmt.Sprintf("%v. Aborting", err))
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 						continue
@@ -129,7 +123,6 @@ func (w Worker) Start() {
 					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
 					if err != nil {
 						task.WithStatus("failed")
-						w.deploymentLogSender.LogInConsul(fmt.Sprintf("%v. Aborting", err))
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
 						continue
@@ -137,7 +130,6 @@ func (w Worker) Start() {
 					}
 					if err = w.processWorkflow(wf, task.TargetId, true); err != nil {
 						task.WithStatus("failed")
-						w.deploymentLogSender.LogInConsul(fmt.Sprintf("%v. Aborting", err))
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
 						continue
@@ -150,7 +142,6 @@ func (w Worker) Start() {
 
 			case <-w.shutdownCh:
 				// we have received a signal to stop
-				w.deploymentLogSender.LogInConsul("Worker received shutdown signal. Exiting...")
 				log.Printf("Worker received shutdown signal. Exiting...")
 				return
 			}

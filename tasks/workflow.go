@@ -78,7 +78,6 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName
 }
 
 func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) {
-	depLogSender := deployments.NewDeploymentLogSender(kv,deploymentId)
 	defer wg.Done()
 	haveErr := false
 	eventPub := events.NewPublisher(kv, deploymentId)
@@ -88,7 +87,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 		case <-s.NotifyChan:
 			log.Debugf("Step %q caught a notification", s.Name)
 		case <-shutdownChan:
-			depLogSender.LogInConsul(fmt.Sprintf("Step %q cancelled", s.Name))
+			deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled", s.Name))
 			log.Printf("Step %q cancelled", s.Name)
 			return
 		case <-ctx.Done():

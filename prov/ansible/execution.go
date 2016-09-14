@@ -83,15 +83,13 @@ type execution struct {
 	Context             map[string]string
 	Output              map[string]string
 	HaveOutput          bool
-	deploymentLogSender *deployments.DeploymentLogSender
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
 	exec := &execution{kv: kv,
 		DeploymentId:        deploymentId,
 		NodeName:            nodeName,
-		Operation:           operation,
-		deploymentLogSender: deployments.NewDeploymentLogSender(kv, deploymentId)}
+		Operation:           operation}
 	return exec, exec.resolveExecution()
 }
 
@@ -376,11 +374,11 @@ func (e *execution) resolveExecution() error {
 }
 
 func (e *execution) execute(ctx context.Context) error {
-	e.deploymentLogSender.LogInConsul("Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
+	deployments.LogInConsul(e.kv, e.DeploymentId, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
 		log.Printf("%+v", err)
-		e.deploymentLogSender.LogInConsul(fmt.Sprintf("%+v", err))
+		deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("%+v", err))
 		return err
 	}
 	var buffer bytes.Buffer
@@ -392,7 +390,7 @@ func (e *execution) execute(ctx context.Context) error {
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write hosts file")
-		e.deploymentLogSender.LogInConsul("Failed to write hosts file")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write hosts file")
 		return err
 	}
 	buffer.Reset()
@@ -414,30 +412,30 @@ func (e *execution) execute(ctx context.Context) error {
 		var buffer bytes.Buffer
 		if err := wrap_template.Execute(&buffer, e); err != nil {
 			log.Print("Failed to Generate wrapper template")
-			e.deploymentLogSender.LogInConsul("Failed to Generate wrapper template")
+			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate wrapper template")
 			return err
 		}
 		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
 			log.Print("Failed to write playbook file")
-			e.deploymentLogSender.LogInConsul("Failed to write playbook file")
+			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
 			return err
 		}
 	}
 	tmpl, err := tmpl.Parse(ansible_playbook)
 	if err := tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
-		e.deploymentLogSender.LogInConsul("Failed to Generate ansible playbook template")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
 		return err
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write playbook file")
-		e.deploymentLogSender.LogInConsul("Failed to write playbook file")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
 		return err
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(ansible_config), 0664); err != nil {
 		log.Print("Failed to write ansible.cfg file")
-		e.deploymentLogSender.LogInConsul("Failed to write ansible.cfg file")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write ansible.cfg file")
 		return err
 	}
 	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
@@ -445,7 +443,7 @@ func (e *execution) execute(ctx context.Context) error {
 		return err
 	}
 	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
-	e.deploymentLogSender.LogInConsul( fmt.Sprintf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath))
+	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath))
 	var cmd *exec.Cmd
 	var wrapperPath string
 	if e.HaveOutput {
@@ -462,19 +460,19 @@ func (e *execution) execute(ctx context.Context) error {
 
 	if e.HaveOutput {
 		if err := cmd.Run(); err != nil {
-			e.deploymentLogSender.LogInConsul(err.Error())
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			log.Print(err)
 			return err
 		}
 		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
 		if err != nil {
-			e.deploymentLogSender.LogInConsul(err.Error())
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			panic(err)
 		}
 		r := csv.NewReader(fi)
 		records, err := r.ReadAll()
 		if err != nil {
-			e.deploymentLogSender.LogInConsul(err.Error())
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			log.Fatal(err)
 		}
 		for _, line := range records {
@@ -484,7 +482,7 @@ func (e *execution) execute(ctx context.Context) error {
 
 	} else {
 		if err := cmd.Start(); err != nil {
-			e.deploymentLogSender.LogInConsul(err.Error())
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			log.Print(err)
 			return err
 		}

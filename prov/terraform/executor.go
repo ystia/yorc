@@ -22,15 +22,13 @@ type Executor interface {
 type defaultExecutor struct {
 	kv  *api.KV
 	cfg config.Configuration
-	deploymentLogSender *deployments.DeploymentLogSender
 }
 
 func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
-	return &defaultExecutor{kv: kv, cfg: cfg, deploymentLogSender:deployments.NewDeploymentLogSender(kv,"")}
+	return &defaultExecutor{kv: kv, cfg: cfg}
 }
 
 func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeName string) error {
-	e.deploymentLogSender.SetDeploymentId(deploymentId)
 	kvPair, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
 	if err != nil {
 		return err
@@ -65,8 +63,7 @@ func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeNam
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeName string) error {
-	e.deploymentLogSender.SetDeploymentId(depId)
-	e.deploymentLogSender.LogInConsul("Applying the infrastructure")
+	deployments.LogInConsul(e.kv, depId, "Applying the infrastructure")
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.CommandContext(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
@@ -91,7 +88,6 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeNa
 }
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, nodeName string) error {
-	e.deploymentLogSender.SetDeploymentId(depId)
 	nodePath := path.Join(deployments.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
 	if kp, _, err := e.kv.Get(nodePath+"/type", nil); err != nil {
 		return err
