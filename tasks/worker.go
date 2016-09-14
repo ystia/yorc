@@ -54,6 +54,7 @@ func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg
 
 func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy bool) error {
 	w.deploymentLogSender.SetDeploymentId(deploymentId)
+	w.deploymentLogSender.LogInConsul("Start processing workflow")
 	var wg sync.WaitGroup
 	runningSteps := make(map[string]struct{})
 	ctx := context.TODO()
@@ -99,6 +100,7 @@ func (w Worker) Start() {
 			select {
 			case task := <-w.TaskChannel:
 				// we have received a work request.
+				w.deploymentLogSender.LogInConsul(fmt.Sprintf("Worker got task with id %s", task.Id))
 				log.Printf("Worker got task with id %s", task.Id)
 
 				switch task.TaskType {
@@ -148,6 +150,7 @@ func (w Worker) Start() {
 
 			case <-w.shutdownCh:
 				// we have received a signal to stop
+				w.deploymentLogSender.LogInConsul("Worker received shutdown signal. Exiting...")
 				log.Printf("Worker received shutdown signal. Exiting...")
 				return
 			}
