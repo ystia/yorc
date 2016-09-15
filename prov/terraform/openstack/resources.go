@@ -45,7 +45,7 @@ type FloatingIP struct {
 }
 
 type Network struct {
-	Region     string `json:"region"`
+	Region     string `json:"region,omitempty"`
 	Name       string `json:"name,omitempty"`
 	Shared     string `json:"shared,omitempty"`
 	AdminState string `json:"admin_state_up,omitempty"`
@@ -63,6 +63,6 @@ type Subnet struct {
 }
 
 type AllocationPool struct {
-	Start string `json:"start,omitempty"`
-	End   string `json:"end,omitempty"`
+	Start string `json:"start"`
+	End   string `json:"end"`
 }
