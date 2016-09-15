@@ -136,6 +136,30 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
+	case "janus.nodes.openstack.Network":
+		if networkId, err := g.getStringFormConsul(nodeKey, "properties/network_id"); err != nil {
+			return false, err
+		} else if networkId != "" {
+			log.Debugf("Reusing existing volume with id %q for node %q", networkId, nodeName)
+			return false, nil
+		}
+		network, err := g.generateNetwork(nodeKey, depId)
+
+		if err != nil {
+			return false, err
+		}
+
+		subnet, err := g.generateSubnet(nodeKey, depId, nodeName)
+
+		if err != nil {
+			return false, err
+		}
+
+		addResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
+		addResource(&infrastructure, "openstack_networking_subnet_v2", nodeName, &subnet)
+		consulKey := commons.ConsulKey{Name: nodeName + "-NetworkID", Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 	default:
 		return false, fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
