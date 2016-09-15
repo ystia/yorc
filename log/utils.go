@@ -3,22 +3,17 @@ package log
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"github.com/tidwall/gjson"
 	"io"
 	"path/filepath"
 	"regexp"
-	"strconv"
-	"strings"
 	"time"
+	"github.com/antonholmquist/jason"
 )
 
 
 const INFRA_LOG_PREFIX = "infrastructure"
 const SOFTWARE_LOG_PREFIX = "software"
 const ENGINE_LOG_PREFIX = "engine"
-const ANSIBLE_OUTPUT_JSON_LOCATION = "plays.#.tasks.#.hosts.*.stdout"
-const ANSIBLE_OUTPUT_JSON_FAIL_LOCATION = "plays.#.tasks.#.hosts.*.failed"
-const ANSIBLE_OUTPUT_JSON_MSG_LOCATION = "plays.#.tasks.#.hosts.*.msg"
 
 type BufferedConsulWriter struct {
 	kv     *api.KV
@@ -59,39 +54,52 @@ func (b *BufferedConsulWriter) Flush() error {
 
 }
 
-func (b *BufferedConsulWriter) FlushSoftware() error {
-	if gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_FAIL_LOCATION).Exists() {
-		out := gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_MSG_LOCATION).String()
-		out = strings.TrimPrefix(out, "[[,")
-		out = strings.TrimSuffix(out, "]]")
-		out, err := strconv.Unquote(out)
-		Debugf(out)
-		if err != nil {
-			return err
-		}
-		kv := &api.KVPair{Key: filepath.Join(b.prefix, b.depId, "logs", SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(out)}
-		_, err = b.kv.Put(kv, nil)
-		if err != nil {
-			return err
-		}
+//Simple function to check possible Error
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
 	}
-	if gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).Exists() {
-		out := gjson.Get(string(b.buf), ANSIBLE_OUTPUT_JSON_LOCATION).String()
-		out = strings.TrimPrefix(out, "[[,")
-		out = strings.TrimSuffix(out, "]]")
-		out, err := strconv.Unquote(out)
-		Debugf(out)
-		if err != nil {
-			return err
-		}
-		kv := &api.KVPair{Key: filepath.Join(b.prefix, b.depId, "logs", SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(out)}
-		_, err = b.kv.Put(kv, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+}
 
+//This function flush the buffer and write the content on Consul
+func (b *BufferedConsulWriter) FlushSoftware() error {
+	v, err := jason.NewObjectFromBytes(b.buf)
+	if err != nil {
+		panic(err)
+	}
+
+	plays, err := v.GetObjectArray("plays")
+	for _, data := range plays {
+		tasks, err := data.GetObjectArray("tasks")
+		checkErr(err)
+		for _, host := range tasks{
+			tmp, err := host.GetObject("hosts")
+			checkErr(err)
+			mapTmp := tmp.Map()
+			for k, v := range mapTmp{
+				tmp2, err := v.Object()
+				checkErr(err)
+				if ok, err := tmp2.GetBoolean("failed"); ok {
+					checkErr(err)
+					str, err := tmp2.GetString("msg")
+					checkErr(err)
+					Debugf("Error found on host : %s  message : %s",k, str)
+					kv := &api.KVPair{Key: filepath.Join(b.prefix, b.depId, "logs", SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(str)}
+					_, err = b.kv.Put(kv, nil)
+					checkErr(err)
+				}
+				if std, err := tmp2.GetString("stdout"); err == nil {
+					Debugf("Stdout found on host : %s  message : %s",k, std)
+					kv := &api.KVPair{Key: filepath.Join(b.prefix, b.depId, "logs", SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(std)}
+					_, err = b.kv.Put(kv, nil)
+					checkErr(err)
+				}
+			}
+		}
+
+	}
+
+	return nil
 }
 
 func (b *BufferedConsulWriter) Run(quit chan bool) {
