@@ -179,6 +179,11 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "a83829b6f1293c91addabc89d0571c246397bbf4"
+		},
+		{
+			"ImportPath": "github.com/antonholmquist/jason",
+			"Comment": "master",
+			"Rev": "962e09b85496e2e158eec1567fb4c826ce3d55d1"
 		}
 	]
 }

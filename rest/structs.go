@@ -29,3 +29,8 @@ type EventsCollection struct {
 	Events    []deployments.Event `json:"events"`
 	LastIndex uint64              `json:"last_index"`
 }
+
+type LogsCollection struct {
+	Logs      []deployments.Logs `json:"logs"`
+	LastIndex uint64             `json:"last_index"`
+}

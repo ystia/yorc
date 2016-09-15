@@ -77,7 +77,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/node/<node_name>/events?index=1&wait=5s```
+```GET    /deployments/<deployment_id>/node/<node_name>/status```
 
 **Response**
 
@@ -86,7 +86,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 ```
 ```json
-{"events":[{"timestamp":"2016-08-22T07:48:44.405858316-04:00","node":"Welcome","status":"initial"},{"timestamp":"2016-08-22T07:48:44.407907145-04:00","node":"Welcome","status":"creating"},{"timestamp":"2016-08-22T07:48:44.409318025-04:00","node":"Welcome","status":"created"},{"timestamp":"2016-08-22T07:48:44.410589189-04:00","node":"Welcome","status":"configuring"},{"timestamp":"2016-08-22T07:48:54.166873401-04:00","node":"Welcome","status":"configured"},{"timestamp":"2016-08-22T07:48:54.168498939-04:00","node":"Welcome","status":"starting"},{"timestamp":"2016-08-22T07:49:08.28480537-04:00","node":"Welcome","status":"started"}],"last_index":1814}
+{"status":"started"}
 ```
 
 
@@ -123,5 +123,71 @@ Content-Type: application/json
     {"timestamp":"2016-08-16T14:50:54.550463885+02:00","node":"Welcome","status":"started"}
   ],
   "last_index":1812
+}
+```
+
+### Get logs of an application
+
+Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]```
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+    "logs":[
+      {"timestamp":"2016-09-05T07:46:09.91123229-04:00","logs":"Applying the infrastructure"},
+      {"timestamp":"2016-09-05T07:46:11.663880572-04:00","logs":"Applying the infrastructure"}
+     ],
+     "last_index":1781
+}
+```
+
+### Get logs of multiple applications
+
+Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=software,engine```
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+    "logs":[
+      {"timestamp":"2016-09-05T07:46:09.91123229-04:00","logs":"Applying the infrastructure"},
+      {"timestamp":"2016-09-05T07:46:11.663880572-04:00","logs":"Applying the infrastructure"}
+     ],
+     "last_index":1781
+}
+```
+
+### Get all logs
+
+Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=```
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+    "logs":[
+      {"timestamp":"2016-09-05T07:46:09.91123229-04:00","logs":"Applying the infrastructure"},
+      {"timestamp":"2016-09-05T07:46:11.663880572-04:00","logs":"Applying the infrastructure"}
+     ],
+     "last_index":1781
 }
 ```

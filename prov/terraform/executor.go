@@ -8,7 +8,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -30,7 +29,6 @@ func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
 }
 
 func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeName string) error {
-
 	kvPair, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
 	if err != nil {
 		return err
@@ -65,18 +63,27 @@ func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeNam
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeName string) error {
+	deployments.LogInConsul(e.kv, depId, "Applying the infrastructure")
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.CommandContext(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	cmd.Stdout = out
+	cmd.Stderr = errbuf
+
+	quit := make(chan bool)
+	out.Run(quit)
+	errbuf.Run(quit)
 
 	if err := cmd.Start(); err != nil {
 		log.Print(err)
-		return err
 	}
 
-	return cmd.Wait()
+	err := cmd.Wait()
+	quit <- true
+
+	return err
 
 }
 
@@ -101,14 +108,22 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := exec.CommandContext(ctx, "terraform", "destroy", "-force")
 	cmd.Dir = infraPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	cmd.Stdout = out
+	cmd.Stderr = errbuf
+
+	quit := make(chan bool)
+	out.Run(quit)
+	errbuf.Run(quit)
 
 	if err := cmd.Start(); err != nil {
 		log.Print(err)
-		return err
 	}
 
-	return cmd.Wait()
+	err := cmd.Wait()
+	quit <- true
+
+	return err
 
 }
