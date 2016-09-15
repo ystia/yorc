@@ -17,7 +17,8 @@ type Publisher interface {
 
 type Subscriber interface {
 	NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error)
-	NewNodeEvents(nodeName string) (deployments.Status, error)
+	NewNodeStatus(nodeName string) (deployments.Status, error)
+	LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error)
 }
 
 type consulPubSub struct {
@@ -53,11 +54,13 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	events := make([]deployments.Event, 0)
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 
-	if err != nil {
+	if err != nil || qm == nil {
 		return events, 0, err
 	}
+
+	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex {
 			continue
@@ -75,7 +78,7 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 	return events, qm.LastIndex, nil
 }
 
-func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, error) {
+func (cp *consulPubSub) NewNodeStatus(nodeName string) (deployments.Status, error) {
 
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName, "statut")
 
@@ -95,4 +98,28 @@ func (cp *consulPubSub) NewNodeEvents(nodeName string) (deployments.Status, erro
 	statut = deployments.Status{Status: values[0]}
 
 	return statut, nil
+}
+
+func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {
+
+	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "logs")
+	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	logs := make([]deployments.Logs, 0)
+	if err != nil || qm == nil {
+		return logs, 0, err
+	}
+	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+	for _, kvp := range kvps {
+		if kvp.ModifyIndex <= waitIndex || (filter != "all" && !strings.HasPrefix(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), filter)) {
+			continue
+		}
+
+		index := strings.Index(kvp.Key, "__")
+		eventTimestamp := kvp.Key[index+2 : len(kvp.Key)]
+		logs = append(logs, deployments.Logs{Timestamp: eventTimestamp, Logs: string(kvp.Value)})
+
+	}
+
+	log.Debugf("Found %d events after filtering", len(logs))
+	return logs, qm.LastIndex, nil
 }

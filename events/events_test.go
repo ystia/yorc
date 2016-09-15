@@ -19,6 +19,7 @@ func TestGroupedEventParallel(t *testing.T) {
 		t.Run("TestConsulPubSub_NewEvents", ConsulPubSub_NewEvents)
 		t.Run("TestConsulPubSub_NewEventsTimeout", ConsulPubSub_NewEventsTimeout)
 		t.Run("TestConsulPubSub_NewEventsWithIndex", ConsulPubSub_NewEventsWithIndex)
+		t.Run("TestConsulPubSub_NewNodeEvents", ConsulPubSub_NewNodeEvents)
 	})
 }
 
@@ -188,7 +189,7 @@ func ConsulPubSub_NewEventsWithIndex(t *testing.T) {
 	}
 }
 
-func TestConsulPubSub_NewNodeEvents(t *testing.T) {
+func ConsulPubSub_NewNodeEvents(t *testing.T) {
 	srv1 := testutil.NewTestServerConfig(t, nil)
 	defer srv1.Stop()
 	log.SetDebug(true)
@@ -209,7 +210,7 @@ func TestConsulPubSub_NewNodeEvents(t *testing.T) {
 	_, err = pub.StatusChange(nodeName, nodeStatus)
 	assert.Nil(t, err)
 
-	events, err := sub.NewNodeEvents(nodeName)
+	events, err := sub.NewNodeStatus(nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, events.Status, nodeStatus)
 }

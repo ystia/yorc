@@ -25,3 +25,8 @@ type Event struct {
 type Status struct {
 	Status string `json:"status"`
 }
+
+type Logs struct {
+	Timestamp string `json:"timestamp"`
+	Logs      string `json:"logs"`
+}
