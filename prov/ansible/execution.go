@@ -65,31 +65,31 @@ stdout_callback = json
 `
 
 type execution struct {
-	kv                  *api.KV
-	DeploymentId        string
-	NodeName            string
-	Operation           string
-	NodeType            string
-	Inputs              map[string]string
-	Primary             string
-	BasePrimary         string
-	Dependencies        []string
-	Hosts               []string
-	OperationPath       string
-	NodePath            string
-	NodeTypePath        string
-	Artifacts           map[string]string
-	OverlayPath         string
-	Context             map[string]string
-	Output              map[string]string
-	HaveOutput          bool
+	kv            *api.KV
+	DeploymentId  string
+	NodeName      string
+	Operation     string
+	NodeType      string
+	Inputs        map[string]string
+	Primary       string
+	BasePrimary   string
+	Dependencies  []string
+	Hosts         []string
+	OperationPath string
+	NodePath      string
+	NodeTypePath  string
+	Artifacts     map[string]string
+	OverlayPath   string
+	Context       map[string]string
+	Output        map[string]string
+	HaveOutput    bool
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
 	exec := &execution{kv: kv,
-		DeploymentId:        deploymentId,
-		NodeName:            nodeName,
-		Operation:           operation}
+		DeploymentId: deploymentId,
+		NodeName:     nodeName,
+		Operation:    operation}
 	return exec, exec.resolveExecution()
 }
 

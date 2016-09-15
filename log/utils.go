@@ -2,14 +2,13 @@ package log
 
 import (
 	"fmt"
+	"github.com/antonholmquist/jason"
 	"github.com/hashicorp/consul/api"
 	"io"
 	"path/filepath"
 	"regexp"
 	"time"
-	"github.com/antonholmquist/jason"
 )
-
 
 const INFRA_LOG_PREFIX = "infrastructure"
 const SOFTWARE_LOG_PREFIX = "software"
@@ -76,14 +75,14 @@ func (b *BufferedConsulWriter) FlushSoftware() error {
 		//Extract the tasks from the play
 		tasks, err := data.GetObjectArray("tasks")
 		checkErr(err)
-		for _, host := range tasks{
+		for _, host := range tasks {
 			//Extract the hosts object from the  tasks
 			tmp, err := host.GetObject("hosts")
 			checkErr(err)
 			//Convert the host into map like ["IP_ADDR"]Json_Object
 			mapTmp := tmp.Map()
 			//Iterate on this map (normally a single object)
-			for k, v := range mapTmp{
+			for k, v := range mapTmp {
 				//Convert the value in Object type
 				obj, err := v.Object()
 				checkErr(err)
@@ -95,7 +94,7 @@ func (b *BufferedConsulWriter) FlushSoftware() error {
 					checkErr(err)
 					//Display it and store it in consul
 					//TODO: May interesting to store Host (IP Address) on consul, currently not done
-					Debugf("Error found on host : %s  message : %s",k, str)
+					Debugf("Error found on host : %s  message : %s", k, str)
 					kv := &api.KVPair{Key: filepath.Join(b.prefix, b.depId, "logs", SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(str)}
 					_, err = b.kv.Put(kv, nil)
 					checkErr(err)
@@ -104,7 +103,7 @@ func (b *BufferedConsulWriter) FlushSoftware() error {
 				if std, err := obj.GetString("stdout"); err == nil {
 					//Display it and store it in consul
 					//TODO: May interesting to store Host (IP Address) on consul, currently not done
-					Debugf("Stdout found on host : %s  message : %s",k, std)
+					Debugf("Stdout found on host : %s  message : %s", k, std)
 					kv := &api.KVPair{Key: filepath.Join(b.prefix, b.depId, "logs", SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano)), Value: []byte(std)}
 					_, err = b.kv.Put(kv, nil)
 					checkErr(err)

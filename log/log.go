@@ -8,7 +8,6 @@ import (
 	"sync"
 )
 
-
 var (
 	std   = slog.New(os.Stdout, "", slog.LstdFlags)
 	debug = false
