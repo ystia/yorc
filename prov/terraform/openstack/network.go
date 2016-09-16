@@ -86,6 +86,9 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 		if err != nil {
 			return Subnet{}, err
 		}
+		if endIP == "" {
+			return Subnet{}, fmt.Errorf("A start_ip and a end_ip need to be provided")
+		}
 		subnet.AllocationPools = &AllocationPool{Start: startIp, End: endIP}
 	}
 	if dhcp, err := g.getStringFormConsul(url, "properties/dhcp_enabled"); err != nil {
