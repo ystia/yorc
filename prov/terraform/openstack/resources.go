@@ -58,8 +58,8 @@ type Subnet struct {
 	IPVersion       int            `json:"ip_version,omitempty"`
 	Name            string         `json:"name,omitempty"`
 	GatewayIP       string         `json:"gateway_ip,omitempty"`
-	AllocationPools AllocationPool `json:"allocation_pools,omitempty"`
-	EnableDHCP      bool           `json:"enable_dehcp,omitempty"`
+	AllocationPools *AllocationPool `json:"allocation_pools,omitempty"`
+	EnableDHCP      bool           `json:"enable_dhcp,omitempty"`
 }
 
 type AllocationPool struct {

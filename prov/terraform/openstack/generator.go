@@ -156,7 +156,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		}
 
 		addResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
-		addResource(&infrastructure, "openstack_networking_subnet_v2", nodeName, &subnet)
+		addResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
 		consulKey := commons.ConsulKey{Name: nodeName + "-NetworkID", Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
