@@ -17,6 +17,7 @@ type Worker struct {
 	shutdownCh   chan struct{}
 	consulClient *api.Client
 	cfg          config.Configuration
+	runStepLock  sync.Locker
 }
 
 func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) Worker {
@@ -25,7 +26,8 @@ func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClien
 		TaskChannel:  make(chan *Task),
 		shutdownCh:   shutdownCh,
 		consulClient: consulClient,
-		cfg:          cfg}
+		cfg:          cfg,
+		runStepLock:  &sync.Mutex{}}
 }
 
 func (w Worker) setDeploymentStatus(deploymentId string, status deployments.DeploymentStatus) {
@@ -35,13 +37,21 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 }
 
 func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, uninstallerrc chan error, runningSteps map[string]struct{}, isUndeploy bool) {
-	if _, ok := runningSteps[step.Name]; ok {
-		// Already running
-		log.Debugf("step %q already running", step.Name)
+	if alreadyRunning := func() bool {
+		w.runStepLock.Lock()
+		defer w.runStepLock.Unlock()
+		if _, ok := runningSteps[step.Name]; ok {
+			// Already running
+			log.Debugf("step %q already running", step.Name)
+			return true
+		}
+		log.Debugf("Running step %q", step.Name)
+		runningSteps[step.Name] = struct{}{}
+		return false
+	}(); alreadyRunning {
 		return
 	}
-	log.Debugf("Running step %q", step.Name)
-	runningSteps[step.Name] = struct{}{}
+
 	go step.run(ctx, deploymentId, wg, w.consulClient.KV(), errc, uninstallerrc, w.shutdownCh, w.cfg, isUndeploy)
 	for _, next := range step.Next {
 		wg.Add(1)
