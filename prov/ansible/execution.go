@@ -52,6 +52,8 @@ const ansible_playbook = `
         [[[printf "%s: \"{{ ansible_env.HOME}}/.janus/%v/%v/%s\"" $artName $.NodeName $.Operation $art]]]
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
         [[[printf "%s: %s" $contextK $contextV]]]
+        [[[end]]][[[ range $hostVarIndex, $hostVarValue := .VarInputsNames -]]]
+        [[[printf "%s: \"{{%s}}\"" $hostVarValue $hostVarValue]]]
         [[[end]]]
     [[[if .HaveOutput]]]
     [[[printf "- fetch: src={{ ansible_env.HOME}}/out.csv dest={{dest_folder}} flat=yes" ]]]
@@ -70,10 +72,12 @@ type execution struct {
 	Operation                string
 	NodeType                 string
 	Inputs                   map[string]string
+	PerInstanceInputs        map[string]map[string]string
+	VarInputsNames           []string
 	Primary                  string
 	BasePrimary              string
 	Dependencies             []string
-	Hosts                    []string
+	Hosts                    map[string]string
 	OperationPath            string
 	NodePath                 string
 	NodeTypePath             string
@@ -90,9 +94,11 @@ type execution struct {
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
 	execution := &execution{kv: kv,
-		DeploymentId: deploymentId,
-		NodeName:     nodeName,
-		Operation:    operation}
+		DeploymentId:      deploymentId,
+		NodeName:          nodeName,
+		Operation:         operation,
+		PerInstanceInputs: make(map[string]map[string]string),
+		VarInputsNames:    make([]string, 0)}
 	return execution, execution.resolveExecution()
 }
 
@@ -167,6 +173,12 @@ func (e *execution) resolveInputs() error {
 		if len(instancesNames) > 0 {
 			for i, instanceName := range instancesNames {
 				targetContext := false
+				var instanceInputs map[string]string
+				ok := false
+				if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
+					instanceInputs = make(map[string]string)
+					e.PerInstanceInputs[instanceName] = instanceInputs
+				}
 				if e.isRelationshipOperation {
 					targetContext, inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceName)
 				} else {
@@ -180,8 +192,9 @@ func (e *execution) resolveInputs() error {
 				} else {
 					inputs[replaceMinus(e.NodeName+"_"+instanceName+"_"+inputName)] = inputValue
 				}
+				instanceInputs[replaceMinus(inputName)] = inputValue
 				if i == 0 {
-					inputs[replaceMinus(inputName)] = inputValue
+					e.VarInputsNames = append(e.VarInputsNames, replaceMinus(inputName))
 				}
 			}
 
@@ -208,14 +221,18 @@ func (e *execution) resolveHosts(nodeName string) error {
 	instancesPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
 	log.Debugf("Resolving hosts for node %q", nodeName)
 
-	hosts := make([]string, 0)
-	kvps, _, err := e.kv.List(instancesPath+"/", nil)
+	hosts := make(map[string]string)
+	instances, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, nodeName)
 	if err != nil {
 		return err
 	}
-	for _, kvp := range kvps {
-		if strings.HasSuffix(kvp.Key, "capabilities/endpoint/attributes/ip_address") {
-			hosts = append(hosts, string(kvp.Value))
+	for _, instance := range instances {
+		kvp, _, err := e.kv.Get(path.Join(instancesPath, instance, "capabilities/endpoint/attributes/ip_address"), nil)
+		if err != nil {
+			return err
+		}
+		if kvp != nil && len(kvp.Value) != 0 {
+			hosts[instance] = string(kvp.Value)
 		}
 	}
 	if len(hosts) == 0 {
@@ -243,13 +260,29 @@ func (e *execution) resolveContext() error {
 	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
 	new_node := replaceMinus(e.NodeName)
 	execContext["NODE"] = new_node
-	execContext["INSTANCE"] = new_node
 	names, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.NodeName)
 	if err != nil {
 		return err
 	}
 	for i := range names {
-		names[i] = new_node + "_" + replaceMinus(names[i])
+		var instanceInputs map[string]string
+		ok := false
+		if instanceInputs, ok = e.PerInstanceInputs[names[i]]; !ok {
+			instanceInputs = make(map[string]string)
+			e.PerInstanceInputs[names[i]] = instanceInputs
+		}
+		newName := new_node + "_" + replaceMinus(names[i])
+		instanceInputs["INSTANCE"] = newName
+		if i == 0 {
+			e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
+		}
+		if e.isRelationshipOperation {
+			instanceInputs["SOURCE_INSTANCE"] = newName
+			if i == 0 {
+				e.VarInputsNames = append(e.VarInputsNames, "SOURCE_INSTANCE")
+			}
+		}
+		names[i] = newName
 	}
 	execContext["INSTANCES"] = strings.Join(names, ",")
 	if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
@@ -458,16 +491,34 @@ func (e *execution) resolveExecution() error {
 func (e *execution) execute(ctx context.Context) error {
 
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
+	ansibleHostVarsPath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation, "host_vars")
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
+		log.Printf("%+v", err)
+		return err
+	}
+	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
 		return err
 	}
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
-	for _, host := range e.Hosts {
+	for instanceName, host := range e.Hosts {
 		buffer.WriteString(host)
 		// TODO should not be hard-coded
 		buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/janus.pem\n")
+
+		var perInstanceInputsBuffer bytes.Buffer
+		if instanceInputs, ok := e.PerInstanceInputs[instanceName]; ok {
+			for inputName, inputValue := range instanceInputs {
+				perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", inputName, inputValue))
+			}
+		}
+		if perInstanceInputsBuffer.Len() > 0 {
+			if err := ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
+				log.Printf("Failed to write vars for host %q file: %v", host, err)
+				return err
+			}
+		}
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write hosts file")

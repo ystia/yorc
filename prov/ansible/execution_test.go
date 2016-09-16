@@ -16,7 +16,7 @@ func TestGroupedVolumeParallel(t *testing.T) {
 
 func templatesTest(t *testing.T) {
 	t.Parallel()
-	e := &execution{Inputs: map[string]string{"A": "1", "B": "2", "C": "3"}, NodeName: "Welcome", Operation: "tosca.interfaces.node.lifecycle.Standard.start", Artifacts: map[string]string{"scripts": "my_scripts"}, OverlayPath: "/some/local/path"}
+	e := &execution{Inputs: map[string]string{"A": "1", "B": "2", "C": "3"}, NodeName: "Welcome", Operation: "tosca.interfaces.node.lifecycle.Standard.start", Artifacts: map[string]string{"scripts": "my_scripts"}, OverlayPath: "/some/local/path", VarInputsNames: []string{"INSTANCE", "PORT"}}
 
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
