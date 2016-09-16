@@ -64,32 +64,36 @@ timeout=600
 `
 
 type execution struct {
-	kv            *api.KV
-	DeploymentId  string
-	NodeName      string
-	Operation     string
-	NodeType      string
-	Inputs        map[string]string
-	Primary       string
-	BasePrimary   string
-	Dependencies  []string
-	Hosts         []string
-	OperationPath string
-	NodePath      string
-	NodeTypePath  string
-	Artifacts     map[string]string
-	OverlayPath   string
-	Context       map[string]string
-	Output        map[string]string
-	HaveOutput    bool
+	kv                       *api.KV
+	DeploymentId             string
+	NodeName                 string
+	Operation                string
+	NodeType                 string
+	Inputs                   map[string]string
+	Primary                  string
+	BasePrimary              string
+	Dependencies             []string
+	Hosts                    []string
+	OperationPath            string
+	NodePath                 string
+	NodeTypePath             string
+	Artifacts                map[string]string
+	OverlayPath              string
+	Context                  map[string]string
+	Output                   map[string]string
+	HaveOutput               bool
+	isRelationshipOperation  bool
+	isRelationshipTargetNode bool
+	relationshipType         string
+	relationshipTargetName   string
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
-	exec := &execution{kv: kv,
+	execution := &execution{kv: kv,
 		DeploymentId: deploymentId,
 		NodeName:     nodeName,
 		Operation:    operation}
-	return exec, exec.resolveExecution()
+	return execution, execution.resolveExecution()
 }
 
 func (e *execution) resolveArtifacts() error {
@@ -97,6 +101,7 @@ func (e *execution) resolveArtifacts() error {
 	artifacts := make(map[string]string)
 	// First resolve node type artifacts then node template artifact if the is a conflict then node template will have the precedence
 	// TODO deal with type inheritance
+	// TODO deal with relationships
 	paths := []string{path.Join(e.NodePath, "artifacts"), path.Join(e.NodeTypePath, "artifacts")}
 	for _, apath := range paths {
 		artsPaths, _, err := e.kv.Keys(apath+"/", "/", nil)
@@ -128,16 +133,9 @@ func (e *execution) resolveArtifacts() error {
 	return nil
 }
 
-func (e *execution) isRelationship() bool {
-	if strings.Contains(e.OperationPath, "relationship") {
-		return true
-	}
-	return false
-}
-
 func (e *execution) resolveInputs() error {
 	log.Debug("resolving inputs")
-	resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
+	resolver := deployments.NewResolver(e.kv, e.DeploymentId)
 	inputs := make(map[string]string)
 	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
 	if err != nil {
@@ -161,11 +159,43 @@ func (e *execution) resolveInputs() error {
 		}
 		va := tosca.ValueAssignment{}
 		yaml.Unmarshal(kvPair.Value, &va)
-		inputValue, err := resolver.ResolveExpression(va.Expression, e.isRelationship())
+		instancesNames, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.NodeName)
 		if err != nil {
 			return err
 		}
-		inputs[inputName] = inputValue
+		var inputValue string
+		if len(instancesNames) > 0 {
+			for i, instanceName := range instancesNames {
+				targetContext := false
+				if e.isRelationshipOperation {
+					targetContext, inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceName)
+				} else {
+					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceName)
+				}
+				if err != nil {
+					return err
+				}
+				if e.isRelationshipOperation && targetContext {
+					inputs[replaceMinus(e.relationshipTargetName+"_"+instanceName+"_"+inputName)] = inputValue
+				} else {
+					inputs[replaceMinus(e.NodeName+"_"+instanceName+"_"+inputName)] = inputValue
+				}
+				if i == 0 {
+					inputs[replaceMinus(inputName)] = inputValue
+				}
+			}
+
+		} else {
+			if e.isRelationshipOperation {
+				_, inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, "")
+			} else {
+				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
+			}
+			if err != nil {
+				return err
+			}
+			inputs[replaceMinus(inputName)] = inputValue
+		}
 	}
 	e.Inputs = inputs
 
@@ -173,98 +203,81 @@ func (e *execution) resolveInputs() error {
 	return nil
 }
 
-func (e *execution) resolveHosts(nodePath string) error {
+func (e *execution) resolveHosts(nodeName string) error {
 	// e.nodePath
-	log.Debugf("Resolving hosts.")
-	log.Debugf("ip_address kv path %s/capabilities/endpoint/attributes/ip_address", nodePath)
+	instancesPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
+	log.Debugf("Resolving hosts for node %q", nodeName)
+
 	hosts := make([]string, 0)
-	kvPair, _, err := e.kv.Get(nodePath+"/capabilities/endpoint/attributes/ip_address", nil)
+	kvps, _, err := e.kv.List(instancesPath+"/", nil)
 	if err != nil {
 		return err
 	}
-	if kvPair == nil {
-		// Key not found look at host
-		// TODO check TOSCA spec to know if we can rely on a requirement named 'host' in any cases
-		kvPair, _, err = e.kv.Get(nodePath+"/requirements/host/node", nil)
+	for _, kvp := range kvps {
+		if strings.HasSuffix(kvp.Key, "capabilities/endpoint/attributes/ip_address") {
+			hosts = append(hosts, string(kvp.Value))
+		}
+	}
+	if len(hosts) == 0 {
+		// So we have to traverse the HostedOn relationships...
+		hostedOnNode, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, nodeName)
 		if err != nil {
 			return err
 		}
-		if kvPair == nil {
-			return fmt.Errorf("can't resolve attribute ip_address no more host to inspect")
+		if hostedOnNode == "" {
+			return fmt.Errorf("Can't find an Host with an ip_address in the HostedOn hierarchy for node %q in deployment %q", e.NodeName, e.DeploymentId)
 		}
-		return e.resolveHosts(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", string(kvPair.Value)))
+		return e.resolveHosts(hostedOnNode)
 	}
-	e.Hosts = append(hosts, string(kvPair.Value))
-	log.Debugf("Resolved hosts: %v", e.Hosts)
+	e.Hosts = hosts
 	return nil
 }
 
-func (e *execution) ReplaceMinus(str string) string {
+func replaceMinus(str string) string {
 	return strings.Replace(str, "-", "_", -1)
 }
 
 func (e *execution) resolveContext() error {
-	metatype, _, err := e.kv.Get(path.Join(e.NodeTypePath, "metatype"), nil)
+	execContext := make(map[string]string)
+
+	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
+	new_node := replaceMinus(e.NodeName)
+	execContext["NODE"] = new_node
+	execContext["INSTANCE"] = new_node
+	names, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.NodeName)
 	if err != nil {
 		return err
 	}
-	context := make(map[string]string)
+	for i := range names {
+		names[i] = new_node + "_" + replaceMinus(names[i])
+	}
+	execContext["INSTANCES"] = strings.Join(names, ",")
+	if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
+		return err
+	} else if host != "" {
+		execContext["HOST"] = host
+	}
 
-	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
-	new_node := e.ReplaceMinus(e.NodeName)
-	context["NODE"] = new_node
-	context["INSTANCE"] = new_node
-	context["INSTANCES"] = new_node
-	context["HOST"] = e.Hosts[0]
+	if e.isRelationshipOperation {
 
-	if strings.Contains(string(metatype.Value), "Relationship") {
+		execContext["SOURCE_NODE"] = new_node
+		execContext["SOURCE_INSTANCE"] = new_node
+		execContext["SOURCE_INSTANCES"] = strings.Join(names, ",")
 
-		context["SOURCE_NODE"] = new_node
-		context["SOURCE_INSTANCE"] = new_node
-		context["SOURCE_INSTANCES"] = new_node
-
-		require, _, err := e.kv.Keys(filepath.Join(e.NodePath, "requirements"), "", nil)
+		execContext["TARGET_NODE"] = replaceMinus(e.relationshipTargetName)
+		execContext["TARGET_INSTANCE"] = replaceMinus(e.relationshipTargetName)
+		targetNames, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.relationshipTargetName)
 		if err != nil {
 			return err
 		}
-		for _, path := range require {
-			if !strings.HasSuffix(path, "node") {
-				continue
-			}
-			splitedPath2 := strings.Split(e.NodePath, "/")
-			kvPair, _, _ := e.kv.Get(path, nil)
-			log.Debugf(string(kvPair.Value))
-			if !strings.Contains(string(kvPair.Value), "Storage") {
-
-				nodePath := strings.Replace(e.NodePath, splitedPath2[len(splitedPath2)-1], string(kvPair.Value), -1)
-
-				context["TARGET_NODE"] = e.ReplaceMinus(filepath.Base(nodePath))
-				context["TARGET_INSTANCE"] = e.ReplaceMinus(filepath.Base(nodePath))
-				context["TARGET_INSTANCES"] = e.ReplaceMinus(filepath.Base(nodePath))
-
-				resolver := deployments.NewResolver(e.kv, e.DeploymentId, e.NodePath, e.NodeTypePath)
-				params := make([]string, 0)
-				params = append(params, "", "ip_address")
-				nodePath2, err := resolver.FindInHost(nodePath, e.NodeTypePath, "capabilities/endpoint/attributes", params)
-
-				if err != nil {
-					return err
-				}
-
-				ip_addr, _, err := e.kv.Get(nodePath2+"/capabilities/endpoint/attributes/ip_address", nil)
-
-				if err != nil {
-					return err
-				}
-
-				context["TARGET_IP"] = string(ip_addr.Value)
-				context[e.ReplaceMinus(filepath.Base(nodePath))+"_TARGET_IP"] = string(ip_addr.Value)
-			}
+		for i := range targetNames {
+			targetNames[i] = replaceMinus(e.relationshipTargetName + "_" + targetNames[i])
 		}
+		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
 	}
 
-	e.Context = context
+	e.Context = execContext
 
 	return nil
 }
@@ -297,6 +310,16 @@ func (e *execution) resolveOperationOutput() error {
 	return nil
 }
 
+// isTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
+//     pre_configure_target, post_configure_target, add_target, target_changed or remove_target
+func isTargetOperation(operationName string) bool {
+	op := strings.ToLower(operationName)
+	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "remove_target") {
+		return true
+	}
+	return false
+}
+
 func (e *execution) resolveExecution() error {
 	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.DeploymentId)
 	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.DeploymentId, "overlay"))
@@ -305,39 +328,94 @@ func (e *execution) resolveExecution() error {
 	}
 	e.OverlayPath = ovPath
 	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
-	if strings.Contains(e.Operation, "Standard") {
-		kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
-		if err != nil {
-			return err
-		}
-		if kvPair == nil {
-			return fmt.Errorf("type for node %s in deployment %s is missing", e.NodeName, e.DeploymentId)
-		}
+	kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
+	if err != nil {
+		return err
+	}
+	if kvPair == nil {
+		return fmt.Errorf("type for node %s in deployment %s is missing", e.NodeName, e.DeploymentId)
+	}
 
-		e.NodeType = string(kvPair.Value)
-		e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+	e.NodeType = string(kvPair.Value)
+	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+	if strings.Contains(e.Operation, "Standard") {
+		e.isRelationshipOperation = false
 	} else {
-		kvPair, _, err := e.kv.Keys(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName), "", nil)
-		if err != nil {
-			return err
+		// In a relationship
+		e.isRelationshipOperation = true
+		opAndReq := strings.Split(e.Operation, "/")
+		e.isRelationshipTargetNode = false
+		if isTargetOperation(opAndReq[0]) {
+			e.isRelationshipTargetNode = true
 		}
-		for _, key := range kvPair {
-			if strings.Contains(key, "relationship") && !strings.Contains(key, "host") {
-				kvPair, _, err := e.kv.Get(path.Join(key), nil)
-				if err != nil {
-					return err
+		if len(opAndReq) == 2 {
+			reqName := opAndReq[1]
+			kvPair, _, err := e.kv.Get(path.Join(e.NodePath, "requirements", reqName, "relationship"), nil)
+			if err != nil {
+				return err
+			}
+			if kvPair == nil {
+				return fmt.Errorf("Requirement %q for node %q in deployment %q is missing", reqName, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipType = string(kvPair.Value)
+			kvPair, _, err = e.kv.Get(path.Join(e.NodePath, "requirements", reqName, "node"), nil)
+			if err != nil {
+				return err
+			}
+			if kvPair == nil {
+				return fmt.Errorf("Requirement %q for node %q in deployment %q is missing", reqName, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipTargetName = string(kvPair.Value)
+		} else {
+			// Old way if requirement is not specified get the last one
+			// TODO remove this part
+			kvPair, _, err := e.kv.Keys(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements"), "", nil)
+			if err != nil {
+				return err
+			}
+			for _, key := range kvPair {
+				if strings.HasSuffix(key, "relationship") && !strings.Contains(key, "/host/") {
+					kvPair, _, err := e.kv.Get(path.Join(key), nil)
+					if err != nil {
+						return err
+					}
+					e.relationshipType = string(kvPair.Value)
 				}
-				e.NodeType = string(kvPair.Value)
-				e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", string(kvPair.Value))
+				if strings.HasSuffix(key, "node") && !strings.Contains(key, "/host/") {
+					kvPair, _, err := e.kv.Get(path.Join(key), nil)
+					if err != nil {
+						return err
+					}
+					e.relationshipTargetName = string(kvPair.Value)
+				}
 			}
 		}
 	}
 
 	//TODO deal with inheritance operation may be not in the direct node type
-
-	e.OperationPath = e.NodeTypePath + "/interfaces/" + strings.Replace(strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle."), ".", "/", -1)
+	if e.isRelationshipOperation {
+		idx := strings.Index(e.Operation, "Configure.")
+		var op string
+		if idx >= 0 {
+			op = e.Operation[idx:]
+		} else {
+			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
+			op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
+		}
+		e.OperationPath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
+	} else {
+		idx := strings.Index(e.Operation, "Standard.")
+		var op string
+		if idx >= 0 {
+			op = e.Operation[idx:]
+		} else {
+			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
+			op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
+		}
+		e.OperationPath = e.NodeTypePath + "/interfaces/" + strings.Replace(op, ".", "/", -1)
+	}
 	log.Debugf("Operation Path: %q", e.OperationPath)
-	kvPair, _, err := e.kv.Get(e.OperationPath+"/implementation/primary", nil)
+	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/primary", nil)
 	if err != nil {
 		return err
 	}
@@ -361,7 +439,12 @@ func (e *execution) resolveExecution() error {
 	if err = e.resolveArtifacts(); err != nil {
 		return err
 	}
-	if err = e.resolveHosts(e.NodePath); err != nil {
+	if e.isRelationshipTargetNode {
+		err = e.resolveHosts(e.relationshipTargetName)
+	} else {
+		err = e.resolveHosts(e.NodeName)
+	}
+	if err != nil {
 		return err
 	}
 	if err = e.resolveOperationOutput(); err != nil {

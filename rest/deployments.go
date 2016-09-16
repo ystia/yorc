@@ -42,12 +42,12 @@ func extractFile(f *zip.File, path string) {
 
 func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
-	uuid := fmt.Sprint(uuid.NewV4())
-	log.Printf("Analyzing deployment %s\n", uuid)
+	uid := fmt.Sprint(uuid.NewV4())
+	log.Printf("Analyzing deployment %s\n", uid)
 
 	var err error
 	var file *os.File
-	uploadPath := filepath.Join("work", "deployments", uuid)
+	uploadPath := filepath.Join("work", "deployments", uid)
 	if err = os.MkdirAll(uploadPath, 0775); err != nil {
 		log.Panicf("%+v", err)
 	}
@@ -76,15 +76,15 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	// and extract them.
 	// TODO: USe go routines to process files concurrently
 	for _, f := range zipReader.File {
-		path := filepath.Join(destDir, f.Name)
+		fPath := filepath.Join(destDir, f.Name)
 		if f.FileInfo().IsDir() {
 			// Ensure that we have full rights on directory to be able to extract files into them
-			if err = os.MkdirAll(path, f.Mode()|0700); err != nil {
+			if err = os.MkdirAll(fPath, f.Mode()|0700); err != nil {
 				log.Panicf("%+v", err)
 			}
 			continue
 		}
-		extractFile(f, path)
+		extractFile(f, fPath)
 	}
 
 	patterns := []struct {
@@ -98,8 +98,8 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		if yamls, err := filepath.Glob(filepath.Join(destDir, pattern.pattern)); err != nil {
 			log.Panicf("%+v", err)
 		} else {
-			for _, yaml := range yamls {
-				yamlList = append(yamlList, yaml)
+			for _, yamlFile := range yamls {
+				yamlList = append(yamlList, yamlFile)
 			}
 		}
 	}
@@ -118,11 +118,29 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%+v", topology)
 	errCh := make(chan error, 30)
 	wg := sync.WaitGroup{}
-	s.storeConsulKey(errCh, &wg, deployments.DeploymentKVPrefix+"/"+uuid+"/status", fmt.Sprint(deployments.INITIAL))
+	s.storeConsulKey(errCh, &wg, deployments.DeploymentKVPrefix+"/"+uid+"/status", fmt.Sprint(deployments.INITIAL))
 
 	wg.Add(1)
-	go s.storeDeploymentDefinition(topology, uuid, false, "", &wg, errCh)
+	go s.storeDeploymentDefinition(topology, uid, false, "", &wg, errCh)
 
+	errors := waitForErrorsOnWaitGroup(errCh, &wg)
+	if len(errors) > 0 {
+		log.Panicf("Errors encountred during the YAML definition parsing and storage: %v", errors)
+	}
+
+	if err := s.createInstancesForNodes(uid); err != nil {
+		log.Panic(err)
+	}
+
+	if err := s.tasksCollector.RegisterTask(uid, tasks.DEPLOY); err != nil {
+		log.Panic(err)
+	}
+
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s", uid))
+	w.WriteHeader(http.StatusCreated)
+}
+
+func waitForErrorsOnWaitGroup(errCh chan error, wg *sync.WaitGroup) []error {
 	doneCh := make(chan []error, 1)
 
 	go func() {
@@ -139,17 +157,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	// Close errCh and retrieve errors from doneCh
 	close(errCh)
 
-	errors := <-doneCh
-	if len(errors) > 0 {
-		log.Panicf("Errors encountred during the YAML definition parsing and storage: %v", errors)
-	}
-
-	if err := s.tasksCollector.RegisterTask(uuid, tasks.DEPLOY); err != nil {
-		log.Panic(err)
-	}
-
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s", uuid))
-	w.WriteHeader(http.StatusCreated)
+	return <-doneCh
 }
 
 func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request) {
@@ -522,4 +530,38 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		}
 	}
 	wg.Done()
+}
+
+func (s *Server) createInstancesForNodes(id string) error {
+	errCh := make(chan error, 30)
+	wg := sync.WaitGroup{}
+
+	depPath := path.Join(deployments.DeploymentKVPrefix, id)
+	nodesPath := path.Join(depPath, "topology", "nodes")
+	instancesPath := path.Join(depPath, "topology", "instances")
+	kv := s.consulClient.KV()
+
+	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes {
+		node = path.Base(node)
+		scalable, nbInstances, err := deployments.GetNbInstancesForNode(kv, id, node)
+		if err != nil {
+			return err
+		}
+		if scalable {
+			s.storeConsulKey(errCh, &wg, path.Join(nodesPath, node, "nbInstances"), strconv.FormatUint(uint64(nbInstances), 10))
+			for i := uint32(0); i < nbInstances; i++ {
+				s.storeConsulKey(errCh, &wg, path.Join(instancesPath, node, strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())
+			}
+		}
+	}
+
+	errors := waitForErrorsOnWaitGroup(errCh, &wg)
+	if len(errors) > 0 {
+		log.Panicf("Errors encountred during the YAML definition parsing and storage: %v", errors)
+	}
+	return nil
 }
