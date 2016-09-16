@@ -33,7 +33,7 @@ topology_template:
       properties:
         ip_version: 4
         cidr: 10.0.0.0/24
-        network_name: lpa_test_network
+        network_name: janus_test_network
 
   workflows:
     install:
