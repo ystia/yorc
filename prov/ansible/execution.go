@@ -376,10 +376,10 @@ func (e *execution) resolveOperationOutput() error {
 }
 
 // isTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
-//     pre_configure_target, post_configure_target, add_target, target_changed or remove_target
+//	pre_configure_target, post_configure_target, add_source
 func isTargetOperation(operationName string) bool {
 	op := strings.ToLower(operationName)
-	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "remove_target") {
+	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_source") {
 		return true
 	}
 	return false
