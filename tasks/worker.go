@@ -61,6 +61,7 @@ func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg
 }
 
 func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy bool) error {
+	deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Start processing workflow")
 	var wg sync.WaitGroup
 	runningSteps := make(map[string]struct{})
 	ctx := context.TODO()
@@ -81,12 +82,15 @@ func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy
 	var err error
 	select {
 	case err = <-unistallerrc:
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", err))
 		log.Printf("One or more error appear in unistall workflow, please check : %v", err)
 	case err = <-errc:
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
 		log.Printf("Error '%v' happened in workflow.", err)
 		log.Debug("Canceling it.")
 		cancel()
 	case <-ctx.Done():
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Workflow ended without error")
 		log.Printf("Workflow ended without error")
 	}
 	return err

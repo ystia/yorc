@@ -63,6 +63,7 @@ const ansible_playbook = `
 const ansible_config = `[defaults]
 host_key_checking=False
 timeout=600
+stdout_callback = json
 `
 
 func IsOperationNotImplemented(err error) bool {
@@ -521,11 +522,12 @@ func (e *execution) resolveExecution() error {
 }
 
 func (e *execution) execute(ctx context.Context) error {
-
+	deployments.LogInConsul(e.kv, e.DeploymentId, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 	ansibleHostVarsPath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation, "host_vars")
 	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
 		log.Printf("%+v", err)
+		deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("%+v", err))
 		return err
 	}
 	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
@@ -559,6 +561,7 @@ func (e *execution) execute(ctx context.Context) error {
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write hosts file")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write hosts file")
 		return err
 	}
 	buffer.Reset()
@@ -580,25 +583,30 @@ func (e *execution) execute(ctx context.Context) error {
 		var buffer bytes.Buffer
 		if err := wrap_template.Execute(&buffer, e); err != nil {
 			log.Print("Failed to Generate wrapper template")
+			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate wrapper template")
 			return err
 		}
 		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
 			log.Print("Failed to write playbook file")
+			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
 			return err
 		}
 	}
 	tmpl, err := tmpl.Parse(ansible_playbook)
 	if err := tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
 		return err
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write playbook file")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
 		return err
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(ansible_config), 0664); err != nil {
 		log.Print("Failed to write ansible.cfg file")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write ansible.cfg file")
 		return err
 	}
 	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
@@ -606,30 +614,36 @@ func (e *execution) execute(ctx context.Context) error {
 		return err
 	}
 	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
+	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath))
 	var cmd *exec.Cmd
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
 		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = exec.CommandContext(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	cmd.Dir = ansibleRecipePath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	outbuf := log.NewWriterSize(e.kv, e.DeploymentId, deployments.DeploymentKVPrefix)
+	errbuf := log.NewWriterSize(e.kv, e.DeploymentId, deployments.DeploymentKVPrefix)
+	cmd.Stdout = outbuf
+	cmd.Stderr = errbuf
 
 	if e.HaveOutput {
 		if err := cmd.Run(); err != nil {
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			log.Print(err)
 			return err
 		}
 		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
 		if err != nil {
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			panic(err)
 		}
 		r := csv.NewReader(fi)
 		records, err := r.ReadAll()
 		if err != nil {
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			log.Fatal(err)
 		}
 		for _, line := range records {
@@ -639,12 +653,17 @@ func (e *execution) execute(ctx context.Context) error {
 
 	} else {
 		if err := cmd.Start(); err != nil {
+			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 			log.Print(err)
 			return err
 		}
 	}
 
-	return cmd.Wait()
+	err = cmd.Wait()
+
+	outbuf.FlushSoftware()
+
+	return err
 }
 
 func storeConsulKey(kv *api.KV, key, value string) {

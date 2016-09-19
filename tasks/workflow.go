@@ -87,6 +87,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 		case <-s.NotifyChan:
 			log.Debugf("Step %q caught a notification", s.Name)
 		case <-shutdownChan:
+			deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled", s.Name))
 			log.Printf("Step %q cancelled", s.Name)
 			return
 		case <-ctx.Done():
