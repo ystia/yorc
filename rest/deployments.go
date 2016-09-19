@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -284,22 +285,22 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		s.storeConsulKey(errCh, wg, nodePrefix+"/type", node.Type)
 		propertiesPrefix := nodePrefix + "/properties"
 		for propName, propValue := range node.Properties {
-			s.storeConsulKey(errCh, wg, propertiesPrefix+"/"+propName, fmt.Sprint(propValue))
+			s.storeConsulKey(errCh, wg, propertiesPrefix+"/"+url.QueryEscape(propName), fmt.Sprint(propValue))
 		}
 		attributesPrefix := nodePrefix + "/attributes"
 		for attrName, attrValue := range node.Attributes {
-			s.storeConsulKey(errCh, wg, attributesPrefix+"/"+attrName, fmt.Sprint(attrValue))
+			s.storeConsulKey(errCh, wg, attributesPrefix+"/"+url.QueryEscape(attrName), fmt.Sprint(attrValue))
 		}
 		capabilitiesPrefix := nodePrefix + "/capabilities"
 		for capName, capability := range node.Capabilities {
 			capabilityPrefix := capabilitiesPrefix + "/" + capName
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
-				s.storeConsulKey(errCh, wg, capabilityPropsPrefix+"/"+propName, fmt.Sprint(propValue))
+				s.storeConsulKey(errCh, wg, capabilityPropsPrefix+"/"+url.QueryEscape(propName), fmt.Sprint(propValue))
 			}
 			capabilityAttrPrefix := capabilityPrefix + "/attributes"
 			for attrName, attrValue := range capability.Attributes {
-				s.storeConsulKey(errCh, wg, capabilityAttrPrefix+"/"+attrName, fmt.Sprint(attrValue))
+				s.storeConsulKey(errCh, wg, capabilityAttrPrefix+"/"+url.QueryEscape(attrName), fmt.Sprint(attrValue))
 			}
 		}
 		requirementsPrefix := nodePrefix + "/requirements"
@@ -311,7 +312,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				s.storeConsulKey(errCh, wg, reqPrefix+"/relationship", reqValue.Relationship)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/capability", reqValue.Capability)
 				for propName, propValue := range reqValue.RelationshipProps {
-					s.storeConsulKey(errCh, wg, reqPrefix+"/properties/"+propName, fmt.Sprint(propValue))
+					s.storeConsulKey(errCh, wg, reqPrefix+"/properties/"+url.QueryEscape(propName), fmt.Sprint(propValue))
 				}
 			}
 		}
@@ -351,7 +352,10 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			if attrDefinition.Type.Expression.IsLiteral() {
 				s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
 			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
-				s.storeConsulKey(errCh, wg, nodeTypePrefix+"/output/"+attrDefinition.Type.Expression.Children()[1].Value+"/"+attrDefinition.Type.Expression.Children()[2].Value+"/"+attrDefinition.Type.Expression.Children()[3].Value, attrDefinition.Type.Expression.Children()[3].Value)
+				interfaceName := url.QueryEscape(attrDefinition.Type.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Type.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Type.Expression.Children()[3].Value)
+				s.storeConsulKey(errCh, wg, nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
 			}
 		}
 
@@ -445,7 +449,10 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			if attrDefinition.Type.Expression.IsLiteral() {
 				s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
 			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
-				s.storeConsulKey(errCh, wg, relationTypePrefix+"/output/"+attrDefinition.Type.Expression.Children()[1].Value+"/"+attrDefinition.Type.Expression.Children()[2].Value+"/"+attrDefinition.Type.Expression.Children()[3].Value, attrDefinition.Type.Expression.Children()[3].Value)
+				interfaceName := url.QueryEscape(attrDefinition.Type.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Type.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Type.Expression.Children()[3].Value)
+				s.storeConsulKey(errCh, wg, relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
 			}
 		}
 
@@ -511,9 +518,9 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 
 	workflowsPrefix := path.Join(deployments.DeploymentKVPrefix, id, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
-		workflowPrefix := workflowsPrefix + "/" + wfName
+		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
-			stepPrefix := workflowPrefix + "/steps/" + stepName
+			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
 			s.storeConsulKey(errCh, wg, stepPrefix+"/node", step.Node)
 			if step.Activity.CallOperation != "" {
 				s.storeConsulKey(errCh, wg, stepPrefix+"/activity/operation", step.Activity.CallOperation)
@@ -525,7 +532,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				s.storeConsulKey(errCh, wg, stepPrefix+"/activity/set-state", step.Activity.SetState)
 			}
 			for _, next := range step.OnSuccess {
-				s.storeConsulKey(errCh, wg, fmt.Sprintf("%s/next/%s", stepPrefix, next), "")
+				s.storeConsulKey(errCh, wg, fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
 			}
 		}
 	}
