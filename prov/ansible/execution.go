@@ -65,6 +65,19 @@ host_key_checking=False
 timeout=600
 `
 
+func IsOperationNotImplemented(err error) bool {
+	_, ok := err.(operationNotImplemented)
+	return ok
+}
+
+type operationNotImplemented struct {
+	msg string
+}
+
+func (oni operationNotImplemented) Error() string {
+	return oni.msg
+}
+
 type hostConnection struct {
 	host string
 	user string
@@ -400,6 +413,7 @@ func (e *execution) resolveExecution() error {
 			e.isRelationshipTargetNode = true
 		}
 		if len(opAndReq) == 2 {
+			e.Operation = opAndReq[0]
 			reqName := opAndReq[1]
 			kvPair, _, err := e.kv.Get(path.Join(e.NodePath, "requirements", reqName, "relationship"), nil)
 			if err != nil {
@@ -471,7 +485,7 @@ func (e *execution) resolveExecution() error {
 		return err
 	}
 	if kvPair == nil {
-		return fmt.Errorf("primary implementation missing for type %s in deployment %s is missing", e.NodeType, e.DeploymentId)
+		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for type %s in deployment %s is missing", e.NodeType, e.DeploymentId)}
 	}
 	e.Primary = string(kvPair.Value)
 	e.BasePrimary = path.Base(e.Primary)
