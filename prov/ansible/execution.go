@@ -65,6 +65,11 @@ host_key_checking=False
 timeout=600
 `
 
+type hostConnection struct {
+	host string
+	user string
+}
+
 type execution struct {
 	kv                       *api.KV
 	DeploymentId             string
@@ -77,7 +82,7 @@ type execution struct {
 	Primary                  string
 	BasePrimary              string
 	Dependencies             []string
-	Hosts                    map[string]string
+	hosts                    map[string]hostConnection
 	OperationPath            string
 	NodePath                 string
 	NodeTypePath             string
@@ -221,7 +226,7 @@ func (e *execution) resolveHosts(nodeName string) error {
 	instancesPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
 	log.Debugf("Resolving hosts for node %q", nodeName)
 
-	hosts := make(map[string]string)
+	hosts := make(map[string]hostConnection)
 	instances, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, nodeName)
 	if err != nil {
 		return err
@@ -232,7 +237,20 @@ func (e *execution) resolveHosts(nodeName string) error {
 			return err
 		}
 		if kvp != nil && len(kvp.Value) != 0 {
-			hosts[instance] = string(kvp.Value)
+			hostConn := hostConnection{host: string(kvp.Value)}
+			kvp, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
+			if err != nil {
+				return err
+			}
+			if kvp != nil && len(kvp.Value) != 0 {
+				va := tosca.ValueAssignment{}
+				yaml.Unmarshal(kvp.Value, &va)
+				hostConn.user, err = deployments.NewResolver(e.kv, e.DeploymentId).ResolveExpressionForNode(va.Expression, nodeName, instance)
+				if err != nil {
+					return err
+				}
+			}
+			hosts[instance] = hostConn
 		}
 	}
 	if len(hosts) == 0 {
@@ -246,7 +264,7 @@ func (e *execution) resolveHosts(nodeName string) error {
 		}
 		return e.resolveHosts(hostedOnNode)
 	}
-	e.Hosts = hosts
+	e.hosts = hosts
 	return nil
 }
 
@@ -502,10 +520,15 @@ func (e *execution) execute(ctx context.Context) error {
 	}
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
-	for instanceName, host := range e.Hosts {
-		buffer.WriteString(host)
+	for instanceName, host := range e.hosts {
+		buffer.WriteString(host.host)
 		// TODO should not be hard-coded
-		buffer.WriteString(" ansible_ssh_user=cloud-user ansible_ssh_private_key_file=~/.ssh/janus.pem\n")
+		sshUser := host.user
+		if sshUser == "" {
+			// Thinking: should we have a default user
+			return fmt.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.DeploymentId, e.NodeName)
+		}
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem\n", sshUser))
 
 		var perInstanceInputsBuffer bytes.Buffer
 		if instanceInputs, ok := e.PerInstanceInputs[instanceName]; ok {
@@ -514,7 +537,7 @@ func (e *execution) execute(ctx context.Context) error {
 			}
 		}
 		if perInstanceInputsBuffer.Len() > 0 {
-			if err := ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
+			if err := ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host.host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
 				log.Printf("Failed to write vars for host %q file: %v", host, err)
 				return err
 			}
