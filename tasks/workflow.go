@@ -13,6 +13,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Step struct {
@@ -83,20 +84,27 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 	eventPub := events.NewPublisher(kv, deploymentId)
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
-		select {
-		case <-s.NotifyChan:
-			log.Debugf("Step %q caught a notification", s.Name)
-		case <-shutdownChan:
-			deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled", s.Name))
-			log.Printf("Step %q cancelled", s.Name)
-			return
-		case <-ctx.Done():
-			log.Printf("Step %q cancelled: %q", s.Name, ctx.Err())
-			return
+		log.Debugf("Step %q waiting for %d previous steps", s.Name, len(s.Previous)-i)
+		for {
+			select {
+			case <-s.NotifyChan:
+				log.Debugf("Step %q caught a notification", s.Name)
+				goto BR
+			case <-shutdownChan:
+				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled", s.Name))
+				log.Printf("Step %q cancelled", s.Name)
+				return
+			case <-ctx.Done():
+				log.Printf("Step %q cancelled: %q", s.Name, ctx.Err())
+				return
+			case <-time.After(30 * time.Second):
+				log.Debugf("Step %q still waiting for %d previous steps", s.Name, len(s.Previous)-i)
+			}
 		}
+	BR:
 	}
 
-	log.Debugf("Processing step %s", s.Name)
+	log.Debugf("Processing step %q", s.Name)
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
@@ -143,6 +151,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 		}
 	}
 	for _, next := range s.Next {
+		log.Debugf("Step %q, notifying step %q", s.Name, next.Name)
 		next.NotifyChan <- struct{}{}
 	}
 	if haveErr {
@@ -227,28 +236,20 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 		log.Print(err)
 		return nil, err
 	}
-	potentialRoots := make([]*Step, 0)
+	steps := make([]*Step, 0)
 	visitedMap := make(map[string]*visitStep, len(stepsPrefixes))
 	for _, stepPrefix := range stepsPrefixes {
-		stepFields := strings.FieldsFunc(stepPrefix, func(r rune) bool {
-			return r == rune('/')
-		})
-		stepName := stepFields[len(stepFields)-1]
-		if _, ok := visitedMap[stepName]; !ok {
+		stepName := path.Base(stepPrefix)
+		if visitStep, ok := visitedMap[stepName]; !ok {
 			step, err := readStep(kv, stepsPrefix, stepName, visitedMap)
 			if err != nil {
 				return nil, err
 			}
-			potentialRoots = append(potentialRoots, step)
+			steps = append(steps, step)
+		} else {
+			steps = append(steps, visitStep.step)
 		}
 	}
 
-	roots := potentialRoots[:0]
-	for _, step := range potentialRoots {
-		if visitedMap[step.Name].refCount == 0 {
-			roots = append(roots, step)
-		}
-	}
-
-	return roots, nil
+	return steps, nil
 }
