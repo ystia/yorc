@@ -3,6 +3,7 @@ package deployments
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"strings"
@@ -43,8 +44,20 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		}
 		switch params[0] {
 		case "SELF":
-			_, result, err := GetNodeProperty(r.kv, r.deploymentId, nodeName, params[1], false)
-			return result, err
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, nodeName, params[1], false)
+			if err != nil {
+				return "", err
+			}
+			if !found {
+				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, nodeName, expression.String())
+				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
 		case "HOST":
 			hostNode, err := GetHostedOnNode(r.kv, r.deploymentId, nodeName)
 			if err != nil {
@@ -53,14 +66,32 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				// Try to resolve on current node
 				hostNode = nodeName
 			}
-			_, result, err := GetNodeProperty(r.kv, r.deploymentId, hostNode, params[1], true)
-			return result, err
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, hostNode, params[1], true)
+			if !found {
+				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, hostNode, expression.String())
+				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, hostNode, instanceName)
 		case "SOURCE", "TARGET":
 			return "", fmt.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", params[0])
 		default:
 			// Then it is the name of a modelable entity
-			_, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1], true)
-			return result, err
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1], true)
+			if !found {
+				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, params[0], expression.String())
+				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, params[0], instanceName)
 		}
 	case "get_attribute":
 		if len(params) != 2 {
@@ -73,9 +104,19 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				return "", err
 			}
 			if !found {
+				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, nodeName, expression.String())
+				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if r, ok := result[instanceName]; !ok || r == "" {
 				return "", nil
 			}
-			return result[instanceName], nil
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
+
 		case "HOST":
 			hostNode, err := GetHostedOnNode(r.kv, r.deploymentId, nodeName)
 			if err != nil {
@@ -89,9 +130,18 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				return "", err
 			}
 			if !found {
+				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, hostNode, expression.String())
+				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if r, ok := result[instanceName]; !ok || r == "" {
 				return "", nil
 			}
-			return result[instanceName], nil
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, hostNode, instanceName)
 		case "SOURCE", "TARGET":
 			return "", fmt.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", params[0])
 		default:
@@ -100,9 +150,18 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				return "", err
 			}
 			if !found {
+				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, params[0], expression.String())
+				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if r, ok := result[instanceName]; !ok || r == "" {
 				return "", nil
 			}
-			return result[instanceName], nil
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, params[0], instanceName)
 		}
 	case "concat":
 		return strings.Join(params, ""), nil
@@ -137,19 +196,71 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 		switch params[0] {
 		case "SELF":
-			_, result, err := GetTypeDefaultProperty(r.kv, r.deploymentId, relationshipType, params[1])
+			found, result, err := GetTypeDefaultProperty(r.kv, r.deploymentId, relationshipType, params[1])
+			if err != nil {
+				return false, "", err
+			}
+			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				return false, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return false, "", err
+			}
+			_, result, err = r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, relationshipType, instanceName)
 			return false, result, err
 		case "HOST":
 			return false, "", fmt.Errorf("Keyword %q not supported for a relationship expression", params[0])
 		case "SOURCE":
-			_, result, err := GetNodeProperty(r.kv, r.deploymentId, sourceNode, params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, sourceNode, params[1], true)
+			if err != nil {
+				return false, "", err
+			}
+			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				return false, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return false, "", err
+			}
+			result, err = r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return false, result, err
 		case "TARGET":
-			_, result, err := GetNodeProperty(r.kv, r.deploymentId, targetNode, params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, targetNode, params[1], true)
+			if err != nil {
+				return true, "", err
+			}
+			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, targetNode, expression.String())
+				return true, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return true, "", err
+			}
+			result, err = r.ResolveExpressionForNode(resultExpr.Expression, targetNode, instanceName)
 			return true, result, err
 		default:
 			// Then it is the name of a modelable entity
-			_, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1], true)
+			if err != nil {
+				return false, "", err
+			}
+			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, params[0], expression.String())
+				return false, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return false, "", err
+			}
+			result, err = r.ResolveExpressionForNode(resultExpr.Expression, params[0], instanceName)
 			return false, result, err
 		}
 	case "get_attribute":
@@ -158,7 +269,20 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 		switch params[0] {
 		case "SELF":
-			_, result, err := GetTypeDefaultAttribute(r.kv, r.deploymentId, relationshipType, params[1])
+			found, result, err := GetTypeDefaultAttribute(r.kv, r.deploymentId, relationshipType, params[1])
+			if err != nil {
+				return false, "", err
+			}
+			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				return false, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return false, "", err
+			}
+			_, result, err = r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, relationshipType, instanceName)
 			return false, result, err
 		case "HOST":
 			return false, "", fmt.Errorf("Keyword %q not supported for a relationship expression", params[0])
@@ -168,27 +292,57 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return false, "", err
 			}
 			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				return false, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if r, ok := result[instanceName]; !ok || r == "" {
 				return false, "", nil
 			}
-			return false, result[instanceName], nil
-		case "TARGET":
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, targetNode, params[1], true)
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
 			if err != nil {
 				return false, "", err
 			}
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
+			return false, res, err
+		case "TARGET":
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, targetNode, params[1], true)
+			if err != nil {
+				return true, "", err
+			}
 			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, targetNode, expression.String())
+				return true, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if r, ok := result[instanceName]; !ok || r == "" {
 				return true, "", nil
 			}
-			return true, result[instanceName], nil
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
+			if err != nil {
+				return true, "", err
+			}
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, targetNode, instanceName)
+			return true, res, err
 		default:
 			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, params[0], params[1], true)
 			if err != nil {
 				return false, "", err
 			}
 			if !found {
+				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, params[0], expression.String())
+				return false, "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if r, ok := result[instanceName]; !ok || r == "" {
 				return false, "", nil
 			}
-			return false, result[instanceName], nil
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
+			if err != nil {
+				return false, "", err
+			}
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, params[0], instanceName)
+			return false, res, err
 		}
 	case "concat":
 		return false, strings.Join(params, ""), nil
