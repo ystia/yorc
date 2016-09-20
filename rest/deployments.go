@@ -225,8 +225,8 @@ func (s *Server) storePropertyDefinition(errCh chan error, wg *sync.WaitGroup, p
 func (s *Server) storeAttributeDefinition(errCh chan error, wg *sync.WaitGroup, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
 	s.storeConsulKey(errCh, wg, attrPrefix+"/name", attrName)
 	s.storeConsulKey(errCh, wg, attrPrefix+"/description", attrDefinition.Description)
-	s.storeConsulKey(errCh, wg, attrPrefix+"/type", attrDefinition.Type.Expression.Value)
-	s.storeConsulKey(errCh, wg, attrPrefix+"/default", attrDefinition.Default)
+	s.storeConsulKey(errCh, wg, attrPrefix+"/type", attrDefinition.Type)
+	s.storeConsulKey(errCh, wg, attrPrefix+"/default", attrDefinition.Default.String())
 	s.storeConsulKey(errCh, wg, attrPrefix+"/status", attrDefinition.Status)
 }
 
@@ -349,12 +349,11 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		attributesPrefix := nodeTypePrefix + "/attributes"
 		for attrName, attrDefinition := range nodeType.Attributes {
 			attrPrefix := attributesPrefix + "/" + attrName
-			if attrDefinition.Type.Expression.IsLiteral() {
-				s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
-			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
-				interfaceName := url.QueryEscape(attrDefinition.Type.Expression.Children()[1].Value)
-				operationName := url.QueryEscape(attrDefinition.Type.Expression.Children()[2].Value)
-				outputVariableName := url.QueryEscape(attrDefinition.Type.Expression.Children()[3].Value)
+			s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
+				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
 				s.storeConsulKey(errCh, wg, nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
 			}
 		}
@@ -446,12 +445,11 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		attributesPrefix := relationTypePrefix + "/attributes"
 		for attrName, attrDefinition := range relationType.Attributes {
 			attrPrefix := attributesPrefix + "/" + attrName
-			if attrDefinition.Type.Expression.IsLiteral() {
-				s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
-			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
-				interfaceName := url.QueryEscape(attrDefinition.Type.Expression.Children()[1].Value)
-				operationName := url.QueryEscape(attrDefinition.Type.Expression.Children()[2].Value)
-				outputVariableName := url.QueryEscape(attrDefinition.Type.Expression.Children()[3].Value)
+			s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
+				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
 				s.storeConsulKey(errCh, wg, relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
 			}
 		}

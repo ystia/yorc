@@ -14,6 +14,9 @@ type ValueAssignment struct {
 }
 
 func (p ValueAssignment) String() string {
+	if p.Expression == nil {
+		return ""
+	}
 	return p.Expression.String()
 }
 
