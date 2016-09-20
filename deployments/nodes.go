@@ -159,8 +159,8 @@ func GetTypeDefaultAttribute(kv *api.KV, deploymentId, typeName, attributeName s
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
-// If the property is still not found an recurse is true then it will explore the HostedOn hierarchy.
-func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string, recurse bool) (bool, string, error) {
+// If the property is still not found then it will explore the HostedOn hierarchy.
+func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string) (bool, string, error) {
 	nodePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
 	kvp, _, err := kv.Get(path.Join(nodePath, "properties", propertyName), nil)
 	if err != nil {
@@ -187,15 +187,13 @@ func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string, re
 		return true, value, nil
 	}
 	// No default found in type hierarchy
-	if recurse {
-		// then traverse HostedOn relationships to find the value
-		host, err := GetHostedOnNode(kv, deploymentId, nodeName)
-		if err != nil {
-			return false, "", err
-		}
-		if host != "" {
-			return GetNodeProperty(kv, deploymentId, host, propertyName, recurse)
-		}
+	// then traverse HostedOn relationships to find the value
+	host, err := GetHostedOnNode(kv, deploymentId, nodeName)
+	if err != nil {
+		return false, "", err
+	}
+	if host != "" {
+		return GetNodeProperty(kv, deploymentId, host, propertyName)
 	}
 	// Not found anywhere
 	return false, "", nil
@@ -208,8 +206,8 @@ func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string, re
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
-// If the property is still not found an recurse is true then it will explore the HostedOn hierarchy.
-func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string, recurse bool) (found bool, attributes map[string]string, err error) {
+// If the property is still not found then it will explore the HostedOn hierarchy.
+func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string) (found bool, attributes map[string]string, err error) {
 	found = false
 	instances, err := GetNodeInstancesNames(kv, deploymentId, nodeName)
 	if err != nil {
@@ -286,16 +284,14 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string,
 		return
 	}
 	// No default found in type hierarchy
-	if recurse {
-		// then traverse HostedOn relationships to find the value
-		var host string
-		host, err = GetHostedOnNode(kv, deploymentId, nodeName)
-		if err != nil {
-			return
-		}
-		if host != "" {
-			return GetNodeAttributes(kv, deploymentId, host, attributeName, recurse)
-		}
+	// then traverse HostedOn relationships to find the value
+	var host string
+	host, err = GetHostedOnNode(kv, deploymentId, nodeName)
+	if err != nil {
+		return
+	}
+	if host != "" {
+		return GetNodeAttributes(kv, deploymentId, host, attributeName)
 	}
 	// Not found anywhere
 	return

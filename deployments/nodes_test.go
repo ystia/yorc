@@ -182,40 +182,35 @@ func testGetNodeProperty(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
 	// Property is directly in node
-	res, value, err := GetNodeProperty(kv, "testGetNbInstancesForNode", "Node1", "simple", true)
+	res, value, err := GetNodeProperty(kv, "testGetNbInstancesForNode", "Node1", "simple")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, "simple", value)
 
 	// Property is in a parent node we found it with recurse
-	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "recurse", true)
+	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "recurse")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, "Node2", value)
 
-	// Property is in a parent node we don't found it with because of recurse is false
-	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "recurse", false)
-	require.Nil(t, err)
-	require.False(t, res)
-
 	// Property has a default in node type
-	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "typeprop", true)
+	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "typeprop")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, "SoftwareComponentTypeProp", value)
 
-	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "typeprop", false)
+	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "typeprop")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, "SoftwareComponentTypeProp", value)
 
 	// Property has a default in a parent of the node type
-	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "parenttypeprop", true)
+	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "parenttypeprop")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, "RootComponentTypeProp", value)
 
-	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "parenttypeprop", false)
+	res, value, err = GetNodeProperty(kv, "testGetNbInstancesForNode", "Node4", "parenttypeprop")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, "RootComponentTypeProp", value)
@@ -225,14 +220,14 @@ func testGetNodeProperty(t *testing.T, kv *api.KV) {
 func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	// Attribute is directly in node
-	res, instancesValues, err := GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node3", "simple", true)
+	res, instancesValues, err := GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node3", "simple")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Len(t, instancesValues, 1)
 	require.Equal(t, "simple", instancesValues[""])
 
 	// Attribute is directly in instances
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Compute1", "id", true)
+	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Compute1", "id")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Len(t, instancesValues, 10)
@@ -242,21 +237,21 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	require.Equal(t, "Compute1-3", instancesValues["3"])
 
 	// Look at generic node attribute before parents
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node1", "id", true)
+	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node1", "id")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Len(t, instancesValues, 1)
 	require.Equal(t, "Node1-id", instancesValues[""])
 
 	// Look at generic node type attribute before parents
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node3", "id", true)
+	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node3", "id")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Len(t, instancesValues, 1)
 	require.Equal(t, "DefaultSoftwareComponentTypeid", instancesValues[""])
 
 	// Look at generic node type attribute before parents
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node2", "type", true)
+	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node2", "type")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Len(t, instancesValues, 10)
@@ -265,26 +260,20 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	require.Equal(t, "DefaultSoftwareComponentTypeid", instancesValues["6"])
 
 	//
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node2", "recurse", true)
+	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node2", "recurse")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Len(t, instancesValues, 10)
 	require.Equal(t, "Recurse-Compute1-0", instancesValues["0"])
 	require.Equal(t, "Recurse-Compute1-3", instancesValues["3"])
 	require.Equal(t, "Recurse-Compute1-6", instancesValues["6"])
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node2", "recurse", false)
-	require.Nil(t, err)
-	require.False(t, res)
 
 	//
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node1", "recurse", true)
+	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node1", "recurse")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Len(t, instancesValues, 10)
 	require.Equal(t, "Recurse-Compute1-0", instancesValues["0"])
 	require.Equal(t, "Recurse-Compute1-3", instancesValues["3"])
 	require.Equal(t, "Recurse-Compute1-6", instancesValues["6"])
-	res, instancesValues, err = GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node1", "recurse", false)
-	require.Nil(t, err)
-	require.False(t, res)
 }

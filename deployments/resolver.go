@@ -24,7 +24,7 @@ func NewResolver(kv *api.KV, deploymentId string) *Resolver {
 // this is useful for get_attributes as it may be different for different instances (a classic use case would be 'get_attribute: [ SELF, ip_address ]'
 // If you are using it in a context where the node doesn't have multiple instances then instanceName should be an empty string
 func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName, instanceName string) (string, error) {
-	log.Debugf("Resolving expression %q", expression.String())
+	log.Debugf("Deployment %q, Node %q, instanceName %q: Resolving node expression %q", r.deploymentId, nodeName, instanceName, expression.String())
 	if expression.IsLiteral() {
 		return expression.Value, nil
 	}
@@ -44,7 +44,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		}
 		switch params[0] {
 		case "SELF":
-			found, result, err := GetNodeProperty(r.kv, r.deploymentId, nodeName, params[1], false)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, nodeName, params[1])
 			if err != nil {
 				return "", err
 			}
@@ -66,7 +66,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				// Try to resolve on current node
 				hostNode = nodeName
 			}
-			found, result, err := GetNodeProperty(r.kv, r.deploymentId, hostNode, params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, hostNode, params[1])
 			if !found {
 				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, hostNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
@@ -81,7 +81,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			return "", fmt.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", params[0])
 		default:
 			// Then it is the name of a modelable entity
-			found, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1])
 			if !found {
 				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, params[0], expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
@@ -99,7 +99,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		}
 		switch params[0] {
 		case "SELF":
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, nodeName, params[1], false)
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, nodeName, params[1])
 			if err != nil {
 				return "", err
 			}
@@ -125,7 +125,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				// Try to resolve on current node
 				hostNode = nodeName
 			}
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, hostNode, params[1], false)
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, hostNode, params[1])
 			if err != nil {
 				return "", err
 			}
@@ -145,7 +145,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		case "SOURCE", "TARGET":
 			return "", fmt.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", params[0])
 		default:
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, params[0], params[1], true)
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, params[0], params[1])
 			if err != nil {
 				return "", err
 			}
@@ -176,7 +176,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 // If you are using it in a context where the node doesn't have multiple instances then instanceName should be an empty string
 // It returns true as first return param if the expression is in the 'target' context (typically get_attribute: [ TARGET, ip_address ])
 func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, sourceNode, targetNode, relationshipType, instanceName string) (bool, string, error) {
-	log.Debugf("Resolving expression %q", expression.String())
+	log.Debugf("Deployment %q, sourceNode %q, targetNode %q, relationshipType %q, instanceName %q: Resolving expression %q", r.deploymentId, sourceNode, targetNode, relationshipType, instanceName, expression.String())
 	if expression.IsLiteral() {
 		return false, expression.Value, nil
 	}
@@ -214,7 +214,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		case "HOST":
 			return false, "", fmt.Errorf("Keyword %q not supported for a relationship expression", params[0])
 		case "SOURCE":
-			found, result, err := GetNodeProperty(r.kv, r.deploymentId, sourceNode, params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, sourceNode, params[1])
 			if err != nil {
 				return false, "", err
 			}
@@ -230,7 +230,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			result, err = r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return false, result, err
 		case "TARGET":
-			found, result, err := GetNodeProperty(r.kv, r.deploymentId, targetNode, params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, targetNode, params[1])
 			if err != nil {
 				return true, "", err
 			}
@@ -247,7 +247,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			return true, result, err
 		default:
 			// Then it is the name of a modelable entity
-			found, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1], true)
+			found, result, err := GetNodeProperty(r.kv, r.deploymentId, params[0], params[1])
 			if err != nil {
 				return false, "", err
 			}
@@ -287,7 +287,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		case "HOST":
 			return false, "", fmt.Errorf("Keyword %q not supported for a relationship expression", params[0])
 		case "SOURCE":
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, sourceNode, params[1], true)
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, sourceNode, params[1])
 			if err != nil {
 				return false, "", err
 			}
@@ -306,7 +306,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return false, res, err
 		case "TARGET":
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, targetNode, params[1], true)
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, targetNode, params[1])
 			if err != nil {
 				return true, "", err
 			}
@@ -325,7 +325,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			res, err := r.ResolveExpressionForNode(resultExpr.Expression, targetNode, instanceName)
 			return true, res, err
 		default:
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, params[0], params[1], true)
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentId, params[0], params[1])
 			if err != nil {
 				return false, "", err
 			}

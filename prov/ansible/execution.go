@@ -328,9 +328,8 @@ func (e *execution) resolveContext() error {
 		execContext["SOURCE_NODE"] = new_node
 		execContext["SOURCE_INSTANCE"] = new_node
 		execContext["SOURCE_INSTANCES"] = strings.Join(names, ",")
-
 		execContext["TARGET_NODE"] = replaceMinus(e.relationshipTargetName)
-		execContext["TARGET_INSTANCE"] = replaceMinus(e.relationshipTargetName)
+
 		targetNames, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.relationshipTargetName)
 		if err != nil {
 			return err
@@ -339,6 +338,11 @@ func (e *execution) resolveContext() error {
 			targetNames[i] = replaceMinus(e.relationshipTargetName + "_" + targetNames[i])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
+		if len(targetNames) != 0 {
+			execContext["TARGET_INSTANCE"] = targetNames[0]
+		} else {
+			execContext["TARGET_INSTANCE"] = replaceMinus(e.relationshipTargetName)
+		}
 
 	}
 
