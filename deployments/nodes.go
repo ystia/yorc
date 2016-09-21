@@ -83,10 +83,10 @@ func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uin
 	return false, 1, nil
 }
 
-// GetNodeInstancesNames returns the names of the different instances for a given node.
+// GetNodeInstancesIds returns the names of the different instances for a given node.
 //
 // It may be an empty array if the given node is not HostedOn a scalable node.
-func GetNodeInstancesNames(kv *api.KV, deploymentId, nodeName string) ([]string, error) {
+func GetNodeInstancesIds(kv *api.KV, deploymentId, nodeName string) ([]string, error) {
 	names := make([]string, 0)
 	instancesPath := path.Join(DeploymentKVPrefix, deploymentId, "topology/instances", nodeName)
 	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
@@ -209,7 +209,7 @@ func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string) (b
 // If the property is still not found then it will explore the HostedOn hierarchy.
 func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string) (found bool, attributes map[string]string, err error) {
 	found = false
-	instances, err := GetNodeInstancesNames(kv, deploymentId, nodeName)
+	instances, err := GetNodeInstancesIds(kv, deploymentId, nodeName)
 	if err != nil {
 		return
 	}

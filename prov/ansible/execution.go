@@ -121,6 +121,31 @@ func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execut
 	return execution, execution.resolveExecution()
 }
 
+func (e *execution) addToInstancesInputs(inputName, inputValue, instanceName string, targetContext bool) error {
+	var instanceInputs map[string]string
+	ok := false
+	if targetContext {
+		iIds, err := deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.NodeName)
+		if err != nil {
+			return err
+		}
+		for _, id := range iIds {
+			if instanceInputs, ok = e.PerInstanceInputs[id]; !ok {
+				instanceInputs = make(map[string]string)
+				e.PerInstanceInputs[id] = instanceInputs
+			}
+			instanceInputs[replaceMinus(inputName)] = inputValue
+		}
+	} else {
+		if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
+			instanceInputs = make(map[string]string)
+			e.PerInstanceInputs[instanceName] = instanceInputs
+		}
+		instanceInputs[replaceMinus(inputName)] = inputValue
+	}
+	return nil
+}
+
 func (e *execution) resolveArtifacts() error {
 	log.Debugf("Resolving artifacts")
 	artifacts := make(map[string]string)
@@ -184,22 +209,21 @@ func (e *execution) resolveInputs() error {
 		}
 		va := tosca.ValueAssignment{}
 		yaml.Unmarshal(kvPair.Value, &va)
-		instancesNames, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.NodeName)
+		targetContext := va.Expression.IsTargetContext()
+		var instancesNames []string
+		if e.isRelationshipOperation && targetContext {
+			instancesNames, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.relationshipTargetName)
+		} else {
+			instancesNames, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.NodeName)
+		}
 		if err != nil {
 			return err
 		}
 		var inputValue string
 		if len(instancesNames) > 0 {
 			for i, instanceName := range instancesNames {
-				targetContext := false
-				var instanceInputs map[string]string
-				ok := false
-				if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
-					instanceInputs = make(map[string]string)
-					e.PerInstanceInputs[instanceName] = instanceInputs
-				}
 				if e.isRelationshipOperation {
-					targetContext, inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceName)
+					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceName)
 				} else {
 					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceName)
 				}
@@ -211,7 +235,7 @@ func (e *execution) resolveInputs() error {
 				} else {
 					inputs[replaceMinus(e.NodeName+"_"+instanceName+"_"+inputName)] = inputValue
 				}
-				instanceInputs[replaceMinus(inputName)] = inputValue
+				e.addToInstancesInputs(inputName, inputValue, instanceName, targetContext)
 				if i == 0 {
 					e.VarInputsNames = append(e.VarInputsNames, replaceMinus(inputName))
 				}
@@ -219,7 +243,7 @@ func (e *execution) resolveInputs() error {
 
 		} else {
 			if e.isRelationshipOperation {
-				_, inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, "")
+				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, "")
 			} else {
 				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
 			}
@@ -241,7 +265,7 @@ func (e *execution) resolveHosts(nodeName string) error {
 	log.Debugf("Resolving hosts for node %q", nodeName)
 
 	hosts := make(map[string]hostConnection)
-	instances, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, nodeName)
 	if err != nil {
 		return err
 	}
@@ -291,8 +315,10 @@ func (e *execution) resolveContext() error {
 
 	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
 	new_node := replaceMinus(e.NodeName)
-	execContext["NODE"] = new_node
-	names, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.NodeName)
+	if !e.isRelationshipOperation {
+		execContext["NODE"] = new_node
+	}
+	names, err := deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.NodeName)
 	if err != nil {
 		return err
 	}
@@ -304,11 +330,13 @@ func (e *execution) resolveContext() error {
 			e.PerInstanceInputs[names[i]] = instanceInputs
 		}
 		newName := new_node + "_" + replaceMinus(names[i])
-		instanceInputs["INSTANCE"] = newName
-		if i == 0 {
-			e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
+		if !e.isRelationshipOperation {
+			instanceInputs["INSTANCE"] = newName
+			if i == 0 {
+				e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
+			}
 		}
-		if e.isRelationshipOperation {
+		if e.isRelationshipOperation && !e.isRelationshipTargetNode {
 			instanceInputs["SOURCE_INSTANCE"] = newName
 			if i == 0 {
 				e.VarInputsNames = append(e.VarInputsNames, "SOURCE_INSTANCE")
@@ -316,7 +344,9 @@ func (e *execution) resolveContext() error {
 		}
 		names[i] = newName
 	}
-	execContext["INSTANCES"] = strings.Join(names, ",")
+	if !e.isRelationshipOperation {
+		execContext["INSTANCES"] = strings.Join(names, ",")
+	}
 	if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
 		return err
 	} else if host != "" {
@@ -326,11 +356,13 @@ func (e *execution) resolveContext() error {
 	if e.isRelationshipOperation {
 
 		execContext["SOURCE_NODE"] = new_node
-		execContext["SOURCE_INSTANCE"] = new_node
+		if e.isRelationshipTargetNode {
+			execContext["SOURCE_INSTANCE"] = names[0]
+		}
 		execContext["SOURCE_INSTANCES"] = strings.Join(names, ",")
 		execContext["TARGET_NODE"] = replaceMinus(e.relationshipTargetName)
 
-		targetNames, err := deployments.GetNodeInstancesNames(e.kv, e.DeploymentId, e.relationshipTargetName)
+		targetNames, err := deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.relationshipTargetName)
 		if err != nil {
 			return err
 		}
@@ -527,17 +559,19 @@ func (e *execution) resolveExecution() error {
 
 func (e *execution) execute(ctx context.Context) error {
 	deployments.LogInConsul(e.kv, e.DeploymentId, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
-	ansibleRecipePath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
-	ansibleHostVarsPath := filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation, "host_vars")
-	if err := os.MkdirAll(ansibleRecipePath, 0775); err != nil {
+	var ansibleRecipePath string
+	if e.isRelationshipOperation {
+		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.relationshipType, e.Operation)
+	} else {
+		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
+	}
+	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
+	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
 		deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("%+v", err))
 		return err
 	}
-	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
-		log.Printf("%+v", err)
-		return err
-	}
+	log.Debugf("Generating hosts files hosts: %+v    PerInstanceInputs: %+v", e.hosts, e.PerInstanceInputs)
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {

@@ -124,7 +124,8 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 			if err := yaml.Unmarshal([]byte(device), &expr); err != nil {
 				return ComputeInstance{}, err
 			}
-			if _, device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, relationshipType, instanceName); err != nil {
+			// TODO check if instanceName is correct in all cases maybe we should check if we are in target context
+			if device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, relationshipType, instanceName); err != nil {
 				return ComputeInstance{}, err
 			}
 		}

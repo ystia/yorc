@@ -127,6 +127,13 @@ func (t *TreeNode) IsLiteral() bool {
 	return len(t.children) == 0
 }
 
+func (t *TreeNode) IsTargetContext() bool {
+	if t.IsLiteral() {
+		return false
+	}
+	return t.children[0].Value == "TARGET"
+}
+
 func (t *TreeNode) String() string {
 	buf := &bytes.Buffer{}
 	shouldQuote := strings.ContainsAny(t.Value, ":[],")
