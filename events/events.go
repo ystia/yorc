@@ -39,7 +39,7 @@ func (cp *consulPubSub) StatusChange(nodeName, status string) (string, error) {
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
 	eventsNodePrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName)
 	eventEntry := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(nodeName + "\n" + status)}
-	eventNodeEntry := &api.KVPair{Key: path.Join(eventsNodePrefix, "statut"), Value: []byte(status)}
+	eventNodeEntry := &api.KVPair{Key: path.Join(eventsNodePrefix, "status"), Value: []byte(status)}
 	if _, err := cp.kv.Put(eventEntry, nil); err != nil {
 		return "", err
 	}
@@ -80,24 +80,24 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 
 func (cp *consulPubSub) NewNodeStatus(nodeName string) (deployments.Status, error) {
 
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName, "statut")
+	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName, "status")
 
 	kvp, _, err := cp.kv.Get(eventsPrefix, nil)
 
-	var statut deployments.Status
+	var status deployments.Status
 
 	if err != nil {
-		return statut, err
+		return status, err
 	}
 
 	values := strings.Split(string(kvp.Value), "\n")
 	if len(values) != 1 {
-		return statut, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+		return status, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 	}
 
-	statut = deployments.Status{Status: values[0]}
+	status = deployments.Status{Status: values[0]}
 
-	return statut, nil
+	return status, nil
 }
 
 func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {
