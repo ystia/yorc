@@ -115,7 +115,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 			case "install":
 				if err := provisioner.ProvisionNode(ctx, deploymentId, s.Node); err != nil {
 					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
-					log.Printf("Sending error %v to error channel", err)
+					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentId, s.Name, err)
 					errc <- err
 					return
 				}
@@ -139,7 +139,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 			exec := ansible.NewExecutor(kv)
 			if err := exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue()); err != nil {
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
-				log.Debug(activity.ActivityValue())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentId, s.Name, err)
 				if isUndeploy {
 					uninstallerrc <- err
 				} else {
