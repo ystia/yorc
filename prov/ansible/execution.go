@@ -34,6 +34,7 @@ const output_custom_wrapper = `
 const ansible_playbook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
+  strategy: free
   tasks:
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=directory mode=0755
     [[[if .HaveOutput]]]
