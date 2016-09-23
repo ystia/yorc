@@ -3,9 +3,9 @@ package ansible
 import (
 	"context"
 	"github.com/hashicorp/consul/api"
+	"math/rand"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"time"
-	"math/rand"
 )
 
 type Executor interface {
@@ -14,11 +14,11 @@ type Executor interface {
 
 type defaultExecutor struct {
 	kv *api.KV
-	r *rand.Rand
+	r  *rand.Rand
 }
 
 func NewExecutor(kv *api.KV) Executor {
-	return &defaultExecutor{kv: kv, r : rand.New(rand.NewSource(time.Now().UnixNano()))}
+	return &defaultExecutor{kv: kv, r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentId, nodeName, operation string) error {
