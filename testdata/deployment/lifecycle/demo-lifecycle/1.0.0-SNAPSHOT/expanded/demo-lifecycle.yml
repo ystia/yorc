@@ -108,7 +108,7 @@ relationship_types:
     valid_sources: [ alien.nodes.RegistryConfigurer ]
     valid_targets: [ tosca.capabilities.Node ]
     interfaces:
-      configure:
+      Configure:
         add_target:
           inputs:
             REGISTRY_HOST: { get_attribute: [TARGET, host] }
@@ -119,48 +119,92 @@ relationship_types:
     valid_sources: [ alien.nodes.Generic ]
     valid_targets: [ alien.nodes.GenericHost ]
     interfaces:
-      configure:
+      Configure:
         pre_configure_source:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/pre_configure_source.sh
         pre_configure_target:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/pre_configure_target.sh
         post_configure_source:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/post_configure_source.sh
         post_configure_target:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/post_configure_target.sh
         add_target:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/add_target.sh
         add_source:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/add_source.sh
         remove_target:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/remove_target.sh
         remove_source:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/remove_source.sh
   alien.relationships.GenericConnectToGeneric:
     derived_from: tosca.relationships.ConnectsTo
     valid_sources: [ alien.capabilities.GenericCapability ]
     valid_targets: [ alien.capabilities.GenericCapability ]
     interfaces:
-      configure:
+      Configure:
         pre_configure_source:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/pre_configure_source.sh
         pre_configure_target:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/pre_configure_target.sh
         post_configure_source:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/post_configure_source.sh
         post_configure_target:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/post_configure_target.sh
         add_target:
           inputs:
             TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/add_target.sh
         add_source:
           inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
             SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/add_source.sh
         remove_target:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/remove_target.sh
         remove_source:
+          inputs:
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: scripts/GenericConnectToGeneric/remove_source.sh
 
 capability_types:
