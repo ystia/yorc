@@ -20,7 +20,7 @@ node_types:
       Logs are stored in files and restituted by index.php.
     derived_from: tosca.nodes.SoftwareComponent
     attributes:
-      host: { get_attribute: [HOST, ip_address] }
+      host: { get_attribute: [HOST, private_address] }
       port: { get_property: [HOST, port] }
       url: { concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_property: [HOST, port] ] }
     requirements:

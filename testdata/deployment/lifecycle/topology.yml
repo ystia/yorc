@@ -21,11 +21,11 @@ topology_template:
         region: RegionOne
         key_pair: cloudify
         user: "ubuntu"
-#      requirements:
-#        - network:
-#            node: Network
-#            capability: tosca.capabilities.Connectivity
-#            relationship: tosca.relationships.Network
+      requirements:
+        - network:
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
       capabilities:
         endpoint:
           properties:
@@ -157,10 +157,10 @@ topology_template:
             node: Registry
             capability: tosca.capabilities.Node
             relationship: alien.relationships.RegistryConfigurerDependsOnRegistry
-#    Network:
-#      type: janus.nodes.openstack.Network
-#      properties:
-#        ip_version: 4
+    Network:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
     PHP:
       type: alien.nodes.PHP
       properties:
@@ -684,10 +684,10 @@ topology_template:
             set_state: configuring
           on-success:
             - configure_RegistryConfigurerB
-#        Network_install:
-#          node: Network
-#          activity:
-#            delegate: install
+        Network_install:
+          node: Network
+          activity:
+            delegate: install
         GenericA_starting:
           node: GenericA
           activity:
@@ -1182,10 +1182,10 @@ topology_template:
             set_state: deleted
           on-success:
             - ComputeRegistry_uninstall
-#        Network_uninstall:
-#          node: Network
-#          activity:
-#            delegate: uninstall
+        Network_uninstall:
+          node: Network
+          activity:
+            delegate: uninstall
         GenericHostB_stopped:
           node: GenericHostB
           activity:
