@@ -19,44 +19,46 @@ import (
 	"text/template"
 )
 
+// TODO we should execute add_target/remove_target on sources for each target instance and add_sources on target for each source instance (with input and context scoped to the given instance)
+
 const output_custom_wrapper = `
-[[[printf ". $HOME/.janus/%s/%s/%s" .NodeName .Operation .BasePrimary]]]
+[[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Output -]]]
-[[[printf "echo %s,$%s >> $HOME/out.csv" $artName $artName]]]
-[[[printf "chmod 777 $HOME/out.csv" ]]]
+[[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName $artName $.OperationRemotePath]]]
 [[[printf "echo $%s" $artName]]]
 [[[end]]]
+[[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
 `
 
 const ansible_playbook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
   tasks:
-    - file: path="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" state=directory mode=0755
+    - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=directory mode=0755
     [[[if .HaveOutput]]]
-    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/.janus/wrapper.sh\" mode=0744" ]]]
+    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/%s/wrapper.sh\" mode=0744" $.OperationRemotePath]]]
     [[[end]]]
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/.janus/[[[.NodeName]]]/[[[.Operation]]]" mode=0744
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
-    [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/.janus/%s/%s/%s\"" $.OverlayPath $art $.NodeName $.Operation (path $art)]]]
+    [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
     [[[end]]]
     [[[if not .HaveOutput]]]
-    [[[printf "- shell: \"{{ ansible_env.HOME}}/.janus/%s/%s/%s\"" .NodeName .Operation .BasePrimary]]][[[else]]]
-    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/.janus/wrapper.sh\""]]][[[end]]]
+    [[[printf "- shell: \"{{ ansible_env.HOME}}/%s/%s\"" $.OperationRemotePath .BasePrimary]]][[[else]]]
+    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/%s/wrapper.sh\"" $.OperationRemotePath]]][[[end]]]
       environment:
         [[[ range $key, $input := .Inputs -]]]
         [[[ if (len $input) gt 0]]][[[printf  "%s: %s" $key $input]]][[[else]]]
         [[[printf  "%s: \"\"" $key]]]
         [[[end]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]
-        [[[printf "%s: \"{{ ansible_env.HOME}}/.janus/%v/%v/%s\"" $artName $.NodeName $.Operation $art]]]
+        [[[printf "%s: \"{{ ansible_env.HOME}}/%s/%s\"" $artName $.OperationRemotePath $art]]]
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
         [[[printf "%s: %s" $contextK $contextV]]]
         [[[end]]][[[ range $hostVarIndex, $hostVarValue := .VarInputsNames -]]]
         [[[printf "%s: \"{{%s}}\"" $hostVarValue $hostVarValue]]]
         [[[end]]]
     [[[if .HaveOutput]]]
-    [[[printf "- fetch: src={{ ansible_env.HOME}}/out.csv dest={{dest_folder}} flat=yes" ]]]
+    [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest={{dest_folder}} flat=yes" $.OperationRemotePath]]]
     [[[end]]]
 `
 
@@ -89,6 +91,7 @@ type execution struct {
 	DeploymentId             string
 	NodeName                 string
 	Operation                string
+	OperationRemotePath      string
 	NodeType                 string
 	Inputs                   map[string]string
 	PerInstanceInputs        map[string]map[string]string
@@ -235,10 +238,16 @@ func (e *execution) resolveInputs() error {
 				} else {
 					inputs[replaceMinus(e.NodeName+"_"+instanceName+"_"+inputName)] = inputValue
 				}
-				e.addToInstancesInputs(inputName, inputValue, instanceName, targetContext)
-				if i == 0 {
-					e.VarInputsNames = append(e.VarInputsNames, replaceMinus(inputName))
+				if !e.isRelationshipOperation {
+					// Add instance-scoped attributes and properties
+					e.addToInstancesInputs(inputName, inputValue, instanceName, targetContext)
+					if i == 0 {
+						e.VarInputsNames = append(e.VarInputsNames, replaceMinus(inputName))
+					}
+				} else {
+					inputs[replaceMinus(inputName)] = inputValue
 				}
+
 			}
 
 		} else {
@@ -496,9 +505,10 @@ func (e *execution) resolveExecution() error {
 
 	//TODO deal with inheritance operation may be not in the direct node type
 	if e.isRelationshipOperation {
-		idx := strings.Index(e.Operation, "Configure.")
 		var op string
-		if idx >= 0 {
+		if idx := strings.Index(e.Operation, "Configure."); idx >= 0 {
+			op = e.Operation[idx:]
+		} else if idx := strings.Index(e.Operation, "configure."); idx >= 0 {
 			op = e.Operation[idx:]
 		} else {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
@@ -506,9 +516,10 @@ func (e *execution) resolveExecution() error {
 		}
 		e.OperationPath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
 	} else {
-		idx := strings.Index(e.Operation, "Standard.")
 		var op string
-		if idx >= 0 {
+		if idx := strings.Index(e.Operation, "Standard."); idx >= 0 {
+			op = e.Operation[idx:]
+		} else if idx := strings.Index(e.Operation, "standard."); idx >= 0 {
 			op = e.Operation[idx:]
 		} else {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
@@ -562,8 +573,10 @@ func (e *execution) execute(ctx context.Context) error {
 	var ansibleRecipePath string
 	if e.isRelationshipOperation {
 		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.relationshipType, e.Operation)
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.Operation)
 	} else {
 		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
 	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
@@ -582,7 +595,7 @@ func (e *execution) execute(ctx context.Context) error {
 			// Thinking: should we have a default user
 			return fmt.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.DeploymentId, e.NodeName)
 		}
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem\n", sshUser))
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
 
 		var perInstanceInputsBuffer bytes.Buffer
 		if instanceInputs, ok := e.PerInstanceInputs[instanceName]; ok {
@@ -666,6 +679,10 @@ func (e *execution) execute(ctx context.Context) error {
 	errbuf := log.NewWriterSize(e.kv, e.DeploymentId, deployments.DeploymentKVPrefix)
 	cmd.Stdout = outbuf
 	cmd.Stderr = errbuf
+
+	errCloseCh := make(chan bool)
+	defer close(errCloseCh)
+	errbuf.Run(errCloseCh)
 
 	if e.HaveOutput {
 		if err := cmd.Run(); err != nil {
