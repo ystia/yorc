@@ -68,6 +68,7 @@ const ansible_config = `[defaults]
 host_key_checking=False
 timeout=600
 stdout_callback = json
+retry_files_save_path = #PLAY_PATH#
 `
 
 type ansibleRetriableError struct {
@@ -593,6 +594,10 @@ func (e *execution) execute(ctx context.Context) error {
 		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
 		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
 	}
+	ansibleRecipePath, err := filepath.Abs(ansibleRecipePath)
+	if err != nil {
+		return err
+	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
@@ -658,7 +663,7 @@ func (e *execution) execute(ctx context.Context) error {
 			return err
 		}
 	}
-	tmpl, err := tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(ansible_playbook)
 	if err := tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
 		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
@@ -670,7 +675,7 @@ func (e *execution) execute(ctx context.Context) error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(ansible_config), 0664); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(strings.Replace(ansible_config, "#PLAY_PATH#", ansibleRecipePath, -1)), 0664); err != nil {
 		log.Print("Failed to write ansible.cfg file")
 		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write ansible.cfg file")
 		return err
