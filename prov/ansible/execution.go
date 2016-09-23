@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"text/template"
 )
 
@@ -67,6 +68,19 @@ host_key_checking=False
 timeout=600
 stdout_callback = json
 `
+
+type ansibleRetriableError struct {
+	root error
+}
+
+func (are ansibleRetriableError) Error() string {
+	return are.root.Error()
+}
+
+func IsRetriable(err error) bool {
+	_, ok := err.(ansibleRetriableError)
+	return ok
+}
 
 func IsOperationNotImplemented(err error) bool {
 	_, ok := err.(operationNotImplemented)
@@ -715,6 +729,24 @@ func (e *execution) execute(ctx context.Context) error {
 	}
 
 	err = cmd.Wait()
+
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+
+			// This works on both Unix and Windows. Although package
+			// syscall is generally platform dependent, WaitStatus is
+			// defined for both Unix and Windows and in both cases has
+			// an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				// Retry exit statuses 2 and 3
+				if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
+					err = ansibleRetriableError{root: err}
+				}
+			}
+
+		}
+	}
 
 	outbuf.FlushSoftware()
 
