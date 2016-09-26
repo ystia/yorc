@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
@@ -93,7 +94,17 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getDeploymentHandler))
 	s.router.Get("/deployments", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
 	s.router.Get("/deployments/:id/events", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollEvents))
-	s.router.Get("/deployments/:id/node/:name/status", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollNodeStatus))
 	s.router.Get("/deployments/:id/logs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollLogs))
+	s.router.Get("/deployments/:id/nodes/:nodeName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeHandler))
+	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceHandler))
 
+}
+
+func encodeJsonResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {
+	jEnc := json.NewEncoder(w)
+	if _, ok := r.URL.Query()["pretty"]; ok {
+		jEnc.SetIndent("", "  ")
+	}
+	w.Header().Set("Content-Type", "application/json")
+	jEnc.Encode(resp)
 }

@@ -326,3 +326,17 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentId, typeName, prope
 	}
 	return getTypeDefaultAttributeOrProperty(kv, deploymentId, string(kvp.Value), propertyName, isProperty)
 }
+
+// GetNodes returns the names of the different nodes for a given deployment.
+func GetNodes(kv *api.KV, deploymentId string) ([]string, error) {
+	names := make([]string, 0)
+	nodesPath := path.Join(DeploymentKVPrefix, deploymentId, "topology/nodes")
+	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
+	if err != nil {
+		return names, err
+	}
+	for _, node := range nodes {
+		names = append(names, path.Base(node))
+	}
+	return names, nil
+}

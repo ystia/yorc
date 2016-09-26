@@ -202,7 +202,6 @@ func ConsulPubSub_NewNodeEvents(t *testing.T) {
 	kv := client.KV()
 	deploymentId := "test5"
 	pub := NewPublisher(kv, deploymentId)
-	sub := NewSubscriber(kv, deploymentId)
 
 	nodeName := "node1"
 	nodeStatus := "error"
@@ -210,7 +209,4 @@ func ConsulPubSub_NewNodeEvents(t *testing.T) {
 	_, err = pub.StatusChange(nodeName, nodeStatus)
 	assert.Nil(t, err)
 
-	events, err := sub.NewNodeStatus(nodeName)
-	assert.Nil(t, err)
-	assert.Equal(t, events.Status, nodeStatus)
 }

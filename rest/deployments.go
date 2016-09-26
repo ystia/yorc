@@ -2,7 +2,6 @@ package rest
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/satori/go.uuid"
@@ -184,13 +183,21 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 	if result == nil {
-		WriteError(w, ErrNotFound)
+		WriteError(w, r, ErrNotFound)
 		return
 	}
 
 	deployment := Deployment{Id: id, Status: string(result.Value)}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(deployment)
+	links := []AtomLink{newAtomLink(LINK_REL_SELF, r.URL.Path)}
+	nodes, err := deployments.GetNodes(kv, id)
+	if err != nil {
+		log.Panic(err)
+	}
+	for _, node := range nodes {
+		links = append(links, newAtomLink(LINK_REL_NODE, path.Join(r.URL.Path, "nodes", node)))
+	}
+	deployment.Links = links
+	encodeJsonResponse(w, r, deployment)
 }
 
 func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -210,8 +217,7 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		link := newAtomLink(LINK_REL_DEPLOYMENT, "/deployments"+depId)
 		depCol.Deployments[depIndex] = link
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(depCol)
+	encodeJsonResponse(w, r, depCol)
 }
 
 func (s *Server) storePropertyDefinition(errCh chan error, wg *sync.WaitGroup, propPrefix, propName string, propDefinition tosca.PropertyDefinition) {
@@ -281,6 +287,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
+		s.storeConsulKey(errCh, wg, nodePrefix+"/status", deployments.INITIAL.String())
 		s.storeConsulKey(errCh, wg, nodePrefix+"/name", nodeName)
 		s.storeConsulKey(errCh, wg, nodePrefix+"/type", node.Type)
 		propertiesPrefix := nodePrefix + "/properties"

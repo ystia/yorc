@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -24,14 +23,14 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	var timeout time.Duration = 5 * time.Minute
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
+			WriteError(w, r, NewBadRequestParameter("index", err))
 			return
 		}
 	}
 
 	if dur := values.Get("wait"); dur != "" {
 		if timeout, err = time.ParseDuration(dur); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
+			WriteError(w, r, NewBadRequestParameter("index", err))
 			return
 		}
 		if timeout > 10*time.Minute {
@@ -45,27 +44,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eventsCollection := EventsCollection{Events: events, LastIndex: lastIdx}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(eventsCollection)
-}
-
-func (s *Server) pollNodeStatus(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
-	name := params.ByName("name")
-	sub := events.NewSubscriber(s.consulClient.KV(), id)
-	var err error
-
-	statut, err := sub.NewNodeStatus(name)
-	if err != nil {
-		log.Panicf("Can't retrieve events: %v", err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(statut)
+	encodeJsonResponse(w, r, eventsCollection)
 }
 
 func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
@@ -80,14 +59,14 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var timeout time.Duration = 5 * time.Minute
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
+			WriteError(w, r, NewBadRequestParameter("index", err))
 			return
 		}
 	}
 
 	if dur := values.Get("wait"); dur != "" {
 		if timeout, err = time.ParseDuration(dur); err != nil {
-			WriteError(w, NewBadRequestParameter("index", err))
+			WriteError(w, r, NewBadRequestParameter("index", err))
 			return
 		}
 		if timeout > 10*time.Minute {
@@ -120,7 +99,6 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 
 	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(logCollection)
+	encodeJsonResponse(w, r, logCollection)
 
 }

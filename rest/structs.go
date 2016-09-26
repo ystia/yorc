@@ -3,12 +3,16 @@ package rest
 import "novaforge.bull.com/starlings-janus/janus/deployments"
 
 type Deployment struct {
-	Id     string `json:"id"`
-	Status string `json:"status"`
+	Id     string     `json:"id"`
+	Status string     `json:"status"`
+	Links  []AtomLink `json:"links"`
 }
 
 const (
+	LINK_REL_SELF       string = "self"
 	LINK_REL_DEPLOYMENT string = "deployment"
+	LINK_REL_NODE       string = "node"
+	LINK_REL_INSTANCE   string = "instance"
 )
 
 type AtomLink struct {
@@ -33,4 +37,16 @@ type EventsCollection struct {
 type LogsCollection struct {
 	Logs      []deployments.Logs `json:"logs"`
 	LastIndex uint64             `json:"last_index"`
+}
+
+type Node struct {
+	Name   string     `json:"name"`
+	Status string     `json:"status"`
+	Links  []AtomLink `json:"links"`
+}
+
+type NodeInstance struct {
+	Id     string     `json:"id"`
+	Status string     `json:"status"`
+	Links  []AtomLink `json:"links"`
 }
