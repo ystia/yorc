@@ -5,6 +5,8 @@ Currently supported urls are:
 
 ## Deployments
 
+Adding the 'pretty' url parameter to your requests allow to generate an indented json output. 
+
 ### Submit a CSAR to deploy
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
 
@@ -57,9 +59,11 @@ Content-Length: 0
 
 This endpoint produces no content except in case of error.
 
-### Get the deployment status
+### Get the deployment information
 
-Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+Retrieve the deployment status and the list (as Atom links) of the nodes of the deployment.
+
+'Accept' header should be set to 'application/json'.
 
 ```GET    /deployments/<deployment_id>```
 
@@ -70,14 +74,43 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 ```
 ```json
-{"id":"55d54226-5ce5-4278-96e4-97dd4cbb4e62","status":"DEPLOYED"}
+{
+  "id": "55d54226-5ce5-4278-96e4-97dd4cbb4e62",
+  "status": "DEPLOYED",
+  "links": [
+    {
+      "rel": "self",
+      "href": "/deployments/55d54226-5ce5-4278-96e4-97dd4cbb4e62",
+      "type": "application/json"
+    },
+    {
+      "rel": "node",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/Apache",
+      "type": "application/json"
+    },
+    {
+      "rel": "node",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/ComputeRegistry",
+      "type": "application/json"
+    },
+    {
+      "rel": "node",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/PHP",
+      "type": "application/json"
+    }
+  ]
+}
+
+
 ```
 
-### Get the deployment status of a node
+### Get the deployment information about a given node
 
-Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+Retrieve the node status and the list (as Atom links) of the instances for this node.
+ 
+'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/node/<node_name>/status```
+```GET    /deployments/<deployment_id>/nodes/<node_name>```
 
 **Response**
 
@@ -86,7 +119,27 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 ```
 ```json
-{"status":"started"}
+{
+  "name": "ComputeB",
+  "status": "started",
+  "links": [
+    {
+      "rel": "self",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/ComputeB",
+      "type": "application/json"
+    },
+    {
+      "rel": "instance",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/ComputeB/instances/0",
+      "type": "application/json"
+    },
+    {
+      "rel": "instance",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/ComputeB/instances/1",
+      "type": "application/json"
+    }
+  ]
+}
 ```
 
 
