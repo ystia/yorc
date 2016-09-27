@@ -33,7 +33,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentId, nodeN
 	}
 	reties := 5
 	for i := 0; i < reties; i++ {
-		err = exec.execute(ctx)
+		err = exec.execute(ctx, i != 0)
 		if err == nil {
 			return nil
 		}
