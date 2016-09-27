@@ -406,6 +406,16 @@ func (e *execution) resolveContext() error {
 
 	if e.isRelationshipOperation {
 
+		if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
+			return err
+		} else if host != "" {
+			execContext["SOURCE_HOST"] = host
+		}
+		if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.relationshipTargetName); err != nil {
+			return err
+		} else if host != "" {
+			execContext["TARGET_HOST"] = host
+		}
 		execContext["SOURCE_NODE"] = new_node
 		if e.isRelationshipTargetNode {
 			execContext["SOURCE_INSTANCE"] = names[0]
