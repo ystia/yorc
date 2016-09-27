@@ -397,11 +397,11 @@ func (e *execution) resolveContext() error {
 	}
 	if !e.isRelationshipOperation {
 		execContext["INSTANCES"] = strings.Join(names, ",")
-	}
-	if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
-		return err
-	} else if host != "" {
-		execContext["HOST"] = host
+		if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
+			return err
+		} else if host != "" {
+			execContext["HOST"] = host
+		}
 	}
 
 	if e.isRelationshipOperation {
