@@ -140,7 +140,7 @@ func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execut
 	return execution, execution.resolveExecution()
 }
 
-func (e *execution) addToInstancesInputs(inputName, inputValue, instanceName string, targetContext bool) error {
+func (e *execution) addToInstancesInputs(inputName, inputValue, instanceId string, targetContext bool) error {
 	var instanceInputs map[string]string
 	ok := false
 	if targetContext {
@@ -149,18 +149,20 @@ func (e *execution) addToInstancesInputs(inputName, inputValue, instanceName str
 			return err
 		}
 		for _, id := range iIds {
-			if instanceInputs, ok = e.PerInstanceInputs[id]; !ok {
+			instanceName := getInstanceName(e.NodeName, id)
+			if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
 				instanceInputs = make(map[string]string)
-				e.PerInstanceInputs[id] = instanceInputs
+				e.PerInstanceInputs[instanceName] = instanceInputs
 			}
-			instanceInputs[replaceMinus(inputName)] = inputValue
+			instanceInputs[sanitizeForShell(inputName)] = inputValue
 		}
 	} else {
+		instanceName := getInstanceName(e.NodeName, instanceId)
 		if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
 			instanceInputs = make(map[string]string)
 			e.PerInstanceInputs[instanceName] = instanceInputs
 		}
-		instanceInputs[replaceMinus(inputName)] = inputValue
+		instanceInputs[sanitizeForShell(inputName)] = inputValue
 	}
 	return nil
 }
@@ -229,39 +231,39 @@ func (e *execution) resolveInputs() error {
 		va := tosca.ValueAssignment{}
 		yaml.Unmarshal(kvPair.Value, &va)
 		targetContext := va.Expression.IsTargetContext()
-		var instancesNames []string
+		var instancesIds []string
 		if e.isRelationshipOperation && targetContext {
-			instancesNames, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.relationshipTargetName)
+			instancesIds, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.relationshipTargetName)
 		} else {
-			instancesNames, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.NodeName)
+			instancesIds, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.NodeName)
 		}
 		if err != nil {
 			return err
 		}
 		var inputValue string
-		if len(instancesNames) > 0 {
-			for i, instanceName := range instancesNames {
+		if len(instancesIds) > 0 {
+			for i, instanceId := range instancesIds {
 				if e.isRelationshipOperation {
-					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceName)
+					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceId)
 				} else {
-					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceName)
+					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceId)
 				}
 				if err != nil {
 					return err
 				}
 				if e.isRelationshipOperation && targetContext {
-					inputs[replaceMinus(e.relationshipTargetName+"_"+instanceName+"_"+inputName)] = inputValue
+					inputs[sanitizeForShell(getInstanceName(e.relationshipTargetName, instanceId)+"_"+inputName)] = inputValue
 				} else {
-					inputs[replaceMinus(e.NodeName+"_"+instanceName+"_"+inputName)] = inputValue
+					inputs[sanitizeForShell(getInstanceName(e.NodeName, instanceId)+"_"+inputName)] = inputValue
 				}
 				if !e.isRelationshipOperation {
 					// Add instance-scoped attributes and properties
-					e.addToInstancesInputs(inputName, inputValue, instanceName, targetContext)
+					e.addToInstancesInputs(inputName, inputValue, instanceId, targetContext)
 					if i == 0 {
-						e.VarInputsNames = append(e.VarInputsNames, replaceMinus(inputName))
+						e.VarInputsNames = append(e.VarInputsNames, sanitizeForShell(inputName))
 					}
 				} else {
-					inputs[replaceMinus(inputName)] = inputValue
+					inputs[sanitizeForShell(inputName)] = inputValue
 				}
 
 			}
@@ -275,7 +277,7 @@ func (e *execution) resolveInputs() error {
 			if err != nil {
 				return err
 			}
-			inputs[replaceMinus(inputName)] = inputValue
+			inputs[sanitizeForShell(inputName)] = inputValue
 		}
 	}
 	e.Inputs = inputs
@@ -285,6 +287,7 @@ func (e *execution) resolveInputs() error {
 }
 
 func (e *execution) resolveHosts(nodeName string) error {
+
 	// e.nodePath
 	instancesPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
 	log.Debugf("Resolving hosts for node %q", nodeName)
@@ -295,11 +298,19 @@ func (e *execution) resolveHosts(nodeName string) error {
 		return err
 	}
 	for _, instance := range instances {
+
 		kvp, _, err := e.kv.Get(path.Join(instancesPath, instance, "capabilities/endpoint/attributes/ip_address"), nil)
 		if err != nil {
 			return err
 		}
 		if kvp != nil && len(kvp.Value) != 0 {
+			var instanceName string
+			if e.isRelationshipTargetNode {
+				instanceName = getInstanceName(e.relationshipTargetName, instance)
+			} else {
+				instanceName = getInstanceName(e.NodeName, instance)
+			}
+
 			hostConn := hostConnection{host: string(kvp.Value)}
 			kvp, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
 			if err != nil {
@@ -313,7 +324,7 @@ func (e *execution) resolveHosts(nodeName string) error {
 					return err
 				}
 			}
-			hosts[instance] = hostConn
+			hosts[instanceName] = hostConn
 		}
 	}
 	if len(hosts) == 0 {
@@ -331,15 +342,30 @@ func (e *execution) resolveHosts(nodeName string) error {
 	return nil
 }
 
-func replaceMinus(str string) string {
-	return strings.Replace(str, "-", "_", -1)
+func sanitizeForShell(str string) string {
+	return strings.Map(func(r rune) rune {
+		// Replace hyphen by underscore
+		if r == '-' {
+			return '_'
+		}
+		// Keep underscores
+		if r == '_' {
+			return r
+		}
+		// Drop any other non-alphanum rune
+		if r < '0' || r > 'z' || r > '9' && r < 'A' || r > 'Z' && r < 'a' {
+			return rune(-1)
+		}
+		return r
+
+	}, str)
 }
 
 func (e *execution) resolveContext() error {
 	execContext := make(map[string]string)
 
 	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
-	new_node := replaceMinus(e.NodeName)
+	new_node := sanitizeForShell(e.NodeName)
 	if !e.isRelationshipOperation {
 		execContext["NODE"] = new_node
 	}
@@ -348,26 +374,26 @@ func (e *execution) resolveContext() error {
 		return err
 	}
 	for i := range names {
+		instanceName := getInstanceName(e.NodeName, names[i])
 		var instanceInputs map[string]string
 		ok := false
-		if instanceInputs, ok = e.PerInstanceInputs[names[i]]; !ok {
+		if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
 			instanceInputs = make(map[string]string)
-			e.PerInstanceInputs[names[i]] = instanceInputs
+			e.PerInstanceInputs[instanceName] = instanceInputs
 		}
-		newName := new_node + "_" + replaceMinus(names[i])
 		if !e.isRelationshipOperation {
-			instanceInputs["INSTANCE"] = newName
+			instanceInputs["INSTANCE"] = instanceName
 			if i == 0 {
 				e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
 			}
 		}
 		if e.isRelationshipOperation && !e.isRelationshipTargetNode {
-			instanceInputs["SOURCE_INSTANCE"] = newName
+			instanceInputs["SOURCE_INSTANCE"] = instanceName
 			if i == 0 {
 				e.VarInputsNames = append(e.VarInputsNames, "SOURCE_INSTANCE")
 			}
 		}
-		names[i] = newName
+		names[i] = instanceName
 	}
 	if !e.isRelationshipOperation {
 		execContext["INSTANCES"] = strings.Join(names, ",")
@@ -385,20 +411,20 @@ func (e *execution) resolveContext() error {
 			execContext["SOURCE_INSTANCE"] = names[0]
 		}
 		execContext["SOURCE_INSTANCES"] = strings.Join(names, ",")
-		execContext["TARGET_NODE"] = replaceMinus(e.relationshipTargetName)
+		execContext["TARGET_NODE"] = sanitizeForShell(e.relationshipTargetName)
 
 		targetNames, err := deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.relationshipTargetName)
 		if err != nil {
 			return err
 		}
 		for i := range targetNames {
-			targetNames[i] = replaceMinus(e.relationshipTargetName + "_" + targetNames[i])
+			targetNames[i] = getInstanceName(e.relationshipTargetName, targetNames[i])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 		if len(targetNames) != 0 {
 			execContext["TARGET_INSTANCE"] = targetNames[0]
 		} else {
-			execContext["TARGET_INSTANCE"] = replaceMinus(e.relationshipTargetName)
+			execContext["TARGET_INSTANCE"] = sanitizeForShell(e.relationshipTargetName)
 		}
 
 	}
@@ -765,4 +791,8 @@ func storeConsulKey(kv *api.KV, key, value string) {
 	if _, err := kv.Put(p, nil); err != nil {
 		log.Panic(err)
 	}
+}
+
+func getInstanceName(nodeName, instanceId string) string {
+	return sanitizeForShell(nodeName + "_" + instanceId)
 }
