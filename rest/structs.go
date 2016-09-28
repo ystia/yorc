@@ -7,8 +7,17 @@ type Deployment struct {
 	Status string `json:"status"`
 }
 
+type Output struct {
+	Name  string `json:"name,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
 const (
 	LINK_REL_DEPLOYMENT string = "deployment"
+)
+
+const (
+	LINK_REL_OUTPUT string = "output"
 )
 
 type AtomLink struct {
@@ -33,4 +42,8 @@ type EventsCollection struct {
 type LogsCollection struct {
 	Logs      []deployments.Logs `json:"logs"`
 	LastIndex uint64             `json:"last_index"`
+}
+
+type OutputsCollection struct {
+	Outputs []AtomLink `json:"outputs,omitempty"`
 }

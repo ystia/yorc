@@ -191,3 +191,33 @@ Content-Type: application/json
      "last_index":1781
 }
 ```
+
+### Get an output
+
+Retrieve a specific output. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/outputs/output_name>```
+
+**Response**
+
+{
+  "name":"compute_url",
+  "value":"10.197.129.73"
+}
+```
+
+### List outputs
+
+Retrieve a list of outputs. 'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/outputs```
+
+**Response**
+
+{
+  "outputs":[
+    {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/compute_private_ip","type":"application/json"},
+    {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/compute_url","type":"application/json"},
+    {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/port_value","type":"application/json"}]
+}
+```
