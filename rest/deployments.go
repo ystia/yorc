@@ -286,7 +286,6 @@ func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
 
 	optCol := OutputsCollection{Outputs: make([]AtomLink, len(optPaths))}
 	for optIndex, optP := range optPaths {
-		fmt.Printf("\n%s ---- %s", optIndex, optP)
 		optName := strings.TrimRight(strings.TrimPrefix(optP, deployments.DeploymentKVPrefix), "/ ")
 		pre := "/" + id + "/topology/"
 		RoptName := strings.TrimPrefix(optName, pre)

@@ -14,10 +14,7 @@ type Output struct {
 
 const (
 	LINK_REL_DEPLOYMENT string = "deployment"
-)
-
-const (
-	LINK_REL_OUTPUT string = "output"
+	LINK_REL_OUTPUT     string = "output"
 )
 
 type AtomLink struct {
