@@ -22,7 +22,7 @@ node_types:
     attributes:
       host: { get_attribute: [HOST, private_address] }
       port: { get_property: [HOST, port] }
-      url: { concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_property: [HOST, port] ] }
+      url: { concat: ["http://", get_attribute: [HOST, public_address], ":", get_property: [HOST, port] ] }
     requirements:
       - host: alien.capabilities.ApacheContainer
         type: alien.relationships.RegistryHostedOnApache

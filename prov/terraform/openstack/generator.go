@@ -101,7 +101,9 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 			var consulKeys commons.ConsulKeys
 			if compute.FloatingIp != "" {
 				consulKeyFloatingIP := commons.ConsulKey{Name: compute.Name + "-ip_floating_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.floating_ip}", compute.Name)}
-				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP, consulKeyFloatingIP}}
+				//In order to be backward compatible to components developed for Alien/Cloudify (only the above is standard)
+				consulKeyFloatingIPBak := commons.ConsulKey{Name: compute.Name + "-ip_floating_address_backward_comp-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.floating_ip}", compute.Name)}
+				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP, consulKeyFloatingIP, consulKeyFloatingIPBak}}
 
 			} else {
 				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP}}
