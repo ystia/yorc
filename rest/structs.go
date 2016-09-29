@@ -8,11 +8,17 @@ type Deployment struct {
 	Links  []AtomLink `json:"links"`
 }
 
+type Output struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 const (
 	LINK_REL_SELF       string = "self"
 	LINK_REL_DEPLOYMENT string = "deployment"
 	LINK_REL_NODE       string = "node"
 	LINK_REL_INSTANCE   string = "instance"
+	LINK_REL_OUTPUT     string = "output"
 )
 
 type AtomLink struct {
@@ -49,4 +55,8 @@ type NodeInstance struct {
 	Id     string     `json:"id"`
 	Status string     `json:"status"`
 	Links  []AtomLink `json:"links"`
+}
+
+type OutputsCollection struct {
+	Outputs []AtomLink `json:"outputs,omitempty"`
 }
