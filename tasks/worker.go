@@ -36,41 +36,17 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
-func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, uninstallerrc chan error, runningSteps map[string]struct{}, isUndeploy bool) {
-	if alreadyRunning := func() bool {
-		w.runStepLock.Lock()
-		defer w.runStepLock.Unlock()
-		if _, ok := runningSteps[step.Name]; ok {
-			// Already running
-			log.Debugf("step %q already running", step.Name)
-			return true
-		}
-		log.Debugf("Running step %q", step.Name)
-		runningSteps[step.Name] = struct{}{}
-		return false
-	}(); alreadyRunning {
-		return
-	}
-
-	go step.run(ctx, deploymentId, wg, w.consulClient.KV(), errc, uninstallerrc, w.shutdownCh, w.cfg, isUndeploy)
-	for _, next := range step.Next {
-		wg.Add(1)
-		log.Debugf("Try run next step %q", next.Name)
-		go w.runStep(ctx, next, deploymentId, wg, errc, uninstallerrc, runningSteps, isUndeploy)
-	}
-}
-
-func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string, isUndeploy bool) error {
+func (w Worker) processWorkflow(wfSteps []*Step, deploymentId string, isUndeploy bool) error {
 	deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Start processing workflow")
 	var wg sync.WaitGroup
-	runningSteps := make(map[string]struct{})
 	ctx := context.TODO()
 	ctx, cancel := context.WithCancel(ctx)
 	errc := make(chan error)
 	unistallerrc := make(chan error)
-	for _, step := range wfRoots {
+	for _, step := range wfSteps {
 		wg.Add(1)
-		go w.runStep(ctx, step, deploymentId, &wg, errc, unistallerrc, runningSteps, isUndeploy)
+		log.Debugf("Running step %q", step.Name)
+		go step.run(ctx, deploymentId, &wg, w.consulClient.KV(), errc, unistallerrc, w.shutdownCh, w.cfg, isUndeploy)
 	}
 
 	go func(wg *sync.WaitGroup, cancel context.CancelFunc) {

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstance, error) {
+func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (ComputeInstance, error) {
 	var nodeType string
 	var err error
 
@@ -26,10 +26,11 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 		return ComputeInstance{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	instance := ComputeInstance{}
-	if nodeName, err := g.getStringFormConsul(url, "name"); err != nil {
+	var nodeName string
+	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		instance.Name = OS_prefix + nodeName
+		instance.Name = OS_prefix + nodeName + "-" + instanceName
 	}
 	if image, err := g.getStringFormConsul(url, "properties/image"); err != nil {
 		return ComputeInstance{}, err
@@ -114,12 +115,17 @@ func (g *Generator) generateOSInstance(url, deploymentId string) (ComputeInstanc
 			return ComputeInstance{}, err
 		}
 		if device != "" {
-			resolver := deployments.NewResolver(g.kv, deploymentId, url, nodeType)
+			relationshipType, err := g.getStringFormConsul(storagePrefix, "relationship")
+			if err != nil {
+				return ComputeInstance{}, err
+			}
+			resolver := deployments.NewResolver(g.kv, deploymentId)
 			expr := tosca.ValueAssignment{}
 			if err := yaml.Unmarshal([]byte(device), &expr); err != nil {
 				return ComputeInstance{}, err
 			}
-			if device, err = resolver.ResolveExpression(expr.Expression, false); err != nil {
+			// TODO check if instanceName is correct in all cases maybe we should check if we are in target context
+			if device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, relationshipType, instanceName); err != nil {
 				return ComputeInstance{}, err
 			}
 		}

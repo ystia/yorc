@@ -55,7 +55,7 @@ node_types:
         configure:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
-            IP_ADDRESS: { get_attribute: [HOST, public_address] }
+            IP_ADDRESS: { get_attribute: [HOST, ip_address] }
           implementation: scripts/consul_configure.sh
         start:
           inputs:

@@ -73,6 +73,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeNa
 	cmd.Stderr = errbuf
 
 	quit := make(chan bool)
+	defer close(quit)
 	out.Run(quit)
 	errbuf.Run(quit)
 
@@ -81,7 +82,6 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeNa
 	}
 
 	err := cmd.Wait()
-	quit <- true
 
 	return err
 
@@ -114,6 +114,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	cmd.Stderr = errbuf
 
 	quit := make(chan bool)
+	defer close(quit)
 	out.Run(quit)
 	errbuf.Run(quit)
 
@@ -122,7 +123,6 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	}
 
 	err := cmd.Wait()
-	quit <- true
 
 	return err
 
