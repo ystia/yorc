@@ -52,6 +52,9 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, nodeName, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
+			if result == "" {
+				return result, nil
+			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
 			if err != nil {
@@ -71,6 +74,9 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, hostNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
+			if result == "" {
+				return result, nil
+			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
 			if err != nil {
@@ -85,6 +91,9 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			if !found {
 				log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentId, params[0], expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if result == "" {
+				return result, nil
 			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
@@ -159,6 +168,9 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
+				if modEntityResult == "" {
+					return modEntityResult, nil
+				}
 				resultExpr := &tosca.ValueAssignment{}
 				err = yaml.Unmarshal([]byte(modEntityResult), resultExpr)
 				if err != nil {
@@ -208,6 +220,10 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
+
+			if result == "" {
+				return result, nil
+			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
 			if err != nil {
@@ -226,6 +242,9 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
+			if result == "" {
+				return result, nil
+			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
 			if err != nil {
@@ -241,6 +260,9 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			if !found {
 				log.Debugf("Deployment %q, relationship %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, targetNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if result == "" {
+				return result, nil
 			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
@@ -258,6 +280,9 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			if !found {
 				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, params[0], expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if result == "" {
+				return result, nil
 			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
@@ -280,6 +305,9 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			if !found {
 				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if result == "" {
+				return result, nil
 			}
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(result), resultExpr)
@@ -343,6 +371,9 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
+				if modEntityResult == "" {
+					return modEntityResult, nil
+				}
 				resultExpr := &tosca.ValueAssignment{}
 				err = yaml.Unmarshal([]byte(modEntityResult), resultExpr)
 				if err != nil {
