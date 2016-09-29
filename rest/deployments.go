@@ -205,6 +205,99 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(depCol)
 }
 
+func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
+
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	opt := params.ByName("opt")
+
+	kv := s.consulClient.KV()
+	expression, _, err := kv.Get(deployments.DeploymentKVPrefix+"/"+id+"/topology/outputs/"+opt, nil)
+	if err != nil {
+		log.Panic(err)
+	}
+	if expression == nil {
+		WriteError(w, ErrNotFound)
+		return
+	}
+
+	expressionOpt := string(expression.Value)
+	expressionString := fmt.Sprintf("%s", expressionOpt)
+	str := strings.Split(expressionString, ":")
+	functionOpt, expressionCore := str[0], str[1]
+
+	if functionOpt == "get_attribute" {
+		functionCore := "attributes"
+
+		expressionCore = strings.TrimPrefix(expressionCore, "[")
+		expressionCore = strings.TrimSuffix(expressionCore, "]")
+		express := strings.Split(expressionCore, ",")
+		node, varOpt := express[0], express[1]
+
+		result, _, err := kv.Get(deployments.DeploymentKVPrefix+"/"+id+"/topology/nodes/"+node+"/"+functionCore+"/"+varOpt, nil)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		output := Output{Name: opt, Value: string(result.Value)}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(output)
+	}
+	if functionOpt == "get_property" {
+		functionCore := "properties"
+
+		expressionCore = strings.TrimPrefix(expressionCore, "[")
+		expressionCore = strings.TrimSuffix(expressionCore, "]")
+		express := strings.Split(expressionCore, ",")
+		node, varOpt := express[0], express[1]
+
+		result, _, err := kv.Get(deployments.DeploymentKVPrefix+"/"+id+"/topology/nodes/"+node+"/"+functionCore+"/"+varOpt, nil)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		output := Output{Name: opt, Value: string(result.Value)}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(output)
+	}
+
+}
+
+func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
+
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	kv := s.consulClient.KV()
+
+	optPath := deployments.DeploymentKVPrefix + "/" + id + "/topology/outputs/"
+	optPaths, _, err := kv.Keys(optPath, "/", nil)
+	if err != nil {
+		log.Panic(err)
+
+	}
+	if len(optPaths) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	optCol := OutputsCollection{Outputs: make([]AtomLink, len(optPaths))}
+	for optIndex, optP := range optPaths {
+		optName := strings.TrimRight(strings.TrimPrefix(optP, deployments.DeploymentKVPrefix), "/ ")
+		pre := "/" + id + "/topology/"
+		RoptName := strings.TrimPrefix(optName, pre)
+
+		link := newAtomLink(LINK_REL_OUTPUT, "/deployments/"+id+"/"+RoptName)
+		optCol.Outputs[optIndex] = link
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(optCol)
+
+}
+
 func (s *Server) storePropertyDefinition(errCh chan error, wg *sync.WaitGroup, propPrefix, propName string, propDefinition tosca.PropertyDefinition) {
 	s.storeConsulKey(errCh, wg, propPrefix+"/name", propName)
 	s.storeConsulKey(errCh, wg, propPrefix+"/description", propDefinition.Description)

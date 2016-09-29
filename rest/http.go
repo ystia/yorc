@@ -95,5 +95,6 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id/events", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollEvents))
 	s.router.Get("/deployments/:id/node/:name/status", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollNodeStatus))
 	s.router.Get("/deployments/:id/logs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollLogs))
-
+	s.router.Get("/deployments/:id/outputs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listOutputsHandler))
+	s.router.Get("/deployments/:id/outputs/:opt", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getOutputHandler))
 }
