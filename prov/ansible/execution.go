@@ -20,8 +20,6 @@ import (
 	"text/template"
 )
 
-// TODO we should execute add_target/remove_target on sources for each target instance and add_sources on target for each source instance (with input and context scoped to the given instance)
-
 const output_custom_wrapper = `
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Output -]]]
@@ -48,10 +46,11 @@ const ansible_playbook = `
     [[[printf "- shell: \"{{ ansible_env.HOME}}/%s/%s\"" $.OperationRemotePath .BasePrimary]]][[[else]]]
     [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/%s/wrapper.sh\"" $.OperationRemotePath]]][[[end]]]
       environment:
-        [[[ range $key, $input := .Inputs -]]]
-        [[[ if (len $input) gt 0]]][[[printf  "%s: %s" $key $input]]][[[else]]]
-        [[[printf  "%s: \"\"" $key]]]
-        [[[end]]]
+        [[[ range $key, $envInput := .EnvInputs -]]]
+        [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %s" $envInput.InstanceName $envInput.Name $envInput.Value]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
+        [[[end]]][[[else]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s: %s" $envInput.Name $envInput.Value]]][[[else]]]
+        [[[printf  "%s: \"\"" $envInput.Name]]]
+        [[[end]]][[[end]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]
         [[[printf "%s: \"{{ ansible_env.HOME}}/%s/%s\"" $artName $.OperationRemotePath $art]]]
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
@@ -102,6 +101,17 @@ type hostConnection struct {
 	user string
 }
 
+type EnvInput struct {
+	Name           string
+	Value          string
+	InstanceName   string
+	IsTargetScoped bool
+}
+
+func (ei EnvInput) String() string {
+	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsTargetScoped: \"%t\"]", ei.Name, ei.Value, ei.InstanceName, ei.IsTargetScoped)
+}
+
 type execution struct {
 	kv                       *api.KV
 	DeploymentId             string
@@ -109,8 +119,7 @@ type execution struct {
 	Operation                string
 	OperationRemotePath      string
 	NodeType                 string
-	Inputs                   map[string]string
-	PerInstanceInputs        map[string]map[string]string
+	EnvInputs                []*EnvInput
 	VarInputsNames           []string
 	Primary                  string
 	BasePrimary              string
@@ -126,45 +135,19 @@ type execution struct {
 	HaveOutput               bool
 	isRelationshipOperation  bool
 	isRelationshipTargetNode bool
+	isPerInstanceOperation   bool
 	relationshipType         string
 	relationshipTargetName   string
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
 	execution := &execution{kv: kv,
-		DeploymentId:      deploymentId,
-		NodeName:          nodeName,
-		Operation:         operation,
-		PerInstanceInputs: make(map[string]map[string]string),
-		VarInputsNames:    make([]string, 0)}
+		DeploymentId:   deploymentId,
+		NodeName:       nodeName,
+		Operation:      operation,
+		VarInputsNames: make([]string, 0),
+		EnvInputs:      make([]*EnvInput, 0)}
 	return execution, execution.resolveExecution()
-}
-
-func (e *execution) addToInstancesInputs(inputName, inputValue, instanceId string, targetContext bool) error {
-	var instanceInputs map[string]string
-	ok := false
-	if targetContext {
-		iIds, err := deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.NodeName)
-		if err != nil {
-			return err
-		}
-		for _, id := range iIds {
-			instanceName := getInstanceName(e.NodeName, id)
-			if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
-				instanceInputs = make(map[string]string)
-				e.PerInstanceInputs[instanceName] = instanceInputs
-			}
-			instanceInputs[sanitizeForShell(inputName)] = inputValue
-		}
-	} else {
-		instanceName := getInstanceName(e.NodeName, instanceId)
-		if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
-			instanceInputs = make(map[string]string)
-			e.PerInstanceInputs[instanceName] = instanceInputs
-		}
-		instanceInputs[sanitizeForShell(inputName)] = inputValue
-	}
-	return nil
 }
 
 func (e *execution) resolveArtifacts() error {
@@ -207,7 +190,6 @@ func (e *execution) resolveArtifacts() error {
 func (e *execution) resolveInputs() error {
 	log.Debug("resolving inputs")
 	resolver := deployments.NewResolver(e.kv, e.DeploymentId)
-	inputs := make(map[string]string)
 	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
 	if err != nil {
 		return err
@@ -243,6 +225,12 @@ func (e *execution) resolveInputs() error {
 		var inputValue string
 		if len(instancesIds) > 0 {
 			for i, instanceId := range instancesIds {
+				envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
+				if e.isRelationshipOperation && targetContext {
+					envI.InstanceName = getInstanceName(e.relationshipTargetName, instanceId)
+				} else {
+					envI.InstanceName = getInstanceName(e.NodeName, instanceId)
+				}
 				if e.isRelationshipOperation {
 					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceId)
 				} else {
@@ -251,24 +239,14 @@ func (e *execution) resolveInputs() error {
 				if err != nil {
 					return err
 				}
-				if e.isRelationshipOperation && targetContext {
-					inputs[sanitizeForShell(getInstanceName(e.relationshipTargetName, instanceId)+"_"+inputName)] = inputValue
-				} else {
-					inputs[sanitizeForShell(getInstanceName(e.NodeName, instanceId)+"_"+inputName)] = inputValue
+				envI.Value = inputValue
+				e.EnvInputs = append(e.EnvInputs, envI)
+				if i == 0 {
+					e.VarInputsNames = append(e.VarInputsNames, sanitizeForShell(inputName))
 				}
-				if !e.isRelationshipOperation {
-					// Add instance-scoped attributes and properties
-					e.addToInstancesInputs(inputName, inputValue, instanceId, targetContext)
-					if i == 0 {
-						e.VarInputsNames = append(e.VarInputsNames, sanitizeForShell(inputName))
-					}
-				} else {
-					inputs[sanitizeForShell(inputName)] = inputValue
-				}
-
 			}
-
 		} else {
+			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
 			if e.isRelationshipOperation {
 				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, "")
 			} else {
@@ -277,12 +255,12 @@ func (e *execution) resolveInputs() error {
 			if err != nil {
 				return err
 			}
-			inputs[sanitizeForShell(inputName)] = inputValue
+			envI.Value = inputValue
+			e.EnvInputs = append(e.EnvInputs, envI)
 		}
 	}
-	e.Inputs = inputs
 
-	log.Debugf("Resolved inputs: %v", e.Inputs)
+	log.Debugf("Resolved env inputs: %s", e.EnvInputs)
 	return nil
 }
 
@@ -364,7 +342,6 @@ func sanitizeForShell(str string) string {
 func (e *execution) resolveContext() error {
 	execContext := make(map[string]string)
 
-	//TODO: Need to be improved with the runtime (INSTANCE,INSTANCES)
 	new_node := sanitizeForShell(e.NodeName)
 	if !e.isRelationshipOperation {
 		execContext["NODE"] = new_node
@@ -375,36 +352,17 @@ func (e *execution) resolveContext() error {
 	}
 	for i := range names {
 		instanceName := getInstanceName(e.NodeName, names[i])
-		var instanceInputs map[string]string
-		ok := false
-		if instanceInputs, ok = e.PerInstanceInputs[instanceName]; !ok {
-			instanceInputs = make(map[string]string)
-			e.PerInstanceInputs[instanceName] = instanceInputs
-		}
-		if !e.isRelationshipOperation {
-			instanceInputs["INSTANCE"] = instanceName
-			if i == 0 {
-				e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
-			}
-		}
-		if e.isRelationshipOperation && !e.isRelationshipTargetNode {
-			instanceInputs["SOURCE_INSTANCE"] = instanceName
-			if i == 0 {
-				e.VarInputsNames = append(e.VarInputsNames, "SOURCE_INSTANCE")
-			}
-		}
 		names[i] = instanceName
 	}
 	if !e.isRelationshipOperation {
+		e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
 		execContext["INSTANCES"] = strings.Join(names, ",")
 		if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
 			return err
 		} else if host != "" {
 			execContext["HOST"] = host
 		}
-	}
-
-	if e.isRelationshipOperation {
+	} else {
 
 		if host, err := deployments.GetHostedOnNode(e.kv, e.DeploymentId, e.NodeName); err != nil {
 			return err
@@ -417,8 +375,10 @@ func (e *execution) resolveContext() error {
 			execContext["TARGET_HOST"] = host
 		}
 		execContext["SOURCE_NODE"] = new_node
-		if e.isRelationshipTargetNode {
+		if e.isRelationshipTargetNode && !e.isPerInstanceOperation {
 			execContext["SOURCE_INSTANCE"] = names[0]
+		} else {
+			e.VarInputsNames = append(e.VarInputsNames, "SOURCE_INSTANCE")
 		}
 		execContext["SOURCE_INSTANCES"] = strings.Join(names, ",")
 		execContext["TARGET_NODE"] = sanitizeForShell(e.relationshipTargetName)
@@ -431,10 +391,11 @@ func (e *execution) resolveContext() error {
 			targetNames[i] = getInstanceName(e.relationshipTargetName, targetNames[i])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
-		if len(targetNames) != 0 {
+
+		if !e.isRelationshipTargetNode && !e.isPerInstanceOperation {
 			execContext["TARGET_INSTANCE"] = targetNames[0]
 		} else {
-			execContext["TARGET_INSTANCE"] = sanitizeForShell(e.relationshipTargetName)
+			e.VarInputsNames = append(e.VarInputsNames, "TARGET_INSTANCE")
 		}
 
 	}
@@ -480,6 +441,24 @@ func isTargetOperation(operationName string) bool {
 		return true
 	}
 	return false
+}
+
+// resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
+//	add_target, remove_target, add_source, target_changed
+// And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
+func (e *execution) resolveIsPerInstanceOperation(operationName string) error {
+	op := strings.ToLower(operationName)
+	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") {
+		// Do not call the call the operation several time for an HostedOn relationship (makes no sense till we scale at compute level)
+		if hostedOn, err := deployments.IsNodeTypeDerivedFrom(e.kv, e.DeploymentId, e.relationshipType, "tosca.relationships.HostedOn"); err != nil || hostedOn {
+			e.isPerInstanceOperation = false
+			return err
+		}
+		e.isPerInstanceOperation = true
+		return nil
+	}
+	e.isPerInstanceOperation = false
+	return nil
 }
 
 func (e *execution) resolveExecution() error {
@@ -553,6 +532,10 @@ func (e *execution) resolveExecution() error {
 				}
 			}
 		}
+		err = e.resolveIsPerInstanceOperation(opAndReq[0])
+		if err != nil {
+			return err
+		}
 	}
 
 	//TODO deal with inheritance operation may be not in the direct node type
@@ -585,7 +568,7 @@ func (e *execution) resolveExecution() error {
 		return err
 	}
 	if kvPair == nil {
-		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for type %s in deployment %s is missing", e.NodeType, e.DeploymentId)}
+		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.Operation, e.NodeType, e.DeploymentId)}
 	}
 	e.Primary = string(kvPair.Value)
 	e.BasePrimary = path.Base(e.Primary)
@@ -621,13 +604,38 @@ func (e *execution) resolveExecution() error {
 }
 
 func (e *execution) execute(ctx context.Context, retry bool) error {
+	if e.isPerInstanceOperation {
+		var nodeName string
+		if !e.isRelationshipTargetNode {
+			nodeName = e.relationshipTargetName
+		} else {
+			nodeName = e.NodeName
+		}
+		instancesIds, err := deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, nodeName)
+		if err != nil {
+			return err
+		}
+		for _, instanceId := range instancesIds {
+			instanceName := getInstanceName(nodeName, instanceId)
+			log.Debugf("Executing operation %q, on node %q, with current instance %q", e.Operation, e.NodeName, instanceName)
+			err = e.executeWithCurrentInstance(ctx, retry, instanceName)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		return e.executeWithCurrentInstance(ctx, retry, "")
+	}
+	return nil
+}
+func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
 	deployments.LogInConsul(e.kv, e.DeploymentId, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	var ansibleRecipePath string
 	if e.isRelationshipOperation {
-		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.relationshipType, e.Operation)
+		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
 		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.Operation)
 	} else {
-		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation)
+		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation, currentInstance)
 		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
 	}
 	ansibleRecipePath, err := filepath.Abs(ansibleRecipePath)
@@ -640,7 +648,7 @@ func (e *execution) execute(ctx context.Context, retry bool) error {
 		deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("%+v", err))
 		return err
 	}
-	log.Debugf("Generating hosts files hosts: %+v    PerInstanceInputs: %+v", e.hosts, e.PerInstanceInputs)
+	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {
@@ -654,10 +662,64 @@ func (e *execution) execute(ctx context.Context, retry bool) error {
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
 
 		var perInstanceInputsBuffer bytes.Buffer
-		if instanceInputs, ok := e.PerInstanceInputs[instanceName]; ok {
-			for inputName, inputValue := range instanceInputs {
-				perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", inputName, inputValue))
+		for _, varInput := range e.VarInputsNames {
+			if varInput == "INSTANCE" {
+				perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: %s\n", instanceName))
+			} else if varInput == "SOURCE_INSTANCE" {
+				if !e.isPerInstanceOperation {
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", instanceName))
+				} else {
+					if e.isRelationshipTargetNode {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", currentInstance))
+					} else {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", instanceName))
+					}
+				}
+			} else if varInput == "TARGET_INSTANCE" {
+				if !e.isPerInstanceOperation {
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", instanceName))
+				} else {
+					if e.isRelationshipTargetNode {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", instanceName))
+					} else {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", currentInstance))
+					}
+				}
+			} else {
+				for _, envInput := range e.EnvInputs {
+					if envInput.Name == varInput && (envInput.InstanceName == instanceName || e.isPerInstanceOperation && envInput.InstanceName == currentInstance) {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+						goto NEXT
+					}
+				}
+				if e.isRelationshipOperation {
+					if hostedOn, err := deployments.IsNodeTypeDerivedFrom(e.kv, e.DeploymentId, e.relationshipType, "tosca.relationships.HostedOn"); err != nil {
+						return err
+					} else if hostedOn {
+						// In case of operation for relationships derived from HostedOn we should match the inputs with the same instanceID
+						instanceIdIdx := strings.LastIndex(instanceName, "_")
+						// Get index
+						if instanceIdIdx > 0 {
+							instanceId := instanceName[instanceIdIdx:]
+							for _, envInput := range e.EnvInputs {
+								if envInput.Name == varInput && strings.HasSuffix(envInput.InstanceName, instanceId) {
+									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+									goto NEXT
+								}
+							}
+						}
+					}
+				}
+				// Not found with the combination inputName/instanceName let's use the first that matches the input name
+				for _, envInput := range e.EnvInputs {
+					if envInput.Name == varInput {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+						goto NEXT
+					}
+				}
+				return fmt.Errorf("Unable to find a suitable input for input name %q and instance %q", varInput, instanceName)
 			}
+		NEXT:
 		}
 		if perInstanceInputsBuffer.Len() > 0 {
 			if err := ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host.host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
