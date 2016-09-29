@@ -57,6 +57,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("os_public_network_name", "e", "", "Name of the public network")
 
 	//Flags definition for Consul
+	serverCmd.PersistentFlags().StringP("consul_address", "", "", "Address of the HTTP interface for Consul (format: <host>:<port>)")
 	serverCmd.PersistentFlags().StringP("consul_token", "t", "", "The token by default")
 	serverCmd.PersistentFlags().StringP("consul_datacenter", "d", "", "The datacenter of Consul node")
 
@@ -73,6 +74,7 @@ func setConfig() {
 	viper.BindPFlag("os_private_network_name", serverCmd.PersistentFlags().Lookup("os_private_network_name"))
 	viper.BindPFlag("os_public_network_name", serverCmd.PersistentFlags().Lookup("os_public_network_name"))
 	//Bind flags for Consul
+	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
 	viper.BindPFlag("consul_token", serverCmd.PersistentFlags().Lookup("consul_token"))
 	viper.BindPFlag("consul_datacenter", serverCmd.PersistentFlags().Lookup("consul_datacenter"))
 
@@ -93,10 +95,12 @@ func setConfig() {
 	viper.BindEnv("os_private_network_name", "OS_PRIVATE_NETWORK_NAME")
 	viper.BindEnv("os_public_network_name", "OS_PUBLIC_NETWORK_NAME")
 	viper.BindEnv("rest_consul_publisher_max_routines")
+	viper.BindEnv("consul_address")
 
 	//Setting Defaults
 	viper.SetDefault("os_prefix", "janus-")
 	viper.SetDefault("os_region", "RegionOne")
+	viper.SetDefault("consul_address", "") // Use consul api default
 	viper.SetDefault("consul_datacenter", "dc1")
 	viper.SetDefault("consul_token", "anonymous")
 	viper.SetDefault("rest_consul_publisher_max_routines", config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES)
@@ -119,6 +123,7 @@ func getConfig() config.Configuration {
 	configuration.OS_PREFIX = viper.GetString("os_prefix")
 	configuration.OS_PRIVATE_NETWORK_NAME = viper.GetString("os_private_network_name")
 	configuration.OS_PUBLIC_NETWORK_NAME = viper.GetString("os_public_network_name")
+	configuration.CONSUL_ADDRESS = viper.GetString("consul_address")
 	configuration.CONSUL_DATACENTER = viper.GetString("consul_datacenter")
 	configuration.CONSUL_TOKEN = viper.GetString("consul_token")
 	configuration.REST_CONSUL_PUB_MAX_ROUTINES = viper.GetInt("rest_consul_publisher_max_routines")
