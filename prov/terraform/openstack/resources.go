@@ -52,14 +52,14 @@ type Network struct {
 }
 
 type Subnet struct {
-	Region          string         `json:"region"`
-	NetworkID       string         `json:"network_id"`
-	CIDR            string         `json:"cidr"`
-	IPVersion       int            `json:"ip_version,omitempty"`
-	Name            string         `json:"name,omitempty"`
-	GatewayIP       string         `json:"gateway_ip,omitempty"`
+	Region          string          `json:"region"`
+	NetworkID       string          `json:"network_id"`
+	CIDR            string          `json:"cidr"`
+	IPVersion       int             `json:"ip_version,omitempty"`
+	Name            string          `json:"name,omitempty"`
+	GatewayIP       string          `json:"gateway_ip,omitempty"`
 	AllocationPools *AllocationPool `json:"allocation_pools,omitempty"`
-	EnableDHCP      bool           `json:"enable_dhcp,omitempty"`
+	EnableDHCP      bool            `json:"enable_dhcp,omitempty"`
 }
 
 type AllocationPool struct {
