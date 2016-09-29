@@ -26,7 +26,7 @@ type TopologyTemplate struct {
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
 	//Groups                []Group `yaml:",omitempty"`
 	//Policies              []Policy                 `yaml:",omitempty"`
-	//Outputs               []ParameterDefinition  `yaml:",omitempty"`
+	Outputs map[string]ParameterDefinition `yaml:",omitempty"`
 	//substitution_mappings
 	Workflows map[string]Workflow
 }
@@ -40,4 +40,15 @@ type NodeTemplate struct {
 	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
 	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
 	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
+}
+
+type ParameterDefinition struct {
+	TypeParam    string          `yaml:"type_param,omitempty"`
+	Description  string          `yaml:"description,omitempty"`
+	Value        ValueAssignment `yaml:"value,omitempty"`
+	Required     string          `yaml:"required,omitempty"`
+	DefaultParam string          `yaml:"default_param,omitempty"`
+	Status       string          `yaml:"status,omitempty"`
+	//Constraints
+	//Entry_schema
 }

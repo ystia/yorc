@@ -2,7 +2,6 @@ package rest
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"github.com/satori/go.uuid"
@@ -10,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -42,12 +42,12 @@ func extractFile(f *zip.File, path string) {
 
 func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
-	uuid := fmt.Sprint(uuid.NewV4())
-	log.Printf("Analyzing deployment %s\n", uuid)
+	uid := fmt.Sprint(uuid.NewV4())
+	log.Printf("Analyzing deployment %s\n", uid)
 
 	var err error
 	var file *os.File
-	uploadPath := filepath.Join("work", "deployments", uuid)
+	uploadPath := filepath.Join("work", "deployments", uid)
 	if err = os.MkdirAll(uploadPath, 0775); err != nil {
 		log.Panicf("%+v", err)
 	}
@@ -76,15 +76,15 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	// and extract them.
 	// TODO: USe go routines to process files concurrently
 	for _, f := range zipReader.File {
-		path := filepath.Join(destDir, f.Name)
+		fPath := filepath.Join(destDir, f.Name)
 		if f.FileInfo().IsDir() {
 			// Ensure that we have full rights on directory to be able to extract files into them
-			if err = os.MkdirAll(path, f.Mode()|0700); err != nil {
+			if err = os.MkdirAll(fPath, f.Mode()|0700); err != nil {
 				log.Panicf("%+v", err)
 			}
 			continue
 		}
-		extractFile(f, path)
+		extractFile(f, fPath)
 	}
 
 	patterns := []struct {
@@ -98,8 +98,8 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		if yamls, err := filepath.Glob(filepath.Join(destDir, pattern.pattern)); err != nil {
 			log.Panicf("%+v", err)
 		} else {
-			for _, yaml := range yamls {
-				yamlList = append(yamlList, yaml)
+			for _, yamlFile := range yamls {
+				yamlList = append(yamlList, yamlFile)
 			}
 		}
 	}
@@ -118,11 +118,29 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%+v", topology)
 	errCh := make(chan error, 30)
 	wg := sync.WaitGroup{}
-	s.storeConsulKey(errCh, &wg, deployments.DeploymentKVPrefix+"/"+uuid+"/status", fmt.Sprint(deployments.INITIAL))
+	s.storeConsulKey(errCh, &wg, deployments.DeploymentKVPrefix+"/"+uid+"/status", fmt.Sprint(deployments.INITIAL))
 
 	wg.Add(1)
-	go s.storeDeploymentDefinition(topology, uuid, false, "", &wg, errCh)
+	go s.storeDeploymentDefinition(topology, uid, false, "", &wg, errCh)
 
+	errors := waitForErrorsOnWaitGroup(errCh, &wg)
+	if len(errors) > 0 {
+		log.Panicf("Errors encountred during the YAML definition parsing and storage: %v", errors)
+	}
+
+	if err := s.createInstancesForNodes(uid); err != nil {
+		log.Panic(err)
+	}
+
+	if err := s.tasksCollector.RegisterTask(uid, tasks.DEPLOY); err != nil {
+		log.Panic(err)
+	}
+
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s", uid))
+	w.WriteHeader(http.StatusCreated)
+}
+
+func waitForErrorsOnWaitGroup(errCh chan error, wg *sync.WaitGroup) []error {
 	doneCh := make(chan []error, 1)
 
 	go func() {
@@ -139,17 +157,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	// Close errCh and retrieve errors from doneCh
 	close(errCh)
 
-	errors := <-doneCh
-	if len(errors) > 0 {
-		log.Panicf("Errors encountred during the YAML definition parsing and storage: %v", errors)
-	}
-
-	if err := s.tasksCollector.RegisterTask(uuid, tasks.DEPLOY); err != nil {
-		log.Panic(err)
-	}
-
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s", uuid))
-	w.WriteHeader(http.StatusCreated)
+	return <-doneCh
 }
 
 func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request) {
@@ -175,13 +183,21 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 	if result == nil {
-		WriteError(w, ErrNotFound)
+		WriteError(w, r, ErrNotFound)
 		return
 	}
 
 	deployment := Deployment{Id: id, Status: string(result.Value)}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(deployment)
+	links := []AtomLink{newAtomLink(LINK_REL_SELF, r.URL.Path)}
+	nodes, err := deployments.GetNodes(kv, id)
+	if err != nil {
+		log.Panic(err)
+	}
+	for _, node := range nodes {
+		links = append(links, newAtomLink(LINK_REL_NODE, path.Join(r.URL.Path, "nodes", node)))
+	}
+	deployment.Links = links
+	encodeJsonResponse(w, r, deployment)
 }
 
 func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -201,8 +217,72 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		link := newAtomLink(LINK_REL_DEPLOYMENT, "/deployments"+depId)
 		depCol.Deployments[depIndex] = link
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(depCol)
+	encodeJsonResponse(w, r, depCol)
+}
+
+func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	opt := params.ByName("opt")
+
+	kv := s.consulClient.KV()
+	expression, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/outputs", opt, "value"), nil)
+	if err != nil {
+		log.Panic(err)
+	}
+	if expression == nil {
+		WriteError(w, r, ErrNotFound)
+		return
+	}
+
+	var output Output
+	if len(expression.Value) > 0 {
+		va := tosca.ValueAssignment{}
+		err = yaml.Unmarshal(expression.Value, &va)
+		if err != nil {
+			log.Panicf("Unable to unmarshal value expression: %v", err)
+		}
+		result, err := deployments.NewResolver(kv, id).ResolveExpressionForNode(va.Expression, "", "")
+		if err != nil {
+			log.Panicf("Unable to resolve value expression %q: %v", string(expression.Value), err)
+		}
+		output = Output{Name: opt, Value: result}
+
+	} else {
+		output = Output{Name: opt, Value: ""}
+	}
+	encodeJsonResponse(w, r, output)
+}
+
+func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
+
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	kv := s.consulClient.KV()
+	outputsTopoPrefix := path.Join(deployments.DeploymentKVPrefix, id, "/topology/outputs") + "/"
+	optPaths, _, err := kv.Keys(outputsTopoPrefix, "/", nil)
+	if err != nil {
+		log.Panic(err)
+
+	}
+	if len(optPaths) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	optCol := OutputsCollection{Outputs: make([]AtomLink, len(optPaths))}
+	for optIndex, optP := range optPaths {
+		optName := strings.TrimRight(strings.TrimPrefix(optP, outputsTopoPrefix), "/ ")
+
+		link := newAtomLink(LINK_REL_OUTPUT, path.Join("/deployments", id, "outputs", optName))
+		optCol.Outputs[optIndex] = link
+	}
+	encodeJsonResponse(w, r, optCol)
+
 }
 
 func (s *Server) storePropertyDefinition(errCh chan error, wg *sync.WaitGroup, propPrefix, propName string, propDefinition tosca.PropertyDefinition) {
@@ -216,8 +296,8 @@ func (s *Server) storePropertyDefinition(errCh chan error, wg *sync.WaitGroup, p
 func (s *Server) storeAttributeDefinition(errCh chan error, wg *sync.WaitGroup, attrPrefix, attrName string, attrDefinition tosca.AttributeDefinition) {
 	s.storeConsulKey(errCh, wg, attrPrefix+"/name", attrName)
 	s.storeConsulKey(errCh, wg, attrPrefix+"/description", attrDefinition.Description)
-	s.storeConsulKey(errCh, wg, attrPrefix+"/type", attrDefinition.Type.Expression.Value)
-	s.storeConsulKey(errCh, wg, attrPrefix+"/default", attrDefinition.Default)
+	s.storeConsulKey(errCh, wg, attrPrefix+"/type", attrDefinition.Type)
+	s.storeConsulKey(errCh, wg, attrPrefix+"/default", attrDefinition.Default.String())
 	s.storeConsulKey(errCh, wg, attrPrefix+"/status", attrDefinition.Status)
 }
 
@@ -269,29 +349,42 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		}
 	}
 
+	outputsPrefix := path.Join(topologyPrefix, "outputs")
+	for outputName, output := range topology.TopologyTemplate.Outputs {
+		outputPrefix := path.Join(outputsPrefix, outputName)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "name"), outputName)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "description"), output.Description)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "default_param"), output.DefaultParam)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "required"), output.Required)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "status"), output.Status)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "type_param"), output.TypeParam)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "value"), output.Value.String())
+	}
+
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
+		s.storeConsulKey(errCh, wg, nodePrefix+"/status", deployments.INITIAL.String())
 		s.storeConsulKey(errCh, wg, nodePrefix+"/name", nodeName)
 		s.storeConsulKey(errCh, wg, nodePrefix+"/type", node.Type)
 		propertiesPrefix := nodePrefix + "/properties"
 		for propName, propValue := range node.Properties {
-			s.storeConsulKey(errCh, wg, propertiesPrefix+"/"+propName, fmt.Sprint(propValue))
+			s.storeConsulKey(errCh, wg, propertiesPrefix+"/"+url.QueryEscape(propName), fmt.Sprint(propValue))
 		}
 		attributesPrefix := nodePrefix + "/attributes"
 		for attrName, attrValue := range node.Attributes {
-			s.storeConsulKey(errCh, wg, attributesPrefix+"/"+attrName, fmt.Sprint(attrValue))
+			s.storeConsulKey(errCh, wg, attributesPrefix+"/"+url.QueryEscape(attrName), fmt.Sprint(attrValue))
 		}
 		capabilitiesPrefix := nodePrefix + "/capabilities"
 		for capName, capability := range node.Capabilities {
 			capabilityPrefix := capabilitiesPrefix + "/" + capName
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
-				s.storeConsulKey(errCh, wg, capabilityPropsPrefix+"/"+propName, fmt.Sprint(propValue))
+				s.storeConsulKey(errCh, wg, capabilityPropsPrefix+"/"+url.QueryEscape(propName), fmt.Sprint(propValue))
 			}
 			capabilityAttrPrefix := capabilityPrefix + "/attributes"
 			for attrName, attrValue := range capability.Attributes {
-				s.storeConsulKey(errCh, wg, capabilityAttrPrefix+"/"+attrName, fmt.Sprint(attrValue))
+				s.storeConsulKey(errCh, wg, capabilityAttrPrefix+"/"+url.QueryEscape(attrName), fmt.Sprint(attrValue))
 			}
 		}
 		requirementsPrefix := nodePrefix + "/requirements"
@@ -303,7 +396,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				s.storeConsulKey(errCh, wg, reqPrefix+"/relationship", reqValue.Relationship)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/capability", reqValue.Capability)
 				for propName, propValue := range reqValue.RelationshipProps {
-					s.storeConsulKey(errCh, wg, reqPrefix+"/properties/"+propName, fmt.Sprint(propValue))
+					s.storeConsulKey(errCh, wg, reqPrefix+"/properties/"+url.QueryEscape(propName), fmt.Sprint(propValue))
 				}
 			}
 		}
@@ -340,10 +433,12 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		attributesPrefix := nodeTypePrefix + "/attributes"
 		for attrName, attrDefinition := range nodeType.Attributes {
 			attrPrefix := attributesPrefix + "/" + attrName
-			if attrDefinition.Type.Expression.IsLiteral() {
-				s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
-			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
-				s.storeConsulKey(errCh, wg, nodeTypePrefix+"/output/"+attrDefinition.Type.Expression.Children()[1].Value+"/"+attrDefinition.Type.Expression.Children()[2].Value+"/"+attrDefinition.Type.Expression.Children()[3].Value, attrDefinition.Type.Expression.Children()[3].Value)
+			s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
+				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
+				s.storeConsulKey(errCh, wg, nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
 			}
 		}
 
@@ -434,10 +529,12 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		attributesPrefix := relationTypePrefix + "/attributes"
 		for attrName, attrDefinition := range relationType.Attributes {
 			attrPrefix := attributesPrefix + "/" + attrName
-			if attrDefinition.Type.Expression.IsLiteral() {
-				s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
-			} else if attrDefinition.Type.Expression.Value == "get_operation_output" {
-				s.storeConsulKey(errCh, wg, relationTypePrefix+"/output/"+attrDefinition.Type.Expression.Children()[1].Value+"/"+attrDefinition.Type.Expression.Children()[2].Value+"/"+attrDefinition.Type.Expression.Children()[3].Value, attrDefinition.Type.Expression.Children()[3].Value)
+			s.storeAttributeDefinition(errCh, wg, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
+				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
+				s.storeConsulKey(errCh, wg, relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
 			}
 		}
 
@@ -503,9 +600,9 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 
 	workflowsPrefix := path.Join(deployments.DeploymentKVPrefix, id, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
-		workflowPrefix := workflowsPrefix + "/" + wfName
+		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
-			stepPrefix := workflowPrefix + "/steps/" + stepName
+			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
 			s.storeConsulKey(errCh, wg, stepPrefix+"/node", step.Node)
 			if step.Activity.CallOperation != "" {
 				s.storeConsulKey(errCh, wg, stepPrefix+"/activity/operation", step.Activity.CallOperation)
@@ -517,9 +614,43 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				s.storeConsulKey(errCh, wg, stepPrefix+"/activity/set-state", step.Activity.SetState)
 			}
 			for _, next := range step.OnSuccess {
-				s.storeConsulKey(errCh, wg, fmt.Sprintf("%s/next/%s", stepPrefix, next), "")
+				s.storeConsulKey(errCh, wg, fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
 			}
 		}
 	}
 	wg.Done()
+}
+
+func (s *Server) createInstancesForNodes(id string) error {
+	errCh := make(chan error, 30)
+	wg := sync.WaitGroup{}
+
+	depPath := path.Join(deployments.DeploymentKVPrefix, id)
+	nodesPath := path.Join(depPath, "topology", "nodes")
+	instancesPath := path.Join(depPath, "topology", "instances")
+	kv := s.consulClient.KV()
+
+	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes {
+		node = path.Base(node)
+		scalable, nbInstances, err := deployments.GetNbInstancesForNode(kv, id, node)
+		if err != nil {
+			return err
+		}
+		if scalable {
+			s.storeConsulKey(errCh, &wg, path.Join(nodesPath, node, "nbInstances"), strconv.FormatUint(uint64(nbInstances), 10))
+			for i := uint32(0); i < nbInstances; i++ {
+				s.storeConsulKey(errCh, &wg, path.Join(instancesPath, node, strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())
+			}
+		}
+	}
+
+	errors := waitForErrorsOnWaitGroup(errCh, &wg)
+	if len(errors) > 0 {
+		log.Panicf("Errors encountred during the YAML definition parsing and storage: %v", errors)
+	}
+	return nil
 }

@@ -17,7 +17,6 @@ type Publisher interface {
 
 type Subscriber interface {
 	NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error)
-	NewNodeStatus(nodeName string) (deployments.Status, error)
 	LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error)
 }
 
@@ -39,7 +38,7 @@ func (cp *consulPubSub) StatusChange(nodeName, status string) (string, error) {
 	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
 	eventsNodePrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName)
 	eventEntry := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(nodeName + "\n" + status)}
-	eventNodeEntry := &api.KVPair{Key: path.Join(eventsNodePrefix, "statut"), Value: []byte(status)}
+	eventNodeEntry := &api.KVPair{Key: path.Join(eventsNodePrefix, "status"), Value: []byte(status)}
 	if _, err := cp.kv.Put(eventEntry, nil); err != nil {
 		return "", err
 	}
@@ -76,28 +75,6 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 
 	log.Debugf("Found %d events after filtering", len(events))
 	return events, qm.LastIndex, nil
-}
-
-func (cp *consulPubSub) NewNodeStatus(nodeName string) (deployments.Status, error) {
-
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName, "statut")
-
-	kvp, _, err := cp.kv.Get(eventsPrefix, nil)
-
-	var statut deployments.Status
-
-	if err != nil {
-		return statut, err
-	}
-
-	values := strings.Split(string(kvp.Value), "\n")
-	if len(values) != 1 {
-		return statut, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-	}
-
-	statut = deployments.Status{Status: values[0]}
-
-	return statut, nil
 }
 
 func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {

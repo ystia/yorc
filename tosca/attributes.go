@@ -1,9 +1,9 @@
 package tosca
 
 type AttributeDefinition struct {
-	Type        ValueAssignment `yaml:"type"`
+	Type        string          `yaml:"type"`
 	Description string          `yaml:"description,omitempty"`
-	Default     string          `yaml:"default,omitempty"`
+	Default     ValueAssignment `yaml:"default,omitempty"`
 	Status      string          `yaml:"status,omitempty"`
 	//EntrySchema string `yaml:"entry_schema,omitempty"`
 }
@@ -11,14 +11,15 @@ type AttributeDefinition struct {
 func (r *AttributeDefinition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var ras ValueAssignment
 	if err := unmarshal(&ras); err == nil {
-		r.Type = ras
+		r.Type = "string"
+		r.Default = ras
 		return nil
 	}
 
 	var ra struct {
-		Type        ValueAssignment `yaml:"type"`
+		Type        string          `yaml:"type"`
 		Description string          `yaml:"description,omitempty"`
-		Default     string          `yaml:"default,omitempty"`
+		Default     ValueAssignment `yaml:"default,omitempty"`
 		Status      string          `yaml:"status,omitempty"`
 	}
 

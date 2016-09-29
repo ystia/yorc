@@ -23,7 +23,7 @@ INSTALL_DIR=$(eval readlink -f "${INSTALL_DIR}")
 
 touch ${INSTALL_DIR}/work/.agentmode
 
-addresses=( $(get_multi_instances_attribute "TARGET_IP" "TARGET") )
+addresses=( $(get_multi_instances_attribute "SERVER_IP" "TARGET") )
 declare -p addresses
 # quote array values TODO check if we can use a better  solution to do it
 addresses=( ${addresses[@]/#/\"} )

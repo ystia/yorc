@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -19,10 +18,9 @@ type Error struct {
 	Detail string `json:"detail"`
 }
 
-func WriteError(w http.ResponseWriter, err *Error) {
-	w.Header().Set("Content-Type", "application/json")
+func WriteError(w http.ResponseWriter, r *http.Request, err *Error) {
 	w.WriteHeader(err.Status)
-	json.NewEncoder(w).Encode(Errors{[]*Error{err}})
+	encodeJsonResponse(w, r, Errors{[]*Error{err}})
 }
 
 var (

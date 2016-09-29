@@ -11,7 +11,7 @@ func recoverHandler(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("panic: %+v", err)
-				WriteError(w, ErrInternalServer)
+				WriteError(w, r, ErrInternalServer)
 			}
 		}()
 
@@ -36,7 +36,7 @@ func acceptHandler(cType string) func(http.Handler) http.Handler {
 	m := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Accept") != cType {
-				WriteError(w, NewNotAcceptableError(cType))
+				WriteError(w, r, NewNotAcceptableError(cType))
 				return
 			}
 
@@ -52,7 +52,7 @@ func contentTypeHandler(cType string) func(http.Handler) http.Handler {
 	m := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Content-Type") != cType {
-				WriteError(w, NewUnsupportedMediaTypeError(cType))
+				WriteError(w, r, NewUnsupportedMediaTypeError(cType))
 				return
 			}
 
