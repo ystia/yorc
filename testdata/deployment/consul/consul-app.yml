@@ -136,11 +136,11 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - pre_conf_consul/server_endpoint
-        pre_conf_consul/server_endpoint:
+            - pre_conf_consul/1
+        pre_conf_consul/1:
           node: Consul-2
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/server_endpoint
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
           on-success:
             - Consul-2_created
         Consul-2_created:

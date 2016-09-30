@@ -138,6 +138,7 @@ type execution struct {
 	isPerInstanceOperation   bool
 	relationshipType         string
 	relationshipTargetName   string
+	requirementIndex	 string
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
@@ -491,25 +492,15 @@ func (e *execution) resolveExecution() error {
 		}
 		if len(opAndReq) == 2 {
 			e.Operation = opAndReq[0]
-			reqName := opAndReq[1]
-			reqList, err := deployments.GetRequirementsKeysByNameForNode(e.kv, e.DeploymentId, e.NodeName, reqName)
-			if err != nil {
-				return err
-			}
-			if len(reqList) < 0 {
-				return fmt.Errorf("Requirement %q for node %q in deployment %q is missing", reqName, e.NodeName, e.DeploymentId)
-			}
-			if len(reqList) > 1 {
-				log.Printf("Several (%d) requirements with name %q for node %q in deployment %q. Lets choose the first one. This could lead to unexpected behaviors. Please fix this.", len(reqList), reqName, e.NodeName, e.DeploymentId)
-				deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Several (%d) requirements with name %q for node %q. Lets choose the first one. This could lead to unexpected behaviors. Please fix this.", len(reqList), reqName, e.NodeName))
-			}
-			reqPath := reqList[0]
+			e.requirementIndex = opAndReq[1]
+
+			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
 			kvPair, _, err := e.kv.Get(path.Join(reqPath, "relationship"), nil)
 			if err != nil {
 				return err
 			}
 			if kvPair == nil || len(kvPair.Value) == 0 {
-				return fmt.Errorf("Missing required parameter \"relationship\" for requirement %q for node %q in deployment %q.", reqName, e.NodeName, e.DeploymentId)
+				return fmt.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipType = string(kvPair.Value)
 			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
@@ -517,7 +508,7 @@ func (e *execution) resolveExecution() error {
 				return err
 			}
 			if kvPair == nil || len(kvPair.Value) == 0 {
-				return fmt.Errorf("Missing required parameter \"node\" for requirement %q for node %q in deployment %q.", reqName, e.NodeName, e.DeploymentId)
+				return fmt.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipTargetName = string(kvPair.Value)
 		}

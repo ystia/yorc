@@ -102,14 +102,14 @@ topology_template:
     Registry:
       type: alien.nodes.Registry
       requirements:
-        - php:
-            node: PHP
-            capability: alien.capabilities.PHPModule
-            relationship: alien.relationships.RegistryConnectToPHP
         - host:
             node: Apache
             capability: alien.capabilities.ApacheContainer
             relationship: alien.relationships.RegistryHostedOnApache
+        - php:
+            node: PHP
+            capability: alien.capabilities.PHPModule
+            relationship: alien.relationships.RegistryConnectToPHP
     Apache:
       type: alien.nodes.Apache
       properties:
@@ -229,7 +229,7 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
-            - add_target_RegistryConfigurerB/registry
+            - add_target_RegistryConfigurerB/1
         create_GenericHostA:
           node: GenericHostA
           activity:
@@ -259,7 +259,7 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
-            - add_target_RegistryConfigurerA/registry
+            - add_target_RegistryConfigurerA/1
         ComputeRegistry_install:
           node: ComputeRegistry
           activity:
@@ -341,8 +341,8 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
-            - post_configure_source_GenericB/host
-            - post_configure_target_GenericB/host
+            - post_configure_source_GenericB/0
+            - post_configure_target_GenericB/0
         Apache_configuring:
           node: Apache
           activity:
@@ -389,10 +389,10 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
-            - post_configure_target_GenericA/generic_requirement
-            - post_configure_target_GenericA/host
-            - post_configure_source_GenericA/host
-            - post_configure_source_GenericA/generic_requirement
+            - post_configure_target_GenericA/1
+            - post_configure_target_GenericA/0
+            - post_configure_source_GenericA/0
+            - post_configure_source_GenericA/1
         start_GenericHostA:
           node: GenericHostA
           activity:
@@ -416,10 +416,10 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - pre_configure_target_GenericA/host
-            - pre_configure_target_GenericA/generic_requirement
-            - pre_configure_source_GenericA/host
-            - pre_configure_source_GenericA/generic_requirement
+            - pre_configure_target_GenericA/0
+            - pre_configure_target_GenericA/1
+            - pre_configure_source_GenericA/0
+            - pre_configure_source_GenericA/1
         PHP_configuring:
           node: PHP
           activity:
@@ -443,8 +443,8 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - pre_configure_source_GenericB/host
-            - pre_configure_target_GenericB/host
+            - pre_configure_source_GenericB/0
+            - pre_configure_target_GenericB/0
         GenericHostB_configuring:
           node: GenericHostB
           activity:
@@ -456,14 +456,14 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
-            - remove_target_GenericA/generic_requirement
-            - add_target_GenericA/host
-            - add_target_GenericA/generic_requirement
-            - remove_target_GenericA/host
-            - remove_source_GenericA/generic_requirement
-            - add_source_GenericA/host
-            - remove_source_GenericA/host
-            - add_source_GenericA/generic_requirement
+            - remove_target_GenericA/1
+            - add_target_GenericA/0
+            - add_target_GenericA/1
+            - remove_target_GenericA/0
+            - remove_source_GenericA/1
+            - add_source_GenericA/0
+            - remove_source_GenericA/0
+            - add_source_GenericA/1
         GenericHostA_creating:
           node: GenericHostA
           activity:
@@ -517,10 +517,10 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
-            - add_source_GenericB/host
-            - remove_source_GenericB/host
-            - remove_target_GenericB/host
-            - add_target_GenericB/host
+            - add_source_GenericB/0
+            - remove_source_GenericB/0
+            - remove_target_GenericB/0
+            - add_target_GenericB/0
         GenericHostA_starting:
           node: GenericHostA
           activity:
@@ -759,160 +759,160 @@ topology_template:
             set_state: configuring
           on-success:
             - configure_Registry
-        pre_configure_source_GenericA/generic_requirement:
+        pre_configure_source_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
           on-success:
             - GenericA_created
-        pre_configure_source_GenericA/host:
+        pre_configure_source_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/0
           on-success:
             - GenericA_created
-        pre_configure_target_GenericA/generic_requirement:
+        pre_configure_target_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/1
           on-success:
             - GenericA_created
-        pre_configure_target_GenericA/host:
+        pre_configure_target_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/0
           on-success:
             - GenericA_created
-        post_configure_source_GenericA/generic_requirement:
+        post_configure_source_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/1
           on-success:
             - GenericA_configured
-        post_configure_source_GenericA/host:
+        post_configure_source_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/0
           on-success:
             - GenericA_configured
-        post_configure_target_GenericA/generic_requirement:
+        post_configure_target_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/1
           on-success:
             - GenericA_configured
-        post_configure_target_GenericA/host:
+        post_configure_target_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/0
           on-success:
             - GenericA_configured
-        add_source_GenericA/generic_requirement:
+        add_source_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/1
           on-success:
             - GenericA_started
-        add_source_GenericA/host:
+        add_source_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/0
           on-success:
             - GenericA_started
-        add_target_GenericA/generic_requirement:
+        add_target_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/1
           on-success:
             - GenericA_started
-        add_target_GenericA/host:
+        add_target_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/0
           on-success:
             - GenericA_started
-        remove_source_GenericA/generic_requirement:
+        remove_source_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/1
           on-success:
             - GenericA_started
-        remove_source_GenericA/host:
+        remove_source_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/0
           on-success:
             - GenericA_started
-        remove_target_GenericA/generic_requirement:
+        remove_target_GenericA/1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/generic_requirement
+            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/1
           on-success:
             - GenericA_started
-        remove_target_GenericA/host:
+        remove_target_GenericA/0:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/0
           on-success:
             - GenericA_started
-        pre_configure_source_GenericB/host:
+        pre_configure_source_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/0
           on-success:
             - GenericB_created
-        pre_configure_target_GenericB/host:
+        pre_configure_target_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/0
           on-success:
             - GenericB_created
-        post_configure_source_GenericB/host:
+        post_configure_source_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/0
           on-success:
             - GenericB_configured
-        post_configure_target_GenericB/host:
+        post_configure_target_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/0
           on-success:
             - GenericB_configured
-        add_source_GenericB/host:
+        add_source_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/0
           on-success:
             - GenericB_started
-        add_target_GenericB/host:
+        add_target_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/0
           on-success:
             - GenericB_started
-        remove_source_GenericB/host:
+        remove_source_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/0
           on-success:
             - GenericB_started
-        remove_target_GenericB/host:
+        remove_target_GenericB/0:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/host
+            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/0
           on-success:
             - GenericB_started
-        add_target_RegistryConfigurerB/registry:
+        add_target_RegistryConfigurerB/1:
           node: RegistryConfigurerB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/registry
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/1
           on-success:
             - RegistryConfigurerB_started
-        add_target_RegistryConfigurerA/registry:
+        add_target_RegistryConfigurerA/1:
           node: RegistryConfigurerA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/registry
+            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/1
           on-success:
             - RegistryConfigurerA_started
     uninstall:
