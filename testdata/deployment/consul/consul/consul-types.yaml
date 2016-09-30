@@ -50,12 +50,12 @@ node_types:
           inputs:
             INSTALL_DNSMASQ: { get_property: [SELF, install_dnsmasq] }
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
-            IP_ADDRESS: { get_attribute: [HOST, ip_address] }
+            IP_ADDRESS: { get_attribute: [HOST, private_address] }
           implementation: scripts/consul_install.sh
         configure:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
-            IP_ADDRESS: { get_attribute: [HOST, ip_address] }
+            IP_ADDRESS: { get_attribute: [HOST, private_address] }
           implementation: scripts/consul_configure.sh
         start:
           inputs:
@@ -89,7 +89,7 @@ relationship_types:
       Configure:
         pre_configure_source:
           inputs:
-            SERVER_IP: { get_attribute: [TARGET, ip_address] }
+            SERVER_IP: { get_attribute: [TARGET, private_address] }
             INSTALL_DIR: { get_property: [SOURCE, installation_directory] }
           implementation: scripts/consul_connects_agent_to_server.sh
     artifacts:

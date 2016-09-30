@@ -24,8 +24,7 @@ topology_template:
       requirements:
         - network:
             node: Network
-            capability: tosca.capabilities.Node
-            relationship: tosca.relationships.ConnectsTo
+            capability: janus.capabilities.openstack.FIPConnectivity
       capabilities:
         endpoint:
           properties:

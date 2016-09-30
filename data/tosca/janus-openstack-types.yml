@@ -7,6 +7,11 @@ template_version: 1.0.0
 imports:
   - normative: <normative-types.yml>
 
+capability_types:
+  # NOTE: Alien specific
+  janus.capabilities.openstack.FIPConnectivity:
+    derived_from: tosca.capabilities.Connectivity
+
 node_types:
   janus.nodes.openstack.Compute:
     derived_from: tosca.nodes.Compute
@@ -76,6 +81,9 @@ node_types:
         type: string
         description: Name of the Pool of Floating IPs to use. Note that either 'ip' or 'floating_network_name' should be specified and 'ip' take the precedence.
         required: false
+    capabilities:
+      connection:
+        type: janus.capabilities.openstack.FIPConnectivity
 
   janus.nodes.openstack.Network:
     # NOTE Alien specific
