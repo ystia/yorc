@@ -15,11 +15,12 @@ topology_template:
         size: 2 GiB
         availability_zone: r423-03.share.ops
         deletable: true
-      requirements:
-        - attachment:
-            node: Compute
-            capability: tosca.capabilities.Attachment
-            relationship: tosca.relationships.AttachesTo
+    BlockStorage4G:
+      type: janus.nodes.openstack.BlockStorage
+      properties:
+        size: 4 GiB
+        availability_zone: r423-03.share.ops
+        deletable: true
     Compute:
       type: janus.nodes.openstack.Compute
       properties:
@@ -48,6 +49,13 @@ topology_template:
               type: tosca.relationships.AttachesTo
               properties:
                 location: /dev/vdb
+        - local_storage:
+            node: BlockStorage4G
+            capability: tosca.capabilities.Attachment
+            relationship:
+              type: tosca.relationships.AttachesTo
+              properties:
+                location: /dev/vdc
   workflows:
     install:
       steps:
@@ -59,13 +67,28 @@ topology_template:
           node: BlockStorage
           activity:
             delegate: install
+          on-success:
+            - Compute_install
+        BlockStorage4G_install:
+          node: BlockStorage4G
+          activity:
+            delegate: install
+          on-success:
+            - Compute_install
     uninstall:
       steps:
         Compute_uninstall:
           node: Compute
           activity:
             delegate: uninstall
+          on-success:
+            - BlockStorage_uninstall
+            - BlockStorage4G_uninstall
         BlockStorage_uninstall:
           node: BlockStorage
+          activity:
+            delegate: uninstall
+        BlockStorage4G_uninstall:
+          node: BlockStorage4G
           activity:
             delegate: uninstall

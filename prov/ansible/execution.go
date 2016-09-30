@@ -492,45 +492,34 @@ func (e *execution) resolveExecution() error {
 		if len(opAndReq) == 2 {
 			e.Operation = opAndReq[0]
 			reqName := opAndReq[1]
-			kvPair, _, err := e.kv.Get(path.Join(e.NodePath, "requirements", reqName, "relationship"), nil)
+			reqList, err := deployments.GetRequirementsKeysByNameForNode(e.kv, e.DeploymentId, e.NodeName, reqName)
 			if err != nil {
 				return err
 			}
-			if kvPair == nil {
+			if len(reqList) < 0 {
 				return fmt.Errorf("Requirement %q for node %q in deployment %q is missing", reqName, e.NodeName, e.DeploymentId)
+			}
+			if len(reqList) > 1 {
+				log.Printf("Several (%d) requirements with name %q for node %q in deployment %q. Lets choose the first one. This could lead to unexpected behaviors. Please fix this.", len(reqList), reqName, e.NodeName, e.DeploymentId)
+				deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Several (%d) requirements with name %q for node %q. Lets choose the first one. This could lead to unexpected behaviors. Please fix this.", len(reqList), reqName, e.NodeName))
+			}
+			reqPath := reqList[0]
+			kvPair, _, err := e.kv.Get(path.Join(reqPath, "relationship"), nil)
+			if err != nil {
+				return err
+			}
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"relationship\" for requirement %q for node %q in deployment %q.", reqName, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipType = string(kvPair.Value)
-			kvPair, _, err = e.kv.Get(path.Join(e.NodePath, "requirements", reqName, "node"), nil)
+			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
 			if err != nil {
 				return err
 			}
-			if kvPair == nil {
-				return fmt.Errorf("Requirement %q for node %q in deployment %q is missing", reqName, e.NodeName, e.DeploymentId)
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"node\" for requirement %q for node %q in deployment %q.", reqName, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipTargetName = string(kvPair.Value)
-		} else {
-			// Old way if requirement is not specified get the last one
-			// TODO remove this part
-			kvPair, _, err := e.kv.Keys(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements"), "", nil)
-			if err != nil {
-				return err
-			}
-			for _, key := range kvPair {
-				if strings.HasSuffix(key, "relationship") && !strings.Contains(key, "/host/") {
-					kvPair, _, err := e.kv.Get(path.Join(key), nil)
-					if err != nil {
-						return err
-					}
-					e.relationshipType = string(kvPair.Value)
-				}
-				if strings.HasSuffix(key, "node") && !strings.Contains(key, "/host/") {
-					kvPair, _, err := e.kv.Get(path.Join(key), nil)
-					if err != nil {
-						return err
-					}
-					e.relationshipTargetName = string(kvPair.Value)
-				}
-			}
 		}
 		err = e.resolveIsPerInstanceOperation(opAndReq[0])
 		if err != nil {
