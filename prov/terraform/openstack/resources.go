@@ -29,7 +29,7 @@ type ComputeNetwork struct {
 	Port          string `json:"port,omitempty"`
 	FixedIpV4     string `json:"fixed_ip_v4,omitempty"`
 	FloatingIp    string `json:"floating_ip,omitempty"`
-	AccessNetwork string `json:"access_network,omitempty"`
+	AccessNetwork bool   `json:"access_network,omitempty"`
 }
 
 type BlockStorageVolume struct {

@@ -87,14 +87,17 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 			// TODO Deal with networks aliases (PUBLIC/PRIVATE)
 			var networkSlice []ComputeNetwork
 			if strings.EqualFold(networkName, "private") {
-				networkSlice = append(networkSlice, ComputeNetwork{Name: g.cfg.OS_PRIVATE_NETWORK_NAME})
+				networkSlice = append(networkSlice, ComputeNetwork{Name: g.cfg.OS_PRIVATE_NETWORK_NAME, AccessNetwork: true})
 			} else if strings.EqualFold(networkName, "public") {
 				//TODO
 				return ComputeInstance{}, fmt.Errorf("Public Network aliases currently not supported")
 			} else {
-				networkSlice = append(networkSlice, ComputeNetwork{Name: networkName})
+				networkSlice = append(networkSlice, ComputeNetwork{Name: networkName, AccessNetwork: true})
 			}
 			instance.Networks = networkSlice
+		} else {
+			// Use a default
+			instance.Networks = append(instance.Networks, ComputeNetwork{Name: g.cfg.OS_PRIVATE_NETWORK_NAME, AccessNetwork: true})
 		}
 	}
 
@@ -175,10 +178,20 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 		return ComputeInstance{}, err
 	} else {
 		// TODO deal with other types of Networks
-		for _, floatingIPPrefix := range networkKeys {
-			if networkNodeName, err := g.getStringFormConsul(floatingIPPrefix, "node"); err != nil {
+		for _, networkReqPrefix := range networkKeys {
+			capability, err := g.getStringFormConsul(networkReqPrefix, "capability")
+			if err != nil {
 				return ComputeInstance{}, err
-			} else if networkNodeName != "" {
+			}
+			isFip, err := deployments.IsNodeTypeDerivedFrom(g.kv, deploymentId, capability, "janus.capabilities.openstack.FIPConnectivity")
+			if err != nil {
+				return ComputeInstance{}, err
+			}
+			networkNodeName, err := g.getStringFormConsul(networkReqPrefix, "node")
+			if err != nil {
+				return ComputeInstance{}, err
+			}
+			if isFip {
 				log.Debugf("Looking for Floating IP")
 				var floatingIP string
 				resultChan := make(chan string, 1)
@@ -196,7 +209,30 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 				select {
 				case floatingIP = <-resultChan:
 				}
-				instance.FloatingIp = floatingIP
+				instance.Networks[0].FloatingIp = floatingIP
+			} else {
+				log.Debugf("Looking for Network id for %q", networkNodeName)
+				var networkId string
+				resultChan := make(chan string, 1)
+				go func() {
+					for {
+						if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "attributes/network_id"), nil); kp != nil {
+							if dId := string(kp.Value); dId != "" {
+								resultChan <- dId
+								return
+							}
+						}
+						time.Sleep(1 * time.Second)
+					}
+				}()
+				select {
+				case networkId = <-resultChan:
+				}
+				cn := ComputeNetwork{UUID: networkId, AccessNetwork: false}
+				if instance.Networks == nil {
+					instance.Networks = make([]ComputeNetwork, 0)
+				}
+				instance.Networks = append(instance.Networks, cn)
 			}
 		}
 	}

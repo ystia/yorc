@@ -12,10 +12,18 @@ topology_template:
     Compute:
       type: janus.nodes.openstack.Compute
       properties:
-        user: cloud-user
+        user: ubuntu
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        key_pair: cloudify
+        image: b3a66fe8-473f-43ce-9979-1dc0a5f01dda
         availability_zone: nova
+      requirements:
+        - network:
+            capability: tosca.capabilities.Connectivity
+            node: Network
+        - network:
+            capability: tosca.capabilities.Connectivity
+            node: Network2
       capabilities:
         endpoint:
           properties:
@@ -34,12 +42,24 @@ topology_template:
         ip_version: 4
         cidr: 10.0.0.0/24
         network_name: janus_test_network
+    Network2:
+      type: janus.nodes.openstack.Network
+      properties:
+        ip_version: 4
+        cidr: 10.0.1.0/24
+        network_name: test_network2
 
   workflows:
     install:
       steps:
         Network_install:
           node: Network
+          activity:
+            delegate: install
+          on-success:
+            - Compute_install
+        Network2_install:
+          node: Network2
           activity:
             delegate: install
           on-success:
@@ -56,7 +76,12 @@ topology_template:
             delegate: uninstall
           on-success:
            - Network_uninstall
+           - Network2_uninstall
         Network_uninstall:
          node: Network
+         activity:
+          delegate: uninstall
+        Network2_uninstall:
+         node: Network2
          activity:
           delegate: uninstall
