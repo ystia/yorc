@@ -9,8 +9,6 @@ func (g *Generator) generateNetwork(url, deploymentId string) (Network, error) {
 	var nodeType string
 	var err error
 
-	var OS_region string = g.cfg.OS_REGION
-
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return Network{}, err
 	}
@@ -23,10 +21,10 @@ func (g *Generator) generateNetwork(url, deploymentId string) (Network, error) {
 	if nodeName, err := g.getStringFormConsul(url, "properties/network_name"); err != nil {
 		return Network{}, err
 	} else if nodeName != "" {
-		network.Name = nodeName
+		network.Name = g.cfg.OS_PREFIX + nodeName
 	}
 
-	network.Region = OS_region
+	network.Region = g.cfg.OS_REGION
 
 	return network, nil
 
@@ -35,8 +33,6 @@ func (g *Generator) generateNetwork(url, deploymentId string) (Network, error) {
 func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, error) {
 	var nodeType string
 	var err error
-
-	var OS_region string = g.cfg.OS_REGION
 
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return Subnet{}, err
@@ -50,7 +46,7 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 	if nodeName, err := g.getStringFormConsul(url, "properties/network_name"); err != nil {
 		return Subnet{}, err
 	} else if nodeName != "" {
-		subnet.Name = nodeName + "_subnet"
+		subnet.Name = g.cfg.OS_PREFIX + nodeName + "_subnet"
 	}
 	if ipVersion, err := g.getStringFormConsul(url, "properties/ip_version"); err != nil {
 		return Subnet{}, err
@@ -102,7 +98,7 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 		subnet.EnableDHCP = true
 	}
 
-	subnet.Region = OS_region
+	subnet.Region = g.cfg.OS_REGION
 
 	return subnet, nil
 }
