@@ -123,17 +123,13 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 					return ComputeInstance{}, err
 				}
 				if device != "" {
-					relationshipType, err := g.getStringFormConsul(storagePrefix, "relationship")
-					if err != nil {
-						return ComputeInstance{}, err
-					}
 					resolver := deployments.NewResolver(g.kv, deploymentId)
 					expr := tosca.ValueAssignment{}
 					if err := yaml.Unmarshal([]byte(device), &expr); err != nil {
 						return ComputeInstance{}, err
 					}
 					// TODO check if instanceName is correct in all cases maybe we should check if we are in target context
-					if device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, relationshipType, instanceName); err != nil {
+					if device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, path.Base(storagePrefix), instanceName); err != nil {
 						return ComputeInstance{}, err
 					}
 				}

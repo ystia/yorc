@@ -257,7 +257,7 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
-	operation := "tosca.interfaces.node.lifecycle.Configure.pre_configure_source/connect"
+	operation := "tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1"
 
 	srv1.PopulateKV(map[string][]byte{
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):              []byte("A1"),
@@ -326,6 +326,7 @@ func testExecution_ResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, d
 		OperationPath:           path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source"),
 		isRelationshipOperation: true,
 		isPerInstanceOperation:  false,
+		requirementIndex:        "1",
 		relationshipType:        relationshipTypeName,
 		relationshipTargetName:  nodeBName,
 		VarInputsNames:          make([]string, 0),
@@ -440,7 +441,7 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
-	operation := "tosca.interfaces.node.lifecycle.Configure.add_source/connect"
+	operation := "tosca.interfaces.node.lifecycle.Configure.add_source/1"
 
 	srv1.PopulateKV(map[string][]byte{
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):              []byte("A1"),
@@ -510,6 +511,7 @@ func testExecution_ResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, de
 		isRelationshipOperation:  true,
 		isRelationshipTargetNode: true,
 		isPerInstanceOperation:   false,
+		requirementIndex:         "1",
 		relationshipType:         relationshipTypeName,
 		relationshipTargetName:   nodeBName,
 		VarInputsNames:           make([]string, 0),

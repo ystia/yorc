@@ -138,7 +138,7 @@ type execution struct {
 	isPerInstanceOperation   bool
 	relationshipType         string
 	relationshipTargetName   string
-	requirementIndex	 string
+	requirementIndex         string
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
@@ -233,7 +233,7 @@ func (e *execution) resolveInputs() error {
 					envI.InstanceName = getInstanceName(e.NodeName, instanceId)
 				}
 				if e.isRelationshipOperation {
-					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceId)
+					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceId)
 				} else {
 					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceId)
 				}
@@ -249,7 +249,7 @@ func (e *execution) resolveInputs() error {
 		} else {
 			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
 			if e.isRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, "")
+				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, "")
 			} else {
 				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
 			}
@@ -355,6 +355,9 @@ func (e *execution) resolveContext() error {
 		instanceName := getInstanceName(e.NodeName, names[i])
 		names[i] = instanceName
 	}
+	if len(names) == 0 {
+		names = append(names, new_node)
+	}
 	if !e.isRelationshipOperation {
 		e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
 		execContext["INSTANCES"] = strings.Join(names, ",")
@@ -390,6 +393,9 @@ func (e *execution) resolveContext() error {
 		}
 		for i := range targetNames {
 			targetNames[i] = getInstanceName(e.relationshipTargetName, targetNames[i])
+		}
+		if len(targetNames) == 0 {
+			targetNames = append(targetNames, execContext["TARGET_NODE"])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
