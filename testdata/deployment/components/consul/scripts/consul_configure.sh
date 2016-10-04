@@ -17,7 +17,20 @@ if [[ ! -e ${INSTALL_DIR}/work/.agentmode ]]; then
     sed -i -e "/client_addr/ a\  \"server\": true,\n\
   \"bootstrap_expect\": ${number_of_masters},\n\
   \"retry_join\": [${addr_block}]," ${INSTALL_DIR}/config/1_main_conf.json
+  if [[ -n "${WAN_ADDRESS}" ]]; then
+cat > ${INSTALL_DIR}/config/3_wan_address.json << EOF
+{
+  "advertise_addr_wan": "${WAN_ADDRESS}"
+}
+EOF
+  fi
 else
     # In agent mode the preconfigure_source script already setup the connection to masters
     log info "Consul configured to run in agent mode"
 fi
+
+cat > ${INSTALL_DIR}/config/2_datacenter.json << EOF
+{
+  "datacenter": "${DATACENTER}"
+}
+EOF

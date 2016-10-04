@@ -71,7 +71,6 @@ relationship_types:
           implementation: scripts/fdisk.sh
         post_configure_source:
           inputs:
-            FS_TYPE: { get_property: [SOURCE, fs_type] }
             PARTITION_NAME: { get_attribute: [SOURCE, partition_name ] }
             VOLUME_ID: { get_property: [TARGET, volume_id] }
           implementation: scripts/mkfs.sh

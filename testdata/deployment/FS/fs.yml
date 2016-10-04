@@ -19,7 +19,6 @@ topology_template:
     XFS:
       type: starlings.nodes.XFS
       properties:
-        fs_type: ext4
         location: /home/cloud-user/test
       requirements:
         - host:
@@ -52,8 +51,7 @@ topology_template:
                 location: /dev/vdb
         - network:
             node: Network
-            capability: tosca.capabilities.Node
-            relationship: tosca.relationships.ConnectsTo
+            capability: janus.capabilities.openstack.FIPConnectivity
       capabilities:
         endpoint:
           properties:
@@ -105,11 +103,11 @@ topology_template:
           activity:
             set_state: creating
           on-success:
-            - XFS_pre_conf
-        XFS_pre_conf:
+            - XFS_pre_conf/1
+        XFS_pre_conf/1:
           node: XFS
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
           on-success:
             - XFS_created
         XFS_created:
@@ -117,11 +115,11 @@ topology_template:
           activity:
             set_state: created
           on-success:
-            - XFS_post_conf
-        XFS_post_conf:
+            - XFS_post_conf/1
+        XFS_post_conf/1:
           node: XFS
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/1
           on-success:
             - XFS_configuring
         XFS_configuring:
@@ -157,7 +155,7 @@ topology_template:
         Network_uninstall:
           node: Network
           activity:
-            delegate: unistall
+            delegate: uninstall
         Compute_uninstall:
           node: Compute
           activity:

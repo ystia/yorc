@@ -388,9 +388,9 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 			}
 		}
 		requirementsPrefix := nodePrefix + "/requirements"
-		for _, reqValueMap := range node.Requirements {
+		for reqIndex, reqValueMap := range node.Requirements {
 			for reqName, reqValue := range reqValueMap {
-				reqPrefix := requirementsPrefix + "/" + reqName
+				reqPrefix := requirementsPrefix + "/" + strconv.Itoa(reqIndex)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/name", reqName)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/node", reqValue.Node)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/relationship", reqValue.Relationship)
@@ -443,9 +443,9 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		}
 
 		requirementsPrefix := nodeTypePrefix + "/requirements"
-		for _, reqMap := range nodeType.Requirements {
+		for reqIndex, reqMap := range nodeType.Requirements {
 			for reqName, reqDefinition := range reqMap {
-				reqPrefix := requirementsPrefix + "/" + reqName
+				reqPrefix := requirementsPrefix + "/" + strconv.Itoa(reqIndex)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/name", reqName)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/node", reqDefinition.Node)
 				s.storeConsulKey(errCh, wg, reqPrefix+"/occurences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))

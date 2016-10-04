@@ -87,14 +87,17 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 			// TODO Deal with networks aliases (PUBLIC/PRIVATE)
 			var networkSlice []ComputeNetwork
 			if strings.EqualFold(networkName, "private") {
-				networkSlice = append(networkSlice, ComputeNetwork{Name: g.cfg.OS_PRIVATE_NETWORK_NAME})
+				networkSlice = append(networkSlice, ComputeNetwork{Name: g.cfg.OS_PRIVATE_NETWORK_NAME, AccessNetwork: true})
 			} else if strings.EqualFold(networkName, "public") {
 				//TODO
 				return ComputeInstance{}, fmt.Errorf("Public Network aliases currently not supported")
 			} else {
-				networkSlice = append(networkSlice, ComputeNetwork{Name: networkName})
+				networkSlice = append(networkSlice, ComputeNetwork{Name: networkName, AccessNetwork: true})
 			}
 			instance.Networks = networkSlice
+		} else {
+			// Use a default
+			instance.Networks = append(instance.Networks, ComputeNetwork{Name: g.cfg.OS_PRIVATE_NETWORK_NAME, AccessNetwork: true})
 		}
 	}
 
@@ -105,89 +108,133 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'user' node type for %s", url)
 	}
 
-	storagePrefix := path.Join(url, "requirements", "local_storage")
-	if volumeNodeName, err := g.getStringFormConsul(storagePrefix, "node"); err != nil {
+	// TODO deal with multi-instances
+	if storageKeys, err := deployments.GetRequirementsKeysByNameForNode(g.kv, deploymentId, nodeName, "local_storage"); err != nil {
 		return ComputeInstance{}, err
-	} else if volumeNodeName != "" {
-		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
-		var device string
-		if device, err = g.getStringFormConsul(storagePrefix, "properties/location"); err != nil {
-			return ComputeInstance{}, err
-		}
-		if device != "" {
-			relationshipType, err := g.getStringFormConsul(storagePrefix, "relationship")
-			if err != nil {
+	} else {
+
+		for _, storagePrefix := range storageKeys {
+			if instance.Volumes == nil {
+				instance.Volumes = make([]Volume, 0)
+			}
+			if volumeNodeName, err := g.getStringFormConsul(storagePrefix, "node"); err != nil {
 				return ComputeInstance{}, err
-			}
-			resolver := deployments.NewResolver(g.kv, deploymentId)
-			expr := tosca.ValueAssignment{}
-			if err := yaml.Unmarshal([]byte(device), &expr); err != nil {
-				return ComputeInstance{}, err
-			}
-			// TODO check if instanceName is correct in all cases maybe we should check if we are in target context
-			if device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, relationshipType, instanceName); err != nil {
-				return ComputeInstance{}, err
-			}
-		}
-		var volumeId string
-		log.Debugf("Looking for volume_id")
-		if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "properties/volume_id"), nil); kp != nil {
-			if dId := string(kp.Value); dId != "" {
-				volumeId = dId
-			}
-		} else {
-			resultChan := make(chan string, 1)
-			go func() {
-				for {
-					// ignore errors and retry
-					if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "attributes/volume_id"), nil); kp != nil {
-						if dId := string(kp.Value); dId != "" {
-							resultChan <- dId
-							return
-						}
-					}
-					time.Sleep(1 * time.Second)
+			} else if volumeNodeName != "" {
+				log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
+				var device string
+				if device, err = g.getStringFormConsul(storagePrefix, "properties/location"); err != nil {
+					return ComputeInstance{}, err
 				}
-			}()
-			// TODO add a cancellation signal
-			select {
-			case volumeId = <-resultChan:
+				if device != "" {
+					resolver := deployments.NewResolver(g.kv, deploymentId)
+					expr := tosca.ValueAssignment{}
+					if err := yaml.Unmarshal([]byte(device), &expr); err != nil {
+						return ComputeInstance{}, err
+					}
+					// TODO check if instanceName is correct in all cases maybe we should check if we are in target context
+					if device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, path.Base(storagePrefix), instanceName); err != nil {
+						return ComputeInstance{}, err
+					}
+				}
+				var volumeId string
+				log.Debugf("Looking for volume_id")
+				if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "properties/volume_id"), nil); kp != nil {
+					if dId := string(kp.Value); dId != "" {
+						volumeId = dId
+					}
+				} else {
+					resultChan := make(chan string, 1)
+					go func() {
+						for {
+							// ignore errors and retry
+							if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", volumeNodeName, "attributes/volume_id"), nil); kp != nil {
+								if dId := string(kp.Value); dId != "" {
+									resultChan <- dId
+									return
+								}
+							}
+							time.Sleep(1 * time.Second)
+						}
+					}()
+					// TODO add a cancellation signal
+					select {
+					case volumeId = <-resultChan:
+					}
+				}
+
+				vol := Volume{VolumeId: volumeId, Device: device}
+				instance.Volumes = append(instance.Volumes, vol)
 			}
 		}
-
-		vol := Volume{VolumeId: volumeId, Device: device}
-		instance.Volumes = []Volume{vol}
 	}
-
 	// Do this in order to be sure that ansible will be able to log on the instance
 	// TODO private key should not be hard-coded
 	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	instance.Provisioners = make(map[string]interface{})
 	instance.Provisioners["remote-exec"] = re
 
-	floatingIPPrefix := path.Join(url, "requirements", "network")
-	if networkNodeName, err := g.getStringFormConsul(floatingIPPrefix, "node"); err != nil {
+	// TODO deal with multi-instances
+	if networkKeys, err := deployments.GetRequirementsKeysByNameForNode(g.kv, deploymentId, nodeName, "network"); err != nil {
 		return ComputeInstance{}, err
-	} else if networkNodeName != "" {
-		log.Debugf("Looking for Floating IP")
-		var floatingIP string
-		resultChan := make(chan string, 1)
-		go func() {
-			for {
-				if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
-					if dId := string(kp.Value); dId != "" {
-						resultChan <- dId
-						return
-					}
-				}
-				time.Sleep(1 * time.Second)
+	} else {
+		// TODO deal with other types of Networks
+		for _, networkReqPrefix := range networkKeys {
+			capability, err := g.getStringFormConsul(networkReqPrefix, "capability")
+			if err != nil {
+				return ComputeInstance{}, err
 			}
-		}()
-		select {
-		case floatingIP = <-resultChan:
+			isFip, err := deployments.IsNodeTypeDerivedFrom(g.kv, deploymentId, capability, "janus.capabilities.openstack.FIPConnectivity")
+			if err != nil {
+				return ComputeInstance{}, err
+			}
+			networkNodeName, err := g.getStringFormConsul(networkReqPrefix, "node")
+			if err != nil {
+				return ComputeInstance{}, err
+			}
+			if isFip {
+				log.Debugf("Looking for Floating IP")
+				var floatingIP string
+				resultChan := make(chan string, 1)
+				go func() {
+					for {
+						if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
+							if dId := string(kp.Value); dId != "" {
+								resultChan <- dId
+								return
+							}
+						}
+						time.Sleep(1 * time.Second)
+					}
+				}()
+				select {
+				case floatingIP = <-resultChan:
+				}
+				instance.Networks[0].FloatingIp = floatingIP
+			} else {
+				log.Debugf("Looking for Network id for %q", networkNodeName)
+				var networkId string
+				resultChan := make(chan string, 1)
+				go func() {
+					for {
+						if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "attributes/network_id"), nil); kp != nil {
+							if dId := string(kp.Value); dId != "" {
+								resultChan <- dId
+								return
+							}
+						}
+						time.Sleep(1 * time.Second)
+					}
+				}()
+				select {
+				case networkId = <-resultChan:
+				}
+				cn := ComputeNetwork{UUID: networkId, AccessNetwork: false}
+				if instance.Networks == nil {
+					instance.Networks = make([]ComputeNetwork, 0)
+				}
+				instance.Networks = append(instance.Networks, cn)
+			}
 		}
-		instance.FloatingIp = floatingIP
 	}
-
 	return instance, nil
 }

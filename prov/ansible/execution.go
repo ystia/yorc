@@ -138,6 +138,7 @@ type execution struct {
 	isPerInstanceOperation   bool
 	relationshipType         string
 	relationshipTargetName   string
+	requirementIndex         string
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
@@ -232,7 +233,7 @@ func (e *execution) resolveInputs() error {
 					envI.InstanceName = getInstanceName(e.NodeName, instanceId)
 				}
 				if e.isRelationshipOperation {
-					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, instanceId)
+					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceId)
 				} else {
 					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceId)
 				}
@@ -248,7 +249,7 @@ func (e *execution) resolveInputs() error {
 		} else {
 			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
 			if e.isRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.relationshipType, "")
+				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, "")
 			} else {
 				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
 			}
@@ -354,6 +355,9 @@ func (e *execution) resolveContext() error {
 		instanceName := getInstanceName(e.NodeName, names[i])
 		names[i] = instanceName
 	}
+	if len(names) == 0 {
+		names = append(names, new_node)
+	}
 	if !e.isRelationshipOperation {
 		e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
 		execContext["INSTANCES"] = strings.Join(names, ",")
@@ -389,6 +393,9 @@ func (e *execution) resolveContext() error {
 		}
 		for i := range targetNames {
 			targetNames[i] = getInstanceName(e.relationshipTargetName, targetNames[i])
+		}
+		if len(targetNames) == 0 {
+			targetNames = append(targetNames, execContext["TARGET_NODE"])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
@@ -491,46 +498,25 @@ func (e *execution) resolveExecution() error {
 		}
 		if len(opAndReq) == 2 {
 			e.Operation = opAndReq[0]
-			reqName := opAndReq[1]
-			kvPair, _, err := e.kv.Get(path.Join(e.NodePath, "requirements", reqName, "relationship"), nil)
+			e.requirementIndex = opAndReq[1]
+
+			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
+			kvPair, _, err := e.kv.Get(path.Join(reqPath, "relationship"), nil)
 			if err != nil {
 				return err
 			}
-			if kvPair == nil {
-				return fmt.Errorf("Requirement %q for node %q in deployment %q is missing", reqName, e.NodeName, e.DeploymentId)
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipType = string(kvPair.Value)
-			kvPair, _, err = e.kv.Get(path.Join(e.NodePath, "requirements", reqName, "node"), nil)
+			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
 			if err != nil {
 				return err
 			}
-			if kvPair == nil {
-				return fmt.Errorf("Requirement %q for node %q in deployment %q is missing", reqName, e.NodeName, e.DeploymentId)
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipTargetName = string(kvPair.Value)
-		} else {
-			// Old way if requirement is not specified get the last one
-			// TODO remove this part
-			kvPair, _, err := e.kv.Keys(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements"), "", nil)
-			if err != nil {
-				return err
-			}
-			for _, key := range kvPair {
-				if strings.HasSuffix(key, "relationship") && !strings.Contains(key, "/host/") {
-					kvPair, _, err := e.kv.Get(path.Join(key), nil)
-					if err != nil {
-						return err
-					}
-					e.relationshipType = string(kvPair.Value)
-				}
-				if strings.HasSuffix(key, "node") && !strings.Contains(key, "/host/") {
-					kvPair, _, err := e.kv.Get(path.Join(key), nil)
-					if err != nil {
-						return err
-					}
-					e.relationshipTargetName = string(kvPair.Value)
-				}
-			}
 		}
 		err = e.resolveIsPerInstanceOperation(opAndReq[0])
 		if err != nil {

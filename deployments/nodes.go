@@ -131,7 +131,7 @@ func GetHostedOnNode(kv *api.KV, deploymentId, nodeName string) (string, error) 
 				return "", err
 			}
 			if kvp == nil || len(kvp.Value) == 0 {
-				return "", fmt.Errorf("Missing 'node' attribute for requirement %q for node %q in deployement %q", path.Base(reqKey), nodeName, deploymentId)
+				return "", fmt.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployement %q", path.Base(reqKey), nodeName, deploymentId)
 			}
 			return string(kvp.Value), nil
 		}

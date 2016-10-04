@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"path"
 	"strings"
 )
 
@@ -191,14 +192,14 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 // this is useful for get_attributes as it may be different for different instances (a classic use case would be 'get_attribute: [ TARGET, ip_address ]'
 // If you are using it in a context where the node doesn't have multiple instances then instanceName should be an empty string
 // It returns true as first return param if the expression is in the 'target' context (typically get_attribute: [ TARGET, ip_address ])
-func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, sourceNode, targetNode, relationshipType, instanceName string) (string, error) {
-	log.Debugf("Deployment %q, sourceNode %q, targetNode %q, relationshipType %q, instanceName %q: Resolving expression %q", r.deploymentId, sourceNode, targetNode, relationshipType, instanceName, expression.String())
+func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, sourceNode, targetNode, requirementIndex, instanceName string) (string, error) {
+	log.Debugf("Deployment %q, sourceNode %q, targetNode %q, requirement index %q, instanceName %q: Resolving expression %q", r.deploymentId, sourceNode, targetNode, requirementIndex, instanceName, expression.String())
 	if expression.IsLiteral() {
 		return expression.Value, nil
 	}
 	params := make([]string, 0)
 	for _, child := range expression.Children() {
-		exp, err := r.ResolveExpressionForRelationship(child, sourceNode, targetNode, relationshipType, instanceName)
+		exp, err := r.ResolveExpressionForRelationship(child, sourceNode, targetNode, requirementIndex, instanceName)
 		if err != nil {
 			return "", err
 		}
@@ -212,12 +213,12 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 		switch params[0] {
 		case "SELF":
-			found, result, err := GetTypeDefaultProperty(r.kv, r.deploymentId, relationshipType, params[1])
+			found, result, err := GetRelationshipPropertyFromRequirement(r.kv, r.deploymentId, sourceNode, requirementIndex, params[1])
 			if err != nil {
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q can't resolve expression %q", r.deploymentId, requirementIndex, sourceNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 
@@ -229,7 +230,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			if err != nil {
 				return "", err
 			}
-			result, err = r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, relationshipType, instanceName)
+			result, err = r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
 			return result, err
 		case "HOST":
 			return "", fmt.Errorf("Keyword %q not supported for a relationship expression", params[0])
@@ -239,7 +240,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q can't resolve expression %q", r.deploymentId, requirementIndex, sourceNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if result == "" {
@@ -258,7 +259,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, targetNode, expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentId, requirementIndex, sourceNode, targetNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if result == "" {
@@ -278,7 +279,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, params[0], expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q can't resolve expression %q", r.deploymentId, requirementIndex, params[0], expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if result == "" {
@@ -298,12 +299,20 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 		switch params[0] {
 		case "SELF":
+			kvp, _, err := r.kv.Get(path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", sourceNode, "requirements", requirementIndex, "relationship"), nil)
+			if err != nil {
+				return "", err
+			}
+			if kvp == nil || len(kvp.Value) == 0 {
+				return "", fmt.Errorf("Deployment %q, requirement index %q, in source node %q can't retrieve relationship type. (Expression was %q)", r.deploymentId, requirementIndex, sourceNode, expression.String())
+			}
+			relationshipType := string(kvp.Value)
 			found, result, err := GetTypeDefaultAttribute(r.kv, r.deploymentId, relationshipType, params[1])
 			if err != nil {
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q can't resolve expression %q", r.deploymentId, requirementIndex, sourceNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if result == "" {
@@ -314,7 +323,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			if err != nil {
 				return "", err
 			}
-			result, err = r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, relationshipType, instanceName)
+			result, err = r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
 			return result, err
 		case "HOST":
 			return "", fmt.Errorf("Keyword %q not supported for a relationship expression", params[0])
@@ -324,7 +333,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q can't resolve expression %q", r.deploymentId, requirementIndex, sourceNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if r, ok := result[instanceName]; !ok || r == "" {
@@ -343,7 +352,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentId, relationshipType, sourceNode, targetNode, expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentId, requirementIndex, sourceNode, targetNode, expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if r, ok := result[instanceName]; !ok || r == "" {
@@ -362,12 +371,12 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", err
 			}
 			if !found {
-				log.Debugf("Deployment %q, relationship %q, in source node %q can't resolve expression %q", r.deploymentId, relationshipType, params[0], expression.String())
+				log.Debugf("Deployment %q, requirement index %q, in source node %q can't resolve expression %q", r.deploymentId, requirementIndex, params[0], expression.String())
 				return "", fmt.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if len(result) > 1 {
-				log.Printf("Deployment %q, SourceNode %q, TargetNode %q, RelationShipType %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", r.deploymentId, sourceNode, targetNode, relationshipType, expression, len(result))
-				LogInConsul(r.kv, r.deploymentId, fmt.Sprintf("SourceNode %q, TargetNode %q, RelationShipType %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", sourceNode, targetNode, relationshipType, expression, len(result)))
+				log.Printf("Deployment %q, SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", r.deploymentId, sourceNode, targetNode, requirementIndex, expression, len(result))
+				LogInConsul(r.kv, r.deploymentId, fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)

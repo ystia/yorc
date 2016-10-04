@@ -32,7 +32,7 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
@@ -78,7 +78,7 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
@@ -116,7 +116,7 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
@@ -169,7 +169,7 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")

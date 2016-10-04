@@ -24,6 +24,10 @@ node_types:
         type: string
         description: Installation path
         default: ~/consul
+      datacenter:
+        type: string
+        description: Datacenter name
+        default: dc1
       component_version:
         type: version
         default: ${consul.version}
@@ -39,9 +43,15 @@ node_types:
         type: starlings.capabilities.ConsulAgent
       server:
         type: starlings.capabilities.ConsulServer
+      wan:
+        type: starlings.capabilities.ConsulServerWAN
     requirements:
       - server_endpoint: starlings.capabilities.ConsulServer
         relationship_type: starlings.relationships.ConnectsConsulAgentToServer
+        lower_bound: 0
+        upper_bound: 1
+      - wan_endpoint: starlings.capabilities.ConsulServerWAN
+        relationship_type: starlings.relationships.ConnectsConsulServerWAN
         lower_bound: 0
         upper_bound: 1
     interfaces:
@@ -50,12 +60,14 @@ node_types:
           inputs:
             INSTALL_DNSMASQ: { get_property: [SELF, install_dnsmasq] }
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
-            IP_ADDRESS: { get_attribute: [HOST, ip_address] }
+            IP_ADDRESS: { get_attribute: [HOST, private_address] }
           implementation: scripts/consul_install.sh
         configure:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
-            IP_ADDRESS: { get_attribute: [HOST, ip_address] }
+            DATACENTER: { get_property: [SELF, datacenter] }
+            IP_ADDRESS: { get_attribute: [HOST, private_address] }
+            WAN_ADDRESS: { get_attribute: [HOST, public_address] }
           implementation: scripts/consul_configure.sh
         start:
           inputs:
@@ -78,6 +90,8 @@ capability_types:
     derived_from: tosca.capabilities.Root
   starlings.capabilities.ConsulServer:
     derived_from: tosca.capabilities.Root
+  starlings.capabilities.ConsulServerWAN:
+    derived_from: tosca.capabilities.Root
 
 relationship_types:
   starlings.relationships.ConnectsConsulAgentToServer:
@@ -89,9 +103,28 @@ relationship_types:
       Configure:
         pre_configure_source:
           inputs:
-            SERVER_IP: { get_attribute: [TARGET, ip_address] }
+            SERVER_IP: { get_attribute: [TARGET, private_address] }
             INSTALL_DIR: { get_property: [SOURCE, installation_directory] }
           implementation: scripts/consul_connects_agent_to_server.sh
+    artifacts:
+      scripts:
+        file: scripts
+        type: tosca.artifacts.File
+      utils_scripts:
+        file: utils_scripts
+        type: tosca.artifacts.File
+  starlings.relationships.ConnectsConsulServerWAN:
+    derived_from: tosca.relationships.ConnectsTo
+    description: >
+      Connects a Consul server to another Consul server using its WAN address
+    valid_targets: [ starlings.capabilities.ConsulServerWAN ]
+    interfaces:
+      Configure:
+        pre_configure_source:
+          inputs:
+            SERVER_WAN_IP: { get_attribute: [TARGET, public_address] }
+            INSTALL_DIR: { get_property: [SOURCE, installation_directory] }
+          implementation: scripts/consul_connects_servers_wan.sh
     artifacts:
       scripts:
         file: scripts

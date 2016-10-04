@@ -80,12 +80,12 @@ func testExecution_OnNode(t *testing.T) {
 
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"): []byte(nodeTypeName),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/document_root"):       []byte("/var/www"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/empty"):               []byte(""),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/host/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/host/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/host/node"):         []byte("Compute"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/host/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/document_root"):    []byte("/var/www"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/empty"):            []byte(""),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/name"):         []byte("host"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/node"):         []byte("Compute"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/0/attributes/ip_address"): []byte("10.10.10.1"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/1/attributes/ip_address"): []byte("10.10.10.2"),
@@ -257,7 +257,7 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
-	operation := "tosca.interfaces.node.lifecycle.Configure.pre_configure_source/connect"
+	operation := "tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1"
 
 	srv1.PopulateKV(map[string][]byte{
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):              []byte("A1"),
@@ -272,21 +272,21 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "type"):                     []byte("janus.types.A"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/node"):         []byte("ComputeA"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/name"):         []byte("host"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/node"):         []byte("ComputeA"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/connect/name"):         []byte("connect"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/connect/node"):         []byte("NodeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/connect/relationship"): []byte(relationshipTypeName),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/name"):         []byte("connect"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/node"):         []byte("NodeB"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/relationship"): []byte(relationshipTypeName),
 
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "type"): []byte("janus.types.B"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/node"):         []byte("ComputeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/name"):         []byte("host"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/node"):         []byte("ComputeB"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
@@ -326,6 +326,7 @@ func testExecution_ResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, d
 		OperationPath:           path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source"),
 		isRelationshipOperation: true,
 		isPerInstanceOperation:  false,
+		requirementIndex:        "1",
 		relationshipType:        relationshipTypeName,
 		relationshipTargetName:  nodeBName,
 		VarInputsNames:          make([]string, 0),
@@ -440,7 +441,7 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
-	operation := "tosca.interfaces.node.lifecycle.Configure.add_source/connect"
+	operation := "tosca.interfaces.node.lifecycle.Configure.add_source/1"
 
 	srv1.PopulateKV(map[string][]byte{
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):              []byte("A1"),
@@ -455,21 +456,21 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "type"):                     []byte("janus.types.A"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/node"):         []byte("ComputeA"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/host/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/name"):         []byte("host"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/node"):         []byte("ComputeA"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "type"): []byte("janus.types.B"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/node"):         []byte("ComputeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/host/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/name"):         []byte("host"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/node"):         []byte("ComputeB"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/connect/name"):         []byte("connect"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/connect/node"):         []byte("NodeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/connect/relationship"): []byte(relationshipTypeName),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/name"):         []byte("connect"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/node"):         []byte("NodeB"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/relationship"): []byte(relationshipTypeName),
 
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
@@ -510,6 +511,7 @@ func testExecution_ResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, de
 		isRelationshipOperation:  true,
 		isRelationshipTargetNode: true,
 		isPerInstanceOperation:   false,
+		requirementIndex:         "1",
 		relationshipType:         relationshipTypeName,
 		relationshipTargetName:   nodeBName,
 		VarInputsNames:           make([]string, 0),

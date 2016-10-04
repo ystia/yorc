@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 )
 
 type Generator struct {
@@ -95,18 +96,25 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 				return false, err
 			}
 			addResource(&infrastructure, "openstack_compute_instance_v2", compute.Name, &compute)
-			consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
-			consulKeyAttrib := commons.ConsulKey{Name: compute.Name + "-attrib_ip_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}
-			consulKeyFixedIP := commons.ConsulKey{Name: compute.Name + "-ip_fixed_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.fixed_ip_v4}", compute.Name)}
+			consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}                           // Use access ip here
+			consulKeyAttrib := commons.ConsulKey{Name: compute.Name + "-attrib_ip_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)} // Use latest provisioned network for private access
+			consulKeyFixedIP := commons.ConsulKey{Name: compute.Name + "-ip_fixed_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)}
 			var consulKeys commons.ConsulKeys
-			if compute.FloatingIp != "" {
-				consulKeyFloatingIP := commons.ConsulKey{Name: compute.Name + "-ip_floating_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.floating_ip}", compute.Name)}
+			if compute.Networks[0].FloatingIp != "" {
+				consulKeyFloatingIP := commons.ConsulKey{Name: compute.Name + "-ip_floating_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
 				//In order to be backward compatible to components developed for Alien/Cloudify (only the above is standard)
-				consulKeyFloatingIPBak := commons.ConsulKey{Name: compute.Name + "-ip_floating_address_backward_comp-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.floating_ip}", compute.Name)}
+				consulKeyFloatingIPBak := commons.ConsulKey{Name: compute.Name + "-ip_floating_address_backward_comp-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
 				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP, consulKeyFloatingIP, consulKeyFloatingIPBak}}
 
 			} else {
 				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP}}
+			}
+
+			for i := range compute.Networks {
+				consulKetNetName := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-name", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", compute.Name, i)}
+				consulKetNetId := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-id", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", compute.Name, i)}
+				consulKetNetAddresses := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-addresses", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses"), Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", compute.Name, i)}
+				consulKeys.Keys = append(consulKeys.Keys, consulKetNetName, consulKetNetId, consulKetNetAddresses)
 			}
 			addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
 		}
@@ -142,6 +150,30 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		} else {
 			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatingIPString}
 		}
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
+	case "janus.nodes.openstack.Network":
+		if networkId, err := g.getStringFormConsul(nodeKey, "properties/network_id"); err != nil {
+			return false, err
+		} else if networkId != "" {
+			log.Debugf("Reusing existing volume with id %q for node %q", networkId, nodeName)
+			return false, nil
+		}
+		network, err := g.generateNetwork(nodeKey, depId)
+
+		if err != nil {
+			return false, err
+		}
+
+		subnet, err := g.generateSubnet(nodeKey, depId, nodeName)
+
+		if err != nil {
+			return false, err
+		}
+
+		addResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
+		addResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
+		consulKey := commons.ConsulKey{Name: nodeName + "-NetworkID", Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
