@@ -778,7 +778,7 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	} else {
 		cmd = exec.CommandContext(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
-	if retry {
+	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
 	cmd.Dir = ansibleRecipePath
