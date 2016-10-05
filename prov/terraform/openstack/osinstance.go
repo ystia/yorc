@@ -73,6 +73,16 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 		instance.KeyPair = keyPair
 	}
 
+	instance.SecurityGroups = g.cfg.OS_DEFAULT_SECURITY_GROUPS
+	if secGroups, err := g.getStringFormConsul(url, "properties/security_groups"); err != nil {
+		return ComputeInstance{}, err
+	} else if secGroups != "" {
+		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups), ",") {
+			secGroup = strings.TrimSpace(secGroup)
+			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
+		}
+	}
+
 	if instance.ImageId == "" && instance.ImageName == "" {
 		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", url)
 	}
