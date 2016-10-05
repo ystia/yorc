@@ -6,6 +6,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/server"
+	"strings"
 )
 
 func init() {
@@ -55,6 +56,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("os_prefix", "x", "", "Prefix of the user")
 	serverCmd.PersistentFlags().StringP("os_private_network_name", "m", "", "Name of the private network")
 	serverCmd.PersistentFlags().StringP("os_public_network_name", "e", "", "Name of the public network")
+	serverCmd.PersistentFlags().StringSliceP("os_default_security_groups", "g", make([]string, 0), "Default security groups to be added to created VMs")
 
 	//Flags definition for Consul
 	serverCmd.PersistentFlags().StringP("consul_address", "", "", "Address of the HTTP interface for Consul (format: <host>:<port>)")
@@ -73,6 +75,7 @@ func setConfig() {
 	viper.BindPFlag("os_prefix", serverCmd.PersistentFlags().Lookup("os_prefix"))
 	viper.BindPFlag("os_private_network_name", serverCmd.PersistentFlags().Lookup("os_private_network_name"))
 	viper.BindPFlag("os_public_network_name", serverCmd.PersistentFlags().Lookup("os_public_network_name"))
+	viper.BindPFlag("os_default_security_groups", serverCmd.PersistentFlags().Lookup("os_default_security_groups"))
 	//Bind flags for Consul
 	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
 	viper.BindPFlag("consul_token", serverCmd.PersistentFlags().Lookup("consul_token"))
@@ -91,15 +94,17 @@ func setConfig() {
 	viper.BindEnv("os_user_name", "OS_USERNAME")
 	viper.BindEnv("os_password", "OS_PASSWORD")
 	viper.BindEnv("os_region", "OS_REGION_NAME")
-	viper.BindEnv("os_prefix", "OS_PREFIX")
-	viper.BindEnv("os_private_network_name", "OS_PRIVATE_NETWORK_NAME")
-	viper.BindEnv("os_public_network_name", "OS_PUBLIC_NETWORK_NAME")
+	viper.BindEnv("os_prefix")
+	viper.BindEnv("os_private_network_name")
+	viper.BindEnv("os_public_network_name")
+	viper.BindEnv("os_default_security_groups")
 	viper.BindEnv("rest_consul_publisher_max_routines")
 	viper.BindEnv("consul_address")
 
 	//Setting Defaults
 	viper.SetDefault("os_prefix", "janus-")
 	viper.SetDefault("os_region", "RegionOne")
+	viper.SetDefault("os_default_security_groups", make([]string, 0))
 	viper.SetDefault("consul_address", "") // Use consul api default
 	viper.SetDefault("consul_datacenter", "dc1")
 	viper.SetDefault("consul_token", "anonymous")
@@ -127,6 +132,12 @@ func getConfig() config.Configuration {
 	configuration.CONSUL_DATACENTER = viper.GetString("consul_datacenter")
 	configuration.CONSUL_TOKEN = viper.GetString("consul_token")
 	configuration.REST_CONSUL_PUB_MAX_ROUTINES = viper.GetInt("rest_consul_publisher_max_routines")
-
+	configuration.OS_DEFAULT_SECURITY_GROUPS = make([]string, 0)
+	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {
+		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags
+		for _, secg := range strings.Split(secgFlag, ",") {
+			configuration.OS_DEFAULT_SECURITY_GROUPS = append(configuration.OS_DEFAULT_SECURITY_GROUPS, secg)
+		}
+	}
 	return configuration
 }

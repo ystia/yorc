@@ -55,6 +55,11 @@ node_types:
         description: >
           The user name used to connect to the Compute and provision it.
         required: true
+      security_groups:
+        type: string
+        description: >
+          Coma separated list of security groups to add to the Compute
+        required: false
 
   janus.nodes.openstack.BlockStorage:
     derived_from: tosca.nodes.BlockStorage
