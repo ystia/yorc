@@ -3,20 +3,31 @@ package tasks
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"testing"
 )
 
-func TestReadStepFromConsulFailing(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func TestGroupedTaskParallel(t *testing.T) {
+	t.Run("groupTask", func(t *testing.T) {
+		t.Run("generateOSBSVolumeSizeConvert", readStepFromConsul)
+		t.Run("Test_generateOSBSVolumeSizeConvertError", readStepFromConsulFailing)
+		t.Run("Test_generateOSBSVolumeMissingSize", readStepWithNext)
+		t.Run("Test_generateOSBSVolumeCheckOptionalValues", testReadWorkFlowFromConsul)
+	})
+}
+
+func readStepFromConsulFailing(t *testing.T) {
+	t.Parallel()
+	log.SetDebug(true)
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
 	config.Address = srv1.HTTPAddr
 
 	client, err := api.NewClient(config)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	kv := client.KV()
 
@@ -26,20 +37,20 @@ func TestReadStepFromConsulFailing(t *testing.T) {
 
 	step, err := readStep(kv, "wf/steps/", "stepName", nil)
 	t.Log(err)
-	assert.Nil(t, step)
-	assert.Error(t, err)
+	require.Nil(t, step)
+	require.Error(t, err)
 }
 
-func TestReadStepFromConsul(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func readStepFromConsul(t *testing.T) {
+	t.Parallel()
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
 	config.Address = srv1.HTTPAddr
 
 	client, err := api.NewClient(config)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	kv := client.KV()
 
@@ -56,28 +67,28 @@ func TestReadStepFromConsul(t *testing.T) {
 
 	visitedMap := make(map[string]*visitStep)
 	step, err := readStep(kv, "wf/steps/", "stepName", visitedMap)
-	assert.Nil(t, err)
-	assert.Equal(t, "nodeName", step.Node)
-	assert.Equal(t, "stepName", step.Name)
-	assert.Len(t, step.Activities, 3)
-	assert.Contains(t, step.Activities, DelegateActivity{delegate: "install"})
-	assert.Contains(t, step.Activities, SetStateActivity{state: "installed"})
-	assert.Contains(t, step.Activities, CallOperationActivity{operation: "script.sh"})
+	require.Nil(t, err)
+	require.Equal(t, "nodeName", step.Node)
+	require.Equal(t, "stepName", step.Name)
+	require.Len(t, step.Activities, 3)
+	require.Contains(t, step.Activities, DelegateActivity{delegate: "install"})
+	require.Contains(t, step.Activities, SetStateActivity{state: "installed"})
+	require.Contains(t, step.Activities, CallOperationActivity{operation: "script.sh"})
 
-	assert.Len(t, visitedMap, 1)
-	assert.Contains(t, visitedMap, "stepName")
+	require.Len(t, visitedMap, 1)
+	require.Contains(t, visitedMap, "stepName")
 }
 
-func TestReadStepWithNext(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func readStepWithNext(t *testing.T) {
+	t.Parallel()
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
 	config.Address = srv1.HTTPAddr
 
 	client, err := api.NewClient(config)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	kv := client.KV()
 
@@ -96,29 +107,29 @@ func TestReadStepWithNext(t *testing.T) {
 
 	visitedMap := make(map[string]*visitStep)
 	step, err := readStep(kv, "wf/steps/", "stepName", visitedMap)
-	assert.Nil(t, err)
-	assert.Equal(t, "nodeName", step.Node)
-	assert.Equal(t, "stepName", step.Name)
-	assert.Len(t, step.Activities, 1)
+	require.Nil(t, err)
+	require.Equal(t, "nodeName", step.Node)
+	require.Equal(t, "stepName", step.Name)
+	require.Len(t, step.Activities, 1)
 
-	assert.Len(t, visitedMap, 2)
-	assert.Contains(t, visitedMap, "stepName")
-	assert.Contains(t, visitedMap, "downstream")
+	require.Len(t, visitedMap, 2)
+	require.Contains(t, visitedMap, "stepName")
+	require.Contains(t, visitedMap, "downstream")
 
-	assert.Equal(t, 0, visitedMap["stepName"].refCount)
-	assert.Equal(t, 1, visitedMap["downstream"].refCount)
+	require.Equal(t, 0, visitedMap["stepName"].refCount)
+	require.Equal(t, 1, visitedMap["downstream"].refCount)
 }
 
-func TestReadWorkFlowFromConsul(t *testing.T) {
-	//t.Parallel()
-	srv1 := testutil.NewTestServerConfig(t, nil)
+func testReadWorkFlowFromConsul(t *testing.T) {
+	t.Parallel()
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
 	config.Address = srv1.HTTPAddr
 
 	client, err := api.NewClient(config)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	kv := client.KV()
 
@@ -149,16 +160,7 @@ func TestReadWorkFlowFromConsul(t *testing.T) {
 	//kv.Put(&api.KVPair{Key: "/wf/steps/stepName/activity/delegate", Value:[]byte("install")}, nil)
 
 	steps, err := readWorkFlowFromConsul(kv, "wf")
-	assert.Nil(t, err)
-	assert.Len(t, steps, 2)
-	for _, step := range steps {
-		stepName := step.Name
-		switch {
-		case stepName == "step11":
+	require.Nil(t, err)
+	require.Len(t, steps, 5)
 
-		case stepName == "step20":
-		default:
-			assert.Fail(t, "Unexpected root step")
-		}
-	}
 }

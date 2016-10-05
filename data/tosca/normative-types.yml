@@ -371,6 +371,10 @@ capability_types:
     derived_from: tosca.capabilities.Node
     description: A node type that includes the Linkable capability indicates that it can be pointed by tosca.relationships.network.LinksTo relationship type.
 
+  # NOTE: Alien specific
+  tosca.capabilities.Connectivity:
+    derived_from: tosca.capabilities.Root
+
 relationship_types:
   tosca.relationships.Root:
     description: The TOSCA root Relationship Type all other TOSCA base Relationship Types derive from
@@ -550,6 +554,10 @@ node_types:
           node: tosca.nodes.BlockStorage
           relationship: tosca.relationships.AttachesTo
           occurrences: [0, UNBOUNDED]
+      # NOTE: Alien specific
+      - network:
+          type: tosca.capabilities.Connectivity
+          occurrences: [ 0, UNBOUNDED ]
     capabilities:
       host:
         type: tosca.capabilities.Container
@@ -881,6 +889,36 @@ node_types:
      - binding:
         capability: tosca.capabilities.network.Bindable
         relationship: tosca.relationships.network.BindsTo
+
+  # NOTE: Alien specific
+  tosca.nodes.Network:
+    abstract: true
+    derived_from: tosca.nodes.Root
+    description: >
+      The TOSCA Network node represents a simple, logical network service.
+    properties:
+      ip_version:
+        type: integer
+        required: false
+        default: 4
+        constraints:
+          - valid_values: [ 4, 6 ]
+      cidr:
+        type: string
+        required: false
+      gateway_ip:
+        type: string
+        required: false
+      network_name:
+        type: string
+        required: false
+      network_id:
+        type: string
+        required: false
+    capabilities:
+      connection:
+        type: tosca.capabilities.Connectivity
+
 
 # NOTE: Not yet supported in Janus
 group_types:

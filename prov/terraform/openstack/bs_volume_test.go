@@ -9,9 +9,20 @@ import (
 	"testing"
 )
 
-func Test_generateOSBSVolumeSizeConvert(t *testing.T) {
+func TestGroupedVolumeParallel(t *testing.T) {
+	t.Run("groupVolume", func(t *testing.T) {
+		t.Run("generateOSBSVolumeSizeConvert", generateOSBSVolumeSizeConvert)
+		t.Run("Test_generateOSBSVolumeSizeConvertError", generateOSBSVolumeSizeConvertError)
+		t.Run("Test_generateOSBSVolumeMissingSize", generateOSBSVolumeMissingSize)
+		t.Run("generateOSBSVolumeWrongType", generateOSBSVolumeWrongType)
+		t.Run("Test_generateOSBSVolumeCheckOptionalValues", generateOSBSVolumeCheckOptionalValues)
+	})
+}
+
+func generateOSBSVolumeSizeConvert(t *testing.T) {
+	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServerConfig(t, nil)
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -21,7 +32,7 @@ func Test_generateOSBSVolumeSizeConvert(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
@@ -54,9 +65,10 @@ func Test_generateOSBSVolumeSizeConvert(t *testing.T) {
 		assert.Equal(t, "RegionOne", bsv.Region)
 	}
 }
-func Test_generateOSBSVolumeSizeConvertError(t *testing.T) {
+func generateOSBSVolumeSizeConvertError(t *testing.T) {
+	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServerConfig(t, nil)
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -66,7 +78,7 @@ func Test_generateOSBSVolumeSizeConvertError(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	var testData = []struct {
@@ -91,9 +103,10 @@ func Test_generateOSBSVolumeSizeConvertError(t *testing.T) {
 	}
 }
 
-func Test_generateOSBSVolumeMissingSize(t *testing.T) {
+func generateOSBSVolumeMissingSize(t *testing.T) {
+	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServerConfig(t, nil)
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -103,7 +116,7 @@ func Test_generateOSBSVolumeMissingSize(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")
@@ -116,9 +129,10 @@ func Test_generateOSBSVolumeMissingSize(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
 }
-func Test_generateOSBSVolumeWrongType(t *testing.T) {
+func generateOSBSVolumeWrongType(t *testing.T) {
+	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServerConfig(t, nil)
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -142,9 +156,10 @@ func Test_generateOSBSVolumeWrongType(t *testing.T) {
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
 
-func Test_generateOSBSVolumeCheckOptionalValues(t *testing.T) {
+func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
+	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServerConfig(t, nil)
+	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -154,7 +169,7 @@ func Test_generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{}
+	cfg := config.Configuration{OS_REGION: "RegionOne"}
 	g := NewGenerator(kv, cfg)
 
 	t.Log("Registering Key")

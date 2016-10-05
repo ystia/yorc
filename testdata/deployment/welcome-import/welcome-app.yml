@@ -28,11 +28,11 @@ topology_template:
         image: 89ec515c-3251-4c2f-8402-bda280c31650
         availability_zone: nova
         key_pair: cloudify
+        security_groups: openbar,default
       requirements:
         - network:
             node: Network
-            capability: tosca.capabilities.Node
-            relationship: tosca.relationships.ConnectsTo
+            capability: janus.capabilities.openstack.FIPConnectivity
       capabilities:
         endpoint:
           properties:

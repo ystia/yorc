@@ -6,7 +6,21 @@ import (
 	"testing"
 )
 
-func TestArtifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
+func TestGroupedArtifactParallel(t *testing.T) {
+	t.Run("groupArtifact", func(t *testing.T) {
+		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar", artifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar)
+		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar", artifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar)
+		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_Failure", artifactDefinitionConcrete_UnmarshalYAML_Failure)
+		t.Run("TestArtifactsInNodeType", artifactsInNodeType)
+		t.Run("TestArtifactsAlien", artifactsAlien)
+		t.Run("TestArtifactsAlien2", artifactsAlien2)
+		t.Run("TestArtifactsInNodeTypeAlien", artifactsInNodeTypeAlien)
+		t.Run("TestArtifactsInNodeTemplateAlien", artifactsInNodeTemplateAlien)
+	})
+}
+
+func artifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
+	t.Parallel()
 	var data = `artifact: ./artifact.txt`
 
 	var artMap map[string]ArtifactDefinition
@@ -19,7 +33,8 @@ func TestArtifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
 	assert.Equal(t, "./artifact.txt", art.File)
 }
 
-func TestArtifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar(t *testing.T) {
+func artifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar(t *testing.T) {
+	t.Parallel()
 	var data = `
 artifact:
   file: ./artifact.txt
@@ -42,7 +57,8 @@ artifact:
 	assert.Equal(t, "file_deployment_path", art.DeployPath)
 }
 
-func TestArtifactDefinitionConcrete_UnmarshalYAML_Failure(t *testing.T) {
+func artifactDefinitionConcrete_UnmarshalYAML_Failure(t *testing.T) {
+	t.Parallel()
 	var data = `
 artifact:
   file: [ ./artifact.txt, art2 ]
@@ -57,7 +73,8 @@ artifact:
 	assert.NotNil(t, err, "Expecting error when unmarshaling artifact with an array as file")
 }
 
-func TestArtifactsInNodeType(t *testing.T) {
+func artifactsInNodeType(t *testing.T) {
+	t.Parallel()
 	var data = `
 nodes.ANode:
   artifacts:
@@ -80,7 +97,8 @@ nodes.ANode:
 	assert.Equal(t, "utils_scripts", artUtilsScripts.File)
 }
 
-func TestArtifactsAlien(t *testing.T) {
+func artifactsAlien(t *testing.T) {
+	t.Parallel()
 	var data = `
 - scripts: scripts
   type: tosca.artifacts.File
@@ -104,7 +122,8 @@ func TestArtifactsAlien(t *testing.T) {
 
 }
 
-func TestArtifactsAlien2(t *testing.T) {
+func artifactsAlien2(t *testing.T) {
+	t.Parallel()
 	var data = `
 - scripts: scripts
 - utils_scripts: utils_scripts
@@ -120,7 +139,8 @@ func TestArtifactsAlien2(t *testing.T) {
 	assert.Equal(t, "utils_scripts", arts["utils_scripts"].File)
 }
 
-func TestArtifactsInNodeTypeAlien(t *testing.T) {
+func artifactsInNodeTypeAlien(t *testing.T) {
+	t.Parallel()
 	var data = `
 nodes.ANode:
   artifacts:
@@ -142,7 +162,8 @@ nodes.ANode:
 	assert.Equal(t, "utils_scripts", artUtilsScripts.File)
 }
 
-func TestArtifactsInNodeTemplateAlien(t *testing.T) {
+func artifactsInNodeTemplateAlien(t *testing.T) {
+	t.Parallel()
 	var data = `
 nodes.ANode:
   artifacts:

@@ -1,12 +1,14 @@
 package rest
 
 import (
-	"github.com/gorilla/context"
+	"context"
+	"encoding/json"
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
 	"net"
 	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
@@ -33,8 +35,8 @@ func (r *router) Delete(path string, handler http.Handler) {
 
 func wrapHandler(h http.Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		context.Set(r, "params", ps)
-		h.ServeHTTP(w, r)
+		ctx := r.Context()
+		h.ServeHTTP(w, r.WithContext(context.WithValue(ctx, "params", ps)))
 	}
 }
 
@@ -43,10 +45,11 @@ func NewRouter() *router {
 }
 
 type Server struct {
-	router         *router
-	listener       net.Listener
-	consulClient   *api.Client
-	tasksCollector *tasks.Collector
+	router          *router
+	listener        net.Listener
+	consulClient    *api.Client
+	tasksCollector  *tasks.Collector
+	consulPublisher *consulPublisher
 }
 
 func (s *Server) Shutdown() {
@@ -56,18 +59,26 @@ func (s *Server) Shutdown() {
 	}
 }
 
-func NewServer(client *api.Client) (*Server, error) {
+func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
 	var listener net.Listener
 	var err error
 	if listener, err = net.Listen("tcp", ":8800"); err != nil {
 		return nil, err
 	}
-	httpServer := &Server{
-		router:         NewRouter(),
-		listener:       listener,
-		consulClient:   client,
-		tasksCollector: tasks.NewCollector(client),
+
+	maxConsulPubRoutines := configuration.REST_CONSUL_PUB_MAX_ROUTINES
+	if maxConsulPubRoutines <= 0 {
+		maxConsulPubRoutines = config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES
 	}
+
+	httpServer := &Server{
+		router:          NewRouter(),
+		listener:        listener,
+		consulClient:    client,
+		tasksCollector:  tasks.NewCollector(client),
+		consulPublisher: newConsulPublisher(maxConsulPubRoutines, client.KV(), shutdownCh),
+	}
+	go httpServer.consulPublisher.run()
 
 	httpServer.registerHandlers()
 	log.Printf("Starting HTTPServer on port 8800")
@@ -77,9 +88,24 @@ func NewServer(client *api.Client) (*Server, error) {
 }
 
 func (s *Server) registerHandlers() {
-	commonHandlers := alice.New(context.ClearHandler, loggingHandler, recoverHandler)
+	commonHandlers := alice.New(loggingHandler, recoverHandler)
 	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
 	s.router.Delete("/deployments/:id", commonHandlers.ThenFunc(s.deleteDeploymentHandler))
 	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getDeploymentHandler))
 	s.router.Get("/deployments", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
+	s.router.Get("/deployments/:id/events", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollEvents))
+	s.router.Get("/deployments/:id/logs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.pollLogs))
+	s.router.Get("/deployments/:id/nodes/:nodeName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeHandler))
+	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceHandler))
+	s.router.Get("/deployments/:id/outputs", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listOutputsHandler))
+	s.router.Get("/deployments/:id/outputs/:opt", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getOutputHandler))
+}
+
+func encodeJsonResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {
+	jEnc := json.NewEncoder(w)
+	if _, ok := r.URL.Query()["pretty"]; ok {
+		jEnc.SetIndent("", "  ")
+	}
+	w.Header().Set("Content-Type", "application/json")
+	jEnc.Encode(resp)
 }

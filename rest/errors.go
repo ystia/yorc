@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -19,10 +18,9 @@ type Error struct {
 	Detail string `json:"detail"`
 }
 
-func WriteError(w http.ResponseWriter, err *Error) {
-	w.Header().Set("Content-Type", "application/json")
+func WriteError(w http.ResponseWriter, r *http.Request, err *Error) {
 	w.WriteHeader(err.Status)
-	json.NewEncoder(w).Encode(Errors{[]*Error{err}})
+	encodeJsonResponse(w, r, Errors{[]*Error{err}})
 }
 
 var (
@@ -36,4 +34,8 @@ func NewNotAcceptableError(accept string) *Error {
 
 func NewUnsupportedMediaTypeError(contentType string) *Error {
 	return &Error{"unsupported_media_type", 415, "Unsupported Media Type", fmt.Sprintf("Content-Type header must be set to: '%s'.", contentType)}
+}
+
+func NewBadRequestParameter(param string, err error) *Error {
+	return &Error{"bad_request", http.StatusBadRequest, "Bad Request", fmt.Sprintf("Invalid %q parameter %v", param, err)}
 }

@@ -1,9 +1,9 @@
 package tasks
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
-	"golang.org/x/net/context"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -17,6 +17,7 @@ type Worker struct {
 	shutdownCh   chan struct{}
 	consulClient *api.Client
 	cfg          config.Configuration
+	runStepLock  sync.Locker
 }
 
 func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) Worker {
@@ -25,7 +26,8 @@ func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClien
 		TaskChannel:  make(chan *Task),
 		shutdownCh:   shutdownCh,
 		consulClient: consulClient,
-		cfg:          cfg}
+		cfg:          cfg,
+		runStepLock:  &sync.Mutex{}}
 }
 
 func (w Worker) setDeploymentStatus(deploymentId string, status deployments.DeploymentStatus) {
@@ -34,31 +36,17 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
-func (w Worker) runStep(ctx context.Context, step *Step, deploymentId string, wg *sync.WaitGroup, errc chan error, runningSteps map[string]struct{}) {
-	if _, ok := runningSteps[step.Name]; ok {
-		// Already running
-		log.Debugf("step %q already running", step.Name)
-		return
-	}
-	log.Debugf("Running step %q", step.Name)
-	runningSteps[step.Name] = struct{}{}
-	go step.run(ctx, deploymentId, wg, w.consulClient.KV(), errc, w.shutdownCh, w.cfg)
-	for _, next := range step.Next {
-		wg.Add(1)
-		log.Debugf("Try run next step %q", next.Name)
-		go w.runStep(ctx, next, deploymentId, wg, errc, runningSteps)
-	}
-}
-
-func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
+func (w Worker) processWorkflow(wfSteps []*Step, deploymentId string, isUndeploy bool) error {
+	deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Start processing workflow")
 	var wg sync.WaitGroup
-	runningSteps := make(map[string]struct{})
 	ctx := context.TODO()
 	ctx, cancel := context.WithCancel(ctx)
 	errc := make(chan error)
-	for _, step := range wfRoots {
+	unistallerrc := make(chan error)
+	for _, step := range wfSteps {
 		wg.Add(1)
-		go w.runStep(ctx, step, deploymentId, &wg, errc, runningSteps)
+		log.Debugf("Running step %q", step.Name)
+		go step.run(ctx, deploymentId, &wg, w.consulClient.KV(), errc, unistallerrc, w.shutdownCh, w.cfg, isUndeploy)
 	}
 
 	go func(wg *sync.WaitGroup, cancel context.CancelFunc) {
@@ -69,11 +57,16 @@ func (w Worker) processWorkflow(wfRoots []*Step, deploymentId string) error {
 
 	var err error
 	select {
+	case err = <-unistallerrc:
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", err))
+		log.Printf("One or more error appear in unistall workflow, please check : %v", err)
 	case err = <-errc:
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
 		log.Printf("Error '%v' happened in workflow.", err)
 		log.Debug("Canceling it.")
 		cancel()
 	case <-ctx.Done():
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Workflow ended without error")
 		log.Printf("Workflow ended without error")
 	}
 	return err
@@ -104,7 +97,7 @@ func (w Worker) Start() {
 						continue
 
 					}
-					if err = w.processWorkflow(wf, task.TargetId); err != nil {
+					if err = w.processWorkflow(wf, task.TargetId, false); err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
@@ -121,7 +114,7 @@ func (w Worker) Start() {
 						continue
 
 					}
-					if err = w.processWorkflow(wf, task.TargetId); err != nil {
+					if err = w.processWorkflow(wf, task.TargetId, true); err != nil {
 						task.WithStatus("failed")
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)

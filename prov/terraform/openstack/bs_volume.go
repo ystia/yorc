@@ -18,6 +18,12 @@ func (g *Generator) generateOSBSVolume(url string) (BlockStorageVolume, error) {
 	if nodeType != "janus.nodes.openstack.BlockStorage" {
 		return volume, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
+	var nodeName string
+	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
+		return volume, err
+	} else {
+		volume.Name = g.cfg.OS_PREFIX + nodeName
+	}
 	if size, err := g.getStringFormConsul(url, "properties/size"); err != nil {
 		return volume, err
 	} else if size != "" {
@@ -52,8 +58,7 @@ func (g *Generator) generateOSBSVolume(url string) (BlockStorageVolume, error) {
 	} else if region != "" {
 		volume.Region = region
 	} else {
-		//TODO make this configurable
-		volume.Region = "RegionOne"
+		volume.Region = g.cfg.OS_REGION
 	}
 	if az, err := g.getStringFormConsul(url, "properties/availability_zone"); err != nil {
 		return volume, err

@@ -1,10 +1,11 @@
 GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep github.com/jteeuwen/go-bindata/...
 
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
-PACKAGES_MINUS_TASKS=$(shell go list ./... | grep -v '/vendor/' | grep -v 'tasks')
 
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
+
+buildnformat: build format
 
 build: test
 	@echo "--> Running go build"
@@ -19,9 +20,10 @@ dist: build
 	@tar czvf janus.tgz janus
 
 test: checks
+ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@go test $(PACKAGES_MINUS_TASKS) $(TESTARGS) -timeout=30s -parallel=0
-	@go test ./tasks/... $(TESTARGS) -timeout=30s -parallel=0
+	@go test $(PACKAGES) $(TESTARGS) -timeout=30s -p 1
+endif
 
 
 cover: build
@@ -47,4 +49,11 @@ vet:
 tools:
 	go get -u -v $(GOTOOLS)
 
-.PHONY: cov test cover format vet tools
+savedeps: checks
+	@godep save -v ./...
+
+restoredeps: checks
+	@godep restore -v
+
+
+.PHONY: buildnformat build cov checks test cover format vet tools

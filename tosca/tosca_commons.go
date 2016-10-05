@@ -14,6 +14,9 @@ type ValueAssignment struct {
 }
 
 func (p ValueAssignment) String() string {
+	if p.Expression == nil {
+		return ""
+	}
 	return p.Expression.String()
 }
 
@@ -122,6 +125,13 @@ func (t *TreeNode) Children() []*TreeNode {
 
 func (t *TreeNode) IsLiteral() bool {
 	return len(t.children) == 0
+}
+
+func (t *TreeNode) IsTargetContext() bool {
+	if t.IsLiteral() {
+		return false
+	}
+	return t.children[0].Value == "TARGET"
 }
 
 func (t *TreeNode) String() string {

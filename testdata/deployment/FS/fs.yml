@@ -1,0 +1,199 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+description: Alien4Cloud generated service template
+template_name: Test
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - openstack-types: <janus-openstack-types.yml>
+  - fs: extended/alien-extended-storage-types.yaml
+
+topology_template:
+  node_templates:
+    BlockStorage:
+       type: janus.nodes.openstack.BlockStorage
+       properties:
+         size: 2 GiB
+         availability_zone: r423-03.share.ops
+         deletable: true
+    XFS:
+      type: starlings.nodes.XFS
+      properties:
+        location: /home/cloud-user/test
+      requirements:
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - partition:
+            node: BlockStorage
+            capability: tosca.capabilities.Node
+            relationship:
+             type: alien.relationships.LinuxPartition
+             properties:
+               device: /dev/vdb
+               partition_type: 83
+    Compute:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: cloudify
+      requirements:
+        - local_storage:
+            node: BlockStorage
+            capability: tosca.capabilities.Attachment
+            relationship:
+              type: tosca.relationships.AttachesTo
+              properties:
+                location: /dev/vdb
+        - network:
+            node: Network
+            capability: janus.capabilities.openstack.FIPConnectivity
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        os:
+          properties:
+            type: linux
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Network:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+  workflows:
+    install:
+      steps:
+        Network_install:
+         node: Network
+         activity:
+           delegate: install
+         on-success:
+           - Compute_install
+        Compute_install:
+          node: Compute
+          activity:
+            delegate: install
+          on-success:
+            - XFS_initial
+        BlockStorage_install:
+          node: BlockStorage
+          activity:
+            delegate: install
+          on-success:
+            - XFS_initial
+        XFS_initial:
+          node: XFS
+          activity:
+            set_state: initial
+          on-success:
+            - XFS_creating
+        XFS_creating:
+          node: XFS
+          activity:
+            set_state: creating
+          on-success:
+            - XFS_pre_conf/1
+        XFS_pre_conf/1:
+          node: XFS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
+          on-success:
+            - XFS_created
+        XFS_created:
+          node: XFS
+          activity:
+            set_state: created
+          on-success:
+            - XFS_post_conf/1
+        XFS_post_conf/1:
+          node: XFS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/1
+          on-success:
+            - XFS_configuring
+        XFS_configuring:
+          node: XFS
+          activity:
+            set_state: configuring
+          on-success:
+            - XFS_configured
+        XFS_configured:
+          node: XFS
+          activity:
+            set_state: configured
+          on-success:
+            - XFS_starting
+        XFS_starting:
+          node: XFS
+          activity:
+            set_state: starting
+          on-success:
+            - start_XFS
+        start_XFS:
+          node: XFS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - XFS_started
+        XFS_started:
+          node: XFS
+          activity:
+            set_state: started
+    uninstall:
+      steps:
+        Network_uninstall:
+          node: Network
+          activity:
+            delegate: uninstall
+        Compute_uninstall:
+          node: Compute
+          activity:
+            delegate: uninstall
+          on-success:
+            - Network_uninstall
+        BlockStorage_uninstall:
+          node: BlockStorage
+          activity:
+            delegate: uninstall
+        XFS_stopping:
+          node: XFS
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_XFS
+        stop_XFS:
+          node: XFS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - XFS_stopped
+        XFS_stopped:
+          node: XFS
+          activity:
+            set_state: stopped
+          on-success:
+            - XFS_deleting
+        XFS_deleting:
+          node: XFS
+          activity:
+            set_state: deleting
+          on-success:
+            - XFS_deleted
+        XFS_deleted:
+          node: XFS
+          activity:
+            set_state: deleted
+          on-success:
+            - BlockStorage_uninstall
+            - Compute_uninstall

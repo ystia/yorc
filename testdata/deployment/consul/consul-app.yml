@@ -36,8 +36,7 @@ topology_template:
       requirements:
         - network:
             node: Network
-            capability: tosca.capabilities.Node
-            relationship: tosca.relationships.ConnectsTo
+            capability: janus.capabilities.openstack.FIPConnectivity
       capabilities:
         endpoint:
           properties:
@@ -76,8 +75,7 @@ topology_template:
       requirements:
         - network:
             node: Net
-            capability: tosca.capabilities.Node
-            relationship: tosca.relationships.ConnectsTo
+            capability: janus.capabilities.openstack.FIPConnectivity
       capabilities:
         endpoint:
           properties:
@@ -138,11 +136,11 @@ topology_template:
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - pre_conf_consul
-        pre_conf_consul:
+            - pre_conf_consul/1
+        pre_conf_consul/1:
           node: Consul-2
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
           on-success:
             - Consul-2_created
         Consul-2_created:
@@ -251,7 +249,7 @@ topology_template:
         Network_uninstall:
           node: Network
           activity:
-            delegate: unistall
+            delegate: uninstall
         Net_uninstall:
           node: Net
           activity:
