@@ -83,7 +83,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 			status := TaskStatus(statusInt)
-			if status != INITIAL {
+			if status != INITIAL && status != RUNNING {
 				log.Debugf("Skiping task %s with status %s", taskKey, status)
 				continue
 			}

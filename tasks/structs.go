@@ -15,6 +15,7 @@ type TaskStatus int
 
 const (
 	INITIAL TaskStatus = iota
+	RUNNING
 	DONE
 	FAILED
 )

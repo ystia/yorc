@@ -84,7 +84,7 @@ func (w Worker) Start() {
 			case task := <-w.TaskChannel:
 				// we have received a work request.
 				log.Printf("Worker got task with id %s", task.Id)
-
+				task.WithStatus(RUNNING)
 				switch task.TaskType {
 
 				case DEPLOY:
