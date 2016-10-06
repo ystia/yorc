@@ -11,7 +11,7 @@ func recoverHandler(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("panic: %+v", err)
-				WriteError(w, r, ErrInternalServer)
+				WriteError(w, r, NewInternalServerError(err))
 			}
 		}()
 

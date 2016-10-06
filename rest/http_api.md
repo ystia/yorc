@@ -61,7 +61,7 @@ This endpoint produces no content except in case of error.
 
 ### Get the deployment information
 
-Retrieve the deployment status and the list (as Atom links) of the nodes of the deployment.
+Retrieve the deployment status and the list (as Atom links) of the nodes and tasks related the deployment.
 
 'Accept' header should be set to 'application/json'.
 
@@ -97,7 +97,13 @@ Content-Type: application/json
       "rel": "node",
       "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/PHP",
       "type": "application/json"
+    },
+    {
+      "rel": "task",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/tasks/b4144668-5ec8-41c0-8215-842661520147",
+      "type": "application/json"
     }
+
   ]
 }
 
@@ -252,7 +258,11 @@ Retrieve a specific output. 'Accept' header should be set to 'application/json'.
 ```GET    /deployments/<deployment_id>/outputs/output_name>```
 
 **Response**
-
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
 {
   "name":"compute_url",
   "value":"10.197.129.73"
@@ -266,11 +276,36 @@ Retrieve a list of outputs. 'Accept' header should be set to 'application/json'.
 ```GET    /deployments/<deployment_id>/outputs```
 
 **Response**
-
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
 {
   "outputs":[
     {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/compute_private_ip","type":"application/json"},
     {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/compute_url","type":"application/json"},
     {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/port_value","type":"application/json"}]
+}
+```
+
+### Get task information
+
+Retrieve information about a task for a given deployment.
+'Accept' header should be set to 'application/json'.
+
+```GET    /deployments/<deployment_id>/tasks/<taskId>```
+
+**Response**
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "id": "b4144668-5ec8-41c0-8215-842661520147",
+  "target_id": "62d7f67a-d1fd-4b41-8392-ce2377d7a1bb",
+  "type": "DEPLOY",
+  "status": "DONE"
 }
 ```

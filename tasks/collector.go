@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/satori/go.uuid"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"strconv"
 )
 
 type Collector struct {
@@ -48,12 +49,12 @@ func (c *Collector) RegisterTask(targetId string, taskType TaskType) error {
 		log.Print(err)
 		return err
 	}
-	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(string("initial"))}
+	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(strconv.Itoa(int(INITIAL)))}
 	if _, err := kv.Put(key, nil); err != nil {
 		log.Print(err)
 		return err
 	}
-	key = &api.KVPair{Key: taskPrefix + "/type", Value: []byte(fmt.Sprint(taskType))}
+	key = &api.KVPair{Key: taskPrefix + "/type", Value: []byte(strconv.Itoa(int(taskType)))}
 	if _, err := kv.Put(key, nil); err != nil {
 		log.Print(err)
 		return err

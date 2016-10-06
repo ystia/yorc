@@ -91,14 +91,14 @@ func (w Worker) Start() {
 					w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
 					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/install"))
 					if err != nil {
-						task.WithStatus("failed")
+						task.WithStatus(FAILED)
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 						continue
 
 					}
 					if err = w.processWorkflow(wf, task.TargetId, false); err != nil {
-						task.WithStatus("failed")
+						task.WithStatus(FAILED)
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 						continue
@@ -108,21 +108,21 @@ func (w Worker) Start() {
 					w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_IN_PROGRESS)
 					wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
 					if err != nil {
-						task.WithStatus("failed")
+						task.WithStatus(FAILED)
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
 						continue
 
 					}
 					if err = w.processWorkflow(wf, task.TargetId, true); err != nil {
-						task.WithStatus("failed")
+						task.WithStatus(FAILED)
 						log.Printf("%v. Aborting", err)
 						w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
 						continue
 					}
 					w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYED)
 				}
-				task.WithStatus("done")
+				task.WithStatus(DONE)
 				task.TaskLock.Unlock()
 				task.TaskLock.Destroy()
 

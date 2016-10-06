@@ -77,9 +77,14 @@ func (d *Dispatcher) Run() {
 				log.Printf("Failed to get status for key %s: nil value", taskKey)
 				continue
 			}
-			status := string(kvPairContent.Value)
-			if status != "initial" {
-				log.Printf("Skiping task %s with status %s", taskKey, status)
+			statusInt, err := strconv.Atoi(string(kvPairContent.Value))
+			if err != nil {
+				log.Printf("Failed to get status for key %s: %+v", taskKey, err)
+				continue
+			}
+			status := TaskStatus(statusInt)
+			if status != INITIAL {
+				log.Debugf("Skiping task %s with status %s", taskKey, status)
 				continue
 			}
 

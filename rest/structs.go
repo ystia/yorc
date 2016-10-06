@@ -19,6 +19,7 @@ const (
 	LINK_REL_NODE       string = "node"
 	LINK_REL_INSTANCE   string = "instance"
 	LINK_REL_OUTPUT     string = "output"
+	LINK_REL_TASK       string = "task"
 )
 
 type AtomLink struct {
@@ -59,4 +60,11 @@ type NodeInstance struct {
 
 type OutputsCollection struct {
 	Outputs []AtomLink `json:"outputs,omitempty"`
+}
+
+type Task struct {
+	Id       string `json:"id"`
+	TargetId string `json:"target_id"`
+	Type     string `json:"type"`
+	Status   string `json:"status"`
 }

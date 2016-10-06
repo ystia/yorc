@@ -196,6 +196,14 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	for _, node := range nodes {
 		links = append(links, newAtomLink(LINK_REL_NODE, path.Join(r.URL.Path, "nodes", node)))
 	}
+
+	tasksList, err := tasks.GetTasksIdsForTarget(kv, id)
+	if err != nil {
+		log.Panic(err)
+	}
+	for _, task := range tasksList {
+		links = append(links, newAtomLink(LINK_REL_TASK, path.Join(r.URL.Path, "tasks", task)))
+	}
 	deployment.Links = links
 	encodeJsonResponse(w, r, deployment)
 }
