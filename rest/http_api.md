@@ -309,3 +309,17 @@ Content-Type: application/json
   "status": "DONE"
 }
 ```
+
+
+### Cancel a task
+
+Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be cancelled otherwise an HTTP 400 
+(Bad request) error is returned.
+
+```DELETE    /deployments/<deployment_id>/tasks/<taskId>```
+
+**Response**
+```
+HTTP/1.1 202 OK
+Content-Length: 0
+```

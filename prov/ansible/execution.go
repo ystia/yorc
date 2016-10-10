@@ -790,13 +790,29 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	errCloseCh := make(chan bool)
 	defer close(errCloseCh)
 	errbuf.Run(errCloseCh)
+	defer outbuf.FlushSoftware()
+	if err := cmd.Run(); err != nil {
+		deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
+		log.Print(err)
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+
+			// This works on both Unix and Windows. Although package
+			// syscall is generally platform dependent, WaitStatus is
+			// defined for both Unix and Windows and in both cases has
+			// an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				// Retry exit statuses 2 and 3
+				if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
+					return ansibleRetriableError{root: err}
+				}
+			}
+
+		}
+		return err
+	}
 
 	if e.HaveOutput {
-		if err := cmd.Run(); err != nil {
-			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
-			log.Print(err)
-			return err
-		}
 		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
 		if err != nil {
 			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
@@ -811,39 +827,9 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		for _, line := range records {
 			storeConsulKey(e.kv, e.Output[line[0]], line[1])
 		}
-		return nil
-
-	} else {
-		if err := cmd.Start(); err != nil {
-			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
-			log.Print(err)
-			return err
-		}
 	}
 
-	err = cmd.Wait()
-
-	if err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			// The program has exited with an exit code != 0
-
-			// This works on both Unix and Windows. Although package
-			// syscall is generally platform dependent, WaitStatus is
-			// defined for both Unix and Windows and in both cases has
-			// an ExitStatus() method with the same signature.
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				// Retry exit statuses 2 and 3
-				if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
-					err = ansibleRetriableError{root: err}
-				}
-			}
-
-		}
-	}
-
-	outbuf.FlushSoftware()
-
-	return err
+	return nil
 }
 
 func storeConsulKey(kv *api.KV, key, value string) {

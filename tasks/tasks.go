@@ -12,12 +12,17 @@ type Task struct {
 	TargetId string
 	status   TaskStatus
 	TaskType TaskType
-	TaskLock *api.Lock
+	taskLock *api.Lock
 	kv       *api.KV
 }
 
 func NewTask(id, targetId string, status TaskStatus, taskLock *api.Lock, kv *api.KV, taskType TaskType) *Task {
-	return &Task{Id: id, status: status, TargetId: targetId, TaskLock: taskLock, kv: kv, TaskType: taskType}
+	return &Task{Id: id, status: status, TargetId: targetId, taskLock: taskLock, kv: kv, TaskType: taskType}
+}
+
+func (t *Task) releaseLock() {
+	t.taskLock.Unlock()
+	t.taskLock.Destroy()
 }
 
 func (t *Task) Status() TaskStatus {
@@ -99,4 +104,10 @@ func TaskExists(kv *api.KV, taskId string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+func CancelTask(kv *api.KV, taskId string) error {
+	kvp := &api.KVPair{Key: path.Join(tasksPrefix, taskId, ".canceledFlag"), Value: []byte("true")}
+	_, err := kv.Put(kvp, nil)
+	return err
 }

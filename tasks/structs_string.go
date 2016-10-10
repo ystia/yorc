@@ -4,9 +4,9 @@ package tasks
 
 import "fmt"
 
-const _TaskStatus_name = "INITIALRUNNINGDONEFAILED"
+const _TaskStatus_name = "INITIALRUNNINGDONEFAILEDCANCELED"
 
-var _TaskStatus_index = [...]uint8{0, 7, 14, 18, 24}
+var _TaskStatus_index = [...]uint8{0, 7, 14, 18, 24, 32}
 
 func (i TaskStatus) String() string {
 	if i < 0 || i >= TaskStatus(len(_TaskStatus_index)-1) {

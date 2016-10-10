@@ -18,4 +18,5 @@ const (
 	RUNNING
 	DONE
 	FAILED
+	CANCELED
 )
