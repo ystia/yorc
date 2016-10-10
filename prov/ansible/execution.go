@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"os"
@@ -770,13 +771,13 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	}
 	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
 	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath))
-	var cmd *exec.Cmd
+	var cmd *executil.Cmd
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = exec.CommandContext(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
