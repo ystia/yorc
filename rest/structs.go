@@ -68,3 +68,7 @@ type Task struct {
 	Type     string `json:"type"`
 	Status   string `json:"status"`
 }
+
+type TaskRequest struct {
+	Type string `json:"type"`
+}

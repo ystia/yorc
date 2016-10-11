@@ -132,7 +132,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
-	if err := s.tasksCollector.RegisterTask(uid, tasks.DEPLOY); err != nil {
+	if _, err := s.tasksCollector.RegisterTask(uid, tasks.DEPLOY); err != nil {
 		log.Panic(err)
 	}
 
@@ -165,7 +165,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	if err := s.tasksCollector.RegisterTask(id, tasks.UNDEPLOY); err != nil {
+	if _, err := s.tasksCollector.RegisterTask(id, tasks.UNDEPLOY); err != nil {
 		log.Panic(err)
 	}
 	w.WriteHeader(http.StatusAccepted)

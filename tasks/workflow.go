@@ -23,6 +23,8 @@ type Step struct {
 	Next       []*Step
 	Previous   []*Step
 	NotifyChan chan struct{}
+	kv         *api.KV
+	stepPrefix string
 }
 
 type Activity interface {
@@ -67,9 +69,34 @@ func (s *Step) IsTerminal() bool {
 	return len(s.Next) == 0
 }
 
+func (s *Step) notifyNext() {
+	for _, next := range s.Next {
+		log.Debugf("Step %q, notifying step %q", s.Name, next.Name)
+		next.NotifyChan <- struct{}{}
+	}
+}
+
 type visitStep struct {
 	refCount int
 	step     *Step
+}
+
+func (s *Step) setStatus(status string) error {
+	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(status)}
+	_, err := s.kv.Put(kvp, nil)
+	return err
+}
+
+func (s *Step) isRunnable() (bool, error) {
+	kvp, _, err := s.kv.Get(path.Join(s.stepPrefix, "status"), nil)
+	if err != nil {
+		return false, err
+	}
+
+	if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "done" {
+		return true, nil
+	}
+	return false, nil
 }
 
 func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName, status string) {
@@ -97,15 +124,28 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 			case <-shutdownChan:
 				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled", s.Name))
 				log.Printf("Step %q cancelled", s.Name)
+				s.setStatus("cancelled")
 				return
 			case <-ctx.Done():
+				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled: %q", s.Name, ctx.Err()))
 				log.Printf("Step %q cancelled: %q", s.Name, ctx.Err())
+				s.setStatus("cancelled")
 				return
 			case <-time.After(30 * time.Second):
 				log.Debugf("Step %q still waiting for %d previous steps", s.Name, len(s.Previous)-i)
 			}
 		}
 	BR:
+	}
+
+	if runnable, err := s.isRunnable(); err != nil {
+		errc <- err
+		return
+	} else if !runnable {
+		log.Printf("Deployment %q: Skipping Step %q", deploymentId, s.Name)
+		s.setStatus("done")
+		s.notifyNext()
+		return
 	}
 
 	log.Debugf("Processing step %q", s.Name)
@@ -120,6 +160,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 				if err := provisioner.ProvisionNode(ctx, deploymentId, s.Node); err != nil {
 					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentId, s.Name, err)
+					s.setStatus("error")
 					errc <- err
 					return
 				}
@@ -135,6 +176,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 			default:
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 				errc <- fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
+				s.setStatus("error")
 				return
 			}
 		case actType == "set-state":
@@ -148,26 +190,28 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 					uninstallerrc <- err
 				} else {
 					errc <- err
+					s.setStatus("error")
 					return
 				}
 
 			}
 		}
 	}
-	for _, next := range s.Next {
-		log.Debugf("Step %q, notifying step %q", s.Name, next.Name)
-		next.NotifyChan <- struct{}{}
-	}
+
+	s.notifyNext()
+
 	if haveErr {
 		log.Debug("Step %s genrate an error but workflow continue", s.Name)
+		s.setStatus("error")
 		return
 	}
 	log.Debugf("Step %s done without error.", s.Name)
+	s.setStatus("done")
 }
 
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
 	stepPrefix := stepsPrefix + stepName
-	step := &Step{Name: stepName}
+	step := &Step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
 	kvPair, _, err := kv.Get(stepPrefix+"/node", nil)
 	if err != nil {
 		log.Print(err)

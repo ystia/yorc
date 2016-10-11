@@ -10,7 +10,7 @@ Adding the 'pretty' url parameter to your requests allow to generate an indented
 ### Submit a CSAR to deploy
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
 
-```POST /deployments```
+`POST /deployments`
 
 A successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
 deployment URI.
@@ -26,11 +26,13 @@ This endpoint produces no content except in case of error.
 A critical note is that the deployment is proceeded asynchronously and a success only guarantees that the deployment is successfully
 **submitted**.
 
+Actually, this endpoint implicitly call a [submit new deploy task](#submit-new-task).
+
 ### List deployments
 
 Retrieves the list of deployments. 'Accept' header should be set to 'application/json'.
 
-```GET /deployments```
+`GET /deployments`
 
 **Response**
 
@@ -59,13 +61,15 @@ Content-Length: 0
 
 This endpoint produces no content except in case of error.
 
+Actually, this endpoint implicitly call a [submit new undeploy task](#submit-new-task).
+
 ### Get the deployment information
 
 Retrieve the deployment status and the list (as Atom links) of the nodes and tasks related the deployment.
 
 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>```
+`GET    /deployments/<deployment_id>`
 
 **Response**
 
@@ -106,8 +110,6 @@ Content-Type: application/json
 
   ]
 }
-
-
 ```
 
 ### Get the deployment information about a given node
@@ -116,7 +118,7 @@ Retrieve the node status and the list (as Atom links) of the instances for this 
  
 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/nodes/<node_name>```
+`GET    /deployments/<deployment_id>/nodes/<node_name>`
 
 **Response**
 
@@ -158,7 +160,7 @@ This value can be specified in the form of "10s" or "5m" (i.e., 10 seconds or 5 
 polling for events newer that this index. A _0_ value will always returns with all currently known event (possibly none if none were
 already published), a _1_ value will wait for at least one event.
 
-```GET    /deployments/<deployment_id>/events?index=1&wait=5m```
+`GET    /deployments/<deployment_id>/events?index=1&wait=5m`
 
 A critical note is that the return of this endpoint is no guarantee of new events. It is possible that the timeout was reached before
 a new event was published.
@@ -189,7 +191,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]```
+`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]`
 
 **Response**
 
@@ -211,7 +213,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=software,engine```
+`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=software,engine`
 
 **Response**
 
@@ -233,7 +235,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=```
+`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=`
 
 **Response**
 
@@ -255,7 +257,7 @@ Content-Type: application/json
 
 Retrieve a specific output. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/outputs/output_name>```
+`GET    /deployments/<deployment_id>/outputs/output_name>`
 
 **Response**
 ```
@@ -273,7 +275,7 @@ Content-Type: application/json
 
 Retrieve a list of outputs. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/outputs```
+`GET    /deployments/<deployment_id>/outputs`
 
 **Response**
 ```
@@ -294,7 +296,7 @@ Content-Type: application/json
 Retrieve information about a task for a given deployment.
 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/tasks/<taskId>```
+`GET    /deployments/<deployment_id>/tasks/<taskId>`
 
 **Response**
 ```
@@ -316,7 +318,28 @@ Content-Type: application/json
 Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be cancelled otherwise an HTTP 400 
 (Bad request) error is returned.
 
-```DELETE    /deployments/<deployment_id>/tasks/<taskId>```
+`DELETE    /deployments/<deployment_id>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 202 OK
+Content-Length: 0
+```
+
+### Submit a new task <a name="submit-new-task"></a>
+
+Submit a new task for a given deployment.  
+'Content-Type' header should be set to 'application/json'.
+Request should contains a valid task type (DEPLOY or UNDEPLOY)
+
+`POST    /deployments/<deployment_id>/tasks`
+
+Request body:
+```json
+{
+  "type": "DEPLOY"
+}
+```
 
 **Response**
 ```

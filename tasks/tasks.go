@@ -16,10 +16,6 @@ type Task struct {
 	kv       *api.KV
 }
 
-func NewTask(id, targetId string, status TaskStatus, taskLock *api.Lock, kv *api.KV, taskType TaskType) *Task {
-	return &Task{Id: id, status: status, TargetId: targetId, taskLock: taskLock, kv: kv, TaskType: taskType}
-}
-
 func (t *Task) releaseLock() {
 	t.taskLock.Unlock()
 	t.taskLock.Destroy()

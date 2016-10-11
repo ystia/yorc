@@ -148,7 +148,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			log.Printf("Processing task %q linked to deployment %q", taskId, targetId)
-			task := NewTask(taskId, targetId, status, lock, kv, TaskType(taskType))
+			task := &Task{Id: taskId, status: status, TargetId: targetId, taskLock: lock, kv: kv, TaskType: TaskType(taskType)}
 			log.Debugf("New task created %+v: pushing it to a work channel", task)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle
