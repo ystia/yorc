@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"golang.org/x/sync/errgroup"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -39,43 +40,48 @@ func (w Worker) setDeploymentStatus(deploymentId string, status deployments.Depl
 
 func (w Worker) processWorkflow(ctx context.Context, wfSteps []*Step, deploymentId string, isUndeploy bool) error {
 	deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Start processing workflow")
-	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(ctx)
-	errc := make(chan error)
-	unistallerrc := make(chan error)
+	uninstallerrc := make(chan error)
+
+	g, ctx := errgroup.WithContext(ctx)
 	for _, step := range wfSteps {
-		wg.Add(1)
 		log.Debugf("Running step %q", step.Name)
-		go step.run(ctx, deploymentId, &wg, w.consulClient.KV(), errc, unistallerrc, w.shutdownCh, w.cfg, isUndeploy)
+		// The use of the function bellow is a classic gotcha with go routines. It allows to use a fixed step as it is computed when the
+		// bellow function executes (ie before g.Go or go ... in other case). Otherwise step is computed when the lambda function executes
+		// ie in the other go routine and at this time step may have changed as we are in a for loop.
+		func(step *Step) {
+			g.Go(func() error {
+				return step.run(ctx, deploymentId, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, isUndeploy)
+			})
+		}(step)
 	}
 
-	go func(wg *sync.WaitGroup, cancel context.CancelFunc) {
-		wg.Wait()
-		// Canceling context so below ctx.Done() will be closed and not considered as an error
-		cancel()
-	}(&wg, cancel)
-
-	var err error
-	select {
-	case err = <-unistallerrc:
-		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", err))
-		log.Printf("One or more error appear in unistall workflow, please check : %v", err)
-	case err = <-errc:
-		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
-		log.Printf("Error '%v' happened in workflow.", err)
-		log.Debug("Canceling it.")
-		cancel()
-	case <-ctx.Done():
-		err = ctx.Err()
-		if err == nil {
-			deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Workflow ended without error")
-			log.Printf("Workflow ended without error")
-		} else {
-			deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
-			log.Printf("Error '%v' happened in workflow.", err)
+	faninErrCh := make(chan []string)
+	defer close(faninErrCh)
+	go func() {
+		errors := make([]string, 0)
+		// Reads from uninstallerrc until the channel is close
+		for err := range uninstallerrc {
+			errors = append(errors, err.Error())
 		}
+		faninErrCh <- errors
+	}()
+
+	err := g.Wait()
+	if err != nil {
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
 	}
-	return err
+	close(uninstallerrc)
+	errors := <-faninErrCh
+
+	if len(errors) > 0 {
+		uninstallerr := fmt.Errorf("%s", strings.Join(errors, " ; "))
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", uninstallerr))
+		log.Printf("One or more error appear in unistall workflow, please check : %v", uninstallerr)
+	} else {
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Workflow ended without error")
+		log.Printf("Workflow ended without error")
+	}
+	return nil
 }
 
 func (w Worker) handleTask(task *Task) {

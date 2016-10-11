@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -12,9 +13,10 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
 	"path"
 	"strings"
-	"sync"
 	"time"
 )
+
+var wfCanceled = errors.New("workflow canceled")
 
 type Step struct {
 	Name       string
@@ -109,8 +111,7 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName
 	eventPub.StatusChange(nodeName, status)
 }
 
-func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup, kv *api.KV, errc chan error, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) {
-	defer wg.Done()
+func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) error {
 	haveErr := false
 	eventPub := events.NewPublisher(kv, deploymentId)
 	for i := 0; i < len(s.Previous); i++ {
@@ -125,12 +126,12 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled", s.Name))
 				log.Printf("Step %q cancelled", s.Name)
 				s.setStatus("cancelled")
-				return
+				return wfCanceled
 			case <-ctx.Done():
 				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled: %q", s.Name, ctx.Err()))
 				log.Printf("Step %q cancelled: %q", s.Name, ctx.Err())
 				s.setStatus("cancelled")
-				return
+				return ctx.Err()
 			case <-time.After(30 * time.Second):
 				log.Debugf("Step %q still waiting for %d previous steps", s.Name, len(s.Previous)-i)
 			}
@@ -139,13 +140,12 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 	}
 
 	if runnable, err := s.isRunnable(); err != nil {
-		errc <- err
-		return
+		return err
 	} else if !runnable {
 		log.Printf("Deployment %q: Skipping Step %q", deploymentId, s.Name)
 		s.setStatus("done")
 		s.notifyNext()
-		return
+		return nil
 	}
 
 	log.Debugf("Processing step %q", s.Name)
@@ -161,8 +161,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentId, s.Name, err)
 					s.setStatus("error")
-					errc <- err
-					return
+					return err
 				}
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "started")
 			case "uninstall":
@@ -175,9 +174,8 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 				}
 			default:
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
-				errc <- fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
 				s.setStatus("error")
-				return
+				return fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
 			}
 		case actType == "set-state":
 			setNodeStatus(kv, eventPub, deploymentId, s.Node, activity.ActivityValue())
@@ -189,11 +187,9 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 				if isUndeploy {
 					uninstallerrc <- err
 				} else {
-					errc <- err
 					s.setStatus("error")
-					return
+					return err
 				}
-
 			}
 		}
 	}
@@ -203,10 +199,12 @@ func (s *Step) run(ctx context.Context, deploymentId string, wg *sync.WaitGroup,
 	if haveErr {
 		log.Debug("Step %s genrate an error but workflow continue", s.Name)
 		s.setStatus("error")
-		return
+		// Return nil otherwise the rest of the workflow will be cancelled
+		return nil
 	}
 	log.Debugf("Step %s done without error.", s.Name)
 	s.setStatus("done")
+	return nil
 }
 
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
