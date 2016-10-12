@@ -640,7 +640,6 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {
 		buffer.WriteString(host.host)
-		// TODO should not be hard-coded
 		sshUser := host.user
 		if sshUser == "" {
 			// Thinking: should we have a default user
