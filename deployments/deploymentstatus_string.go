@@ -4,9 +4,9 @@ package deployments
 
 import "fmt"
 
-const _DeploymentStatus_name = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILED"
+const _DeploymentStatus_name = "startOfDepStatusConstINITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDendOfDepStatusConst"
 
-var _DeploymentStatus_index = [...]uint8{0, 7, 29, 37, 61, 71, 88, 107}
+var _DeploymentStatus_index = [...]uint8{0, 21, 28, 50, 58, 82, 92, 109, 128, 147}
 
 func (i DeploymentStatus) String() string {
 	if i < 0 || i >= DeploymentStatus(len(_DeploymentStatus_index)-1) {

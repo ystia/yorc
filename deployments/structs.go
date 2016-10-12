@@ -5,13 +5,16 @@ package deployments
 type DeploymentStatus int
 
 const (
-	INITIAL DeploymentStatus = iota
+	startOfDepStatusConst DeploymentStatus = iota // Do not remove this line and define new const after it. It is used to get const value from string
+	INITIAL
 	DEPLOYMENT_IN_PROGRESS
 	DEPLOYED
 	UNDEPLOYMENT_IN_PROGRESS
 	UNDEPLOYED
 	DEPLOYMENT_FAILED
 	UNDEPLOYMENT_FAILED
+
+	endOfDepStatusConst // Do not remove this line and define new const before it. It is used to get const value from string
 )
 
 const DeploymentKVPrefix string = "_janus/deployments"

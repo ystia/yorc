@@ -90,23 +90,6 @@ func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	kv := s.consulClient.KV()
-	if existingTasks, err := tasks.GetTasksIdsForTarget(kv, id); err != nil {
-		log.Panic(err)
-	} else {
-		for _, taskId := range existingTasks {
-			if taskStatus, err := tasks.GetTaskStatus(kv, taskId); err != nil {
-				log.Panic(err)
-			} else {
-				switch taskStatus {
-				case tasks.INITIAL, tasks.RUNNING:
-					WriteError(w, r, NewBadRequestError(fmt.Errorf("Can't register a new task as another task with id %s and status %s already exists.", taskId, taskStatus.String())))
-					return
-				}
-				// Otherwise it's ok...
-			}
-		}
-	}
 
 	var tr TaskRequest
 	if body, err := ioutil.ReadAll(r.Body); err != nil {
@@ -125,6 +108,10 @@ func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	taskId, err := s.tasksCollector.RegisterTask(id, taskType)
 	if err != nil {
+		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+			WriteError(w, r, NewBadRequestError(err))
+			return
+		}
 		log.Panic(err)
 	}
 

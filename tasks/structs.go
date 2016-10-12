@@ -8,22 +8,26 @@ import (
 //go:generate stringer -type=TaskStatus,TaskType -output=structs_string.go structs.go
 
 const tasksPrefix = "_janus/tasks"
+const tasksLocksPrefix = "_janus/tasks-locks"
 
 type TaskType int
 
 const (
-	DEPLOY TaskType = iota
-	UNDEPLOY
+	Deploy TaskType = iota
+	UnDeploy
+	Purge
 )
 
 func TaskTypeForName(taskType string) (TaskType, error) {
 	switch strings.ToLower(taskType) {
 	case "deploy":
-		return DEPLOY, nil
+		return Deploy, nil
 	case "undeploy":
-		return UNDEPLOY, nil
+		return UnDeploy, nil
+	case "purge":
+		return Purge, nil
 	default:
-		return DEPLOY, fmt.Errorf("Unsupported task type %q", taskType)
+		return Deploy, fmt.Errorf("Unsupported task type %q", taskType)
 	}
 }
 
@@ -36,3 +40,18 @@ const (
 	FAILED
 	CANCELED
 )
+
+type anotherLivingTaskAlreadyExistsError struct {
+	taskId   string
+	targetId string
+	status   string
+}
+
+func (e anotherLivingTaskAlreadyExistsError) Error() string {
+	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskId, e.status, e.targetId)
+}
+
+func IsAnotherLivingTaskAlreadyExistsError(err error) bool {
+	_, ok := err.(anotherLivingTaskAlreadyExistsError)
+	return ok
+}

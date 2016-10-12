@@ -92,7 +92,7 @@ func (w Worker) handleTask(task *Task) {
 	defer cancelFunc()
 	w.monitorTaskForCancellation(ctx, cancelFunc, task)
 	switch task.TaskType {
-	case DEPLOY:
+	case Deploy:
 		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/install"))
 		if err != nil {
@@ -113,7 +113,7 @@ func (w Worker) handleTask(task *Task) {
 			return
 		}
 		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
-	case UNDEPLOY:
+	case UnDeploy, Purge:
 		w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
 		if err != nil {
@@ -134,6 +134,37 @@ func (w Worker) handleTask(task *Task) {
 			return
 		}
 		w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYED)
+		if task.TaskType == Purge {
+			_, err := w.consulClient.KV().DeleteTree(path.Join(deployments.DeploymentKVPrefix, task.TargetId), nil)
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to purge deployment definition: %+v", task.TargetId, task.Id, err)
+				task.WithStatus(FAILED)
+				return
+			}
+			tasks, err := GetTasksIdsForTarget(w.consulClient.KV(), task.TargetId)
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
+				task.WithStatus(FAILED)
+				return
+			}
+			for _, tid := range tasks {
+				if tid != task.Id {
+					_, err := w.consulClient.KV().DeleteTree(path.Join(tasksPrefix, tid), nil)
+					if err != nil {
+						log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
+						task.WithStatus(FAILED)
+						return
+					}
+				}
+			}
+			_, err = w.consulClient.KV().DeleteTree(path.Join(tasksPrefix, task.Id), nil)
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
+				task.WithStatus(FAILED)
+				return
+			}
+			return
+		}
 	default:
 		deployments.LogInConsul(w.consulClient.KV(), task.TargetId, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", task.TaskType, task.TaskType.String(), task.Id))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", task.TaskType, task.TaskType.String(), task.Id, task.TargetId)

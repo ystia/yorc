@@ -50,7 +50,8 @@ Content-Type: application/json
 
 ### Undeploy  an active deployment
 
-Undeploy a deployment
+Undeploy a deployment. By adding a 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus 
+database at the end of the undeployment. 
 
 `DELETE /deployments/<deployment_id>`
 
@@ -316,7 +317,7 @@ Content-Type: application/json
 ### Cancel a task
 
 Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be cancelled otherwise an HTTP 400 
-(Bad request) error is returned.
+(Bad request) error is returned. 
 
 `DELETE    /deployments/<deployment_id>/tasks/<taskId>`
 
@@ -330,7 +331,7 @@ Content-Length: 0
 
 Submit a new task for a given deployment.  
 'Content-Type' header should be set to 'application/json'.
-Request should contains a valid task type (DEPLOY or UNDEPLOY)
+Request should contains a valid task type (DEPLOY or UNDEPLOY or PURGE)
 
 `POST    /deployments/<deployment_id>/tasks`
 
