@@ -2,12 +2,12 @@ package ansible
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"math/rand"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"time"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"fmt"
 )
 
 type Executor interface {
