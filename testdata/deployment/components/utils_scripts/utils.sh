@@ -26,23 +26,23 @@ is_port_open () {
 # returns 0 if the command succeeded within the delay
 wait_for_command_to_succeed () {
     cmd=$1
+    timeout=60
+    interval=5
     if [[ $# -ge 2 ]] ; then
         ((timeout = $2))
-    else
-        ((timeout = 60))
     fi
     if [[ $# -ge 3 ]] ; then
         ((interval = $3))
-    else
-        ((interval = 5))
     fi
     while ((timeout > 0)) ; do
-        eval ${cmd}
-        if [[ "$?" -eq "0" ]] ; then
+        if eval ${cmd}
+        then
             return 0
+        else
+            log debug "Waiting for cmd ${cmd} to success"
+            sleep $interval
+            (( timeout -= interval ))
         fi
-        sleep ${interval}
-        (( timeout -= interval ))
     done
     return 1
 }
@@ -60,12 +60,13 @@ wait_for_port_to_be_open () {
     port=$1
     shift
     cmd="is_port_open ${host} ${port}"
-    wait_for_command_to_succeed "${cmd}" $@
-    if [[ "$?" -eq "0" ]] ; then
+    if wait_for_command_to_succeed "${cmd}" $@
+    then
         return 0
+    else
+        log warning "Timeout occures while awaiting for port ${host}:${port} to be open."
+        return 1
     fi
-    echo "Timeout occures while awaiting for port ${host}:${port} to be open."
-    return 1
 }
 
 # Wait for a port to be open
@@ -78,12 +79,13 @@ wait_for_address_to_be_pingable () {
     host=$1
     shift
     cmd="ping -qnc 3 ${host} > /dev/null 2>&1"
-    wait_for_command_to_succeed "${cmd}" $@
-    if [[ "$?" -eq "0" ]]; then
+    if wait_for_command_to_succeed "${cmd}" $@
+    then
         return 0
+    else
+        log warning "Timeout occures while awaiting for ${host} to be pingable."
+        return 1
     fi
-    echo "Timeout occures while awaiting for ${host} to be pingable."
-    return 1
 }
 
 # Try to guess the Operating System distribution
@@ -210,12 +212,12 @@ log () {
     local level=$1
     shift
     local time=$(date '+%F %R ')
+    local file=$(basename $0)
     local message="$*"
-    [[ ! -z $message ]] || message=$(basename $0)
     case "${level,,}" in
-      begin) echo "$time INFO: ******** Begin : $message" ;;
-      end) echo "$time INFO: ******** End   : $message" ;;
-      *) echo "$time ${level^^}: $message" ;;
+      begin) echo "$time INFO: $file : >>> Begin <<< $message" ;;
+      end) echo "$time INFO: $file : >>> End   <<< $message" ;;
+      *) echo "$time ${level^^}: $file : $message" ;;
     esac
 }
 
@@ -234,16 +236,105 @@ ensure_home_var_is_set () {
     fi
 }
 
+isServiceInstalled() {
+    [ -e ${STARLINGS_DIR}/.${NODE}-installFlag ]
+}
+
+setServiceInstalled() {
+    touch ${STARLINGS_DIR}/.${NODE}-installFlag
+}
+
+unsetServiceInstalled() {
+    rm -f ${STARLINGS_DIR}/.${NODE}-installFlag
+}
+
+isServiceConfigured() {
+    [ -e ${STARLINGS_DIR}/.${NODE}-configureFlag ]
+}
+
+setServiceConfigured() {
+    touch ${STARLINGS_DIR}/.${NODE}-configureFlag
+}
+
+unsetServiceConfigured() {
+    rm -f ${STARLINGS_DIR}/.${NODE}-configureFlag
+}
+
+isServiceStarted() {
+    [ -e ${STARLINGS_DIR}/.${NODE}-startFlag ]
+}
+
+setServiceStarted() {
+    touch ${STARLINGS_DIR}/.${NODE}-startFlag
+}
+
+unsetServiceStarted() {
+    rm -f ${STARLINGS_DIR}/.${NODE}-startFlag
+}
+
+# Check if a service is already configured before stopped him to avoid error
+# params:
+#   1- name of service to stop
+stop_centos_service() {
+  IS_SERVICE_ACTIVE=`sudo systemctl list-units | grep ${1} ;echo $?`
+  if [[ "${IS_SERVICE_ACTIVE}" != "1" ]]; then
+       echo "sudo systemctl stop firewalld"
+       sudo systemctl stop firewalld
+  fi
+}
+
+# Generate a fd from the file name
+# TODO should be more sofisticated
+getlockfd() {
+    local prefix=${1}
+    local count="120"
+    ((count += ${#prefix}))
+    echo $count
+}
+
+# take a local lock
+# usage: lock name
+lock() {
+    local prefix=${1:-bdcf}
+    local fd=$(getlockfd $prefix)
+
+    # create lock file
+    local lock_file=$lock_dir/$prefix.lock
+    eval "exec ${fd}>${lock_file}"
+
+    # acquire the lock
+    flock -x ${fd}
+}
+
+
+# release a lock previously taken
+# usage: unlock name
+unlock() {
+    local prefix=${1:-bdcf}
+    local fd=$(getlockfd $prefix)
+
+    # drop the lock
+    flock -u ${fd}
+}
+
+# Need sudo + chown on centos (not on ubuntu)
+lock_dir=/var/lock/starlings
+sudo mkdir -p $lock_dir
+sudo chown $(id --user):$(id --group) $lock_dir
+
 # Init log file and redirect std output to this file
 # LOG_FILE may be set explicitely, or $NODE or $SOURCE_NODE will be used.
 [[ ! -z ${LOG_FILE} ]] || LOG_FILE=$NODE
 [[ ! -z ${LOG_FILE} ]] || LOG_FILE=$SOURCE_NODE
 [[ ! -z ${LOG_FILE} ]] || LOG_FILE=bdcf
 log_dir="/var/log/bdcf"
-if [ ! -d $log_dir ]; then
-    sudo mkdir -p $log_dir
-    sudo chmod 777 $log_dir
-fi
-touch ${log_dir}/${LOG_FILE}.log
+sudo mkdir -p $log_dir
+sudo chown "$(id --user):$(id --group)" $log_dir
 exec > >(tee -a "${log_dir}/${LOG_FILE}.log") 2>&1
 
+# STARLINGS_DIR
+STARLINGS_DIR="${HOME}/.starlings"
+mkdir -p $STARLINGS_DIR
+
+# Exit on error
+set -e
