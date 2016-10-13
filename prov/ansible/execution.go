@@ -650,31 +650,31 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		var perInstanceInputsBuffer bytes.Buffer
 		for _, varInput := range e.VarInputsNames {
 			if varInput == "INSTANCE" {
-				perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: %s\n", instanceName))
+				perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: \"%s\"\n", instanceName))
 			} else if varInput == "SOURCE_INSTANCE" {
 				if !e.isPerInstanceOperation {
-					perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", instanceName))
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
 				} else {
 					if e.isRelationshipTargetNode {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", currentInstance))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", currentInstance))
 					} else {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", instanceName))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
 					}
 				}
 			} else if varInput == "TARGET_INSTANCE" {
 				if !e.isPerInstanceOperation {
-					perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", instanceName))
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
 				} else {
 					if e.isRelationshipTargetNode {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", instanceName))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
 					} else {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", currentInstance))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", currentInstance))
 					}
 				}
 			} else {
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput && (envInput.InstanceName == instanceName || e.isPerInstanceOperation && envInput.InstanceName == currentInstance) {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
 						goto NEXT
 					}
 				}
@@ -689,7 +689,7 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 							instanceId := instanceName[instanceIdIdx:]
 							for _, envInput := range e.EnvInputs {
 								if envInput.Name == varInput && strings.HasSuffix(envInput.InstanceName, instanceId) {
-									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
 									goto NEXT
 								}
 							}
@@ -699,7 +699,7 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 				// Not found with the combination inputName/instanceName let's use the first that matches the input name
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
 						goto NEXT
 					}
 				}
