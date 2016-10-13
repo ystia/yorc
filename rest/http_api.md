@@ -10,7 +10,7 @@ Adding the 'pretty' url parameter to your requests allow to generate an indented
 ### Submit a CSAR to deploy
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
 
-```POST /deployments```
+`POST /deployments`
 
 A successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
 deployment URI.
@@ -26,11 +26,13 @@ This endpoint produces no content except in case of error.
 A critical note is that the deployment is proceeded asynchronously and a success only guarantees that the deployment is successfully
 **submitted**.
 
+Actually, this endpoint implicitly call a [submit new deploy task](#submit-new-task).
+
 ### List deployments
 
 Retrieves the list of deployments. 'Accept' header should be set to 'application/json'.
 
-```GET /deployments```
+`GET /deployments`
 
 **Response**
 
@@ -48,7 +50,8 @@ Content-Type: application/json
 
 ### Undeploy  an active deployment
 
-Undeploy a deployment
+Undeploy a deployment. By adding a 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus 
+database at the end of the undeployment. 
 
 `DELETE /deployments/<deployment_id>`
 
@@ -59,13 +62,15 @@ Content-Length: 0
 
 This endpoint produces no content except in case of error.
 
+Actually, this endpoint implicitly call a [submit new undeploy task](#submit-new-task).
+
 ### Get the deployment information
 
-Retrieve the deployment status and the list (as Atom links) of the nodes of the deployment.
+Retrieve the deployment status and the list (as Atom links) of the nodes and tasks related the deployment.
 
 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>```
+`GET    /deployments/<deployment_id>`
 
 **Response**
 
@@ -97,11 +102,15 @@ Content-Type: application/json
       "rel": "node",
       "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/nodes/PHP",
       "type": "application/json"
+    },
+    {
+      "rel": "task",
+      "href": "/deployments/6ce5419f-2ce5-44d5-ac51-fbe425bd59a2/tasks/b4144668-5ec8-41c0-8215-842661520147",
+      "type": "application/json"
     }
+
   ]
 }
-
-
 ```
 
 ### Get the deployment information about a given node
@@ -110,7 +119,7 @@ Retrieve the node status and the list (as Atom links) of the instances for this 
  
 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/nodes/<node_name>```
+`GET    /deployments/<deployment_id>/nodes/<node_name>`
 
 **Response**
 
@@ -152,7 +161,7 @@ This value can be specified in the form of "10s" or "5m" (i.e., 10 seconds or 5 
 polling for events newer that this index. A _0_ value will always returns with all currently known event (possibly none if none were
 already published), a _1_ value will wait for at least one event.
 
-```GET    /deployments/<deployment_id>/events?index=1&wait=5m```
+`GET    /deployments/<deployment_id>/events?index=1&wait=5m`
 
 A critical note is that the return of this endpoint is no guarantee of new events. It is possible that the timeout was reached before
 a new event was published.
@@ -183,7 +192,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]```
+`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]`
 
 **Response**
 
@@ -205,7 +214,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=software,engine```
+`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=software,engine`
 
 **Response**
 
@@ -227,7 +236,7 @@ Content-Type: application/json
 
 Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=```
+`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=`
 
 **Response**
 
@@ -249,10 +258,14 @@ Content-Type: application/json
 
 Retrieve a specific output. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/outputs/output_name>```
+`GET    /deployments/<deployment_id>/outputs/output_name>`
 
 **Response**
-
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
 {
   "name":"compute_url",
   "value":"10.197.129.73"
@@ -263,14 +276,74 @@ Retrieve a specific output. 'Accept' header should be set to 'application/json'.
 
 Retrieve a list of outputs. 'Accept' header should be set to 'application/json'.
 
-```GET    /deployments/<deployment_id>/outputs```
+`GET    /deployments/<deployment_id>/outputs`
 
 **Response**
-
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
 {
   "outputs":[
     {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/compute_private_ip","type":"application/json"},
     {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/compute_url","type":"application/json"},
     {"rel":"output","href":"/deployments/5a60975f-e219-4461-b856-8626e6f22d2b/outputs/port_value","type":"application/json"}]
 }
+```
+
+### Get task information
+
+Retrieve information about a task for a given deployment.
+'Accept' header should be set to 'application/json'.
+
+`GET    /deployments/<deployment_id>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "id": "b4144668-5ec8-41c0-8215-842661520147",
+  "target_id": "62d7f67a-d1fd-4b41-8392-ce2377d7a1bb",
+  "type": "DEPLOY",
+  "status": "DONE"
+}
+```
+
+
+### Cancel a task
+
+Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be cancelled otherwise an HTTP 400 
+(Bad request) error is returned. 
+
+`DELETE    /deployments/<deployment_id>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 202 OK
+Content-Length: 0
+```
+
+### Submit a new task <a name="submit-new-task"></a>
+
+Submit a new task for a given deployment.  
+'Content-Type' header should be set to 'application/json'.
+Request should contains a valid task type (DEPLOY or UNDEPLOY or PURGE)
+
+`POST    /deployments/<deployment_id>/tasks`
+
+Request body:
+```json
+{
+  "type": "DEPLOY"
+}
+```
+
+**Response**
+```
+HTTP/1.1 202 OK
+Content-Length: 0
 ```

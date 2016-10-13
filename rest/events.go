@@ -16,7 +16,15 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	sub := events.NewSubscriber(s.consulClient.KV(), id)
+	kv := s.consulClient.KV()
+	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		log.Panic(err)
+	} else if !depExist {
+		WriteError(w, r, ErrNotFound)
+		return
+	}
+
+	sub := events.NewSubscriber(kv, id)
 	values := r.URL.Query()
 	var err error
 	var waitIndex uint64 = 1
@@ -38,12 +46,12 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	events, lastIdx, err := sub.NewEvents(waitIndex, timeout)
+	evts, lastIdx, err := sub.NewEvents(waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
 
-	eventsCollection := EventsCollection{Events: events, LastIndex: lastIdx}
+	eventsCollection := EventsCollection{Events: evts, LastIndex: lastIdx}
 	encodeJsonResponse(w, r, eventsCollection)
 }
 
@@ -52,7 +60,14 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	sub := events.NewSubscriber(s.consulClient.KV(), id)
+	kv := s.consulClient.KV()
+	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		log.Panic(err)
+	} else if !depExist {
+		WriteError(w, r, ErrNotFound)
+		return
+	}
+	sub := events.NewSubscriber(kv, id)
 	values := r.URL.Query()
 	var err error
 	var waitIndex uint64 = 1

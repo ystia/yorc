@@ -6,9 +6,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -65,7 +65,7 @@ func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeNam
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeName string) error {
 	deployments.LogInConsul(e.kv, depId, "Applying the infrastructure")
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
-	cmd := exec.CommandContext(ctx, "terraform", "apply")
+	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
 	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
 	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
@@ -106,7 +106,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	}
 
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
-	cmd := exec.CommandContext(ctx, "terraform", "destroy", "-force")
+	cmd := executil.Command(ctx, "terraform", "destroy", "-force")
 	cmd.Dir = infraPath
 	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
 	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)

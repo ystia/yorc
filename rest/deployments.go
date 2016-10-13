@@ -132,7 +132,11 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
-	if err := s.tasksCollector.RegisterTask(uid, tasks.DEPLOY); err != nil {
+	if _, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy); err != nil {
+		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+			WriteError(w, r, NewBadRequestError(err))
+			return
+		}
 		log.Panic(err)
 	}
 
@@ -165,8 +169,22 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	if err := s.tasksCollector.RegisterTask(id, tasks.UNDEPLOY); err != nil {
+
+	var taskType tasks.TaskType
+	if _, ok := r.URL.Query()["purge"]; ok {
+		taskType = tasks.Purge
+	} else {
+		taskType = tasks.UnDeploy
+	}
+
+	if taskId, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
+		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+			WriteError(w, r, NewBadRequestError(err))
+			return
+		}
 		log.Panic(err)
+	} else {
+		w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskId))
 	}
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -178,16 +196,16 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	id := params.ByName("id")
 
 	kv := s.consulClient.KV()
-	result, _, err := kv.Get(deployments.DeploymentKVPrefix+"/"+id+"/status", nil)
+	status, err := deployments.GetDeploymentStatus(kv, id)
 	if err != nil {
+		if deployments.IsDeploymentNotFoundError(err) {
+			WriteError(w, r, ErrNotFound)
+			return
+		}
 		log.Panic(err)
 	}
-	if result == nil {
-		WriteError(w, r, ErrNotFound)
-		return
-	}
 
-	deployment := Deployment{Id: id, Status: string(result.Value)}
+	deployment := Deployment{Id: id, Status: status.String()}
 	links := []AtomLink{newAtomLink(LINK_REL_SELF, r.URL.Path)}
 	nodes, err := deployments.GetNodes(kv, id)
 	if err != nil {
@@ -195,6 +213,14 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, node := range nodes {
 		links = append(links, newAtomLink(LINK_REL_NODE, path.Join(r.URL.Path, "nodes", node)))
+	}
+
+	tasksList, err := tasks.GetTasksIdsForTarget(kv, id)
+	if err != nil {
+		log.Panic(err)
+	}
+	for _, task := range tasksList {
+		links = append(links, newAtomLink(LINK_REL_TASK, path.Join(r.URL.Path, "tasks", task)))
 	}
 	deployment.Links = links
 	encodeJsonResponse(w, r, deployment)
