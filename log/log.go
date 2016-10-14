@@ -106,7 +106,7 @@ func Panic(v ...interface{}) {
 
 // Panicf is equivalent to Printf() followed by a call to panic().
 func Panicf(format string, v ...interface{}) {
-	std.Printf("[PANIC] "+format, v...)
+	std.Panicf("[PANIC] "+format, v...)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
