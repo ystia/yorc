@@ -47,10 +47,10 @@ func parseExprNode(value interface{}, t *TreeNode) error {
 }
 
 func parseExpression(e map[interface{}]interface{}) (*TreeNode, error) {
+	log.Debugf("parsing %+v", e)
 	if len(e) != 1 {
 		return nil, fmt.Errorf("Expecting only one element in expression found %d", len(e))
 	}
-	log.Debugf("parsing %+v", e)
 	for key, value := range e {
 		keyS, ok := key.(string)
 		if !ok {
