@@ -523,7 +523,23 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				for inputName, inputDef := range intDef.Inputs {
 					inputPrefix := path.Join(intPrefix, "inputs", inputName)
 					s.storeConsulKey(errCh, wg, inputPrefix+"/name", inputName)
-					s.storeConsulKey(errCh, wg, inputPrefix+"/expression", inputDef.String())
+					isValueAssignement := false
+					isPropertyDefinition := false
+					if inputDef.ValueAssign != nil {
+						s.storeConsulKey(errCh, wg, inputPrefix+"/expression", inputDef.ValueAssign.String())
+						isValueAssignement = true
+					}
+					if inputDef.PropDef != nil {
+						s.storeConsulKey(errCh, wg, inputPrefix+"/type", inputDef.PropDef.Type)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/default", inputDef.PropDef.Default)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/description", inputDef.PropDef.Description)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/status", inputDef.PropDef.Status)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/required", strconv.FormatBool(inputDef.PropDef.Required))
+						isPropertyDefinition = true
+					}
+
+					s.storeConsulKey(errCh, wg, inputPrefix+"/is_value_assignment", strconv.FormatBool(isValueAssignement))
+					s.storeConsulKey(errCh, wg, inputPrefix+"/is_property_definition", strconv.FormatBool(isPropertyDefinition))
 				}
 				if imports {
 					s.storeConsulKey(errCh, wg, intPrefix+"/implementation/primary", filepath.Join(pathImport, intDef.Implementation.Primary))
@@ -585,7 +601,23 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				for inputName, inputDef := range intDef.Inputs {
 					inputPrefix := path.Join(intPrefix, "inputs", inputName)
 					s.storeConsulKey(errCh, wg, inputPrefix+"/name", inputName)
-					s.storeConsulKey(errCh, wg, inputPrefix+"/expression", inputDef.String())
+					isValueAssignement := false
+					isPropertyDefinition := false
+					if inputDef.ValueAssign != nil {
+						s.storeConsulKey(errCh, wg, inputPrefix+"/expression", inputDef.ValueAssign.String())
+						isValueAssignement = true
+					}
+					if inputDef.PropDef != nil {
+						s.storeConsulKey(errCh, wg, inputPrefix+"/type", inputDef.PropDef.Type)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/default", inputDef.PropDef.Default)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/description", inputDef.PropDef.Description)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/status", inputDef.PropDef.Status)
+						s.storeConsulKey(errCh, wg, inputPrefix+"/required", strconv.FormatBool(inputDef.PropDef.Required))
+						isPropertyDefinition = true
+					}
+
+					s.storeConsulKey(errCh, wg, inputPrefix+"/is_value_assignment", strconv.FormatBool(isValueAssignement))
+					s.storeConsulKey(errCh, wg, inputPrefix+"/is_property_definition", strconv.FormatBool(isPropertyDefinition))
 				}
 				if imports {
 					s.storeConsulKey(errCh, wg, intPrefix+"/implementation/primary", filepath.Join(pathImport, intDef.Implementation.Primary))
