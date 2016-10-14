@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
 . ${utils_scripts}/utils.sh
-
 INSTALL_DIR=$(eval readlink -f "${INSTALL_DIR}")
-
+log begin
 
 if [[ ! -e ${INSTALL_DIR}/work/.agentmode ]]; then
     log info "Configuring Consul to run in server mode"
@@ -24,9 +23,10 @@ cat > ${INSTALL_DIR}/config/3_wan_address.json << EOF
 }
 EOF
   fi
+    log end "Consul configured to run in server mode"
 else
     # In agent mode the preconfigure_source script already setup the connection to masters
-    log info "Consul configured to run in agent mode"
+    log end "Consul configured to run in agent mode"
 fi
 
 cat > ${INSTALL_DIR}/config/2_datacenter.json << EOF

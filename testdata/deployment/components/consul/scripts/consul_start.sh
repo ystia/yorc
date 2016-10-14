@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 INSTALL_DIR=$(eval readlink -f "${INSTALL_DIR}")
+
 . ${utils_scripts}/utils.sh
+log begin
 
 # Setup GOMAXPROCS to the number of cpu
 export GOMAXPROCS=$(cat /proc/cpuinfo | grep processor | wc -l)
@@ -14,6 +16,5 @@ while [[ ! -e  ${INSTALL_DIR}/work/consul.pid ]]; do
   time=$((time + 1))
   [[ ${time} -gt ${timeout} ]] && { echo "Failed to start consul!!!"; exit 1; }
 done
-log info "Consul started."
-exit 0
+log end "Consul started."
 
