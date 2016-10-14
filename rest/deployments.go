@@ -348,10 +348,12 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 				var defBytes []byte
 				var err error
 				if defBytes, err = tosca.Asset(importValue); err != nil {
-					panic(fmt.Errorf("Failed to import internal definition %s: %v", importValue, err))
+					errCh <- fmt.Errorf("Failed to import internal definition %s: %v", importValue, err)
+					return
 				}
 				if err = yaml.Unmarshal(defBytes, &topology); err != nil {
-					panic(fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err))
+					errCh <- fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return
 				}
 				log.Debugf("%+v", topology)
 				wg.Add(1)
@@ -361,12 +363,21 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 
 				definition, err := os.Open(uploadFile)
 				if err != nil {
-					panic(err)
+					errCh <- fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return
 				}
 
 				defBytes, err := ioutil.ReadAll(definition)
+				if err != nil {
+					errCh <- fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return
+				}
 
-				err = yaml.Unmarshal(defBytes, &topology)
+				if err = yaml.Unmarshal(defBytes, &topology); err != nil {
+					errCh <- fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return
+				}
+
 				log.Debugf("%+v", topology)
 				wg.Add(1)
 				go s.storeDeploymentDefinition(topology, id, true, filepath.Dir(value.File), wg, errCh)
@@ -380,10 +391,10 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 		outputPrefix := path.Join(outputsPrefix, outputName)
 		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "name"), outputName)
 		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "description"), output.Description)
-		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "default_param"), output.DefaultParam)
-		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "required"), output.Required)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "default"), output.Default)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "required"), strconv.FormatBool(output.Required))
 		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "status"), output.Status)
-		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "type_param"), output.TypeParam)
+		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "type"), output.Type)
 		s.storeConsulKey(errCh, wg, path.Join(outputPrefix, "value"), output.Value.String())
 	}
 

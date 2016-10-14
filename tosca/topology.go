@@ -41,14 +41,3 @@ type NodeTemplate struct {
 	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
 	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
 }
-
-type ParameterDefinition struct {
-	TypeParam    string          `yaml:"type_param,omitempty"`
-	Description  string          `yaml:"description,omitempty"`
-	Value        ValueAssignment `yaml:"value,omitempty"`
-	Required     string          `yaml:"required,omitempty"`
-	DefaultParam string          `yaml:"default_param,omitempty"`
-	Status       string          `yaml:"status,omitempty"`
-	//Constraints
-	//Entry_schema
-}
