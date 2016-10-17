@@ -41,6 +41,7 @@ const ansible_playbook = `
     [[[end]]]
     - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
+    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
     [[[end]]]
     [[[if not .HaveOutput]]]

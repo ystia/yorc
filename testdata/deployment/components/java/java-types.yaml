@@ -9,9 +9,6 @@ template_name: java-types
 template_version: ${project.version}
 template_author: ${module.author}
 
-imports:
-  - tosca-normative-types:${tosca.normative.types.version}
-
 node_types:
   starlings.nodes.Java:
     derived_from: tosca.nodes.SoftwareComponent
@@ -49,8 +46,6 @@ node_types:
     capabilities:
       java_host:
         type: starlings.capabilities.JavaHosting
-        properties:
-          required: false
         upper_bound: unbounded
     interfaces:
       Standard:
