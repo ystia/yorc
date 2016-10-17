@@ -7,6 +7,7 @@ template_author: admin
 imports:
   - openstack-types: <janus-openstack-types.yml>
   - consul-types: consul/consul-types.yaml
+  - elasticsearch-types: elasticsearch/elasticsearch-types.yaml
   - java-types: java/java-types.yaml
 
 topology_template:
@@ -36,20 +37,40 @@ topology_template:
             node: ComputeES
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
+    Elasticsearch:
+      type: starlings.nodes.Elasticsearch
+      properties:
+        repository: "http://10.197.132.16/sla"
+      requirements:
+        - java:
+            node: JavaES
+            capability: starlings.capabilities.JavaHosting
+            relationship: starlings.relationships.HostedOnJavaRuntime
+        - consul:
+            node: ConsulAgentES
+            capability: starlings.capabilities.ConsulAgent
+            relationship: starlings.relationships.ConnectsToConsulAgent
+      capabilities:
+        search_resource:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: false
+            network_name: PRIVATE
     ComputeES:
       type: janus.nodes.openstack.Compute
       properties:
         user: cloud-user
         flavor: 2
         image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: nova
+        availability_zone: r423-06.share.ops
         key_pair: cloudify
       capabilities:
         scalable:
           properties:
-            max_instances: 1
+            max_instances: 5
             min_instances: 1
-            default_instances: 1
+            default_instances: 3
         endpoint:
           properties:
             protocol: tcp
@@ -62,7 +83,7 @@ topology_template:
         user: cloud-user
         flavor: 2
         image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: nova
+        availability_zone: r423-06.share.ops
         key_pair: cloudify
       capabilities:
         scalable:
@@ -80,71 +101,6 @@ topology_template:
     install:
       steps:
         Compute_install:
-          node: ComputeES
-          activity:
-            delegate: install
-          on-success:
-            - Consul_initial_1
-            - Java_initial
-        Java_initial:
-          node: JavaES
-          activity:
-            set_state: initial
-          on-success:
-            - Java_creating
-        Java_creating:
-          node: JavaES
-          activity:
-            set_state: creating
-          on-success:
-            - create_Java
-        create_Java:
-          node: JavaES
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.create
-          on-success:
-            - Java_created
-        Java_created:
-          node: JavaES
-          activity:
-            set_state: created
-          on-success:
-            - Java_configuring
-        Java_configuring:
-          node: JavaES
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_Java
-        configure_Java:
-          node: JavaES
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - Java_configured
-        Java_configured:
-          node: JavaES
-          activity:
-            set_state: configured
-          on-success:
-            - Java_starting
-        Java_starting:
-          node: JavaES
-          activity:
-            set_state: starting
-          on-success:
-            - start_Java
-        start_Java:
-          node: JavaES
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - Java_started
-        Java_started:
-          node: JavaES
-          activity:
-            set_state: started
-        Compute_install_1:
           node: ComputeConsulServer
           activity:
             delegate: install
@@ -210,6 +166,13 @@ topology_template:
             set_state: started
           on-success:
             - Consul_configuring_1
+        Compute_install_1:
+          node: ComputeES
+          activity:
+            delegate: install
+          on-success:
+            - Consul_initial_1
+            - Java_initial
         Consul_initial_1:
           node: ConsulAgentES
           activity:
@@ -275,37 +238,130 @@ topology_template:
           node: ConsulAgentES
           activity:
             set_state: started
+          on-success:
+            - Elasticsearch_configuring
+        Java_initial:
+          node: JavaES
+          activity:
+            set_state: initial
+          on-success:
+            - Java_creating
+        Java_creating:
+          node: JavaES
+          activity:
+            set_state: creating
+          on-success:
+            - create_Java
+        create_Java:
+          node: JavaES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Java_created
+        Java_created:
+          node: JavaES
+          activity:
+            set_state: created
+          on-success:
+            - Java_configuring
+        Java_configuring:
+          node: JavaES
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Java
+        configure_Java:
+          node: JavaES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Java_configured
+        Java_configured:
+          node: JavaES
+          activity:
+            set_state: configured
+          on-success:
+            - Java_starting
+        Java_starting:
+          node: JavaES
+          activity:
+            set_state: starting
+          on-success:
+            - start_Java
+        start_Java:
+          node: JavaES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Java_started
+        Java_started:
+          node: JavaES
+          activity:
+            set_state: started
+          on-success:
+            - Elasticsearch_initial
+        Elasticsearch_initial:
+          node: Elasticsearch
+          activity:
+            set_state: initial
+          on-success:
+            - Elasticsearch_creating
+        Elasticsearch_creating:
+          node: Elasticsearch
+          activity:
+            set_state: creating
+          on-success:
+            - create_Elasticsearch
+        create_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Elasticsearch_created
+        Elasticsearch_created:
+          node: Elasticsearch
+          activity:
+            set_state: created
+          on-success:
+            - Elasticsearch_configuring
+            - Consul_configuring_1
+        Elasticsearch_configuring:
+          node: Elasticsearch
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Elasticsearch
+        configure_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Elasticsearch_configured
+        Elasticsearch_configured:
+          node: Elasticsearch
+          activity:
+            set_state: configured
+          on-success:
+            - Elasticsearch_starting
+        Elasticsearch_starting:
+          node: Elasticsearch
+          activity:
+            set_state: starting
+          on-success:
+            - start_Elasticsearch
+        start_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Elasticsearch_started
+        Elasticsearch_started:
+          node: Elasticsearch
+          activity:
+            set_state: started
     uninstall:
       steps:
         Compute_uninstall:
-          node: ComputeES
-          activity:
-            delegate: uninstall
-        Java_stopping:
-          node: JavaES
-          activity:
-            set_state: stopping
-          on-success:
-            - Java_stopped
-        Java_stopped:
-          node: JavaES
-          activity:
-            set_state: stopped
-          on-success:
-            - Java_deleting
-        Java_deleting:
-          node: JavaES
-          activity:
-            set_state: deleting
-          on-success:
-            - Java_deleted
-        Java_deleted:
-          node: JavaES
-          activity:
-            set_state: deleted
-          on-success:
-            - Compute_uninstall
-        Compute_uninstall_1:
           node: ComputeConsulServer
           activity:
             delegate: uninstall
@@ -338,7 +394,11 @@ topology_template:
           activity:
             set_state: deleted
           on-success:
-            - Compute_uninstall_1
+            - Compute_uninstall
+        Compute_uninstall_1:
+          node: ComputeES
+          activity:
+            delegate: uninstall
         Consul_stopping_1:
           node: ConsulAgentES
           activity:
@@ -368,4 +428,59 @@ topology_template:
           activity:
             set_state: deleted
           on-success:
-            - Compute_uninstall
+            - Compute_uninstall_1
+        Java_stopping:
+          node: JavaES
+          activity:
+            set_state: stopping
+          on-success:
+            - Java_stopped
+        Java_stopped:
+          node: JavaES
+          activity:
+            set_state: stopped
+          on-success:
+            - Java_deleting
+        Java_deleting:
+          node: JavaES
+          activity:
+            set_state: deleting
+          on-success:
+            - Java_deleted
+        Java_deleted:
+          node: JavaES
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_1
+        Elasticsearch_stopping:
+          node: Elasticsearch
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Elasticsearch
+        stop_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Elasticsearch_stopped
+        Elasticsearch_stopped:
+          node: Elasticsearch
+          activity:
+            set_state: stopped
+          on-success:
+            - Elasticsearch_deleting
+        Elasticsearch_deleting:
+          node: Elasticsearch
+          activity:
+            set_state: deleting
+          on-success:
+            - Elasticsearch_deleted
+        Elasticsearch_deleted:
+          node: Elasticsearch
+          activity:
+            set_state: deleted
+          on-success:
+            - Java_stopping
+
