@@ -1,9 +1,12 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"io"
+	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"os"
 )
@@ -12,6 +15,8 @@ func init() {
 	RootCmd.AddCommand(deploymentsCmd)
 	setDeploymentsConfig()
 }
+
+var noColor bool
 
 var deploymentsCmd = &cobra.Command{
 	Use:           "deployments",
@@ -27,6 +32,7 @@ var deploymentsCmd = &cobra.Command{
 func setDeploymentsConfig() {
 
 	deploymentsCmd.PersistentFlags().StringP("janus-api", "j", "localhost:8800", "specify the host and port used to join the Janus' REST API")
+	deploymentsCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable coloring output")
 
 	viper.BindPFlag("janus_api", deploymentsCmd.PersistentFlags().Lookup("janus-api"))
 	viper.SetEnvPrefix("janus")
@@ -47,4 +53,13 @@ func printRestErrors(errs rest.Errors) {
 func errExit(msg interface{}) {
 	fmt.Println("Error:", msg)
 	os.Exit(1)
+}
+
+func printErrors(body io.ReadCloser) {
+	var errs rest.Errors
+	bodyContent, _ := ioutil.ReadAll(body)
+	err := json.Unmarshal(bodyContent, &errs)
+	if err == nil {
+		printRestErrors(errs)
+	}
 }
