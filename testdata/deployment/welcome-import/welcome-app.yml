@@ -49,6 +49,9 @@ topology_template:
       type: janus.nodes.openstack.FloatingIP
       properties:
         floating_network_name: Public_Network
+  outputs:
+    Registry_url:
+      value: { get_attribute: [ Welcome, url ] }
   workflows:
     install:
       steps:
