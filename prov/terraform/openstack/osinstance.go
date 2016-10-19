@@ -187,7 +187,6 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 	if networkKeys, err := deployments.GetRequirementsKeysByNameForNode(g.kv, deploymentId, nodeName, "network"); err != nil {
 		return ComputeInstance{}, err
 	} else {
-		// TODO deal with other types of Networks
 		for _, networkReqPrefix := range networkKeys {
 			capability, err := g.getStringFormConsul(networkReqPrefix, "capability")
 			if err != nil {

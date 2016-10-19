@@ -3,9 +3,9 @@ package tosca
 type InterfaceDefinitionMap map[string]InterfaceDefinition
 
 type InterfaceDefinition struct {
-	Inputs         map[string]ValueAssignment `yaml:"inputs,omitempty"`
-	Description    string                     `yaml:"description,omitempty"`
-	Implementation Implementation             `yaml:"implementation,omitempty"`
+	Inputs         map[string]Input `yaml:"inputs,omitempty"`
+	Description    string           `yaml:"description,omitempty"`
+	Implementation Implementation   `yaml:"implementation,omitempty"`
 }
 
 func (i *InterfaceDefinition) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -15,9 +15,9 @@ func (i *InterfaceDefinition) UnmarshalYAML(unmarshal func(interface{}) error) e
 		return nil
 	}
 	var str struct {
-		Inputs         map[string]ValueAssignment `yaml:"inputs,omitempty"`
-		Description    string                     `yaml:"description,omitempty"`
-		Implementation Implementation             `yaml:"implementation,omitempty"`
+		Inputs         map[string]Input `yaml:"inputs,omitempty"`
+		Description    string           `yaml:"description,omitempty"`
+		Implementation Implementation   `yaml:"implementation,omitempty"`
 	}
 	if err := unmarshal(&str); err != nil {
 		return err

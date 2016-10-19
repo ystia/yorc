@@ -18,11 +18,13 @@ node_types:
     properties:
       install_dnsmasq:
         type: boolean
-        description: The installed Java version
+        description: >
+          By default, a dnsmask is installed as a DNS proxy.
+          It is sometimes needed to remove it if another DNS is already installed (bind for example)
         default: true
       installation_directory:
         type: string
-        description: Installation path
+        description: Installation path of consul
         default: ~/consul
       datacenter:
         type: string
@@ -30,14 +32,10 @@ node_types:
         default: dc1
       component_version:
         type: version
-        default: ${consul.version}
+        description: the Consul version installed.
+        default: 0.5.2
         constraints:
-          - equal: ${consul.version}
-      version:
-        type: version
-        default: ${consul.version}
-        constraints:
-          - equal: ${consul.version}
+          - equal: 0.5.2
     capabilities:
       agent:
         type: starlings.capabilities.ConsulAgent
@@ -78,11 +76,9 @@ node_types:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
           implementation: scripts/consul_stop.sh
     artifacts:
-      scripts:
-        file: scripts
+      - scripts: scripts
         type: tosca.artifacts.File
-      utils_scripts:
-        file: utils_scripts
+      - utils_scripts: utils_scripts
         type: tosca.artifacts.File
 
 capability_types:
@@ -107,11 +103,9 @@ relationship_types:
             INSTALL_DIR: { get_property: [SOURCE, installation_directory] }
           implementation: scripts/consul_connects_agent_to_server.sh
     artifacts:
-      scripts:
-        file: scripts
+      - scripts: scripts
         type: tosca.artifacts.File
-      utils_scripts:
-        file: utils_scripts
+      - utils_scripts: utils_scripts
         type: tosca.artifacts.File
   starlings.relationships.ConnectsConsulServerWAN:
     derived_from: tosca.relationships.ConnectsTo

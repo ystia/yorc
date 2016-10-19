@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"os"
@@ -40,6 +41,7 @@ const ansible_playbook = `
     [[[end]]]
     - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
+    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
     [[[end]]]
     [[[if not .HaveOutput]]]
@@ -639,7 +641,6 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {
 		buffer.WriteString(host.host)
-		// TODO should not be hard-coded
 		sshUser := host.user
 		if sshUser == "" {
 			// Thinking: should we have a default user
@@ -650,31 +651,31 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		var perInstanceInputsBuffer bytes.Buffer
 		for _, varInput := range e.VarInputsNames {
 			if varInput == "INSTANCE" {
-				perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: %s\n", instanceName))
+				perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: \"%s\"\n", instanceName))
 			} else if varInput == "SOURCE_INSTANCE" {
 				if !e.isPerInstanceOperation {
-					perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", instanceName))
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
 				} else {
 					if e.isRelationshipTargetNode {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", currentInstance))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", currentInstance))
 					} else {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %s\n", instanceName))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
 					}
 				}
 			} else if varInput == "TARGET_INSTANCE" {
 				if !e.isPerInstanceOperation {
-					perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", instanceName))
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
 				} else {
 					if e.isRelationshipTargetNode {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", instanceName))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
 					} else {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %s\n", currentInstance))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", currentInstance))
 					}
 				}
 			} else {
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput && (envInput.InstanceName == instanceName || e.isPerInstanceOperation && envInput.InstanceName == currentInstance) {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
 						goto NEXT
 					}
 				}
@@ -689,7 +690,7 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 							instanceId := instanceName[instanceIdIdx:]
 							for _, envInput := range e.EnvInputs {
 								if envInput.Name == varInput && strings.HasSuffix(envInput.InstanceName, instanceId) {
-									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
 									goto NEXT
 								}
 							}
@@ -699,7 +700,7 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 				// Not found with the combination inputName/instanceName let's use the first that matches the input name
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, envInput.Value))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
 						goto NEXT
 					}
 				}
@@ -770,13 +771,13 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	}
 	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
 	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath))
-	var cmd *exec.Cmd
+	var cmd *executil.Cmd
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = exec.CommandContext(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = exec.CommandContext(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
@@ -790,13 +791,29 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	errCloseCh := make(chan bool)
 	defer close(errCloseCh)
 	errbuf.Run(errCloseCh)
+	defer outbuf.FlushSoftware()
+	if err := cmd.Run(); err != nil {
+		deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
+		log.Print(err)
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+
+			// This works on both Unix and Windows. Although package
+			// syscall is generally platform dependent, WaitStatus is
+			// defined for both Unix and Windows and in both cases has
+			// an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				// Retry exit statuses 2 and 3
+				if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
+					return ansibleRetriableError{root: err}
+				}
+			}
+
+		}
+		return err
+	}
 
 	if e.HaveOutput {
-		if err := cmd.Run(); err != nil {
-			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
-			log.Print(err)
-			return err
-		}
 		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
 		if err != nil {
 			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
@@ -811,39 +828,9 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		for _, line := range records {
 			storeConsulKey(e.kv, e.Output[line[0]], line[1])
 		}
-		return nil
-
-	} else {
-		if err := cmd.Start(); err != nil {
-			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
-			log.Print(err)
-			return err
-		}
 	}
 
-	err = cmd.Wait()
-
-	if err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			// The program has exited with an exit code != 0
-
-			// This works on both Unix and Windows. Although package
-			// syscall is generally platform dependent, WaitStatus is
-			// defined for both Unix and Windows and in both cases has
-			// an ExitStatus() method with the same signature.
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				// Retry exit statuses 2 and 3
-				if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
-					err = ansibleRetriableError{root: err}
-				}
-			}
-
-		}
-	}
-
-	outbuf.FlushSoftware()
-
-	return err
+	return nil
 }
 
 func storeConsulKey(kv *api.KV, key, value string) {

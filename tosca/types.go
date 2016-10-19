@@ -19,7 +19,7 @@ type RelationshipType struct {
 	Properties       map[string]PropertyDefinition     `yaml:"properties,omitempty"`
 	Attributes       map[string]AttributeDefinition    `yaml:"attributes,omitempty"`
 	Interfaces       map[string]InterfaceDefinitionMap `yaml:"interfaces,omitempty"`
-	Artifacts        map[string]ArtifactDefinition     `yaml:"artifacts,omitempty"`
+	Artifacts        ArtifactDefMap                    `yaml:"artifacts,omitempty"`
 	ValidTargetTypes []string                          `yaml:"valid_target_types,omitempty"`
 }
 

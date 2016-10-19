@@ -1,0 +1,486 @@
+tosca_definitions_version: alien_dsl_1_2_0
+description: Alien4Cloud generated service template
+template_name: ELK
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - openstack-types: <janus-openstack-types.yml>
+  - consul-types: consul/consul-types.yaml
+  - elasticsearch-types: elasticsearch/elasticsearch-types.yaml
+  - java-types: java/java-types.yaml
+
+topology_template:
+  node_templates:
+    JavaES:
+      type: starlings.nodes.Java
+      requirements:
+        - host:
+            node: ComputeES
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ConsulServer:
+      type: starlings.nodes.Consul
+      requirements:
+        - host:
+            node: ComputeConsulServer
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ConsulAgentES:
+      type: starlings.nodes.Consul
+      requirements:
+        - server_endpoint:
+            node: ConsulServer
+            capability: starlings.capabilities.ConsulServer
+            relationship: starlings.relationships.ConnectsConsulAgentToServer
+        - host:
+            node: ComputeES
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Elasticsearch:
+      type: starlings.nodes.Elasticsearch
+      properties:
+        repository: "http://10.197.132.16/sla"
+      requirements:
+        - java:
+            node: JavaES
+            capability: starlings.capabilities.JavaHosting
+            relationship: starlings.relationships.HostedOnJavaRuntime
+        - consul:
+            node: ConsulAgentES
+            capability: starlings.capabilities.ConsulAgent
+            relationship: starlings.relationships.ConnectsToConsulAgent
+      capabilities:
+        search_resource:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: false
+            network_name: PRIVATE
+    ComputeES:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-06.share.ops
+        key_pair: cloudify
+      capabilities:
+        scalable:
+          properties:
+            max_instances: 5
+            min_instances: 1
+            default_instances: 3
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+    ComputeConsulServer:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-06.share.ops
+        key_pair: cloudify
+      capabilities:
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          node: ComputeConsulServer
+          activity:
+            delegate: install
+          on-success:
+            - Consul_initial
+        Consul_initial:
+          node: ConsulServer
+          activity:
+            set_state: initial
+          on-success:
+            - Consul_creating
+        Consul_creating:
+          node: ConsulServer
+          activity:
+            set_state: creating
+          on-success:
+            - create_Consul
+        create_Consul:
+          node: ConsulServer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Consul_created
+        Consul_created:
+          node: ConsulServer
+          activity:
+            set_state: created
+          on-success:
+            - Consul_configuring
+        Consul_configuring:
+          node: ConsulServer
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Consul
+        configure_Consul:
+          node: ConsulServer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Consul_configured
+        Consul_configured:
+          node: ConsulServer
+          activity:
+            set_state: configured
+          on-success:
+            - Consul_starting
+        Consul_starting:
+          node: ConsulServer
+          activity:
+            set_state: starting
+          on-success:
+            - start_Consul
+        start_Consul:
+          node: ConsulServer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Consul_started
+        Consul_started:
+          node: ConsulServer
+          activity:
+            set_state: started
+          on-success:
+            - Consul_configuring_1
+        Compute_install_1:
+          node: ComputeES
+          activity:
+            delegate: install
+          on-success:
+            - Consul_initial_1
+            - Java_initial
+        Consul_initial_1:
+          node: ConsulAgentES
+          activity:
+            set_state: initial
+          on-success:
+            - Consul_creating_1
+        Consul_creating_1:
+          node: ConsulAgentES
+          activity:
+            set_state: creating
+          on-success:
+            - create_Consul_1
+        create_Consul_1:
+          node: ConsulAgentES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Consul_created_1
+        Consul_created_1:
+          node: ConsulAgentES
+          activity:
+            set_state: created
+          on-success:
+            - Consul_configuring_1
+            - Consul_configuring
+        Consul_configuring_1:
+          node: ConsulAgentES
+          activity:
+            set_state: configuring
+          on-success:
+            - pre_configure_source_ConsulAgentES/0
+        pre_configure_source_ConsulAgentES/0:
+          node: ConsulAgentES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/0
+          on-success:
+            - configure_Consul_1
+        configure_Consul_1:
+          node: ConsulAgentES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Consul_configured_1
+        Consul_configured_1:
+          node: ConsulAgentES
+          activity:
+            set_state: configured
+          on-success:
+            - Consul_starting_1
+        Consul_starting_1:
+          node: ConsulAgentES
+          activity:
+            set_state: starting
+          on-success:
+            - start_Consul_1
+        start_Consul_1:
+          node: ConsulAgentES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Consul_started_1
+        Consul_started_1:
+          node: ConsulAgentES
+          activity:
+            set_state: started
+          on-success:
+            - Elasticsearch_configuring
+        Java_initial:
+          node: JavaES
+          activity:
+            set_state: initial
+          on-success:
+            - Java_creating
+        Java_creating:
+          node: JavaES
+          activity:
+            set_state: creating
+          on-success:
+            - create_Java
+        create_Java:
+          node: JavaES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Java_created
+        Java_created:
+          node: JavaES
+          activity:
+            set_state: created
+          on-success:
+            - Java_configuring
+        Java_configuring:
+          node: JavaES
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Java
+        configure_Java:
+          node: JavaES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Java_configured
+        Java_configured:
+          node: JavaES
+          activity:
+            set_state: configured
+          on-success:
+            - Java_starting
+        Java_starting:
+          node: JavaES
+          activity:
+            set_state: starting
+          on-success:
+            - start_Java
+        start_Java:
+          node: JavaES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Java_started
+        Java_started:
+          node: JavaES
+          activity:
+            set_state: started
+          on-success:
+            - Elasticsearch_initial
+        Elasticsearch_initial:
+          node: Elasticsearch
+          activity:
+            set_state: initial
+          on-success:
+            - Elasticsearch_creating
+        Elasticsearch_creating:
+          node: Elasticsearch
+          activity:
+            set_state: creating
+          on-success:
+            - create_Elasticsearch
+        create_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Elasticsearch_created
+        Elasticsearch_created:
+          node: Elasticsearch
+          activity:
+            set_state: created
+          on-success:
+            - Elasticsearch_configuring
+            - Consul_configuring_1
+        Elasticsearch_configuring:
+          node: Elasticsearch
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Elasticsearch
+        configure_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Elasticsearch_configured
+        Elasticsearch_configured:
+          node: Elasticsearch
+          activity:
+            set_state: configured
+          on-success:
+            - Elasticsearch_starting
+        Elasticsearch_starting:
+          node: Elasticsearch
+          activity:
+            set_state: starting
+          on-success:
+            - start_Elasticsearch
+        start_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Elasticsearch_started
+        Elasticsearch_started:
+          node: Elasticsearch
+          activity:
+            set_state: started
+    uninstall:
+      steps:
+        Compute_uninstall:
+          node: ComputeConsulServer
+          activity:
+            delegate: uninstall
+        Consul_stopping:
+          node: ConsulServer
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Consul
+        stop_Consul:
+          node: ConsulServer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Consul_stopped
+        Consul_stopped:
+          node: ConsulServer
+          activity:
+            set_state: stopped
+          on-success:
+            - Consul_deleting
+        Consul_deleting:
+          node: ConsulServer
+          activity:
+            set_state: deleting
+          on-success:
+            - Consul_deleted
+        Consul_deleted:
+          node: ConsulServer
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
+        Compute_uninstall_1:
+          node: ComputeES
+          activity:
+            delegate: uninstall
+        Consul_stopping_1:
+          node: ConsulAgentES
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Consul_1
+        stop_Consul_1:
+          node: ConsulAgentES
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Consul_stopped_1
+        Consul_stopped_1:
+          node: ConsulAgentES
+          activity:
+            set_state: stopped
+          on-success:
+            - Consul_deleting_1
+        Consul_deleting_1:
+          node: ConsulAgentES
+          activity:
+            set_state: deleting
+          on-success:
+            - Consul_deleted_1
+        Consul_deleted_1:
+          node: ConsulAgentES
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_1
+        Java_stopping:
+          node: JavaES
+          activity:
+            set_state: stopping
+          on-success:
+            - Java_stopped
+        Java_stopped:
+          node: JavaES
+          activity:
+            set_state: stopped
+          on-success:
+            - Java_deleting
+        Java_deleting:
+          node: JavaES
+          activity:
+            set_state: deleting
+          on-success:
+            - Java_deleted
+        Java_deleted:
+          node: JavaES
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_1
+        Elasticsearch_stopping:
+          node: Elasticsearch
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Elasticsearch
+        stop_Elasticsearch:
+          node: Elasticsearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Elasticsearch_stopped
+        Elasticsearch_stopped:
+          node: Elasticsearch
+          activity:
+            set_state: stopped
+          on-success:
+            - Elasticsearch_deleting
+        Elasticsearch_deleting:
+          node: Elasticsearch
+          activity:
+            set_state: deleting
+          on-success:
+            - Elasticsearch_deleted
+        Elasticsearch_deleted:
+          node: Elasticsearch
+          activity:
+            set_state: deleted
+          on-success:
+            - Java_stopping
+

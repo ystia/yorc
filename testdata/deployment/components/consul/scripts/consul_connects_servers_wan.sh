@@ -5,7 +5,6 @@
 #
 
 . ${utils_scripts}/utils.sh
-. ${utils_scripts}/locks.sh
 
 lock "$(basename $0)"
 

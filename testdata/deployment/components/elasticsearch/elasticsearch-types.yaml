@@ -1,0 +1,193 @@
+#
+# Starlings
+# Copyright (C) 2015 Bull S.A.S. - All rights reserved
+#
+
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+description: Elasticsearch server.
+template_name: elasticsearch-types
+template_version: 2.1
+template_author: Starlings
+
+
+node_types:
+  starlings.nodes.Elasticsearch:
+    derived_from: tosca.nodes.Root
+    description: Installation of Elasticsearch from Elastic Stack
+    tags:
+      icon: /images/elasticsearch-icon.jpg
+    properties:
+      component_version:
+        type: version
+        default: ${elasticsearch.version}
+        description: Version of the installed Elasticsearch component
+        constraints:
+          - equal: ${elasticsearch.version}
+      repository:
+        type: string
+        description: >
+          This property give the opportunity to specify an alternative
+          download repository for this component artifacts.  It is your
+          responsibility to provide an accessible download url and to store
+          required artifacts on it.  You should specify only the base
+          repository url. Artifacts names will be appended to it, so this
+          property could be shared among several components using the
+          inputs feature.
+        required: false
+        constraints:
+          - pattern: ^(http|https|ftp)://.+/.*$
+      heap_size:
+        type: string
+        default: "1G"
+        description:
+          This property allows to set the heap memory size that is allocated to Elasticsearch java process,
+          It allocates the same value to both initial and maximum values (ie -Xms and -Xmx java options).
+        constraints:
+          - pattern: "[1-9][0-9]*[kKmMgG]"
+      cluster_name:
+        type: string
+        default: starlings
+        description: >
+          Cluster name identifies your cluster for auto-discovery. If
+          you're running multiple clusters on the same network, make sure
+          you're using unique names.
+      number_of_shards:
+        type: integer
+        required: false
+        description: Set the number of shards (splits) of an index (5 by default)
+        constraints:
+          - greater_than: 0
+      number_of_replicas:
+        type: integer
+        required: false
+        description: Set the number of replicas (additional copies) of an index (1 by default)
+        constraints:
+          - greater_or_equal: 0
+      nb_close_older_than:
+        type: integer
+        required: false
+        description: >
+          Choose the number to match with "unit_close_older_than" to
+          close the indices older than "nb_close_older_than"
+          "unit_close_older_than" (Default: do nothing)
+        constraints:
+          - greater_or_equal: 1
+      unit_close_older_than:
+        type: string
+        required: false
+        description: >
+          Choose the Unit to match with "nb_close_older_than" to close the
+          indices older than "nb_close_older_than" "unit_close_older_than"
+          (Default: do nothing)
+        constraints:
+          - valid_values: [days,months,years]
+      nb_delete_older_than:
+        type: integer
+        required: false
+        description: >
+          Choose the number to match with "unit_delete_older_than" to
+          delete the indices older than "nb_delete_older_than"
+          "unit_delete_older_than" (Default: do nothing)
+        constraints:
+          - greater_or_equal: 1
+      unit_delete_older_than:
+        type: string
+        required: false
+        description: >
+          Choose the Unit to match with "nb_delete_older_than" to delete
+          the indices older than "nb_delete_older_than"
+          "unit_delete_older_than" (Default: do nothing)
+        constraints:
+          - valid_values: [days,months,years]
+    requirements:
+      - filesystem_endpoint: tosca.capabilities.Node
+        type: starlings.relationships.ConnectsElasticsearchToFilessystem
+        lower_bound: 0
+        upper_bound: 1
+      - java: starlings.capabilities.JavaHosting
+        type: starlings.relationships.HostedOnJavaRuntime
+        lower_bound: 1
+        upper_bound: 1
+      - consul: starlings.capabilities.ConsulAgent
+        type: starlings.relationships.ConnectsToConsulAgent
+        lower_bound: 0
+        upper_bound: 1
+    capabilities:
+      search_resource: starlings.capabilities.SearchEndpoint
+    interfaces:
+      Standard:
+        create:
+          inputs:
+            REPOSITORY: { get_property: [SELF, repository] }
+            ES_VERSION: { get_property: [SELF, component_version] }
+          implementation: scripts/elasticsearch_install.sh
+        configure:
+          implementation: scripts/elasticsearch_configure.sh
+          inputs:
+            ES_VERSION: { get_property: [SELF, component_version] }
+            ip_address: { get_attribute: [SELF, ip_address] }
+            cluster_name: { get_property: [ SELF, cluster_name ] }
+            number_of_shards: { get_property: [ SELF, number_of_shards ] }
+            number_of_replicas: { get_property: [ SELF, number_of_replicas ] }
+            nb_close_older_than: { get_property: [ SELF, nb_close_older_than ] }
+            unit_close_older_than: { get_property: [ SELF, unit_close_older_than ] }
+            nb_delete_older_than: { get_property: [ SELF, nb_delete_older_than ] }
+            unit_delete_older_than: { get_property: [ SELF, unit_delete_older_than ] }
+        start:
+          inputs:
+            ES_VERSION: { get_property: [SELF, component_version] }
+            ELASTICSEARCH_HEAP_SIZE: { get_property: [SELF, heap_size] }
+          implementation: scripts/elasticsearch_start.sh
+        stop: scripts/elasticsearch_stop.sh
+      custom:
+        update_replicas:
+          inputs:
+            nb_replicas:
+              type: integer
+              description: Number of replicas for indexes
+              required: true
+            index:
+              type: string
+              description: The name of the index to be updated (specify no value for all indexes)
+              required: false
+          implementation: scripts/elasticsearch_updateReplicas.sh
+    artifacts:
+      - scripts: scripts
+        type: tosca.artifacts.File
+      - config_file: configFiles/elasticsearch.yml
+        type: starlings.artifacts.elasticsearchConfig
+      - curator_cron_tab: configFiles/curator-crontab
+        type: tosca.artifacts.File
+      - utils_scripts: utils_scripts
+        type: tosca.artifacts.File
+      - consul_utils: consul_utils
+        type: tosca.artifacts.File
+
+artifact_types:
+  starlings.artifacts.elasticsearchConfig:
+    description: A elasticsearch configuration file (.yml file)
+    file_ext: [yml]
+
+
+relationship_types:
+  starlings.relationships.ConnectsElasticsearchToFilessystem:
+    derived_from: tosca.relationships.ConnectsTo
+    description: >
+      Connects Elasticsearch to Block Storage File System
+    valid_targets: [ tosca.capabilities.Node ]
+    interfaces:
+      Configure:
+          post_configure_source:
+            implementation: scripts/elasticsearch-to-filesystem.sh
+            inputs:
+              path_fs: { get_property: [ TARGET,location ] }
+    artifacts:
+      - scripts: scripts
+        type: tosca.artifacts.File
+      - utils_scripts: utils_scripts
+        type: tosca.artifacts.File
+
+capability_types:
+  starlings.capabilities.SearchEndpoint:
+    derived_from: tosca.capabilities.Endpoint
+

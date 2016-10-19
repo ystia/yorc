@@ -77,9 +77,14 @@ func (d *Dispatcher) Run() {
 				log.Printf("Failed to get status for key %s: nil value", taskKey)
 				continue
 			}
-			status := string(kvPairContent.Value)
-			if status != "initial" {
-				log.Printf("Skiping task %s with status %s", taskKey, status)
+			statusInt, err := strconv.Atoi(string(kvPairContent.Value))
+			if err != nil {
+				log.Printf("Failed to get status for key %s: %+v", taskKey, err)
+				continue
+			}
+			status := TaskStatus(statusInt)
+			if status != INITIAL && status != RUNNING {
+				log.Debugf("Skiping task %s with status %s", taskKey, status)
 				continue
 			}
 
@@ -143,7 +148,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			log.Printf("Processing task %q linked to deployment %q", taskId, targetId)
-			task := NewTask(taskId, targetId, status, lock, kv, TaskType(taskType))
+			task := &Task{Id: taskId, status: status, TargetId: targetId, taskLock: lock, kv: kv, TaskType: TaskType(taskType)}
 			log.Debugf("New task created %+v: pushing it to a work channel", task)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle

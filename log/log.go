@@ -61,7 +61,7 @@ func SetPrefix(prefix string) {
 func Print(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[INFO] "
-	std.Print(append(a, v...))
+	std.Print(append(a, v...)...)
 }
 
 // Printf calls Output to print to the standard logger.
@@ -75,14 +75,14 @@ func Printf(format string, v ...interface{}) {
 func Println(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[INFO] "
-	std.Println(append(a, v...))
+	std.Println(append(a, v...)...)
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[FATAL]"
-	std.Fatal(append(a, v...))
+	std.Fatal(append(a, v...)...)
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
@@ -94,26 +94,26 @@ func Fatalf(format string, v ...interface{}) {
 func Fatalln(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[FATAL]"
-	std.Fatalln(append(a, v...))
+	std.Fatalln(append(a, v...)...)
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
 func Panic(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[PANIC]"
-	std.Panic(append(a, v...))
+	std.Panic(append(a, v...)...)
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
 func Panicf(format string, v ...interface{}) {
-	std.Printf("[PANIC] "+format, v...)
+	std.Panicf("[PANIC] "+format, v...)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
 func Panicln(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
 	a[0] = "[PANIC]"
-	std.Panicln(append(a, v...))
+	std.Panicln(append(a, v...)...)
 }
 
 // Output writes the output for a logging event.  The string s contains
@@ -133,7 +133,7 @@ func Debug(v ...interface{}) {
 	if debug {
 		a := make([]interface{}, 1, len(v)+1)
 		a[0] = "[DEBUG]"
-		std.Print(append(a, v...))
+		std.Print(append(a, v...)...)
 	}
 
 }
@@ -152,6 +152,6 @@ func Debugln(v ...interface{}) {
 	if debug {
 		a := make([]interface{}, 1, len(v)+1)
 		a[0] = "[DEBUG]"
-		std.Println(append(a, v...))
+		std.Println(append(a, v...)...)
 	}
 }
