@@ -222,6 +222,9 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	for _, task := range tasksList {
 		links = append(links, newAtomLink(LINK_REL_TASK, path.Join(r.URL.Path, "tasks", task)))
 	}
+
+	links = append(links, s.listOutputsLinks(id)...)
+
 	deployment.Links = links
 	encodeJsonResponse(w, r, deployment)
 }
@@ -244,71 +247,6 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		depCol.Deployments[depIndex] = link
 	}
 	encodeJsonResponse(w, r, depCol)
-}
-
-func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
-	opt := params.ByName("opt")
-
-	kv := s.consulClient.KV()
-	expression, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/outputs", opt, "value"), nil)
-	if err != nil {
-		log.Panic(err)
-	}
-	if expression == nil {
-		WriteError(w, r, ErrNotFound)
-		return
-	}
-
-	var output Output
-	if len(expression.Value) > 0 {
-		va := tosca.ValueAssignment{}
-		err = yaml.Unmarshal(expression.Value, &va)
-		if err != nil {
-			log.Panicf("Unable to unmarshal value expression: %v", err)
-		}
-		result, err := deployments.NewResolver(kv, id).ResolveExpressionForNode(va.Expression, "", "")
-		if err != nil {
-			log.Panicf("Unable to resolve value expression %q: %v", string(expression.Value), err)
-		}
-		output = Output{Name: opt, Value: result}
-
-	} else {
-		output = Output{Name: opt, Value: ""}
-	}
-	encodeJsonResponse(w, r, output)
-}
-
-func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
-
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
-	kv := s.consulClient.KV()
-	outputsTopoPrefix := path.Join(deployments.DeploymentKVPrefix, id, "/topology/outputs") + "/"
-	optPaths, _, err := kv.Keys(outputsTopoPrefix, "/", nil)
-	if err != nil {
-		log.Panic(err)
-
-	}
-	if len(optPaths) == 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	optCol := OutputsCollection{Outputs: make([]AtomLink, len(optPaths))}
-	for optIndex, optP := range optPaths {
-		optName := strings.TrimRight(strings.TrimPrefix(optP, outputsTopoPrefix), "/ ")
-
-		link := newAtomLink(LINK_REL_OUTPUT, path.Join("/deployments", id, "outputs", optName))
-		optCol.Outputs[optIndex] = link
-	}
-	encodeJsonResponse(w, r, optCol)
-
 }
 
 func (s *Server) storePropertyDefinition(errCh chan error, wg *sync.WaitGroup, propPrefix, propName string, propDefinition tosca.PropertyDefinition) {
@@ -401,7 +339,7 @@ func (s *Server) storeDeploymentDefinition(topology tosca.Topology, id string, i
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
-		s.storeConsulKey(errCh, wg, nodePrefix+"/status", deployments.INITIAL.String())
+		s.storeConsulKey(errCh, wg, nodePrefix+"/status", "initial")
 		s.storeConsulKey(errCh, wg, nodePrefix+"/name", nodeName)
 		s.storeConsulKey(errCh, wg, nodePrefix+"/type", node.Type)
 		propertiesPrefix := nodePrefix + "/properties"
