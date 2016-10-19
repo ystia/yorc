@@ -59,7 +59,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 			defer color.Unset()
 		}
 		nodesTable := tabutil.NewTable()
-		nodesTable.AddHeaders("Node", "Status")
+		nodesTable.AddHeaders("Node", "Status", "Instances number")
 
 		tasksTable := tabutil.NewTable()
 		tasksTable.AddHeaders("Id", "Type", "Status")
@@ -79,7 +79,16 @@ It prints the deployment status and the status of all the nodes contained in thi
 				if err != nil {
 					errExit(err)
 				}
-				nodesTable.AddRow(node.Name, getColoredNodeStatus(colorize, node.Status))
+				nbInstances := 0
+				for _, nodeLink := range node.Links {
+					if nodeLink.Rel == rest.LINK_REL_INSTANCE {
+						nbInstances++
+					}
+				}
+				if nbInstances == 0 {
+					nbInstances = 1
+				}
+				nodesTable.AddRow(node.Name, getColoredNodeStatus(colorize, node.Status), nbInstances)
 			} else if atomLink.Rel == rest.LINK_REL_TASK {
 				response = doAtomGetRequest(janusApi, atomLink)
 				var task rest.Task
