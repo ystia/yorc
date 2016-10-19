@@ -5,7 +5,7 @@ Janus is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simp
 
 ## How to build Janus
 
-Go 1.6.2+ is required. The easiest way to install it to use [GVM](https://github.com/moovweb/gvm)
+Go 1.7.0+ is required. The easiest way to install it to use [GVM](https://github.com/moovweb/gvm)
 
 Here is how to install and setup the Janus project:
 
@@ -17,8 +17,8 @@ Here is how to install and setup the Janus project:
     source ~/.bashrc
     gvm install go1.4 -B
     gvm use go1.4
-    gvm install go1.6.2 -B -pb -b
-    gvm use go1.6.2 --default
+    gvm install go1.7.0 -B -pb -b
+    gvm use go1.7.0 --default
     
     # By default GOPATH (where are stored your sources) lives in ~/.gvm/pkgsets/go1.6.2/global
     # You can edit this with 
@@ -29,8 +29,6 @@ Here is how to install and setup the Janus project:
     cd $GOPATH/src/novaforge.bull.com/starlings-janus
     git clone ssh://git@novaforge.bull.com:2222/starlings-janus/janus.git
     cd janus
-
-    go get -v golang.org/x/tools/cmd/stringer
 
     # Build 
     make
@@ -70,13 +68,11 @@ For now OpenStack config should be exported before run Janus
     
 Deploy a first node
  
-    cd $GOPATH/src/novaforge.bull.com/starlings-janus/janus/testdata/deployment
-    zip dep.zip dep.yaml
-    curl -X POST localhost:8800/deployments -v --data-binary @dep.zip -H "Content-Type: application/zip"
+    ./janus deployments deploy $GOPATH/src/novaforge.bull.com/starlings-janus/janus/testdata/deployment/welcome-import
 
-The location header give the URI that should be used to get info on this particular deployment
+This command will print the registered deployment identifier that should be used in the next command to get info on this particular deployment
 
 Check Deployment status
 
-    curl localhost:8800/deployments/<deployment_uuid> -v -H "Accept: application/json"
+    ./janus deployments info <deployment_uuid>
 
