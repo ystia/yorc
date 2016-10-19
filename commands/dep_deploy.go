@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -10,7 +9,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
 	"os"
 	"path"
 	"path/filepath"
@@ -83,12 +81,7 @@ func postCSAR(csarZip []byte, janusApi string) (string, error) {
 	}
 	if r.StatusCode != 201 {
 		// Try to get the reason
-		var errs rest.Errors
-		body, _ := ioutil.ReadAll(r.Body)
-		err = json.Unmarshal(body, &errs)
-		if err == nil {
-			printRestErrors(errs)
-		}
+		printErrors(r.Body)
 		return "", fmt.Errorf("POST failed: Expecting HTTP Status code 201 got %d, reason %q", r.StatusCode, r.Status)
 	}
 	if location := r.Header.Get("Location"); location != "" {

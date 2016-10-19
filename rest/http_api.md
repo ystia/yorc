@@ -256,7 +256,10 @@ Content-Type: application/json
 
 ### Get an output
 
-Retrieve a specific output. 'Accept' header should be set to 'application/json'.
+Retrieve a specific output. While the deployment status is DEPLOYMENT_IN_PROGRESS an output may be unresolvable in this case an empty string
+is returned. With other deployment statuses an unresolvable output leads to an Internal Server Error. 
+ 
+'Accept' header should be set to 'application/json'.
 
 `GET    /deployments/<deployment_id>/outputs/output_name>`
 
@@ -316,7 +319,7 @@ Content-Type: application/json
 
 ### Cancel a task
 
-Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be cancelled otherwise an HTTP 400 
+Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be canceled otherwise an HTTP 400 
 (Bad request) error is returned. 
 
 `DELETE    /deployments/<deployment_id>/tasks/<taskId>`
