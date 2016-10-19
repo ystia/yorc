@@ -123,14 +123,14 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 				log.Debugf("Step %q caught a notification", s.Name)
 				goto BR
 			case <-shutdownChan:
-				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled", s.Name))
-				log.Printf("Step %q cancelled", s.Name)
-				s.setStatus("cancelled")
+				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q canceled", s.Name))
+				log.Printf("Step %q canceled", s.Name)
+				s.setStatus("canceled")
 				return wfCanceled
 			case <-ctx.Done():
-				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q cancelled: %q", s.Name, ctx.Err()))
-				log.Printf("Step %q cancelled: %q", s.Name, ctx.Err())
-				s.setStatus("cancelled")
+				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q canceled: %q", s.Name, ctx.Err()))
+				log.Printf("Step %q canceled: %q", s.Name, ctx.Err())
+				s.setStatus("canceled")
 				return ctx.Err()
 			case <-time.After(30 * time.Second):
 				log.Debugf("Step %q still waiting for %d previous steps", s.Name, len(s.Previous)-i)
@@ -170,7 +170,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 					uninstallerrc <- err
 					haveErr = true
 				} else {
-					setNodeStatus(kv, eventPub, deploymentId, s.Node, "initial")
+					setNodeStatus(kv, eventPub, deploymentId, s.Node, "deleted")
 				}
 			default:
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
@@ -199,7 +199,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 	if haveErr {
 		log.Debug("Step %s genrate an error but workflow continue", s.Name)
 		s.setStatus("error")
-		// Return nil otherwise the rest of the workflow will be cancelled
+		// Return nil otherwise the rest of the workflow will be canceled
 		return nil
 	}
 	log.Debugf("Step %s done without error.", s.Name)
