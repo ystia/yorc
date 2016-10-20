@@ -166,10 +166,13 @@ already published), a _1_ value will wait for at least one event.
 A critical note is that the return of this endpoint is no guarantee of new events. It is possible that the timeout was reached before
 a new event was published.
 
+Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
+
 **Response**
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json
+X-Janus-Index: 1812
 ```
 ```json
 {
@@ -188,17 +191,47 @@ Content-Type: application/json
 }
 ```
 
-### Get logs of an application
+### Get latest events index
 
-Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+You can retrieve the latest events `index` by using an HTTP `HEAD` request.
+
+`HEAD    /deployments/<deployment_id>/events`
+
+The latest index is returned as an HTTP Header called `X-Janus-Index`.
+
+**Response**
+
+As per an HTTP `HEAD` request the response as no body.
+
+```
+HTTP/1.1 200 OK
+X-Janus-Index: 1812
+```
+
+### Get logs of a deployment
+
+Retrieve a list of logs. 'Accept' header should be set to 'application/json'.
+This endpoint supports long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
+`wait` allows to specify a polling maximum duration, this is limited to 10 minutes. If not set, the wait time defaults to 5 minutes.
+This value can be specified in the form of "10s" or "5m" (i.e., 10 seconds or 5 minutes, respectively). `index` indicates that we are
+polling for events newer that this index. A _0_ value will always returns with all currently known logs (possibly none if none were
+already published), a _1_ value will wait for at least one log.
+
+
+On optional `filter` parameter allows to filters logs by type. Currently available filters are `engine` for Janus deployment logs, 
+`infrastructure`  for infrastructure provisioning logs and `software` for software provisioning logs. This parameter accepts a coma 
+separated list of values.  
 
 `GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]`
 
+Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
+
 **Response**
 
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json
+X-Janus-Index: 1781
 ```
 ```json
 {
@@ -210,48 +243,22 @@ Content-Type: application/json
 }
 ```
 
-### Get logs of multiple applications
 
-Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
+### Get latest logs index
 
-`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=software,engine`
+You can retrieve the latest logs `index` by using an HTTP `HEAD` request.
 
-**Response**
+`HEAD    /deployments/<deployment_id>/logs`
 
-```
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-```json
-{
-    "logs":[
-      {"timestamp":"2016-09-05T07:46:09.91123229-04:00","logs":"Applying the infrastructure"},
-      {"timestamp":"2016-09-05T07:46:11.663880572-04:00","logs":"Applying the infrastructure"}
-     ],
-     "last_index":1781
-}
-```
-
-### Get all logs
-
-Retrieve the deployment status. 'Accept' header should be set to 'application/json'.
-
-`GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=`
+The latest index is returned as an HTTP Header called `X-Janus-Index`.
 
 **Response**
 
+As per an HTTP `HEAD` request the response as no body.
+
 ```
 HTTP/1.1 200 OK
-Content-Type: application/json
-```
-```json
-{
-    "logs":[
-      {"timestamp":"2016-09-05T07:46:09.91123229-04:00","logs":"Applying the infrastructure"},
-      {"timestamp":"2016-09-05T07:46:11.663880572-04:00","logs":"Applying the infrastructure"}
-     ],
-     "last_index":1781
-}
+X-Janus-Index: 1812
 ```
 
 ### Get an output

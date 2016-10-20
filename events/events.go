@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
@@ -99,4 +100,26 @@ func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time
 
 	log.Debugf("Found %d events after filtering", len(logs))
 	return logs, qm.LastIndex, nil
+}
+
+func GetEventsIndex(kv *api.KV, deploymentId string) (uint64, error) {
+	_, qm, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "events", "global"), nil)
+	if err != nil {
+		return 0, err
+	}
+	if qm == nil {
+		return 0, errors.New("Failed to retrieve last index for events")
+	}
+	return qm.LastIndex, nil
+}
+
+func GetLogsEventsIndex(kv *api.KV, deploymentId string) (uint64, error) {
+	_, qm, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "logs"), nil)
+	if err != nil {
+		return 0, err
+	}
+	if qm == nil {
+		return 0, errors.New("Failed to retrieve last index for logs")
+	}
+	return qm.LastIndex, nil
 }
