@@ -1,0 +1,295 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+description: Alien4Cloud generated service template
+template_name: Test
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - slurm-types: slurm/janus-slurm-types.yml
+  - dummy-types: dummy/dummy-types.yaml
+
+topology_template:
+  node_templates:
+    Dummy-2:
+      type: starlings.nodes.Dummy
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/client
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: Compute-2
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - server_endpoint:
+            node: Dummy
+            capability: starlings.capabilities.DummyServer
+            relationship: starlings.relationships.ConnectsDummyAgentToServer
+    Compute-2:
+      type: janus.nodes.slurm.Compute
+      properties:
+        imageId: 2
+        flavorId: 2
+        gpuType: 3
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            network_name: PRIVATE
+            secure: true
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Dummy:
+      type: starlings.nodes.Dummy
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/dummy
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Compute:
+      type: janus.nodes.slurm.Compute
+      properties:
+        imageId: 2
+        flavorId: 2
+        gpuType: 3
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            network_name: PRIVATE
+            secure: true
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          node: Compute
+          activity:
+            delegate: install
+          on-success:
+            - Dummy_initial
+        Compute-2_install:
+          node: Compute-2
+          activity:
+            delegate: install
+          on-success:
+            - Dummy-2_initial
+        Dummy-2_initial:
+          node: Dummy-2
+          activity:
+            set_state: initial
+          on-success:
+            - Dummy-2_creating
+        Dummy-2_creating:
+          node: Dummy-2
+          activity:
+            set_state: creating
+          on-success:
+            - create_Dummy-2
+        create_Dummy-2:
+          node: Dummy-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - pre_conf_dummy/1
+            - pre_conf_target/1
+        pre_conf_target/1:
+          node: Dummy-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/1
+          on-success:
+            - Dummy-2_created
+        pre_conf_dummy/1:
+          node: Dummy-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
+          on-success:
+            - Dummy-2_created
+        Dummy-2_created:
+          node: Dummy-2
+          activity:
+            set_state: created
+          on-success:
+            - Dummy-2_configuring
+            - Dummy_configuring
+        Dummy-2_configuring:
+          node: Dummy-2
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Dummy-2
+        configure_Dummy-2:
+          node: Dummy-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Dummy-2_configured
+        Dummy-2_configured:
+          node: Dummy-2
+          activity:
+            set_state: configured
+          on-success:
+            - Dummy-2_starting
+        Dummy-2_starting:
+          node: Dummy-2
+          activity:
+            set_state: starting
+          on-success:
+            - start_Dummy-2
+        start_Dummy-2:
+          node: Dummy-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Dummy-2_started
+        Dummy-2_started:
+          node: Dummy-2
+          activity:
+            set_state: started
+        Dummy_initial:
+          node: Dummy
+          activity:
+            set_state: initial
+          on-success:
+            - Dummy_creating
+        Dummy_creating:
+          node: Dummy
+          activity:
+            set_state: creating
+          on-success:
+            - create_Dummy
+        create_Dummy:
+          node: Dummy
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Dummy_created
+        Dummy_created:
+          node: Dummy
+          activity:
+            set_state: created
+          on-success:
+            - Dummy_configuring
+        Dummy_configuring:
+          node: Dummy
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Dummy
+        configure_Dummy:
+          node: Dummy
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Dummy_configured
+        Dummy_configured:
+          node: Dummy
+          activity:
+            set_state: configured
+          on-success:
+            - Dummy_starting
+        Dummy_starting:
+          node: Dummy
+          activity:
+            set_state: starting
+          on-success:
+            - start_Dummy
+        start_Dummy:
+          node: Dummy
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Dummy_started
+        Dummy_started:
+          node: Dummy
+          activity:
+            set_state: started
+          on-success:
+            - Dummy-2_configuring
+    uninstall:
+      steps:
+        Compute_uninstall:
+          node: Compute
+          activity:
+            delegate: uninstall
+          on-success:
+            - Net_uninstall
+        Compute-2_uninstall:
+          node: Compute-2
+          activity:
+            delegate: uninstall
+          on-success:
+            - Network_uninstall
+        Dummy-2_stopping:
+          node: Dummy-2
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Dummy-2
+        stop_Dummy-2:
+          node: Dummy-2
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Dummy-2_stopped
+        Dummy-2_stopped:
+          node: Dummy-2
+          activity:
+            set_state: stopped
+          on-success:
+            - Dummy-2_deleting
+        Dummy-2_deleting:
+          node: Dummy-2
+          activity:
+            set_state: deleting
+          on-success:
+            - Dummy-2_deleted
+        Dummy-2_deleted:
+          node: Dummy-2
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute-2_uninstall
+        Dummy_stopping:
+          node: Dummy
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Dummy
+        stop_Dummy:
+          node: Dummy
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Dummy_stopped
+        Dummy_stopped:
+          node: Dummy
+          activity:
+            set_state: stopped
+          on-success:
+            - Dummy_deleting
+        Dummy_deleting:
+          node: Dummy
+          activity:
+            set_state: deleting
+          on-success:
+            - Dummy_deleted
+        Dummy_deleted:
+          node: Dummy
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
