@@ -48,6 +48,8 @@ func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeN
 	case strings.HasPrefix(nodeType, "janus.nodes.slurm."):
 		osGenerator := slurm.NewGenerator(e.kv)
 		if err := osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
+		osGenerator := slurm.NewGenerator(e.kv, e.cfg)
+		if infraGenerated, err = osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
 			return err
 		}
 	default:
