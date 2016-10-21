@@ -10,7 +10,7 @@ imports:
 
 topology_template:
   node_templates:
-    Consul-2:
+    ConsulAgent:
       type: starlings.nodes.Consul
       properties:
         install_dnsmasq: true
@@ -18,14 +18,14 @@ topology_template:
         component_version: 0.5.2
       requirements:
         - host:
-            node: Compute-2
+            node: ComputeConsulAgent
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
         - server_endpoint:
-            node: Consul
+            node: ConsulServer
             capability: starlings.capabilities.ConsulServer
             relationship: starlings.relationships.ConnectsConsulAgentToServer
-    Compute-2:
+    ComputeConsulAgent:
       type: janus.nodes.openstack.Compute
       properties:
         user: cloud-user
@@ -53,7 +53,7 @@ topology_template:
       type: janus.nodes.openstack.FloatingIP
       properties:
         floating_network_name: Public_Network
-    Consul:
+    ConsulServer:
       type: starlings.nodes.Consul
       properties:
         install_dnsmasq: true
@@ -61,10 +61,10 @@ topology_template:
         component_version: 0.5.2
       requirements:
         - host:
-            node: Compute
+            node: ComputeConsulServer
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
-    Compute:
+    ComputeConsulServer:
       type: janus.nodes.openstack.Compute
       properties:
         user: cloud-user
@@ -100,150 +100,150 @@ topology_template:
           activity:
             delegate: install
           on-success:
-            - Compute-2_install
+            - ComputeConsulAgent_install
         Net_install:
           node: Net
           activity:
             delegate: install
           on-success:
-            - Compute_install
-        Compute_install:
-          node: Compute
+            - ComputeConsulServer_install
+        ComputeConsulServer_install:
+          node: ComputeConsulServer
           activity:
             delegate: install
           on-success:
-            - Consul_initial
-        Compute-2_install:
-          node: Compute-2
+            - ConsulServer_initial
+        ComputeConsulAgent_install:
+          node: ComputeConsulAgent
           activity:
             delegate: install
           on-success:
-            - Consul-2_initial
-        Consul-2_initial:
-          node: Consul-2
+            - ConsulAgent_initial
+        ConsulAgent_initial:
+          node: ConsulAgent
           activity:
             set_state: initial
           on-success:
-            - Consul-2_creating
-        Consul-2_creating:
-          node: Consul-2
+            - ConsulAgent_creating
+        ConsulAgent_creating:
+          node: ConsulAgent
           activity:
             set_state: creating
           on-success:
-            - create_Consul-2
-        create_Consul-2:
-          node: Consul-2
+            - create_ConsulAgent
+        create_ConsulAgent:
+          node: ConsulAgent
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - pre_conf_consul/1
-        pre_conf_consul/1:
-          node: Consul-2
+            - ConsulAgent_created
+        pre_conf_consulAgent/1:
+          node: ConsulAgent
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
           on-success:
-            - Consul-2_created
-        Consul-2_created:
-          node: Consul-2
+            - configure_ConsulAgent
+        ConsulAgent_created:
+          node: ConsulAgent
           activity:
             set_state: created
           on-success:
-            - Consul-2_configuring
-            - Consul_configuring
-        Consul-2_configuring:
-          node: Consul-2
+            - ConsulAgent_configuring
+            - ConsulServer_configuring
+        ConsulAgent_configuring:
+          node: ConsulAgent
           activity:
             set_state: configuring
           on-success:
-            - configure_Consul-2
-        configure_Consul-2:
-          node: Consul-2
+            - pre_conf_consulAgent/1
+        configure_ConsulAgent:
+          node: ConsulAgent
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
-            - Consul-2_configured
-        Consul-2_configured:
-          node: Consul-2
+            - ConsulAgent_configured
+        ConsulAgent_configured:
+          node: ConsulAgent
           activity:
             set_state: configured
           on-success:
-            - Consul-2_starting
-        Consul-2_starting:
-          node: Consul-2
+            - ConsulAgent_starting
+        ConsulAgent_starting:
+          node: ConsulAgent
           activity:
             set_state: starting
           on-success:
-            - start_Consul-2
-        start_Consul-2:
-          node: Consul-2
+            - start_ConsulAgent
+        start_ConsulAgent:
+          node: ConsulAgent
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
-            - Consul-2_started
-        Consul-2_started:
-          node: Consul-2
+            - ConsulAgent_started
+        ConsulAgent_started:
+          node: ConsulAgent
           activity:
             set_state: started
-        Consul_initial:
-          node: Consul
+        ConsulServer_initial:
+          node: ConsulServer
           activity:
             set_state: initial
           on-success:
-            - Consul_creating
-        Consul_creating:
-          node: Consul
+            - ConsulServer_creating
+        ConsulServer_creating:
+          node: ConsulServer
           activity:
             set_state: creating
           on-success:
-            - create_Consul
-        create_Consul:
-          node: Consul
+            - create_ConsulServer
+        create_ConsulServer:
+          node: ConsulServer
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - Consul_created
-        Consul_created:
-          node: Consul
+            - ConsulServer_created
+        ConsulServer_created:
+          node: ConsulServer
           activity:
             set_state: created
           on-success:
-            - Consul_configuring
-        Consul_configuring:
-          node: Consul
+            - ConsulServer_configuring
+        ConsulServer_configuring:
+          node: ConsulServer
           activity:
             set_state: configuring
           on-success:
-            - configure_Consul
-        configure_Consul:
-          node: Consul
+            - configure_ConsulServer
+        configure_ConsulServer:
+          node: ConsulServer
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
-            - Consul_configured
-        Consul_configured:
-          node: Consul
+            - ConsulServer_configured
+        ConsulServer_configured:
+          node: ConsulServer
           activity:
             set_state: configured
           on-success:
-            - Consul_starting
-        Consul_starting:
-          node: Consul
+            - ConsulServer_starting
+        ConsulServer_starting:
+          node: ConsulServer
           activity:
             set_state: starting
           on-success:
-            - start_Consul
-        start_Consul:
-          node: Consul
+            - start_ConsulServer
+        start_ConsulServer:
+          node: ConsulServer
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
-            - Consul_started
-        Consul_started:
-          node: Consul
+            - ConsulServer_started
+        ConsulServer_started:
+          node: ConsulServer
           activity:
             set_state: started
           on-success:
-            - Consul-2_configuring
+            - ConsulAgent_configuring
     uninstall:
       steps:
         Network_uninstall:
@@ -254,75 +254,75 @@ topology_template:
           node: Net
           activity:
             delegate: uninstall
-        Compute_uninstall:
-          node: Compute
+        ComputeConsulServer_uninstall:
+          node: ComputeConsulServer
           activity:
             delegate: uninstall
           on-success:
             - Net_uninstall
-        Compute-2_uninstall:
-          node: Compute-2
+        ComputeConsulAgent_uninstall:
+          node: ComputeConsulAgent
           activity:
             delegate: uninstall
           on-success:
             - Network_uninstall
-        Consul-2_stopping:
-          node: Consul-2
+        ConsulAgent_stopping:
+          node: ConsulAgent
           activity:
             set_state: stopping
           on-success:
-            - stop_Consul-2
-        stop_Consul-2:
-          node: Consul-2
+            - stop_ConsulAgent
+        stop_ConsulAgent:
+          node: ConsulAgent
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
-            - Consul-2_stopped
-        Consul-2_stopped:
-          node: Consul-2
+            - ConsulAgent_stopped
+        ConsulAgent_stopped:
+          node: ConsulAgent
           activity:
             set_state: stopped
           on-success:
-            - Consul-2_deleting
-        Consul-2_deleting:
-          node: Consul-2
+            - ConsulAgent_deleting
+        ConsulAgent_deleting:
+          node: ConsulAgent
           activity:
             set_state: deleting
           on-success:
-            - Consul-2_deleted
-        Consul-2_deleted:
-          node: Consul-2
+            - ConsulAgent_deleted
+        ConsulAgent_deleted:
+          node: ConsulAgent
           activity:
             set_state: deleted
           on-success:
-            - Compute-2_uninstall
-        Consul_stopping:
-          node: Consul
+            - ComputeConsulAgent_uninstall
+        ConsulServer_stopping:
+          node: ConsulServer
           activity:
             set_state: stopping
           on-success:
-            - stop_Consul
-        stop_Consul:
-          node: Consul
+            - stop_ConsulServer
+        stop_ConsulServer:
+          node: ConsulServer
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
-            - Consul_stopped
-        Consul_stopped:
-          node: Consul
+            - ConsulServer_stopped
+        ConsulServer_stopped:
+          node: ConsulServer
           activity:
             set_state: stopped
           on-success:
-            - Consul_deleting
-        Consul_deleting:
-          node: Consul
+            - ConsulServer_deleting
+        ConsulServer_deleting:
+          node: ConsulServer
           activity:
             set_state: deleting
           on-success:
-            - Consul_deleted
-        Consul_deleted:
-          node: Consul
+            - ConsulServer_deleted
+        ConsulServer_deleted:
+          node: ConsulServer
           activity:
             set_state: deleted
           on-success:
-            - Compute_uninstall
+            - ComputeConsulServer_uninstall

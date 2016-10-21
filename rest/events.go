@@ -52,6 +52,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eventsCollection := EventsCollection{Events: evts, LastIndex: lastIdx}
+	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
 	encodeJsonResponse(w, r, eventsCollection)
 }
 
@@ -113,7 +114,47 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
-
+	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
 	encodeJsonResponse(w, r, logCollection)
 
+}
+
+func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	kv := s.consulClient.KV()
+	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		log.Panic(err)
+	} else if !depExist {
+		WriteError(w, r, ErrNotFound)
+		return
+	}
+	lastIdx, err := events.GetEventsIndex(kv, id)
+	if err != nil {
+		log.Panic(err)
+	}
+	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) headLogsEventsIndex(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	kv := s.consulClient.KV()
+	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
+		log.Panic(err)
+	} else if !depExist {
+		WriteError(w, r, ErrNotFound)
+		return
+	}
+	lastIdx, err := events.GetLogsEventsIndex(kv, id)
+	if err != nil {
+		log.Panic(err)
+	}
+	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
+	w.WriteHeader(http.StatusOK)
 }

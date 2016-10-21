@@ -22,6 +22,10 @@ const (
 	LINK_REL_TASK       string = "task"
 )
 
+const (
+	JanusIndexHeader string = "X-Janus-Index"
+)
+
 type AtomLink struct {
 	Rel      string `json:"rel"`
 	Href     string `json:"href"`
