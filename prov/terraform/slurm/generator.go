@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"io/ioutil"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
@@ -15,10 +16,11 @@ import (
 
 type Generator struct {
 	kv *api.KV
+	cfg config.Configuration
 }
 
-func NewGenerator(kv *api.KV) *Generator {
-	return &Generator{kv: kv}
+func NewGenerator(kv *api.KV, cfg config.Configuration) *Generator {
+	return &Generator{kv: kv, cfg: cfg}
 }
 
 func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error) {
@@ -54,36 +56,51 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 	}
 }
 
-func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error {
+func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
+	instancesKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "instances", nodeName)
 	infrastructure := commons.Infrastructure{}
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey + "/type", nil)
 	if err != nil {
 		log.Print(err)
-		return err
+		return false, err
 	}
 	nodeType := string(kvPair.Value)
 	log.Printf("GenerateTerraformInfraForNode switch begin")
 	switch nodeType {
 	case "janus.nodes.slurm.Compute":
-		compute, err := g.generateSlurmNode(nodeKey, depId)
+	instances, _, err := g.kv.Keys(instancesKey+"/", "/", nil)
 		if err != nil {
-			return err
+			return false, err
 		}
 
-		var computeName string
-		computeName = "janus-Compute"
-		addResource(&infrastructure, "slurm_node", computeName, &compute)
-
-
-		consulKeyNodeName := commons.ConsulKey{Name: computeName + "-node_name", Path: nodeKey + "/capabilities/endpoint/attributes/ip_address", Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
-		consulKeyJobId := commons.ConsulKey{Name: computeName + "-job_id", Path: nodeKey + "/capabilities/endpoint/attributes/job_id", Value: fmt.Sprintf("${slurm_node.%s.job_id}", computeName)}
-
-		var consulKeys commons.ConsulKeys
-		consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKeyNodeName, consulKeyJobId}}
-		addResource(&infrastructure, "consul_keys", computeName, &consulKeys)
+		for _, instanceName := range instances {
+			instanceName = path.Base(instanceName)
+			compute, err := g.generateSlurmNode(nodeKey, depId)
+			var computeName = nodeName +"-"+instanceName
+			log.Debugf("XBD computeName : IN FOR  %s", computeName)
+			log.Debugf("XBD instanceName: IN FOR  %s", instanceName)
+			if err != nil {
+				return false, err
+			}
+	
+			addResource(&infrastructure, "slurm_node", computeName, &compute)
+			
+			
+			consulKey := commons.ConsulKey{Name: computeName + "-node_name", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
+			consulKey2 := commons.ConsulKey{Name: computeName + "-ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
+			consulKeyAttrib := commons.ConsulKey{Name: computeName + "-attrib_ip_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
+			
+			
+			consulKeyJobId := commons.ConsulKey{Name: computeName + "-job_id", Path: path.Join(instancesKey, instanceName,  "/capabilities/endpoint/attributes/job_id"), Value: fmt.Sprintf("${slurm_node.%s.job_id}", computeName)}
+	
+			var consulKeys commons.ConsulKeys
+			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey,consulKey2,consulKeyAttrib, consulKeyJobId}}
+			addResource(&infrastructure, "consul_keys", computeName, &consulKeys)
+		
+		} //End instances loop
 
 
 		// Add Provider
@@ -96,21 +113,21 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) error 
 
 
 	default:
-		return fmt.Errorf("In Slurm : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
+		return false,fmt.Errorf("In Slurm : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
 	infraPath := filepath.Join("work", "deployments", fmt.Sprint(depId), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		log.Printf("%+v", err)
-		return err
+		return false,err
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
 		log.Print("Failed to write file")
-		return err
+		return false,err
 	}
 
 	log.Printf("Infrastructure generated for deployment with id %s", depId)
-	return nil
+	return true,nil
 }
