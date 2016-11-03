@@ -49,11 +49,10 @@ func NewRouter() *router {
 }
 
 type Server struct {
-	router          *router
-	listener        net.Listener
-	consulClient    *api.Client
-	tasksCollector  *tasks.Collector
-	consulPublisher *consulPublisher
+	router         *router
+	listener       net.Listener
+	consulClient   *api.Client
+	tasksCollector *tasks.Collector
 }
 
 func (s *Server) Shutdown() {
@@ -70,19 +69,17 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		return nil, err
 	}
 
-	maxConsulPubRoutines := configuration.REST_CONSUL_PUB_MAX_ROUTINES
+	maxConsulPubRoutines := configuration.CONSUL_PUB_MAX_ROUTINES
 	if maxConsulPubRoutines <= 0 {
-		maxConsulPubRoutines = config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES
+		maxConsulPubRoutines = config.DEFAULT_CONSUL_PUB_MAX_ROUTINES
 	}
 
 	httpServer := &Server{
-		router:          NewRouter(),
-		listener:        listener,
-		consulClient:    client,
-		tasksCollector:  tasks.NewCollector(client),
-		consulPublisher: newConsulPublisher(maxConsulPubRoutines, client.KV(), shutdownCh),
+		router:         NewRouter(),
+		listener:       listener,
+		consulClient:   client,
+		tasksCollector: tasks.NewCollector(client),
 	}
-	go httpServer.consulPublisher.run()
 
 	httpServer.registerHandlers()
 	log.Printf("Starting HTTPServer on port 8800")

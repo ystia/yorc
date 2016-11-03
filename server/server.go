@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -31,6 +32,14 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		log.Printf("Can't connect to Consul")
 		return err
 	}
+
+	maxConsulPubRoutines := configuration.CONSUL_PUB_MAX_ROUTINES
+	if maxConsulPubRoutines <= 0 {
+		maxConsulPubRoutines = config.DEFAULT_CONSUL_PUB_MAX_ROUTINES
+	}
+
+	consulutil.RunConsulPublisher(maxConsulPubRoutines, client.KV(), shutdownCh)
+
 	dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
 	go dispatcher.Run()
 	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
