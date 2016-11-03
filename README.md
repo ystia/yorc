@@ -1,5 +1,7 @@
 # JANUS Orchestrator
 
+[![Build Status](http://129.184.11.223/buildStatus/icon?job=janus)](http://129.184.11.223/job/janus/)
+
 Janus is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html) orchestrator.
 
 

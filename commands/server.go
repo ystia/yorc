@@ -63,7 +63,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("consul_token", "t", "", "The token by default")
 	serverCmd.PersistentFlags().StringP("consul_datacenter", "d", "", "The datacenter of Consul node")
 
-	serverCmd.PersistentFlags().Int("rest_consul_publisher_max_routines", config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES, "Maximum number of paralellism used by the REST API to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
+	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DEFAULT_CONSUL_PUB_MAX_ROUTINES, "Maximum number of paralellism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
 
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
@@ -81,7 +81,7 @@ func setConfig() {
 	viper.BindPFlag("consul_token", serverCmd.PersistentFlags().Lookup("consul_token"))
 	viper.BindPFlag("consul_datacenter", serverCmd.PersistentFlags().Lookup("consul_datacenter"))
 
-	viper.BindPFlag("rest_consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("rest_consul_publisher_max_routines"))
+	viper.BindPFlag("consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("consul_publisher_max_routines"))
 
 	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
 
@@ -98,7 +98,7 @@ func setConfig() {
 	viper.BindEnv("os_private_network_name")
 	viper.BindEnv("os_public_network_name")
 	viper.BindEnv("os_default_security_groups")
-	viper.BindEnv("rest_consul_publisher_max_routines")
+	viper.BindEnv("consul_publisher_max_routines")
 	viper.BindEnv("consul_address")
 
 	//Setting Defaults
@@ -108,7 +108,7 @@ func setConfig() {
 	viper.SetDefault("consul_address", "") // Use consul api default
 	viper.SetDefault("consul_datacenter", "dc1")
 	viper.SetDefault("consul_token", "anonymous")
-	viper.SetDefault("rest_consul_publisher_max_routines", config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES)
+	viper.SetDefault("consul_publisher_max_routines", config.DEFAULT_CONSUL_PUB_MAX_ROUTINES)
 
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
@@ -131,7 +131,7 @@ func getConfig() config.Configuration {
 	configuration.CONSUL_ADDRESS = viper.GetString("consul_address")
 	configuration.CONSUL_DATACENTER = viper.GetString("consul_datacenter")
 	configuration.CONSUL_TOKEN = viper.GetString("consul_token")
-	configuration.REST_CONSUL_PUB_MAX_ROUTINES = viper.GetInt("rest_consul_publisher_max_routines")
+	configuration.CONSUL_PUB_MAX_ROUTINES = viper.GetInt("consul_publisher_max_routines")
 	configuration.OS_DEFAULT_SECURITY_GROUPS = make([]string, 0)
 	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {
 		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags

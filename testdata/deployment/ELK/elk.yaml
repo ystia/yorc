@@ -9,6 +9,7 @@ imports:
   - consul-types: consul/consul-types.yaml
   - elasticsearch-types: elasticsearch/elasticsearch-types.yaml
   - java-types: java/java-types.yaml
+  - logstash-types: logstash/logstash-types.yaml
 
 topology_template:
   node_templates:
@@ -23,10 +24,30 @@ topology_template:
       type: starlings.nodes.Consul
       requirements:
         - host:
-            node: ComputeConsulServer
+            node: ComputeCS
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
-    ConsulAgentES:
+    Logstash:
+      type: starlings.nodes.Logstash
+      properties:
+        stdout: true
+        auto_reload: true
+        reload_interval: 60
+        repository: "http://10.197.132.16/sla"
+      requirements:
+        - consul:
+            node: ConsulAgentLS
+            capability: starlings.capabilities.ConsulAgent
+            relationship: starlings.relationships.ConnectsToConsulAgent
+        - java:
+            node: JavaLS
+            capability: starlings.capabilities.JavaHosting
+            relationship: starlings.relationships.HostedOnJavaRuntime
+        - search_endpoint:
+            node: Elasticsearch
+            capability: starlings.capabilities.SearchEndpoint
+            relationship: starlings.relationships.ConnectsLogstashToElasticsearch
+    ConsulAgentLS:
       type: starlings.nodes.Consul
       requirements:
         - server_endpoint:
@@ -34,7 +55,7 @@ topology_template:
             capability: starlings.capabilities.ConsulServer
             relationship: starlings.relationships.ConnectsConsulAgentToServer
         - host:
-            node: ComputeES
+            node: ComputeLS
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     Elasticsearch:
@@ -57,6 +78,44 @@ topology_template:
             initiator: source
             secure: false
             network_name: PRIVATE
+    ConsulAgentES:
+      type: starlings.nodes.Consul
+      requirements:
+        - server_endpoint:
+            node: ConsulServer
+            capability: starlings.capabilities.ConsulServer
+            relationship: starlings.relationships.ConnectsConsulAgentToServer
+        - host:
+            node: ComputeES
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ComputeCS:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-06.share.ops
+        key_pair: cloudify
+      capabilities:
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+    JavaLS:
+      type: starlings.nodes.Java
+      requirements:
+        - host:
+            node: ComputeLS
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
     ComputeES:
       type: janus.nodes.openstack.Compute
       properties:
@@ -68,7 +127,7 @@ topology_template:
       capabilities:
         scalable:
           properties:
-            max_instances: 5
+            max_instances: 10
             min_instances: 1
             default_instances: 3
         endpoint:
@@ -77,7 +136,18 @@ topology_template:
             initiator: source
             secure: true
             network_name: PRIVATE
-    ComputeConsulServer:
+    GeoNames:
+      type: starlings.nodes.GeoNames
+      properties:
+        repository: http://10.197.132.16/sla
+        filename: allCountries
+        indexname: geonames
+      requirements:
+        - logstash:
+            node: Logstash
+            capability: starlings.capabilities.LogstashConnectorHosting
+            relationship: starlings.relationships.GeonamesHostedOnLogstash
+    ComputeLS:
       type: janus.nodes.openstack.Compute
       properties:
         user: cloud-user
@@ -101,7 +171,7 @@ topology_template:
     install:
       steps:
         Compute_install:
-          node: ComputeConsulServer
+          node: ComputeCS
           activity:
             delegate: install
           on-success:
@@ -165,7 +235,8 @@ topology_template:
           activity:
             set_state: started
           on-success:
-            - Consul_configuring_1
+            - ConsulAgentES_configuring
+            - ConsulAgentLS_configuring
         Compute_install_1:
           node: ComputeES
           activity:
@@ -196,9 +267,9 @@ topology_template:
           activity:
             set_state: created
           on-success:
-            - Consul_configuring_1
+            - ConsulAgentES_configuring
             - Consul_configuring
-        Consul_configuring_1:
+        ConsulAgentES_configuring:
           node: ConsulAgentES
           activity:
             set_state: configuring
@@ -324,7 +395,7 @@ topology_template:
             set_state: created
           on-success:
             - Elasticsearch_configuring
-            - Consul_configuring_1
+            - ConsulAgentES_configuring
         Elasticsearch_configuring:
           node: Elasticsearch
           activity:
@@ -359,10 +430,272 @@ topology_template:
           node: Elasticsearch
           activity:
             set_state: started
+          on-success:
+            - Logstash_configuring
+        Compute_install_2:
+          node: ComputeLS
+          activity:
+            delegate: install
+          on-success:
+            - Consul_initial_2
+            - Java_initial_1
+        Consul_initial_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: initial
+          on-success:
+            - Consul_creating_2
+        Consul_creating_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: creating
+          on-success:
+            - create_Consul_2
+        create_Consul_2:
+          node: ConsulAgentLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Consul_created_2
+        Consul_created_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: created
+          on-success:
+            - ConsulAgentLS_configuring
+            - Consul_configuring
+        ConsulAgentLS_configuring:
+          node: ConsulAgentLS
+          activity:
+            set_state: configuring
+          on-success:
+            - pre_configure_source_ConsulAgentLS/0
+        pre_configure_source_ConsulAgentLS/0:
+          node: ConsulAgentLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/0
+          on-success:
+            - configure_Consul_2
+        configure_Consul_2:
+          node: ConsulAgentLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Consul_configured_2
+        Consul_configured_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: configured
+          on-success:
+            - Consul_starting_2
+        Consul_starting_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: starting
+          on-success:
+            - start_Consul_2
+        start_Consul_2:
+          node: ConsulAgentLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Consul_started_2
+        Consul_started_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: started
+          on-success:
+            - Logstash_configuring
+        Java_initial_1:
+          node: JavaLS
+          activity:
+            set_state: initial
+          on-success:
+            - Java_creating_1
+        Java_creating_1:
+          node: JavaLS
+          activity:
+            set_state: creating
+          on-success:
+            - create_Java_1
+        create_Java_1:
+          node: JavaLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Java_created_1
+        Java_created_1:
+          node: JavaLS
+          activity:
+            set_state: created
+          on-success:
+            - Java_configuring_1
+        Java_configuring_1:
+          node: JavaLS
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Java_1
+        configure_Java_1:
+          node: JavaLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Java_configured_1
+        Java_configured_1:
+          node: JavaLS
+          activity:
+            set_state: configured
+          on-success:
+            - Java_starting_1
+        Java_starting_1:
+          node: JavaLS
+          activity:
+            set_state: starting
+          on-success:
+            - start_Java_1
+        start_Java_1:
+          node: JavaLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Java_started_1
+        Java_started_1:
+          node: JavaLS
+          activity:
+            set_state: started
+          on-success:
+            - Logstash_initial
+        Logstash_initial:
+          node: Logstash
+          activity:
+            set_state: initial
+          on-success:
+            - Logstash_creating
+        Logstash_creating:
+          node: Logstash
+          activity:
+            set_state: creating
+          on-success:
+            - create_Logstash
+        create_Logstash:
+          node: Logstash
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Logstash_created
+        Logstash_created:
+          node: Logstash
+          activity:
+            set_state: created
+          on-success:
+            - Logstash_configuring
+            - Elasticsearch_configuring
+            - ConsulAgentLS_configuring
+        Logstash_configuring:
+          node: Logstash
+          activity:
+            set_state: configuring
+          on-success:
+            - pre_configure_source_Logstash/2
+        pre_configure_source_Logstash/2:
+          node: Logstash
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/2
+          on-success:
+            - configure_Logstash
+        configure_Logstash:
+          node: Logstash
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Logstash_configured
+        Logstash_configured:
+          node: Logstash
+          activity:
+            set_state: configured
+          on-success:
+            - Logstash_starting
+        Logstash_starting:
+          node: Logstash
+          activity:
+            set_state: starting
+          on-success:
+            - start_Logstash
+        start_Logstash:
+          node: Logstash
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Logstash_started
+        Logstash_started:
+          node: Logstash
+          activity:
+            set_state: started
+          on-success:
+            - GeoNames_initial
+        GeoNames_initial:
+          node: GeoNames
+          activity:
+            set_state: initial
+          on-success:
+            - GeoNames_creating
+        GeoNames_creating:
+          node: GeoNames
+          activity:
+            set_state: creating
+          on-success:
+            - create_GeoNames
+        create_GeoNames:
+          node: GeoNames
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - GeoNames_created
+        GeoNames_created:
+          node: GeoNames
+          activity:
+            set_state: created
+          on-success:
+            - GeoNames_configuring
+        GeoNames_configuring:
+          node: GeoNames
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_GeoNames
+        configure_GeoNames:
+          node: GeoNames
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - GeoNames_configured
+        GeoNames_configured:
+          node: GeoNames
+          activity:
+            set_state: configured
+          on-success:
+            - GeoNames_starting
+        GeoNames_starting:
+          node: GeoNames
+          activity:
+            set_state: starting
+          on-success:
+            - start_GeoNames
+        start_GeoNames:
+          node: GeoNames
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - GeoNames_started
+        GeoNames_started:
+          node: GeoNames
+          activity:
+            set_state: started
     uninstall:
       steps:
         Compute_uninstall:
-          node: ComputeConsulServer
+          node: ComputeCS
           activity:
             delegate: uninstall
         Consul_stopping:
@@ -483,4 +816,121 @@ topology_template:
             set_state: deleted
           on-success:
             - Java_stopping
-
+        Compute_uninstall_2:
+          node: ComputeLS
+          activity:
+            delegate: uninstall
+        Consul_stopping_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Consul_2
+        stop_Consul_2:
+          node: ConsulAgentLS
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Consul_stopped_2
+        Consul_stopped_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: stopped
+          on-success:
+            - Consul_deleting_2
+        Consul_deleting_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: deleting
+          on-success:
+            - Consul_deleted_2
+        Consul_deleted_2:
+          node: ConsulAgentLS
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_2
+        Java_stopping_1:
+          node: JavaLS
+          activity:
+            set_state: stopping
+          on-success:
+            - Java_stopped_1
+        Java_stopped_1:
+          node: JavaLS
+          activity:
+            set_state: stopped
+          on-success:
+            - Java_deleting_1
+        Java_deleting_1:
+          node: JavaLS
+          activity:
+            set_state: deleting
+          on-success:
+            - Java_deleted_1
+        Java_deleted_1:
+          node: JavaLS
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_2
+        Logstash_stopping:
+          node: Logstash
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Logstash
+        stop_Logstash:
+          node: Logstash
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Logstash_stopped
+        Logstash_stopped:
+          node: Logstash
+          activity:
+            set_state: stopped
+          on-success:
+            - Logstash_deleting
+        Logstash_deleting:
+          node: Logstash
+          activity:
+            set_state: deleting
+          on-success:
+            - Logstash_deleted
+        Logstash_deleted:
+          node: Logstash
+          activity:
+            set_state: deleted
+          on-success:
+            - Java_stopping_1
+        GeoNames_stopping:
+          node: GeoNames
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_GeoNames
+        stop_GeoNames:
+          node: GeoNames
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - GeoNames_stopped
+        GeoNames_stopped:
+          node: GeoNames
+          activity:
+            set_state: stopped
+          on-success:
+            - GeoNames_deleting
+        GeoNames_deleting:
+          node: GeoNames
+          activity:
+            set_state: deleting
+          on-success:
+            - GeoNames_deleted
+        GeoNames_deleted:
+          node: GeoNames
+          activity:
+            set_state: deleted
+          on-success:
+            - Logstash_stopping

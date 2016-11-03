@@ -34,8 +34,8 @@ func setupServer(b *testing.B) (*testutil.TestServer, chan struct{}) {
 	})
 
 	configuration := config.Configuration{
-		CONSUL_ADDRESS:               srv1.HTTPAddr,
-		REST_CONSUL_PUB_MAX_ROUTINES: config.DEFAULT_REST_CONSUL_PUB_MAX_ROUTINES,
+		CONSUL_ADDRESS:          srv1.HTTPAddr,
+		CONSUL_PUB_MAX_ROUTINES: config.DEFAULT_CONSUL_PUB_MAX_ROUTINES,
 	}
 	shutdownCh := make(chan struct{})
 	go func() {
