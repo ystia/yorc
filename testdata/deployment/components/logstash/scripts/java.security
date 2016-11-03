@@ -1,0 +1,37 @@
+#
+# Starlings
+# Copyright (C) 2015 Bull S.A.S. - All rights reserved
+#
+
+#
+# The Java-level namelookup cache policy for successful lookups:
+#
+# any negative value: caching forever
+# any positive value: the number of seconds to cache an address for
+# zero: do not cache
+#
+# default value is forever (FOREVER). For security reasons, this
+# caching is made forever when a security manager is set. When a security
+# manager is not set, the default behavior in this implementation
+# is to cache for 30 seconds.
+#
+# NOTE: setting this to anything other than the default value can have
+#       serious security implications. Do not set it unless
+#       you are sure you are not exposed to DNS spoofing attack.
+#
+networkaddress.cache.ttl=0
+
+# The Java-level namelookup cache policy for failed lookups:
+#
+# any negative value: cache forever
+# any positive value: the number of seconds to cache negative lookup results
+# zero: do not cache
+#
+# In some Microsoft Windows networking environments that employ
+# the WINS name service in addition to DNS, name service lookups
+# that fail may take a noticeably long time to return (approx. 5 seconds).
+# For this reason the default caching policy is to maintain these
+# results for 10 seconds.
+#
+#
+networkaddress.cache.negative.ttl=0
