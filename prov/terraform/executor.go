@@ -9,7 +9,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/slurm"
 	"path"
 	"path/filepath"
 	"strings"
