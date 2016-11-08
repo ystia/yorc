@@ -67,16 +67,19 @@ func (w Worker) processWorkflow(ctx context.Context, wfSteps []*Step, deployment
 	}()
 
 	err := g.Wait()
-	if err != nil {
-		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
-	}
+	// Be sure to close the uninstall errors channel before exiting or trying to read from fan-in errors channel
 	close(uninstallerrc)
 	errors := <-faninErrCh
+
+	if err != nil {
+		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("Error '%v' happened in workflow.", err))
+		return err
+	}
 
 	if len(errors) > 0 {
 		uninstallerr := fmt.Errorf("%s", strings.Join(errors, " ; "))
 		deployments.LogInConsul(w.consulClient.KV(), deploymentId, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", uninstallerr))
-		log.Printf("One or more error appear in unistall workflow, please check : %v", uninstallerr)
+		log.Printf("One or more error appear in uninstall workflow, please check : %v", uninstallerr)
 	} else {
 		deployments.LogInConsul(w.consulClient.KV(), deploymentId, "Workflow ended without error")
 		log.Printf("Workflow ended without error")
