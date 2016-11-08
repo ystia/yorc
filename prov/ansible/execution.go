@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
+	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"os"
@@ -488,7 +489,7 @@ func (e *execution) resolveExecution() error {
 
 	e.NodeType = string(kvPair.Value)
 	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
-	if strings.Contains(e.Operation, "Standard") {
+	if strings.Contains(e.Operation, "standard") {
 		e.isRelationshipOperation = false
 	} else {
 		// In a relationship
@@ -529,9 +530,7 @@ func (e *execution) resolveExecution() error {
 	//TODO deal with inheritance operation may be not in the direct node type
 	if e.isRelationshipOperation {
 		var op string
-		if idx := strings.Index(e.Operation, "Configure."); idx >= 0 {
-			op = e.Operation[idx:]
-		} else if idx := strings.Index(e.Operation, "configure."); idx >= 0 {
+		if idx := strings.Index(e.Operation, "configure."); idx >= 0 {
 			op = e.Operation[idx:]
 		} else {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
@@ -540,9 +539,7 @@ func (e *execution) resolveExecution() error {
 		e.OperationPath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
 	} else {
 		var op string
-		if idx := strings.Index(e.Operation, "Standard."); idx >= 0 {
-			op = e.Operation[idx:]
-		} else if idx := strings.Index(e.Operation, "standard."); idx >= 0 {
+		if idx := strings.Index(e.Operation, "standard."); idx >= 0 {
 			op = e.Operation[idx:]
 		} else {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
@@ -783,15 +780,15 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
 	cmd.Dir = ansibleRecipePath
-	outbuf := log.NewWriterSize(e.kv, e.DeploymentId, deployments.DeploymentKVPrefix)
-	errbuf := log.NewWriterSize(e.kv, e.DeploymentId, deployments.DeploymentKVPrefix)
+	outbuf := logsutil.NewAnsibleJsonConsulWriter(e.kv, e.DeploymentId, deployments.SOFTWARE_LOG_PREFIX)
+	errbuf := logsutil.NewBufferedConsulWriter(e.kv, e.DeploymentId, deployments.SOFTWARE_LOG_PREFIX)
 	cmd.Stdout = outbuf
 	cmd.Stderr = errbuf
 
 	errCloseCh := make(chan bool)
 	defer close(errCloseCh)
 	errbuf.Run(errCloseCh)
-	defer outbuf.FlushSoftware()
+	defer outbuf.Flush()
 	if err := cmd.Run(); err != nil {
 		deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
 		log.Print(err)
