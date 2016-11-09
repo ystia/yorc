@@ -52,7 +52,7 @@ func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeN
 			return err
 		}
 	default:
-		return fmt.Errorf("In executor : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
+		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
 	}
 	if infraGenerated {
 		if err := e.applyInfrastructure(ctx, deploymentId, nodeName); err != nil {
