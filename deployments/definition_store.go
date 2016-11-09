@@ -85,7 +85,8 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentId, t
 	if err := storeImports(ctx, topology, deploymentId, topologyPrefix); err != nil {
 		return err
 	}
-	storeOuputs(ctx, topology, topologyPrefix)
+	storeInputs(ctx, topology, topologyPrefix)
+	storeOutputs(ctx, topology, topologyPrefix)
 	storeNodes(ctx, topology, topologyPrefix, importPath)
 	storeTypes(ctx, topology, topologyPrefix, importPath)
 	storeRelationshipTypes(ctx, topology, topologyPrefix, importPath)
@@ -155,8 +156,8 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, to
 	return nil
 }
 
-// storeOuputs stores topology outputs
-func storeOuputs(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
+// storeOutputs stores topology outputs
+func storeOutputs(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
 	outputsPrefix := path.Join(topologyPrefix, "outputs")
 	for outputName, output := range topology.TopologyTemplate.Outputs {
@@ -168,6 +169,22 @@ func storeOuputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "status"), output.Status)
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "type"), output.Type)
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "value"), output.Value.String())
+	}
+}
+
+// storeInputs stores topology outputs
+func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	inputsPrefix := path.Join(topologyPrefix, "inputs")
+	for inputName, input := range topology.TopologyTemplate.Inputs {
+		inputPrefix := path.Join(inputsPrefix, inputName)
+		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "name"), inputName)
+		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "description"), input.Description)
+		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "default"), input.Default)
+		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "required"), strconv.FormatBool(input.Required))
+		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "status"), input.Status)
+		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "type"), input.Type)
+		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "value"), input.Value.String())
 	}
 }
 

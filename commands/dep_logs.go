@@ -41,7 +41,6 @@ func init() {
 }
 
 func streamsLogs(janusApi, depId string, colorize, fromBeginning, stop bool, filters ...string) {
-	fmt.Println(filters)
 	if colorize {
 		defer color.Unset()
 	}

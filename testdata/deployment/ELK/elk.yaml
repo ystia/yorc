@@ -13,11 +13,20 @@ imports:
   - kibana-types: kibana/kibana-types.yaml
 
 topology_template:
+  inputs:
+    repository_default:
+      type: string
+      required: false
+      default: "http://10.197.132.16/sla"
+    repository_value:
+      type: string
+      required: false
+      value: "http://10.197.132.16/sla"
   node_templates:
     JavaES:
       type: starlings.nodes.Java
       properties:
-        download_url:  "http://10.197.132.16/sla/jdk-7u79-linux-x64.tar.gz"
+        download_url: { concat: [ get_input: repository_value, "/jdk-7u79-linux-x64.tar.gz" ] }
       requirements:
         - host:
             node: ComputeES
@@ -29,7 +38,7 @@ topology_template:
         stdout: true
         auto_reload: true
         reload_interval: 60
-        repository: "http://10.197.132.16/sla"
+        repository: { get_input: repository_value }
       requirements:
         - consul:
             node: ConsulAgentLS
@@ -55,10 +64,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-#        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
-#        availability_zone: r423-02.share.ops
         key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -81,7 +92,7 @@ topology_template:
     JavaLS:
       type: starlings.nodes.Java
       properties:
-        download_url:  "http://10.197.132.16/sla/jdk-7u79-linux-x64.tar.gz"
+        download_url: { concat: [ get_input: repository_default, "/jdk-7u79-linux-x64.tar.gz" ] }
       requirements:
         - host:
             node: ComputeLS
@@ -101,7 +112,7 @@ topology_template:
     Kibana:
       type: starlings.nodes.Kibana
       properties:
-        repository: "http://10.197.132.16/sla"
+        repository: { get_input: repository_value }
       requirements:
         - java:
             node: JavaKib
@@ -120,10 +131,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-#        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
-#        availability_zone: r423-02.share.ops
         key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -161,7 +174,7 @@ topology_template:
     Elasticsearch:
       type: starlings.nodes.Elasticsearch
       properties:
-        repository: "http://10.197.132.16/sla"
+        repository: { get_input: repository_default }
       requirements:
         - java:
             node: JavaES
@@ -194,10 +207,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-#        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
-#        availability_zone: r423-02.share.ops
         key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -213,7 +228,7 @@ topology_template:
     GeoNames:
       type: starlings.nodes.GeoNames
       properties:
-        repository: http://10.197.132.16/sla
+        repository: { get_input: repository_default }
         filename: allCountries
         indexname: geonames
       requirements:
@@ -231,7 +246,7 @@ topology_template:
     JavaKib:
       type: starlings.nodes.Java
       properties:
-        download_url:  "http://10.197.132.16/sla/jdk-7u79-linux-x64.tar.gz"
+        download_url:  { concat: [ get_input: repository_default, "/jdk-7u79-linux-x64.tar.gz" ] }
       requirements:
         - host:
             node: ComputeKib
@@ -241,11 +256,13 @@ topology_template:
       type: janus.nodes.openstack.Compute
       properties:
         user: cloud-user
-        flavor: 3
-#        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
-#        availability_zone: r423-02.share.ops
+        flavor: 2
         key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -265,13 +282,17 @@ topology_template:
     NetworkFIPKibana:
       type: janus.nodes.openstack.FloatingIP
       properties:
-#        floating_network_name: Public_Network
-        floating_network_name: public-starlings
+        # Liberty
+#        floating_network_name: public-starlings
+        # IceHouse
+        floating_network_name: Public_Network
     NetworkFIPLogstash:
       type: janus.nodes.openstack.FloatingIP
       properties:
-#        floating_network_name: Public_Network
-        floating_network_name: public-starlings
+        # Liberty
+#        floating_network_name: public-starlings
+        # IceHouse
+        floating_network_name: Public_Network
   outputs:
     Kibana_url:
       value: { get_attribute: [ Kibana, url ] }
