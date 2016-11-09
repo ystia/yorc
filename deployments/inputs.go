@@ -6,6 +6,10 @@ import (
 	"path"
 )
 
+// GetInputValue tries to retrieve the value of the given input name.
+//
+// GetInputValue first checks if a non-empty field value exists for this input, if it doesn't then it checks for a non-empty field default.
+// If none of them exists then it returns an empty string.
 func GetInputValue(kv *api.KV, deploymentId, inputName string) (string, error) {
 	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentId, "topology/inputs", inputName, "value"), nil)
 	if err != nil {
