@@ -10,21 +10,26 @@ imports:
   - elasticsearch-types: elasticsearch/elasticsearch-types.yaml
   - java-types: java/java-types.yaml
   - logstash-types: logstash/logstash-types.yaml
+  - kibana-types: kibana/kibana-types.yaml
 
 topology_template:
+  inputs:
+    repository_default:
+      type: string
+      required: false
+      default: "http://10.197.132.16/sla"
+    repository_value:
+      type: string
+      required: false
+      value: "http://10.197.132.16/sla"
   node_templates:
     JavaES:
       type: starlings.nodes.Java
+      properties:
+        download_url: { concat: [ get_input: repository_value, "/jdk-7u79-linux-x64.tar.gz" ] }
       requirements:
         - host:
             node: ComputeES
-            capability: tosca.capabilities.Container
-            relationship: tosca.relationships.HostedOn
-    ConsulServer:
-      type: starlings.nodes.Consul
-      requirements:
-        - host:
-            node: ComputeCS
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     Logstash:
@@ -33,7 +38,7 @@ topology_template:
         stdout: true
         auto_reload: true
         reload_interval: 60
-        repository: "http://10.197.132.16/sla"
+        repository: { get_input: repository_value }
       requirements:
         - consul:
             node: ConsulAgentLS
@@ -47,6 +52,114 @@ topology_template:
             node: Elasticsearch
             capability: starlings.capabilities.SearchEndpoint
             relationship: starlings.relationships.ConnectsLogstashToElasticsearch
+      capabilities:
+        logstash_resource:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: false
+            network_name: PRIVATE
+    ComputeCS:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
+      capabilities:
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+    KibanaDashboard:
+      type: starlings.nodes.KibanaDashboard
+      requirements:
+        - dashboard_host:
+            node: Kibana
+            capability: starlings.capabilities.DashboardHosting
+            relationship: starlings.relationships.DashboardHostedOnKibana
+    JavaLS:
+      type: starlings.nodes.Java
+      properties:
+        download_url: { concat: [ get_input: repository_default, "/jdk-7u79-linux-x64.tar.gz" ] }
+      requirements:
+        - host:
+            node: ComputeLS
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ConsulAgentKib:
+      type: starlings.nodes.Consul
+      requirements:
+        - server_endpoint:
+            node: ConsulServer
+            capability: starlings.capabilities.ConsulServer
+            relationship: starlings.relationships.ConnectsConsulAgentToServer
+        - host:
+            node: ComputeKib
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Kibana:
+      type: starlings.nodes.Kibana
+      properties:
+        repository: { get_input: repository_value }
+      requirements:
+        - java:
+            node: JavaKib
+            capability: starlings.capabilities.JavaHosting
+            relationship: starlings.relationships.HostedOnJavaRuntime
+        - consul:
+            node: ConsulAgentKib
+            capability: starlings.capabilities.ConsulAgent
+            relationship: starlings.relationships.ConnectsToConsulAgent
+        - search_endpoint:
+            node: Elasticsearch
+            capability: starlings.capabilities.SearchEndpoint
+            relationship: starlings.relationships.ConnectsKibanaToElasticsearch
+    ComputeLS:
+      type: janus.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
+      capabilities:
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+      requirements:
+        - network:
+            node: NetworkFIPLogstash
+            capability: janus.capabilities.openstack.FIPConnectivity
+    ConsulServer:
+      type: starlings.nodes.Consul
+      requirements:
+        - host:
+            node: ComputeCS
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
     ConsulAgentLS:
       type: starlings.nodes.Consul
       requirements:
@@ -61,7 +174,7 @@ topology_template:
     Elasticsearch:
       type: starlings.nodes.Elasticsearch
       properties:
-        repository: "http://10.197.132.16/sla"
+        repository: { get_input: repository_default }
       requirements:
         - java:
             node: JavaES
@@ -89,41 +202,17 @@ topology_template:
             node: ComputeES
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
-    ComputeCS:
-      type: janus.nodes.openstack.Compute
-      properties:
-        user: cloud-user
-        flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-06.share.ops
-        key_pair: cloudify
-      capabilities:
-        scalable:
-          properties:
-            max_instances: 1
-            min_instances: 1
-            default_instances: 1
-        endpoint:
-          properties:
-            protocol: tcp
-            initiator: source
-            secure: true
-            network_name: PRIVATE
-    JavaLS:
-      type: starlings.nodes.Java
-      requirements:
-        - host:
-            node: ComputeLS
-            capability: tosca.capabilities.Container
-            relationship: tosca.relationships.HostedOn
     ComputeES:
       type: janus.nodes.openstack.Compute
       properties:
         user: cloud-user
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-06.share.ops
         key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -139,7 +228,7 @@ topology_template:
     GeoNames:
       type: starlings.nodes.GeoNames
       properties:
-        repository: http://10.197.132.16/sla
+        repository: { get_input: repository_default }
         filename: allCountries
         indexname: geonames
       requirements:
@@ -147,14 +236,33 @@ topology_template:
             node: Logstash
             capability: starlings.capabilities.LogstashConnectorHosting
             relationship: starlings.relationships.GeonamesHostedOnLogstash
-    ComputeLS:
+      capabilities:
+        geonames_resource:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: false
+            network_name: PRIVATE
+    JavaKib:
+      type: starlings.nodes.Java
+      properties:
+        download_url:  { concat: [ get_input: repository_default, "/jdk-7u79-linux-x64.tar.gz" ] }
+      requirements:
+        - host:
+            node: ComputeKib
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ComputeKib:
       type: janus.nodes.openstack.Compute
       properties:
         user: cloud-user
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-06.share.ops
         key_pair: cloudify
+        # Liberty
+#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -167,9 +275,44 @@ topology_template:
             initiator: source
             secure: true
             network_name: PRIVATE
+      requirements:
+        - network:
+            node: NetworkFIPKibana
+            capability: janus.capabilities.openstack.FIPConnectivity
+    NetworkFIPKibana:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        # Liberty
+#        floating_network_name: public-starlings
+        # IceHouse
+        floating_network_name: Public_Network
+    NetworkFIPLogstash:
+      type: janus.nodes.openstack.FloatingIP
+      properties:
+        # Liberty
+#        floating_network_name: public-starlings
+        # IceHouse
+        floating_network_name: Public_Network
+  outputs:
+    Kibana_url:
+      value: { get_attribute: [ Kibana, url ] }
+    Logstash_ip:
+      value: { get_attribute: [ ComputeLS, public_address ] }
   workflows:
     install:
       steps:
+        NetworkFIPKibana_install:
+          node: NetworkFIPKibana
+          activity:
+            delegate: install
+          on-success:
+            - Compute_install_3
+        NetworkFIPLogstash_install:
+          node: NetworkFIPLogstash
+          activity:
+            delegate: install
+          on-success:
+            - Compute_install_2
         Compute_install:
           node: ComputeCS
           activity:
@@ -235,6 +378,7 @@ topology_template:
           activity:
             set_state: started
           on-success:
+            - ConsulAgentKib_configuring
             - ConsulAgentES_configuring
             - ConsulAgentLS_configuring
         Compute_install_1:
@@ -432,6 +576,7 @@ topology_template:
             set_state: started
           on-success:
             - Logstash_configuring
+            - Kibana_configuring
         Compute_install_2:
           node: ComputeLS
           activity:
@@ -692,6 +837,266 @@ topology_template:
           node: GeoNames
           activity:
             set_state: started
+        Compute_install_3:
+          node: ComputeKib
+          activity:
+            delegate: install
+          on-success:
+            - Consul_initial_3
+            - Java_initial_2
+        Consul_initial_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: initial
+          on-success:
+            - Consul_creating_3
+        Consul_creating_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: creating
+          on-success:
+            - create_Consul_3
+        create_Consul_3:
+          node: ConsulAgentKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Consul_created_3
+        Consul_created_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: created
+          on-success:
+            - ConsulAgentKib_configuring
+            - Consul_configuring
+        ConsulAgentKib_configuring:
+          node: ConsulAgentKib
+          activity:
+            set_state: configuring
+          on-success:
+            - pre_configure_source_ConsulAgentKib/0
+        pre_configure_source_ConsulAgentKib/0:
+          node: ConsulAgentKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/0
+          on-success:
+            - configure_Consul_3
+        configure_Consul_3:
+          node: ConsulAgentKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Consul_configured_3
+        Consul_configured_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: configured
+          on-success:
+            - Consul_starting_3
+        Consul_starting_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: starting
+          on-success:
+            - start_Consul_3
+        start_Consul_3:
+          node: ConsulAgentKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Consul_started_3
+        Consul_started_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: started
+          on-success:
+            - Kibana_configuring
+        Java_initial_2:
+          node: JavaKib
+          activity:
+            set_state: initial
+          on-success:
+            - Java_creating_2
+        Java_creating_2:
+          node: JavaKib
+          activity:
+            set_state: creating
+          on-success:
+            - create_Java_2
+        create_Java_2:
+          node: JavaKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Java_created_2
+        Java_created_2:
+          node: JavaKib
+          activity:
+            set_state: created
+          on-success:
+            - Java_configuring_2
+        Java_configuring_2:
+          node: JavaKib
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Java_2
+        configure_Java_2:
+          node: JavaKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Java_configured_2
+        Java_configured_2:
+          node: JavaKib
+          activity:
+            set_state: configured
+          on-success:
+            - Java_starting_2
+        Java_starting_2:
+          node: JavaKib
+          activity:
+            set_state: starting
+          on-success:
+            - start_Java_2
+        start_Java_2:
+          node: JavaKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Java_started_2
+        Java_started_2:
+          node: JavaKib
+          activity:
+            set_state: started
+          on-success:
+            - Kibana_initial
+        Kibana_initial:
+          node: Kibana
+          activity:
+            set_state: initial
+          on-success:
+            - Kibana_creating
+        Kibana_creating:
+          node: Kibana
+          activity:
+            set_state: creating
+          on-success:
+            - create_Kibana
+        create_Kibana:
+          node: Kibana
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Kibana_created
+        Kibana_created:
+          node: Kibana
+          activity:
+            set_state: created
+          on-success:
+            - ConsulAgentKib_configuring
+            - Elasticsearch_configuring
+            - Kibana_configuring
+        Kibana_configuring:
+          node: Kibana
+          activity:
+            set_state: configuring
+          on-success:
+            - pre_configure_source_Kibana/2
+        pre_configure_source_Kibana/2:
+          node: Kibana
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/2
+          on-success:
+            - configure_Kibana
+        configure_Kibana:
+          node: Kibana
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Kibana_configured
+        Kibana_configured:
+          node: Kibana
+          activity:
+            set_state: configured
+          on-success:
+            - Kibana_starting
+        Kibana_starting:
+          node: Kibana
+          activity:
+            set_state: starting
+          on-success:
+            - start_Kibana
+        start_Kibana:
+          node: Kibana
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Kibana_started
+        Kibana_started:
+          node: Kibana
+          activity:
+            set_state: started
+          on-success:
+            - KibanaDashboard_initial
+        KibanaDashboard_initial:
+          node: KibanaDashboard
+          activity:
+            set_state: initial
+          on-success:
+            - KibanaDashboard_creating
+        KibanaDashboard_creating:
+          node: KibanaDashboard
+          activity:
+            set_state: creating
+          on-success:
+            - KibanaDashboard_created
+        KibanaDashboard_created:
+          node: KibanaDashboard
+          activity:
+            set_state: created
+          on-success:
+            - KibanaDashboard_configuring
+        KibanaDashboard_configuring:
+          node: KibanaDashboard
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_KibanaDashboard
+        configure_KibanaDashboard:
+          node: KibanaDashboard
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - post_configure_source_KibanaDashboard/0
+        post_configure_source_KibanaDashboard/0:
+          node: KibanaDashboard
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/0
+          on-success:
+            - KibanaDashboard_configured
+        KibanaDashboard_configured:
+          node: KibanaDashboard
+          activity:
+            set_state: configured
+          on-success:
+            - KibanaDashboard_starting
+        KibanaDashboard_starting:
+          node: KibanaDashboard
+          activity:
+            set_state: starting
+          on-success:
+            - start_KibanaDashboard
+        start_KibanaDashboard:
+          node: KibanaDashboard
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - KibanaDashboard_started
+        KibanaDashboard_started:
+          node: KibanaDashboard
+          activity:
+            set_state: started
     uninstall:
       steps:
         Compute_uninstall:
@@ -820,6 +1225,8 @@ topology_template:
           node: ComputeLS
           activity:
             delegate: uninstall
+          on-success:
+            - NetworkFIPLogstash_uninstall
         Consul_stopping_2:
           node: ConsulAgentLS
           activity:
@@ -934,3 +1341,125 @@ topology_template:
             set_state: deleted
           on-success:
             - Logstash_stopping
+        Compute_uninstall_3:
+          node: ComputeKib
+          activity:
+            delegate: uninstall
+          on-success:
+            - NetworkFIPKibana_uninstall
+        Consul_stopping_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Consul_3
+        stop_Consul_3:
+          node: ConsulAgentKib
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Consul_stopped_3
+        Consul_stopped_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: stopped
+          on-success:
+            - Consul_deleting_3
+        Consul_deleting_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: deleting
+          on-success:
+            - Consul_deleted_3
+        Consul_deleted_3:
+          node: ConsulAgentKib
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_3
+        Java_stopping_2:
+          node: JavaKib
+          activity:
+            set_state: stopping
+          on-success:
+            - Java_stopped_2
+        Java_stopped_2:
+          node: JavaKib
+          activity:
+            set_state: stopped
+          on-success:
+            - Java_deleting_2
+        Java_deleting_2:
+          node: JavaKib
+          activity:
+            set_state: deleting
+          on-success:
+            - Java_deleted_2
+        Java_deleted_2:
+          node: JavaKib
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_3
+        Kibana_stopping:
+          node: Kibana
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Kibana
+        stop_Kibana:
+          node: Kibana
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Kibana_stopped
+        Kibana_stopped:
+          node: Kibana
+          activity:
+            set_state: stopped
+          on-success:
+            - Kibana_deleting
+        Kibana_deleting:
+          node: Kibana
+          activity:
+            set_state: deleting
+          on-success:
+            - Kibana_deleted
+        Kibana_deleted:
+          node: Kibana
+          activity:
+            set_state: deleted
+          on-success:
+            - Java_stopping_2
+        KibanaDashboard_stopping:
+          node: KibanaDashboard
+          activity:
+            set_state: stopping
+          on-success:
+            - KibanaDashboard_stopped
+        KibanaDashboard_stopped:
+          node: KibanaDashboard
+          activity:
+            set_state: stopped
+          on-success:
+            - KibanaDashboard_deleting
+        KibanaDashboard_deleting:
+          node: KibanaDashboard
+          activity:
+            set_state: deleting
+          on-success:
+            - KibanaDashboard_deleted
+        KibanaDashboard_deleted:
+          node: KibanaDashboard
+          activity:
+            set_state: deleted
+          on-success:
+            - Kibana_stopping
+        NetworkFIPKibana_uninstall:
+          node: NetworkFIPKibana
+          activity:
+            delegate: uninstall
+        NetworkFIPLogstash_uninstall:
+          node: NetworkFIPLogstash
+          activity:
+            delegate: uninstall

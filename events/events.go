@@ -46,6 +46,7 @@ func (cp *consulPubSub) StatusChange(nodeName, status string) (string, error) {
 	if _, err := cp.kv.Put(eventNodeEntry, nil); err != nil {
 		return "", err
 	}
+	deployments.LogInConsul(cp.kv, cp.deploymentId, fmt.Sprintf("Status for node %q changed to %q", nodeName, status))
 	return now, nil
 }
 

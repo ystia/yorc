@@ -7,6 +7,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
+	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/slurm"
@@ -74,8 +75,8 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeNa
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
-	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
-	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	errbuf := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
+	out := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 
@@ -115,8 +116,8 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "destroy", "-force")
 	cmd.Dir = infraPath
-	errbuf := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
-	out := log.NewWriterSize(e.kv, depId, deployments.DeploymentKVPrefix)
+	errbuf := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
+	out := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 

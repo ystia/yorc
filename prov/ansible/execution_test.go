@@ -28,7 +28,7 @@ func templatesTest(t *testing.T) {
 	t.Parallel()
 	e := &execution{
 		NodeName:            "Welcome",
-		Operation:           "tosca.interfaces.node.lifecycle.Standard.start",
+		Operation:           "tosca.interfaces.node.lifecycle.standard.start",
 		Artifacts:           map[string]string{"scripts": "my_scripts"},
 		OverlayPath:         "/some/local/path",
 		VarInputsNames:      []string{"INSTANCE", "PORT"},
@@ -66,17 +66,17 @@ func testExecution_OnNode(t *testing.T) {
 	deploymentId := "d1"
 	nodeName := "NodeA"
 	nodeTypeName := "janus.types.A"
-	operation := "tosca.interfaces.node.lifecycle.Standard.create"
+	operation := "tosca.interfaces.node.lifecycle.standard.create"
 
 	srv1.PopulateKV(map[string][]byte{
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/inputs/A1/name"):              []byte("A1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/inputs/A1/expression"):        []byte("get_property: [SELF, document_root]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/inputs/A3/name"):              []byte("A3"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/inputs/A3/expression"):        []byte("get_property: [SELF, empty]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/inputs/A2/name"):              []byte("A2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/inputs/A2/expression"):        []byte("get_attribute: [HOST, ip_address]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/implementation/primary"):      []byte("/tmp/create.sh"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create/implementation/dependencies"): []byte(""),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):              []byte("A1"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):        []byte("get_property: [SELF, document_root]"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/name"):              []byte("A3"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/expression"):        []byte("get_property: [SELF, empty]"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/name"):              []byte("A2"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/expression"):        []byte("get_attribute: [HOST, ip_address]"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/primary"):      []byte("/tmp/create.sh"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/dependencies"): []byte(""),
 
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"): []byte(nodeTypeName),
 
@@ -114,7 +114,7 @@ func testExecution_ResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentId, n
 		DeploymentId:            deploymentId,
 		NodeName:                nodeName,
 		Operation:               operation,
-		OperationPath:           path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/Standard/create"),
+		OperationPath:           path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create"),
 		isRelationshipOperation: false,
 		isPerInstanceOperation:  false,
 		VarInputsNames:          make([]string, 0),

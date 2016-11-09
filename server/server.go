@@ -38,7 +38,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		maxConsulPubRoutines = config.DEFAULT_CONSUL_PUB_MAX_ROUTINES
 	}
 
-	consulutil.RunConsulPublisher(maxConsulPubRoutines, client.KV(), shutdownCh)
+	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
 	dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
 	go dispatcher.Run()

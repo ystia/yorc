@@ -94,9 +94,9 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 		res := strings.Split(filtr, ",")
 		if len(res) != 1 {
 			result = res
-		} else if strings.Contains(filtr, log.ENGINE_LOG_PREFIX) ||
-			strings.Contains(filtr, log.INFRA_LOG_PREFIX) ||
-			strings.Contains(filtr, log.SOFTWARE_LOG_PREFIX) {
+		} else if strings.Contains(filtr, deployments.ENGINE_LOG_PREFIX) ||
+			strings.Contains(filtr, deployments.INFRA_LOG_PREFIX) ||
+			strings.Contains(filtr, deployments.SOFTWARE_LOG_PREFIX) {
 			result[0] = filtr
 		}
 	}

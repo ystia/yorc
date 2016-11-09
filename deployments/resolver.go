@@ -3,6 +3,7 @@ package deployments
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -182,6 +183,20 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		}
 	case "concat":
 		return strings.Join(params, ""), nil
+	case "get_input":
+		if len(params) != 1 {
+			return "", errors.Errorf("get_input doesn't support more than one parameter")
+		}
+		inputVal, err := GetInputValue(r.kv, r.deploymentId, params[0])
+		if inputVal == "" {
+			return inputVal, nil
+		}
+		resultExpr := &tosca.ValueAssignment{}
+		err = yaml.Unmarshal([]byte(inputVal), resultExpr)
+		if err != nil {
+			return "", err
+		}
+		return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
 	}
 	return "", fmt.Errorf("Can't resolve expression %q", expression.Value)
 }
@@ -393,6 +408,20 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 	case "concat":
 		return strings.Join(params, ""), nil
+	case "get_input":
+		if len(params) != 1 {
+			return "", errors.Errorf("get_input doesn't support more than one parameter")
+		}
+		inputVal, err := GetInputValue(r.kv, r.deploymentId, params[0])
+		if inputVal == "" {
+			return inputVal, nil
+		}
+		resultExpr := &tosca.ValueAssignment{}
+		err = yaml.Unmarshal([]byte(inputVal), resultExpr)
+		if err != nil {
+			return "", err
+		}
+		return r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
 	}
 	return "", fmt.Errorf("Can't resolve expression %q", expression.Value)
 }
