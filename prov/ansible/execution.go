@@ -6,9 +6,11 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -630,7 +632,7 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
-		deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("%+v", err))
+		deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
 		return err
 	}
 	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
@@ -766,8 +768,8 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	if err != nil {
 		return err
 	}
-	log.Printf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath)
-	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for deployment with id %s: executing %q on remote host", e.DeploymentId, scriptPath))
+	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, scriptPath)
+	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
 	var cmd *executil.Cmd
 	var wrapperPath string
 	if e.HaveOutput {
@@ -780,17 +782,22 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
 	cmd.Dir = ansibleRecipePath
-	outbuf := logsutil.NewAnsibleJsonConsulWriter(e.kv, e.DeploymentId, deployments.SOFTWARE_LOG_PREFIX)
+	var outbuf bytes.Buffer
 	errbuf := logsutil.NewBufferedConsulWriter(e.kv, e.DeploymentId, deployments.SOFTWARE_LOG_PREFIX)
-	cmd.Stdout = outbuf
+	cmd.Stdout = &outbuf
 	cmd.Stderr = errbuf
 
 	errCloseCh := make(chan bool)
 	defer close(errCloseCh)
 	errbuf.Run(errCloseCh)
-	defer outbuf.Flush()
+	defer func(buffer *bytes.Buffer) {
+		if err := e.logAnsibleOutputInConsul(buffer); err != nil {
+			log.Printf("Failed to publish Ansible log %v", err)
+			log.Debugf("%+v", err)
+		}
+	}(&outbuf)
 	if err := cmd.Run(); err != nil {
-		deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
+		deployments.LogErrorInConsul(e.kv, e.DeploymentId, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.Operation, e.NodeName))
 		log.Print(err)
 		if exiterr, ok := err.(*exec.ExitError); ok {
 			// The program has exited with an exit code != 0
@@ -813,29 +820,34 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 	if e.HaveOutput {
 		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
 		if err != nil {
-			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
-			panic(err)
+			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+			return err
 		}
 		r := csv.NewReader(fi)
 		records, err := r.ReadAll()
 		if err != nil {
-			deployments.LogInConsul(e.kv, e.DeploymentId, err.Error())
-			log.Fatal(err)
+			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+			return err
 		}
 		for _, line := range records {
-			storeConsulKey(e.kv, e.Output[line[0]], line[1])
+			if err = storeConsulKey(e.Output[line[0]], line[1]); err != nil {
+				return err
+			}
+
 		}
 	}
 
 	return nil
 }
 
-func storeConsulKey(kv *api.KV, key, value string) {
+func storeConsulKey(key, value string) error {
 	// PUT a new KV pair
-	p := &api.KVPair{Key: key, Value: []byte(value)}
-	if _, err := kv.Put(p, nil); err != nil {
-		log.Panic(err)
+	if err := consulutil.StoreConsulKeyAsString(key, value); err != nil {
+		return err
 	}
+	return nil
 }
 
 func getInstanceName(nodeName, instanceId string) string {
