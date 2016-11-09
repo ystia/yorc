@@ -1,0 +1,10 @@
+[Unit]
+Description=Unit file for managing Kibana within Starlings
+
+[Service]
+ExecStart={{KIBANA_HOME}}/bin/kibana
+Restart=always
+User={{USER}}
+
+[Install]
+WantedBy=multi-user.target

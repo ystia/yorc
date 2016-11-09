@@ -128,7 +128,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 				s.setStatus("canceled")
 				return wfCanceled
 			case <-ctx.Done():
-				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q canceled: %q", s.Name, ctx.Err()))
+				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q canceled: %v", s.Name, ctx.Err()))
 				log.Printf("Step %q canceled: %q", s.Name, ctx.Err())
 				s.setStatus("canceled")
 				return ctx.Err()
@@ -143,6 +143,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 		return err
 	} else if !runnable {
 		log.Printf("Deployment %q: Skipping Step %q", deploymentId, s.Name)
+		deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus("done")
 		s.notifyNext()
 		return nil
@@ -197,7 +198,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 	s.notifyNext()
 
 	if haveErr {
-		log.Debug("Step %s genrate an error but workflow continue", s.Name)
+		log.Debug("Step %s generate an error but workflow continue", s.Name)
 		s.setStatus("error")
 		// Return nil otherwise the rest of the workflow will be canceled
 		return nil

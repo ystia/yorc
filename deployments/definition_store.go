@@ -329,7 +329,9 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 
 		interfacesPrefix := nodeTypePrefix + "/interfaces"
 		for intTypeName, intMap := range nodeType.Interfaces {
+			intTypeName = strings.ToLower(intTypeName)
 			for intName, intDef := range intMap {
+				intName = strings.ToLower(intName)
 				intPrefix := path.Join(interfacesPrefix, intTypeName, intName)
 				consulStore.StoreConsulKeyAsString(intPrefix+"/name", intName)
 				consulStore.StoreConsulKeyAsString(intPrefix+"/description", intDef.Description)
@@ -403,7 +405,9 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 
 		interfacesPrefix := relationTypePrefix + "/interfaces"
 		for intTypeName, intMap := range relationType.Interfaces {
+			intTypeName = strings.ToLower(intTypeName)
 			for intName, intDef := range intMap {
+				intName = strings.ToLower(intName)
 				intPrefix := path.Join(interfacesPrefix, intTypeName, intName)
 				consulStore.StoreConsulKeyAsString(intPrefix+"/name", intName)
 				consulStore.StoreConsulKeyAsString(intPrefix+"/description", intDef.Description)
@@ -484,13 +488,13 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId s
 			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
 			consulStore.StoreConsulKeyAsString(stepPrefix+"/node", step.Node)
 			if step.Activity.CallOperation != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/operation", step.Activity.CallOperation)
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/operation", strings.ToLower(step.Activity.CallOperation))
 			}
 			if step.Activity.Delegate != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/delegate", step.Activity.Delegate)
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/delegate", strings.ToLower(step.Activity.Delegate))
 			}
 			if step.Activity.SetState != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/set-state", step.Activity.SetState)
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/set-state", strings.ToLower(step.Activity.SetState))
 			}
 			for _, next := range step.OnSuccess {
 				consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
