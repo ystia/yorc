@@ -81,7 +81,7 @@ func (cs *consulStore) StoreConsulKey(key string, value []byte) {
 	}
 	p := &api.KVPair{Key: key, Value: value}
 	// Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
-	consulPub.pubChannel <- consulPublishRequest{kvp: p, ctx: cs.ctx}
+	consulPub.publish(cs.ctx, p)
 }
 
 // consulPublishRequest holds the Key/Value pair for Consul and the context used to store it in Consul
@@ -94,63 +94,38 @@ type consulPublishRequest struct {
 //
 // It uses a buffered channel as semaphore to limit the number of parallel call to the Consul API
 type rateLimitedConsulPublisher struct {
-	pubChannel chan consulPublishRequest
-	sem        chan struct{}
-	kv         *api.KV
-	shutdownCh chan struct{}
-	quitCh     chan struct{}
+	sem chan struct{}
+	kv  *api.KV
 }
 
-// RunConsulPublisher starts a Consul Publisher and limit the number of parallel call to the Consul API to store keys with the given maxItems.
+// InitConsulPublisher starts a Consul Publisher and limit the number of parallel call to the Consul API to store keys with the given maxItems.
 //
 // It is safe but discouraged to call several times this function. Only the last call will be taken into account. The only valid reason to
 // do so is for reconfiguration and changing the limit.
-func RunConsulPublisher(maxItems int, kv *api.KV, shutdownCh chan struct{}) {
+func InitConsulPublisher(maxItems int, kv *api.KV) {
 	log.Debugf("Consul Publisher created with a maximum of %d parallel routines.", maxItems)
 
-	oldPub := consulPub
+	consulPub = &rateLimitedConsulPublisher{sem: make(chan struct{}, maxItems), kv: kv}
 
-	consulPub = &rateLimitedConsulPublisher{pubChannel: make(chan consulPublishRequest), sem: make(chan struct{}, maxItems), kv: kv, shutdownCh: shutdownCh, quitCh: make(chan struct{})}
-	go consulPub.run()
-
-	if oldPub != nil {
-		close(oldPub.quitCh)
-	}
 }
 
-// run starts listening on consulPublishRequest and publish it.
-func (c *rateLimitedConsulPublisher) run() {
-	for {
-		select {
-		case cpr := <-c.pubChannel:
-			// will block if channel is full
-			c.sem <- struct{}{}
-			cpr = cpr
-			select {
-			case <-cpr.ctx.Done():
-				// Release semaphore
-				<-c.sem
-				continue
-			default:
-			}
-			errGroup := cpr.ctx.Value(errGroupKey).(*errgroup.Group)
-			errGroup.Go(func() error {
-				defer func() {
-					// Release semaphore
-					<-c.sem
-				}()
-				if _, err := c.kv.Put(cpr.kvp, nil); err != nil {
-					return errors.Wrapf(err, "Failed to store consul key %q", cpr.kvp.Key)
-				}
-				return nil
-			})
-
-		case <-c.shutdownCh:
-			log.Debugf("consul publisher recieved shutdown signal, exiting.")
-			return
-		case <-c.quitCh:
-			log.Debugf("consul publisher recieved quit signal, exiting.")
-			return
-		}
+func (c *rateLimitedConsulPublisher) publish(ctx context.Context, kvp *api.KVPair) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
 	}
+	// will block if channel is full
+	c.sem <- struct{}{}
+	errGroup := ctx.Value(errGroupKey).(*errgroup.Group)
+	errGroup.Go(func() error {
+		defer func() {
+			// Release semaphore
+			<-c.sem
+		}()
+		if _, err := c.kv.Put(kvp, nil); err != nil {
+			return errors.Wrapf(err, "Failed to store consul key %q", kvp.Key)
+		}
+		return nil
+	})
 }
