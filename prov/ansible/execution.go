@@ -644,13 +644,10 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		sshUser := host.user
 		if sshUser == "" {
 			// Thinking: should we have a default user
-			//TODO correct it befor pull request
-			fmt.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information, root will be used", e.DeploymentId, e.NodeName)
-			sshUser = "root"
+			return fmt.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.DeploymentId, e.NodeName)
 		}
-		//TODO correct it befor pull request
-		//buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s", sshUser))
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
+
 		var perInstanceInputsBuffer bytes.Buffer
 		for _, varInput := range e.VarInputsNames {
 			if varInput == "INSTANCE" {
