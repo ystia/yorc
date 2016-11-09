@@ -20,13 +20,13 @@ type Topology struct {
 }
 
 type TopologyTemplate struct {
-	Description string `yaml:"description,omitempty"`
-	//Inputs                []ParameterDefinition  `yaml:",omitempty"`
-	NodeTemplates map[string]NodeTemplate `yaml:"node_templates"`
+	Description   string                         `yaml:"description,omitempty"`
+	Inputs        map[string]ParameterDefinition `yaml:"inputs,omitempty"`
+	NodeTemplates map[string]NodeTemplate        `yaml:"node_templates"`
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
 	//Groups                []Group `yaml:",omitempty"`
 	//Policies              []Policy                 `yaml:",omitempty"`
-	Outputs map[string]ParameterDefinition `yaml:",omitempty"`
+	Outputs map[string]ParameterDefinition `yaml:"outputs,omitempty"`
 	//substitution_mappings
 	Workflows map[string]Workflow
 }

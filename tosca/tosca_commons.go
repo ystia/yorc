@@ -17,7 +17,8 @@ func (p ValueAssignment) String() string {
 	if p.Expression == nil {
 		return ""
 	}
-	return p.Expression.String()
+
+	return strings.Trim(p.Expression.String(), "\"")
 }
 
 func parseExprNode(value interface{}, t *TreeNode) error {

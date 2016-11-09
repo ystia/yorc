@@ -2,6 +2,7 @@ package tosca
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	"log"
 	"testing"
@@ -13,6 +14,7 @@ func TestGroupedCommonsParallel(t *testing.T) {
 		t.Run("TestValueAssignment_ReadWrite", valueAssignment_ReadWrite)
 		t.Run("TestValueAssignment_Malformed1", valueAssignment_Malformed1)
 		t.Run("TestValueAssignment_Malformed2", valueAssignment_Malformed2)
+		t.Run("TestValueAssignment_GetInput", valueAssignment_GetInput)
 	})
 }
 
@@ -58,4 +60,22 @@ func valueAssignment_Malformed2(t *testing.T) {
 	err := yaml.Unmarshal([]byte(data), &va)
 	log.Printf("%v", err)
 	assert.Error(t, err)
+}
+
+func valueAssignment_GetInput(t *testing.T) {
+	t.Parallel()
+	data := `{ get_input: port }`
+	va := ValueAssignment{}
+
+	err := yaml.Unmarshal([]byte(data), &va)
+	require.Nil(t, err)
+	require.NotNil(t, va.Expression)
+	require.Len(t, va.Expression.children, 1)
+	assert.Equal(t, `get_input: [port]`, va.String())
+
+	va2 := ValueAssignment{}
+	err = yaml.Unmarshal([]byte(va.String()), &va2)
+	require.Nil(t, err)
+	require.NotNil(t, va2.Expression)
+	require.Len(t, va2.Expression.children, 1)
 }

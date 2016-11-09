@@ -12,9 +12,20 @@ imports:
   - logstash-types: logstash/logstash-types.yaml
 
 topology_template:
+  inputs:
+    repository_default:
+      type: string
+      required: false
+      default: "http://10.197.132.16/sla"
+    repository_value:
+      type: string
+      required: false
+      value: "http://10.197.132.16/sla"
   node_templates:
     JavaES:
       type: starlings.nodes.Java
+      properties:
+        download_url: { concat: [ get_input: repository_value, "/jdk-7u79-linux-x64.tar.gz" ] }
       requirements:
         - host:
             node: ComputeES
@@ -33,7 +44,7 @@ topology_template:
         stdout: true
         auto_reload: true
         reload_interval: 60
-        repository: "http://10.197.132.16/sla"
+        repository: { get_input: repository }
       requirements:
         - consul:
             node: ConsulAgentLS
@@ -61,7 +72,7 @@ topology_template:
     Elasticsearch:
       type: starlings.nodes.Elasticsearch
       properties:
-        repository: "http://10.197.132.16/sla"
+        repository: { get_input: repository_value }
       requirements:
         - java:
             node: JavaES
@@ -94,8 +105,9 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-06.share.ops
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+#        availability_zone: r423-02.share.ops
         key_pair: cloudify
       capabilities:
         scalable:
@@ -111,6 +123,8 @@ topology_template:
             network_name: PRIVATE
     JavaLS:
       type: starlings.nodes.Java
+      properties:
+        download_url: { concat: [ get_input: repository_default, "/jdk-7u79-linux-x64.tar.gz" ] }
       requirements:
         - host:
             node: ComputeLS
@@ -121,8 +135,9 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-06.share.ops
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+#        availability_zone: r423-02.share.ops
         key_pair: cloudify
       capabilities:
         scalable:
@@ -139,7 +154,7 @@ topology_template:
     GeoNames:
       type: starlings.nodes.GeoNames
       properties:
-        repository: http://10.197.132.16/sla
+        repository: { get_input: repository }
         filename: allCountries
         indexname: geonames
       requirements:
@@ -152,8 +167,9 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-06.share.ops
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+#        availability_zone: r423-02.share.ops
         key_pair: cloudify
       capabilities:
         scalable:
