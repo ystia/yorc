@@ -2,10 +2,12 @@ package deployments
 
 import (
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
 	"strconv"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 // IsNodeTypeDerivedFrom traverses 'derived_from' to check if type derives from another type
@@ -34,6 +36,17 @@ func IsNodeTypeDerivedFrom(kv *api.KV, deploymentId, nodeType, derives string) (
 		return true, nil
 	}
 	return IsNodeTypeDerivedFrom(kv, deploymentId, string(kvp.Value), derives)
+}
+
+// IsNodeDerivedFrom check if the node's type is derived from another type.
+//
+// Basically this function is a shorthand for GetNodeType and IsNodeTypeDerivedFrom.
+func IsNodeDerivedFrom(kv *api.KV, deploymentID, nodeName, derives string) (bool, error) {
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, err
+	}
+	return IsNodeTypeDerivedFrom(kv, deploymentID, nodeType, derives)
 }
 
 // GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
@@ -199,7 +212,7 @@ func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string) (b
 	return false, "", nil
 }
 
-// GetNodeProperty retrieves the values for a given attribute in a given node.
+// GetNodeAttributes retrieves the values for a given attribute in a given node.
 //
 // As a node may have multiple instances and attributes may be instance-scoped, then returned result is a map with the instance name as key
 // and the retrieved attributes as values.
@@ -291,9 +304,28 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 		return
 	}
 	if host != "" {
-		return GetNodeAttributes(kv, deploymentId, host, attributeName)
+		found, attributes, err = GetNodeAttributes(kv, deploymentId, host, attributeName)
+		if found || err != nil {
+			return
+		}
 	}
-	// Not found anywhere
+
+	// Now check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
+	var prop string
+	found, prop, err = GetNodeProperty(kv, deploymentId, nodeName, attributeName)
+	if !found || err != nil {
+		return
+	}
+	if attributes == nil {
+		attributes = make(map[string]string)
+	}
+	if len(instances) > 0 {
+		for _, instance := range instances {
+			attributes[instance] = prop
+		}
+	} else {
+		attributes[""] = prop
+	}
 	return
 }
 
@@ -339,4 +371,16 @@ func GetNodes(kv *api.KV, deploymentId string) ([]string, error) {
 		names = append(names, path.Base(node))
 	}
 	return names, nil
+}
+
+// GetNodeType returns the type of a given node identified by its name
+func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"), nil)
+	if err != nil {
+		return "", errors.Wrapf(err, "Can't get type for node %q", nodeName)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Errorf("Missing mandatory parameter \"type\" for node %q", nodeName)
+	}
+	return string(kvp.Value), nil
 }

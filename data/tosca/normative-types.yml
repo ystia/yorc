@@ -467,6 +467,10 @@ relationship_types:
         description: >
           The logical name of the device as exposed to the instance.
           Note: A runtime property that gets set when the model gets instantiated by the orchestrator.
+  
+  # Alien specific just an alias for us
+  tosca.relationships.AttachTo:
+    derived_from: tosca.relationships.AttachesTo
 
   tosca.relationships.RoutesTo:
     derived_from: tosca.relationships.ConnectsTo
