@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type Generator struct {
@@ -137,21 +138,53 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 	case "janus.nodes.openstack.FloatingIP":
-		floatingIPString, err, isIp := g.generateFloatingIP(nodeKey)
+		instances, _, err := g.kv.Keys(instancesKey+"/", "/", nil)
 		if err != nil {
 			return false, err
 		}
 
-		consulKey := commons.ConsulKey{}
-		if !isIp {
-			floatingIP := FloatingIP{Pool: floatingIPString}
-			addResource(&infrastructure, "openstack_compute_floatingip_v2", nodeName, &floatingIP)
-			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", nodeName)}
-		} else {
-			consulKey = commons.ConsulKey{Name: nodeName + "-floating_ip_address-key", Path: nodeKey + "/capabilities/endpoint/attributes/floating_ip_address", Value: floatingIPString}
+		for _, instanceName := range instances {
+			instanceName = path.Base(instanceName)
+
+			ip, err := g.generateFloatingIP(nodeKey, instanceName)
+
+			if err != nil {
+				return false, err
+			}
+
+			consulKey := commons.ConsulKey{}
+			if !ip.IsIp {
+				floatingIP := FloatingIP{Pool: ip.GenericIP}
+				addResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
+				consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
+			} else {
+				ips := strings.Split(ip.GenericIP, ",")
+				instName, err := strconv.Atoi(instanceName)
+				if len(ips) < instName {
+					networkName, err := g.getStringFormConsul(nodeKey, "properties/floating_network_name")
+					if err != nil {
+						return false, err
+					} else if networkName == "" {
+						return false, fmt.Errorf("You need to provide enough IP address or a Pool to generate missing IP address")
+					}
+
+					floatingIP := FloatingIP{Pool: networkName}
+					addResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
+					consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
+
+				} else {
+					instName, err = strconv.Atoi(instanceName)
+					if err != nil {
+						return false, err
+					}
+					consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: ips[instName]}
+				}
+
+			}
+			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+			addResource(&infrastructure, "consul_keys", ip.Name, &consulKeys)
 		}
-		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
+
 	case "janus.nodes.openstack.Network":
 		if networkId, err := g.getStringFormConsul(nodeKey, "properties/network_id"); err != nil {
 			return false, err

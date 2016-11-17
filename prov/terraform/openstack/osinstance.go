@@ -206,7 +206,7 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 				resultChan := make(chan string, 1)
 				go func() {
 					for {
-						if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
+						if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", networkNodeName, instanceName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
 							if dId := string(kp.Value); dId != "" {
 								resultChan <- dId
 								return
