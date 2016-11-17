@@ -528,7 +528,70 @@ func createInstancesForNodes(ctx context.Context, kv *api.KV, deploymentId strin
 				consulStore.StoreConsulKeyAsString(path.Join(instancesPath, node, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
 			}
 		}
+		ip, networkNodeName, err := checkFloattingIp(kv, deploymentId, node)
+		if err != nil {
+			return err
+		}
+		if ip {
+			err := createFloattingIpInstances(ctx, kv, nbInstances, deploymentId, networkNodeName)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return errGroup.Wait()
+}
+
+/**
+This function create a given number of floating IP instances
+*/
+func createFloattingIpInstances(ctx context.Context, kv *api.KV, numberInstances uint32, deploymentId, networkNode string) error {
+	_, errGroup, consulStore := consulutil.WithContext(ctx)
+
+	networkPath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", networkNode)
+	depPath := path.Join(DeploymentKVPrefix, deploymentId)
+	instancesPath := path.Join(depPath, "topology", "instances")
+
+	consulStore.StoreConsulKeyAsString(path.Join(networkPath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
+
+	for i := uint32(0); i < numberInstances; i++ {
+		consulStore.StoreConsulKeyAsString(path.Join(instancesPath, networkNode, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
+	}
+
+	return errGroup.Wait()
+
+}
+
+/**
+This function check if a nodes need a floating IP, and return the name of Floating IP node.
+*/
+func checkFloattingIp(kv *api.KV, deploymentId, nodeName string) (bool, string, error) {
+	nodePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	requirementPath := path.Join(nodePath, "requirements")
+
+	requirementsKey, _, err := kv.Keys(requirementPath+"/", "/", nil)
+	if err != nil {
+		return false, "", err
+	}
+
+	for _, requirement := range requirementsKey {
+		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+		if err != nil {
+			return false, "", err
+		} else if capability == nil {
+			continue
+		}
+
+		if res, _ := IsNodeTypeDerivedFrom(kv, deploymentId, string(capability.Value), "janus.capabilities.openstack.FIPConnectivity"); res {
+			networkNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+			if err != nil {
+				return false, "", err
+
+			}
+			return true, string(networkNode.Value), nil
+		}
+	}
+
+	return false, "", nil
 }

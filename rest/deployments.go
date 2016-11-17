@@ -93,6 +93,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 			log.Panicf("%+v", err)
 		} else {
 			for _, yamlFile := range yamls {
+				fmt.Printf(yamlFile)
 				yamlList = append(yamlList, yamlFile)
 			}
 		}
