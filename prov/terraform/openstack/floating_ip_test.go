@@ -2,12 +2,12 @@ package openstack
 
 import (
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"novaforge.bull.com/starlings-janus/janus/config"
-	"testing"
-	"github.com/hashicorp/consul/testutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"strings"
+	"testing"
 )
 
 func TestGroupedIpParallel(t *testing.T) {
@@ -45,7 +45,7 @@ func generatePoolIp(t *testing.T) {
 	gia, err := g.generateFloatingIP(ipUrl, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "Public_Network", gia.GenericIP)
-	assert.False(t,gia.IsIp)
+	assert.False(t, gia.IsIp)
 }
 
 func generateSingleIp(t *testing.T) {
@@ -75,9 +75,8 @@ func generateSingleIp(t *testing.T) {
 	gia, err := g.generateFloatingIP(ipUrl, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2", gia.GenericIP)
-	assert.True(t,gia.IsIp)
+	assert.True(t, gia.IsIp)
 }
-
 
 func generateMultipleIp(t *testing.T) {
 	t.Parallel()
@@ -106,7 +105,7 @@ func generateMultipleIp(t *testing.T) {
 	gia, err := g.generateFloatingIP(ipUrl, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.GenericIP)
-	assert.True(t,gia.IsIp)
+	assert.True(t, gia.IsIp)
 	ips := strings.Split(gia.GenericIP, ",")
-	assert.Len(t,ips,4)
+	assert.Len(t, ips, 4)
 }

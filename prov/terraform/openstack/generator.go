@@ -160,7 +160,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 			} else {
 				ips := strings.Split(ip.GenericIP, ",")
 				instName, err := strconv.Atoi(instanceName)
-				if (len(ips)-1) < instName {
+				if (len(ips) - 1) < instName {
 					networkName, err := g.getStringFormConsul(nodeKey, "properties/floating_network_name")
 					if err != nil {
 						return false, err
