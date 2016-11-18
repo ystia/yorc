@@ -1,0 +1,98 @@
+tosca_definitions_version: alien_dsl_1_2_0
+
+template_name: alien-extended-storage-types
+template_author: alien4cloud
+template_version: 1.2.0
+
+
+description: This archive contains custom blockstorages types.
+
+node_types:
+  alien.nodes.LinuxFileSystem:
+    derived_from: tosca.nodes.SoftwareComponent
+    description: FileSystem node can be used to mount and format a volume.
+    properties:
+      fs_type:
+        description: The type of the File System.
+        type: string
+        default: ext4
+        constraints:
+          - valid_values: [ ext2, ext3, ext4, fat, ntfs, swap ]
+        required: false
+      location:
+        type: string
+        description: >
+          The relative location (e.g., path on the file system), which provides the root location to address an attached node.
+          e.g., a mount point / path such as ‘/usr/data’
+          Note: The user must provide it and it cannot be “root”.
+        constraints:
+          - min_length: 1
+    attributes:
+      partition_name: { get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] } # this is a hack to specifies that the attribute is filled from a relationship.
+    requirements:
+      - host: tosca.capabilities.Container
+        relationship: tosca.relationships.HostedOn
+        occurrences: [ 1, 1]
+        node_filter: # Ensure that the host node has a os capability with linux operating system.
+          capabilities:
+            - tosca.capabilities.OperatingSystem: # os -> tosca.capabilities.OperatingSystem
+                properties:
+                  - type: { equal: linux }
+      - partition: tosca.nodes.BlockStorage
+        relationship: alien.relationships.LinuxPartition
+        occurrences: [ 1, 1]
+    interfaces:
+      Standard:
+        start: # Map the mount operation in the start
+          inputs:
+            FS_MOUNT_PATH: { get_property: [SELF, location] }
+            PARTITION_NAME: { get_attribute: [SELF, partition_name]}
+          implementation: scripts/mount.sh
+        stop:
+          inputs:
+            FS_MOUNT_PATH: { get_property: [SELF, location] }
+          implementation: scripts/unmount.sh
+
+relationship_types:
+  alien.relationships.LinuxPartition:
+    derived_from: tosca.relationships.DependsOn
+    description: Connets a FileSystem to a Volume.
+    # valid_target_types: [ alien.nodes.LinuxFileSystem ]
+    properties:
+      partition_type:
+        description: The partition type. 83 is a Linux Native Partition.
+        type: integer
+        default: 83
+    attributes:
+      partition_name: { get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }
+    interfaces:
+      Configure:
+        pre_configure_source:
+          inputs:
+            PARTITION_TYPE: { get_property: [SELF, partition_type] }
+            VOLUME_ID: { get_property: [TARGET, volume_id] }
+            DEVICE: { get_attribute: [TARGET, device] }
+          implementation: scripts/fdisk.sh
+        post_configure_source:
+          inputs:
+            FS_TYPE: { get_property: [SOURCE, fs_type] }
+            PARTITION_NAME: { get_attribute: [SOURCE, partition_name ] }
+            VOLUME_ID: { get_property: [TARGET, volume_id] }
+          implementation: scripts/mkfs.sh
+#  alien.relationships.LinuxMount:
+#    derived_from: tosca.relationships.HostedOn
+#    description: Mount a FileSystem on a compute.
+#    interfaces:
+#      Configure:
+#        add_source: # this has to be done once the file-system (source) is configured
+#          inputs:
+#            FS_MOUNT_PATH: { get_property: [SOURCE, location] }
+#            FS_NAME: { get_attribute: [SOURCE, fs_name]}
+#          implementation: scripts/mount.sh
+#        remove_source:
+#          implementation: scripts/unmount.sh
+
+capability_types:
+  alien.capabilities.Volume:
+    derived_from: tosca.capabilities.Root
+    description: This capability is used to connect the BlockStorage with a Software. It allows the software to know which storage to use to save data.

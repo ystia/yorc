@@ -3,20 +3,21 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/url"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 // Internal type used to uniquely identify the errorgroup in a context
@@ -53,8 +54,7 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentId str
 	if err != nil {
 		return errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentId, defPath)
 	}
-
-	return createInstancesForNodes(ctx, kv, deploymentId)
+	return enhanceNodes(ctx, kv, deploymentId)
 }
 
 // storeDeployment stores a whole deployment.
@@ -188,6 +188,17 @@ func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 	}
 }
 
+func storeRequirementAssigment(ctx context.Context, requirement tosca.RequirementAssignment, requirementPrefix, requirementName string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	consulStore.StoreConsulKeyAsString(requirementPrefix+"/name", requirementName)
+	consulStore.StoreConsulKeyAsString(requirementPrefix+"/node", requirement.Node)
+	consulStore.StoreConsulKeyAsString(requirementPrefix+"/relationship", requirement.Relationship)
+	consulStore.StoreConsulKeyAsString(requirementPrefix+"/capability", requirement.Capability)
+	for propName, propValue := range requirement.RelationshipProps {
+		consulStore.StoreConsulKeyAsString(requirementPrefix+"/properties/"+url.QueryEscape(propName), fmt.Sprint(propValue))
+	}
+}
+
 // storeNodes stores topology nodes
 func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
@@ -221,13 +232,7 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		for reqIndex, reqValueMap := range node.Requirements {
 			for reqName, reqValue := range reqValueMap {
 				reqPrefix := requirementsPrefix + "/" + strconv.Itoa(reqIndex)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/name", reqName)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/node", reqValue.Node)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqValue.Relationship)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqValue.Capability)
-				for propName, propValue := range reqValue.RelationshipProps {
-					consulStore.StoreConsulKeyAsString(reqPrefix+"/properties/"+url.QueryEscape(propName), fmt.Sprint(propValue))
-				}
+				storeRequirementAssigment(ctx, reqValue, reqPrefix, reqName)
 			}
 		}
 		artifactsPrefix := nodePrefix + "/artifacts"
@@ -503,29 +508,107 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId s
 	}
 }
 
-// createInstancesForNodes walk through the topology nodes an for each of those hosted on a Scalable node stores the number of
-// required instances and sets the instance's status to INITIAL
-func createInstancesForNodes(ctx context.Context, kv *api.KV, deploymentId string) error {
-	_, errGroup, consulStore := consulutil.WithContext(ctx)
-
-	depPath := path.Join(DeploymentKVPrefix, deploymentId)
+// createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
+func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	depPath := path.Join(DeploymentKVPrefix, deploymentID)
 	nodesPath := path.Join(depPath, "topology", "nodes")
 	instancesPath := path.Join(depPath, "topology", "instances")
-
-	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
+	scalable, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	for _, node := range nodes {
-		node = path.Base(node)
-		scalable, nbInstances, err := GetNbInstancesForNode(kv, deploymentId, node)
+	if scalable {
+		consulStore.StoreConsulKeyAsString(path.Join(nodesPath, nodeName, "nbInstances"), strconv.FormatUint(uint64(nbInstances), 10))
+		for i := uint32(0); i < nbInstances; i++ {
+			consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
+		}
+	}
+	return nil
+}
+
+// enhanceNodes walk through the topology nodes an for each of them if needed it creates the instances and fix alien BlockStorage declaration
+func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
+	ctxStore, errGroup, consulStore := consulutil.WithContext(ctx)
+	ctxStore = context.WithValue(ctxStore, consulStoreKey, consulStore)
+	nodes, err := GetNodes(kv, deploymentID)
+	if err != nil {
+		return err
+	}
+	for _, nodeName := range nodes {
+		createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
+		fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
+	}
+	return errGroup.Wait()
+}
+
+// fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification
+func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+	isBS, err := IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.BlockStorage")
+	if err != nil {
+		return err
+	}
+	if isBS {
+		attachReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
-		if scalable {
-			consulStore.StoreConsulKeyAsString(path.Join(nodesPath, node, "nbInstances"), strconv.FormatUint(uint64(nbInstances), 10))
-			for i := uint32(0); i < nbInstances; i++ {
-				consulStore.StoreConsulKeyAsString(path.Join(instancesPath, node, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
+		for _, attachReq := range attachReqs {
+			req := tosca.RequirementAssignment{}
+			req.Node = nodeName
+			kvp, _, err := kv.Get(path.Join(attachReq, "node"), nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+			}
+			var computeNodeName string
+			if kvp != nil {
+				computeNodeName = string(kvp.Value)
+			}
+			kvp, _, err = kv.Get(path.Join(attachReq, "capability"), nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+			}
+			if kvp != nil {
+				req.Capability = string(kvp.Value)
+			}
+			kvp, _, err = kv.Get(path.Join(attachReq, "relationship"), nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+			}
+			if kvp != nil {
+				req.Relationship = string(kvp.Value)
+			}
+			found, device, err := GetNodeProperty(kv, deploymentID, nodeName, "device")
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+			}
+			if !found {
+				return errors.Errorf("Failed to fix Alien-specific BlockStorage %q, missing mandatory property \"device\"", nodeName)
+			}
+			va := tosca.ValueAssignment{}
+			req.RelationshipProps = make(map[string]tosca.ValueAssignment)
+			if device != "" {
+				err = yaml.Unmarshal([]byte(device), &va)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q, failed to parse device property", nodeName)
+				}
+			}
+			req.RelationshipProps["location"] = va
+
+			newReqID, err := GetNbRequirementsForNode(kv, deploymentID, computeNodeName)
+			if err != nil {
+				return err
+			}
+
+			// Do not share the consul store as we have to compute the number of requirements for nodes and as we will modify it asynchronously it may lead to overwriting
+			ctxStore, errgroup, consulStore := consulutil.WithContext(ctx)
+			ctxStore = context.WithValue(ctxStore, consulStoreKey, consulStore)
+
+			storeRequirementAssigment(ctxStore, req, path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
+
+			err = errgroup.Wait()
+			if err != nil {
+				return err
 			}
 		}
 		ip, networkNodeName, err := checkFloattingIp(kv, deploymentId, node)
@@ -540,7 +623,7 @@ func createInstancesForNodes(ctx context.Context, kv *api.KV, deploymentId strin
 		}
 	}
 
-	return errGroup.Wait()
+	return nil
 }
 
 /**
