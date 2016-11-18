@@ -524,6 +524,16 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 			consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
 		}
 	}
+	ip, networkNodeName, err := checkFloattingIp(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	if ip {
+		err := createFloattingIpInstances(ctx, kv, nbInstances, deploymentID, networkNodeName)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -611,16 +621,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 				return err
 			}
 		}
-		ip, networkNodeName, err := checkFloattingIp(kv, deploymentId, node)
-		if err != nil {
-			return err
-		}
-		if ip {
-			err := createFloattingIpInstances(ctx, kv, nbInstances, deploymentId, networkNodeName)
-			if err != nil {
-				return err
-			}
-		}
+
 	}
 
 	return nil
