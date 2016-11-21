@@ -529,10 +529,7 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		return err
 	}
 	if ip {
-		err := createFloattingIpInstances(consulStore, kv, nbInstances, deploymentID, networkNodeName)
-		if err != nil {
-			return err
-		}
+		createFloattingIpInstances(consulStore, kv, nbInstances, deploymentID, networkNodeName)
 	}
 	return nil
 }
@@ -630,7 +627,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 /**
 This function create a given number of floating IP instances
 */
-func createFloattingIpInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, networkNode string) error {
+func createFloattingIpInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, networkNode string) {
 
 	networkPath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", networkNode)
 	depPath := path.Join(DeploymentKVPrefix, deploymentId)
@@ -641,9 +638,6 @@ func createFloattingIpInstances(consulStore consulutil.ConsulStore, kv *api.KV, 
 	for i := uint32(0); i < numberInstances; i++ {
 		consulStore.StoreConsulKeyAsString(path.Join(instancesPath, networkNode, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
 	}
-
-	return nil
-
 }
 
 /**
