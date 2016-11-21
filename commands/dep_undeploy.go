@@ -9,6 +9,7 @@ import (
 
 func init() {
 	deploymentsCmd.AddCommand(undeployCmd)
+	setConfigUndeploy()
 }
 
 var undeployCmd = &cobra.Command{
@@ -21,10 +22,16 @@ var undeployCmd = &cobra.Command{
 		}
 		janusApi := viper.GetString("janus_api")
 
-		request, err := http.NewRequest("DELETE", "http://"+janusApi+"/deployments/"+args[0], nil)
+		url :=  "http://"+janusApi+"/deployments/"+args[0]
+		if getConfigUndeploy() {
+			url = url+"?purge=true"
+		}
+
+		request, err := http.NewRequest("DELETE",url, nil)
 		if err != nil {
 			errExit(err)
 		}
+
 		request.Header.Add("Accept", "application/json")
 		response, err := http.DefaultClient.Do(request)
 		if err != nil {
@@ -39,4 +46,15 @@ var undeployCmd = &cobra.Command{
 		fmt.Println("Undeployment submited. In progress...")
 		return nil
 	},
+}
+
+func setConfigUndeploy() {
+	//Flags definition for purge
+	undeployCmd.PersistentFlags().BoolP("purge", "p", false, "To use if you want to purge instead of undeploy")
+
+}
+
+func getConfigUndeploy() bool {
+	//Flags for purge
+	return viper.GetBool("purge")
 }
