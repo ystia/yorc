@@ -44,7 +44,7 @@ func generatePoolIp(t *testing.T) {
 	srv1.PopulateKV(data)
 	gia, err := g.generateFloatingIP(ipUrl, "0")
 	assert.Nil(t, err)
-	assert.Equal(t, "Public_Network", gia.GenericIP)
+	assert.Equal(t, "Public_Network", gia.Pool)
 	assert.False(t, gia.IsIp)
 }
 
@@ -74,7 +74,7 @@ func generateSingleIp(t *testing.T) {
 	srv1.PopulateKV(data)
 	gia, err := g.generateFloatingIP(ipUrl, "0")
 	assert.Nil(t, err)
-	assert.Equal(t, "10.0.0.2", gia.GenericIP)
+	assert.Equal(t, "10.0.0.2", gia.Pool)
 	assert.True(t, gia.IsIp)
 }
 
@@ -104,8 +104,8 @@ func generateMultipleIp(t *testing.T) {
 	srv1.PopulateKV(data)
 	gia, err := g.generateFloatingIP(ipUrl, "0")
 	assert.Nil(t, err)
-	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.GenericIP)
+	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.Pool)
 	assert.True(t, gia.IsIp)
-	ips := strings.Split(gia.GenericIP, ",")
+	ips := strings.Split(gia.Pool, ",")
 	assert.Len(t, ips, 4)
 }

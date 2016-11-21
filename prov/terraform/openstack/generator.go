@@ -138,13 +138,12 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 	case "janus.nodes.openstack.FloatingIP":
-		instances, _, err := g.kv.Keys(instancesKey+"/", "/", nil)
+		instances, err := deployments.GetNodeInstancesIds(g.kv, depId, nodeName)
 		if err != nil {
 			return false, err
 		}
 
 		for _, instanceName := range instances {
-			instanceName = path.Base(instanceName)
 
 			ip, err := g.generateFloatingIP(nodeKey, instanceName)
 
@@ -154,11 +153,11 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 
 			consulKey := commons.ConsulKey{}
 			if !ip.IsIp {
-				floatingIP := FloatingIP{Pool: ip.GenericIP}
+				floatingIP := FloatingIP{Pool: ip.Pool}
 				addResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
 				consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
 			} else {
-				ips := strings.Split(ip.GenericIP, ",")
+				ips := strings.Split(ip.Pool, ",")
 				instName, err := strconv.Atoi(instanceName)
 				if (len(ips) - 1) < instName {
 					networkName, err := g.getStringFormConsul(nodeKey, "properties/floating_network_name")

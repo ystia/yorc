@@ -3,9 +3,9 @@ package openstack
 import "fmt"
 
 type IP struct {
-	Name      string
-	GenericIP string
-	IsIp      bool
+	Name string
+	Pool string
+	IsIp bool
 }
 
 func (g *Generator) generateFloatingIP(url, instanceName string) (IP, error) {
@@ -28,12 +28,12 @@ func (g *Generator) generateFloatingIP(url, instanceName string) (IP, error) {
 	if ip, err := g.getStringFormConsul(url, "properties/ip"); err != nil {
 		return IP{}, err
 	} else if ip != "" {
-		result.GenericIP = ip
+		result.Pool = ip
 		result.IsIp = true
 	} else if networkName, err := g.getStringFormConsul(url, "properties/floating_network_name"); err != nil {
 		return IP{}, err
 	} else if networkName != "" {
-		result.GenericIP = networkName
+		result.Pool = networkName
 	} else {
 		return IP{}, fmt.Errorf("A network name or IP need to be provided")
 	}
