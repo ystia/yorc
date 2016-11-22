@@ -9,6 +9,7 @@ import (
 
 func init() {
 	var purge bool
+	var shouldStreamLogs bool
 	var undeployCmd = &cobra.Command{
 		Use:   "undeploy <DeploymentId>",
 		Short: "Undeploy an application",
@@ -43,11 +44,16 @@ func init() {
 			}
 
 			fmt.Println("Undeployment submited. In progress...")
+			if shouldStreamLogs {
+				streamsLogs(janusApi, args[0], !noColor, true, false)
+			}
+
 			return nil
 		},
 	}
 
 	deploymentsCmd.AddCommand(undeployCmd)
 	undeployCmd.PersistentFlags().BoolVarP(&purge, "purge", "p", false, "To use if you want to purge instead of undeploy")
+	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after undeploying the application. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 
 }
