@@ -2,29 +2,41 @@ package openstack
 
 import "fmt"
 
-func (g *Generator) generateFloatingIP(url string) (string, error, bool) {
-	var ret string
+type IP struct {
+	Name string
+	Pool string
+	IsIp bool
+}
+
+func (g *Generator) generateFloatingIP(url, instanceName string) (IP, error) {
 	var nodeType string
+	result := IP{}
+	result.IsIp = false
 	var err error
-	isIp := false
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
-		return "", err, isIp
+		return IP{}, err
 	}
 	if nodeType != "janus.nodes.openstack.FloatingIP" {
-		return "", fmt.Errorf("Unsupported node type for %s: %s", url, nodeType), isIp
+		return IP{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+	}
+	var nodeName string
+	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
+		return IP{}, err
+	} else {
+		result.Name = nodeName + "-" + instanceName
 	}
 	if ip, err := g.getStringFormConsul(url, "properties/ip"); err != nil {
-		return "", err, isIp
+		return IP{}, err
 	} else if ip != "" {
-		ret = ip
-		isIp = true
+		result.Pool = ip
+		result.IsIp = true
 	} else if networkName, err := g.getStringFormConsul(url, "properties/floating_network_name"); err != nil {
-		return "", err, isIp
+		return IP{}, err
 	} else if networkName != "" {
-		ret = networkName
+		result.Pool = networkName
 	} else {
-		return "", fmt.Errorf("A network name or IP need to be provided"), isIp
+		return IP{}, fmt.Errorf("A network name or IP need to be provided")
 	}
 
-	return ret, nil, isIp
+	return result, nil
 }
