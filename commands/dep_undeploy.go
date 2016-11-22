@@ -21,12 +21,10 @@ func init() {
 			janusApi := viper.GetString("janus_api")
 
 			url := "http://" + janusApi + "/deployments/" + args[0]
-			fmt.Println(purge)
 			if purge {
 				url = url + "?purge=true"
 			}
 
-			fmt.Println(url)
 			request, err := http.NewRequest("DELETE", url, nil)
 			if err != nil {
 				errExit(err)
