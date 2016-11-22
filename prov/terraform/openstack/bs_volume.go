@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-func (g *Generator) generateOSBSVolume(url string) (BlockStorageVolume, error) {
+func (g *Generator) generateOSBSVolume(url, instanceName string) (BlockStorageVolume, error) {
 	volume := BlockStorageVolume{}
 	var nodeType string
 	var err error
@@ -22,7 +22,7 @@ func (g *Generator) generateOSBSVolume(url string) (BlockStorageVolume, error) {
 	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
 		return volume, err
 	} else {
-		volume.Name = g.cfg.OS_PREFIX + nodeName
+		volume.Name = g.cfg.OS_PREFIX + nodeName + "-" + instanceName
 	}
 	if size, err := g.getStringFormConsul(url, "properties/size"); err != nil {
 		return volume, err
