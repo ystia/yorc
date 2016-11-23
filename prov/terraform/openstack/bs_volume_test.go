@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"testing"
 	"strconv"
+	"testing"
 )
 
 func TestGroupedVolumeParallel(t *testing.T) {
@@ -152,7 +152,7 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 	data["vol/type"] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(data)
-	_, err = g.generateOSBSVolume("vol","0")
+	_, err = g.generateOSBSVolume("vol", "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
@@ -182,7 +182,7 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	data["vol/properties/region"] = []byte("Region2")
 
 	srv1.PopulateKV(data)
-	bsv, err := g.generateOSBSVolume("vol","0")
+	bsv, err := g.generateOSBSVolume("vol", "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)

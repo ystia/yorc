@@ -139,7 +139,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 			}
 
 			addResource(&infrastructure, "openstack_blockstorage_volume_v1", bsvol.Name, &bsvol)
-			consulKey := commons.ConsulKey{Name: bsvol.Name + "-bsVolumeID", Path: path.Join(instancesKey, bsvol.Name, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsvol.Name)}
+			consulKey := commons.ConsulKey{Name: bsvol.Name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsvol.Name)}
 			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 			addResource(&infrastructure, "consul_keys", bsvol.Name, &consulKeys)
 		}
