@@ -1,0 +1,6 @@
+- name: Start consul
+  hosts: all
+  strategy: free
+  tasks:
+    - name: start consul
+      shell: "{{INSTALL_DIR}}/consul_start.sh"
