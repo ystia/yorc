@@ -64,12 +64,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        key_pair: cloudify
+        key_pair: janus
         # Liberty
-#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
         # IceHouse
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-02.share.ops
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+#        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -131,12 +131,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        key_pair: cloudify
+        key_pair: janus
         # Liberty
-#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
         # IceHouse
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-02.share.ops
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+#        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -207,12 +207,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        key_pair: cloudify
+        key_pair: janus
         # Liberty
-#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
         # IceHouse
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-02.share.ops
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+#        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -257,12 +257,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        key_pair: cloudify
+        key_pair: janus
         # Liberty
-#        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
         # IceHouse
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: r423-02.share.ops
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+#        availability_zone: r423-02.share.ops
       capabilities:
         scalable:
           properties:
@@ -283,16 +283,16 @@ topology_template:
       type: janus.nodes.openstack.FloatingIP
       properties:
         # Liberty
-#        floating_network_name: public-starlings
+        floating_network_name: public-starlings
         # IceHouse
-        floating_network_name: Public_Network
+#        floating_network_name: Public_Network
     NetworkFIPLogstash:
       type: janus.nodes.openstack.FloatingIP
       properties:
         # Liberty
-#        floating_network_name: public-starlings
+        floating_network_name: public-starlings
         # IceHouse
-        floating_network_name: Public_Network
+#        floating_network_name: Public_Network
   outputs:
     Kibana_url:
       value: { get_attribute: [ Kibana, url ] }

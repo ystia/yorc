@@ -43,7 +43,7 @@ topology_template:
         flavor: 2
         image: b3a66fe8-473f-43ce-9979-1dc0a5f01dda
         availability_zone: r423-03.share.ops
-        key_pair: cloudify
+        key_pair: janus
       requirements:
         - network:
             node: NetworkDC1
@@ -80,7 +80,7 @@ topology_template:
         flavor: 2
         image: b3a66fe8-473f-43ce-9979-1dc0a5f01dda
         availability_zone: r423-03.share.ops
-        key_pair: cloudify
+        key_pair: janus
       requirements:
         - network:
             node: FIPConsulServerDC1
@@ -120,7 +120,7 @@ topology_template:
         flavor: 2
         image: b3a66fe8-473f-43ce-9979-1dc0a5f01dda
         availability_zone: r423-03.share.ops
-        key_pair: cloudify
+        key_pair: janus
       requirements:
         - network:
             node: NetworkDC2
@@ -161,7 +161,7 @@ topology_template:
         flavor: 2
         image: b3a66fe8-473f-43ce-9979-1dc0a5f01dda
         availability_zone: r423-03.share.ops
-        key_pair: cloudify
+        key_pair: janus
       requirements:
         - network:
             node: FIPConsulServerDC2

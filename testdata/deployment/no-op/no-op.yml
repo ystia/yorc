@@ -58,7 +58,7 @@ topology_template:
         flavor: 2
         image: 89ec515c-3251-4c2f-8402-bda280c31650
         availability_zone: nova
-        key_pair: cloudify
+        key_pair: janus
       requirements:
         - network:
             node: Network
@@ -98,7 +98,7 @@ topology_template:
         flavor: 2
         image: 89ec515c-3251-4c2f-8402-bda280c31650
         availability_zone: nova
-        key_pair: cloudify
+        key_pair: janus
       requirements:
         - local_storage:
             node: BlockStorage
@@ -144,7 +144,7 @@ topology_template:
         flavor: 2
         image: 89ec515c-3251-4c2f-8402-bda280c31650
         availability_zone: nova
-        key_pair: cloudify
+        key_pair: janus
       requirements:
         - network:
             node: Network
