@@ -2,10 +2,11 @@ package deployments
 
 import (
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
 	"path"
 	"sort"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 )
 
 // GetRequirementsKeysByNameForNode returns paths to requirements whose names matches the given requirementName.
@@ -43,4 +44,28 @@ func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, e
 		return 0, errors.Wrapf(err, "Failed to retrieve requirements for node %q", nodeName)
 	}
 	return len(reqKVPs), nil
+}
+
+// GetRelationshipForRequirement returns the relationship associated with a given requirementIndex for the given nodeName.
+//
+// If there is no relationship defined for this requirement then an empty string is returned.
+func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"), nil)
+	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it futhermore it can refer to a relationship_template_name instead of a relationship_type_name
+	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+		return "", err
+	}
+	return string(kvp.Value), nil
+}
+
+// GetTargetNodeForRequirement returns the target node associated with a given requirementIndex for the given nodeName.
+//
+// If there is no node defined for this requirement then an empty string is returned.
+func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"), nil)
+	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it futhermore it can refer to a node_template_name instead of a node_type_name
+	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+		return "", err
+	}
+	return string(kvp.Value), nil
 }

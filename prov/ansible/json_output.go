@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func (e *execution) logAnsibleOutputInConsul(output *bytes.Buffer) error {
+func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 	// Workaround https://github.com/ansible/ansible/issues/17122
 	b := output.Bytes()
 	if i := bytes.Index(b, []byte("{")); i >= 0 {
