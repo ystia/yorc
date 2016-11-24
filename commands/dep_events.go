@@ -44,8 +44,6 @@ func streamsEvents(janusApi, depId string, colorize, fromBeginning, stop bool) {
 	var lastIdx uint64
 	if !fromBeginning && !stop {
 		// Get last index
-		// TODO will be better with a head command that will return it as a response header
-
 		response, err := http.Head("http://" + janusApi + "/deployments/" + depId + "/events")
 		if err != nil {
 			errExit(err)

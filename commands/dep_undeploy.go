@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"net/http"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -48,7 +49,7 @@ func init() {
 			} else if !shouldStreamLogs && shouldStreamEvents {
 				streamsEvents(janusApi, args[0], !noColor, true, false)
 			} else {
-				return fmt.Errorf("You can't provide stream-events and stream-logs flags at same time")
+				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
 
 			return nil
