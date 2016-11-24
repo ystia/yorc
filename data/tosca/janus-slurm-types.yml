@@ -1,0 +1,22 @@
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+
+template_name: janus-slurm-types
+template_author: Janus
+template_version: 1.0.0
+
+imports:
+  - normative: <normative-types.yml>
+
+node_types:
+  janus.nodes.slurm.Compute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      imageId:
+        type: string
+        required: true
+      flavorId:
+        type: string
+        required: true
+      gpuType:
+        type: string
+        required: false

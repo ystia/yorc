@@ -23,4 +23,3 @@ func (g *Generator) generateSlurmNode(url, deploymentId string) (ComputeInstance
 	}
 	return instance, nil
 }
-
