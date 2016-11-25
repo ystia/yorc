@@ -66,7 +66,7 @@ func streamsEvents(janusApi, depId string, colorize, fromBeginning, stop bool) {
 	}
 	for {
 
-		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/events?index=%d%s", janusApi, depId, lastIdx), nil)
+		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/events?index=%d", janusApi, depId, lastIdx), nil)
 		if err != nil {
 			errExit(err)
 		}
