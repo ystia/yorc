@@ -156,20 +156,44 @@ func (e *executionCommon) resolveOperation() error {
 			e.Operation = opAndReq[0]
 			e.requirementIndex = opAndReq[1]
 
-			e.relationshipType, err = deployments.GetRelationshipForRequirement(e.kv, e.DeploymentId, e.NodeName, e.requirementIndex)
+			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
+			kvPair, _, err := e.kv.Get(path.Join(reqPath, "relationship"), nil)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
 			}
-			if e.relationshipType == "" {
+			if kvPair == nil || len(kvPair.Value) == 0 {
 				return errors.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
 			}
-			e.relationshipTargetName, err = deployments.GetTargetNodeForRequirement(e.kv, e.DeploymentId, e.NodeName, e.requirementIndex)
+			e.relationshipType = string(kvPair.Value)
+			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
+			if err != nil {
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
+			}
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipTargetName = string(kvPair.Value)
+		} else if len(opAndReq) == 3 {
+			e.Operation = opAndReq[0]
+			requirementName := opAndReq[1]
+			e.relationshipTargetName = opAndReq[2]
+			requirementPath, err := deployments.GetRequirementByNameAndTargetForNode(e.kv, e.DeploymentId, e.NodeName, requirementName, e.relationshipTargetName)
 			if err != nil {
 				return err
 			}
-			if e.relationshipTargetName == "" {
-				return errors.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+			if requirementPath == "" {
+				return errors.Errorf("Unable to find a matching requirement for this relationship operation %q, source node %q, requirement name %q, target node %q", e.Operation, e.NodeName, requirementName, e.relationshipTargetName)
 			}
+			e.requirementIndex = path.Base(requirementPath)
+			kvPair, _, err := e.kv.Get(path.Join(requirementPath, "relationship"), nil)
+			if err != nil {
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
+			}
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipType = string(kvPair.Value)
+
 		}
 		err = e.resolveIsPerInstanceOperation(opAndReq[0])
 		if err != nil {

@@ -54,9 +54,9 @@ topology_template:
             default_instances: 1
     Network:
       type: janus.nodes.openstack.FloatingIP
-      properties:        
+      properties:
         # Liberty
-       floating_network_name: public-starlings
+        floating_network_name: public-starlings
         # IceHouse
 #        floating_network_name: Public_Network
     ConsulServer:
@@ -99,9 +99,9 @@ topology_template:
             default_instances: 1
     Net:
       type: janus.nodes.openstack.FloatingIP
-      properties:        
+      properties:
         # Liberty
-       floating_network_name: public-starlings
+        floating_network_name: public-starlings
         # IceHouse
 #        floating_network_name: Public_Network
   workflows:
@@ -152,7 +152,7 @@ topology_template:
         pre_conf_consulAgent/1:
           node: ConsulAgent
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
+            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/server_endpoint/ConsulServer
           on-success:
             - configure_ConsulAgent
         ConsulAgent_created:

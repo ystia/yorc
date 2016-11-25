@@ -493,7 +493,10 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId s
 			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
 			consulStore.StoreConsulKeyAsString(stepPrefix+"/node", step.Node)
 			if step.Activity.CallOperation != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/operation", strings.ToLower(step.Activity.CallOperation))
+				// Preserve case for requirement and target node name in case of relationship operation
+				opSlice := strings.SplitN(step.Activity.CallOperation, "/", 2)
+				opSlice[0] = strings.ToLower(opSlice[0])
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/operation", strings.Join(opSlice, "/"))
 			}
 			if step.Activity.Delegate != "" {
 				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/delegate", strings.ToLower(step.Activity.Delegate))
@@ -523,6 +526,13 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		for i := uint32(0); i < nbInstances; i++ {
 			consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
 		}
+	}
+	ip, networkNodeName, err := checkFloattingIp(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	if ip {
+		createFloattingIpInstances(consulStore, kv, nbInstances, deploymentID, networkNodeName)
 	}
 	return nil
 }
@@ -611,7 +621,59 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 				return err
 			}
 		}
+
 	}
 
 	return nil
+}
+
+/**
+This function create a given number of floating IP instances
+*/
+func createFloattingIpInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, networkNode string) {
+
+	networkPath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", networkNode)
+	depPath := path.Join(DeploymentKVPrefix, deploymentId)
+	instancesPath := path.Join(depPath, "topology", "instances")
+
+	consulStore.StoreConsulKeyAsString(path.Join(networkPath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
+
+	for i := uint32(0); i < numberInstances; i++ {
+		consulStore.StoreConsulKeyAsString(path.Join(instancesPath, networkNode, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
+	}
+}
+
+/**
+This function check if a nodes need a floating IP, and return the name of Floating IP node.
+*/
+func checkFloattingIp(kv *api.KV, deploymentId, nodeName string) (bool, string, error) {
+	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentId, nodeName, "network")
+	if err != nil {
+		return false, "", err
+	}
+
+	for _, requirement := range requirementsKey {
+		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+		if err != nil {
+			return false, "", err
+		} else if capability == nil {
+			continue
+		}
+
+		res, err := IsNodeTypeDerivedFrom(kv, deploymentId, string(capability.Value), "janus.capabilities.openstack.FIPConnectivity")
+		if err != nil {
+			return false, "", err
+		}
+
+		if res {
+			networkNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+			if err != nil {
+				return false, "", err
+
+			}
+			return true, string(networkNode.Value), nil
+		}
+	}
+
+	return false, "", nil
 }
