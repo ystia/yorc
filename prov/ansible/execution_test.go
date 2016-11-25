@@ -2,17 +2,20 @@ package ansible
 
 import (
 	"bytes"
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"testing"
 	"text/template"
+
+	"strconv"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func TestAnsibleParallel(t *testing.T) {
@@ -257,7 +260,11 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
-	operation := "tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1"
+
+	var operationTestCases = []string{
+		"tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1",
+		"tosca.interfaces.node.lifecycle.Configure.pre_configure_source/connect/" + nodeBName,
+	}
 
 	srv1.PopulateKV(map[string][]byte{
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):              []byte("A1"),
@@ -309,12 +316,14 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/status"): []byte("initial"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/status"): []byte("initial"),
 	})
-	t.Run("testExecution_ResolveInputsOnRelationshipSource", func(t *testing.T) {
-		testExecution_ResolveInputsOnRelationshipSource(t, kv, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName)
-	})
-	t.Run("testExecution_GenerateOnRelationshipSource", func(t *testing.T) {
-		testExecution_GenerateOnRelationshipSource(t, kv, deploymentId, nodeAName, operation)
-	})
+	for i, operation := range operationTestCases {
+		t.Run("testExecution_ResolveInputsOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
+			testExecution_ResolveInputsOnRelationshipSource(t, kv, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName)
+		})
+		t.Run("testExecution_GenerateOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
+			testExecution_GenerateOnRelationshipSource(t, kv, deploymentId, nodeAName, operation)
+		})
+	}
 }
 
 func testExecution_ResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName string) {
@@ -441,7 +450,11 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
-	operation := "tosca.interfaces.node.lifecycle.Configure.add_source/1"
+
+	var operationTestCases = []string{
+		"tosca.interfaces.node.lifecycle.Configure.add_source/1",
+		"tosca.interfaces.node.lifecycle.Configure.add_source/connect/" + nodeBName,
+	}
 
 	srv1.PopulateKV(map[string][]byte{
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):              []byte("A1"),
@@ -493,14 +506,15 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/status"): []byte("initial"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/status"): []byte("initial"),
 	})
+	for i, operation := range operationTestCases {
+		t.Run("testExecution_ResolveInputOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
+			testExecution_ResolveInputOnRelationshipTarget(t, kv, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName)
+		})
 
-	t.Run("testExecution_ResolveInputOnRelationshipTarget", func(t *testing.T) {
-		testExecution_ResolveInputOnRelationshipTarget(t, kv, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName)
-	})
-
-	t.Run("testExecution_GenerateOnRelationshipTarget", func(t *testing.T) {
-		testExecution_GenerateOnRelationshipTarget(t, kv, deploymentId, nodeAName, operation)
-	})
+		t.Run("testExecution_GenerateOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
+			testExecution_GenerateOnRelationshipTarget(t, kv, deploymentId, nodeAName, operation)
+		})
+	}
 }
 func testExecution_ResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName string) {
 	execution := &execution{kv: kv,

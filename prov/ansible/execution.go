@@ -5,16 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"os"
 	"os/exec"
 	"path"
@@ -22,6 +13,16 @@ import (
 	"strings"
 	"syscall"
 	"text/template"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/executil"
+	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 const output_custom_wrapper = `
@@ -506,22 +507,43 @@ func (e *execution) resolveExecution() error {
 			e.requirementIndex = opAndReq[1]
 
 			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
-			kvPair, _, err := e.kv.Get(path.Join(reqPath, "relationship"), nil)
+			kvPair, _, err = e.kv.Get(path.Join(reqPath, "relationship"), nil)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
 			}
 			if kvPair == nil || len(kvPair.Value) == 0 {
-				return fmt.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+				return errors.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipType = string(kvPair.Value)
 			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
 			}
 			if kvPair == nil || len(kvPair.Value) == 0 {
 				return fmt.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
 			}
 			e.relationshipTargetName = string(kvPair.Value)
+		} else if len(opAndReq) == 3 {
+			e.Operation = opAndReq[0]
+			requirementName := opAndReq[1]
+			e.relationshipTargetName = opAndReq[2]
+			requirementPath, err := deployments.GetRequirementByNameAndTargetForNode(e.kv, e.DeploymentId, e.NodeName, requirementName, e.relationshipTargetName)
+			if err != nil {
+				return err
+			}
+			if requirementPath == "" {
+				return errors.Errorf("Unable to find a matching requirement for this relationship operation %q, source node %q, requirement name %q, target node %q", e.Operation, e.NodeName, requirementName, e.relationshipTargetName)
+			}
+			e.requirementIndex = path.Base(requirementPath)
+			kvPair, _, err = e.kv.Get(path.Join(requirementPath, "relationship"), nil)
+			if err != nil {
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
+			}
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipType = string(kvPair.Value)
+
 		}
 		err = e.resolveIsPerInstanceOperation(opAndReq[0])
 		if err != nil {
