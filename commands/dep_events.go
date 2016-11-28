@@ -99,9 +99,6 @@ func streamsEvents(janusApi, depId string, colorize, fromBeginning, stop bool) {
 			} else {
 				fmt.Printf("%s: Node: %s State: %s\n", event.Timestamp, event.Node, event.Status)
 			}
-			if event.Status == "error" {
-				return
-			}
 		}
 
 		if stop {
