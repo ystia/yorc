@@ -121,21 +121,40 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		}
 
 	case "janus.nodes.openstack.BlockStorage":
-		if volumeId, err := g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
-			return false, err
-		} else if volumeId != "" {
-			log.Debugf("Reusing existing volume with id %q for node %q", volumeId, nodeName)
-			return false, nil
-		}
-		bsvol, err := g.generateOSBSVolume(nodeKey)
+		instances, err := deployments.GetNodeInstancesIds(g.kv, depId, nodeName)
 		if err != nil {
 			return false, err
 		}
 
-		addResource(&infrastructure, "openstack_blockstorage_volume_v1", nodeName, &bsvol)
-		consulKey := commons.ConsulKey{Name: nodeName + "-bsVolumeID", Path: nodeKey + "/attributes/volume_id", Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", nodeName)}
-		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
+		var bsIds []string
+
+		if volumeId, err := g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
+			return false, err
+		} else if volumeId != "" {
+			log.Debugf("Reusing existing volume with id %q for node %q", volumeId, nodeName)
+			bsIds = strings.Split(volumeId, ",")
+		}
+
+		for instNb, instanceName := range instances {
+
+			bsvol, err := g.generateOSBSVolume(nodeKey, instanceName)
+			if err != nil {
+				return false, err
+			}
+
+			if (len(bsIds)-1 < instNb) {
+				addResource(&infrastructure, "openstack_blockstorage_volume_v1", bsvol.Name, &bsvol)
+				consulKey := commons.ConsulKey{Name: bsvol.Name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsvol.Name)}
+				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+				addResource(&infrastructure, "consul_keys", bsvol.Name, &consulKeys)
+			} else {
+				name := g.cfg.OS_PREFIX + nodeName + "-" + instanceName
+				consulKey := commons.ConsulKey{Name: name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/properties/volume_id"), Value: strings.TrimSpace(bsIds[instNb]) }
+				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+				addResource(&infrastructure, "consul_keys", name, &consulKeys)
+			}
+
+		}
 
 	case "janus.nodes.openstack.FloatingIP":
 		instances, err := deployments.GetNodeInstancesIds(g.kv, depId, nodeName)

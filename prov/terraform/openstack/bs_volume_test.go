@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"strconv"
 	"testing"
 )
 
@@ -50,7 +51,7 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 		{"node/volume1TB", "1 tb", 1000},
 		{"node/volume1TiB", "1 TiB", 1100},
 	}
-	for _, tt := range testData {
+	for i, tt := range testData {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
@@ -58,7 +59,7 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 		data[tt.volUrl+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(data)
-		bsv, err := g.generateOSBSVolume(tt.volUrl)
+		bsv, err := g.generateOSBSVolume(tt.volUrl, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
 		// Default region
@@ -90,7 +91,7 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 		{"node/volume3", "M 1500"},
 		{"node/volume4", "GB"},
 	}
-	for _, tt := range testData {
+	for i, tt := range testData {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
@@ -98,7 +99,7 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 		data[tt.volUrl+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(data)
-		_, err := g.generateOSBSVolume(tt.volUrl)
+		_, err := g.generateOSBSVolume(tt.volUrl, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
 }
@@ -125,7 +126,7 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 	data["vol/type"] = []byte("janus.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(data)
-	_, err = g.generateOSBSVolume("vol")
+	_, err = g.generateOSBSVolume("vol", "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
 }
@@ -151,7 +152,7 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 	data["vol/type"] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(data)
-	_, err = g.generateOSBSVolume("vol")
+	_, err = g.generateOSBSVolume("vol", "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
@@ -181,7 +182,7 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	data["vol/properties/region"] = []byte("Region2")
 
 	srv1.PopulateKV(data)
-	bsv, err := g.generateOSBSVolume("vol")
+	bsv, err := g.generateOSBSVolume("vol", "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)
