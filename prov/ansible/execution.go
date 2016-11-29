@@ -54,8 +54,9 @@ func (oni operationNotImplemented) Error() string {
 }
 
 type hostConnection struct {
-	host string
-	user string
+	host       string
+	user       string
+	instanceID string
 }
 
 type EnvInput struct {
@@ -367,7 +368,7 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 				instanceName = getInstanceName(e.NodeName, instance)
 			}
 
-			hostConn := hostConnection{host: string(kvp.Value)}
+			hostConn := hostConnection{host: string(kvp.Value), instanceID: instance}
 			kvp, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
 			if err != nil {
 				return err
@@ -492,7 +493,6 @@ func (e *executionCommon) resolveContext() error {
 func (e *executionCommon) resolveOperationOutput() error {
 	log.Debugf(e.OperationPath)
 	log.Debugf(e.Operation)
-
 	//We get all the output of the NodeType
 	outputsPathList, _, err := e.kv.Keys(e.NodeTypePath+"/output/", "", nil)
 
@@ -506,13 +506,13 @@ func (e *executionCommon) resolveOperationOutput() error {
 	for _, outputPath := range outputsPathList {
 		tmp := strings.Split(e.Operation, ".")
 		if strings.Contains(outputPath, tmp[len(tmp)-1]) {
-			nodeOutPath := path.Join(e.NodePath, "attributes", strings.ToLower(path.Base(outputPath)))
+			nodeOutPath := path.Join("attributes", strings.ToLower(path.Base(outputPath)))
 			e.HaveOutput = true
 			output[path.Base(outputPath)] = nodeOutPath
 		}
 	}
 
-	log.Debugf("%v", output)
+	log.Debugf("Resolved outputs: %v", output)
 	e.Output = output
 	return nil
 }
@@ -734,4 +734,13 @@ func (e *executionCommon) checkAnsibleRetriableError(err error) error {
 
 	}
 	return err
+}
+
+func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
+	for _, hostConn := range e.hosts {
+		if hostConn.host == host {
+			return hostConn.instanceID, nil
+		}
+	}
+	return "", errors.Errorf("Unknown host %q", host)
 }

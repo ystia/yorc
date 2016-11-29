@@ -2,10 +2,10 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"net/http"
-	"github.com/pkg/errors"
 )
 
 func init() {

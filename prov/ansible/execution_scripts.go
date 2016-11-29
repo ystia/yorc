@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"text/template"
+
+	"strings"
 
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -58,7 +61,7 @@ const ansible_playbook = `
         [[[printf "%s: \"{{%s}}\"" $hostVarValue $hostVarValue]]]
         [[[end]]]
     [[[if .HaveOutput]]]
-    [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest={{dest_folder}} flat=yes" $.OperationRemotePath]]]
+    [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
     [[[end]]]
 `
 
@@ -155,24 +158,37 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	}
 
 	if e.HaveOutput {
-		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
+		outputsFiles, err := filepath.Glob(filepath.Join(wrapperPath, "*-out.csv"))
 		if err != nil {
 			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
 			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
 			return err
 		}
-		r := csv.NewReader(fi)
-		records, err := r.ReadAll()
-		if err != nil {
-			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
-			return err
-		}
-		for _, line := range records {
-			if err = consulutil.StoreConsulKeyAsString(e.Output[line[0]], line[1]); err != nil {
+		for _, outFile := range outputsFiles {
+			currentHost := strings.TrimSuffix(filepath.Base(outFile), "-out.csv")
+			instanceID, err := e.getInstanceIDFromHost(currentHost)
+			if err != nil {
 				return err
 			}
+			fi, err := os.Open(outFile)
+			if err != nil {
+				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+				return err
+			}
+			r := csv.NewReader(fi)
+			records, err := r.ReadAll()
+			if err != nil {
+				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+				return err
+			}
+			for _, line := range records {
+				if err = consulutil.StoreConsulKeyAsString(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", e.NodeName, instanceID, e.Output[line[0]]), line[1]); err != nil {
+					return err
+				}
 
+			}
 		}
 	}
 	return nil
