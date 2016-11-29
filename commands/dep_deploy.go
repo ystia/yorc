@@ -3,15 +3,16 @@ package commands
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
 )
 
 func init() {
@@ -76,7 +77,7 @@ func init() {
 				streamsLogs(janusApi, path.Base(location), !noColor, true, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
 				streamsEvents(janusApi, path.Base(location), !noColor, true, false)
-			} else {
+			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
 			return nil
