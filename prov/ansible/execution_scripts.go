@@ -5,10 +5,10 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
