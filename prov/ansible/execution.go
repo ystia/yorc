@@ -556,6 +556,8 @@ func (e *execution) resolveExecution() error {
 		var op string
 		if idx := strings.Index(e.Operation, "configure."); idx >= 0 {
 			op = e.Operation[idx:]
+		} else if idx := strings.Index(e.Operation, "custom."); idx >= 0 {
+			op = e.Operation[idx:]
 		} else {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
 			op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
@@ -564,6 +566,8 @@ func (e *execution) resolveExecution() error {
 	} else {
 		var op string
 		if idx := strings.Index(e.Operation, "standard."); idx >= 0 {
+			op = e.Operation[idx:]
+		} else if idx := strings.Index(e.Operation, "custom."); idx >= 0 {
 			op = e.Operation[idx:]
 		} else {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")

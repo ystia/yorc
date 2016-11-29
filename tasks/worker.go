@@ -7,12 +7,12 @@ import (
 	"golang.org/x/sync/errgroup"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"path"
 	"strings"
 	"sync"
-	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
-	"novaforge.bull.com/starlings-janus/janus/events"
 )
 
 type Worker struct {
@@ -173,26 +173,28 @@ func (w Worker) handleTask(task *Task) {
 	case CustomCommand:
 		eventPub := events.NewPublisher(task.kv, task.TargetId)
 
-		nodeName, _, err := w.consulClient.KV().Get(path.Join(tasksPrefix, task.Id, "node"),nil)
+		nodeNameKv, _, err := w.consulClient.KV().Get(path.Join(tasksPrefix, task.Id, "node"), nil)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
 			task.WithStatus(FAILED)
 			return
 		}
 
-		commandName, _, err := w.consulClient.KV().Get(path.Join(tasksPrefix, task.Id, "name"),nil)
+		commandNameKv, _, err := w.consulClient.KV().Get(path.Join(tasksPrefix, task.Id, "name"), nil)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
 			task.WithStatus(FAILED)
 			return
 		}
+
+		nodeName := string(nodeNameKv.Value)
+		commandName := string(commandNameKv.Value)
 
 		exec := ansible.NewExecutor(task.kv)
 		if err := exec.ExecOperation(ctx, task.TargetId, nodeName, "custom."+commandName); err != nil {
 			setNodeStatus(task.kv, eventPub, task.TargetId, nodeName, "error")
 			log.Printf("Deployment %q, Step %q: Sending error %v to error channel", task.TargetId, nodeName, err)
 		}
-
 
 	default:
 		deployments.LogInConsul(w.consulClient.KV(), task.TargetId, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", task.TaskType, task.TaskType.String(), task.Id))
