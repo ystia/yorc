@@ -16,6 +16,7 @@ const (
 	Deploy TaskType = iota
 	UnDeploy
 	Purge
+	CustomCommand
 )
 
 func TaskTypeForName(taskType string) (TaskType, error) {
@@ -26,6 +27,8 @@ func TaskTypeForName(taskType string) (TaskType, error) {
 		return UnDeploy, nil
 	case "purge":
 		return Purge, nil
+	case "custom":
+		return CustomCommand, nil
 	default:
 		return Deploy, fmt.Errorf("Unsupported task type %q", taskType)
 	}
@@ -54,4 +57,8 @@ func (e anotherLivingTaskAlreadyExistsError) Error() string {
 func IsAnotherLivingTaskAlreadyExistsError(err error) bool {
 	_, ok := err.(anotherLivingTaskAlreadyExistsError)
 	return ok
+}
+
+func GetTaskPrefix() string {
+	return tasksPrefix
 }
