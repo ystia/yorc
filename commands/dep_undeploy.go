@@ -48,7 +48,7 @@ func init() {
 				streamsLogs(janusApi, args[0], !noColor, true, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
 				streamsEvents(janusApi, args[0], !noColor, true, false)
-			} else {
+			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
 
