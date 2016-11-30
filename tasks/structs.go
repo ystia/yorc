@@ -7,9 +7,6 @@ import (
 
 //go:generate stringer -type=TaskStatus,TaskType -output=structs_string.go structs.go
 
-const tasksPrefix = "_janus/tasks"
-const tasksLocksPrefix = "_janus/tasks-locks"
-
 type TaskType int
 
 const (
@@ -57,8 +54,4 @@ func (e anotherLivingTaskAlreadyExistsError) Error() string {
 func IsAnotherLivingTaskAlreadyExistsError(err error) bool {
 	_, ok := err.(anotherLivingTaskAlreadyExistsError)
 	return ok
-}
-
-func GetTaskPrefix() string {
-	return tasksPrefix
 }

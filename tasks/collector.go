@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/satori/go.uuid"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"time"
@@ -41,7 +42,7 @@ func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType Tas
 	}
 	taskId := fmt.Sprint(uuid.NewV4())
 	kv := c.consulClient.KV()
-	taskPrefix := tasksPrefix + "/" + taskId
+	taskPrefix := consulutil.TasksPrefix + "/" + taskId
 	// Then use a lock in the task to prevent dispatcher to get the task before finishing task creation
 	taskLockCreate, err := c.consulClient.LockKey(taskPrefix + "/.createLock")
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -15,7 +16,7 @@ func IsNodeTypeDerivedFrom(kv *api.KV, deploymentId, nodeType, derives string) (
 	if nodeType == derives {
 		return true, nil
 	}
-	nodeTypePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "types", nodeType)
+	nodeTypePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "types", nodeType)
 	// Check if node type exist
 	if kvps, _, err := kv.List(nodeTypePath+"/", nil); err != nil {
 		return false, err
@@ -56,7 +57,7 @@ func IsNodeDerivedFrom(kv *api.KV, deploymentID, nodeName, derives string) (bool
 // the process. If a Compute is finally found it returns 'true' and the instances number.
 // If there is no 'tosca.nodes.Compute' at the end of the hosted on chain then assume that there is only one instance and return 'false'
 func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uint32, error) {
-	nodePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
 	kvp, _, err := kv.Get(nodePath+"/type", nil)
 	if err != nil {
 		return false, 0, err
@@ -101,7 +102,7 @@ func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uin
 // It may be an empty array if the given node is not HostedOn a scalable node.
 func GetNodeInstancesIds(kv *api.KV, deploymentId, nodeName string) ([]string, error) {
 	names := make([]string, 0)
-	instancesPath := path.Join(DeploymentKVPrefix, deploymentId, "topology/instances", nodeName)
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName)
 	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
 	if err != nil {
 		return names, err
@@ -116,7 +117,7 @@ func GetNodeInstancesIds(kv *api.KV, deploymentId, nodeName string) ([]string, e
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
 func GetHostedOnNode(kv *api.KV, deploymentId, nodeName string) (string, error) {
-	nodePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
@@ -174,7 +175,7 @@ func GetTypeDefaultAttribute(kv *api.KV, deploymentId, typeName, attributeName s
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
 func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string) (bool, string, error) {
-	nodePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
 	kvp, _, err := kv.Get(path.Join(nodePath, "properties", propertyName), nil)
 	if err != nil {
 		return false, "", err
@@ -229,7 +230,7 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 
 	if len(instances) > 0 {
 		attributes = make(map[string]string)
-		nodeInstancesPath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "instances", nodeName)
+		nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "instances", nodeName)
 		for _, instance := range instances {
 			var kvp *api.KVPair
 			kvp, _, err = kv.Get(path.Join(nodeInstancesPath, instance, "attributes", attributeName), nil)
@@ -247,7 +248,7 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 	}
 
 	// Look at not instance-scoped attribute
-	nodePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
 
 	kvp, _, err := kv.Get(path.Join(nodePath, "attributes", attributeName), nil)
 	if err != nil {
@@ -333,7 +334,7 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentId, typeName, propertyName string, isProperty bool) (bool, string, error) {
-	typePath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "types", typeName)
+	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "types", typeName)
 	var defaultPath string
 	if isProperty {
 		defaultPath = path.Join(typePath, "properties", propertyName, "default")
@@ -362,7 +363,7 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentId, typeName, prope
 // GetNodes returns the names of the different nodes for a given deployment.
 func GetNodes(kv *api.KV, deploymentId string) ([]string, error) {
 	names := make([]string, 0)
-	nodesPath := path.Join(DeploymentKVPrefix, deploymentId, "topology/nodes")
+	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes")
 	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
 	if err != nil {
 		return names, err
@@ -375,7 +376,7 @@ func GetNodes(kv *api.KV, deploymentId string) ([]string, error) {
 
 // GetNodeType returns the type of a given node identified by its name
 func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"), nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't get type for node %q", nodeName)
 	}

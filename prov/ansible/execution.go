@@ -23,6 +23,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"strconv"
 )
 
 const output_custom_wrapper = `
@@ -121,6 +122,7 @@ func (ei EnvInput) String() string {
 type execution struct {
 	kv                       *api.KV
 	DeploymentId             string
+	TaskId                   string
 	NodeName                 string
 	Operation                string
 	OperationRemotePath      string
@@ -142,16 +144,21 @@ type execution struct {
 	isRelationshipOperation  bool
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
+	isCustomCommand          bool
 	relationshipType         string
 	relationshipTargetName   string
 	requirementIndex         string
 }
 
-func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
+func newExecution(kv *api.KV, deploymentId, nodeName, operation string, taskId ...string) (*execution, error) {
+	if len(taskId) == 0 {
+		taskId = make([]string, 1)
+	}
 	execution := &execution{kv: kv,
 		DeploymentId:   deploymentId,
 		NodeName:       nodeName,
 		Operation:      operation,
+		TaskId:         taskId[0],
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*EnvInput, 0)}
 	return execution, execution.resolveExecution()
@@ -196,8 +203,18 @@ func (e *execution) resolveArtifacts() error {
 
 func (e *execution) resolveInputs() error {
 	log.Debug("resolving inputs")
-	resolver := deployments.NewResolver(e.kv, e.DeploymentId)
-	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
+	var resolver *deployments.Resolver
+	if e.isCustomCommand {
+		resolver = deployments.NewResolver(e.kv, e.DeploymentId, e.TaskId)
+	} else {
+		resolver = deployments.NewResolver(e.kv, e.DeploymentId)
+	}
+
+	var inputKeys []string
+	var err error
+
+	inputKeys, _, err = e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
+
 	if err != nil {
 		return err
 	}
@@ -210,16 +227,27 @@ func (e *execution) resolveInputs() error {
 			return fmt.Errorf("%s/name missing", input)
 		}
 		inputName := string(kvPair.Value)
-		kvPair, _, err = e.kv.Get(input+"/expression", nil)
+
+		kvPair, _, err = e.kv.Get(input+"/is_property_definition", nil)
+		isPropDef, err := strconv.ParseBool(string(kvPair.Value))
 		if err != nil {
 			return err
 		}
-		if kvPair == nil {
-			return fmt.Errorf("%s/expression missing", input)
-		}
+
 		va := tosca.ValueAssignment{}
-		yaml.Unmarshal(kvPair.Value, &va)
+		if !isPropDef {
+			kvPair, _, err = e.kv.Get(input+"/expression", nil)
+			if err != nil {
+				return err
+			}
+			if kvPair == nil {
+				return fmt.Errorf("%s/expression missing", input)
+			}
+
+			yaml.Unmarshal(kvPair.Value, &va)
+		}
 		targetContext := va.Expression.IsTargetContext()
+
 		var instancesIds []string
 		if e.isRelationshipOperation && targetContext {
 			instancesIds, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.relationshipTargetName)
@@ -240,6 +268,8 @@ func (e *execution) resolveInputs() error {
 				}
 				if e.isRelationshipOperation {
 					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceId)
+				} else if isPropDef {
+					inputValue, err = resolver.ResolvePropertyDefinitionForCustom(inputName)
 				} else {
 					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceId)
 				}
@@ -256,6 +286,8 @@ func (e *execution) resolveInputs() error {
 			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
 			if e.isRelationshipOperation {
 				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, "")
+			} else if isPropDef {
+				inputValue, err = resolver.ResolvePropertyDefinitionForCustom(inputName)
 			} else {
 				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
 			}
@@ -274,7 +306,7 @@ func (e *execution) resolveInputs() error {
 func (e *execution) resolveHosts(nodeName string) error {
 
 	// e.nodePath
-	instancesPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
 	log.Debugf("Resolving hosts for node %q", nodeName)
 
 	hosts := make(map[string]hostConnection)
@@ -297,7 +329,7 @@ func (e *execution) resolveHosts(nodeName string) error {
 			}
 
 			hostConn := hostConnection{host: string(kvp.Value)}
-			kvp, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
+			kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
 			if err != nil {
 				return err
 			}
@@ -481,7 +513,7 @@ func (e *execution) resolveExecution() error {
 		return err
 	}
 	e.OverlayPath = ovPath
-	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
+	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
 	kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
 	if err != nil {
 		return err
@@ -491,9 +523,11 @@ func (e *execution) resolveExecution() error {
 	}
 
 	e.NodeType = string(kvPair.Value)
-	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
 	if strings.Contains(e.Operation, "standard") {
 		e.isRelationshipOperation = false
+	} else if strings.Contains(e.Operation, "custom") {
+		e.isCustomCommand = true
 	} else {
 		// In a relationship
 		e.isRelationshipOperation = true
@@ -506,7 +540,7 @@ func (e *execution) resolveExecution() error {
 			e.Operation = opAndReq[0]
 			e.requirementIndex = opAndReq[1]
 
-			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
+			reqPath := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
 			kvPair, _, err = e.kv.Get(path.Join(reqPath, "relationship"), nil)
 			if err != nil {
 				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
@@ -562,7 +596,7 @@ func (e *execution) resolveExecution() error {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
 			op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
 		}
-		e.OperationPath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
+		e.OperationPath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
 	} else {
 		var op string
 		if idx := strings.Index(e.Operation, "standard."); idx >= 0 {

@@ -8,6 +8,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"path"
@@ -35,7 +36,7 @@ func NewWorker(workerPool chan chan *Task, shutdownCh chan struct{}, consulClien
 }
 
 func (w Worker) setDeploymentStatus(deploymentId string, status deployments.DeploymentStatus) {
-	p := &api.KVPair{Key: path.Join(deployments.DeploymentKVPrefix, deploymentId, "status"), Value: []byte(fmt.Sprint(status))}
+	p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentId, "status"), Value: []byte(fmt.Sprint(status))}
 	kv := w.consulClient.KV()
 	kv.Put(p, nil)
 }
@@ -99,7 +100,7 @@ func (w Worker) handleTask(task *Task) {
 	switch task.TaskType {
 	case Deploy:
 		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
-		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/install"))
+		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "workflows/install"))
 		if err != nil {
 			if task.Status() == RUNNING {
 				task.WithStatus(FAILED)
@@ -120,7 +121,7 @@ func (w Worker) handleTask(task *Task) {
 		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
 	case UnDeploy, Purge:
 		w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_IN_PROGRESS)
-		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(deployments.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
+		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
 		if err != nil {
 			if task.Status() == RUNNING {
 				task.WithStatus(FAILED)
@@ -140,7 +141,7 @@ func (w Worker) handleTask(task *Task) {
 		}
 		w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYED)
 		if task.TaskType == Purge {
-			_, err := w.consulClient.KV().DeleteTree(path.Join(deployments.DeploymentKVPrefix, task.TargetId), nil)
+			_, err := w.consulClient.KV().DeleteTree(path.Join(consulutil.DeploymentKVPrefix, task.TargetId), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge deployment definition: %+v", task.TargetId, task.Id, err)
 				task.WithStatus(FAILED)
@@ -154,7 +155,7 @@ func (w Worker) handleTask(task *Task) {
 			}
 			for _, tid := range tasks {
 				if tid != task.Id {
-					_, err := w.consulClient.KV().DeleteTree(path.Join(tasksPrefix, tid), nil)
+					_, err := w.consulClient.KV().DeleteTree(path.Join(consulutil.TasksPrefix, tid), nil)
 					if err != nil {
 						log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
 						task.WithStatus(FAILED)
@@ -162,7 +163,7 @@ func (w Worker) handleTask(task *Task) {
 					}
 				}
 			}
-			_, err = w.consulClient.KV().DeleteTree(path.Join(tasksPrefix, task.Id), nil)
+			_, err = w.consulClient.KV().DeleteTree(path.Join(consulutil.TasksPrefix, task.Id), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
 				task.WithStatus(FAILED)
@@ -173,14 +174,14 @@ func (w Worker) handleTask(task *Task) {
 	case CustomCommand:
 		eventPub := events.NewPublisher(task.kv, task.TargetId)
 
-		nodeNameKv, _, err := w.consulClient.KV().Get(path.Join(tasksPrefix, task.Id, "node"), nil)
+		nodeNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, task.Id, "node"), nil)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
 			task.WithStatus(FAILED)
 			return
 		}
 
-		commandNameKv, _, err := w.consulClient.KV().Get(path.Join(tasksPrefix, task.Id, "name"), nil)
+		commandNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, task.Id, "name"), nil)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
 			task.WithStatus(FAILED)
@@ -236,7 +237,7 @@ func (w Worker) monitorTaskForCancellation(ctx context.Context, cancelFunc conte
 	go func() {
 		var lastIndex uint64 = 0
 		for {
-			kvp, qMeta, err := w.consulClient.KV().Get(path.Join(tasksPrefix, task.Id, ".canceledFlag"), &api.QueryOptions{WaitIndex: lastIndex})
+			kvp, qMeta, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, task.Id, ".canceledFlag"), &api.QueryOptions{WaitIndex: lastIndex})
 
 			select {
 			case <-ctx.Done():

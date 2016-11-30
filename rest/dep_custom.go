@@ -48,8 +48,8 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	consulStore.StoreConsulKey(path.Join(tasks.GetTaskPrefix(), taskId, "node"), []byte(node))
-	consulStore.StoreConsulKey(path.Join(tasks.GetTaskPrefix(), taskId, "name"), []byte(customCommandName))
+	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "node"), []byte(node))
+	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "name"), []byte(customCommandName))
 
 	inputsArg, err := v.GetValueArray("inputs")
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 			log.Panic(err)
 		}
 
-		consulStore.StoreConsulKey(path.Join(tasks.GetTaskPrefix(), taskId, "inputs", name), buf.Bytes())
+		consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "inputs", name), buf.Bytes())
 	}
 
 	if errGrp.Wait() != nil {
@@ -86,7 +86,7 @@ func (s *Server) getInputNameFromCustom(depId, nodeName, customCName string) ([]
 	}
 
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Keys(path.Join(deployments.DeploymentKVPrefix, depId, "topology/types", nodeType, "interfaces/custom", customCName, "inputs")+"/", "/", nil)
+	kvp, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, depId, "topology/types", nodeType, "interfaces/custom", customCName, "inputs")+"/", "/", nil)
 	if err != nil {
 		log.Panic(err)
 	}

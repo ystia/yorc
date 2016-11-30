@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -31,7 +32,7 @@ func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
 }
 
 func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeName string) error {
-	kvPair, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
+	kvPair, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeNa
 }
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, nodeName string) error {
-	nodePath := path.Join(deployments.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
 	if kp, _, err := e.kv.Get(nodePath+"/type", nil); err != nil {
 		return err
 	} else if kp == nil {
