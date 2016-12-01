@@ -1,8 +1,6 @@
 package rest
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"github.com/antonholmquist/jason"
 	"github.com/julienschmidt/httprouter"
@@ -57,15 +55,12 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	for i, name := range inputsName {
-		var buf bytes.Buffer
-		enc := gob.NewEncoder(&buf)
-		err := enc.Encode((inputsArg[i]).Interface())
 
 		if err != nil {
 			log.Panic(err)
 		}
 
-		consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "inputs", name), buf.Bytes())
+		consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "inputs", name), []byte((inputsArg[i]).Interface().(string)))
 	}
 
 	if errGrp.Wait() != nil {

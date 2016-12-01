@@ -235,6 +235,7 @@ func (e *execution) resolveInputs() error {
 		}
 
 		va := tosca.ValueAssignment{}
+		var targetContext bool
 		if !isPropDef {
 			kvPair, _, err = e.kv.Get(input+"/expression", nil)
 			if err != nil {
@@ -245,8 +246,8 @@ func (e *execution) resolveInputs() error {
 			}
 
 			yaml.Unmarshal(kvPair.Value, &va)
+			targetContext = va.Expression.IsTargetContext()
 		}
-		targetContext := va.Expression.IsTargetContext()
 
 		var instancesIds []string
 		if e.isRelationshipOperation && targetContext {

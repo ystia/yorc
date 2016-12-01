@@ -192,7 +192,7 @@ func (w Worker) handleTask(task *Task) {
 		commandName := string(commandNameKv.Value)
 
 		exec := ansible.NewExecutor(task.kv)
-		if err := exec.ExecOperation(ctx, task.TargetId, nodeName, "custom."+commandName); err != nil {
+		if err := exec.ExecOperation(ctx, task.TargetId, nodeName, "custom."+commandName, task.Id); err != nil {
 			setNodeStatus(task.kv, eventPub, task.TargetId, nodeName, "error")
 			log.Printf("Deployment %q, Step %q: Sending error %v to error channel", task.TargetId, nodeName, err)
 		}
