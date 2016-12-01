@@ -57,16 +57,29 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 }
 
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool, error) {
+
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
 	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
 	instancesKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "instances", nodeName)
+
+	// Add Provider
+	log.Debugf("Addding provider Slurm")
 	infrastructure := commons.Infrastructure{}
+	infrastructure.Provider = map[string]interface{}{
+		"slurm": map[string]interface{}{
+			"username": "root",
+			"password": "root",
+			"name": "name",
+			"url": "localhost",
+			"port": "9000"}} // TODO : hardcoded variable
+
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
 		log.Print(err)
 		return false, err
 	}
+
 	nodeType := string(kvPair.Value)
 	log.Printf("GenerateTerraformInfraForNode switch begin")
 	switch nodeType {
@@ -99,11 +112,6 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 			addResource(&infrastructure, "consul_keys", computeName, &consulKeys)
 
 		} //End instances loop
-
-		// Add Provider
-		infrastructure.Provider = make(map[string]interface{})
-		providerSlurmMap := make(map[string]interface{})
-		infrastructure.Provider["slurm"] = providerSlurmMap
 
 	default:
 		return false, fmt.Errorf("In Slurm : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
