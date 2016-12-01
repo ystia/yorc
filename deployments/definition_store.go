@@ -532,7 +532,19 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		return err
 	}
 	if ip {
-		createFloattingIpInstances(consulStore, kv, nbInstances, deploymentID, networkNodeName)
+		createNodeInstances(consulStore, kv, nbInstances, deploymentID, networkNodeName)
+	}
+
+	bs, bsNames, err := checkBlockStorage(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
+	if bs {
+		for _, name := range bsNames {
+			createNodeInstances(consulStore, kv, nbInstances, deploymentID, name)
+		}
+
 	}
 	return nil
 }
@@ -548,6 +560,7 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 	for _, nodeName := range nodes {
 		createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
 		fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
+		createMissingBlockStrotageForNode(consulStore, kv, deploymentID, nodeName)
 	}
 	return errGroup.Wait()
 }
@@ -630,16 +643,16 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 /**
 This function create a given number of floating IP instances
 */
-func createFloattingIpInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, networkNode string) {
+func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, nodeName string) {
 
-	networkPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", networkNode)
-	depPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId)
+	networkPath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	depPath := path.Join(DeploymentKVPrefix, deploymentId)
 	instancesPath := path.Join(depPath, "topology", "instances")
 
 	consulStore.StoreConsulKeyAsString(path.Join(networkPath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
 
 	for i := uint32(0); i < numberInstances; i++ {
-		consulStore.StoreConsulKeyAsString(path.Join(instancesPath, networkNode, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
+		consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
 	}
 }
 
@@ -676,4 +689,73 @@ func checkFloattingIp(kv *api.KV, deploymentId, nodeName string) (bool, string, 
 	}
 
 	return false, "", nil
+}
+
+// createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
+func createMissingBlockStrotageForNode(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
+	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	if err != nil {
+		return err
+	}
+
+	_, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
+	var bsName []string
+
+	for _, requirement := range requirementsKey {
+		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+		if err != nil {
+			return err
+		} else if capability == nil {
+			continue
+		}
+
+		bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+		if err != nil {
+			return err
+
+		}
+
+		bsName = append(bsName, string(bsNode.Value))
+	}
+
+	for _, name := range bsName {
+		createNodeInstances(consulStore, kv, nbInstances, deploymentID, name)
+	}
+
+	return nil
+}
+
+/**
+This function check if a nodes need a floating IP, and return the name of Floating IP node.
+*/
+func checkBlockStorage(kv *api.KV, deploymentId, nodeName string) (bool, []string, error) {
+	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentId, nodeName, "local_storage")
+	if err != nil {
+		return false, nil, err
+	}
+
+	var bsName []string
+
+	for _, requirement := range requirementsKey {
+		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
+		if err != nil {
+			return false, nil, err
+		} else if capability == nil {
+			continue
+		}
+
+		bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
+		if err != nil {
+			return false, nil, err
+
+		}
+
+		bsName = append(bsName, string(bsNode.Value))
+	}
+
+	return true, bsName, nil
 }

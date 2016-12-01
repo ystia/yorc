@@ -5,11 +5,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"net/http"
+	"github.com/pkg/errors"
 )
 
 func init() {
 	var purge bool
 	var shouldStreamLogs bool
+	var shouldStreamEvents bool
 	var undeployCmd = &cobra.Command{
 		Use:   "undeploy <DeploymentId>",
 		Short: "Undeploy an application",
@@ -42,8 +44,12 @@ func init() {
 			}
 
 			fmt.Println("Undeployment submited. In progress...")
-			if shouldStreamLogs {
+			if shouldStreamLogs && !shouldStreamEvents {
 				streamsLogs(janusApi, args[0], !noColor, true, false)
+			} else if !shouldStreamLogs && shouldStreamEvents {
+				streamsEvents(janusApi, args[0], !noColor, true, false)
+			} else if shouldStreamLogs && shouldStreamEvents {
+				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
 
 			return nil
@@ -53,5 +59,6 @@ func init() {
 	deploymentsCmd.AddCommand(undeployCmd)
 	undeployCmd.PersistentFlags().BoolVarP(&purge, "purge", "p", false, "To use if you want to purge instead of undeploy")
 	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after undeploying the application. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
+	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after undeploying the CSAR.")
 
 }

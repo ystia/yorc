@@ -16,6 +16,7 @@ import (
 
 func init() {
 	var shouldStreamLogs bool
+	var shouldStreamEvents bool
 	var deployCmd = &cobra.Command{
 		Use:   "deploy <csar_path>",
 		Short: "Deploy a CSAR",
@@ -71,13 +72,18 @@ func init() {
 			}
 
 			fmt.Println("Deployment submited. Deployment Id:", path.Base(location))
-			if shouldStreamLogs {
+			if shouldStreamLogs && !shouldStreamEvents {
 				streamsLogs(janusApi, path.Base(location), !noColor, true, false)
+			} else if !shouldStreamLogs && shouldStreamEvents {
+				streamsEvents(janusApi, path.Base(location), !noColor, true, false)
+			} else if shouldStreamLogs && shouldStreamEvents {
+				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
 			return nil
 		},
 	}
 	deployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after deploying the CSAR. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
+	deployCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after deploying the CSAR.")
 	deploymentsCmd.AddCommand(deployCmd)
 }
 
