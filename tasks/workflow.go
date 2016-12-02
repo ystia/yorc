@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -11,9 +15,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
-	"path"
-	"strings"
-	"time"
 )
 
 var wfCanceled = errors.New("workflow canceled")
@@ -123,12 +124,10 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 				log.Debugf("Step %q caught a notification", s.Name)
 				goto BR
 			case <-shutdownChan:
-				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q canceled", s.Name))
 				log.Printf("Step %q canceled", s.Name)
 				s.setStatus("canceled")
 				return wfCanceled
 			case <-ctx.Done():
-				deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Step %q canceled: %v", s.Name, ctx.Err()))
 				log.Printf("Step %q canceled: %q", s.Name, ctx.Err())
 				s.setStatus("canceled")
 				return ctx.Err()
