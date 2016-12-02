@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -22,11 +21,6 @@ func init() {
 
 			if len(jsonParam) == 0 {
 				return fmt.Errorf("You need to provide a JSON in parameter")
-			}
-
-			var js map[string]interface{}
-			if json.Unmarshal([]byte(jsonParam), &js) != nil {
-				return fmt.Errorf("You need to provide a valid JSON in parameter")
 			}
 
 			request, err := http.NewRequest("POST", "http://"+janusApi+"/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
