@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"github.com/pkg/errors"
 
@@ -16,12 +17,27 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
+const ansible_playbook = `
+- include: [[[.PlaybookPath]]]
+[[[if .HaveOutput]]]
+- name: Retrieving Operation outputs
+  hosts: all
+  strategy: free
+  tasks:
+    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s\" state=directory mode=0755" $.OperationRemotePath]]]
+    [[[printf "- template: src=\"outputs.csv.j2\" dest=\"{{ ansible_env.HOME}}/%s/out.csv\"" $.OperationRemotePath]]]
+    [[[printf "- fetch: src=\"{{ ansible_env.HOME}}/%s/out.csv\" dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
+[[[end]]]
+`
+
 type executionAnsible struct {
 	*executionCommon
+	PlaybookPath string
 }
 
 func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
-	playbookPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
+	var err error
+	e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
 		return err
 	}
@@ -49,16 +65,53 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		buffer.WriteString(contextValue)
 		buffer.WriteString("\"\n")
 	}
-	if err := ioutil.WriteFile(filepath.Join(ansibleGroupsVarsPath, "all.yml"), buffer.Bytes(), 0664); err != nil {
+	buffer.WriteString("dest_folder: ")
+	buffer.WriteString(ansibleRecipePath)
+	buffer.WriteString("\n")
+	if err = ioutil.WriteFile(filepath.Join(ansibleGroupsVarsPath, "all.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write global group vars file: ")
 		log.Printf("%v", err)
 		log.Debugf("%+v", err)
 		return err
 	}
 
-	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, playbookPath)
-	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(playbookPath)))
-	cmd := executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", playbookPath)
+	if e.HaveOutput {
+		buffer.Reset()
+		for outputName := range e.Output {
+			buffer.WriteString(outputName)
+			buffer.WriteString(",{{")
+			buffer.WriteString(outputName)
+			buffer.WriteString("}}\n")
+		}
+		if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "outputs.csv.j2"), buffer.Bytes(), 0664); err != nil {
+			err = errors.Wrap(err, "Failed to generate operation outputs file: ")
+			log.Printf("%v", err)
+			log.Debugf("%+v", err)
+			return err
+		}
+	}
+
+	buffer.Reset()
+	tmpl := template.New("execTemplate")
+	tmpl = tmpl.Delims("[[[", "]]]")
+	tmpl, err = tmpl.Parse(ansible_playbook)
+	if err != nil {
+		return errors.Wrap(err, "Failed to generate ansible playbook")
+	}
+	if err = tmpl.Execute(&buffer, e); err != nil {
+		log.Print("Failed to Generate ansible playbook template")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
+		return err
+	}
+	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
+		log.Print("Failed to write playbook file")
+		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
+		return err
+	}
+
+	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, e.PlaybookPath)
+	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
+	cmd := executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml")
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}

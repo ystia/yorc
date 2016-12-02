@@ -4,3 +4,6 @@
   tasks:
     - name: start consul
       shell: "{{INSTALL_DIR}}/consul_start.sh"
+    
+    - name: log consul mode
+      debug: msg="Consul started in {{CONSUL_MODE}} mode"

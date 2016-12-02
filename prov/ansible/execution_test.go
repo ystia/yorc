@@ -29,16 +29,16 @@ func TestAnsibleParallel(t *testing.T) {
 func templatesTest(t *testing.T) {
 	t.Parallel()
 	ec := &executionCommon{
-		NodeName:       "Welcome",
-		Operation:      "tosca.interfaces.node.lifecycle.standard.start",
-		Artifacts:      map[string]string{"scripts": "my_scripts"},
-		OverlayPath:    "/some/local/path",
-		VarInputsNames: []string{"INSTANCE", "PORT"},
+		NodeName:            "Welcome",
+		Operation:           "tosca.interfaces.node.lifecycle.standard.start",
+		Artifacts:           map[string]string{"scripts": "my_scripts"},
+		OverlayPath:         "/some/local/path",
+		VarInputsNames:      []string{"INSTANCE", "PORT"},
+		OperationRemotePath: ".janus/path/on/remote",
 	}
 
 	e := &executionScript{
-		OperationRemotePath: ".janus/path/on/remote",
-		executionCommon:     ec,
+		executionCommon: ec,
 	}
 
 	funcMap := template.FuncMap{
@@ -49,7 +49,7 @@ func templatesTest(t *testing.T) {
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err := tmpl.Parse(ansible_playbook)
+	tmpl, err := tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(os.Stdout, e)
 	t.Log(err)
@@ -239,7 +239,7 @@ func testExecution_GenerateOnNode(t *testing.T, kv *api.KV, deploymentId, nodeNa
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)
@@ -432,7 +432,7 @@ func testExecution_GenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploy
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)
@@ -625,7 +625,7 @@ func testExecution_GenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploy
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)

@@ -3,19 +3,15 @@ package ansible
 import (
 	"bytes"
 	"context"
-	"encoding/csv"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"text/template"
 
-	"strings"
-
 	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -30,7 +26,7 @@ const output_custom_wrapper = `
 [[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
 `
 
-const ansible_playbook = `
+const shell_ansible_playbook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
@@ -66,7 +62,6 @@ const ansible_playbook = `
 `
 
 type executionScript struct {
-	OperationRemotePath string
 	*executionCommon
 }
 
@@ -75,12 +70,6 @@ func (e *executionScript) setOperationRemotePath(opPath string) {
 }
 
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
-	if e.isRelationshipOperation {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.Operation)
-	} else {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
-	}
-
 	var buffer bytes.Buffer
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
@@ -109,7 +98,10 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		}
 	}
 	buffer.Reset()
-	tmpl, err := tmpl.Parse(ansible_playbook)
+	tmpl, err := tmpl.Parse(shell_ansible_playbook)
+	if err != nil {
+		return errors.Wrap(err, "Failed to generate ansible playbook")
+	}
 	if err := tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
 		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
@@ -157,39 +149,5 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		return e.checkAnsibleRetriableError(err)
 	}
 
-	if e.HaveOutput {
-		outputsFiles, err := filepath.Glob(filepath.Join(wrapperPath, "*-out.csv"))
-		if err != nil {
-			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
-			return err
-		}
-		for _, outFile := range outputsFiles {
-			currentHost := strings.TrimSuffix(filepath.Base(outFile), "-out.csv")
-			instanceID, err := e.getInstanceIDFromHost(currentHost)
-			if err != nil {
-				return err
-			}
-			fi, err := os.Open(outFile)
-			if err != nil {
-				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
-				return err
-			}
-			r := csv.NewReader(fi)
-			records, err := r.ReadAll()
-			if err != nil {
-				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
-				return err
-			}
-			for _, line := range records {
-				if err = consulutil.StoreConsulKeyAsString(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", e.NodeName, instanceID, e.Output[line[0]]), line[1]); err != nil {
-					return err
-				}
-
-			}
-		}
-	}
 	return nil
 }

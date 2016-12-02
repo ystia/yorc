@@ -2,5 +2,5 @@
   hosts: all
   strategy: free
   tasks:
-    - name: start consul
+    - name: Stop consul
       shell: "{{INSTALL_DIR}}/consul leave"

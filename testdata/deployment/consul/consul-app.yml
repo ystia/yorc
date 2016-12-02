@@ -49,9 +49,9 @@ topology_template:
             network_name: PRIVATE
         scalable:
           properties:
-            max_instances: 1
+            max_instances: 5
             min_instances: 1
-            default_instances: 1
+            default_instances: 2
     Network:
       type: janus.nodes.openstack.FloatingIP
       properties:
@@ -94,9 +94,9 @@ topology_template:
             network_name: PRIVATE
         scalable:
           properties:
-            max_instances: 1
+            max_instances: 5
             min_instances: 1
-            default_instances: 1
+            default_instances: 3
     Net:
       type: janus.nodes.openstack.FloatingIP
       properties:

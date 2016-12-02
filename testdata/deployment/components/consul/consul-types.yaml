@@ -36,6 +36,8 @@ node_types:
         default: 0.5.2
         constraints:
           - equal: 0.5.2
+    attributes:
+      consul_mode: { get_operation_output: [ SELF, Standard, Configure, CONSUL_MODE ] } 
     capabilities:
       agent:
         type: starlings.capabilities.ConsulAgent
@@ -55,6 +57,7 @@ node_types:
     interfaces:
       Standard:
         create:
+          description: Consul installation step
           inputs:
             INSTALL_DNSMASQ: { get_property: [SELF, install_dnsmasq] }
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
@@ -70,6 +73,7 @@ node_types:
         start:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
+            CONSUL_MODE: { get_attribute: [ SELF, consul_mode ] }
           implementation: ansible/consul_start.yml
         stop:
           inputs:

@@ -9,6 +9,16 @@
         path: "{{INSTALL_DIR}}/work/.agentmode"
       register: agentmode
 
+    - name: Set CONSUL_MODE to agent
+      set_fact:
+        CONSUL_MODE: "agent"
+      when: agentmode.stat.exists == True  
+
+    - name: Set CONSUL_MODE to server
+      set_fact:
+        CONSUL_MODE: "server"
+      when: agentmode.stat.exists == False  
+
     - name: compute consul servers
       set_fact: 
         consul_servers: "{{ consul_servers }} + [ '{{ hostvars[inventory_hostname][item +'_IP_ADDRESS'] }}' ]"

@@ -3,6 +3,7 @@ package ansible
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -84,6 +86,8 @@ type executionCommon struct {
 	NodeName                 string
 	Operation                string
 	NodeType                 string
+	Description              string
+	OperationRemotePath      string
 	EnvInputs                []*EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -224,6 +228,13 @@ func (e *executionCommon) resolveOperation() error {
 		e.Dependencies = strings.Split(string(kvPair.Value), ",")
 	} else {
 		e.Dependencies = make([]string, 0)
+	}
+	kvPair, _, err = e.kv.Get(e.OperationPath+"/description", nil)
+	if err != nil {
+		return errors.Wrap(err, "Consul query failed: ")
+	}
+	if kvPair != nil && len(kvPair.Value) > 0 {
+		e.Description = string(kvPair.Value)
 	}
 
 	return nil
@@ -505,7 +516,8 @@ func (e *executionCommon) resolveOperationOutput() error {
 	//For each type we compare if we are in the good lifecycle operation
 	for _, outputPath := range outputsPathList {
 		tmp := strings.Split(e.Operation, ".")
-		if strings.Contains(outputPath, tmp[len(tmp)-1]) {
+		outOPPrefix := strings.ToLower(path.Join(e.NodeTypePath, "output", tmp[len(tmp)-2], tmp[len(tmp)-1]))
+		if strings.Contains(strings.ToLower(outputPath), outOPPrefix) {
 			nodeOutPath := path.Join("attributes", strings.ToLower(path.Base(outputPath)))
 			e.HaveOutput = true
 			output[path.Base(outputPath)] = nodeOutPath
@@ -708,7 +720,51 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write ansible.cfg file")
 		return err
 	}
-	return e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
+	if e.isRelationshipOperation {
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.Operation)
+	} else {
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
+	}
+	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
+	if err != nil {
+		return err
+	}
+	if e.HaveOutput {
+		outputsFiles, err := filepath.Glob(filepath.Join(ansibleRecipePath, "*-out.csv"))
+		if err != nil {
+			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+			return err
+		}
+		for _, outFile := range outputsFiles {
+			currentHost := strings.TrimSuffix(filepath.Base(outFile), "-out.csv")
+			instanceID, err := e.getInstanceIDFromHost(currentHost)
+			if err != nil {
+				return err
+			}
+			fi, err := os.Open(outFile)
+			if err != nil {
+				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+				return err
+			}
+			r := csv.NewReader(fi)
+			records, err := r.ReadAll()
+			if err != nil {
+				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+				return err
+			}
+			for _, line := range records {
+				if err = consulutil.StoreConsulKeyAsString(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", e.NodeName, instanceID, e.Output[line[0]]), line[1]); err != nil {
+					return err
+				}
+
+			}
+		}
+	}
+	return nil
+
 }
 
 func getInstanceName(nodeName, instanceID string) string {
