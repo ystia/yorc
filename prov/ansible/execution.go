@@ -151,16 +151,15 @@ type execution struct {
 }
 
 func newExecution(kv *api.KV, deploymentId, nodeName, operation string, taskId ...string) (*execution, error) {
-	if len(taskId) == 0 {
-		taskId = make([]string, 1)
-	}
 	execution := &execution{kv: kv,
 		DeploymentId:   deploymentId,
 		NodeName:       nodeName,
 		Operation:      operation,
-		TaskId:         taskId[0],
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*EnvInput, 0)}
+	if len(taskId) != 0 {
+		execution.TaskId = taskId[0]
+	}
 	return execution, execution.resolveExecution()
 }
 

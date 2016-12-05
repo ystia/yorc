@@ -77,7 +77,6 @@ func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType Tas
 	}
 
 	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {
-		fmt.Println("We call me")
 		log.Debugf("Unlocking newly created task with id %q (target id %q)", taskId, targetId)
 		if err := taskLockCreate.Unlock(); err != nil {
 			log.Printf("Can't unlock createLock for task %q (target id %q): %+v", taskId, targetId, err)

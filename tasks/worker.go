@@ -176,14 +176,14 @@ func (w Worker) handleTask(task *Task) {
 
 		nodeNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, task.Id, "node"), nil)
 		if err != nil {
-			log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
+			log.Printf("Deployment id: %q, Task id: %q, Failed to get nodeName: %+v", task.TargetId, task.Id, err)
 			task.WithStatus(FAILED)
 			return
 		}
 
 		commandNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, task.Id, "name"), nil)
 		if err != nil {
-			log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
+			log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command name: %+v", task.TargetId, task.Id, err)
 			task.WithStatus(FAILED)
 			return
 		}
