@@ -1,8 +1,10 @@
 package rest
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
+	"io/ioutil"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -10,8 +12,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"path"
 	"strconv"
-	"encoding/json"
-	"io/ioutil"
 )
 
 func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +27,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	var inputMap deployments.InputsPropertyDef
-	if err := json.Unmarshal(body, &inputMap);err != nil {
+	if err := json.Unmarshal(body, &inputMap); err != nil {
 		log.Panic(err)
 	}
 

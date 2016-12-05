@@ -37,7 +37,7 @@ type Logs struct {
 }
 
 type InputsPropertyDef struct {
-	NodeName string 	 `json:"node"`
-	CustomCommandName string `json:"name"`
-	Inputs map[string]string `json:"inputs"`
+	NodeName          string            `json:"node"`
+	CustomCommandName string            `json:"name"`
+	Inputs            map[string]string `json:"inputs"`
 }

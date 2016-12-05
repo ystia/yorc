@@ -143,14 +143,14 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 				return false, err
 			}
 
-			if (len(bsIds)-1 < instNb) {
+			if len(bsIds)-1 < instNb {
 				addResource(&infrastructure, "openstack_blockstorage_volume_v1", bsvol.Name, &bsvol)
 				consulKey := commons.ConsulKey{Name: bsvol.Name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsvol.Name)}
 				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 				addResource(&infrastructure, "consul_keys", bsvol.Name, &consulKeys)
 			} else {
 				name := g.cfg.OS_PREFIX + nodeName + "-" + instanceName
-				consulKey := commons.ConsulKey{Name: name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/properties/volume_id"), Value: strings.TrimSpace(bsIds[instNb]) }
+				consulKey := commons.ConsulKey{Name: name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/properties/volume_id"), Value: strings.TrimSpace(bsIds[instNb])}
 				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 				addResource(&infrastructure, "consul_keys", name, &consulKeys)
 			}
