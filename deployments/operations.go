@@ -21,6 +21,8 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		op = operationName[idx:]
 	} else if idx := strings.Index(operationName, "standard."); idx >= 0 {
 		op = operationName[idx:]
+	} else if idx := strings.Index(operationName, "custom."); idx >= 0 {
+		op = operationName[idx:]
 	} else {
 		op = strings.TrimPrefix(operationName, "tosca.interfaces.node.lifecycle.")
 		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
