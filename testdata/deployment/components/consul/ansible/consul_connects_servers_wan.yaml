@@ -1,0 +1,23 @@
+#
+# Starlings
+# Copyright (C) 2015-2016 Bull S.A.S. - All rights reserved
+#
+- name: Connects consul agent to consul server
+  hosts: all
+  strategy: free
+  vars:
+    consul_wan_servers: []
+  tasks:
+    - name: compute WAN servers
+      set_fact: 
+        consul_wan_servers: "{{ consul_wan_servers }} + [ '{{ hostvars[inventory_hostname][item +'_SERVER_WAN_IP'] }}' ]"
+      with_items: "{{TARGET_INSTANCES.split(',')}}"
+
+    - name: Install servers config for consul
+      template: 
+        src: files/4_wan_join.json.j2
+        dest: "{{INSTALL_DIR}}/config/4_wan_join.json"
+    
+    - name: echo servers list
+      debug: msg="Consul server configured to connects to others servers [{{ consul_wan_servers | join(', ') }}] through WAN"
+      

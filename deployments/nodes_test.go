@@ -1,12 +1,13 @@
 package deployments
 
 import (
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"testing"
 )
 
 func TestDeploymentNodes(t *testing.T) {
@@ -24,11 +25,15 @@ func TestDeploymentNodes(t *testing.T) {
 
 	srv1.PopulateKV(map[string][]byte{
 		// Test testIsNodeTypeDerivedFrom
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.2/derived_from":                 []byte("janus.type.3"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.3/derived_from":                 []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.1/name":                         []byte("janus.type.1"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.2/derived_from":                 []byte("janus.type.3"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.2/name":                         []byte("janus.type.2"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.3/derived_from":                 []byte("tosca.relationships.HostedOn"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.3/name":                         []byte("janus.type.3"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn/name":         []byte("tosca.relationships.HostedOn"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
+		DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
 
 		// Test testGetNbInstancesForNode
 		// Default case type "tosca.nodes.Compute" default_instance specified
@@ -42,11 +47,15 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/default_instances": []byte("-10"),
 		// Case Node Hosted on another node
 
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.2/derived_from":                 []byte("janus.type.3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.3/derived_from":                 []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/name":                         []byte("janus.type.1"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.2/derived_from":                 []byte("janus.type.3"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.2/name":                         []byte("janus.type.2"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.3/derived_from":                 []byte("tosca.relationships.HostedOn"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.3/name":                         []byte("janus.type.3"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/name":         []byte("tosca.relationships.HostedOn"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
+		DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
 
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Root/name":                                           []byte("tosca.nodes.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/properties/parenttypeprop/default": []byte("RootComponentTypeProp"),

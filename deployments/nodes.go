@@ -11,34 +11,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-// IsNodeTypeDerivedFrom traverses 'derived_from' to check if type derives from another type
-func IsNodeTypeDerivedFrom(kv *api.KV, deploymentId, nodeType, derives string) (bool, error) {
-	if nodeType == derives {
-		return true, nil
-	}
-	nodeTypePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "types", nodeType)
-	// Check if node type exist
-	if kvps, _, err := kv.List(nodeTypePath+"/", nil); err != nil {
-		return false, err
-	} else if kvps == nil || len(kvps) == 0 {
-		return false, fmt.Errorf("Looking for a node type %q that do not exists in deployment %q.", nodeType, deploymentId)
-	}
-
-	kvp, _, err := kv.Get(nodeTypePath+"/derived_from", nil)
-	if err != nil {
-		return false, err
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		// This is a root type
-		return false, nil
-	}
-	if string(kvp.Value) == derives {
-		// Found it
-		return true, nil
-	}
-	return IsNodeTypeDerivedFrom(kv, deploymentId, string(kvp.Value), derives)
-}
-
 // IsNodeDerivedFrom check if the node's type is derived from another type.
 //
 // Basically this function is a shorthand for GetNodeType and IsNodeTypeDerivedFrom.
