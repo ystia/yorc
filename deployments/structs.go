@@ -35,3 +35,9 @@ type Logs struct {
 	Timestamp string `json:"timestamp"`
 	Logs      string `json:"logs"`
 }
+
+type InputsPropertyDef struct {
+	NodeName string 	 `json:"node"`
+	CustomCommandName string `json:"name"`
+	Inputs map[string]string `json:"inputs"`
+}

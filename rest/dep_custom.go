@@ -11,6 +11,8 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"path"
 	"strconv"
+	"encoding/json"
+	"io/ioutil"
 )
 
 func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,19 +22,17 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	id := params.ByName("id")
 	ctx, errGrp, consulStore := consulutil.WithContext(ctx)
 
-	v, err := jason.NewObjectFromReader(r.Body)
-
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	node, err := v.GetString("node")
-	customCommandName, err := v.GetString("name")
-	if err != nil {
+	var inputMap deployments.InputsPropertyDef
+	if err := json.Unmarshal(body, &inputMap);err != nil {
 		log.Panic(err)
 	}
 
-	inputsName, err := s.getInputNameFromCustom(id, node, customCommandName)
+	inputsName, err := s.getInputNameFromCustom(id, inputMap.NodeName, inputMap.CustomCommandName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -46,13 +46,8 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "node"), []byte(node))
-	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "name"), []byte(customCommandName))
-
-	inputsArg, err := v.GetValueArray("inputs")
-	if err != nil {
-		log.Panic(err)
-	}
+	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "node"), []byte(inputMap.NodeName))
+	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "name"), []byte(inputMap.CustomCommandName))
 
 	for i, name := range inputsName {
 
@@ -60,7 +55,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 			log.Panic(err)
 		}
 
-		consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "inputs", name), []byte((inputsArg[i]).Interface().(string)))
+		consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "inputs", name), []byte((inputMap.Inputs[name])))
 	}
 
 	if errGrp.Wait() != nil {
