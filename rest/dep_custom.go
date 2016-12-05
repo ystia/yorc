@@ -48,7 +48,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "node"), []byte(inputMap.NodeName))
 	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "name"), []byte(inputMap.CustomCommandName))
 
-	for i, name := range inputsName {
+	for _, name := range inputsName {
 
 		if err != nil {
 			log.Panic(err)
