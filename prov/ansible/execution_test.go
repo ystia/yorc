@@ -6,10 +6,9 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"testing"
 	"text/template"
-
-	"strconv"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
@@ -29,13 +28,17 @@ func TestAnsibleParallel(t *testing.T) {
 
 func templatesTest(t *testing.T) {
 	t.Parallel()
-	e := &execution{
+	ec := &executionCommon{
 		NodeName:            "Welcome",
 		Operation:           "tosca.interfaces.node.lifecycle.standard.start",
 		Artifacts:           map[string]string{"scripts": "my_scripts"},
 		OverlayPath:         "/some/local/path",
 		VarInputsNames:      []string{"INSTANCE", "PORT"},
 		OperationRemotePath: ".janus/path/on/remote",
+	}
+
+	e := &executionScript{
+		executionCommon: ec,
 	}
 
 	funcMap := template.FuncMap{
@@ -46,7 +49,7 @@ func templatesTest(t *testing.T) {
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err := tmpl.Parse(ansible_playbook)
+	tmpl, err := tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(os.Stdout, e)
 	t.Log(err)
@@ -72,6 +75,7 @@ func testExecution_OnNode(t *testing.T) {
 	operation := "tosca.interfaces.node.lifecycle.standard.create"
 
 	srv1.PopulateKV(map[string][]byte{
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "name"):                                                   []byte(nodeTypeName),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):              []byte("A1"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):        []byte("get_property: [SELF, document_root]"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/name"):              []byte("A3"),
@@ -113,7 +117,7 @@ func testExecution_OnNode(t *testing.T) {
 }
 
 func testExecution_ResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentId, nodeName, nodeTypeName, operation string) {
-	execution := &execution{kv: kv,
+	execution := &executionCommon{kv: kv,
 		DeploymentId:            deploymentId,
 		NodeName:                nodeName,
 		Operation:               operation,
@@ -225,7 +229,8 @@ func testExecution_GenerateOnNode(t *testing.T, kv *api.KV, deploymentId, nodeNa
 	execution, err := newExecution(kv, deploymentId, nodeName, operation)
 	require.Nil(t, err)
 
-	execution.OperationRemotePath = "tmp"
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -234,7 +239,7 @@ func testExecution_GenerateOnNode(t *testing.T, kv *api.KV, deploymentId, nodeNa
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)
@@ -267,6 +272,8 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 	}
 
 	srv1.PopulateKV(map[string][]byte{
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.A/name"):                                                                             []byte("janus.types.A"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "name"):                                                                  []byte(relationshipTypeName),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):              []byte("A1"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/expression"):        []byte("get_property: [SOURCE, document_root]"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/name"):              []byte("A2"),
@@ -328,7 +335,7 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 
 func testExecution_ResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName string) {
 
-	execution := &execution{kv: kv,
+	execution := &executionCommon{kv: kv,
 		DeploymentId:            deploymentId,
 		NodeName:                nodeAName,
 		Operation:               operation,
@@ -415,7 +422,8 @@ func testExecution_GenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploy
 	execution, err := newExecution(kv, deploymentId, nodeName, operation)
 	require.Nil(t, err)
 
-	execution.OperationRemotePath = "tmp"
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -424,7 +432,7 @@ func testExecution_GenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploy
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)
@@ -457,6 +465,8 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 	}
 
 	srv1.PopulateKV(map[string][]byte{
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.A/name"):                                                                   []byte("janus.types.A"),
+		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "name"):                                                        []byte(relationshipTypeName),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):              []byte("A1"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/expression"):        []byte("get_property: [SOURCE, document_root]"),
 		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/name"):              []byte("A2"),
@@ -517,7 +527,7 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 	}
 }
 func testExecution_ResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName string) {
-	execution := &execution{kv: kv,
+	execution := &executionCommon{kv: kv,
 		DeploymentId:             deploymentId,
 		NodeName:                 nodeAName,
 		Operation:                operation,
@@ -605,7 +615,8 @@ func testExecution_GenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploy
 `
 	require.Nil(t, err)
 
-	execution.OperationRemotePath = "tmp"
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -614,7 +625,7 @@ func testExecution_GenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploy
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)

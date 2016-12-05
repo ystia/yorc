@@ -19,7 +19,7 @@ topology_template:
         flavor: 2
         availability_zone: nova
         region: RegionOne
-        key_pair: cloudify
+        key_pair: janus
         user: "ubuntu"
       requirements:
         - network:
@@ -44,7 +44,7 @@ topology_template:
         flavor: 2
         availability_zone: nova
         region: RegionOne
-        key_pair: cloudify
+        key_pair: janus
         user: "ubuntu"
       capabilities:
         endpoint:
@@ -78,7 +78,7 @@ topology_template:
         flavorName: blablabla52528
         availability_zone: nova
         region: RegionOne
-        key_pair: cloudify
+        key_pair: janus
         user: "ubuntu"
       capabilities:
         endpoint:
