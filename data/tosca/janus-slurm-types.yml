@@ -20,3 +20,18 @@ node_types:
       gpuType:
         type: string
         required: false
+  janus.nodes.slurm.Job:
+    derived_from: tosca.nodes.Compute
+    properties:
+      scriptPath:
+        type: string
+        required: true
+      imgPath:
+        type: string
+        required: true
+      nbNode:
+        type: string
+        required: false
+      nodesName:
+        type: string
+        required: false

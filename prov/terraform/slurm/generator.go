@@ -69,9 +69,9 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		"slurm": map[string]interface{}{
 			"username": "root",
 			"password": "root",
-			"name": "name",
-			"url": "localhost",
-			"port": "9000"}} // TODO : hardcoded variable
+			"name":     "name",
+			"url":      "172.17.0.1",
+			"port":     "22"}} // TODO : hardcoded variable
 
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
@@ -88,6 +88,9 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		if err != nil {
 			return false, err
 		}
+		log.Debugf("-----------------------")
+		log.Debugf("%+v\n", instances)
+		log.Debugf("-----------------------")
 
 		for _, instanceName := range instances {
 			instanceName = path.Base(instanceName)
@@ -111,6 +114,24 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKey2, consulKeyAttrib, consulKeyJobId}}
 			addResource(&infrastructure, "consul_keys", computeName, &consulKeys)
 
+		} //End instances loop
+
+	case "janus.nodes.slurm.Job":
+		instances, _, err := g.kv.Keys(instancesKey+"/", "/", nil)
+		if err != nil {
+			return false, err
+		}
+		for _, instanceName := range instances {
+			instanceName = path.Base(instanceName)
+			job, err := g.generateSlurmJob(nodeKey, depId)
+			var jobName = nodeName + "-" + instanceName
+			log.Debugf("XBD JobName : IN FOR  %s", jobName)
+			log.Debugf("XBD instanceName: IN FOR  %s", instanceName)
+			if err != nil {
+				return false, err
+			}
+
+			addResource(&infrastructure, "slurm_job", jobName, &job)
 		} //End instances loop
 
 	default:
