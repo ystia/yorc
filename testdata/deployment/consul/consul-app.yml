@@ -30,12 +30,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
+        key_pair: janus
         # Liberty
         image: 1234b814-ec38-4c1a-948a-3435e13aae99
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: r423-02.share.ops
-        key_pair: janus
       requirements:
         - network:
             node: Network
@@ -49,9 +49,9 @@ topology_template:
             network_name: PRIVATE
         scalable:
           properties:
-            max_instances: 1
+            max_instances: 5
             min_instances: 1
-            default_instances: 1
+            default_instances: 2
     Network:
       type: janus.nodes.openstack.FloatingIP
       properties:
@@ -75,12 +75,12 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
+        key_pair: janus
         # Liberty
         image: 1234b814-ec38-4c1a-948a-3435e13aae99
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: r423-02.share.ops
-        key_pair: janus
       requirements:
         - network:
             node: Net
@@ -94,9 +94,9 @@ topology_template:
             network_name: PRIVATE
         scalable:
           properties:
-            max_instances: 1
+            max_instances: 5
             min_instances: 1
-            default_instances: 1
+            default_instances: 3
     Net:
       type: janus.nodes.openstack.FloatingIP
       properties:

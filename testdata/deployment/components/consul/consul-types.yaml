@@ -36,6 +36,8 @@ node_types:
         default: 0.5.2
         constraints:
           - equal: 0.5.2
+    attributes:
+      consul_mode: { get_operation_output: [ SELF, Standard, Configure, CONSUL_MODE ] } 
     capabilities:
       agent:
         type: starlings.capabilities.ConsulAgent
@@ -55,26 +57,28 @@ node_types:
     interfaces:
       Standard:
         create:
+          description: Consul installation step
           inputs:
             INSTALL_DNSMASQ: { get_property: [SELF, install_dnsmasq] }
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
             IP_ADDRESS: { get_attribute: [HOST, private_address] }
-          implementation: scripts/consul_install.sh
+          implementation: ansible/consul_install.yaml
         configure:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
             DATACENTER: { get_property: [SELF, datacenter] }
             IP_ADDRESS: { get_attribute: [HOST, private_address] }
             WAN_ADDRESS: { get_attribute: [HOST, public_address] }
-          implementation: scripts/consul_configure.sh
+          implementation: ansible/consul_configure.yaml
         start:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
-          implementation: scripts/consul_start.sh
+            CONSUL_MODE: { get_attribute: [ SELF, consul_mode ] }
+          implementation: ansible/consul_start.yml
         stop:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
-          implementation: scripts/consul_stop.sh
+          implementation: ansible/consul_stop.yaml
     artifacts:
       - scripts: scripts
         type: tosca.artifacts.File
@@ -101,7 +105,7 @@ relationship_types:
           inputs:
             SERVER_IP: { get_attribute: [TARGET, private_address] }
             INSTALL_DIR: { get_property: [SOURCE, installation_directory] }
-          implementation: scripts/consul_connects_agent_to_server.sh
+          implementation: ansible/consul_connects_agent_to_server.yml
     artifacts:
       - scripts: scripts
         type: tosca.artifacts.File
@@ -118,7 +122,7 @@ relationship_types:
           inputs:
             SERVER_WAN_IP: { get_attribute: [TARGET, public_address] }
             INSTALL_DIR: { get_property: [SOURCE, installation_directory] }
-          implementation: scripts/consul_connects_servers_wan.sh
+          implementation: ansible/consul_connects_servers_wan.yaml
     artifacts:
       scripts:
         file: scripts

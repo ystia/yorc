@@ -14,7 +14,7 @@ topology_template:
       properties:
         user: ubuntu
         flavor: 2
-        key_pair: cloudify
+        key_pair: janus
         image: b3a66fe8-473f-43ce-9979-1dc0a5f01dda
         availability_zone: nova
       requirements:
