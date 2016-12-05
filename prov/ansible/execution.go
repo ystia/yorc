@@ -114,15 +114,15 @@ type executionCommon struct {
 	ansibleRunner            ansibleRunner
 }
 
-func newExecution(kv *api.KV, deploymentId, nodeName, operation string, taskId ...string) (*execution, error) {
-	execution := &execution{kv: kv,
+func newExecution(kv *api.KV, deploymentId, nodeName, operation string, taskId ...string) (execution, error) {
+	execCommon := &executionCommon{kv: kv,
 		DeploymentId:   deploymentId,
 		NodeName:       nodeName,
 		Operation:      operation,
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*EnvInput, 0)}
 	if len(taskId) != 0 {
-		execution.TaskId = taskId[0]
+		execCommon.TaskId = taskId[0]
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -145,13 +145,13 @@ func newExecution(kv *api.KV, deploymentId, nodeName, operation string, taskId .
 }
 
 func (e *executionCommon) resolveOperation() error {
-	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
+	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
 	var err error
 	e.NodeType, err = deployments.GetNodeType(e.kv, e.DeploymentId, e.NodeName)
 	if err != nil {
 		return err
 	}
-	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
 
 	if strings.Contains(e.Operation, "standard") {
 		e.isRelationshipOperation = false
@@ -167,7 +167,7 @@ func (e *executionCommon) resolveOperation() error {
 			e.Operation = opAndReq[0]
 			e.requirementIndex = opAndReq[1]
 
-			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
+			reqPath := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
 			kvPair, _, err := e.kv.Get(path.Join(reqPath, "relationship"), nil)
 			if err != nil {
 				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
@@ -412,7 +412,7 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 			}
 
 			hostConn := hostConnection{host: string(kvp.Value)}
-			kvp, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
+			kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
 			if err != nil {
 				return err
 			}
@@ -596,7 +596,7 @@ func (e *executionCommon) resolveExecution() error {
 		return err
 	}
 	e.OverlayPath = ovPath
-	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
+	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
 	kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
 	if err != nil {
 		return err
@@ -606,7 +606,7 @@ func (e *executionCommon) resolveExecution() error {
 	}
 
 	e.NodeType = string(kvPair.Value)
-	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
 	if strings.Contains(e.Operation, "standard") {
 		e.isRelationshipOperation = false
 	} else {
@@ -621,7 +621,7 @@ func (e *executionCommon) resolveExecution() error {
 			e.Operation = opAndReq[0]
 			e.requirementIndex = opAndReq[1]
 
-			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
+			reqPath := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
 			kvPair, _, err = e.kv.Get(path.Join(reqPath, "relationship"), nil)
 			if err != nil {
 				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
@@ -675,7 +675,7 @@ func (e *executionCommon) resolveExecution() error {
 			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
 			op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
 		}
-		e.OperationPath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
+		e.OperationPath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
 	} else {
 		var op string
 		if idx := strings.Index(e.Operation, "standard."); idx >= 0 {
@@ -896,7 +896,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				return err
 			}
 			for _, line := range records {
-				if err = consulutil.StoreConsulKeyAsString(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", e.NodeName, instanceID, e.Output[line[0]]), line[1]); err != nil {
+				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/instances", e.NodeName, instanceID, e.Output[line[0]]), line[1]); err != nil {
 					return err
 				}
 

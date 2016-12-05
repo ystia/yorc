@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
 // IsNodeTypeDerivedFrom traverses 'derived_from' to check if type derives from another type
@@ -23,7 +24,7 @@ func IsNodeTypeDerivedFrom(kv *api.KV, deploymentID, nodeType, derives string) (
 //
 // In case of a root type an empty string is returned.
 func GetParentNodeType(kv *api.KV, deploymentID, nodeType string) (string, error) {
-	nodeTypePath := path.Join(DeploymentKVPrefix, deploymentID, "topology", "types", nodeType)
+	nodeTypePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType)
 	// Check if node type exist
 	if kvp, _, err := kv.Get(nodeTypePath+"/name", nil); err != nil {
 		return "", errors.Wrapf(err, "Failed to get parent type for node type %q", nodeType)
