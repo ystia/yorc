@@ -85,7 +85,7 @@ func janusOpenstackTypesYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "janus-openstack-types.yml", size: 3716, mode: os.FileMode(436), modTime: time.Unix(1479997658, 0)}
+	info := bindataFileInfo{name: "janus-openstack-types.yml", size: 3716, mode: os.FileMode(436), modTime: time.Unix(1480930863, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -105,7 +105,7 @@ func janusSlurmTypesYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "janus-slurm-types.yml", size: 458, mode: os.FileMode(436), modTime: time.Unix(1479998105, 0)}
+	info := bindataFileInfo{name: "janus-slurm-types.yml", size: 458, mode: os.FileMode(436), modTime: time.Unix(1480930863, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
