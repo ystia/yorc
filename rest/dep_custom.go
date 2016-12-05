@@ -2,7 +2,6 @@ package rest
 
 import (
 	"fmt"
-	"github.com/antonholmquist/jason"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
