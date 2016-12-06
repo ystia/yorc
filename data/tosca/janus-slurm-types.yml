@@ -35,3 +35,6 @@ node_types:
       nodesName:
         type: string
         required: false
+      nbMpiProcess:
+        type: string
+        required: false

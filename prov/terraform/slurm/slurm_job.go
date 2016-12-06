@@ -42,5 +42,11 @@ func (g *Generator) generateSlurmJob(url, deploymentId string) (Job, error) {
 		instance.NodesName = nodesName
 	}
 
+	if nbMpiProcess, err := g.getStringFormConsul(url, "properties/nbMpiProcess"); err != nil {
+		return Job{}, fmt.Errorf("Missing mandatory parameter 'nbMpiProcess' for %s", url)
+	} else {
+		instance.NbMpiProcess = nbMpiProcess
+	}
+
 	return instance, nil
 }

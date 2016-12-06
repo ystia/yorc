@@ -5,8 +5,9 @@ type ComputeInstance struct {
 }
 
 type Job struct {
-	ScriptPath string `json:"scriptPath,omitempty"`
-	ImgPath string `json:"imgPath,omitempty"`
-	NbNode string `json:"nbNode,omitempty"`
-	NodesName string `json:"nodesName,omitempty"`
+	ScriptPath   string `json:"scriptPath,omitempty"`
+	ImgPath      string `json:"imgPath,omitempty"`
+	NbNode       string `json:"nbNode,omitempty"`
+	NodesName    string `json:"nodesName,omitempty"`
+	NbMpiProcess string `json:"nbMpiProcess,omitempty"`
 }
