@@ -155,6 +155,8 @@ func (e *executionCommon) resolveOperation() error {
 
 	if strings.Contains(e.Operation, "standard") {
 		e.isRelationshipOperation = false
+	} else if strings.Contains(e.Operation, "custom") {
+		e.isCustomCommand = true
 	} else {
 		// In a relationship
 		e.isRelationshipOperation = true
