@@ -57,7 +57,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "inputs", name), []byte((inputMap.Inputs[name])))
 	}
 
-	if errGrp.Wait() != nil {
+	if err := errGrp.Wait(); err != nil {
 		log.Panic(err)
 	}
 
