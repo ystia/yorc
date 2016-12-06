@@ -37,7 +37,7 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 	}
 
 	// Not found here check the type hierarchy
-	parentType, err := GetParentNodeType(kv, deploymentID, nodeType)
+	parentType, err := GetParentType(kv, deploymentID, nodeType)
 	if err != nil || parentType == "" {
 		return "", "", err
 	}

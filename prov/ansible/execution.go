@@ -242,37 +242,35 @@ func (e *executionCommon) resolveOperation() error {
 
 func (e *executionCommon) resolveArtifacts() error {
 	log.Debugf("Resolving artifacts")
-	artifacts := make(map[string]string)
-	// First resolve node type artifacts then node template artifact if the is a conflict then node template will have the precedence
-	// TODO deal with type inheritance
-	// TODO deal with relationships
-	paths := []string{path.Join(e.NodePath, "artifacts"), path.Join(e.NodeTypePath, "artifacts")}
-	for _, apath := range paths {
-		artsPaths, _, err := e.kv.Keys(apath+"/", "/", nil)
+	var err error
+	if e.isRelationshipOperation {
+		// First get linked node artifacts
+		if e.isRelationshipTargetNode {
+			e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.DeploymentId, e.relationshipTargetName)
+			if err != nil {
+				return err
+			}
+		} else {
+			e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.DeploymentId, e.NodeName)
+			if err != nil {
+				return err
+			}
+		}
+		// Then get relationship type artifacts
+		var arts map[string]string
+		arts, err = deployments.GetArtifactsForType(e.kv, e.DeploymentId, e.relationshipType)
 		if err != nil {
 			return err
 		}
-		for _, artPath := range artsPaths {
-			kvp, _, err := e.kv.Get(path.Join(artPath, "name"), nil)
-			if err != nil {
-				return err
-			}
-			if kvp == nil {
-				return fmt.Errorf("Missing mandatory key in consul %q", path.Join(artPath, "name"))
-			}
-			artName := string(kvp.Value)
-			kvp, _, err = e.kv.Get(path.Join(artPath, "file"), nil)
-			if err != nil {
-				return err
-			}
-			if kvp == nil {
-				return fmt.Errorf("Missing mandatory key in consul %q", path.Join(artPath, "file"))
-			}
-			artifacts[artName] = string(kvp.Value)
+		for artName, art := range arts {
+			e.Artifacts[artName] = art
+		}
+	} else {
+		e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.DeploymentId, e.NodeName)
+		if err != nil {
+			return err
 		}
 	}
-
-	e.Artifacts = artifacts
 	log.Debugf("Resolved artifacts: %v", e.Artifacts)
 	return nil
 }
