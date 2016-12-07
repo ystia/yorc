@@ -53,6 +53,7 @@ type Server struct {
 	listener       net.Listener
 	consulClient   *api.Client
 	tasksCollector *tasks.Collector
+	config         config.Configuration
 }
 
 func (s *Server) Shutdown() {
@@ -79,6 +80,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		listener:       listener,
 		consulClient:   client,
 		tasksCollector: tasks.NewCollector(client),
+		config:         configuration,
 	}
 
 	httpServer.registerHandlers()
@@ -105,6 +107,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskHandler))
 	s.router.Delete("/deployments/:id/tasks/:taskId", commonHandlers.ThenFunc(s.cancelTaskHandler))
 	s.router.Post("/deployments/:id/tasks", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newTaskHandler))
+	s.router.Post("/deployments/:id/scaleup", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.scaleUpHandler))
 }
 
 func encodeJsonResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {

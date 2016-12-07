@@ -135,8 +135,8 @@ func TestDeploymentNodes(t *testing.T) {
 		t.Run("IsNodeTypeDerivedFrom", func(t *testing.T) {
 			testIsNodeTypeDerivedFrom(t, kv)
 		})
-		t.Run("GetNbInstancesForNode", func(t *testing.T) {
-			testGetNbInstancesForNode(t, kv)
+		t.Run("GetDefaultNbInstancesForNode", func(t *testing.T) {
+			testGetDefaultNbInstancesForNode(t, kv)
 		})
 		t.Run("GetNodeProperty", func(t *testing.T) {
 			testGetNodeProperty(t, kv)
@@ -163,33 +163,33 @@ func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
 	require.True(t, ok)
 }
 
-func testGetNbInstancesForNode(t *testing.T, kv *api.KV) {
+func testGetDefaultNbInstancesForNode(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	res, nb, err := GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	res, nb, err := GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	require.NotNil(t, err)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
 	require.True(t, res)
 	require.Equal(t, uint32(1), nb)

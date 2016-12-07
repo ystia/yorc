@@ -517,7 +517,7 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 	depPath := path.Join(DeploymentKVPrefix, deploymentID)
 	nodesPath := path.Join(depPath, "topology", "nodes")
 	instancesPath := path.Join(depPath, "topology", "instances")
-	scalable, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
+	scalable, nbInstances, err := GetDefaultNbInstancesForNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
