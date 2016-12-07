@@ -6,6 +6,7 @@ import (
 	"github.com/satori/go.uuid"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"path"
 	"strconv"
 	"time"
 )
@@ -27,7 +28,7 @@ func (c *Collector) RegisterTask(targetId string, taskType TaskType) (string, er
 	return taskId, nil
 }
 
-func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) {	// First check if other tasks are running for this target before creating a new one
+func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
 	taskLock, err := NewTaskLockForTarget(c.consulClient, targetId)
 	_, err = taskLock.Lock(10, 500*time.Millisecond)
 	if err != nil {
@@ -76,8 +77,8 @@ func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType Tas
 	}
 
 	if data != nil {
-		for key, val := range data {
-			key = &api.KVPair{Key: taskPrefix + key, Value: []byte(val)}
+		for keyM, valM := range data {
+			key = &api.KVPair{Key: path.Join(taskPrefix, keyM), Value: []byte(valM)}
 			if _, err := kv.Put(key, nil); err != nil {
 				log.Print(err)
 				return nil, nil, taskId, err

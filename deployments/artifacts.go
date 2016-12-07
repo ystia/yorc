@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
 // GetArtifactsForType returns a map of artifact name / artifact file for the given type.
@@ -24,7 +25,7 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 	} else {
 		artifacts = make(map[string]string)
 	}
-	artifactsPath := path.Join(DeploymentKVPrefix, deploymentID, "topology/types", typeName, "artifacts")
+	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, "artifacts")
 
 	err = updateArtifactsFromPath(kv, artifacts, artifactsPath)
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for type: %q", typeName)
@@ -43,7 +44,7 @@ func GetArtifactsForNode(kv *api.KV, deploymentID, nodeName string) (map[string]
 	if err != nil {
 		return nil, err
 	}
-	artifactsPath := path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "artifacts")
+	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "artifacts")
 
 	err = updateArtifactsFromPath(kv, artifacts, artifactsPath)
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for node: %q", nodeName)

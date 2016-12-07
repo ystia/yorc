@@ -37,14 +37,14 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 
 	data := make(map[string]string)
 
-	data["/node"] = inputMap.NodeName
-	data["/name"] = inputMap.CustomCommandName
+	data["node"] = inputMap.NodeName
+	data["name"] = inputMap.CustomCommandName
 
 	for _, name := range inputsName {
 		if err != nil {
 			log.Panic(err)
 		}
-		data[path.Join("/inputs", name)] = inputMap.Inputs[name]
+		data[path.Join("inputs", name)] = inputMap.Inputs[name]
 	}
 
 	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.CustomCommand, data)
@@ -55,7 +55,6 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		}
 		log.Panic(err)
 	}
-
 
 	destroy(lock, taskId, id)
 
