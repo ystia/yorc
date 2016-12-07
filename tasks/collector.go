@@ -19,7 +19,7 @@ func NewCollector(consulClient *api.Client) *Collector {
 }
 
 func (c *Collector) RegisterTask(targetId string, taskType TaskType) (string, error) {
-	destroy, lock, taskId, err := c.RegisterTaskWithoutDestroyLock(targetId, taskType)
+	destroy, lock, taskId, err := c.RegisterTaskWithoutDestroyLock(targetId, taskType, nil)
 	defer destroy(lock, taskId, targetId)
 	if err != nil {
 		return "", err
@@ -27,8 +27,7 @@ func (c *Collector) RegisterTask(targetId string, taskType TaskType) (string, er
 	return taskId, nil
 }
 
-func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType TaskType) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) {
-	// First check if other tasks are running for this target before creating a new one
+func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) {	// First check if other tasks are running for this target before creating a new one
 	taskLock, err := NewTaskLockForTarget(c.consulClient, targetId)
 	_, err = taskLock.Lock(10, 500*time.Millisecond)
 	if err != nil {
@@ -74,6 +73,16 @@ func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType Tas
 	if _, err := kv.Put(key, nil); err != nil {
 		log.Print(err)
 		return nil, nil, taskId, err
+	}
+
+	if data != nil {
+		for key, val := range data {
+			key = &api.KVPair{Key: taskPrefix + key, Value: []byte(val)}
+			if _, err := kv.Put(key, nil); err != nil {
+				log.Print(err)
+				return nil, nil, taskId, err
+			}
+		}
 	}
 
 	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {

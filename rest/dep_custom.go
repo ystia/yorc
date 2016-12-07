@@ -19,7 +19,6 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	ctx, errGrp, consulStore := consulutil.WithContext(ctx)
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -36,7 +35,19 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.CustomCommand)
+	data := make(map[string]string)
+
+	data["/node"] = inputMap.NodeName
+	data["/name"] = inputMap.CustomCommandName
+
+	for _, name := range inputsName {
+		if err != nil {
+			log.Panic(err)
+		}
+		data[path.Join("/inputs", name)] = inputMap.Inputs[name]
+	}
+
+	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.CustomCommand, data)
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
 			WriteError(w, r, NewBadRequestError(err))
@@ -45,21 +56,6 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "node"), []byte(inputMap.NodeName))
-	consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "name"), []byte(inputMap.CustomCommandName))
-
-	for _, name := range inputsName {
-
-		if err != nil {
-			log.Panic(err)
-		}
-
-		consulStore.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskId, "inputs", name), []byte((inputMap.Inputs[name])))
-	}
-
-	if err := errGrp.Wait(); err != nil {
-		log.Panic(err)
-	}
 
 	destroy(lock, taskId, id)
 
