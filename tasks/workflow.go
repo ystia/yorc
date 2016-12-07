@@ -299,3 +299,40 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 
 	return steps, nil
 }
+
+
+// Creates a workflow tree from values stored in Consul at the given prefix.
+// It returns roots (starting) Steps.
+func ReadNodeWorkFlowFromConsul(kv *api.KV, wfPrefix, nodeName string) ([]*Step, error) {
+	stepsPrefix := wfPrefix + "/steps/"
+	stepsPrefixes, _, err := kv.Keys(stepsPrefix, "/", nil)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	steps := make([]*Step, 0)
+	visitedMap := make(map[string]*visitStep, len(stepsPrefixes))
+	for _, stepPrefix := range stepsPrefixes {
+		stepName := path.Base(stepPrefix)
+		if visitStep, ok := visitedMap[stepName]; !ok {
+			nodeN, _, err := kv.Get(stepPrefix+"/node",nil)
+			if err != nil {
+				return nil,err
+			}
+
+			if !(string(nodeN.Value) == nodeName) {
+				continue
+			}
+
+			step, err := readStep(kv, stepsPrefix, stepName, visitedMap)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, step)
+		} else {
+			steps = append(steps, visitStep.step)
+		}
+	}
+
+	return steps, nil
+}
