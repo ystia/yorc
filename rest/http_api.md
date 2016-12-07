@@ -64,7 +64,7 @@ This endpoint produces no content except in case of error.
 
 Actually, this endpoint implicitly call a [submit new undeploy task](#submit-new-task).
 
-### Get the deployment information
+### Get the deployment information
 
 Retrieve the deployment status and the list (as Atom links) of the nodes and tasks related the deployment.
 
@@ -113,7 +113,7 @@ Content-Type: application/json
 }
 ```
 
-### Get the deployment information about a given node
+### Get the deployment information about a given node
 
 Retrieve the node status and the list (as Atom links) of the instances for this node.
  
@@ -151,6 +151,114 @@ Content-Type: application/json
 }
 ```
 
+
+### Get the deployment information about a given node instance
+
+Retrieve the node instance status and the list (as Atom links) of the attributes for this instance.
+ 
+'Accept' header should be set to 'application/json'.
+
+`GET    /deployments/<deployment_id>/nodes/<node_name>/instances/<instance_name>`
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "id": "0",
+  "status": "started",
+  "links": [
+    {
+      "rel": "self",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB/instances/0",
+      "type": "application/json"
+    },
+    {
+      "rel": "node",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB",
+      "type": "application/json"
+    },
+    {
+      "rel": "attribute",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB/instances/0/attributes/ip_address",
+      "type": "application/json"
+    },
+    {
+      "rel": "attribute",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB/instances/0/attributes/private_address",
+      "type": "application/json"
+    },
+    {
+      "rel": "attribute",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB/instances/0/attributes/public_address",
+      "type": "application/json"
+    }
+  ]
+}
+```
+
+
+### Get the attributes list of a given node instance
+
+Retrieve the list (as Atom links) of the attributes for this instance.
+ 
+'Accept' header should be set to 'application/json'.
+
+`GET    /deployments/<deployment_id>/nodes/<node_name>/instances/<instance_name>/attributes`
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "attributes": [
+    {
+      "rel": "attribute",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB/instances/0/attributes/private_address",
+      "type": "application/json"
+    },
+    {
+      "rel": "attribute",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB/instances/0/attributes/public_address",
+      "type": "application/json"
+    },
+    {
+      "rel": "attribute",
+      "href": "/deployments/6f22a3ef-3ae3-4958-923e-621ab1541677/nodes/ComputeB/instances/0/attributes/ip_address",
+      "type": "application/json"
+    }
+  ]
+}
+
+```
+
+
+### Get the value of an attribute for a given node instance
+
+Retrieve the value an attributes for this instance.
+ 
+'Accept' header should be set to 'application/json'.
+
+`GET    /deployments/<deployment_id>/nodes/<node_name>/instances/<instance_name>/attributes/<attribute_name>`
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "name": "ip_address",
+  "value": "10.0.0.142"
+}
+```
 
 ### List deployment events
 
@@ -208,7 +316,7 @@ HTTP/1.1 200 OK
 X-Janus-Index: 1812
 ```
 
-### Get logs of a deployment
+### Get logs of a deployment
 
 Retrieve a list of logs. 'Accept' header should be set to 'application/json'.
 This endpoint supports long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
@@ -261,7 +369,7 @@ HTTP/1.1 200 OK
 X-Janus-Index: 1812
 ```
 
-### Get an output
+### Get an output
 
 Retrieve a specific output. While the deployment status is DEPLOYMENT_IN_PROGRESS an output may be unresolvable in this case an empty string
 is returned. With other deployment statuses an unresolvable output leads to an Internal Server Error. 
@@ -302,7 +410,7 @@ Content-Type: application/json
 }
 ```
 
-### Get task information
+### Get task information
 
 Retrieve information about a task for a given deployment.
 'Accept' header should be set to 'application/json'.
@@ -324,7 +432,7 @@ Content-Type: application/json
 ```
 
 
-### Cancel a task
+### Cancel a task
 
 Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be canceled otherwise an HTTP 400 
 (Bad request) error is returned. 
@@ -337,7 +445,7 @@ HTTP/1.1 202 OK
 Content-Length: 0
 ```
 
-### Submit a new task <a name="submit-new-task"></a>
+### Submit a new task <a name="submit-new-task"></a>
 
 Submit a new task for a given deployment.  
 'Content-Type' header should be set to 'application/json'.

@@ -26,8 +26,8 @@ ifndef SKIP_TESTS
 endif
 
 
-cover: build
-	go list ./... | xargs -n1 go test --cover
+cover: 
+	@go test $(PACKAGES) -p 1 --cover $(COVERARGS)  
 
 format:
 	@echo "--> Running go fmt"
