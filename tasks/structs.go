@@ -7,15 +7,13 @@ import (
 
 //go:generate stringer -type=TaskStatus,TaskType -output=structs_string.go structs.go
 
-const tasksPrefix = "_janus/tasks"
-const tasksLocksPrefix = "_janus/tasks-locks"
-
 type TaskType int
 
 const (
 	Deploy TaskType = iota
 	UnDeploy
 	Purge
+	CustomCommand
 )
 
 func TaskTypeForName(taskType string) (TaskType, error) {
@@ -26,6 +24,8 @@ func TaskTypeForName(taskType string) (TaskType, error) {
 		return UnDeploy, nil
 	case "purge":
 		return Purge, nil
+	case "custom":
+		return CustomCommand, nil
 	default:
 		return Deploy, fmt.Errorf("Unsupported task type %q", taskType)
 	}

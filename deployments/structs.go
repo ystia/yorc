@@ -17,8 +17,6 @@ const (
 	endOfDepStatusConst // Do not remove this line and define new const before it. It is used to get const value from string
 )
 
-const DeploymentKVPrefix string = "_janus/deployments"
-
 const INFRA_LOG_PREFIX = "infrastructure"
 const SOFTWARE_LOG_PREFIX = "software"
 const ENGINE_LOG_PREFIX = "engine"
@@ -36,4 +34,10 @@ type Status struct {
 type Logs struct {
 	Timestamp string `json:"timestamp"`
 	Logs      string `json:"logs"`
+}
+
+type InputsPropertyDef struct {
+	NodeName          string            `json:"node"`
+	CustomCommandName string            `json:"name"`
+	Inputs            map[string]string `json:"inputs"`
 }

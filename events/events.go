@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
 	"strconv"
@@ -36,8 +37,8 @@ func NewSubscriber(kv *api.KV, deploymentId string) Subscriber {
 
 func (cp *consulPubSub) StatusChange(nodeName, status string) (string, error) {
 	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
-	eventsNodePrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", nodeName)
+	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentId, "events", "global")
+	eventsNodePrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentId, "events", nodeName)
 	eventEntry := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(nodeName + "\n" + status)}
 	eventNodeEntry := &api.KVPair{Key: path.Join(eventsNodePrefix, "status"), Value: []byte(status)}
 	if _, err := cp.kv.Put(eventEntry, nil); err != nil {
@@ -52,7 +53,7 @@ func (cp *consulPubSub) StatusChange(nodeName, status string) (string, error) {
 
 func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]deployments.Event, uint64, error) {
 
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "events", "global")
+	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentId, "events", "global")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	events := make([]deployments.Event, 0)
 
@@ -81,7 +82,7 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 
 func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]deployments.Logs, uint64, error) {
 
-	eventsPrefix := path.Join(deployments.DeploymentKVPrefix, cp.deploymentId, "logs")
+	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentId, "logs")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	logs := make([]deployments.Logs, 0)
 	if err != nil || qm == nil {
@@ -104,7 +105,7 @@ func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time
 }
 
 func GetEventsIndex(kv *api.KV, deploymentId string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "events", "global"), nil)
+	_, qm, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "events", "global"), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -115,7 +116,7 @@ func GetEventsIndex(kv *api.KV, deploymentId string) (uint64, error) {
 }
 
 func GetLogsEventsIndex(kv *api.KV, deploymentId string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "logs"), nil)
+	_, qm, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "logs"), nil)
 	if err != nil {
 		return 0, err
 	}

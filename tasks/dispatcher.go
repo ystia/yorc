@@ -3,6 +3,7 @@ package tasks
 import (
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"
@@ -45,7 +46,7 @@ func (d *Dispatcher) Run() {
 		}
 		q := &api.QueryOptions{WaitIndex: waitIndex}
 		log.Debugf("Long pooling task list")
-		tasksKeys, rMeta, err := kv.Keys(tasksPrefix+"/", "/", q)
+		tasksKeys, rMeta, err := kv.Keys(consulutil.TasksPrefix+"/", "/", q)
 		if err != nil {
 			log.Printf("Error getting tasks list: %+v", err)
 			continue
