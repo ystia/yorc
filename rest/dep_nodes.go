@@ -8,6 +8,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -21,7 +22,7 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	kv := s.consulClient.KV()
 
-	kvp, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/nodes", nodeName, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/nodes", nodeName, "status"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -50,7 +51,7 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 	nodeName := params.ByName("nodeName")
 	instanceId := params.ByName("instanceId")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -79,7 +80,7 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 	nodeName := params.ByName("nodeName")
 	instanceId := params.ByName("instanceId")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -105,7 +106,7 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 	instanceId := params.ByName("instanceId")
 	attributeName := params.ByName("attributeName")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
 	if err != nil {
 		log.Panic(err)
 	}

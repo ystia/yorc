@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"
@@ -185,7 +186,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	kv := s.consulClient.KV()
-	depPaths, _, err := kv.Keys(deployments.DeploymentKVPrefix+"/", "/", nil)
+	depPaths, _, err := kv.Keys(consulutil.DeploymentKVPrefix+"/", "/", nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -196,7 +197,7 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 
 	depCol := DeploymentsCollection{Deployments: make([]AtomLink, len(depPaths))}
 	for depIndex, depPath := range depPaths {
-		depId := strings.TrimRight(strings.TrimPrefix(depPath, deployments.DeploymentKVPrefix), "/ ")
+		depId := strings.TrimRight(strings.TrimPrefix(depPath, consulutil.DeploymentKVPrefix), "/ ")
 		link := newAtomLink(LINK_REL_DEPLOYMENT, "/deployments"+depId)
 		depCol.Deployments[depIndex] = link
 	}

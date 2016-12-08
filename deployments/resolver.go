@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"path"
@@ -14,9 +15,13 @@ import (
 type Resolver struct {
 	kv           *api.KV
 	deploymentId string
+	taskId       string
 }
 
-func NewResolver(kv *api.KV, deploymentId string) *Resolver {
+func NewResolver(kv *api.KV, deploymentId string, taskId ...string) *Resolver {
+	if len(taskId) != 0 {
+		return &Resolver{kv: kv, deploymentId: deploymentId, taskId: taskId[0]}
+	}
 	return &Resolver{kv: kv, deploymentId: deploymentId}
 }
 
@@ -314,7 +319,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 		switch params[0] {
 		case "SELF":
-			kvp, _, err := r.kv.Get(path.Join(DeploymentKVPrefix, r.deploymentId, "topology/nodes", sourceNode, "requirements", requirementIndex, "relationship"), nil)
+			kvp, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentId, "topology/nodes", sourceNode, "requirements", requirementIndex, "relationship"), nil)
 			if err != nil {
 				return "", err
 			}
@@ -424,4 +429,14 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		return r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
 	}
 	return "", fmt.Errorf("Can't resolve expression %q", expression.Value)
+}
+
+func (r *Resolver) ResolvePropertyDefinitionForCustom(inputName string) (string, error) {
+
+	kvP, _, err := r.kv.Get(path.Join(consulutil.TasksPrefix, r.taskId, "inputs", inputName), nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(kvP.Value), nil
 }

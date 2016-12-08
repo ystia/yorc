@@ -78,7 +78,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("stderr"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					key := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+					key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
 					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
 					if err != nil {
 						err = errors.Wrap(err, "Ansible logs not available")
@@ -91,7 +91,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("stdout"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					key := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+					key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
 					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
 					if err != nil {
 						err = errors.Wrap(err, "Ansible logs not available")
@@ -105,7 +105,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("msg"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					key := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+					key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
 					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
 					if err != nil {
 						err = errors.Wrap(err, "Ansible logs not available")
@@ -238,7 +238,7 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		buf.WriteString(strconv.FormatInt(unreachable, 10))
 
 	}
-	key := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+	key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
 	err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, Ansible Playbook result:\n%s", e.NodeName, buf.String()))
 	if err != nil {
 		return err

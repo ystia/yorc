@@ -465,3 +465,30 @@ Request body:
 HTTP/1.1 202 OK
 Content-Length: 0
 ```
+
+
+### Submit a custom command
+
+Submit a custom command for a given deployment.  
+'Content-Type' header should be set to 'application/json'.
+
+`POST    /deployments/<deployment_id>/custom`
+Request body:
+```json
+{
+    "node": "NodeName",
+    "name": "Custom_Command_Name",
+    "inputs": {
+    	"index":"",
+    	"nb_replicas":"2"
+    }
+}
+```
+
+
+**Response**
+```
+HTTP/1.1 202 Accepted
+Content-Length: 0
+Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
+```

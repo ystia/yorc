@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -25,35 +26,35 @@ func TestArtifacts(t *testing.T) {
 
 	srv1.PopulateKV(map[string][]byte{
 
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.A/derived_from":        []byte("janus.types.ParentA"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art1/name": []byte("art1"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art1/file": []byte("TypeA"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art2/name": []byte("art2"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art2/file": []byte("TypeA"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art6/name": []byte("art6"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art6/file": []byte("TypeA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/derived_from":        []byte("janus.types.ParentA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art1/name": []byte("art1"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art1/file": []byte("TypeA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art2/name": []byte("art2"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art2/file": []byte("TypeA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art6/name": []byte("art6"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art6/file": []byte("TypeA"),
 
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/derived_from":        []byte("root"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art1/name": []byte("art1"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art1/file": []byte("ParentA"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art3/name": []byte("art3"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art3/file": []byte("ParentA"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art5/name": []byte("art5"),
-		DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art5/file": []byte("ParentA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/derived_from":        []byte("root"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art1/name": []byte("art1"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art1/file": []byte("ParentA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art3/name": []byte("art3"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art3/file": []byte("ParentA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art5/name": []byte("art5"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.ParentA/artifacts/art5/file": []byte("ParentA"),
 
-		DeploymentKVPrefix + "/t1/topology/types/root/name": []byte("root"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/root/name": []byte("root"),
 
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/type":                []byte("janus.types.A"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art1/name": []byte("art1"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art1/file": []byte("NodeA"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art2/name": []byte("art2"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art2/file": []byte("NodeA"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art3/name": []byte("art3"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art3/file": []byte("NodeA"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art4/name": []byte("art4"),
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art4/file": []byte("NodeA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/type":                []byte("janus.types.A"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art1/name": []byte("art1"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art1/file": []byte("NodeA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art2/name": []byte("art2"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art2/file": []byte("NodeA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art3/name": []byte("art3"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art3/file": []byte("NodeA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art4/name": []byte("art4"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeA/artifacts/art4/file": []byte("NodeA"),
 
-		DeploymentKVPrefix + "/t1/topology/nodes/NodeB/type": []byte("root"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeB/type": []byte("root"),
 	})
 
 	t.Run("deployment/artifacts", func(t *testing.T) {

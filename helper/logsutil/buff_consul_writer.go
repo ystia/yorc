@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"io"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"path"
 	"regexp"
@@ -45,7 +44,7 @@ func (b *bufferedConsulWriter) Flush() error {
 	fmt.Printf(string(b.buf))
 	reg := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]`)
 	out := reg.ReplaceAll(b.buf, []byte(""))
-	err := consulutil.StoreConsulKey(path.Join(deployments.DeploymentKVPrefix, b.depId, "logs", b.prefix+"__"+time.Now().Format(time.RFC3339Nano)), out)
+	err := consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, b.depId, "logs", b.prefix+"__"+time.Now().Format(time.RFC3339Nano)), out)
 	if err != nil {
 		return err
 	}

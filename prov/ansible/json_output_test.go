@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
@@ -263,7 +262,7 @@ func Test_logAnsibleOutputInConsul(t *testing.T) {
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 
-	kvps, _, err := kv.List(path.Join(deployments.DeploymentKVPrefix, ec.DeploymentId, "logs"), nil)
+	kvps, _, err := kv.List(path.Join(consulutil.DeploymentKVPrefix, ec.DeploymentId, "logs"), nil)
 	require.Nil(t, err)
 	require.Len(t, kvps, 1)
 

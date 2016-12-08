@@ -5,6 +5,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"path"
@@ -27,7 +28,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	expression, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/outputs", opt, "value"), nil)
+	expression, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/outputs", opt, "value"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -79,7 +80,7 @@ func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) listOutputsLinks(id string) []AtomLink {
 	kv := s.consulClient.KV()
-	outputsTopoPrefix := path.Join(deployments.DeploymentKVPrefix, id, "/topology/outputs") + "/"
+	outputsTopoPrefix := path.Join(consulutil.DeploymentKVPrefix, id, "/topology/outputs") + "/"
 	optPaths, _, err := kv.Keys(outputsTopoPrefix, "/", nil)
 	if err != nil {
 		log.Panic(err)

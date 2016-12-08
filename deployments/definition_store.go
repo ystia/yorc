@@ -33,7 +33,7 @@ type ctxConsulStoreKey struct{}
 var consulStoreKey ctxConsulStoreKey
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
-// DeploymentKVPrefix/deploymentId
+// consulutil.DeploymentKVPrefix/deploymentId
 func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentId string, defPath string) error {
 	topology := tosca.Topology{}
 	definition, err := os.Open(defPath)
@@ -62,10 +62,10 @@ func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentId,
 	errCtx, errGroup, consulStore := consulutil.WithContext(ctx)
 	errCtx = context.WithValue(errCtx, errGrpKey, errGroup)
 	errCtx = context.WithValue(errCtx, consulStoreKey, consulStore)
-	consulStore.StoreConsulKeyAsString(path.Join(DeploymentKVPrefix, deploymentId, "status"), fmt.Sprint(INITIAL))
+	consulStore.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "status"), fmt.Sprint(INITIAL))
 
 	errGroup.Go(func() error {
-		return storeTopology(errCtx, topology, deploymentId, path.Join(DeploymentKVPrefix, deploymentId, "topology"), "", "", rootDefPath)
+		return storeTopology(errCtx, topology, deploymentId, path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology"), "", "", rootDefPath)
 	})
 
 	return errGroup.Wait()
@@ -491,7 +491,7 @@ func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topology
 // storeWorkflows stores topology workflows
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	workflowsPrefix := path.Join(DeploymentKVPrefix, deploymentId, "workflows")
+	workflowsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
 		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
@@ -519,7 +519,7 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId s
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
 func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	depPath := path.Join(DeploymentKVPrefix, deploymentID)
+	depPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID)
 	nodesPath := path.Join(depPath, "topology", "nodes")
 	instancesPath := path.Join(depPath, "topology", "instances")
 	scalable, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
@@ -632,7 +632,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 			ctxStore, errgroup, consulStore := consulutil.WithContext(ctx)
 			ctxStore = context.WithValue(ctxStore, consulStoreKey, consulStore)
 
-			storeRequirementAssigment(ctxStore, req, path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
+			storeRequirementAssigment(ctxStore, req, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
 
 			err = errgroup.Wait()
 			if err != nil {
@@ -650,8 +650,8 @@ This function create a given number of floating IP instances
 */
 func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, nodeName string) {
 
-	networkPath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
-	depPath := path.Join(DeploymentKVPrefix, deploymentId)
+	networkPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	depPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId)
 	instancesPath := path.Join(depPath, "topology", "instances")
 
 	consulStore.StoreConsulKeyAsString(path.Join(networkPath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))

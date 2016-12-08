@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
 	"strconv"
@@ -58,14 +59,14 @@ func (t *Task) Status() TaskStatus {
 }
 
 func (t *Task) WithStatus(status TaskStatus) error {
-	p := &api.KVPair{Key: path.Join(tasksPrefix, t.Id, "status"), Value: []byte(strconv.Itoa(int(status)))}
+	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.Id, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
 	t.status = status
 	return err
 }
 
 func GetTasksIdsForTarget(kv *api.KV, targetId string) ([]string, error) {
-	tasksKeys, _, err := kv.Keys(tasksPrefix+"/", "/", nil)
+	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func GetTasksIdsForTarget(kv *api.KV, targetId string) ([]string, error) {
 }
 
 func GetTaskStatus(kv *api.KV, taskId string) (TaskStatus, error) {
-	kvp, _, err := kv.Get(path.Join(tasksPrefix, taskId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskId, "status"), nil)
 	if err != nil {
 		return FAILED, err
 	}
@@ -98,7 +99,7 @@ func GetTaskStatus(kv *api.KV, taskId string) (TaskStatus, error) {
 }
 
 func GetTaskType(kv *api.KV, taskId string) (TaskType, error) {
-	kvp, _, err := kv.Get(path.Join(tasksPrefix, taskId, "type"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskId, "type"), nil)
 	if err != nil {
 		return Deploy, err
 	}
@@ -113,7 +114,7 @@ func GetTaskType(kv *api.KV, taskId string) (TaskType, error) {
 }
 
 func GetTaskTarget(kv *api.KV, taskId string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(tasksPrefix, taskId, "targetId"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskId, "targetId"), nil)
 	if err != nil {
 		return "", nil
 	}
@@ -124,7 +125,7 @@ func GetTaskTarget(kv *api.KV, taskId string) (string, error) {
 }
 
 func TaskExists(kv *api.KV, taskId string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(tasksPrefix, taskId, "targetId"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskId, "targetId"), nil)
 	if err != nil {
 		return false, nil
 	}
@@ -135,13 +136,13 @@ func TaskExists(kv *api.KV, taskId string) (bool, error) {
 }
 
 func CancelTask(kv *api.KV, taskId string) error {
-	kvp := &api.KVPair{Key: path.Join(tasksPrefix, taskId, ".canceledFlag"), Value: []byte("true")}
+	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskId, ".canceledFlag"), Value: []byte("true")}
 	_, err := kv.Put(kvp, nil)
 	return err
 }
 
 func TargetHasLivingTasks(kv *api.KV, targetId string) (bool, string, string, error) {
-	tasksKeys, _, err := kv.Keys(tasksPrefix+"/", "/", nil)
+	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
 	if err != nil {
 		return false, "", "", err
 	}
@@ -173,7 +174,7 @@ func TargetHasLivingTasks(kv *api.KV, targetId string) (bool, string, string, er
 }
 
 func NewTaskLockForTarget(client *api.Client, targetId string) (TaskLock, error) {
-	lock, err := client.LockKey(path.Join(tasksLocksPrefix, targetId))
+	lock, err := client.LockKey(path.Join(consulutil.TasksLocksPrefix, targetId))
 	if err != nil {
 		return nil, err
 	}
