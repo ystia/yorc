@@ -11,7 +11,7 @@ import (
 )
 
 type Executor interface {
-	ExecOperation(ctx context.Context, deploymentId, nodeName, operation string) error
+	ExecOperation(ctx context.Context, deploymentId, nodeName, operation string, taskId ...string) error
 }
 
 type defaultExecutor struct {
@@ -23,8 +23,8 @@ func NewExecutor(kv *api.KV) Executor {
 	return &defaultExecutor{kv: kv, r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentId, nodeName, operation string) error {
-	exec, err := newExecution(e.kv, deploymentId, nodeName, operation)
+func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentId, nodeName, operation string, taskId ...string) error {
+	exec, err := newExecution(e.kv, deploymentId, nodeName, operation, taskId...)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
 			log.Printf("Volontary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())

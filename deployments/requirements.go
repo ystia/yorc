@@ -7,13 +7,14 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
 // GetRequirementsKeysByNameForNode returns paths to requirements whose names matches the given requirementName.
 //
 // The returned slice may be empty if there is no matching requirements.
 func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requirementName string) ([]string, error) {
-	nodePath := path.Join(DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
 	reqKeys := make([]string, 0)
 	if err != nil {
@@ -38,7 +39,7 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 
 // GetNbRequirementsForNode returns the number of requirements declared for the given node
 func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, error) {
-	nodePath := path.Join(DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
 	if err != nil {
 		return 0, errors.Wrapf(err, "Failed to retrieve requirements for node %q", nodeName)
@@ -50,7 +51,7 @@ func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, e
 //
 // If there is no relationship defined for this requirement then an empty string is returned.
 func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"), nil)
 	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it futhermore it can refer to a relationship_template_name instead of a relationship_type_name
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
 		return "", err
@@ -62,7 +63,7 @@ func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requireme
 //
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"), nil)
 	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it futhermore it can refer to a node_template_name instead of a node_type_name
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
 		return "", err
@@ -74,7 +75,7 @@ func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 //
 // The returned string may be empty if there is no matching requirements.
 func GetRequirementByNameAndTargetForNode(kv *api.KV, deploymentID, nodeName, requirementName, targetName string) (string, error) {
-	nodePath := path.Join(DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to get requirement index for node %q, requirement %q, target node %q", nodeName, requirementName, targetName)

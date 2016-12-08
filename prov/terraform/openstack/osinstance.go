@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -148,7 +149,7 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 				}
 				var volumeId string
 				log.Debugf("Looking for volume_id")
-				if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", volumeNodeName, instanceName, "properties/volume_id"), nil); kp != nil {
+				if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", volumeNodeName, instanceName, "properties/volume_id"), nil); kp != nil {
 					if dId := string(kp.Value); dId != "" {
 						volumeId = dId
 					}
@@ -157,7 +158,7 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 					go func() {
 						for {
 							// ignore errors and retry
-							if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", volumeNodeName, instanceName, "attributes/volume_id"), nil); kp != nil {
+							if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", volumeNodeName, instanceName, "attributes/volume_id"), nil); kp != nil {
 								if dId := string(kp.Value); dId != "" {
 									resultChan <- dId
 									return
@@ -206,7 +207,7 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 				resultChan := make(chan string, 1)
 				go func() {
 					for {
-						if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", networkNodeName, instanceName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
+						if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", networkNodeName, instanceName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
 							if dId := string(kp.Value); dId != "" {
 								resultChan <- dId
 								return
@@ -225,7 +226,7 @@ func (g *Generator) generateOSInstance(url, deploymentId, instanceName string) (
 				resultChan := make(chan string, 1)
 				go func() {
 					for {
-						if kp, _, _ := g.kv.Get(path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "attributes/network_id"), nil); kp != nil {
+						if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", networkNodeName, "attributes/network_id"), nil); kp != nil {
 							if dId := string(kp.Value); dId != "" {
 								resultChan <- dId
 								return

@@ -4,6 +4,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
 )
@@ -17,7 +18,7 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	kv := s.consulClient.KV()
 
-	kvp, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/nodes", nodeName, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/nodes", nodeName, "status"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -46,7 +47,7 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 	nodeName := params.ByName("nodeName")
 	instanceId := params.ByName("instanceId")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(deployments.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
 	if err != nil {
 		log.Panic(err)
 	}

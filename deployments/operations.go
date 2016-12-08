@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
 // GetOperationPathAndPrimaryImplementationForNodeType traverses the type hierarchy to find an operation matching the given operationName.
@@ -20,6 +21,8 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		op = operationName[idx:]
 	} else if idx := strings.Index(operationName, "standard."); idx >= 0 {
 		op = operationName[idx:]
+	} else if idx := strings.Index(operationName, "custom."); idx >= 0 {
+		op = operationName[idx:]
 	} else {
 		op = strings.TrimPrefix(operationName, "tosca.interfaces.node.lifecycle.")
 		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
@@ -27,7 +30,7 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
 	}
 	op = strings.Replace(op, ".", "/", -1)
-	operationPath := path.Join(DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", op)
+	operationPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", op)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/primary"), nil)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
@@ -37,7 +40,7 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 	}
 
 	// Not found here check the type hierarchy
-	parentType, err := GetParentNodeType(kv, deploymentID, nodeType)
+	parentType, err := GetParentType(kv, deploymentID, nodeType)
 	if err != nil || parentType == "" {
 		return "", "", err
 	}

@@ -15,9 +15,9 @@ func (i TaskStatus) String() string {
 	return _TaskStatus_name[_TaskStatus_index[i]:_TaskStatus_index[i+1]]
 }
 
-const _TaskType_name = "DeployUnDeployPurge"
+const _TaskType_name = "DeployUnDeployPurgeCustomCommand"
 
-var _TaskType_index = [...]uint8{0, 6, 14, 19}
+var _TaskType_index = [...]uint8{0, 6, 14, 19, 32}
 
 func (i TaskType) String() string {
 	if i < 0 || i >= TaskType(len(_TaskType_index)-1) {
