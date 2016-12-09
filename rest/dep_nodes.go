@@ -36,8 +36,8 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panic(err)
 	}
-	for _, instanceId := range instanceIds {
-		links = append(links, newAtomLink(LINK_REL_INSTANCE, path.Join(r.URL.Path, "instances", instanceId)))
+	for _, instanceID := range instanceIds {
+		links = append(links, newAtomLink(LINK_REL_INSTANCE, path.Join(r.URL.Path, "instances", instanceID)))
 	}
 	node.Links = links
 	encodeJsonResponse(w, r, node)
@@ -49,9 +49,9 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
-	instanceId := params.ByName("instanceId")
+	instanceID := params.ByName("instanceId")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceID, "attributes/state"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -60,12 +60,16 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	nodePath := path.Clean(r.URL.Path + "/../..")
-	nodeInstance := NodeInstance{Id: instanceId, Status: string(kvp.Value)}
+	nodeInstance := NodeInstance{Id: instanceID, Status: string(kvp.Value)}
 	nodeInstance.Links = []AtomLink{
 		newAtomLink(LINK_REL_SELF, r.URL.Path),
 		newAtomLink(LINK_REL_NODE, nodePath),
 	}
 	attributesNames, err := deployments.GetNodeAttributesNames(kv, id, nodeName)
+	if err != nil {
+		WriteError(w, r, NewInternalServerError(err))
+		return
+	}
 	for _, attr := range attributesNames {
 		nodeInstance.Links = append(nodeInstance.Links, newAtomLink(LINK_REL_ATTRIBUTE, path.Join(r.URL.Path, "attributes", attr)))
 	}
@@ -80,7 +84,7 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 	nodeName := params.ByName("nodeName")
 	instanceId := params.ByName("instanceId")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "attributes/state"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -90,6 +94,10 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 	}
 
 	attributesNames, err := deployments.GetNodeAttributesNames(kv, id, nodeName)
+	if err != nil {
+		WriteError(w, r, NewInternalServerError(err))
+		return
+	}
 	attrList := AttributesCollection{Attributes: make([]AtomLink, len(attributesNames))}
 	for i, attr := range attributesNames {
 		attrList.Attributes[i] = newAtomLink(LINK_REL_ATTRIBUTE, path.Join(r.URL.Path, attr))
@@ -106,7 +114,7 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 	instanceId := params.ByName("instanceId")
 	attributeName := params.ByName("attributeName")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "attributes/state"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -116,7 +124,8 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 	}
 	found, result, err := deployments.GetNodeAttributes(kv, id, nodeName, attributeName)
 	if err != nil {
-		log.Panic(err)
+		WriteError(w, r, NewInternalServerError(err))
+		return
 	}
 
 	if !found {

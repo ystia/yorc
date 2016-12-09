@@ -40,6 +40,7 @@ func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uin
 		return false, 0, fmt.Errorf("Missing type for node %q, in deployment %q", nodeName, deploymentId)
 	}
 	nodeType := string(kvp.Value)
+	// It would be a better solution to check if the type or its parent have a scalable capability
 	if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, nodeType, "tosca.nodes.Compute"); err != nil {
 		return false, 0, err
 	} else if ok {
