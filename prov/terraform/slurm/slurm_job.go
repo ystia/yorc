@@ -18,10 +18,16 @@ func (g *Generator) generateSlurmJob(url, deploymentId string) (Job, error) {
 
 	instance := Job{}
 
-	if scriptPath, err := g.getStringFormConsul(url, "properties/scriptPath"); err != nil {
-		return Job{}, fmt.Errorf("Missing mandatory parameter 'scriptPath' for %s", url)
+	if modelPath, err := g.getStringFormConsul(url, "properties/modelPath"); err != nil {
+		return Job{}, fmt.Errorf("Missing mandatory parameter 'modelPath' for %s", url)
 	} else {
-		instance.ScriptPath = scriptPath
+		instance.ModelPath = modelPath
+	}
+
+	if modelFile, err := g.getStringFormConsul(url, "properties/modelFile"); err != nil {
+		return Job{}, fmt.Errorf("Missing mandatory parameter 'modelFile' for %s", url)
+	} else {
+		instance.ModelFile = modelFile
 	}
 
 	if imgPath, err := g.getStringFormConsul(url, "properties/imgPath"); err != nil {
