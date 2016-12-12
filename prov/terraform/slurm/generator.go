@@ -116,14 +116,14 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 
 		} //End instances loop
 
-	case "janus.nodes.slurm.Job":
+	case "janus.nodes.slurm.Cntk":
 		instances, _, err := g.kv.Keys(instancesKey+"/", "/", nil)
 		if err != nil {
 			return false, err
 		}
 		for _, instanceName := range instances {
 			instanceName = path.Base(instanceName)
-			job, err := g.generateSlurmJob(nodeKey, depId)
+			job, err := g.generateSlurmCntk(nodeKey, depId)
 			var jobName = nodeName + "-" + instanceName
 			log.Debugf("XBD JobName : IN FOR  %s", jobName)
 			log.Debugf("XBD instanceName: IN FOR  %s", instanceName)
@@ -131,7 +131,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 				return false, err
 			}
 
-			addResource(&infrastructure, "slurm_job", jobName, &job)
+			addResource(&infrastructure, "slurm_cntk", jobName, &job)
 		} //End instances loop
 
 	default:
