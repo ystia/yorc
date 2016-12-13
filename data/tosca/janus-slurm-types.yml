@@ -47,3 +47,6 @@ node_types:
       nbMpiProcess:
         type: string
         required: false
+    attributes:
+      final_error:
+        type: string
