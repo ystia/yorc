@@ -349,7 +349,6 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 }
 
 func checkNbInstances(kv *api.KV, taskId, depId, nodeName string) error {
-	fmt.Println("BONNNNNNNNNNNNNN JE PASSE")
 	depPath := path.Join(consulutil.DeploymentKVPrefix, depId)
 	instancesPath := path.Join(depPath, "topology", "instances")
 
@@ -363,9 +362,6 @@ func checkNbInstances(kv *api.KV, taskId, depId, nodeName string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(nodeName)
-	fmt.Println(current)
-	fmt.Println(currentNb)
 
 	for i := current; i < uint32(currentNb); i++ {
 		consulutil.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())

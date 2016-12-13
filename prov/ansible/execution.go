@@ -749,17 +749,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		}
 	}
 
-	fmt.Println("BOOOOOOOOOOOJOURRRRRDDDDDDDDDDDDDDDDDDDDDDDDDDDDR")
-	fmt.Println(len(e.TaskId))
-	fmt.Println(e.IsCustomCommand)
-
 	if len(e.TaskId) != 0 && !e.IsCustomCommand {
 		buffer.WriteString("\n[scale]\n")
 		oldNbInst, _, err := e.kv.Get(path.Join(consulutil.TasksPrefix, e.TaskId, "old_instances_number"), nil)
 		if err != nil {
 			return err
 		}
-		fmt.Println("BOOOOOOOOOOOJOURRRRRR")
 		oldNbInstInt, err := strconv.Atoi(string(oldNbInst.Value))
 		if err != nil {
 			return err
