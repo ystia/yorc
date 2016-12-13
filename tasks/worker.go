@@ -204,7 +204,7 @@ func (w Worker) handleTask(task *Task) {
 			setNodeStatus(task.kv, eventPub, task.TargetId, nodeName, "error")
 			log.Printf("Deployment %q, Step %q: Sending error %v to error channel", task.TargetId, nodeName, err)
 		}
-	case Scale:
+	case ScaleUp:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "workflows/install"))

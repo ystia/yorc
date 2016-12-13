@@ -1,10 +1,8 @@
 package rest
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
-	"io/ioutil"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -104,7 +102,7 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance + positiveDelta))
 	data["req"] = strings.Join(reqNameArr, ",")
 
-	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.Scale, data)
+	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.ScaleUp, data)
 
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
@@ -125,35 +123,92 @@ func (s *Server) newScaleDownHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
+	nodename := params.ByName("nodeName")
 
-	body, err := ioutil.ReadAll(r.Body)
+	kv := s.consulClient.KV()
+
+	if len(nodename) == 0 {
+		log.Panic("You must provide a nodename")
+	} else if ok, err := deployments.HasScalableProperty(kv, id, nodename); err != nil {
+		log.Panic(err)
+	} else if !ok {
+		log.Panic("The given nodename must be scalable")
+	}
+
+	var delta uint32
+
+	if value, ok := r.URL.Query()["remove"]; ok {
+		if val, err := strconv.Atoi(value[0]); err != nil {
+			log.Panic(err)
+		} else if val > 0 {
+			delta = uint32(val)
+		} else {
+			log.Panic("You need to provide a positive non zero value as remove parameter")
+		}
+	} else {
+		log.Panic("You need to provide a remove parameter")
+	}
+
+	_, minInstances, err := deployments.GetMinNbInstancesForNode(kv, id, nodename)
+	if err != nil {
+		log.Panic(err)
+	}
+	_, currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodename)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	var inputMap deployments.InputsPropertyDef
-	if err := json.Unmarshal(body, &inputMap); err != nil {
+	if currentNbInstance-delta < minInstances {
+		log.Debug("The delta is too low, the min instances number is choosen")
+		delta = minInstances - currentNbInstance
+	}
+
+	depPath := path.Join(consulutil.DeploymentKVPrefix, id)
+	instancesPath := path.Join(depPath, "topology", "instances")
+
+	var req []string
+
+	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodename, "network")
+	if err != nil {
 		log.Panic(err)
 	}
 
-	inputsName, err := s.getInputNameFromCustom(id, inputMap.NodeName, inputMap.CustomCommandName)
+	if tmp, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodename, "local_storage"); err != nil {
+		log.Panic(err)
+	} else {
+		req = append(req, tmp...)
+	}
+
+	var reqNameArr []string
+	for _, reqPath := range req {
+		reqName, _, err := kv.Get(path.Join(reqPath, "node"), nil)
+		if err != nil {
+			log.Panic(err)
+		}
+		reqNameArr = append(reqNameArr, string(reqName.Value))
+		for i := currentNbInstance; i < currentNbInstance-delta; i-- {
+			kv.DeleteTree(path.Join(instancesPath, string(reqName.Value), strconv.FormatUint(uint64(i), 10), "/"), nil)
+		}
+	}
+
+	for i := currentNbInstance; i < currentNbInstance-delta; i-- {
+		kv.DeleteTree(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10), "/"), nil)
+	}
+
+	err = deployments.SetNbInstancesForNode(kv, id, nodename, currentNbInstance-delta)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	data := make(map[string]string)
 
-	data["node"] = inputMap.NodeName
-	data["name"] = inputMap.CustomCommandName
+	data["node"] = nodename
+	data["old_instances_number"] = strconv.Itoa(int(currentNbInstance))
+	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance - delta))
+	data["req"] = strings.Join(reqNameArr, ",")
 
-	for _, name := range inputsName {
-		if err != nil {
-			log.Panic(err)
-		}
-		data[path.Join("inputs", name)] = inputMap.Inputs[name]
-	}
+	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.ScaleDown, data)
 
-	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.CustomCommand, data)
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
 			WriteError(w, r, NewBadRequestError(err))

@@ -103,7 +103,7 @@ func (s *Step) setStatus(status string) error {
 }
 
 func (s *Step) isRunnable() (bool, error) {
-	if tType, err := TaskTypeForName("scale"); err != nil {
+	if tType, err := TaskTypeForName("scale-up"); err != nil {
 		return false, err
 	} else if s.task.TaskType == tType {
 		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "node")), nil)
@@ -222,7 +222,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 		case actType == "call-operation":
 			exec := ansible.NewExecutor(kv)
 			var err error
-			if tType, err := TaskTypeForName("scale"); err != nil {
+			if tType, err := TaskTypeForName("scale-up"); err != nil {
 				return err
 			} else if s.task.TaskType == tType {
 				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue(), s.task.Id)

@@ -116,6 +116,47 @@ func GetMaxNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, 
 	return false, 1, nil
 }
 
+func GetMinNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uint32, error) {
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	kvp, _, err := kv.Get(nodePath+"/type", nil)
+	if err != nil {
+		return false, 0, err
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return false, 0, fmt.Errorf("Missing type for node %q, in deployment %q", nodeName, deploymentId)
+	}
+	nodeType := string(kvp.Value)
+	if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, nodeType, "tosca.nodes.Compute"); err != nil {
+		return false, 0, err
+	} else if ok {
+		//For now we look into default instances in scalable capability but it will be dynamic at runtime we will have to store the
+		//current number of instances somewhere else
+		kvp, _, err = kv.Get(nodePath+"/capabilities/scalable/properties/min_instances", nil)
+		if err != nil {
+			return false, 0, err
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			log.Debugf("Missing property 'min_instances'")
+			return true, 1, nil
+		}
+		if val, err := strconv.ParseUint(string(kvp.Value), 10, 32); err != nil {
+			return false, 0, fmt.Errorf("Not a valid integer for property 'default_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
+		} else {
+			return true, uint32(val), nil
+		}
+	}
+	// So we have to traverse the hosted on relationships...
+	// Lets inspect the requirements to found hosted on relationships
+	hostNode, err := GetHostedOnNode(kv, deploymentId, nodeName)
+	if err != nil {
+		return false, 0, err
+	} else if hostNode != "" {
+		return GetDefaultNbInstancesForNode(kv, deploymentId, hostNode)
+	}
+	// Not hosted on a tosca.nodes.Compute assume one instance
+	return false, 1, nil
+}
+
 // GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
 //
 // If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'default_instances' in the 'scalable' capability of

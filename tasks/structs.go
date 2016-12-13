@@ -12,7 +12,8 @@ type TaskType int
 const (
 	Deploy TaskType = iota
 	UnDeploy
-	Scale
+	ScaleUp
+	ScaleDown
 	Purge
 	CustomCommand
 )
@@ -27,8 +28,10 @@ func TaskTypeForName(taskType string) (TaskType, error) {
 		return Purge, nil
 	case "custom":
 		return CustomCommand, nil
-	case "scale":
-		return Scale, nil
+	case "scale-up":
+		return ScaleUp, nil
+	case "scale-down":
+		return ScaleDown, nil
 	default:
 		return Deploy, fmt.Errorf("Unsupported task type %q", taskType)
 	}
