@@ -29,6 +29,7 @@ type Step struct {
 	NotifyChan chan struct{}
 	kv         *api.KV
 	stepPrefix string
+	task       *Task
 }
 
 type Activity interface {
@@ -73,6 +74,10 @@ func (s *Step) IsTerminal() bool {
 	return len(s.Next) == 0
 }
 
+func (s *Step) SetTaskId(taskId *Task) {
+	s.task = taskId
+}
+
 func (s *Step) notifyNext() {
 	for _, next := range s.Next {
 		log.Debugf("Step %q, notifying step %q", s.Name, next.Name)
@@ -88,11 +93,37 @@ type visitStep struct {
 func (s *Step) setStatus(status string) error {
 	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(status)}
 	_, err := s.kv.Put(kvp, nil)
+	if err != nil {
+		return err
+	}
+	kvp = &api.KVPair{Key: path.Join(consulutil.TasksPrefix, s.task.Id, "workflow", s.Name), Value: []byte(status)}
+	_, err = s.kv.Put(kvp, nil)
 	return err
 }
 
 func (s *Step) isRunnable() (bool, error) {
-	kvp, _, err := s.kv.Get(path.Join(s.stepPrefix, "status"), nil)
+	if tType, err := TaskTypeForName("scale"); err != nil {
+		return false, err
+	} else if s.task.TaskType == tType {
+		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "node")), nil)
+		if err != nil {
+			return false, err
+		}
+		ok, err := deployments.IsHostedOn(s.kv, s.task.TargetId, s.Node, string(kvp.Value))
+		if err != nil {
+			return false, err
+		}
+		kvp2, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "req")), nil)
+		isReq := strings.Contains(string(kvp2.Value), s.Node)
+		if err != nil {
+			return false, err
+		}
+		if kvp != nil && string(kvp.Value) != s.Node && !ok && !isReq {
+			return false, nil
+		}
+	}
+
+	kvp, _, err := s.kv.Get(path.Join(consulutil.TasksPrefix, s.task.Id, "workflow", s.Name), nil)
 	if err != nil {
 		return false, err
 	}
@@ -100,6 +131,7 @@ func (s *Step) isRunnable() (bool, error) {
 	if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "done" {
 		return true, nil
 	}
+
 	return false, nil
 }
 
@@ -149,7 +181,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 		return nil
 	}
 
-	log.Debugf("Processing step %q", s.Name)
+	log.Printf("Processing step %q", s.Name)
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
@@ -182,7 +214,15 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 			setNodeStatus(kv, eventPub, deploymentId, s.Node, activity.ActivityValue())
 		case actType == "call-operation":
 			exec := ansible.NewExecutor(kv)
-			if err := exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue()); err != nil {
+			var err error
+			if tType, err := TaskTypeForName("scale"); err != nil {
+				return err
+			} else if s.task.TaskType == tType {
+				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue(), s.task.Id)
+			} else {
+				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue())
+			}
+			if err != nil {
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentId, s.Name, err)
 				if isUndeploy {
@@ -301,7 +341,6 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 	return steps, nil
 }
 
-
 // Creates a workflow tree from values stored in Consul at the given prefix.
 // It returns roots (starting) Steps.
 func ReadNodeWorkFlowFromConsul(kv *api.KV, wfPrefix, nodeName string) ([]*Step, error) {
@@ -316,9 +355,9 @@ func ReadNodeWorkFlowFromConsul(kv *api.KV, wfPrefix, nodeName string) ([]*Step,
 	for _, stepPrefix := range stepsPrefixes {
 		stepName := path.Base(stepPrefix)
 		if visitStep, ok := visitedMap[stepName]; !ok {
-			nodeN, _, err := kv.Get(stepPrefix+"/node",nil)
+			nodeN, _, err := kv.Get(stepPrefix+"/node", nil)
 			if err != nil {
-				return nil,err
+				return nil, err
 			}
 
 			if !(string(nodeN.Value) == nodeName) {

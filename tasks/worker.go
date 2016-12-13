@@ -110,6 +110,10 @@ func (w Worker) handleTask(task *Task) {
 			return
 
 		}
+		for _, step := range wf {
+			step.SetTaskId(task)
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "initial")
+		}
 		if err = w.processWorkflow(ctx, wf, task.TargetId, false); err != nil {
 			if task.Status() == RUNNING {
 				task.WithStatus(FAILED)
@@ -130,6 +134,10 @@ func (w Worker) handleTask(task *Task) {
 			w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
 			return
 
+		}
+		for _, step := range wf {
+			step.SetTaskId(task)
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "")
 		}
 		if err = w.processWorkflow(ctx, wf, task.TargetId, true); err != nil {
 			if task.Status() == RUNNING {
@@ -196,6 +204,32 @@ func (w Worker) handleTask(task *Task) {
 			setNodeStatus(task.kv, eventPub, task.TargetId, nodeName, "error")
 			log.Printf("Deployment %q, Step %q: Sending error %v to error channel", task.TargetId, nodeName, err)
 		}
+	case Scale:
+		//eventPub := events.NewPublisher(task.kv, task.TargetId)
+		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
+		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "workflows/install"))
+		if err != nil {
+			if task.Status() == RUNNING {
+				task.WithStatus(FAILED)
+			}
+			log.Printf("%v. Aborting", err)
+			w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
+			return
+
+		}
+		for _, step := range wf {
+			step.SetTaskId(task)
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "")
+		}
+		if err = w.processWorkflow(ctx, wf, task.TargetId, false); err != nil {
+			if task.Status() == RUNNING {
+				task.WithStatus(FAILED)
+			}
+			log.Printf("%v. Aborting", err)
+			w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
+			return
+		}
+		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
 
 	default:
 		deployments.LogInConsul(w.consulClient.KV(), task.TargetId, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", task.TaskType, task.TaskType.String(), task.Id))

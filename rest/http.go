@@ -107,7 +107,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskHandler))
 	s.router.Delete("/deployments/:id/tasks/:taskId", commonHandlers.ThenFunc(s.cancelTaskHandler))
 	s.router.Post("/deployments/:id/tasks", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newTaskHandler))
-	s.router.Post("/deployments/:id/scaleup", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.scaleUpHandler))
+	s.router.Post("/deployments/:id/scaleup/:nodeName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newScaleUpHandler))
 	s.router.Post("/deployments/:id/custom", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newCustomCommandHandler))
 }
 

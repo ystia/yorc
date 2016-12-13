@@ -21,7 +21,7 @@ const ansible_playbook = `
 - include: [[[.PlaybookPath]]]
 [[[if .HaveOutput]]]
 - name: Retrieving Operation outputs
-  hosts: all
+  hosts: [[[.Group]]]
   strategy: free
   tasks:
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s\" state=directory mode=0755" $.OperationRemotePath]]]
@@ -112,6 +112,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, e.PlaybookPath)
 	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
 	cmd := executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml")
+
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}

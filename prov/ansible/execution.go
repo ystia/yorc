@@ -90,6 +90,7 @@ type executionCommon struct {
 	NodeType                 string
 	Description              string
 	OperationRemotePath      string
+	Group                    string
 	EnvInputs                []*EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -107,7 +108,7 @@ type executionCommon struct {
 	isRelationshipOperation  bool
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
-	isCustomCommand          bool
+	IsCustomCommand          bool
 	relationshipType         string
 	relationshipTargetName   string
 	requirementIndex         string
@@ -156,7 +157,7 @@ func (e *executionCommon) resolveOperation() error {
 	if strings.Contains(e.Operation, "standard") {
 		e.isRelationshipOperation = false
 	} else if strings.Contains(e.Operation, "custom") {
-		e.isCustomCommand = true
+		e.IsCustomCommand = true
 	} else {
 		// In a relationship
 		e.isRelationshipOperation = true
@@ -286,7 +287,7 @@ func (e *executionCommon) resolveArtifacts() error {
 func (e *executionCommon) resolveInputs() error {
 	log.Debug("resolving inputs")
 	var resolver *deployments.Resolver
-	if e.isCustomCommand {
+	if e.IsCustomCommand {
 		resolver = deployments.NewResolver(e.kv, e.DeploymentId, e.TaskId)
 	} else {
 		resolver = deployments.NewResolver(e.kv, e.DeploymentId)
@@ -462,6 +463,11 @@ func sanitizeForShell(str string) string {
 }
 
 func (e *executionCommon) resolveContext() error {
+
+	e.Group = "all"
+	if len(e.TaskId) != 0 && !e.IsCustomCommand {
+		e.Group = "scale"
+	}
 	execContext := make(map[string]string)
 
 	new_node := sanitizeForShell(e.NodeName)
@@ -742,6 +748,107 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 			}
 		}
 	}
+
+	fmt.Println("BOOOOOOOOOOOJOURRRRRDDDDDDDDDDDDDDDDDDDDDDDDDDDDR")
+	fmt.Println(len(e.TaskId))
+	fmt.Println(e.IsCustomCommand)
+
+	if len(e.TaskId) != 0 && !e.IsCustomCommand {
+		buffer.WriteString("\n[scale]\n")
+		oldNbInst, _, err := e.kv.Get(path.Join(consulutil.TasksPrefix, e.TaskId, "old_instances_number"), nil)
+		if err != nil {
+			return err
+		}
+		fmt.Println("BOOOOOOOOOOOJOURRRRRR")
+		oldNbInstInt, err := strconv.Atoi(string(oldNbInst.Value))
+		if err != nil {
+			return err
+		}
+		for instanceName, host := range e.hosts {
+			instNb, err := strconv.Atoi(strings.Split(instanceName, "_")[1])
+			if err != nil {
+				return err
+			}
+			if instNb < oldNbInstInt {
+				continue
+			}
+			buffer.WriteString(host.host)
+			sshUser := host.user
+			if sshUser == "" {
+				// Thinking: should we have a default user
+				return fmt.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.DeploymentId, e.NodeName)
+			}
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
+
+			var perInstanceInputsBuffer bytes.Buffer
+			for _, varInput := range e.VarInputsNames {
+				if varInput == "INSTANCE" {
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: \"%s\"\n", instanceName))
+				} else if varInput == "SOURCE_INSTANCE" {
+					if !e.isPerInstanceOperation {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
+					} else {
+						if e.isRelationshipTargetNode {
+							perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", currentInstance))
+						} else {
+							perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
+						}
+					}
+				} else if varInput == "TARGET_INSTANCE" {
+					if !e.isPerInstanceOperation {
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
+					} else {
+						if e.isRelationshipTargetNode {
+							perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
+						} else {
+							perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", currentInstance))
+						}
+					}
+				} else {
+					for _, envInput := range e.EnvInputs {
+						if envInput.Name == varInput && (envInput.InstanceName == instanceName || e.isPerInstanceOperation && envInput.InstanceName == currentInstance) {
+							perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
+							goto NEXT2
+						}
+					}
+					if e.isRelationshipOperation {
+						if hostedOn, err := deployments.IsNodeTypeDerivedFrom(e.kv, e.DeploymentId, e.relationshipType, "tosca.relationships.HostedOn"); err != nil {
+							return err
+						} else if hostedOn {
+							// In case of operation for relationships derived from HostedOn we should match the inputs with the same instanceID
+							instanceIdIdx := strings.LastIndex(instanceName, "_")
+							// Get index
+							if instanceIdIdx > 0 {
+								instanceId := instanceName[instanceIdIdx:]
+								for _, envInput := range e.EnvInputs {
+									if envInput.Name == varInput && strings.HasSuffix(envInput.InstanceName, instanceId) {
+										perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
+										goto NEXT2
+									}
+								}
+							}
+						}
+					}
+					// Not found with the combination inputName/instanceName let's use the first that matches the input name
+					for _, envInput := range e.EnvInputs {
+						if envInput.Name == varInput {
+							perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
+							goto NEXT2
+						}
+					}
+					return fmt.Errorf("Unable to find a suitable input for input name %q and instance %q", varInput, instanceName)
+				}
+			NEXT2:
+			}
+			if perInstanceInputsBuffer.Len() > 0 {
+				if err := ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host.host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
+					log.Printf("Failed to write vars for host %q file: %v", host, err)
+					return err
+				}
+			}
+		}
+	}
+
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write hosts file")
 		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write hosts file")

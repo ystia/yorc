@@ -69,23 +69,7 @@ func (d *Dispatcher) Run() {
 					break
 				}
 			}
-			kvPairContent, _, err := kv.Get(taskKey+"status", nil)
-			if err != nil {
-				log.Printf("Failed to get status for key %s: %+v", taskKey, err)
-				continue
-			}
-			if kvPairContent == nil {
-				log.Printf("Failed to get status for key %s: nil value", taskKey)
-				continue
-			}
-			statusInt, err := strconv.Atoi(string(kvPairContent.Value))
-			if err != nil {
-				log.Printf("Failed to get status for key %s: %+v", taskKey, err)
-				continue
-			}
-			status := TaskStatus(statusInt)
-			if status != INITIAL && status != RUNNING {
-				log.Debugf("Skiping task %s with status %s", taskKey, status)
+			if ok, _ := checkLock(taskKey, kv, nil); ok {
 				continue
 			}
 
@@ -110,9 +94,16 @@ func (d *Dispatcher) Run() {
 				log.Debugf("Another instance got the lock for key %s", taskKey)
 				continue
 			}
+
+			ok, status := checkLock(taskKey, kv, lock)
+
+			if ok {
+				continue
+			}
+
 			log.Debugf("Got processing lock for task %s", taskKey)
 			// Got lock
-			kvPairContent, _, err = kv.Get(taskKey+"targetId", nil)
+			kvPairContent, _, err := kv.Get(taskKey+"targetId", nil)
 			if err != nil {
 				log.Printf("Failed to get targetId for key %s: %+v", taskKey, err)
 				continue
@@ -176,4 +167,36 @@ func (d *Dispatcher) Run() {
 		}
 	}
 
+}
+
+func checkLock(taskKey string, kv *api.KV, lock *api.Lock) (bool, TaskStatus) {
+
+	cont := false
+
+	kvPairContent, _, err := kv.Get(taskKey+"status", nil)
+	if err != nil {
+		log.Printf("Failed to get status for key %s: %+v", taskKey, err)
+		cont = true
+	}
+	if kvPairContent == nil {
+		log.Printf("Failed to get status for key %s: nil value", taskKey)
+		cont = true
+	}
+	statusInt, err := strconv.Atoi(string(kvPairContent.Value))
+	if err != nil {
+		log.Printf("Failed to get status for key %s: %+v", taskKey, err)
+		cont = true
+	}
+	status := TaskStatus(statusInt)
+	if status != INITIAL && status != RUNNING {
+		log.Debugf("Skiping task %s with status %s", taskKey, status)
+		cont = true
+	}
+
+	if lock != nil && cont {
+		lock.Unlock()
+		lock.Destroy()
+	}
+
+	return cont, status
 }

@@ -28,7 +28,7 @@ const output_custom_wrapper = `
 
 const shell_ansible_playbook = `
 - name: Executing script {{ script_to_run }}
-  hosts: all
+  hosts: [[[.Group]]]
   strategy: free
   tasks:
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=directory mode=0755
@@ -76,6 +76,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		"path": filepath.Dir,
 		"abs":  filepath.Abs,
 	}
+
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
@@ -97,7 +98,6 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 			return err
 		}
 	}
-	buffer.Reset()
 	tmpl, err := tmpl.Parse(shell_ansible_playbook)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate ansible playbook")
