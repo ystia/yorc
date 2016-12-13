@@ -20,6 +20,7 @@ const (
 	LINK_REL_INSTANCE   string = "instance"
 	LINK_REL_OUTPUT     string = "output"
 	LINK_REL_TASK       string = "task"
+	LINK_REL_ATTRIBUTE  string = "attribute"
 )
 
 const (
@@ -75,4 +76,13 @@ type Task struct {
 
 type TaskRequest struct {
 	Type string `json:"type"`
+}
+
+type AttributesCollection struct {
+	Attributes []AtomLink `json:"attributes,omitempty"`
+}
+
+type Attribute struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"os"
@@ -59,11 +59,8 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool, error) {
 
 	log.Debugf("Generating infrastructure for deployment with id %s", depId)
-	nodeKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
-	instancesKey := path.Join(deployments.DeploymentKVPrefix, depId, "topology", "instances", nodeName)
-
-	// Add Provider
-	log.Debugf("Addding provider Slurm")
+	nodeKey := path.Join(consulutil.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
+	instancesKey := path.Join(consulutil.DeploymentKVPrefix, depId, "topology", "instances", nodeName)
 	infrastructure := commons.Infrastructure{}
 	infrastructure.Provider = map[string]interface{}{
 		"slurm": map[string]interface{}{

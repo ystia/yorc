@@ -1,16 +1,16 @@
 package events
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
 func TestGroupedEventParallel(t *testing.T) {
@@ -72,7 +72,7 @@ func ConsulPubSub_StatusChange(t *testing.T, kv *api.KV) {
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
-	prefix := path.Join(deployments.DeploymentKVPrefix, deploymentId, "events", "global")
+	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "events")
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(testData))

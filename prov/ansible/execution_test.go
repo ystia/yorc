@@ -6,15 +6,14 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"testing"
 	"text/template"
-
-	"strconv"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -29,13 +28,17 @@ func TestAnsibleParallel(t *testing.T) {
 
 func templatesTest(t *testing.T) {
 	t.Parallel()
-	e := &execution{
+	ec := &executionCommon{
 		NodeName:            "Welcome",
 		Operation:           "tosca.interfaces.node.lifecycle.standard.start",
 		Artifacts:           map[string]string{"scripts": "my_scripts"},
 		OverlayPath:         "/some/local/path",
 		VarInputsNames:      []string{"INSTANCE", "PORT"},
 		OperationRemotePath: ".janus/path/on/remote",
+	}
+
+	e := &executionScript{
+		executionCommon: ec,
 	}
 
 	funcMap := template.FuncMap{
@@ -46,7 +49,7 @@ func templatesTest(t *testing.T) {
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err := tmpl.Parse(ansible_playbook)
+	tmpl, err := tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(os.Stdout, e)
 	t.Log(err)
@@ -72,35 +75,39 @@ func testExecution_OnNode(t *testing.T) {
 	operation := "tosca.interfaces.node.lifecycle.standard.create"
 
 	srv1.PopulateKV(map[string][]byte{
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):              []byte("A1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):        []byte("get_property: [SELF, document_root]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/name"):              []byte("A3"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/expression"):        []byte("get_property: [SELF, empty]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/name"):              []byte("A2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/expression"):        []byte("get_attribute: [HOST, ip_address]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/primary"):      []byte("/tmp/create.sh"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/dependencies"): []byte(""),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "name"):                                                        []byte(nodeTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):                   []byte("A1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):             []byte("get_property: [SELF, document_root]"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/name"):                   []byte("A3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/expression"):             []byte("get_property: [SELF, empty]"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/name"):                   []byte("A2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/expression"):             []byte("get_attribute: [HOST, ip_address]"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/primary"):           []byte("/tmp/create.sh"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/dependencies"):      []byte(""),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/is_property_definition"): []byte("false"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/is_property_definition"): []byte("false"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/is_property_definition"): []byte("false"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"): []byte(nodeTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"): []byte(nodeTypeName),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/document_root"):    []byte("/var/www"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/empty"):            []byte(""),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/node"):         []byte("Compute"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/document_root"):    []byte("/var/www"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "properties/empty"):            []byte(""),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/name"):         []byte("host"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/node"):         []byte("Compute"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/0/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/1/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/2/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/0/attributes/ip_address"): []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/1/attributes/ip_address"): []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/2/attributes/ip_address"): []byte("10.10.10.3"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "0/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "1/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "2/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "1/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "2/attributes/state"): []byte("initial"),
 	})
 
 	t.Run("testExecution_ResolveInputsOnNode", func(t *testing.T) {
@@ -113,11 +120,11 @@ func testExecution_OnNode(t *testing.T) {
 }
 
 func testExecution_ResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentId, nodeName, nodeTypeName, operation string) {
-	execution := &execution{kv: kv,
+	execution := &executionCommon{kv: kv,
 		DeploymentId:            deploymentId,
 		NodeName:                nodeName,
 		Operation:               operation,
-		OperationPath:           path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create"),
+		OperationPath:           path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", nodeTypeName, "interfaces/standard/create"),
 		isRelationshipOperation: false,
 		isPerInstanceOperation:  false,
 		VarInputsNames:          make([]string, 0),
@@ -225,7 +232,8 @@ func testExecution_GenerateOnNode(t *testing.T, kv *api.KV, deploymentId, nodeNa
 	execution, err := newExecution(kv, deploymentId, nodeName, operation)
 	require.Nil(t, err)
 
-	execution.OperationRemotePath = "tmp"
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -234,7 +242,7 @@ func testExecution_GenerateOnNode(t *testing.T, kv *api.KV, deploymentId, nodeNa
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)
@@ -267,54 +275,58 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 	}
 
 	srv1.PopulateKV(map[string][]byte{
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):              []byte("A1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/expression"):        []byte("get_property: [SOURCE, document_root]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/name"):              []byte("A2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/expression"):        []byte("get_attribute: [TARGET, ip_address]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/implementation/primary"):      []byte("/tmp/pre_configure_source.sh"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/implementation/dependencies"): []byte(""),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.A/name"):                                                                                  []byte("janus.types.A"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "name"):                                                                       []byte(relationshipTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):                   []byte("A1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/expression"):             []byte("get_property: [SOURCE, document_root]"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/name"):                   []byte("A2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/expression"):             []byte("get_attribute: [TARGET, ip_address]"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/implementation/primary"):           []byte("/tmp/pre_configure_source.sh"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/implementation/dependencies"):      []byte(""),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/is_property_definition"): []byte("false"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/is_property_definition"): []byte("false"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.B/name"): []byte("janus.types.B"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.B/name"): []byte("janus.types.B"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "type"):                     []byte("janus.types.A"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "type"):                     []byte("janus.types.A"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/node"):         []byte("ComputeA"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/name"):         []byte("host"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/node"):         []byte("ComputeA"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/name"):         []byte("connect"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/node"):         []byte("NodeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/relationship"): []byte(relationshipTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/name"):         []byte("connect"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/node"):         []byte("NodeB"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/relationship"): []byte(relationshipTypeName),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "type"): []byte("janus.types.B"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "type"): []byte("janus.types.B"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/node"):         []byte("ComputeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/name"):         []byte("host"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/node"):         []byte("ComputeB"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/attributes/ip_address"): []byte("10.10.10.3"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/attributes/ip_address"): []byte("10.10.10.10"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/attributes/ip_address"): []byte("10.10.10.11"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/attributes/ip_address"): []byte("10.10.10.10"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/attributes/ip_address"): []byte("10.10.10.11"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.10"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.11"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.10"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.11"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/attributes/state"): []byte("initial"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/attributes/state"): []byte("initial"),
 	})
 	for i, operation := range operationTestCases {
 		t.Run("testExecution_ResolveInputsOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
@@ -328,11 +340,11 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 
 func testExecution_ResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName string) {
 
-	execution := &execution{kv: kv,
+	execution := &executionCommon{kv: kv,
 		DeploymentId:            deploymentId,
 		NodeName:                nodeAName,
 		Operation:               operation,
-		OperationPath:           path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source"),
+		OperationPath:           path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source"),
 		isRelationshipOperation: true,
 		isPerInstanceOperation:  false,
 		requirementIndex:        "1",
@@ -415,7 +427,8 @@ func testExecution_GenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploy
 	execution, err := newExecution(kv, deploymentId, nodeName, operation)
 	require.Nil(t, err)
 
-	execution.OperationRemotePath = "tmp"
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -424,7 +437,7 @@ func testExecution_GenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploy
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)
@@ -457,54 +470,58 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 	}
 
 	srv1.PopulateKV(map[string][]byte{
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):              []byte("A1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/expression"):        []byte("get_property: [SOURCE, document_root]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/name"):              []byte("A2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/expression"):        []byte("get_attribute: [TARGET, ip_address]"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/implementation/primary"):      []byte("/tmp/add_source.sh"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/implementation/dependencies"): []byte(""),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.A/name"):                                                                        []byte("janus.types.A"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "name"):                                                             []byte(relationshipTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):                   []byte("A1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/expression"):             []byte("get_property: [SOURCE, document_root]"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/name"):                   []byte("A2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/expression"):             []byte("get_attribute: [TARGET, ip_address]"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/implementation/primary"):           []byte("/tmp/add_source.sh"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/implementation/dependencies"):      []byte(""),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/is_property_definition"): []byte("false"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/is_property_definition"): []byte("false"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.B/name"): []byte("janus.types.B"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types/janus.types.B/name"): []byte("janus.types.B"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "type"):                     []byte("janus.types.A"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "type"):                     []byte("janus.types.A"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/node"):         []byte("ComputeA"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/name"):         []byte("host"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/node"):         []byte("ComputeA"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "type"): []byte("janus.types.B"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "type"): []byte("janus.types.B"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/name"):         []byte("host"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/node"):         []byte("ComputeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/capability"):   []byte("tosca.capabilities.Container"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/name"):         []byte("host"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/node"):         []byte("ComputeB"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeBName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/name"):         []byte("connect"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/node"):         []byte("NodeB"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/relationship"): []byte(relationshipTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/name"):         []byte("connect"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/node"):         []byte("NodeB"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeAName, "requirements/1/relationship"): []byte(relationshipTypeName),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/attributes/ip_address"): []byte("10.10.10.3"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeA/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/attributes/ip_address"): []byte("10.10.10.10"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/attributes/ip_address"): []byte("10.10.10.11"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/attributes/ip_address"): []byte("10.10.10.10"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/attributes/ip_address"): []byte("10.10.10.11"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.10"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.11"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.10"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.11"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/staattributes/statetus"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/attributes/state"):       []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/attributes/state"):       []byte("initial"),
 
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/status"): []byte("initial"),
-		path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/attributes/state"): []byte("initial"),
 	})
 	for i, operation := range operationTestCases {
 		t.Run("testExecution_ResolveInputOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
@@ -517,11 +534,11 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 	}
 }
 func testExecution_ResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentId, nodeAName, nodeBName, operation, relationshipTypeName string) {
-	execution := &execution{kv: kv,
+	execution := &executionCommon{kv: kv,
 		DeploymentId:             deploymentId,
 		NodeName:                 nodeAName,
 		Operation:                operation,
-		OperationPath:            path.Join(deployments.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source"),
+		OperationPath:            path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/types", relationshipTypeName, "interfaces/Configure/add_source"),
 		isRelationshipOperation:  true,
 		isRelationshipTargetNode: true,
 		isPerInstanceOperation:   false,
@@ -605,7 +622,8 @@ func testExecution_GenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploy
 `
 	require.Nil(t, err)
 
-	execution.OperationRemotePath = "tmp"
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -614,7 +632,7 @@ func testExecution_GenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploy
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(shell_ansible_playbook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
 	t.Log(err)

@@ -3,6 +3,7 @@ package deployments
 import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"path"
 	"strings"
 )
@@ -49,7 +50,7 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 //  	}
 //  }
 func GetDeploymentStatus(kv *api.KV, deploymentId string) (DeploymentStatus, error) {
-	kvp, _, err := kv.Get(path.Join(DeploymentKVPrefix, deploymentId, "status"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "status"), nil)
 	if err != nil {
 		return INITIAL, err
 	}

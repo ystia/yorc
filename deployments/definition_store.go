@@ -33,7 +33,7 @@ type ctxConsulStoreKey struct{}
 var consulStoreKey ctxConsulStoreKey
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
-// DeploymentKVPrefix/deploymentId
+// consulutil.DeploymentKVPrefix/deploymentId
 func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentId string, defPath string) error {
 	topology := tosca.Topology{}
 	definition, err := os.Open(defPath)
@@ -50,7 +50,7 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentId str
 		return errors.Wrapf(err, "Failed to unmarsh yaml definition for file %q", defPath)
 	}
 
-	err = storeDeployment(ctx, topology, deploymentId)
+	err = storeDeployment(ctx, topology, deploymentId, filepath.Dir(defPath))
 	if err != nil {
 		return errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentId, defPath)
 	}
@@ -58,14 +58,14 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentId str
 }
 
 // storeDeployment stores a whole deployment.
-func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentId string) error {
+func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentId, rootDefPath string) error {
 	errCtx, errGroup, consulStore := consulutil.WithContext(ctx)
 	errCtx = context.WithValue(errCtx, errGrpKey, errGroup)
 	errCtx = context.WithValue(errCtx, consulStoreKey, consulStore)
-	consulStore.StoreConsulKeyAsString(path.Join(DeploymentKVPrefix, deploymentId, "status"), fmt.Sprint(INITIAL))
+	consulStore.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "status"), fmt.Sprint(INITIAL))
 
 	errGroup.Go(func() error {
-		return storeTopology(errCtx, topology, deploymentId, path.Join(DeploymentKVPrefix, deploymentId, "topology"), "", "")
+		return storeTopology(errCtx, topology, deploymentId, path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology"), "", "", rootDefPath)
 	})
 
 	return errGroup.Wait()
@@ -74,7 +74,7 @@ func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentId 
 // storeTopology stores a given topology.
 //
 // The given topology may be an import in this case importPrefix and importPath should be specified
-func storeTopology(ctx context.Context, topology tosca.Topology, deploymentId, topologyPrefix, importPrefix, importPath string) error {
+func storeTopology(ctx context.Context, topology tosca.Topology, deploymentId, topologyPrefix, importPrefix, importPath, rootDefPath string) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -82,12 +82,12 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentId, t
 	}
 	log.Debugf("Storing topology with name %q (Import prefix %q)", topology.Name, importPrefix)
 	storeTopologyTopLevelKeyNames(ctx, topology, path.Join(topologyPrefix, importPrefix))
-	if err := storeImports(ctx, topology, deploymentId, topologyPrefix); err != nil {
+	if err := storeImports(ctx, topology, deploymentId, topologyPrefix, importPath, rootDefPath); err != nil {
 		return err
 	}
 	storeInputs(ctx, topology, topologyPrefix)
 	storeOutputs(ctx, topology, topologyPrefix)
-	storeNodes(ctx, topology, topologyPrefix, importPath)
+	storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
 	storeTypes(ctx, topology, topologyPrefix, importPath)
 	storeRelationshipTypes(ctx, topology, topologyPrefix, importPath)
 	storeCapabilityTypes(ctx, topology, topologyPrefix)
@@ -108,7 +108,7 @@ func storeTopologyTopLevelKeyNames(ctx context.Context, topology tosca.Topology,
 }
 
 // storeImports parses and store imports.
-func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, topologyPrefix string) error {
+func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, topologyPrefix, importPath, rootDefPath string) error {
 	errGroup := ctx.Value(errGrpKey).(*errgroup.Group)
 	for _, element := range topology.Imports {
 		for importName, value := range element {
@@ -126,15 +126,14 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, to
 					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 				errGroup.Go(func() error {
-					return storeTopology(ctx, importedTopology, deploymentId, topologyPrefix, path.Join("imports", importName), "")
+					return storeTopology(ctx, importedTopology, deploymentId, topologyPrefix, path.Join("imports", importName), "", rootDefPath)
 				})
 			} else {
-				uploadFile := filepath.Join("work", "deployments", deploymentId, "overlay", filepath.FromSlash(value.File))
+				uploadFile := filepath.Join(rootDefPath, filepath.FromSlash(importPath), filepath.FromSlash(value.File))
 
 				definition, err := os.Open(uploadFile)
 				if err != nil {
 					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
-
 				}
 
 				defBytes, err := ioutil.ReadAll(definition)
@@ -147,7 +146,7 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, to
 				}
 
 				errGroup.Go(func() error {
-					return storeTopology(ctx, importedTopology, deploymentId, topologyPrefix, path.Join("imports", importName), path.Dir(value.File))
+					return storeTopology(ctx, importedTopology, deploymentId, topologyPrefix, path.Join("imports", importPath, importName), path.Dir(path.Join(importPath, value.File)), rootDefPath)
 				})
 			}
 
@@ -200,7 +199,7 @@ func storeRequirementAssigment(ctx context.Context, requirement tosca.Requiremen
 }
 
 // storeNodes stores topology nodes
-func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) {
+func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath, rootDefPath string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
@@ -237,6 +236,12 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		}
 		artifactsPrefix := nodePrefix + "/artifacts"
 		for artName, artDef := range node.Artifacts {
+			artFile := filepath.Join(rootDefPath, filepath.FromSlash(path.Join(importPath, artDef.File)))
+			log.Debugf("Looking if artifact %q exists on filesystem", artFile)
+			if _, err := os.Stat(artFile); os.IsNotExist(err) {
+				log.Printf("Warning: Artifact %q for node %q with computed path %q doesn't exists on filesystem, ignoring it.", artName, nodeName, artFile)
+				continue
+			}
 			artPrefix := artifactsPrefix + "/" + artName
 			consulStore.StoreConsulKeyAsString(artPrefix+"/name", artName)
 			consulStore.StoreConsulKeyAsString(artPrefix+"/metatype", "artifact")
@@ -486,7 +491,7 @@ func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topology
 // storeWorkflows stores topology workflows
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	workflowsPrefix := path.Join(DeploymentKVPrefix, deploymentId, "workflows")
+	workflowsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
 		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
@@ -514,19 +519,11 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId s
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
 func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	depPath := path.Join(DeploymentKVPrefix, deploymentID)
-	nodesPath := path.Join(depPath, "topology", "nodes")
-	instancesPath := path.Join(depPath, "topology", "instances")
-	scalable, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
+	_, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	if scalable {
-		consulStore.StoreConsulKeyAsString(path.Join(nodesPath, nodeName, "nbInstances"), strconv.FormatUint(uint64(nbInstances), 10))
-		for i := uint32(0); i < nbInstances; i++ {
-			consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
-		}
-	}
+	createNodeInstances(consulStore, kv, nbInstances, deploymentID, nodeName)
 	ip, networkNodeName, err := checkFloattingIp(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -627,7 +624,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 			ctxStore, errgroup, consulStore := consulutil.WithContext(ctx)
 			ctxStore = context.WithValue(ctxStore, consulStoreKey, consulStore)
 
-			storeRequirementAssigment(ctxStore, req, path.Join(DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
+			storeRequirementAssigment(ctxStore, req, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", computeNodeName, "requirements", fmt.Sprint(newReqID)), "local_storage")
 
 			err = errgroup.Wait()
 			if err != nil {
@@ -645,14 +642,16 @@ This function create a given number of floating IP instances
 */
 func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, nodeName string) {
 
-	networkPath := path.Join(DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
-	depPath := path.Join(DeploymentKVPrefix, deploymentId)
-	instancesPath := path.Join(depPath, "topology", "instances")
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "instances", nodeName)
 
-	consulStore.StoreConsulKeyAsString(path.Join(networkPath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
+	consulStore.StoreConsulKeyAsString(path.Join(nodePath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
 
 	for i := uint32(0); i < numberInstances; i++ {
-		consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
+		instanceName := strconv.FormatUint(uint64(i), 10)
+		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), INITIAL.String())
+		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
+		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
 	}
 }
 

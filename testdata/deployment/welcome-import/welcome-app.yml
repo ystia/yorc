@@ -27,7 +27,7 @@ topology_template:
         flavor: 2
         image: 89ec515c-3251-4c2f-8402-bda280c31650
         availability_zone: nova
-        key_pair: cloudify
+        key_pair: janus
         security_groups: openbar,default
       requirements:
         - network:

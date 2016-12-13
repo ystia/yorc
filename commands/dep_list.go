@@ -3,11 +3,12 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"io/ioutil"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -21,10 +22,10 @@ var listCmd = &cobra.Command{
 	Short: "List active deployments",
 	Long:  `List active deployments. Giving there ids and statuses.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		janusApi := viper.GetString("janus_api")
+		janusAPI := viper.GetString("janus_api")
 		colorize := !noColor
 
-		request, err := http.NewRequest("GET", "http://"+janusApi+"/deployments", nil)
+		request, err := http.NewRequest("GET", "http://"+janusAPI+"/deployments", nil)
 		if err != nil {
 			errExit(err)
 		}
@@ -52,13 +53,9 @@ var listCmd = &cobra.Command{
 		depsTable.AddHeaders("Id", "Status")
 		for _, depLink := range deps.Deployments {
 			if depLink.Rel == rest.LINK_REL_DEPLOYMENT {
-				response = doAtomGetRequest(janusApi, depLink)
 				var dep rest.Deployment
-				body, err := ioutil.ReadAll(response.Body)
-				if err != nil {
-					errExit(err)
-				}
-				err = json.Unmarshal(body, &dep)
+
+				err = getJSONEntityFromAtomGetRequest(janusAPI, depLink, &dep)
 				if err != nil {
 					errExit(err)
 				}

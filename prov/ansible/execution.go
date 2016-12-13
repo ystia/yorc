@@ -12,62 +12,17 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"text/template"
+
+	"strconv"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
-
-const output_custom_wrapper = `
-[[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
-[[[range $artName, $art := .Output -]]]
-[[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName $artName $.OperationRemotePath]]]
-[[[printf "echo $%s" $artName]]]
-[[[end]]]
-[[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
-`
-
-const ansible_playbook = `
-- name: Executing script {{ script_to_run }}
-  hosts: all
-  strategy: free
-  tasks:
-    - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=directory mode=0755
-    [[[if .HaveOutput]]]
-    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/%s/wrapper.sh\" mode=0744" $.OperationRemotePath]]]
-    [[[end]]]
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
-    [[[ range $artName, $art := .Artifacts -]]]
-    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
-    [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
-    [[[end]]]
-    [[[if not .HaveOutput]]]
-    [[[printf "- shell: \"{{ ansible_env.HOME}}/%s/%s\"" $.OperationRemotePath .BasePrimary]]][[[else]]]
-    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/%s/wrapper.sh\"" $.OperationRemotePath]]][[[end]]]
-      environment:
-        [[[ range $key, $envInput := .EnvInputs -]]]
-        [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %s" $envInput.InstanceName $envInput.Name $envInput.Value]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
-        [[[end]]][[[else]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s: %s" $envInput.Name $envInput.Value]]][[[else]]]
-        [[[printf  "%s: \"\"" $envInput.Name]]]
-        [[[end]]][[[end]]]
-        [[[end]]][[[ range $artName, $art := .Artifacts -]]]
-        [[[printf "%s: \"{{ ansible_env.HOME}}/%s/%s\"" $artName $.OperationRemotePath $art]]]
-        [[[end]]][[[ range $contextK, $contextV := .Context -]]]
-        [[[printf "%s: %s" $contextK $contextV]]]
-        [[[end]]][[[ range $hostVarIndex, $hostVarValue := .VarInputsNames -]]]
-        [[[printf "%s: \"{{%s}}\"" $hostVarValue $hostVarValue]]]
-        [[[end]]]
-    [[[if .HaveOutput]]]
-    [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest={{dest_folder}} flat=yes" $.OperationRemotePath]]]
-    [[[end]]]
-`
 
 const ansible_config = `[defaults]
 host_key_checking=False
@@ -103,8 +58,9 @@ func (oni operationNotImplemented) Error() string {
 }
 
 type hostConnection struct {
-	host string
-	user string
+	host       string
+	user       string
+	instanceID string
 }
 
 type EnvInput struct {
@@ -118,13 +74,23 @@ func (ei EnvInput) String() string {
 	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsTargetScoped: \"%t\"]", ei.Name, ei.Value, ei.InstanceName, ei.IsTargetScoped)
 }
 
-type execution struct {
+type execution interface {
+	resolveExecution() error
+	execute(ctx context.Context, retry bool) error
+}
+
+type ansibleRunner interface {
+	runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error
+}
+type executionCommon struct {
 	kv                       *api.KV
 	DeploymentId             string
+	TaskId                   string
 	NodeName                 string
 	Operation                string
-	OperationRemotePath      string
 	NodeType                 string
+	Description              string
+	OperationRemotePath      string
 	EnvInputs                []*EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -142,62 +108,196 @@ type execution struct {
 	isRelationshipOperation  bool
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
+	isCustomCommand          bool
 	relationshipType         string
 	relationshipTargetName   string
 	requirementIndex         string
+	ansibleRunner            ansibleRunner
 }
 
-func newExecution(kv *api.KV, deploymentId, nodeName, operation string) (*execution, error) {
-	execution := &execution{kv: kv,
+func newExecution(kv *api.KV, deploymentId, nodeName, operation string, taskId ...string) (execution, error) {
+	execCommon := &executionCommon{kv: kv,
 		DeploymentId:   deploymentId,
 		NodeName:       nodeName,
 		Operation:      operation,
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*EnvInput, 0)}
-	return execution, execution.resolveExecution()
+	if len(taskId) != 0 {
+		execCommon.TaskId = taskId[0]
+	}
+	if err := execCommon.resolveOperation(); err != nil {
+		return nil, err
+	}
+	// TODO: should use implementation artifacts (tosca.artifacts.Implementation.Bash, tosca.artifacts.Implementation.Python, tosca.artifacts.Implementation.Ansible...) in some way
+	var exec execution
+	if strings.HasSuffix(execCommon.BasePrimary, ".sh") || strings.HasSuffix(execCommon.BasePrimary, ".py") {
+		execScript := &executionScript{executionCommon: execCommon}
+		execCommon.ansibleRunner = execScript
+		exec = execScript
+	} else if strings.HasSuffix(execCommon.BasePrimary, ".yml") || strings.HasSuffix(execCommon.BasePrimary, ".yaml") {
+		execAnsible := &executionAnsible{executionCommon: execCommon}
+		execCommon.ansibleRunner = execAnsible
+		exec = execAnsible
+	} else {
+		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %q, primary implementation: %q", nodeName, operation, execCommon.Primary)
+	}
+
+	return exec, exec.resolveExecution()
 }
 
-func (e *execution) resolveArtifacts() error {
-	log.Debugf("Resolving artifacts")
-	artifacts := make(map[string]string)
-	// First resolve node type artifacts then node template artifact if the is a conflict then node template will have the precedence
-	// TODO deal with type inheritance
-	// TODO deal with relationships
-	paths := []string{path.Join(e.NodePath, "artifacts"), path.Join(e.NodeTypePath, "artifacts")}
-	for _, apath := range paths {
-		artsPaths, _, err := e.kv.Keys(apath+"/", "/", nil)
+func (e *executionCommon) resolveOperation() error {
+	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
+	var err error
+	e.NodeType, err = deployments.GetNodeType(e.kv, e.DeploymentId, e.NodeName)
+	if err != nil {
+		return err
+	}
+	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
+
+	if strings.Contains(e.Operation, "standard") {
+		e.isRelationshipOperation = false
+	} else if strings.Contains(e.Operation, "custom") {
+		e.isCustomCommand = true
+	} else {
+		// In a relationship
+		e.isRelationshipOperation = true
+		opAndReq := strings.Split(e.Operation, "/")
+		e.isRelationshipTargetNode = false
+		if isTargetOperation(opAndReq[0]) {
+			e.isRelationshipTargetNode = true
+		}
+		if len(opAndReq) == 2 {
+			e.Operation = opAndReq[0]
+			e.requirementIndex = opAndReq[1]
+
+			reqPath := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
+			kvPair, _, err := e.kv.Get(path.Join(reqPath, "relationship"), nil)
+			if err != nil {
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
+			}
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return errors.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipType = string(kvPair.Value)
+			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
+			if err != nil {
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
+			}
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipTargetName = string(kvPair.Value)
+		} else if len(opAndReq) == 3 {
+			e.Operation = opAndReq[0]
+			requirementName := opAndReq[1]
+			e.relationshipTargetName = opAndReq[2]
+			requirementPath, err := deployments.GetRequirementByNameAndTargetForNode(e.kv, e.DeploymentId, e.NodeName, requirementName, e.relationshipTargetName)
+			if err != nil {
+				return err
+			}
+			if requirementPath == "" {
+				return errors.Errorf("Unable to find a matching requirement for this relationship operation %q, source node %q, requirement name %q, target node %q", e.Operation, e.NodeName, requirementName, e.relationshipTargetName)
+			}
+			e.requirementIndex = path.Base(requirementPath)
+			kvPair, _, err := e.kv.Get(path.Join(requirementPath, "relationship"), nil)
+			if err != nil {
+				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
+			}
+			if kvPair == nil || len(kvPair.Value) == 0 {
+				return fmt.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
+			}
+			e.relationshipType = string(kvPair.Value)
+
+		}
+		err = e.resolveIsPerInstanceOperation(opAndReq[0])
 		if err != nil {
 			return err
 		}
-		for _, artPath := range artsPaths {
-			kvp, _, err := e.kv.Get(path.Join(artPath, "name"), nil)
-			if err != nil {
-				return err
-			}
-			if kvp == nil {
-				return fmt.Errorf("Missing mandatory key in consul %q", path.Join(artPath, "name"))
-			}
-			artName := string(kvp.Value)
-			kvp, _, err = e.kv.Get(path.Join(artPath, "file"), nil)
-			if err != nil {
-				return err
-			}
-			if kvp == nil {
-				return fmt.Errorf("Missing mandatory key in consul %q", path.Join(artPath, "file"))
-			}
-			artifacts[artName] = string(kvp.Value)
-		}
+	}
+	operationNodeType := e.NodeType
+	if e.isRelationshipOperation {
+		operationNodeType = e.relationshipType
+	}
+	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.DeploymentId, operationNodeType, e.Operation)
+	if err != nil {
+		return err
+	}
+	if e.OperationPath == "" || e.Primary == "" {
+		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.Operation, e.NodeType, e.DeploymentId)}
+	}
+	e.Primary = strings.TrimSpace(e.Primary)
+	log.Debugf("Operation Path: %q, primary implementation: %q", e.OperationPath, e.Primary)
+	e.BasePrimary = path.Base(e.Primary)
+	kvPair, _, err := e.kv.Get(e.OperationPath+"/implementation/dependencies", nil)
+	if err != nil {
+		return err
 	}
 
-	e.Artifacts = artifacts
+	if kvPair != nil {
+		e.Dependencies = strings.Split(string(kvPair.Value), ",")
+	} else {
+		e.Dependencies = make([]string, 0)
+	}
+	kvPair, _, err = e.kv.Get(e.OperationPath+"/description", nil)
+	if err != nil {
+		return errors.Wrap(err, "Consul query failed: ")
+	}
+	if kvPair != nil && len(kvPair.Value) > 0 {
+		e.Description = string(kvPair.Value)
+	}
+
+	return nil
+}
+
+func (e *executionCommon) resolveArtifacts() error {
+	log.Debugf("Resolving artifacts")
+	var err error
+	if e.isRelationshipOperation {
+		// First get linked node artifacts
+		if e.isRelationshipTargetNode {
+			e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.DeploymentId, e.relationshipTargetName)
+			if err != nil {
+				return err
+			}
+		} else {
+			e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.DeploymentId, e.NodeName)
+			if err != nil {
+				return err
+			}
+		}
+		// Then get relationship type artifacts
+		var arts map[string]string
+		arts, err = deployments.GetArtifactsForType(e.kv, e.DeploymentId, e.relationshipType)
+		if err != nil {
+			return err
+		}
+		for artName, art := range arts {
+			e.Artifacts[artName] = art
+		}
+	} else {
+		e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.DeploymentId, e.NodeName)
+		if err != nil {
+			return err
+		}
+	}
 	log.Debugf("Resolved artifacts: %v", e.Artifacts)
 	return nil
 }
 
-func (e *execution) resolveInputs() error {
+func (e *executionCommon) resolveInputs() error {
 	log.Debug("resolving inputs")
-	resolver := deployments.NewResolver(e.kv, e.DeploymentId)
-	inputKeys, _, err := e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
+	var resolver *deployments.Resolver
+	if e.isCustomCommand {
+		resolver = deployments.NewResolver(e.kv, e.DeploymentId, e.TaskId)
+	} else {
+		resolver = deployments.NewResolver(e.kv, e.DeploymentId)
+	}
+
+	var inputKeys []string
+	var err error
+
+	inputKeys, _, err = e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
+
 	if err != nil {
 		return err
 	}
@@ -210,16 +310,28 @@ func (e *execution) resolveInputs() error {
 			return fmt.Errorf("%s/name missing", input)
 		}
 		inputName := string(kvPair.Value)
-		kvPair, _, err = e.kv.Get(input+"/expression", nil)
+
+		kvPair, _, err = e.kv.Get(input+"/is_property_definition", nil)
+		isPropDef, err := strconv.ParseBool(string(kvPair.Value))
 		if err != nil {
 			return err
 		}
-		if kvPair == nil {
-			return fmt.Errorf("%s/expression missing", input)
-		}
+
 		va := tosca.ValueAssignment{}
-		yaml.Unmarshal(kvPair.Value, &va)
-		targetContext := va.Expression.IsTargetContext()
+		var targetContext bool
+		if !isPropDef {
+			kvPair, _, err = e.kv.Get(input+"/expression", nil)
+			if err != nil {
+				return err
+			}
+			if kvPair == nil {
+				return fmt.Errorf("%s/expression missing", input)
+			}
+
+			yaml.Unmarshal(kvPair.Value, &va)
+			targetContext = va.Expression.IsTargetContext()
+		}
+
 		var instancesIds []string
 		if e.isRelationshipOperation && targetContext {
 			instancesIds, err = deployments.GetNodeInstancesIds(e.kv, e.DeploymentId, e.relationshipTargetName)
@@ -240,6 +352,8 @@ func (e *execution) resolveInputs() error {
 				}
 				if e.isRelationshipOperation {
 					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceId)
+				} else if isPropDef {
+					inputValue, err = resolver.ResolvePropertyDefinitionForCustom(inputName)
 				} else {
 					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceId)
 				}
@@ -256,6 +370,8 @@ func (e *execution) resolveInputs() error {
 			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
 			if e.isRelationshipOperation {
 				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, "")
+			} else if isPropDef {
+				inputValue, err = resolver.ResolvePropertyDefinitionForCustom(inputName)
 			} else {
 				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
 			}
@@ -271,10 +387,10 @@ func (e *execution) resolveInputs() error {
 	return nil
 }
 
-func (e *execution) resolveHosts(nodeName string) error {
+func (e *executionCommon) resolveHosts(nodeName string) error {
 
 	// e.nodePath
-	instancesPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/instances", nodeName)
 	log.Debugf("Resolving hosts for node %q", nodeName)
 
 	hosts := make(map[string]hostConnection)
@@ -296,8 +412,8 @@ func (e *execution) resolveHosts(nodeName string) error {
 				instanceName = getInstanceName(e.NodeName, instance)
 			}
 
-			hostConn := hostConnection{host: string(kvp.Value)}
-			kvp, _, err := e.kv.Get(path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
+			hostConn := hostConnection{host: string(kvp.Value), instanceID: instance}
+			kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
 			if err != nil {
 				return err
 			}
@@ -346,7 +462,7 @@ func sanitizeForShell(str string) string {
 	}, str)
 }
 
-func (e *execution) resolveContext() error {
+func (e *executionCommon) resolveContext() error {
 	execContext := make(map[string]string)
 
 	new_node := sanitizeForShell(e.NodeName)
@@ -418,12 +534,11 @@ func (e *execution) resolveContext() error {
 	return nil
 }
 
-func (e *execution) resolveOperationOutput() error {
+func (e *executionCommon) resolveOperationOutput() error {
 	log.Debugf(e.OperationPath)
 	log.Debugf(e.Operation)
-
 	//We get all the output of the NodeType
-	pathList, _, err := e.kv.Keys(e.NodeTypePath+"/output/", "", nil)
+	outputsPathList, _, err := e.kv.Keys(e.NodeTypePath+"/output/", "", nil)
 
 	if err != nil {
 		return err
@@ -432,16 +547,17 @@ func (e *execution) resolveOperationOutput() error {
 	output := make(map[string]string)
 
 	//For each type we compare if we are in the good lifecycle operation
-	for _, path := range pathList {
+	for _, outputPath := range outputsPathList {
 		tmp := strings.Split(e.Operation, ".")
-		if strings.Contains(path, tmp[len(tmp)-1]) {
-			nodeOutPath := filepath.Join(e.NodePath, "attributes", strings.ToLower(filepath.Base(path)))
+		outOPPrefix := strings.ToLower(path.Join(e.NodeTypePath, "output", tmp[len(tmp)-2], tmp[len(tmp)-1]))
+		if strings.Contains(strings.ToLower(outputPath), outOPPrefix) {
+			nodeOutPath := path.Join("attributes", strings.ToLower(path.Base(outputPath)))
 			e.HaveOutput = true
-			output[filepath.Base(path)] = nodeOutPath
+			output[path.Base(outputPath)] = nodeOutPath
 		}
 	}
 
-	log.Debugf("%v", output)
+	log.Debugf("Resolved outputs: %v", output)
 	e.Output = output
 	return nil
 }
@@ -459,7 +575,7 @@ func isTargetOperation(operationName string) bool {
 // resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
 //	add_target, remove_target, add_source, target_changed
 // And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
-func (e *execution) resolveIsPerInstanceOperation(operationName string) error {
+func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) error {
 	op := strings.ToLower(operationName)
 	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") {
 		// Do not call the call the operation several time for an HostedOn relationship (makes no sense till we scale at compute level)
@@ -474,121 +590,13 @@ func (e *execution) resolveIsPerInstanceOperation(operationName string) error {
 	return nil
 }
 
-func (e *execution) resolveExecution() error {
+func (e *executionCommon) resolveExecution() error {
 	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.DeploymentId)
 	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.DeploymentId, "overlay"))
 	if err != nil {
 		return err
 	}
 	e.OverlayPath = ovPath
-	e.NodePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName)
-	kvPair, _, err := e.kv.Get(e.NodePath+"/type", nil)
-	if err != nil {
-		return err
-	}
-	if kvPair == nil {
-		return fmt.Errorf("type for node %s in deployment %s is missing", e.NodeName, e.DeploymentId)
-	}
-
-	e.NodeType = string(kvPair.Value)
-	e.NodeTypePath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.NodeType)
-	if strings.Contains(e.Operation, "standard") {
-		e.isRelationshipOperation = false
-	} else {
-		// In a relationship
-		e.isRelationshipOperation = true
-		opAndReq := strings.Split(e.Operation, "/")
-		e.isRelationshipTargetNode = false
-		if isTargetOperation(opAndReq[0]) {
-			e.isRelationshipTargetNode = true
-		}
-		if len(opAndReq) == 2 {
-			e.Operation = opAndReq[0]
-			e.requirementIndex = opAndReq[1]
-
-			reqPath := path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
-			kvPair, _, err = e.kv.Get(path.Join(reqPath, "relationship"), nil)
-			if err != nil {
-				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
-			}
-			if kvPair == nil || len(kvPair.Value) == 0 {
-				return errors.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
-			}
-			e.relationshipType = string(kvPair.Value)
-			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
-			if err != nil {
-				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
-			}
-			if kvPair == nil || len(kvPair.Value) == 0 {
-				return fmt.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
-			}
-			e.relationshipTargetName = string(kvPair.Value)
-		} else if len(opAndReq) == 3 {
-			e.Operation = opAndReq[0]
-			requirementName := opAndReq[1]
-			e.relationshipTargetName = opAndReq[2]
-			requirementPath, err := deployments.GetRequirementByNameAndTargetForNode(e.kv, e.DeploymentId, e.NodeName, requirementName, e.relationshipTargetName)
-			if err != nil {
-				return err
-			}
-			if requirementPath == "" {
-				return errors.Errorf("Unable to find a matching requirement for this relationship operation %q, source node %q, requirement name %q, target node %q", e.Operation, e.NodeName, requirementName, e.relationshipTargetName)
-			}
-			e.requirementIndex = path.Base(requirementPath)
-			kvPair, _, err = e.kv.Get(path.Join(requirementPath, "relationship"), nil)
-			if err != nil {
-				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
-			}
-			if kvPair == nil || len(kvPair.Value) == 0 {
-				return fmt.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.DeploymentId)
-			}
-			e.relationshipType = string(kvPair.Value)
-
-		}
-		err = e.resolveIsPerInstanceOperation(opAndReq[0])
-		if err != nil {
-			return err
-		}
-	}
-
-	//TODO deal with inheritance operation may be not in the direct node type
-	if e.isRelationshipOperation {
-		var op string
-		if idx := strings.Index(e.Operation, "configure."); idx >= 0 {
-			op = e.Operation[idx:]
-		} else {
-			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
-			op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
-		}
-		e.OperationPath = path.Join(deployments.DeploymentKVPrefix, e.DeploymentId, "topology/types", e.relationshipType) + "/interfaces/" + strings.Replace(op, ".", "/", -1)
-	} else {
-		var op string
-		if idx := strings.Index(e.Operation, "standard."); idx >= 0 {
-			op = e.Operation[idx:]
-		} else {
-			op = strings.TrimPrefix(e.Operation, "tosca.interfaces.node.lifecycle.")
-			op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
-		}
-		e.OperationPath = e.NodeTypePath + "/interfaces/" + strings.Replace(op, ".", "/", -1)
-	}
-	log.Debugf("Operation Path: %q", e.OperationPath)
-	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/primary", nil)
-	if err != nil {
-		return err
-	}
-	if kvPair == nil {
-		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.Operation, e.NodeType, e.DeploymentId)}
-	}
-	e.Primary = string(kvPair.Value)
-	e.BasePrimary = path.Base(e.Primary)
-	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/dependencies", nil)
-	if err != nil {
-		return err
-	}
-	if kvPair == nil {
-		return fmt.Errorf("dependencies implementation missing for type %s in deployment %s is missing", e.NodeType, e.DeploymentId)
-	}
-	e.Dependencies = strings.Split(string(kvPair.Value), ",")
 
 	if err = e.resolveInputs(); err != nil {
 		return err
@@ -612,7 +620,7 @@ func (e *execution) resolveExecution() error {
 
 }
 
-func (e *execution) execute(ctx context.Context, retry bool) error {
+func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 	if e.isPerInstanceOperation {
 		var nodeName string
 		if !e.isRelationshipTargetNode {
@@ -637,15 +645,14 @@ func (e *execution) execute(ctx context.Context, retry bool) error {
 	}
 	return nil
 }
-func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
+
+func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
 	deployments.LogInConsul(e.kv, e.DeploymentId, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	var ansibleRecipePath string
 	if e.isRelationshipOperation {
 		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.Operation)
 	} else {
 		ansibleRecipePath = filepath.Join("work", "deployments", e.DeploymentId, "ansible", e.NodeName, e.Operation, currentInstance)
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
 	}
 	ansibleRecipePath, err := filepath.Abs(ansibleRecipePath)
 	if err != nil {
@@ -741,137 +748,88 @@ func (e *execution) executeWithCurrentInstance(ctx context.Context, retry bool, 
 		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write hosts file")
 		return err
 	}
-	buffer.Reset()
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-		"abs":  filepath.Abs,
-	}
-	tmpl := template.New("execTemplate")
-	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
-	if e.HaveOutput {
-		wrap_template := template.New("execTemplate")
-		wrap_template = wrap_template.Delims("[[[", "]]]")
-		wrap_template, err := tmpl.Parse(output_custom_wrapper)
-		if err != nil {
-			return err
-		}
-		var buffer bytes.Buffer
-		if err := wrap_template.Execute(&buffer, e); err != nil {
-			log.Print("Failed to Generate wrapper template")
-			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate wrapper template")
-			return err
-		}
-		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
-			log.Print("Failed to write playbook file")
-			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
-			return err
-		}
-	}
-	tmpl, err = tmpl.Parse(ansible_playbook)
-	if err := tmpl.Execute(&buffer, e); err != nil {
-		log.Print("Failed to Generate ansible playbook template")
-		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
-		return err
-	}
-	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
-		log.Print("Failed to write playbook file")
-		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
-		return err
-	}
-
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(strings.Replace(ansible_config, "#PLAY_PATH#", ansibleRecipePath, -1)), 0664); err != nil {
 		log.Print("Failed to write ansible.cfg file")
 		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write ansible.cfg file")
 		return err
 	}
-	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
+	if e.isRelationshipOperation {
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.Operation)
+	} else {
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
+	}
+	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
 		return err
 	}
-	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, scriptPath)
-	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
-	var cmd *executil.Cmd
-	var wrapperPath string
 	if e.HaveOutput {
-		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
-	} else {
-		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
-	}
-	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
-		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
-	}
-	cmd.Dir = ansibleRecipePath
-	var outbuf bytes.Buffer
-	errbuf := logsutil.NewBufferedConsulWriter(e.kv, e.DeploymentId, deployments.SOFTWARE_LOG_PREFIX)
-	cmd.Stdout = &outbuf
-	cmd.Stderr = errbuf
-
-	errCloseCh := make(chan bool)
-	defer close(errCloseCh)
-	errbuf.Run(errCloseCh)
-	defer func(buffer *bytes.Buffer) {
-		if err := e.logAnsibleOutputInConsul(buffer); err != nil {
-			log.Printf("Failed to publish Ansible log %v", err)
-			log.Debugf("%+v", err)
-		}
-	}(&outbuf)
-	if err := cmd.Run(); err != nil {
-		deployments.LogErrorInConsul(e.kv, e.DeploymentId, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.Operation, e.NodeName))
-		log.Print(err)
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			// The program has exited with an exit code != 0
-
-			// This works on both Unix and Windows. Although package
-			// syscall is generally platform dependent, WaitStatus is
-			// defined for both Unix and Windows and in both cases has
-			// an ExitStatus() method with the same signature.
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				// Retry exit statuses 2 and 3
-				if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
-					return ansibleRetriableError{root: err}
-				}
-			}
-
-		}
-		return err
-	}
-
-	if e.HaveOutput {
-		fi, err := os.Open(filepath.Join(wrapperPath, "out.csv"))
+		outputsFiles, err := filepath.Glob(filepath.Join(ansibleRecipePath, "*-out.csv"))
 		if err != nil {
 			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
 			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
 			return err
 		}
-		r := csv.NewReader(fi)
-		records, err := r.ReadAll()
-		if err != nil {
-			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-			deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
-			return err
-		}
-		for _, line := range records {
-			if err = storeConsulKey(e.Output[line[0]], line[1]); err != nil {
+		for _, outFile := range outputsFiles {
+			currentHost := strings.TrimSuffix(filepath.Base(outFile), "-out.csv")
+			instanceID, err := e.getInstanceIDFromHost(currentHost)
+			if err != nil {
 				return err
 			}
+			fi, err := os.Open(outFile)
+			if err != nil {
+				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+				return err
+			}
+			r := csv.NewReader(fi)
+			records, err := r.ReadAll()
+			if err != nil {
+				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
+				deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+				return err
+			}
+			for _, line := range records {
+				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/instances", e.NodeName, instanceID, e.Output[line[0]]), line[1]); err != nil {
+					return err
+				}
 
+			}
 		}
 	}
-
 	return nil
+
 }
 
-func storeConsulKey(key, value string) error {
-	// PUT a new KV pair
-	if err := consulutil.StoreConsulKeyAsString(key, value); err != nil {
-		return err
+func getInstanceName(nodeName, instanceID string) string {
+	return sanitizeForShell(nodeName + "_" + instanceID)
+}
+
+func (e *executionCommon) checkAnsibleRetriableError(err error) error {
+	deployments.LogErrorInConsul(e.kv, e.DeploymentId, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.Operation, e.NodeName))
+	log.Print(err)
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		// The program has exited with an exit code != 0
+
+		// This works on both Unix and Windows. Although package
+		// syscall is generally platform dependent, WaitStatus is
+		// defined for both Unix and Windows and in both cases has
+		// an ExitStatus() method with the same signature.
+		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			// Retry exit statuses 2 and 3
+			if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
+				return ansibleRetriableError{root: err}
+			}
+		}
+
 	}
-	return nil
+	return err
 }
 
-func getInstanceName(nodeName, instanceId string) string {
-	return sanitizeForShell(nodeName + "_" + instanceId)
+func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
+	for _, hostConn := range e.hosts {
+		if hostConn.host == host {
+			return hostConn.instanceID, nil
+		}
+	}
+	return "", errors.Errorf("Unknown host %q", host)
 }
