@@ -131,34 +131,23 @@ func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uin
 	if kvp == nil || len(kvp.Value) == 0 {
 		return false, 0, fmt.Errorf("Missing type for node %q, in deployment %q", nodeName, deploymentId)
 	}
-	nodeType := string(kvp.Value)
-	if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, nodeType, "tosca.nodes.Compute"); err != nil {
-		return false, 0, err
-	} else if ok {
-		//For now we look into default instances in scalable capability but it will be dynamic at runtime we will have to store the
-		//current number of instances somewhere else
-		kvp, _, err = kv.Get(nodePath+"/nbInstances", nil)
-		if err != nil {
-			return false, 0, err
-		}
-		if kvp == nil || len(kvp.Value) == 0 {
-			log.Debugf("Missing property 'nbInstances'")
-			return true, 1, nil
-		}
-		if val, err := strconv.ParseUint(string(kvp.Value), 10, 32); err != nil {
-			return false, 0, fmt.Errorf("Not a valid integer for property 'default_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
-		} else {
-			return true, uint32(val), nil
-		}
-	}
-	// So we have to traverse the hosted on relationships...
-	// Lets inspect the requirements to found hosted on relationships
-	hostNode, err := GetHostedOnNode(kv, deploymentId, nodeName)
+
+	//For now we look into default instances in scalable capability but it will be dynamic at runtime we will have to store the
+	//current number of instances somewhere else
+	kvp, _, err = kv.Get(nodePath+"/nbInstances", nil)
 	if err != nil {
 		return false, 0, err
-	} else if hostNode != "" {
-		return GetNbInstancesForNode(kv, deploymentId, hostNode)
 	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		log.Debugf("Missing property 'nbInstances'")
+		return true, 1, nil
+	}
+	if val, err := strconv.ParseUint(string(kvp.Value), 10, 32); err != nil {
+		return false, 0, fmt.Errorf("Not a valid integer for property 'default_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
+	} else {
+		return true, uint32(val), nil
+	}
+
 	// Not hosted on a tosca.nodes.Compute assume one instance
 	return false, 1, nil
 }
@@ -178,27 +167,13 @@ func SetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string, newNbOfIns
 	if kvp == nil || len(kvp.Value) == 0 {
 		return fmt.Errorf("Missing type for node %q, in deployment %q", nodeName, deploymentId)
 	}
-	nodeType := string(kvp.Value)
-	if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, nodeType, "tosca.nodes.Compute"); err != nil {
-		return err
-	} else if ok {
-		//For now we look into default instances in scalable capability but it will be dynamic at runtime we will have to store the
-		//current number of instances somewhere else
 
-		strInt := fmt.Sprint(newNbOfInstances)
-		err := consulutil.StoreConsulKeyAsString(nodePath+"/nbInstances", strInt)
-		if err != nil {
-			return err
-		}
-	}
-	// So we have to traverse the hosted on relationships...
-	// Lets inspect the requirements to found hosted on relationships
-	hostNode, err := GetHostedOnNode(kv, deploymentId, nodeName)
+	strInt := fmt.Sprint(newNbOfInstances)
+	err = consulutil.StoreConsulKeyAsString(nodePath+"/nbInstances", strInt)
 	if err != nil {
 		return err
-	} else if hostNode != "" {
-		return SetNbInstancesForNode(kv, deploymentId, hostNode, newNbOfInstances)
 	}
+
 	// Not hosted on a tosca.nodes.Compute assume one instance
 	return nil
 }

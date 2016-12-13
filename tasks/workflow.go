@@ -16,6 +16,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
+	"strconv"
 )
 
 var wfCanceled = errors.New("workflow canceled")
@@ -112,6 +113,12 @@ func (s *Step) isRunnable() (bool, error) {
 		ok, err := deployments.IsHostedOn(s.kv, s.task.TargetId, s.Node, string(kvp.Value))
 		if err != nil {
 			return false, err
+		}
+		if ok {
+			err := checkNbInstances(s.kv, s.task.Id, s.task.TargetId, s.Node)
+			if err != nil {
+				return false, err
+			}
 		}
 		kvp2, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "req")), nil)
 		isReq := strings.Contains(string(kvp2.Value), s.Node)
@@ -341,38 +348,32 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 	return steps, nil
 }
 
-// Creates a workflow tree from values stored in Consul at the given prefix.
-// It returns roots (starting) Steps.
-func ReadNodeWorkFlowFromConsul(kv *api.KV, wfPrefix, nodeName string) ([]*Step, error) {
-	stepsPrefix := wfPrefix + "/steps/"
-	stepsPrefixes, _, err := kv.Keys(stepsPrefix, "/", nil)
+func checkNbInstances(kv *api.KV, taskId, depId, nodeName string) error {
+	fmt.Println("BONNNNNNNNNNNNNN JE PASSE")
+	depPath := path.Join(consulutil.DeploymentKVPrefix, depId)
+	instancesPath := path.Join(depPath, "topology", "instances")
+
+	_, current, err := deployments.GetNbInstancesForNode(kv, depId, nodeName)
 	if err != nil {
-		log.Print(err)
-		return nil, err
+		return err
 	}
-	steps := make([]*Step, 0)
-	visitedMap := make(map[string]*visitStep, len(stepsPrefixes))
-	for _, stepPrefix := range stepsPrefixes {
-		stepName := path.Base(stepPrefix)
-		if visitStep, ok := visitedMap[stepName]; !ok {
-			nodeN, _, err := kv.Get(stepPrefix+"/node", nil)
-			if err != nil {
-				return nil, err
-			}
+	currentNbKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskId, "current_instances_number"), nil)
 
-			if !(string(nodeN.Value) == nodeName) {
-				continue
-			}
+	currentNb, err := strconv.Atoi(string(currentNbKv.Value))
+	if err != nil {
+		return err
+	}
+	fmt.Println(nodeName)
+	fmt.Println(current)
+	fmt.Println(currentNb)
 
-			step, err := readStep(kv, stepsPrefix, stepName, visitedMap)
-			if err != nil {
-				return nil, err
-			}
-			steps = append(steps, step)
-		} else {
-			steps = append(steps, visitStep.step)
-		}
+	for i := current; i < uint32(currentNb); i++ {
+		consulutil.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())
 	}
 
-	return steps, nil
+	err = deployments.SetNbInstancesForNode(kv, depId, nodeName, uint32(currentNb))
+	if err != nil {
+		return err
+	}
+	return nil
 }
