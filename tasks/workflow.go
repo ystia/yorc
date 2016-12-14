@@ -121,7 +121,8 @@ func (s *Step) isRunnable() (bool, error) {
 			}
 		}
 		kvp2, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "req")), nil)
-		isReq := strings.Contains(string(kvp2.Value), s.Node)
+		reqArr := strings.Split(string(kvp2.Value), ",")
+		isReq := contains(reqArr, s.Node)
 		if err != nil {
 			return false, err
 		}
@@ -140,6 +141,15 @@ func (s *Step) isRunnable() (bool, error) {
 	}
 
 	return false, nil
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName, status string) {

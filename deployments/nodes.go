@@ -516,7 +516,6 @@ func HasScalableCapability(kv *api.KV, deploymentID, nodeName string) (bool, err
 	}
 
 	for _, val := range capabilitiesKeys {
-		fmt.Println(val)
 		if path.Base(val) == "scalable" {
 			return true, nil
 		}

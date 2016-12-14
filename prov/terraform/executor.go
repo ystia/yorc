@@ -65,8 +65,34 @@ func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeN
 }
 
 func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeName string) error {
-	if err := e.destroyInfrastructure(ctx, deploymentId, nodeName); err != nil {
+	kvPair, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
+	if err != nil {
 		return err
+	}
+	if kvPair == nil {
+		return fmt.Errorf("Type for node '%s' in deployment '%s' not found", nodeName, deploymentId)
+	}
+	nodeType := string(kvPair.Value)
+	infraGenerated := true
+	switch {
+	case strings.HasPrefix(nodeType, "janus.nodes.openstack."):
+		osGenerator := openstack.NewGenerator(e.kv, e.cfg)
+		if infraGenerated, err = osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
+			return err
+		}
+	case strings.HasPrefix(nodeType, "janus.nodes.slurm."):
+
+		osGenerator := slurm.NewGenerator(e.kv, e.cfg)
+		if infraGenerated, err = osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
+	}
+	if infraGenerated {
+		if err := e.destroyInfrastructure(ctx, deploymentId, nodeName); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -115,7 +141,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, node
 	}
 
 	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
-	cmd := executil.Command(ctx, "terraform", "destroy", "-force")
+	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
 	errbuf := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
 	out := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)

@@ -412,7 +412,7 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 				instanceName = getInstanceName(e.NodeName, instance)
 			}
 
-			hostConn := hostConnection{host: string(kvp.Value)}
+			hostConn := hostConnection{host: string(kvp.Value), instanceID: instance}
 			kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
 			if err != nil {
 				return err
@@ -757,9 +757,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		}
 		newInstIdArr := strings.Split(string(newInstIdKv.Value), ",")
 		for _, host := range e.hosts {
-			if err != nil {
-				return err
-			}
 			if !contains(newInstIdArr, host.instanceID) {
 				continue
 			}

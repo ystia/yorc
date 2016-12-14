@@ -101,6 +101,7 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 
 	data["node"] = nodename
 	data["new_instances_ids"] = strings.Join(newInstanceId, ",")
+	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance + positiveDelta))
 	data["req"] = strings.Join(reqNameArr, ",")
 
 	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.ScaleUp, data)
@@ -187,13 +188,22 @@ func (s *Server) newScaleDownHandler(w http.ResponseWriter, r *http.Request) {
 			log.Panic(err)
 		}
 		reqNameArr = append(reqNameArr, string(reqName.Value))
-		for i := currentNbInstance; i < currentNbInstance-delta; i-- {
-			kv.DeleteTree(path.Join(instancesPath, string(reqName.Value), strconv.FormatUint(uint64(i), 10), "/"), nil)
+		for i := currentNbInstance - 1; i > currentNbInstance-1-delta; i-- {
+			_, err := kv.DeleteTree(path.Join(instancesPath, string(reqName.Value), strconv.FormatUint(uint64(i), 10))+"/", nil)
+			if err != nil {
+				log.Panic(err)
+			}
 		}
 	}
 
-	for i := currentNbInstance; i < currentNbInstance-delta; i-- {
-		kv.DeleteTree(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10), "/"), nil)
+	newInstanceId := []string{}
+	for i := currentNbInstance - 1; i > currentNbInstance-1-delta; i-- {
+		fmt.Println(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10), "/"))
+		_, err := kv.DeleteTree(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10))+"/", nil)
+		if err != nil {
+			log.Panic(err)
+		}
+		newInstanceId = append(newInstanceId, strconv.Itoa(int(i)))
 	}
 
 	err = deployments.SetNbInstancesForNode(kv, id, nodename, currentNbInstance-delta)
@@ -204,7 +214,7 @@ func (s *Server) newScaleDownHandler(w http.ResponseWriter, r *http.Request) {
 	data := make(map[string]string)
 
 	data["node"] = nodename
-	data["old_instances_number"] = strconv.Itoa(int(currentNbInstance))
+	data["new_instances_ids"] = strings.Join(newInstanceId, ",")
 	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance - delta))
 	data["req"] = strings.Join(reqNameArr, ",")
 
