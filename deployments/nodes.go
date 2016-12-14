@@ -22,7 +22,7 @@ func IsNodeDerivedFrom(kv *api.KV, deploymentID, nodeName, derives string) (bool
 	return IsNodeTypeDerivedFrom(kv, deploymentID, nodeType, derives)
 }
 
-// GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
+// GetDefaultNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
 //
 // If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'default_instances' in the 'scalable' capability of
 // this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
@@ -69,9 +69,9 @@ func GetDefaultNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bo
 	return false, 1, nil
 }
 
-// GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
+// GetMaxNbInstancesForNode retrieves the maximum number of instances for a given node nodeName in deployment deploymentId.
 //
-// If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'default_instances' in the 'scalable' capability of
+// If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'max_instances' in the 'scalable' capability of
 // this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
 // the process. If a Compute is finally found it returns 'true' and the instances number.
 // If there is no 'tosca.nodes.Compute' at the end of the hosted on chain then assume that there is only one instance and return 'false'
@@ -116,6 +116,12 @@ func GetMaxNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, 
 	return false, 1, nil
 }
 
+// GetMinNbInstancesForNode retrieves the minimum number of instances for a given node nodeName in deployment deploymentId.
+//
+// If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'min_instances' in the 'scalable' capability of
+// this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
+// the process. If a Compute is finally found it returns 'true' and the instances number.
+// If there is no 'tosca.nodes.Compute' at the end of the hosted on chain then assume that there is only one instance and return 'false'
 func GetMinNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uint32, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
 	kvp, _, err := kv.Get(nodePath+"/type", nil)
@@ -158,11 +164,6 @@ func GetMinNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, 
 }
 
 // GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
-//
-// If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'default_instances' in the 'scalable' capability of
-// this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
-// the process. If a Compute is finally found it returns 'true' and the instances number.
-// If there is no 'tosca.nodes.Compute' at the end of the hosted on chain then assume that there is only one instance and return 'false'
 func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uint32, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
 	kvp, _, err := kv.Get(nodePath+"/type", nil)
@@ -193,29 +194,16 @@ func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uin
 	return false, 1, nil
 }
 
-// SetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
-//
-// If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'default_instances' in the 'scalable' capability of
-// this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
-// the process. If a Compute is finally found it returns 'true' and the instances number.
-// If there is no 'tosca.nodes.Compute' at the end of the hosted on chain then assume that there is only one instance and return 'false'
+// SetNbInstancesForNode just update the number of instances for the given nodeName, in the deployment (deploymentId)
 func SetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string, newNbOfInstances uint32) error {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
-	kvp, _, err := kv.Get(nodePath+"/type", nil)
-	if err != nil {
-		return err
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return fmt.Errorf("Missing type for node %q, in deployment %q", nodeName, deploymentId)
-	}
-
 	strInt := fmt.Sprint(newNbOfInstances)
-	err = consulutil.StoreConsulKeyAsString(nodePath+"/nbInstances", strInt)
+
+	err := consulutil.StoreConsulKeyAsString(nodePath+"/nbInstances", strInt)
 	if err != nil {
 		return err
 	}
 
-	// Not hosted on a tosca.nodes.Compute assume one instance
 	return nil
 }
 
@@ -255,7 +243,7 @@ func GetHostedOnNode(kv *api.KV, deploymentId, nodeName string) (string, error) 
 			return "", err
 		}
 		// Is this relationship an HostedOn?
-		if len(kvp.Value) != 0 {
+		if kvp.Value != nil {
 			if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
 				return "", err
 			} else if ok {
@@ -519,13 +507,10 @@ func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
 	return string(kvp.Value), nil
 }
 
-func HasScalableProperty(kv *api.KV, deploymentID, nodeName string) (bool, error) {
-
+//HasScalableCapability check if the given nodeName in the specified deployment, has in this capabilities a Key named scalable
+func HasScalableCapability(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-	fmt.Println(nodePath)
 	capabilitiesKeys, _, err := kv.Keys(nodePath+"/capabilities/", "/", nil)
-	fmt.Println(capabilitiesKeys)
-
 	if err != nil {
 		return false, err
 	}
@@ -538,5 +523,4 @@ func HasScalableProperty(kv *api.KV, deploymentID, nodeName string) (bool, error
 	}
 
 	return false, nil
-
 }

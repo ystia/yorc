@@ -230,6 +230,29 @@ func (w Worker) handleTask(task *Task) {
 			return
 		}
 		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
+	case ScaleDown:
+		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
+		if err != nil {
+			if task.Status() == RUNNING {
+				task.WithStatus(FAILED)
+			}
+			log.Printf("%v. Aborting", err)
+			w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
+			return
+
+		}
+		for _, step := range wf {
+			step.SetTaskId(task)
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "")
+		}
+		if err = w.processWorkflow(ctx, wf, task.TargetId, true); err != nil {
+			if task.Status() == RUNNING {
+				task.WithStatus(FAILED)
+			}
+			log.Printf("%v. Aborting", err)
+			w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
+			return
+		}
 
 	default:
 		deployments.LogInConsul(w.consulClient.KV(), task.TargetId, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", task.TaskType, task.TaskType.String(), task.Id))

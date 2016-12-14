@@ -24,7 +24,7 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(nodename) == 0 {
 		log.Panic("You must provide a nodename")
-	} else if ok, err := deployments.HasScalableProperty(kv, id, nodename); err != nil {
+	} else if ok, err := deployments.HasScalableCapability(kv, id, nodename); err != nil {
 		log.Panic(err)
 	} else if !ok {
 		log.Panic("The given nodename must be scalable")
@@ -86,8 +86,10 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	newInstanceId := []string{}
 	for i := currentNbInstance; i < currentNbInstance+positiveDelta; i++ {
 		consulutil.StoreConsulKeyAsString(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())
+		newInstanceId = append(newInstanceId, strconv.Itoa(int(i)))
 	}
 
 	err = deployments.SetNbInstancesForNode(kv, id, nodename, currentNbInstance+positiveDelta)
@@ -98,8 +100,7 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 	data := make(map[string]string)
 
 	data["node"] = nodename
-	data["old_instances_number"] = strconv.Itoa(int(currentNbInstance))
-	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance + positiveDelta))
+	data["new_instances_ids"] = strings.Join(newInstanceId, ",")
 	data["req"] = strings.Join(reqNameArr, ",")
 
 	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.ScaleUp, data)
@@ -129,7 +130,7 @@ func (s *Server) newScaleDownHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(nodename) == 0 {
 		log.Panic("You must provide a nodename")
-	} else if ok, err := deployments.HasScalableProperty(kv, id, nodename); err != nil {
+	} else if ok, err := deployments.HasScalableCapability(kv, id, nodename); err != nil {
 		log.Panic(err)
 	} else if !ok {
 		log.Panic("The given nodename must be scalable")

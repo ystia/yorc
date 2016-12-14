@@ -98,6 +98,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 			return err
 		}
 	}
+	buffer.Reset()
 	tmpl, err := tmpl.Parse(shell_ansible_playbook)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate ansible playbook")

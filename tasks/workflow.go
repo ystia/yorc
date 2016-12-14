@@ -105,7 +105,7 @@ func (s *Step) setStatus(status string) error {
 func (s *Step) isRunnable() (bool, error) {
 	if tType, err := TaskTypeForName("scale-up"); err != nil {
 		return false, err
-	} else if s.task.TaskType == tType {
+	} else if tType2, err := TaskTypeForName("scale-down"); s.task.TaskType == tType || s.task.TaskType == tType2 && err == nil {
 		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "node")), nil)
 		if err != nil {
 			return false, err
