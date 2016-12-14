@@ -102,10 +102,9 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 			addResource(&infrastructure, "slurm_node", computeName, &compute)
 
 			consulKey := commons.ConsulKey{Name: computeName + "-node_name", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
-			consulKey2 := commons.ConsulKey{Name: computeName + "-ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
+			consulKey2 := commons.ConsulKey{Name: computeName + "-attrib_node_name", Path: path.Join(instancesKey, instanceName, "/attributes/node_name"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
 			consulKeyAttrib := commons.ConsulKey{Name: computeName + "-attrib_ip_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
-
-			consulKeyJobId := commons.ConsulKey{Name: computeName + "-job_id", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/job_id"), Value: fmt.Sprintf("${slurm_node.%s.job_id}", computeName)}
+			consulKeyJobId := commons.ConsulKey{Name: computeName + "-attrib_job_id", Path: path.Join(instancesKey, instanceName, "/attributes/job_id"), Value: fmt.Sprintf("${slurm_node.%s.job_id}", computeName)}
 
 			var consulKeys commons.ConsulKeys
 			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKey2, consulKeyAttrib, consulKeyJobId}}
