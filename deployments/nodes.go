@@ -99,7 +99,7 @@ func GetMaxNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, 
 			return true, 1, nil
 		}
 		if val, err := strconv.ParseUint(string(kvp.Value), 10, 32); err != nil {
-			return false, 0, fmt.Errorf("Not a valid integer for property 'default_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
+			return false, 0, fmt.Errorf("Not a valid integer for property 'max_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
 		} else {
 			return true, uint32(val), nil
 		}
@@ -110,7 +110,7 @@ func GetMaxNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, 
 	if err != nil {
 		return false, 0, err
 	} else if hostNode != "" {
-		return GetDefaultNbInstancesForNode(kv, deploymentId, hostNode)
+		return GetMaxNbInstancesForNode(kv, deploymentId, hostNode)
 	}
 	// Not hosted on a tosca.nodes.Compute assume one instance
 	return false, 1, nil
@@ -146,7 +146,7 @@ func GetMinNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, 
 			return true, 1, nil
 		}
 		if val, err := strconv.ParseUint(string(kvp.Value), 10, 32); err != nil {
-			return false, 0, fmt.Errorf("Not a valid integer for property 'default_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
+			return false, 0, fmt.Errorf("Not a valid integer for property 'min_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
 		} else {
 			return true, uint32(val), nil
 		}
@@ -157,7 +157,7 @@ func GetMinNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, 
 	if err != nil {
 		return false, 0, err
 	} else if hostNode != "" {
-		return GetDefaultNbInstancesForNode(kv, deploymentId, hostNode)
+		return GetMinNbInstancesForNode(kv, deploymentId, hostNode)
 	}
 	// Not hosted on a tosca.nodes.Compute assume one instance
 	return false, 1, nil
