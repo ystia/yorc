@@ -19,7 +19,7 @@ import (
 
 type Executor interface {
 	ProvisionNode(ctx context.Context, deploymentId, nodeName string) error
-	DestroyNode(ctx context.Context, deploymentId, nodeName string) error
+	DestroyNode(ctx context.Context, deploymentId, nodeName, nodeIds string) error
 }
 
 type defaultExecutor struct {
@@ -64,8 +64,21 @@ func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeN
 	return nil
 }
 
-func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeName string) error {
+func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeName, nodeIds string) error {
 	kvPair, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
+	depPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId)
+	instancesPath := path.Join(depPath, "topology", "instances")
+	nodeIdsArr := strings.Split(nodeIds, ",")
+	for _, id := range nodeIdsArr {
+		_, err := e.kv.DeleteTree(path.Join(instancesPath, nodeName, id)+"/", nil)
+		if err != nil {
+			return err
+		}
+	}
+	if err != nil {
+		log.Panic(err)
+	}
+
 	if err != nil {
 		return err
 	}

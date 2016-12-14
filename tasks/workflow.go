@@ -215,7 +215,15 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 				}
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "started")
 			case "uninstall":
-				if err := provisioner.DestroyNode(ctx, deploymentId, s.Node); err != nil {
+				nodesIds := ""
+				if tType2, err := TaskTypeForName("scale-down"); s.task.TaskType == tType2 && err == nil {
+					nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.task.Id, "new_instances_ids"), nil)
+					nodesIds = string(nodesIdsKv.Value)
+					if err != nil {
+						return err
+					}
+				}
+				if err := provisioner.DestroyNode(ctx, deploymentId, s.Node, nodesIds); err != nil {
 					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
 					uninstallerrc <- err
 					haveErr = true
@@ -234,7 +242,10 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 			var err error
 			if tType, err := TaskTypeForName("scale-up"); err != nil {
 				return err
-			} else if s.task.TaskType == tType {
+			} else if tType2, err := TaskTypeForName("scale-down"); err != nil {
+				return err
+
+			} else if s.task.TaskType == tType || s.task.TaskType == tType2 {
 				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue(), s.task.Id)
 			} else {
 				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue())

@@ -198,11 +198,6 @@ func (s *Server) newScaleDownHandler(w http.ResponseWriter, r *http.Request) {
 
 	newInstanceId := []string{}
 	for i := currentNbInstance - 1; i > currentNbInstance-1-delta; i-- {
-		fmt.Println(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10), "/"))
-		_, err := kv.DeleteTree(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10))+"/", nil)
-		if err != nil {
-			log.Panic(err)
-		}
 		newInstanceId = append(newInstanceId, strconv.Itoa(int(i)))
 	}
 
