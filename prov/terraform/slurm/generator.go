@@ -129,9 +129,10 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 
 			addResource(&infrastructure, "slurm_cntk", jobName, &job)
 
-			consulKeyFinalError := commons.ConsulKey{Name: jobName + "-final_error", Path: path.Join(instancesKey, instanceName, "/attributes/final_error"), Value: fmt.Sprintf("${slurm_cntk.%s.finalError}", jobName)}
+			consulKeyFinalError := commons.ConsulKey{Name: jobName + "-attrib_final_error", Path: path.Join(instancesKey, instanceName, "/attributes/final_error"), Value: fmt.Sprintf("${slurm_cntk.%s.finalError}", jobName)}
+			consulKeyJobId := commons.ConsulKey{Name: jobName + "-attrib_job_id", Path: path.Join(instancesKey, instanceName, "/attributes/job_id"), Value: fmt.Sprintf("${slurm_cntk.%s.job_id}", jobName)}
 			var consulKeys commons.ConsulKeys
-			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKeyFinalError}}
+			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKeyFinalError, consulKeyJobId}}
 			addResource(&infrastructure, "consul_keys", jobName, &consulKeys)
 
 		} //End instances loop
