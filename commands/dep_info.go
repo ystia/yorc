@@ -3,149 +3,235 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+
+	"path"
+
+	"os"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"io/ioutil"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
-	"strings"
 )
 
+var commErrorMsg = "Janus API communication error"
+
 func init() {
+	var detailedInfo bool
+
+	var infoCmd = &cobra.Command{
+		Use:   "info <DeploymentId>",
+		Short: "Get Information about a deployment",
+		Long: `Display information about a given deployment.
+It prints the deployment status and the status of all the nodes contained in this deployment.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
+			}
+			janusAPI := viper.GetString("janus_api")
+			colorize := !noColor
+			if colorize {
+				commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(commErrorMsg)
+			}
+			request, err := http.NewRequest("GET", "http://"+janusAPI+"/deployments/"+args[0], nil)
+			if err != nil {
+				errExit(err)
+			}
+			request.Header.Add("Accept", "application/json")
+			response, err := http.DefaultClient.Do(request)
+			if err != nil {
+				errExit(err)
+			}
+			if response.StatusCode != 200 {
+				// Try to get the reason
+				printErrors(response.Body)
+				errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+			}
+			var dep rest.Deployment
+			body, err := ioutil.ReadAll(response.Body)
+			if err != nil {
+				errExit(err)
+			}
+			err = json.Unmarshal(body, &dep)
+			if err != nil {
+				errExit(err)
+			}
+			fmt.Println("Deployment: ", dep.Id)
+
+			fmt.Println("Global status:", getColoredDeploymentStatus(colorize, dep.Status))
+			if colorize {
+				defer color.Unset()
+			}
+			var errs []error
+			if !detailedInfo {
+				errs = tableBasedDeploymentRendering(janusAPI, dep, colorize)
+			} else {
+				errs = detailedDeploymentRendering(janusAPI, dep, colorize)
+			}
+			if len(errs) > 0 {
+				fmt.Fprintln(os.Stderr, "\n\nErrors encountered:")
+				for _, err := range errs {
+					fmt.Fprintln(os.Stderr, "###################\n", err)
+				}
+			}
+			return nil
+		},
+	}
+	infoCmd.PersistentFlags().BoolVarP(&detailedInfo, "detailed", "d", false, "Add details to the info command making it less concise and readable.")
+
 	deploymentsCmd.AddCommand(infoCmd)
 }
 
-var infoCmd = &cobra.Command{
-	Use:   "info <DeploymentId>",
-	Short: "Get Information about a deployment",
-	Long: `Display information about a given deployment.
-It prints the deployment status and the status of all the nodes contained in this deployment.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
-			return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
-		}
-		janusApi := viper.GetString("janus_api")
-		colorize := !noColor
+func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize bool) []error {
+	errs := make([]error, 0)
+	nodesTable := tabutil.NewTable()
+	nodesTable.AddHeaders("Node", "Status", "Instances number")
 
-		request, err := http.NewRequest("GET", "http://"+janusApi+"/deployments/"+args[0], nil)
-		if err != nil {
-			errExit(err)
-		}
-		request.Header.Add("Accept", "application/json")
-		response, err := http.DefaultClient.Do(request)
-		if err != nil {
-			errExit(err)
-		}
-		if response.StatusCode != 200 {
-			// Try to get the reason
-			printErrors(response.Body)
-			errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
-		}
-		var dep rest.Deployment
-		body, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			errExit(err)
-		}
-		err = json.Unmarshal(body, &dep)
-		if err != nil {
-			errExit(err)
-		}
-		fmt.Println("Deployment: ", dep.Id)
+	tasksTable := tabutil.NewTable()
+	tasksTable.AddHeaders("Id", "Type", "Status")
 
-		fmt.Println("Global status:", getColoredDeploymentStatus(colorize, dep.Status))
-		if colorize {
-			defer color.Unset()
-		}
-		nodesTable := tabutil.NewTable()
-		nodesTable.AddHeaders("Node", "Status", "Instances number")
+	outputsTable := tabutil.NewTable()
+	outputsTable.AddHeaders("Output Name", "Value")
+	var err error
+	for _, atomLink := range dep.Links {
 
-		tasksTable := tabutil.NewTable()
-		tasksTable.AddHeaders("Id", "Type", "Status")
+		if atomLink.Rel == rest.LINK_REL_NODE {
+			var node rest.Node
 
-		outputsTable := tabutil.NewTable()
-		outputsTable.AddHeaders("Output Name", "Value")
-		for _, atomLink := range dep.Links {
-
-			if atomLink.Rel == rest.LINK_REL_NODE {
-				response = doAtomGetRequest(janusApi, atomLink)
-				var node rest.Node
-				body, err := ioutil.ReadAll(response.Body)
-				if err != nil {
-					errExit(err)
-				}
-				err = json.Unmarshal(body, &node)
-				if err != nil {
-					errExit(err)
-				}
-				nbInstances := 0
-				for _, nodeLink := range node.Links {
-					if nodeLink.Rel == rest.LINK_REL_INSTANCE {
-						nbInstances++
-					}
-				}
-				if nbInstances == 0 {
-					nbInstances = 1
-				}
-				nodesTable.AddRow(node.Name, getColoredNodeStatus(colorize, node.Status), nbInstances)
-			} else if atomLink.Rel == rest.LINK_REL_TASK {
-				response = doAtomGetRequest(janusApi, atomLink)
-				var task rest.Task
-				body, err := ioutil.ReadAll(response.Body)
-				if err != nil {
-					errExit(err)
-				}
-				err = json.Unmarshal(body, &task)
-				if err != nil {
-					errExit(err)
-				}
-				tasksTable.AddRow(task.Id, task.Type, getColoredTaskStatus(colorize, task.Status))
-			} else if atomLink.Rel == rest.LINK_REL_OUTPUT {
-				response = doAtomGetRequest(janusApi, atomLink)
-				var output rest.Output
-				body, err := ioutil.ReadAll(response.Body)
-				if err != nil {
-					errExit(err)
-				}
-				err = json.Unmarshal(body, &output)
-				if err != nil {
-					errExit(err)
-				}
-				outputsTable.AddRow(output.Name, output.Value)
+			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &node)
+			if err != nil {
+				errs = append(errs, err)
+				nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg, "")
+				continue
 			}
 
+			nbInstances := 0
+			for _, nodeLink := range node.Links {
+				if nodeLink.Rel == rest.LINK_REL_INSTANCE {
+					nbInstances++
+				}
+			}
+			if nbInstances == 0 {
+				nbInstances = 1
+			}
+			nodesTable.AddRow(node.Name, getColoredNodeStatus(colorize, node.Status), nbInstances)
+		} else if atomLink.Rel == rest.LINK_REL_TASK {
+			var task rest.Task
+			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &task)
+			if err != nil {
+				errs = append(errs, err)
+				tasksTable.AddRow(path.Base(atomLink.Href), "", commErrorMsg)
+				continue
+			}
+			tasksTable.AddRow(task.Id, task.Type, getColoredTaskStatus(colorize, task.Status))
+		} else if atomLink.Rel == rest.LINK_REL_OUTPUT {
+			var output rest.Output
+
+			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &output)
+			if err != nil {
+				errs = append(errs, err)
+				outputsTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
+				continue
+			}
+			outputsTable.AddRow(output.Name, output.Value)
 		}
-		fmt.Println()
-		fmt.Println("Nodes:")
-		fmt.Println(nodesTable.Render())
-		fmt.Println()
-		fmt.Println("Tasks:")
-		fmt.Println(tasksTable.Render())
-		fmt.Println()
-		fmt.Println("Outputs:")
-		fmt.Println(outputsTable.Render())
-		return nil
-	},
+	}
+	fmt.Println()
+	fmt.Println("Nodes:")
+	fmt.Println(nodesTable.Render())
+	fmt.Println()
+	fmt.Println("Tasks:")
+	fmt.Println(tasksTable.Render())
+	fmt.Println()
+	fmt.Println("Outputs:")
+	fmt.Println(outputsTable.Render())
+	return errs
 }
 
-func doAtomGetRequest(janusApi string, atomLink rest.AtomLink) *http.Response {
-	request, err := http.NewRequest("GET", "http://"+janusApi+atomLink.Href, nil)
-	if err != nil {
-		errExit(err)
-	}
-	request.Header.Add("Accept", "application/json")
+func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize bool) []error {
+	errs := make([]error, 0)
+	var err error
+	nodesList := []string{"Nodes:"}
+	tasksList := []string{"Tasks:"}
+	outputsList := []string{"Outputs:"}
+	for _, atomLink := range dep.Links {
 
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		errExit(err)
+		if atomLink.Rel == rest.LINK_REL_NODE {
+			var node rest.Node
+
+			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &node)
+			if err != nil {
+				errs = append(errs, err)
+				nodesList = append(nodesList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
+				continue
+			}
+			nodesList = append(nodesList, fmt.Sprintf("  - %s: %s", node.Name, getColoredNodeStatus(colorize, node.Status)))
+			nodesList = append(nodesList, fmt.Sprintf("    Instances:"))
+			for _, nodeLink := range node.Links {
+				if nodeLink.Rel == rest.LINK_REL_INSTANCE {
+					var inst rest.NodeInstance
+					err = getJSONEntityFromAtomGetRequest(janusAPI, nodeLink, &inst)
+					if err != nil {
+						errs = append(errs, err)
+						nodesList = append(nodesList, fmt.Sprintf("      - %s: %s", path.Base(nodeLink.Href), commErrorMsg))
+						continue
+					}
+					nodesList = append(nodesList, fmt.Sprintf("      - %s: %s", inst.Id, getColoredNodeStatus(colorize, inst.Status)))
+					nodesList = append(nodesList, fmt.Sprintf("        Attributes:"))
+					for _, instanceLink := range inst.Links {
+						if instanceLink.Rel == rest.LINK_REL_ATTRIBUTE {
+							var attr rest.Attribute
+							err = getJSONEntityFromAtomGetRequest(janusAPI, instanceLink, &attr)
+							if err != nil {
+								errs = append(errs, err)
+								nodesList = append(nodesList, fmt.Sprintf("          - %s: %s", path.Base(instanceLink.Href), commErrorMsg))
+								continue
+							}
+							nodesList = append(nodesList, fmt.Sprintf("          - %s: %s", attr.Name, attr.Value))
+						}
+					}
+				}
+			}
+		} else if atomLink.Rel == rest.LINK_REL_TASK {
+			var task rest.Task
+			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &task)
+			if err != nil {
+				errs = append(errs, err)
+				tasksList = append(tasksList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
+				continue
+			}
+			tasksList = append(tasksList, fmt.Sprintf("  - %s:", task.Id))
+			tasksList = append(tasksList, fmt.Sprintf("      type: %s", task.Type))
+			tasksList = append(tasksList, fmt.Sprintf("      status: %s", getColoredTaskStatus(colorize, task.Status)))
+		} else if atomLink.Rel == rest.LINK_REL_OUTPUT {
+			var output rest.Output
+
+			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &output)
+			if err != nil {
+				errs = append(errs, err)
+				outputsList = append(outputsList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
+				continue
+			}
+			outputsList = append(outputsList, fmt.Sprintf("  - %s: %s", output.Name, output.Value))
+		}
 	}
-	if response.StatusCode != 200 {
-		// Try to get the reason
-		printErrors(response.Body)
-		errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+	fmt.Println()
+	for _, line := range nodesList {
+		fmt.Println(line)
 	}
-	return response
+	fmt.Println()
+	for _, line := range tasksList {
+		fmt.Println(line)
+	}
+	fmt.Println()
+	for _, line := range outputsList {
+		fmt.Println(line)
+	}
+	return errs
 }
 
 func getColoredDeploymentStatus(colorize bool, status string) string {

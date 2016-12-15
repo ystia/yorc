@@ -519,19 +519,11 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId s
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
 func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	depPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID)
-	nodesPath := path.Join(depPath, "topology", "nodes")
-	instancesPath := path.Join(depPath, "topology", "instances")
-	scalable, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
+	_, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	if scalable {
-		consulStore.StoreConsulKeyAsString(path.Join(nodesPath, nodeName, "nbInstances"), strconv.FormatUint(uint64(nbInstances), 10))
-		for i := uint32(0); i < nbInstances; i++ {
-			consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
-		}
-	}
+	createNodeInstances(consulStore, kv, nbInstances, deploymentID, nodeName)
 	ip, networkNodeName, err := checkFloattingIp(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -670,14 +662,16 @@ This function create a given number of floating IP instances
 */
 func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, nodeName string) {
 
-	networkPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
-	depPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId)
-	instancesPath := path.Join(depPath, "topology", "instances")
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "instances", nodeName)
 
-	consulStore.StoreConsulKeyAsString(path.Join(networkPath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
+	consulStore.StoreConsulKeyAsString(path.Join(nodePath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
 
 	for i := uint32(0); i < numberInstances; i++ {
-		consulStore.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), INITIAL.String())
+		instanceName := strconv.FormatUint(uint64(i), 10)
+		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), INITIAL.String())
+		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
+		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
 	}
 }
 
