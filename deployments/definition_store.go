@@ -562,10 +562,30 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 	if err != nil {
 		return err
 	}
+	computes := make([]string, 0)
 	for _, nodeName := range nodes {
-		createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
-		fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
-		createMissingBlockStrotageForNode(consulStore, kv, deploymentID, nodeName)
+		err = createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+		err = fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+		isCompute, err := IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
+		if err != nil {
+			return err
+		}
+		if isCompute {
+			computes = append(computes, nodeName)
+		}
+	}
+	for _, nodeName := range computes {
+
+		err = createMissingBlockStorageForNode(consulStore, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
 	}
 	return errGroup.Wait()
 }
@@ -697,7 +717,7 @@ func checkFloattingIp(kv *api.KV, deploymentId, nodeName string) (bool, string, 
 }
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
-func createMissingBlockStrotageForNode(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
+func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
 	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
