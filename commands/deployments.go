@@ -1,14 +1,18 @@
 package commands
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"io"
 	"io/ioutil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"net/http"
 	"os"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
 func init() {
@@ -41,6 +45,21 @@ func setDeploymentsConfig() {
 
 }
 
+type cmdRestError struct {
+	errs rest.Errors
+}
+
+func (cre cmdRestError) Error() string {
+	var buf bytes.Buffer
+	if len(cre.errs.Errors) > 0 {
+		buf.WriteString("Got errors when interacting with Janus:\n")
+		for _, e := range cre.errs.Errors {
+			buf.WriteString(fmt.Sprintf("Error: %q: %q\n", e.Title, e.Detail))
+		}
+	}
+	return buf.String()
+}
+
 func printRestErrors(errs rest.Errors) {
 	if len(errs.Errors) > 0 {
 		fmt.Println("Got errors when interacting with Janus:")
@@ -56,10 +75,37 @@ func errExit(msg interface{}) {
 }
 
 func printErrors(body io.ReadCloser) {
+	printRestErrors(getRestErrors(body))
+}
+
+func getRestErrors(body io.ReadCloser) rest.Errors {
 	var errs rest.Errors
 	bodyContent, _ := ioutil.ReadAll(body)
-	err := json.Unmarshal(bodyContent, &errs)
-	if err == nil {
-		printRestErrors(errs)
+	json.Unmarshal(bodyContent, &errs)
+	return errs
+}
+
+func getJSONEntityFromAtomGetRequest(janusAPI string, atomLink rest.AtomLink, entity interface{}) error {
+	request, err := http.NewRequest("GET", "http://"+janusAPI+atomLink.Href, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to contact Janus API")
 	}
+	request.Header.Add("Accept", "application/json")
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return errors.Wrap(err, "Failed to contact Janus API")
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		// Try to get the reason
+		errs := getRestErrors(response.Body)
+		err = cmdRestError{errs: errs}
+		return errors.Wrapf(err, "Expecting HTTP Status code 2xx got %d, reason %q: ", response.StatusCode, response.Status)
+	}
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read response from Janus")
+	}
+	return errors.Wrap(json.Unmarshal(body, entity), "Fail to parse JSON response from Janus")
 }

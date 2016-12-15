@@ -5,6 +5,8 @@ import (
 	"path"
 	"strconv"
 
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -38,6 +40,7 @@ func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uin
 		return false, 0, fmt.Errorf("Missing type for node %q, in deployment %q", nodeName, deploymentId)
 	}
 	nodeType := string(kvp.Value)
+	// It would be a better solution to check if the type or its parent have a scalable capability
 	if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, nodeType, "tosca.nodes.Compute"); err != nil {
 		return false, 0, err
 	} else if ok {
@@ -356,4 +359,102 @@ func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
 		return "", errors.Errorf("Missing mandatory parameter \"type\" for node %q", nodeName)
 	}
 	return string(kvp.Value), nil
+}
+
+// GetNodeAttributesNames retrieves the list of existing attributes for a given node.
+func GetNodeAttributesNames(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+	attributesSet := make(map[string]struct{})
+
+	// Look at node type
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	typeAttrs, err := GetTypeAttributesNames(kv, deploymentID, nodeType)
+	if err != nil {
+		return nil, err
+	}
+	for _, attr := range typeAttrs {
+		attributesSet[attr] = struct{}{}
+	}
+
+	// Look at instances attributes
+	instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
+	for _, instance := range instances {
+		storeSubKeysInSet(kv, path.Join(nodeInstancesPath, instance, "attributes"), attributesSet)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Look at not instance-scoped attribute
+	err = storeSubKeysInSet(kv, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "attributes"), attributesSet)
+	if err != nil {
+		return nil, err
+	}
+
+	attributesList := make([]string, len(attributesSet))
+	i := 0
+	for attr := range attributesSet {
+		attributesList[i] = attr
+		i++
+	}
+
+	return attributesList, nil
+}
+
+// GetTypeAttributesNames returns the list of attributes names found in the type hierarchy
+func GetTypeAttributesNames(kv *api.KV, deploymentID, typeName string) ([]string, error) {
+	attributesSet := make(map[string]struct{})
+
+	parentType, err := GetParentType(kv, deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+	if parentType != "" {
+		parentAttrs, err := GetTypeAttributesNames(kv, deploymentID, parentType)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, attr := range parentAttrs {
+			attributesSet[attr] = struct{}{}
+		}
+	}
+	err = storeSubKeysInSet(kv, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName, "attributes"), attributesSet)
+	if err != nil {
+		return nil, err
+	}
+
+	attributesList := make([]string, len(attributesSet))
+	i := 0
+	for attr := range attributesSet {
+		attributesList[i] = attr
+		i++
+	}
+	return attributesList, nil
+}
+
+// storeSubKeysInSet store Consul keys directly living under parentPath into the given set.
+func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) error {
+	parentPath = strings.TrimSpace(parentPath)
+	if !strings.HasSuffix(parentPath, "/") {
+		parentPath += "/"
+	}
+	keys, _, err := kv.Keys(parentPath+"/", "/", nil)
+	if err != nil {
+		return errors.Wrap(err, "Consul access error: ")
+	}
+	for _, key := range keys {
+		attr := path.Base(key)
+		if _, found := set[attr]; !found {
+			set[attr] = struct{}{}
+		}
+	}
+	return nil
 }

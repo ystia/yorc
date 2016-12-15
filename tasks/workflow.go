@@ -107,7 +107,7 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName
 	kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "status"), Value: []byte(status)}, nil)
 	ids, _ := deployments.GetNodeInstancesIds(kv, deploymentId, nodeName)
 	for _, id := range ids {
-		kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, id, "status"), Value: []byte(status)}, nil)
+		kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, id, "attributes/state"), Value: []byte(status)}, nil)
 	}
 	// Publish status change event
 	eventPub.StatusChange(nodeName, status)

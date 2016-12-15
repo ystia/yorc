@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 
+	"strconv"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -20,7 +22,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"strconv"
 )
 
 const ansible_config = `[defaults]
@@ -411,7 +412,7 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 				instanceName = getInstanceName(e.NodeName, instance)
 			}
 
-			hostConn := hostConnection{host: string(kvp.Value)}
+			hostConn := hostConnection{host: string(kvp.Value), instanceID: instance}
 			kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "topology/nodes", nodeName, "properties/user"), nil)
 			if err != nil {
 				return err

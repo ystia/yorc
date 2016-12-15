@@ -46,7 +46,6 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/type":                                               []byte("tosca.nodes.Compute"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/default_instances": []byte("-10"),
 		// Case Node Hosted on another node
-
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/name":                         []byte("janus.type.1"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.2/derived_from":                 []byte("janus.type.3"),
@@ -56,6 +55,24 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/name":         []byte("tosca.relationships.HostedOn"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/name":                  []byte("tosca.nodes.Compute"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/id/default": []byte("DefaultComputeTypeid"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/ip/default": []byte(""),
+
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/derived_from": []byte("tosca.nodes.SoftwareComponent"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/name":         []byte("janus.type.DerivedSC1"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC2/derived_from":            []byte("tosca.nodes.SoftwareComponent"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC2/name":                    []byte("janus.type.DerivedSC2"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC2/attributes/dsc2/default": []byte("janus.type.DerivedSC2"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC3/derived_from": []byte("janus.type.DerivedSC2"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC3/name":         []byte("janus.type.DerivedSC3"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC4/derived_from":            []byte("janus.type.DerivedSC3"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC4/name":                    []byte("janus.type.DerivedSC4"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC4/attributes/dsc4/default": []byte("janus.type.DerivedSC4"),
 
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Root/name":                                           []byte("tosca.nodes.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/properties/parenttypeprop/default": []byte("RootComponentTypeProp"),
@@ -144,6 +161,12 @@ func TestDeploymentNodes(t *testing.T) {
 		})
 		t.Run("GetNodeAttributes", func(t *testing.T) {
 			testGetNodeAttributes(t, kv)
+		})
+		t.Run("GetNodeAttributesNames", func(t *testing.T) {
+			testGetNodeAttributesNames(t, kv)
+		})
+		t.Run("GetTypeAttributesNames", func(t *testing.T) {
+			testGetTypeAttributesNames(t, kv)
 		})
 	})
 }
@@ -294,4 +317,98 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 	require.Equal(t, "Recurse-Compute1-0", instancesValues["0"])
 	require.Equal(t, "Recurse-Compute1-3", instancesValues["3"])
 	require.Equal(t, "Recurse-Compute1-6", instancesValues["6"])
+}
+
+func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	attrNames, err := GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Compute1")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 3)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "ip")
+	require.Contains(t, attrNames, "recurse")
+
+	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node1")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 2)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+
+	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node2")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 2)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+
+	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node3")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 3)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+	require.Contains(t, attrNames, "simple")
+
+	attrNames, err = GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Node4")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 2)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+}
+
+func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	attrNames, err := GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "tosca.nodes.SoftwareComponent")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 2)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC1")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 2)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC2")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 3)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+	require.Contains(t, attrNames, "dsc2")
+
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC3")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 3)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+	require.Contains(t, attrNames, "dsc2")
+
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC4")
+	require.Nil(t, err)
+	require.NotNil(t, attrNames)
+	require.Len(t, attrNames, 4)
+
+	require.Contains(t, attrNames, "id")
+	require.Contains(t, attrNames, "type")
+	require.Contains(t, attrNames, "dsc2")
+	require.Contains(t, attrNames, "dsc4")
 }

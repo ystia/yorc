@@ -105,9 +105,9 @@ func testExecution_OnNode(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/Compute/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
 
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "0/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "1/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "2/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "1/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, "2/attributes/state"): []byte("initial"),
 	})
 
 	t.Run("testExecution_ResolveInputsOnNode", func(t *testing.T) {
@@ -321,12 +321,12 @@ func testExecution_OnRelationshipSource(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.10"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.11"),
 
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/attributes/state"): []byte("initial"),
 
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/attributes/state"): []byte("initial"),
 	})
 	for i, operation := range operationTestCases {
 		t.Run("testExecution_ResolveInputsOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
@@ -516,12 +516,12 @@ func testExecution_OnRelationshipTarget(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.10"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances/ComputeB/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.11"),
 
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "0/staattributes/statetus"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "1/attributes/state"):       []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeAName, "2/attributes/state"):       []byte("initial"),
 
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/status"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/status"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeBName, "1/attributes/state"): []byte("initial"),
 	})
 	for i, operation := range operationTestCases {
 		t.Run("testExecution_ResolveInputOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
