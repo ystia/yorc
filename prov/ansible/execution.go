@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 
+	"strconv"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -20,7 +22,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"strconv"
 )
 
 const ansible_config = `[defaults]
