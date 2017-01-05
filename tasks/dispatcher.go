@@ -1,13 +1,15 @@
 package tasks
 
 import (
-	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 type Dispatcher struct {
@@ -69,7 +71,16 @@ func (d *Dispatcher) Run() {
 					break
 				}
 			}
-			if ok, _ := checkLock(taskKey, kv, nil); ok {
+			status, err := checkTaskStatus(kv, taskKey)
+
+			if err != nil {
+				log.Print(err)
+				log.Debugf("%+v", err)
+				continue
+			}
+
+			if status != INITIAL && status != RUNNING {
+				log.Printf("Skipping task with status %q", status)
 				continue
 			}
 
@@ -95,9 +106,20 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			ok, status := checkLock(taskKey, kv, lock)
+			status, err = checkTaskStatus(kv, taskKey)
 
-			if ok {
+			if err != nil {
+				log.Print(err)
+				log.Debugf("%+v", err)
+				lock.Unlock()
+				lock.Destroy()
+				continue
+			}
+
+			if status != INITIAL && status != RUNNING {
+				log.Printf("Skipping task with status %q", status)
+				lock.Unlock()
+				lock.Destroy()
 				continue
 			}
 
@@ -169,34 +191,19 @@ func (d *Dispatcher) Run() {
 
 }
 
-func checkLock(taskKey string, kv *api.KV, lock *api.Lock) (bool, TaskStatus) {
-
-	cont := false
-
+func checkTaskStatus(kv *api.KV, taskKey string) (TaskStatus, error) {
 	kvPairContent, _, err := kv.Get(taskKey+"status", nil)
 	if err != nil {
-		log.Printf("Failed to get status for key %s: %+v", taskKey, err)
-		cont = true
+		return FAILED, errors.Wrapf(err, "Failed to get status for key %s: %+v", taskKey, err)
 	}
 	if kvPairContent == nil {
-		log.Printf("Failed to get status for key %s: nil value", taskKey)
-		cont = true
+		return FAILED, errors.Errorf("Failed to get status for key %s: nil value", taskKey)
 	}
+
 	statusInt, err := strconv.Atoi(string(kvPairContent.Value))
 	if err != nil {
-		log.Printf("Failed to get status for key %s: %+v", taskKey, err)
-		cont = true
+		return FAILED, errors.Wrapf(err, "Failed to get status for key %s", taskKey)
 	}
-	status := TaskStatus(statusInt)
-	if status != INITIAL && status != RUNNING {
-		log.Debugf("Skiping task %s with status %s", taskKey, status)
-		cont = true
-	}
+	return TaskStatus(statusInt), nil
 
-	if lock != nil && cont {
-		lock.Unlock()
-		lock.Destroy()
-	}
-
-	return cont, status
 }
