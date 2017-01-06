@@ -7,6 +7,8 @@ import (
 
 	"strings"
 
+	"context"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -218,7 +220,7 @@ func GetNodeInstancesIds(kv *api.KV, deploymentId, nodeName string) ([]string, e
 	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName)
 	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
 	if err != nil {
-		return names, err
+		return names, errors.Wrap(err, "Consul communication error")
 	}
 	for _, instance := range instances {
 		names = append(names, path.Base(instance))
@@ -226,37 +228,37 @@ func GetNodeInstancesIds(kv *api.KV, deploymentId, nodeName string) ([]string, e
 	return names, nil
 }
 
-// GetNodeInstancesNames returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"
+// GetHostedOnNode returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
-func GetHostedOnNode(kv *api.KV, deploymentId, nodeName string) (string, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) {
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
-	log.Debugf("Deployment: %q. Node %q. Requirements %v", deploymentId, nodeName, reqKVPs)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "Consul communication error")
 	}
+	log.Debugf("Deployment: %q. Node %q. Requirements %v", deploymentID, nodeName, reqKVPs)
 	for _, reqKey := range reqKVPs {
-		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentId, nodeName, reqKey)
+		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, reqKey)
 		// Check requirement relationship
 		kvp, _, err := kv.Get(path.Join(reqKey, "relationship"), nil)
 		if err != nil {
-			return "", err
+			return "", errors.Wrap(err, "Consul communication error")
 		}
 		// Is this relationship an HostedOn?
 		if kvp.Value != nil {
-			if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
+			if ok, err := IsNodeTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
 				return "", err
 			} else if ok {
 				// An HostedOn! Great! let inspect the target node.
 				kvp, _, err := kv.Get(path.Join(reqKey, "node"), nil)
 				if err != nil {
-					return "", err
+					return "", errors.Wrap(err, "Consul communication error")
 				}
 				if kvp == nil || len(kvp.Value) == 0 {
-					return "", fmt.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployement %q", path.Base(reqKey), nodeName, deploymentId)
+					return "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployement %q", path.Base(reqKey), nodeName, deploymentID)
 				}
 				return string(kvp.Value), nil
 			}
@@ -265,16 +267,17 @@ func GetHostedOnNode(kv *api.KV, deploymentId, nodeName string) (string, error) 
 	return "", nil
 }
 
-func IsHostedOn(kv *api.KV, deploymentId, nodeName, hostedOn string) (bool, error) {
-	if hosted, err := GetHostedOnNode(kv, deploymentId, nodeName); err == nil && hosted == "" {
-		return false, nil
-	} else if hosted != hostedOn && err == nil {
-		return IsHostedOn(kv, deploymentId, hosted, hostedOn)
-	} else if err != nil {
+// IsHostedOn checks if a given nodeName is hosted on another given node hostedOn by traversing the hostedOn hierarchy
+func IsHostedOn(kv *api.KV, deploymentID, nodeName, hostedOn string) (bool, error) {
+	if host, err := GetHostedOnNode(kv, deploymentID, nodeName); err != nil {
 		return false, err
-	} else {
-		return true, nil
+	} else if host == "" {
+		return false, nil
+	} else if host != hostedOn {
+		return IsHostedOn(kv, deploymentID, host, hostedOn)
 	}
+	return true, nil
+
 }
 
 // GetTypeDefaultProperty checks if a type has a default value for a given property.
@@ -490,7 +493,7 @@ func GetNodes(kv *api.KV, deploymentId string) ([]string, error) {
 	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes")
 	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
 	if err != nil {
-		return names, err
+		return names, errors.Wrap(err, "Consul communication error")
 	}
 	for _, node := range nodes {
 		names = append(names, path.Base(node))
@@ -623,4 +626,59 @@ func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) e
 		}
 	}
 	return nil
+}
+
+// CreateNewNodeStackInstances create the given number of new instances of the given node and all other nodes hosted on this one
+//
+// CreateNewNodeStackInstances returns the list of newly created instances IDs
+func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, instances int) ([]string, error) {
+	ctx := context.Background()
+	_, errGroup, consulStore := consulutil.WithContext(ctx)
+
+	nodes, err := GetNodes(kv, deploymentID)
+	if err != nil {
+		return nil, err
+	}
+	stackNodes := nodes[:0]
+	for _, node := range nodes {
+		if node == nodeName {
+			stackNodes = append(stackNodes, node)
+		} else {
+			var hostedOnNode bool
+			if hostedOnNode, err = IsHostedOn(kv, deploymentID, node, nodeName); err != nil {
+				return nil, err
+			} else if hostedOnNode {
+				stackNodes = append(stackNodes, node)
+			}
+		}
+	}
+
+	// Now get existing nodes instances ids to have the
+	existingIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	instancesIDs := make([]string, 0)
+	initialID := len(existingIds)
+	for i := initialID; i < initialID+instances; i++ {
+		id := strconv.FormatUint(uint64(i), 10)
+		instancesIDs = append(instancesIDs, id)
+		for _, stackNode := range stackNodes {
+
+			createNodeInstance(consulStore, deploymentID, stackNode, id)
+		}
+	}
+
+	return instancesIDs, errors.Wrapf(errGroup.Wait(), "Failed to create instances for node %q", nodeName)
+
+}
+
+// createNodeInstance creates required elements for a new node
+func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeName, instanceName string) {
+
+	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
+
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), INITIAL.String())
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
 }

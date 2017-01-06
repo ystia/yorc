@@ -663,15 +663,12 @@ This function create a given number of floating IP instances
 func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, nodeName string) {
 
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
-	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "instances", nodeName)
 
 	consulStore.StoreConsulKeyAsString(path.Join(nodePath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
 
 	for i := uint32(0); i < numberInstances; i++ {
 		instanceName := strconv.FormatUint(uint64(i), 10)
-		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), INITIAL.String())
-		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
-		consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
+		createNodeInstance(consulStore, deploymentId, nodeName, instanceName)
 	}
 }
 
