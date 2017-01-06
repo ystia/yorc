@@ -3,6 +3,10 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"path"
+	"strings"
+	"sync"
+
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/sync/errgroup"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -11,9 +15,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
-	"path"
-	"strings"
-	"sync"
 )
 
 type Worker struct {
@@ -171,6 +172,9 @@ func (w Worker) handleTask(task *Task) {
 					}
 				}
 			}
+			// Now cleanup ourself: mark it as done so nobody will try to run it, clear the processing lock and finally delete the task.
+			task.WithStatus(DONE)
+			task.releaseLock()
 			_, err = w.consulClient.KV().DeleteTree(path.Join(consulutil.TasksPrefix, task.Id), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
