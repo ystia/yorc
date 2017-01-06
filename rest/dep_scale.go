@@ -2,15 +2,16 @@ package rest
 
 import (
 	"fmt"
-	"github.com/julienschmidt/httprouter"
 	"net/http"
+	"path"
+	"strconv"
+	"strings"
+
+	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"path"
-	"strconv"
-	"strings"
 )
 
 func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
@@ -18,13 +19,13 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	nodename := params.ByName("nodeName")
+	nodeName := params.ByName("nodeName")
 
 	kv := s.consulClient.KV()
 
-	if len(nodename) == 0 {
+	if len(nodeName) == 0 {
 		log.Panic("You must provide a nodename")
-	} else if ok, err := deployments.HasScalableCapability(kv, id, nodename); err != nil {
+	} else if ok, err := deployments.HasScalableCapability(kv, id, nodeName); err != nil {
 		log.Panic(err)
 	} else if !ok {
 		log.Panic("The given nodename must be scalable")
@@ -44,11 +45,11 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic("You need to provide a add parameter")
 	}
 
-	_, maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodename)
+	_, maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
-	_, currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodename)
+	_, currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -58,17 +59,15 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 		positiveDelta = maxInstances - currentNbInstance
 	}
 
-	depPath := path.Join(consulutil.DeploymentKVPrefix, id)
-	instancesPath := path.Join(depPath, "topology", "instances")
-
+	// NOTE: all those stuff on requirements should probably go into deployments.CreateNewNodeStackInstances
 	var req []string
 
-	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodename, "network")
+	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "network")
 	if err != nil {
 		log.Panic(err)
 	}
 
-	if tmp, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodename, "local_storage"); err != nil {
+	if tmp, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage"); err != nil {
 		log.Panic(err)
 	} else {
 		req = append(req, tmp...)
@@ -81,30 +80,31 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 			log.Panic(err)
 		}
 		reqNameArr = append(reqNameArr, string(reqName.Value))
-		for i := currentNbInstance; i < currentNbInstance+positiveDelta; i++ {
-			consulutil.StoreConsulKeyAsString(path.Join(instancesPath, string(reqName.Value), strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())
+		// TODO: for now the link between the requirement instance ID and the node instance ID is a kind of black magic. We should found a way to make it rational...
+		_, err = deployments.CreateNewNodeStackInstances(kv, id, string(reqName.Value), int(positiveDelta))
+		if err != nil {
+			log.Panic(err)
 		}
 	}
 
-	newInstanceId := []string{}
-	for i := currentNbInstance; i < currentNbInstance+positiveDelta; i++ {
-		consulutil.StoreConsulKeyAsString(path.Join(instancesPath, nodename, strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())
-		newInstanceId = append(newInstanceId, strconv.Itoa(int(i)))
+	newInstanceID, err := deployments.CreateNewNodeStackInstances(kv, id, nodeName, int(positiveDelta))
+	if err != nil {
+		log.Panic(err)
 	}
 
-	err = deployments.SetNbInstancesForNode(kv, id, nodename, currentNbInstance+positiveDelta)
+	err = deployments.SetNbInstancesForNode(kv, id, nodeName, currentNbInstance+positiveDelta)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	data := make(map[string]string)
 
-	data["node"] = nodename
-	data["new_instances_ids"] = strings.Join(newInstanceId, ",")
+	data["node"] = nodeName
+	data["new_instances_ids"] = strings.Join(newInstanceID, ",")
 	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance + positiveDelta))
 	data["req"] = strings.Join(reqNameArr, ",")
 
-	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.ScaleUp, data)
+	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleUp, data)
 
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
@@ -114,9 +114,7 @@ func (s *Server) newScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
-	destroy(lock, taskId, id)
-
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskId))
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskID))
 	w.WriteHeader(http.StatusAccepted)
 }
 

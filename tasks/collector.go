@@ -2,13 +2,14 @@ package tasks
 
 import (
 	"fmt"
+	"path"
+	"strconv"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/satori/go.uuid"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"path"
-	"strconv"
-	"time"
 )
 
 type Collector struct {
@@ -17,6 +18,15 @@ type Collector struct {
 
 func NewCollector(consulClient *api.Client) *Collector {
 	return &Collector{consulClient: consulClient}
+}
+
+func (c *Collector) RegisterTaskWithData(targetId string, taskType TaskType, data map[string]string) (string, error) {
+	destroy, lock, taskId, err := c.RegisterTaskWithoutDestroyLock(targetId, taskType, data)
+	defer destroy(lock, taskId, targetId)
+	if err != nil {
+		return "", err
+	}
+	return taskId, nil
 }
 
 func (c *Collector) RegisterTask(targetId string, taskType TaskType) (string, error) {
