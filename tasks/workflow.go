@@ -2,13 +2,15 @@ package tasks
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"strings"
 	"time"
 
+	"strconv"
+
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -16,7 +18,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
-	"strconv"
 )
 
 var wfCanceled = errors.New("workflow canceled")
@@ -218,10 +219,13 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 				nodesIds := ""
 				if tType2, err := TaskTypeForName("scale-down"); s.task.TaskType == tType2 && err == nil {
 					nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.task.Id, "new_instances_ids"), nil)
-					nodesIds = string(nodesIdsKv.Value)
 					if err != nil {
-						return err
+						return errors.Wrap(err, "Consul access error")
 					}
+					if nodesIdsKv == nil || len(nodesIdsKv.Value) == 0 {
+						return errors.Errorf("Missing mandatory key \"new_instances_ids\" for task %q", s.task.Id)
+					}
+					nodesIds = string(nodesIdsKv.Value)
 				}
 				if err := provisioner.DestroyNode(ctx, deploymentId, s.Node, nodesIds); err != nil {
 					setNodeStatus(kv, eventPub, deploymentId, s.Node, "error")
