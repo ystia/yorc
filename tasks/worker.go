@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -258,6 +259,15 @@ func (w Worker) handleTask(task *Task) {
 			return
 		}
 
+		// Cleanup
+		if err = w.cleanupScaledDownNodes(task); err != nil {
+			if task.Status() == RUNNING {
+				task.WithStatus(FAILED)
+			}
+			log.Printf("%v. Aborting", err)
+			w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
+			return
+		}
 	default:
 		deployments.LogInConsul(w.consulClient.KV(), task.TargetId, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", task.TaskType, task.TaskType.String(), task.Id))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", task.TaskType, task.TaskType.String(), task.Id, task.TargetId)
@@ -269,6 +279,37 @@ func (w Worker) handleTask(task *Task) {
 	if task.Status() == RUNNING {
 		task.WithStatus(DONE)
 	}
+}
+
+// cleanupScaledDownNodes removes nodes instances from Consul
+func (w Worker) cleanupScaledDownNodes(task *Task) error {
+	kv := w.consulClient.KV()
+
+	nodeNameKVP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, task.Id, "node"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if nodeNameKVP == nil || len(nodeNameKVP.Value) == 0 {
+		return errors.Errorf("Missing mandatory key \"node\" for task %q", task.Id)
+	}
+	nodeName := string(nodeNameKVP.Value)
+
+	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, task.Id, "new_instances_ids"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if nodesIdsKv == nil || len(nodesIdsKv.Value) == 0 {
+		return errors.Errorf("Missing mandatory key \"new_instances_ids\" for task %q", task.Id)
+	}
+	nodesIds := string(nodesIdsKv.Value)
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "topology", "instances", nodeName)
+	for _, instanceID := range strings.Split(nodesIds, ",") {
+		_, err := kv.DeleteTree(path.Join(instancesPath, instanceID), nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+	}
+	return nil
 }
 
 // Start method starts the run loop for the worker, listening for a quit channel in

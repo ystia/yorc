@@ -10,7 +10,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
@@ -88,11 +87,11 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 		log.Panic(err)
 	}
 
-	if tmp, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage"); err != nil {
+	storageReq, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage")
+	if err != nil {
 		log.Panic(err)
-	} else {
-		req = append(req, tmp...)
 	}
+	req = append(req, storageReq...)
 
 	var reqNameArr []string
 	for _, reqPath := range req {
@@ -122,7 +121,6 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 
 	data["node"] = nodeName
 	data["new_instances_ids"] = strings.Join(newInstanceID, ",")
-	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance + instancesDelta))
 	data["req"] = strings.Join(reqNameArr, ",")
 
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleUp, data)
@@ -145,9 +143,6 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 		instancesDelta = minInstances - currentNbInstance
 	}
 
-	depPath := path.Join(consulutil.DeploymentKVPrefix, id)
-	instancesPath := path.Join(depPath, "topology", "instances")
-
 	var req []string
 
 	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "network")
@@ -168,12 +163,6 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 			log.Panic(err)
 		}
 		reqNameArr = append(reqNameArr, string(reqName.Value))
-		for i := currentNbInstance - 1; i > currentNbInstance-1-instancesDelta; i-- {
-			_, err := kv.DeleteTree(path.Join(instancesPath, string(reqName.Value), strconv.FormatUint(uint64(i), 10))+"/", nil)
-			if err != nil {
-				log.Panic(err)
-			}
-		}
 	}
 
 	newInstanceId := []string{}
@@ -190,7 +179,6 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 
 	data["node"] = nodeName
 	data["new_instances_ids"] = strings.Join(newInstanceId, ",")
-	data["current_instances_number"] = strconv.Itoa(int(currentNbInstance - instancesDelta))
 	data["req"] = strings.Join(reqNameArr, ",")
 
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleDown, data)

@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"strconv"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -104,37 +102,40 @@ func (s *Step) setStatus(status string) error {
 }
 
 func (s *Step) isRunnable() (bool, error) {
-	if tType, err := TaskTypeForName("scale-up"); err != nil {
-		return false, err
-	} else if tType2, err := TaskTypeForName("scale-down"); s.task.TaskType == tType || s.task.TaskType == tType2 && err == nil {
+	if s.task.TaskType == ScaleUp || s.task.TaskType == ScaleDown {
 		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "node")), nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		ok, err := deployments.IsHostedOn(s.kv, s.task.TargetId, s.Node, string(kvp.Value))
+		if kvp == nil || len(kvp.Value) == 0 {
+			return false, errors.Errorf("Missing mandatory key \"node\" for task %q", s.task.Id)
+		}
+		nodeName := string(kvp.Value)
+		ok, err := deployments.IsHostedOn(s.kv, s.task.TargetId, s.Node, nodeName)
 		if err != nil {
 			return false, err
 		}
-		if ok {
-			err := checkNbInstances(s.kv, s.task.Id, s.task.TargetId, s.Node)
-			if err != nil {
-				return false, err
-			}
+
+		kvp, _, err = s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "req")), nil)
+		if err != nil {
+			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		kvp2, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "req")), nil)
-		reqArr := strings.Split(string(kvp2.Value), ",")
+		if kvp == nil || len(kvp.Value) == 0 {
+			return false, errors.Errorf("Missing mandatory key \"req\" for task %q", s.task.Id)
+		}
+		reqArr := strings.Split(string(kvp.Value), ",")
 		isReq := contains(reqArr, s.Node)
 		if err != nil {
 			return false, err
 		}
-		if kvp != nil && string(kvp.Value) != s.Node && !ok && !isReq {
+		if nodeName != s.Node && !ok && !isReq {
 			return false, nil
 		}
 	}
 
 	kvp, _, err := s.kv.Get(path.Join(consulutil.TasksPrefix, s.task.Id, "workflow", s.Name), nil)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "done" {
@@ -371,30 +372,4 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 	}
 
 	return steps, nil
-}
-
-func checkNbInstances(kv *api.KV, taskId, depId, nodeName string) error {
-	depPath := path.Join(consulutil.DeploymentKVPrefix, depId)
-	instancesPath := path.Join(depPath, "topology", "instances")
-
-	_, current, err := deployments.GetNbInstancesForNode(kv, depId, nodeName)
-	if err != nil {
-		return err
-	}
-	currentNbKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskId, "current_instances_number"), nil)
-
-	currentNb, err := strconv.Atoi(string(currentNbKv.Value))
-	if err != nil {
-		return err
-	}
-
-	for i := current; i < uint32(currentNb); i++ {
-		consulutil.StoreConsulKeyAsString(path.Join(instancesPath, nodeName, strconv.FormatUint(uint64(i), 10), "status"), deployments.INITIAL.String())
-	}
-
-	err = deployments.SetNbInstancesForNode(kv, depId, nodeName, uint32(currentNb))
-	if err != nil {
-		return err
-	}
-	return nil
 }
