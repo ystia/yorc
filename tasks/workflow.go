@@ -218,7 +218,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 				setNodeStatus(kv, eventPub, deploymentId, s.Node, "started")
 			case "uninstall":
 				nodesIds := ""
-				if tType2, err := TaskTypeForName("scale-down"); s.task.TaskType == tType2 && err == nil {
+				if s.task.TaskType == ScaleDown {
 					nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.task.Id, "new_instances_ids"), nil)
 					if err != nil {
 						return errors.Wrap(err, "Consul access error")
@@ -245,12 +245,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 		case actType == "call-operation":
 			exec := ansible.NewExecutor(kv)
 			var err error
-			if tType, err := TaskTypeForName("scale-up"); err != nil {
-				return err
-			} else if tType2, err := TaskTypeForName("scale-down"); err != nil {
-				return err
-
-			} else if s.task.TaskType == tType || s.task.TaskType == tType2 {
+			if s.task.TaskType == ScaleUp || s.task.TaskType == ScaleDown {
 				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue(), s.task.Id)
 			} else {
 				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue())
