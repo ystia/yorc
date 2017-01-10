@@ -124,9 +124,9 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "-l", e.Group, "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
-		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "-l", e.Group, "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))

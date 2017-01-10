@@ -752,20 +752,24 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 	if len(e.TaskId) != 0 && !e.IsCustomCommand {
 		buffer.WriteString("\n[scale]\n")
-		newInstIdKv, _, err := e.kv.Get(path.Join(consulutil.TasksPrefix, e.TaskId, "new_instances_ids"), nil)
+		var newInstIDKv *api.KVPair
+		newInstIDKv, _, err = e.kv.Get(path.Join(consulutil.TasksPrefix, e.TaskId, "new_instances_ids"), nil)
 		if err != nil {
-			return err
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		newInstIdArr := strings.Split(string(newInstIdKv.Value), ",")
+		if newInstIDKv == nil || len(newInstIDKv.Value) == 0 {
+			return errors.Errorf("Missing mandatory key \"new_instances_ids\" for task %q", e.TaskId)
+		}
+		newInstIDArr := strings.Split(string(newInstIDKv.Value), ",")
 		for _, host := range e.hosts {
-			if !contains(newInstIdArr, host.instanceID) {
+			if !contains(newInstIDArr, host.instanceID) {
 				continue
 			}
 			buffer.WriteString(host.host)
 			sshUser := host.user
 			if sshUser == "" {
 				// Thinking: should we have a default user
-				return fmt.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.DeploymentId, e.NodeName)
+				return errors.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.DeploymentId, e.NodeName)
 			}
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
 
