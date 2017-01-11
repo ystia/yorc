@@ -302,11 +302,18 @@ func (w Worker) cleanupScaledDownNodes(task *Task) error {
 		return errors.Errorf("Missing mandatory key \"new_instances_ids\" for task %q", task.Id)
 	}
 	nodesIds := string(nodesIdsKv.Value)
-	instancesPath := path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "topology", "instances", nodeName)
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "topology", "instances")
+	nodesStack, err := deployments.GetNodesHostedOn(kv, task.TargetId, nodeName)
+	if err != nil {
+		return err
+	}
+	nodesStack = append(nodesStack, nodeName)
 	for _, instanceID := range strings.Split(nodesIds, ",") {
-		_, err := kv.DeleteTree(path.Join(instancesPath, instanceID), nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		for _, node := range nodesStack {
+			_, err := kv.DeleteTree(path.Join(instancesPath, node, instanceID), nil)
+			if err != nil {
+				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
 		}
 	}
 	return nil

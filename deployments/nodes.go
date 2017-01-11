@@ -280,6 +280,28 @@ func IsHostedOn(kv *api.KV, deploymentID, nodeName, hostedOn string) (bool, erro
 
 }
 
+// GetNodesHostedOn returns the list of nodes that are hosted on a given node
+func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, error) {
+	// Thinking: maybe we can store at parsing time for each node the list of nodes on which it is hosted on and/or the opposite rather than re-scan the whole node list
+	nodesList, err := GetNodes(kv, deploymentID)
+	if err != nil {
+		return nil, err
+	}
+	stackNodes := nodesList[:0]
+	for _, node := range nodesList {
+		var hostedOn bool
+		hostedOn, err = IsHostedOn(kv, deploymentID, node, hostNode)
+		if err != nil {
+			return nil, err
+		}
+
+		if hostedOn {
+			stackNodes = append(stackNodes, node)
+		}
+	}
+	return stackNodes, nil
+}
+
 // GetTypeDefaultProperty checks if a type has a default value for a given property.
 //
 // It returns true if a default value is found false otherwise as first return parameter.
@@ -488,9 +510,9 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentId, typeName, prope
 }
 
 // GetNodes returns the names of the different nodes for a given deployment.
-func GetNodes(kv *api.KV, deploymentId string) ([]string, error) {
+func GetNodes(kv *api.KV, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
-	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes")
+	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes")
 	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
 	if err != nil {
 		return names, errors.Wrap(err, "Consul communication error")
