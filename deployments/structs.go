@@ -24,6 +24,7 @@ const ENGINE_LOG_PREFIX = "engine"
 type Event struct {
 	Timestamp string `json:"timestamp"`
 	Node      string `json:"node"`
+	Instance  string `json:"instance"`
 	Status    string `json:"status"`
 }
 

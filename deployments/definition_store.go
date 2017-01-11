@@ -204,7 +204,6 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 	nodesPrefix := path.Join(topologyPrefix, "nodes")
 	for nodeName, node := range topology.TopologyTemplate.NodeTemplates {
 		nodePrefix := nodesPrefix + "/" + nodeName
-		consulStore.StoreConsulKeyAsString(nodePrefix+"/status", "initial")
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/name", nodeName)
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/type", node.Type)
 		propertiesPrefix := nodePrefix + "/properties"

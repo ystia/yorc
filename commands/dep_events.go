@@ -3,14 +3,15 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"strconv"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"io/ioutil"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/rest"
-	"os"
-	"strconv"
 )
 
 func init() {
@@ -95,9 +96,9 @@ func streamsEvents(janusApi, depId string, colorize, fromBeginning, stop bool) {
 		lastIdx = events.LastIndex
 		for _, event := range events.Events {
 			if colorize {
-				fmt.Printf("%s: Node: %s State: %s\n", color.CyanString("%s", event.Timestamp), event.Node, event.Status)
+				fmt.Printf("%s: Node: %s Instance: %s State: %s\n", color.CyanString("%s", event.Timestamp), event.Node, event.Instance, event.Status)
 			} else {
-				fmt.Printf("%s: Node: %s State: %s\n", event.Timestamp, event.Node, event.Status)
+				fmt.Printf("%s: Node: %s Instance: %s State: %s\n", event.Timestamp, event.Node, event.Instance, event.Status)
 			}
 		}
 

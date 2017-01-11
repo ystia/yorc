@@ -15,7 +15,7 @@ import (
 )
 
 type Publisher interface {
-	StatusChange(nodeName, status string) (string, error)
+	StatusChange(nodeName, instance, status string) (string, error)
 }
 
 type Subscriber interface {
@@ -36,14 +36,14 @@ func NewSubscriber(kv *api.KV, deploymentId string) Subscriber {
 	return &consulPubSub{kv: kv, deploymentId: deploymentId}
 }
 
-func (cp *consulPubSub) StatusChange(nodeName, status string) (string, error) {
+func (cp *consulPubSub) StatusChange(nodeName, instance, status string) (string, error) {
 	now := time.Now().Format(time.RFC3339Nano)
 	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentId, "events")
-	err := consulutil.StoreConsulKeyAsString(path.Join(eventsPrefix, now), nodeName+"\n"+status)
+	err := consulutil.StoreConsulKeyAsString(path.Join(eventsPrefix, now), nodeName+"\n"+status+"\n"+instance)
 	if err != nil {
 		return "", err
 	}
-	deployments.LogInConsul(cp.kv, cp.deploymentId, fmt.Sprintf("Status for node %q changed to %q", nodeName, status))
+	deployments.LogInConsul(cp.kv, cp.deploymentId, fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
 	return now, nil
 }
 
@@ -66,10 +66,10 @@ func (cp *consulPubSub) NewEvents(waitIndex uint64, timeout time.Duration) ([]de
 
 		eventTimestamp := strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
 		values := strings.Split(string(kvp.Value), "\n")
-		if len(values) != 2 {
+		if len(values) != 3 {
 			return events, qm.LastIndex, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 		}
-		events = append(events, deployments.Event{Timestamp: eventTimestamp, Node: values[0], Status: values[1]})
+		events = append(events, deployments.Event{Timestamp: eventTimestamp, Node: values[0], Status: values[1], Instance: values[2]})
 	}
 
 	log.Debugf("Found %d events after filtering", len(events))

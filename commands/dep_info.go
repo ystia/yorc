@@ -11,11 +11,15 @@ import (
 
 	"os"
 
+	"bytes"
+	"strconv"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 var commErrorMsg = "Janus API communication error"
@@ -89,7 +93,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	nodesTable := tabutil.NewTable()
-	nodesTable.AddHeaders("Node", "Status", "Instances number")
+	nodesTable.AddHeaders("Node", "Statuses")
 
 	tasksTable := tabutil.NewTable()
 	tasksTable.AddHeaders("Id", "Type", "Status")
@@ -108,17 +112,31 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 				nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg, "")
 				continue
 			}
-
-			nbInstances := 0
+			statusesMap := make(map[string]int)
+			totalNbInstances := 0
 			for _, nodeLink := range node.Links {
 				if nodeLink.Rel == rest.LINK_REL_INSTANCE {
-					nbInstances++
+					var instance rest.NodeInstance
+					err = getJSONEntityFromAtomGetRequest(janusAPI, nodeLink, &instance)
+					if err != nil {
+						errs = append(errs, err)
+						nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg, "")
+						continue
+					}
+					statusesMap[instance.Status]++
+					totalNbInstances++
 				}
 			}
-			if nbInstances == 0 {
-				nbInstances = 1
+			var buffer bytes.Buffer
+			for status, nbInstances := range statusesMap {
+				buffer.WriteString(getColoredNodeStatus(colorize, status))
+				buffer.WriteString(" (")
+				buffer.WriteString(strconv.Itoa(nbInstances))
+				buffer.WriteString("/")
+				buffer.WriteString(strconv.Itoa(totalNbInstances))
+				buffer.WriteString(") ")
 			}
-			nodesTable.AddRow(node.Name, getColoredNodeStatus(colorize, node.Status), nbInstances)
+			nodesTable.AddRow(node.Name, buffer.String())
 		} else if atomLink.Rel == rest.LINK_REL_TASK {
 			var task rest.Task
 			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &task)
@@ -169,7 +187,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 				nodesList = append(nodesList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
 				continue
 			}
-			nodesList = append(nodesList, fmt.Sprintf("  - %s: %s", node.Name, getColoredNodeStatus(colorize, node.Status)))
+			nodesList = append(nodesList, fmt.Sprintf("  - %s:", node.Name))
 			nodesList = append(nodesList, fmt.Sprintf("    Instances:"))
 			for _, nodeLink := range node.Links {
 				if nodeLink.Rel == rest.LINK_REL_INSTANCE {
@@ -255,11 +273,11 @@ func getColoredNodeStatus(colorize bool, status string) string {
 		return status
 	}
 	switch {
-	case strings.Contains(strings.ToLower(status), "failed"):
+	case strings.Contains(strings.ToLower(status), tosca.NodeStateError.String()):
 		return color.New(color.FgHiRed, color.Bold).SprintFunc()(status)
-	case strings.HasSuffix(strings.ToLower(status), "started"):
+	case strings.HasSuffix(strings.ToLower(status), tosca.NodeStateStarted.String()):
 		return color.New(color.FgHiGreen, color.Bold).SprintFunc()(status)
-	case strings.Contains(strings.ToLower(status), "canceled"):
+	case strings.Contains(strings.ToLower(status), tosca.NodeStateInitial.String()), strings.Contains(strings.ToLower(status), tosca.NodeStateDeleted.String()):
 		return color.New(color.FgHiWhite, color.Bold).SprintFunc()(status)
 	default:
 		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(status)

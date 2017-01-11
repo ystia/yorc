@@ -51,24 +51,25 @@ func ConsulPubSub_StatusChange(t *testing.T, kv *api.KV) {
 	pub := NewPublisher(kv, deploymentId)
 
 	var testData = []struct {
-		node   string
-		status string
+		node     string
+		instance string
+		status   string
 	}{
-		{"node1", "initial"},
-		{"node2", "initial"},
-		{"node1", "created"},
-		{"node1", "started"},
-		{"node2", "created"},
-		{"node3", "initial"},
-		{"node2", "configured"},
-		{"node3", "created"},
-		{"node2", "started"},
-		{"node3", "error"},
+		{"node1", "0", "initial"},
+		{"node2", "0", "initial"},
+		{"node1", "0", "created"},
+		{"node1", "0", "started"},
+		{"node2", "0", "created"},
+		{"node3", "0", "initial"},
+		{"node2", "0", "configured"},
+		{"node3", "0", "created"},
+		{"node2", "0", "started"},
+		{"node3", "0", "error"},
 	}
 
 	ids := make([]string, 0)
 	for _, tc := range testData {
-		id, err := pub.StatusChange(tc.node, tc.status)
+		id, err := pub.StatusChange(tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
@@ -80,7 +81,7 @@ func ConsulPubSub_StatusChange(t *testing.T, kv *api.KV) {
 	for index, kvp := range kvps {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := testData[index]
-		assert.Equal(t, tc.node+"\n"+tc.status, string(kvp.Value))
+		assert.Equal(t, tc.node+"\n"+tc.status+"\n"+tc.instance, string(kvp.Value))
 	}
 }
 
@@ -91,6 +92,7 @@ func ConsulPubSub_NewEvents(t *testing.T, kv *api.KV) {
 	sub := NewSubscriber(kv, deploymentId)
 
 	nodeName := "node1"
+	instance := "0"
 	nodeStatus := "error"
 
 	ready := make(chan struct{})
@@ -103,9 +105,10 @@ func ConsulPubSub_NewEvents(t *testing.T, kv *api.KV) {
 		require.Len(t, events, 1)
 		assert.Equal(t, events[0].Node, nodeName)
 		assert.Equal(t, events[0].Status, nodeStatus)
+		assert.Equal(t, events[0].Instance, instance)
 	}()
 	<-ready
-	_, err := pub.StatusChange(nodeName, nodeStatus)
+	_, err := pub.StatusChange(nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 }
 
@@ -131,37 +134,42 @@ func ConsulPubSub_NewEventsWithIndex(t *testing.T, kv *api.KV) {
 	sub := NewSubscriber(kv, deploymentId)
 
 	var testData = []struct {
-		node   string
-		status string
+		node     string
+		instance string
+		status   string
 	}{
-		{"node1", "initial"},
-		{"node1", "creating"},
+		{"node1", "0", "initial"},
+		{"node1", "1", "initial"},
+		{"node1", "0", "creating"},
+		{"node1", "1", "creating"},
 	}
 
 	for _, tc := range testData {
-		_, err := pub.StatusChange(tc.node, tc.status)
+		_, err := pub.StatusChange(tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
 	events, lastIdx, err := sub.NewEvents(1, 5*time.Minute)
 	assert.Nil(t, err)
-	require.Len(t, events, 2)
+	require.Len(t, events, 4)
 	for index, event := range events {
 		assert.Equal(t, testData[index].node, event.Node)
+		assert.Equal(t, testData[index].instance, event.Instance)
 		assert.Equal(t, testData[index].status, event.Status)
 	}
 
 	testData = []struct {
-		node   string
-		status string
+		node     string
+		instance string
+		status   string
 	}{
-		{"node1", "created"},
-		{"node1", "configuring"},
-		{"node1", "configured"},
+		{"node1", "0", "created"},
+		{"node1", "0", "configuring"},
+		{"node1", "0", "configured"},
 	}
 
 	for _, tc := range testData {
-		_, err := pub.StatusChange(tc.node, tc.status)
+		_, err := pub.StatusChange(tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
@@ -171,6 +179,7 @@ func ConsulPubSub_NewEventsWithIndex(t *testing.T, kv *api.KV) {
 
 	for index, event := range events {
 		assert.Equal(t, testData[index].node, event.Node)
+		assert.Equal(t, testData[index].instance, event.Instance)
 		assert.Equal(t, testData[index].status, event.Status)
 	}
 }
@@ -181,9 +190,10 @@ func ConsulPubSub_NewNodeEvents(t *testing.T, kv *api.KV) {
 	pub := NewPublisher(kv, deploymentId)
 
 	nodeName := "node1"
+	instance := "0"
 	nodeStatus := "error"
 
-	_, err := pub.StatusChange(nodeName, nodeStatus)
+	_, err := pub.StatusChange(nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 
 }

@@ -52,9 +52,8 @@ type LogsCollection struct {
 }
 
 type Node struct {
-	Name   string     `json:"name"`
-	Status string     `json:"status"`
-	Links  []AtomLink `json:"links"`
+	Name  string     `json:"name"`
+	Links []AtomLink `json:"links"`
 }
 
 type NodeInstance struct {

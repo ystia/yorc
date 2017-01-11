@@ -21,16 +21,7 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 	nodeName := params.ByName("nodeName")
 
 	kv := s.consulClient.KV()
-
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/nodes", nodeName, "status"), nil)
-	if err != nil {
-		log.Panic(err)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		WriteError(w, r, ErrNotFound)
-		return
-	}
-	node := Node{Name: nodeName, Status: string(kvp.Value)}
+	node := Node{Name: nodeName}
 	links := []AtomLink{newAtomLink(LINK_REL_SELF, r.URL.Path)}
 	instanceIds, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
 	if err != nil {
