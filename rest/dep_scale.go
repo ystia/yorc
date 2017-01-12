@@ -25,10 +25,6 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(nodeName) == 0 {
 		log.Panic("You must provide a nodename")
-	} else if ok, err := deployments.HasScalableCapability(kv, id, nodeName); err != nil {
-		log.Panic(err)
-	} else if !ok {
-		log.Panic("The given nodename must be scalable")
 	}
 
 	var instancesDelta int
@@ -45,6 +41,23 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, NewBadRequestError(errors.New("You need to provide a 'delta' parameter")))
 		return
 	}
+
+	exists, err := deployments.DoesNodeExist(kv, id, nodeName)
+	if err != nil {
+		log.Panic(err)
+	}
+	if !exists {
+		WriteError(w, r, ErrNotFound)
+		return
+	}
+	var ok bool
+	if ok, err = deployments.HasScalableCapability(kv, id, nodeName); err != nil {
+		log.Panic(err)
+	} else if !ok {
+		WriteError(w, r, NewBadRequestParameter("node", errors.Errorf("Node %q must be scalable", nodeName)))
+		return
+	}
+
 	log.Debugf("Scaling %d instances of node %q", instancesDelta, nodeName)
 	var taskID string
 	if instancesDelta > 0 {

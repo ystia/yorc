@@ -704,3 +704,12 @@ func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeNa
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
 }
+
+// DoesNodeExist checks if a given node exist in a deployment
+func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "name"), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return kvp != nil && len(kvp.Value) > 0, nil
+}
