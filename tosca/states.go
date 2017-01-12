@@ -41,7 +41,7 @@ const (
 
 const _NodeState_name = "initialcreatingcreatedconfiguringconfiguredstartingstartedstoppingdeletingerrordeleted"
 
-var _NodeState_index = [...]uint8{0, 7, 15, 22, 33, 43, 51, 58, 66, 74, 79, 84}
+var _NodeState_index = [...]uint8{0, 7, 15, 22, 33, 43, 51, 58, 66, 74, 79, 86}
 
 func (i NodeState) String() string {
 	if i < 0 || i >= NodeState(len(_NodeState_index)-1) {
