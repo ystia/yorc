@@ -664,8 +664,15 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	if err != nil {
 		return err
 	}
+	if err = os.RemoveAll(ansibleRecipePath); err != nil {
+		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.Operation)
+		log.Print(err)
+		log.Debugf("%+v", err)
+		deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+		return err
+	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
-	if err := os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
+	if err = os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
 		deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
 		return err
