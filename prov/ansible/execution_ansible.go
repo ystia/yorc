@@ -119,7 +119,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, e.PlaybookPath)
 	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
-	cmd := executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "-l", e.Group, "run.ansible.yml")
+	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "-l", e.Group, "run.ansible.yml")
 
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
