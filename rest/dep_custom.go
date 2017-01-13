@@ -3,15 +3,16 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
 	"io/ioutil"
 	"net/http"
+	"path"
+	"strconv"
+
+	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"path"
-	"strconv"
 )
 
 func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +48,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		data[path.Join("inputs", name)] = inputMap.Inputs[name]
 	}
 
-	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.CustomCommand, data)
+	taskId, err := s.tasksCollector.RegisterTaskWithData(id, tasks.CustomCommand, data)
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
 			WriteError(w, r, NewBadRequestError(err))
@@ -55,8 +56,6 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		}
 		log.Panic(err)
 	}
-
-	destroy(lock, taskId, id)
 
 	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskId))
 	w.WriteHeader(http.StatusAccepted)

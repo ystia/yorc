@@ -21,7 +21,7 @@ func NewCollector(consulClient *api.Client) *Collector {
 }
 
 func (c *Collector) RegisterTaskWithData(targetId string, taskType TaskType, data map[string]string) (string, error) {
-	destroy, lock, taskId, err := c.RegisterTaskWithoutDestroyLock(targetId, taskType, data)
+	destroy, lock, taskId, err := c.registerTaskWithoutDestroyLock(targetId, taskType, data)
 	defer destroy(lock, taskId, targetId)
 	if err != nil {
 		return "", err
@@ -30,15 +30,10 @@ func (c *Collector) RegisterTaskWithData(targetId string, taskType TaskType, dat
 }
 
 func (c *Collector) RegisterTask(targetId string, taskType TaskType) (string, error) {
-	destroy, lock, taskId, err := c.RegisterTaskWithoutDestroyLock(targetId, taskType, nil)
-	defer destroy(lock, taskId, targetId)
-	if err != nil {
-		return "", err
-	}
-	return taskId, nil
+	return c.RegisterTaskWithData(targetId, taskType, nil)
 }
 
-func (c *Collector) RegisterTaskWithoutDestroyLock(targetId string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
+func (c *Collector) registerTaskWithoutDestroyLock(targetId string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
 	taskLock, err := NewTaskLockForTarget(c.consulClient, targetId)
 	_, err = taskLock.Lock(10, 500*time.Millisecond)
 	if err != nil {
