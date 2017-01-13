@@ -47,11 +47,11 @@ topology_template:
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: nova
-        key_pair: cloudify
+        key_pair: janus
       capabilities:
         scalable:
           properties:
-            max_instances: 1
+            max_instances: 5
             min_instances: 1
             default_instances: 1
         endpoint:
