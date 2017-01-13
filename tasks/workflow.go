@@ -97,7 +97,7 @@ func (s *Step) setStatus(status string) error {
 	if err != nil {
 		return err
 	}
-	kvp = &api.KVPair{Key: path.Join(consulutil.TasksPrefix, s.task.Id, "workflow", s.Name), Value: []byte(status)}
+	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.task.Id, s.Name), Value: []byte(status)}
 	_, err = s.kv.Put(kvp, nil)
 	return err
 }
@@ -134,7 +134,7 @@ func (s *Step) isRunnable() (bool, error) {
 		}
 	}
 
-	kvp, _, err := s.kv.Get(path.Join(consulutil.TasksPrefix, s.task.Id, "workflow", s.Name), nil)
+	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.task.Id, s.Name), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

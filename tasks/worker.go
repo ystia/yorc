@@ -114,7 +114,7 @@ func (w Worker) handleTask(task *Task) {
 		}
 		for _, step := range wf {
 			step.SetTaskId(task)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "initial")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, task.Id, step.Name), "initial")
 		}
 		if err = w.processWorkflow(ctx, wf, task.TargetId, false); err != nil {
 			if task.Status() == RUNNING {
@@ -139,7 +139,7 @@ func (w Worker) handleTask(task *Task) {
 		}
 		for _, step := range wf {
 			step.SetTaskId(task)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, task.Id, step.Name), "")
 		}
 		if err = w.processWorkflow(ctx, wf, task.TargetId, true); err != nil {
 			if task.Status() == RUNNING {
@@ -224,7 +224,7 @@ func (w Worker) handleTask(task *Task) {
 		}
 		for _, step := range wf {
 			step.SetTaskId(task)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, task.Id, step.Name), "")
 		}
 		if err = w.processWorkflow(ctx, wf, task.TargetId, false); err != nil {
 			if task.Status() == RUNNING {
@@ -249,7 +249,7 @@ func (w Worker) handleTask(task *Task) {
 		}
 		for _, step := range wf {
 			step.SetTaskId(task)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, task.Id, "workflow", step.Name), "")
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, task.Id, step.Name), "")
 		}
 		if err = w.processWorkflow(ctx, wf, task.TargetId, true); err != nil {
 			if task.Status() == RUNNING {
