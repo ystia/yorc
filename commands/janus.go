@@ -4,6 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const janusApiDefaultErrorMsg string = "Failed to contact Janus API"
+
 var RootCmd = &cobra.Command{
 	Use:   "janus",
 	Short: "A new generation orchestrator",

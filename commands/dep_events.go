@@ -96,9 +96,9 @@ func streamsEvents(janusApi, depId string, colorize, fromBeginning, stop bool) {
 		lastIdx = events.LastIndex
 		for _, event := range events.Events {
 			if colorize {
-				fmt.Printf("%s: Node: %s Instance: %s State: %s\n", color.CyanString("%s", event.Timestamp), event.Node, event.Instance, event.Status)
+				fmt.Printf("%s:\t Node: %s\t Instance: %s\t State: %s\n", color.CyanString("%s", event.Timestamp), event.Node, event.Instance, event.Status)
 			} else {
-				fmt.Printf("%s: Node: %s Instance: %s State: %s\n", event.Timestamp, event.Node, event.Instance, event.Status)
+				fmt.Printf("%s:\t Node: %s\t Instance: %s\t State: %s\n", event.Timestamp, event.Node, event.Instance, event.Status)
 			}
 		}
 

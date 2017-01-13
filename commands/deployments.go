@@ -88,13 +88,13 @@ func getRestErrors(body io.ReadCloser) rest.Errors {
 func getJSONEntityFromAtomGetRequest(janusAPI string, atomLink rest.AtomLink, entity interface{}) error {
 	request, err := http.NewRequest("GET", "http://"+janusAPI+atomLink.Href, nil)
 	if err != nil {
-		return errors.Wrap(err, "Failed to contact Janus API")
+		return errors.Wrap(err, janusApiDefaultErrorMsg)
 	}
 	request.Header.Add("Accept", "application/json")
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return errors.Wrap(err, "Failed to contact Janus API")
+		return errors.Wrap(err, janusApiDefaultErrorMsg)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		// Try to get the reason

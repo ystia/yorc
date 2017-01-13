@@ -47,9 +47,9 @@ func init() {
 
 			fmt.Println("Scaling request submited. Task Id:", path.Base(location))
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(janusApi, deploymentID, !noColor, true, false)
+				streamsLogs(janusApi, deploymentID, !noColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(janusApi, deploymentID, !noColor, true, false)
+				streamsEvents(janusApi, deploymentID, !noColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
@@ -66,7 +66,7 @@ func init() {
 func postScalingRequest(janusAPI, deploymentID, nodeName string, instancesDelta int32) (string, error) {
 	request, err := http.NewRequest("POST", "http://"+path.Join(janusAPI, "deployments", deploymentID, "scale", nodeName), nil)
 	if err != nil {
-		errExit(errors.Wrap(err, "Failed to contact Janus API"))
+		errExit(errors.Wrap(err, janusApiDefaultErrorMsg))
 	}
 
 	query := request.URL.Query()
@@ -78,7 +78,7 @@ func postScalingRequest(janusAPI, deploymentID, nodeName string, instancesDelta 
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		errExit(errors.Wrap(err, "Failed to contact Janus API"))
+		errExit(errors.Wrap(err, janusApiDefaultErrorMsg))
 	}
 
 	if response.StatusCode == http.StatusNotFound {
