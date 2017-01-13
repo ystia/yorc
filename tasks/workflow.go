@@ -121,7 +121,7 @@ func (s *Step) isRunnable() (bool, error) {
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 {
+		if kvp == nil {
 			return false, errors.Errorf("Missing mandatory key \"req\" for task %q", s.task.Id)
 		}
 		reqArr := strings.Split(string(kvp.Value), ",")

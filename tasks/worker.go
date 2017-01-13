@@ -311,7 +311,7 @@ func (w Worker) cleanupScaledDownNodes(task *Task) error {
 	reqKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, task.Id, "req"), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	} else if reqKv == nil || len(reqKv.Value) == 0 {
+	} else if reqKv == nil {
 		return errors.Errorf("Missing mandatory key \"req\" for task %q", task.Id)
 	}
 
