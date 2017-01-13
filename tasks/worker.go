@@ -165,12 +165,18 @@ func (w Worker) handleTask(task *Task) {
 			}
 			for _, tid := range tasks {
 				if tid != task.Id {
-					_, err := w.consulClient.KV().DeleteTree(path.Join(consulutil.TasksPrefix, tid), nil)
+					_, err = w.consulClient.KV().DeleteTree(path.Join(consulutil.TasksPrefix, tid), nil)
 					if err != nil {
 						log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
 						task.WithStatus(FAILED)
 						return
 					}
+				}
+				_, err = w.consulClient.KV().DeleteTree(path.Join(consulutil.WorkflowsPrefix, tid), nil)
+				if err != nil {
+					log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", task.TargetId, task.Id, err)
+					task.WithStatus(FAILED)
+					return
 				}
 			}
 			// Now cleanup ourself: mark it as done so nobody will try to run it, clear the processing lock and finally delete the task.
