@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 // IsNodeDerivedFrom check if the node's type is derived from another type.
@@ -700,7 +701,7 @@ func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeNa
 
 	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 
-	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), INITIAL.String())
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), tosca.NodeStateInitial.String())
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
 }
