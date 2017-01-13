@@ -211,7 +211,7 @@ func (w Worker) handleTask(task *Task) {
 		}
 	case ScaleUp:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
-		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_IN_PROGRESS)
+		w.setDeploymentStatus(task.TargetId, deployments.SCALING_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "workflows/install"))
 		if err != nil {
 			if task.Status() == RUNNING {
@@ -236,13 +236,14 @@ func (w Worker) handleTask(task *Task) {
 		}
 		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
 	case ScaleDown:
+		w.setDeploymentStatus(task.TargetId, deployments.SCALING_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "workflows/uninstall"))
 		if err != nil {
 			if task.Status() == RUNNING {
 				task.WithStatus(FAILED)
 			}
 			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
+			w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 			return
 
 		}
@@ -255,7 +256,7 @@ func (w Worker) handleTask(task *Task) {
 				task.WithStatus(FAILED)
 			}
 			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
+			w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 			return
 		}
 
@@ -265,9 +266,10 @@ func (w Worker) handleTask(task *Task) {
 				task.WithStatus(FAILED)
 			}
 			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(task.TargetId, deployments.UNDEPLOYMENT_FAILED)
+			w.setDeploymentStatus(task.TargetId, deployments.DEPLOYMENT_FAILED)
 			return
 		}
+		w.setDeploymentStatus(task.TargetId, deployments.DEPLOYED)
 	default:
 		deployments.LogInConsul(w.consulClient.KV(), task.TargetId, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", task.TaskType, task.TaskType.String(), task.Id))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", task.TaskType, task.TaskType.String(), task.Id, task.TargetId)
@@ -288,8 +290,7 @@ func (w Worker) cleanupScaledDownNodes(task *Task) error {
 	nodeNameKVP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, task.Id, "node"), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if nodeNameKVP == nil || len(nodeNameKVP.Value) == 0 {
+	} else if nodeNameKVP == nil || len(nodeNameKVP.Value) == 0 {
 		return errors.Errorf("Missing mandatory key \"node\" for task %q", task.Id)
 	}
 	nodeName := string(nodeNameKVP.Value)
@@ -297,26 +298,20 @@ func (w Worker) cleanupScaledDownNodes(task *Task) error {
 	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, task.Id, "new_instances_ids"), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if nodesIdsKv == nil || len(nodesIdsKv.Value) == 0 {
+	} else if nodesIdsKv == nil || len(nodesIdsKv.Value) == 0 {
 		return errors.Errorf("Missing mandatory key \"new_instances_ids\" for task %q", task.Id)
 	}
-	nodesIds := string(nodesIdsKv.Value)
-	instancesPath := path.Join(consulutil.DeploymentKVPrefix, task.TargetId, "topology", "instances")
-	nodesStack, err := deployments.GetNodesHostedOn(kv, task.TargetId, nodeName)
+	instancesIDs := strings.Split(string(nodesIdsKv.Value), ",")
+	reqKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, task.Id, "req"), nil)
 	if err != nil {
-		return err
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	} else if reqKv == nil || len(reqKv.Value) == 0 {
+		return errors.Errorf("Missing mandatory key \"req\" for task %q", task.Id)
 	}
-	nodesStack = append(nodesStack, nodeName)
-	for _, instanceID := range strings.Split(nodesIds, ",") {
-		for _, node := range nodesStack {
-			_, err := kv.DeleteTree(path.Join(instancesPath, node, instanceID), nil)
-			if err != nil {
-				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
-		}
-	}
-	return nil
+
+	linkedNodes := strings.Split(string(reqKv.Value), ",")
+	return deployments.DeleteNodeStack(kv, task.TargetId, nodeName, instancesIDs, linkedNodes)
+
 }
 
 // Start method starts the run loop for the worker, listening for a quit channel in

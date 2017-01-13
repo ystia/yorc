@@ -713,3 +713,32 @@ func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 	}
 	return kvp != nil && len(kvp.Value) > 0, nil
 }
+
+// DeleteNodeStack deletes instances data for a given instances IDs of a given node name plus all nodes hosted on this one and given linked nodes (like Volumes of a Compute for instance)
+func DeleteNodeStack(kv *api.KV, deploymentID, nodeName string, instances []string, linkedNodes []string) error {
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+	nodesStack, err := GetNodesHostedOn(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	nodesStack = append(nodesStack, nodeName)
+	for _, linkedNode := range linkedNodes {
+		linkedNodeStack, err := GetNodesHostedOn(kv, deploymentID, linkedNode)
+		if err != nil {
+			return err
+		}
+		if len(linkedNodeStack) > 0 {
+			nodesStack = append(nodesStack, linkedNodeStack...)
+		}
+		nodesStack = append(nodesStack, linkedNode)
+	}
+	for _, instanceID := range instances {
+		for _, node := range nodesStack {
+			_, err := kv.DeleteTree(path.Join(instancesPath, node, instanceID), nil)
+			if err != nil {
+				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+		}
+	}
+	return nil
+}

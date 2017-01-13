@@ -13,6 +13,7 @@ const (
 	UNDEPLOYED
 	DEPLOYMENT_FAILED
 	UNDEPLOYMENT_FAILED
+	SCALING_IN_PROGRESS
 
 	endOfDepStatusConst // Do not remove this line and define new const before it. It is used to get const value from string
 )
