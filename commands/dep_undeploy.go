@@ -46,9 +46,9 @@ func init() {
 
 			fmt.Println("Undeployment submited. In progress...")
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(janusApi, args[0], !noColor, true, false)
+				streamsLogs(janusApi, args[0], !noColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(janusApi, args[0], !noColor, true, false)
+				streamsEvents(janusApi, args[0], !noColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
