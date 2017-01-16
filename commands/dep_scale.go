@@ -36,20 +36,20 @@ func init() {
 				return errors.New("Missing non-zero \"delta\" flag")
 			}
 
-			janusApi := viper.GetString("janus_api")
+			janusAPI := viper.GetString("janus_api")
 
 			deploymentID := args[0]
 
-			location, err := postScalingRequest(janusApi, deploymentID, nodeName, instancesDelta)
+			location, err := postScalingRequest(janusAPI, deploymentID, nodeName, instancesDelta)
 			if err != nil {
 				return err
 			}
 
-			fmt.Println("Scaling request submited. Task Id:", path.Base(location))
+			fmt.Println("Scaling request submitted. Task Id:", path.Base(location))
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(janusApi, deploymentID, !noColor, false, false)
+				streamsLogs(janusAPI, deploymentID, !noColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(janusApi, deploymentID, !noColor, false, false)
+				streamsEvents(janusAPI, deploymentID, !noColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
@@ -66,7 +66,7 @@ func init() {
 func postScalingRequest(janusAPI, deploymentID, nodeName string, instancesDelta int32) (string, error) {
 	request, err := http.NewRequest("POST", "http://"+path.Join(janusAPI, "deployments", deploymentID, "scale", nodeName), nil)
 	if err != nil {
-		errExit(errors.Wrap(err, janusApiDefaultErrorMsg))
+		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
 	}
 
 	query := request.URL.Query()
@@ -78,7 +78,7 @@ func postScalingRequest(janusAPI, deploymentID, nodeName string, instancesDelta 
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		errExit(errors.Wrap(err, janusApiDefaultErrorMsg))
+		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
 	}
 
 	if response.StatusCode == http.StatusNotFound {

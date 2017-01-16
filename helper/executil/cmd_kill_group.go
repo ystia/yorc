@@ -5,6 +5,7 @@ package executil
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"syscall"
 )
@@ -43,7 +44,10 @@ func (c *Cmd) Start() error {
 	go func() {
 		select {
 		case <-c.ctx.Done():
-			syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
+			err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
+			if err != nil {
+				fmt.Print(err)
+			}
 		case <-c.waitDone:
 		}
 	}()

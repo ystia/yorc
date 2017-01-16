@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
+	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -60,20 +61,18 @@ type Server struct {
 func (s *Server) Shutdown() {
 	if s != nil {
 		log.Printf("Shutting down http server")
-		s.listener.Close()
+		err := s.listener.Close()
+		if err != nil {
+			log.Print(err)
+		}
 	}
 }
 
 func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
-	var listener net.Listener
-	var err error
-	if listener, err = net.Listen("tcp", ":8800"); err != nil {
-		return nil, err
-	}
 
-	maxConsulPubRoutines := configuration.CONSUL_PUB_MAX_ROUTINES
-	if maxConsulPubRoutines <= 0 {
-		maxConsulPubRoutines = config.DEFAULT_CONSUL_PUB_MAX_ROUTINES
+	listener, err := net.Listen("tcp", ":8800")
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to bind on port 8800")
 	}
 
 	httpServer := &Server{
@@ -114,7 +113,7 @@ func (s *Server) registerHandlers() {
 	s.router.Post("/deployments/:id/custom", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newCustomCommandHandler))
 }
 
-func encodeJsonResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {
+func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {
 	jEnc := json.NewEncoder(w)
 	if _, ok := r.URL.Query()["pretty"]; ok {
 		jEnc.SetIndent("", "  ")

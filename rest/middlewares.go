@@ -2,8 +2,9 @@ package rest
 
 import (
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"time"
+
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func recoverHandler(next http.Handler) http.Handler {

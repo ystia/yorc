@@ -2,16 +2,17 @@ package tosca
 
 import (
 	"fmt"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
+
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 type RequirementDefinitionMap map[string]RequirementDefinition
 type RequirementDefinition struct {
-	Capability   string     `yaml:"capability"`
-	Node         string     `yaml:"node,omitempty"`
-	Relationship string     `yaml:"relationship,omitempty"`
-	Occurrences  ToscaRange `yaml:"occurrences,omitempty"`
+	Capability   string `yaml:"capability"`
+	Node         string `yaml:"node,omitempty"`
+	Relationship string `yaml:"relationship,omitempty"`
+	Occurrences  Range  `yaml:"occurrences,omitempty"`
 	// Extra types used in list (A4C) mode
 	name string
 }
@@ -48,11 +49,11 @@ func (a *RequirementDefinition) UnmarshalYAML(unmarshal func(interface{}) error)
 		return nil
 	}
 	var str struct {
-		Capability        string     `yaml:"capability"`
-		Node              string     `yaml:"node,omitempty"`
-		Relationship      string     `yaml:"relationship,omitempty"`
-		RelationshipAlien string     `yaml:"relationship_type,omitempty"`
-		Occurrences       ToscaRange `yaml:"occurrences,omitempty"`
+		Capability        string `yaml:"capability"`
+		Node              string `yaml:"node,omitempty"`
+		Relationship      string `yaml:"relationship,omitempty"`
+		RelationshipAlien string `yaml:"relationship_type,omitempty"`
+		Occurrences       Range  `yaml:"occurrences,omitempty"`
 
 		// Extra types for Alien Parsing
 		LowerBound string                 `yaml:"lower_bound,omitempty"`
@@ -77,11 +78,11 @@ func (a *RequirementDefinition) UnmarshalYAML(unmarshal func(interface{}) error)
 		a.Relationship = str.RelationshipAlien
 	}
 	if str.LowerBound != "" {
-		if bound, err := strconv.ParseUint(str.LowerBound, 10, 0); err != nil {
+		bound, err := strconv.ParseUint(str.LowerBound, 10, 0)
+		if err != nil {
 			return fmt.Errorf("Expecting a unsigned integer as lower bound got: %q", str.LowerBound)
-		} else {
-			a.Occurrences.LowerBound = bound
 		}
+		a.Occurrences.LowerBound = bound
 	}
 	if str.UpperBound != "" {
 		if bound, err := strconv.ParseUint(str.UpperBound, 10, 0); err != nil {

@@ -19,7 +19,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
-var wfCanceled = errors.New("workflow canceled")
+const wfDelegateActivity string = "delegate"
+const wfSetStateActivity string = "set-state"
+const wfCallOpActivity string = "call-operation"
 
 type Step struct {
 	Name       string
@@ -43,7 +45,7 @@ type DelegateActivity struct {
 }
 
 func (da DelegateActivity) ActivityType() string {
-	return "delegate"
+	return wfDelegateActivity
 }
 func (da DelegateActivity) ActivityValue() string {
 	return da.delegate
@@ -54,7 +56,7 @@ type SetStateActivity struct {
 }
 
 func (s SetStateActivity) ActivityType() string {
-	return "set-state"
+	return wfSetStateActivity
 }
 func (s SetStateActivity) ActivityValue() string {
 	return s.state
@@ -65,7 +67,7 @@ type CallOperationActivity struct {
 }
 
 func (c CallOperationActivity) ActivityType() string {
-	return "call-operation"
+	return wfCallOpActivity
 }
 func (c CallOperationActivity) ActivityValue() string {
 	return c.operation
@@ -75,8 +77,8 @@ func (s *Step) IsTerminal() bool {
 	return len(s.Next) == 0
 }
 
-func (s *Step) SetTaskId(taskId *Task) {
-	s.task = taskId
+func (s *Step) SetTaskID(taskID *Task) {
+	s.task = taskID
 }
 
 func (s *Step) notifyNext() {
@@ -97,32 +99,32 @@ func (s *Step) setStatus(status string) error {
 	if err != nil {
 		return err
 	}
-	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.task.Id, s.Name), Value: []byte(status)}
+	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.task.ID, s.Name), Value: []byte(status)}
 	_, err = s.kv.Put(kvp, nil)
 	return err
 }
 
 func (s *Step) isRunnable() (bool, error) {
 	if s.task.TaskType == ScaleUp || s.task.TaskType == ScaleDown {
-		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "node")), nil)
+		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.ID, "node")), nil)
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil || len(kvp.Value) == 0 {
-			return false, errors.Errorf("Missing mandatory key \"node\" for task %q", s.task.Id)
+			return false, errors.Errorf("Missing mandatory key \"node\" for task %q", s.task.ID)
 		}
 		nodeName := string(kvp.Value)
-		ok, err := deployments.IsHostedOn(s.kv, s.task.TargetId, s.Node, nodeName)
+		ok, err := deployments.IsHostedOn(s.kv, s.task.TargetID, s.Node, nodeName)
 		if err != nil {
 			return false, err
 		}
 
-		kvp, _, err = s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.Id, "req")), nil)
+		kvp, _, err = s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.ID, "req")), nil)
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil {
-			return false, errors.Errorf("Missing mandatory key \"req\" for task %q", s.task.Id)
+			return false, errors.Errorf("Missing mandatory key \"req\" for task %q", s.task.ID)
 		}
 		reqArr := strings.Split(string(kvp.Value), ",")
 		isReq := contains(reqArr, s.Node)
@@ -134,7 +136,7 @@ func (s *Step) isRunnable() (bool, error) {
 		}
 	}
 
-	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.task.Id, s.Name), nil)
+	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.task.ID, s.Name), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -155,21 +157,21 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentId, nodeName, status string, instancesIDs ...string) {
+func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentID, nodeName, status string, instancesIDs ...string) {
 	if len(instancesIDs) == 0 {
-		instancesIDs, _ = deployments.GetNodeInstancesIds(kv, deploymentId, nodeName)
+		instancesIDs, _ = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 	}
 	for _, id := range instancesIDs {
-		kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName, id, "attributes/state"), Value: []byte(status)}, nil)
+		kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, id, "attributes/state"), Value: []byte(status)}, nil)
 		// Publish status change event
 		eventPub.StatusChange(nodeName, id, status)
 	}
 
 }
 
-func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) error {
+func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) error {
 	haveErr := false
-	eventPub := events.NewPublisher(kv, deploymentId)
+	eventPub := events.NewPublisher(kv, deploymentID)
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
 		log.Debugf("Step %q waiting for %d previous steps", s.Name, len(s.Previous)-i)
@@ -181,7 +183,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 			case <-shutdownChan:
 				log.Printf("Step %q canceled", s.Name)
 				s.setStatus("canceled")
-				return wfCanceled
+				return errors.New("workflow canceled")
 			case <-ctx.Done():
 				log.Printf("Step %q canceled: %q", s.Name, ctx.Err())
 				s.setStatus("canceled")
@@ -196,8 +198,8 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 	if runnable, err := s.isRunnable(); err != nil {
 		return err
 	} else if !runnable {
-		log.Printf("Deployment %q: Skipping Step %q", deploymentId, s.Name)
-		deployments.LogInConsul(kv, deploymentId, fmt.Sprintf("Skipping Step %q", s.Name))
+		log.Printf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
+		deployments.LogInConsul(kv, deploymentID, fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus("done")
 		s.notifyNext()
 		return nil
@@ -205,7 +207,7 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 
 	log.Printf("Processing step %q", s.Name)
 	var instancesIds []string
-	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.task.Id, "new_instances_ids"), nil)
+	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.task.ID, "new_instances_ids"), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -216,50 +218,50 @@ func (s *Step) run(ctx context.Context, deploymentId string, kv *api.KV, uninsta
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
-		case actType == "delegate":
+		case actType == wfDelegateActivity:
 			provisioner := terraform.NewExecutor(kv, cfg)
 			delegateOp := activity.ActivityValue()
 			switch delegateOp {
 			case "install":
-				setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateCreating.String(), instancesIds...)
-				if err := provisioner.ProvisionNode(ctx, deploymentId, s.Node); err != nil {
-					setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateError.String(), instancesIds...)
-					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentId, s.Name, err)
+				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateCreating.String(), instancesIds...)
+				if err := provisioner.ProvisionNode(ctx, deploymentID, s.Node); err != nil {
+					setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
+					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					s.setStatus(tosca.NodeStateError.String())
 					return err
 				}
-				setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateStarted.String(), instancesIds...)
+				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateStarted.String(), instancesIds...)
 			case "uninstall":
-				setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateDeleting.String(), instancesIds...)
+				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateDeleting.String(), instancesIds...)
 				nodesIds := ""
 				if s.task.TaskType == ScaleDown {
 					nodesIds = strings.Join(instancesIds, ",")
 				}
-				if err := provisioner.DestroyNode(ctx, deploymentId, s.Node, nodesIds); err != nil {
-					setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateError.String(), instancesIds...)
+				if err := provisioner.DestroyNode(ctx, deploymentID, s.Node, nodesIds); err != nil {
+					setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
 					uninstallerrc <- err
 					haveErr = true
 				} else {
-					setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateDeleted.String(), instancesIds...)
+					setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateDeleted.String(), instancesIds...)
 				}
 			default:
-				setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateError.String(), instancesIds...)
+				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
 				s.setStatus(tosca.NodeStateError.String())
 				return fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
 			}
-		case actType == "set-state":
-			setNodeStatus(kv, eventPub, deploymentId, s.Node, activity.ActivityValue(), instancesIds...)
-		case actType == "call-operation":
+		case actType == wfSetStateActivity:
+			setNodeStatus(kv, eventPub, deploymentID, s.Node, activity.ActivityValue(), instancesIds...)
+		case actType == wfCallOpActivity:
 			exec := ansible.NewExecutor(kv)
 			var err error
 			if s.task.TaskType == ScaleUp || s.task.TaskType == ScaleDown {
-				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue(), s.task.Id)
+				err = exec.ExecOperation(ctx, deploymentID, s.Node, activity.ActivityValue(), s.task.ID)
 			} else {
-				err = exec.ExecOperation(ctx, deploymentId, s.Node, activity.ActivityValue())
+				err = exec.ExecOperation(ctx, deploymentID, s.Node, activity.ActivityValue())
 			}
 			if err != nil {
-				setNodeStatus(kv, eventPub, deploymentId, s.Node, tosca.NodeStateError.String(), instancesIds...)
-				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentId, s.Name, err)
+				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if isUndeploy {
 					uninstallerrc <- err
 				} else {
@@ -307,11 +309,11 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 	for _, actKV := range kvPairs {
 		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activity/")
 		switch {
-		case key == "delegate":
+		case key == wfDelegateActivity:
 			step.Activities = append(step.Activities, DelegateActivity{delegate: string(actKV.Value)})
-		case key == "set-state":
+		case key == wfSetStateActivity:
 			step.Activities = append(step.Activities, SetStateActivity{state: string(actKV.Value)})
-		case key == "operation":
+		case key == wfCallOpActivity:
 			step.Activities = append(step.Activities, CallOperationActivity{operation: string(actKV.Value)})
 		default:
 			return nil, fmt.Errorf("Unsupported activity type: %s", key)

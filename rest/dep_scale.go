@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -82,7 +83,7 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 	if err != nil {
 		log.Panic(err)
 	}
-	_, currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
+	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -108,7 +109,8 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 
 	var reqNameArr []string
 	for _, reqPath := range req {
-		reqName, _, err := kv.Get(path.Join(reqPath, "node"), nil)
+		var reqName *api.KVPair
+		reqName, _, err = kv.Get(path.Join(reqPath, "node"), nil)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -146,7 +148,7 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 	if err != nil {
 		log.Panic(err)
 	}
-	_, currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
+	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -163,24 +165,25 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 		log.Panic(err)
 	}
 
-	if tmp, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage"); err != nil {
+	storageReq, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage")
+	if err != nil {
 		log.Panic(err)
-	} else {
-		req = append(req, tmp...)
 	}
+	req = append(req, storageReq...)
 
 	var reqNameArr []string
 	for _, reqPath := range req {
-		reqName, _, err := kv.Get(path.Join(reqPath, "node"), nil)
+		var reqName *api.KVPair
+		reqName, _, err = kv.Get(path.Join(reqPath, "node"), nil)
 		if err != nil {
 			log.Panic(err)
 		}
 		reqNameArr = append(reqNameArr, string(reqName.Value))
 	}
 
-	newInstanceId := []string{}
+	newInstanceID := []string{}
 	for i := currentNbInstance - 1; i > currentNbInstance-1-instancesDelta; i-- {
-		newInstanceId = append(newInstanceId, strconv.Itoa(int(i)))
+		newInstanceID = append(newInstanceID, strconv.Itoa(int(i)))
 	}
 
 	err = deployments.SetNbInstancesForNode(kv, id, nodeName, currentNbInstance-instancesDelta)
@@ -191,7 +194,7 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 	data := make(map[string]string)
 
 	data["node"] = nodeName
-	data["new_instances_ids"] = strings.Join(newInstanceId, ",")
+	data["new_instances_ids"] = strings.Join(newInstanceID, ",")
 	data["req"] = strings.Join(reqNameArr, ",")
 
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleDown, data)

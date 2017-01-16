@@ -6,7 +6,7 @@ type CapabilityDefinition struct {
 	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
 	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
 	ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow"`
-	Occurrences      ToscaRange                     `yaml:"occurrences,omitempty"`
+	Occurrences      Range                          `yaml:"occurrences,omitempty"`
 }
 
 type CapabilityAssignment struct {
@@ -26,7 +26,7 @@ func (c *CapabilityDefinition) UnmarshalYAML(unmarshal func(interface{}) error) 
 		Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
 		Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
 		ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow"`
-		Occurrences      ToscaRange                     `yaml:"occurrences,omitempty"`
+		Occurrences      Range                          `yaml:"occurrences,omitempty"`
 	}
 	if err := unmarshal(&str); err != nil {
 		return err

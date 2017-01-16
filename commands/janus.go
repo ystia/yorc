@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
-const janusApiDefaultErrorMsg string = "Failed to contact Janus API"
+const janusAPIDefaultErrorMsg string = "Failed to contact Janus API"
 
 var RootCmd = &cobra.Command{
 	Use:   "janus",
@@ -15,6 +17,9 @@ It is cloud-agnostic, flexible and secure.
 `,
 	SilenceErrors: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		err := cmd.Help()
+		if err != nil {
+			fmt.Print(err)
+		}
 	},
 }

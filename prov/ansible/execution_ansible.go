@@ -17,7 +17,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-const ansible_playbook = `
+const ansiblePlaybook = `
 - include: [[[.PlaybookPath]]]
 [[[if .HaveOutput]]]
 - name: Retrieving Operation outputs
@@ -43,9 +43,9 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 
 	ansibleGroupsVarsPath := filepath.Join(ansibleRecipePath, "group_vars")
-	if err := os.MkdirAll(ansibleGroupsVarsPath, 0775); err != nil {
+	if err = os.MkdirAll(ansibleGroupsVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
-		deployments.LogErrorInConsul(e.kv, e.DeploymentId, err)
+		deployments.LogErrorInConsul(e.kv, e.deploymentID, err)
 		return errors.Wrap(err, "Failed to create group_vars directory: ")
 	}
 	var buffer bytes.Buffer
@@ -75,7 +75,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		log.Debugf("%+v", err)
 		return err
 	}
-	if len(e.TaskId) != 0 && !e.IsCustomCommand {
+	if len(e.taskID) != 0 && !e.IsCustomCommand {
 		if err = ioutil.WriteFile(filepath.Join(ansibleGroupsVarsPath, "scale.yml"), buffer.Bytes(), 0664); err != nil {
 			err = errors.Wrap(err, "Failed to write global group vars file: ")
 			log.Printf("%v", err)
@@ -102,23 +102,23 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	buffer.Reset()
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl, err = tmpl.Parse(ansible_playbook)
+	tmpl, err = tmpl.Parse(ansiblePlaybook)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate ansible playbook")
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
-		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
+		deployments.LogInConsul(e.kv, e.deploymentID, "Failed to Generate ansible playbook template")
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write playbook file")
-		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
+		deployments.LogInConsul(e.kv, e.deploymentID, "Failed to write playbook file")
 		return err
 	}
 
-	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, e.PlaybookPath)
-	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
+	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, e.PlaybookPath)
+	deployments.LogInConsul(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "-l", e.Group, "run.ansible.yml")
 
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
@@ -126,7 +126,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer
-	errbuf := logsutil.NewBufferedConsulWriter(e.kv, e.DeploymentId, deployments.SOFTWARE_LOG_PREFIX)
+	errbuf := logsutil.NewBufferedConsulWriter(e.kv, e.deploymentID, deployments.SOFTWARE_LOG_PREFIX)
 	cmd.Stdout = &outbuf
 	cmd.Stderr = errbuf
 

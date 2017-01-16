@@ -48,13 +48,13 @@ const (
 )
 
 type anotherLivingTaskAlreadyExistsError struct {
-	taskId   string
-	targetId string
+	taskID   string
+	targetID string
 	status   string
 }
 
 func (e anotherLivingTaskAlreadyExistsError) Error() string {
-	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskId, e.status, e.targetId)
+	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskID, e.status, e.targetID)
 }
 
 func IsAnotherLivingTaskAlreadyExistsError(err error) bool {

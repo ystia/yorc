@@ -33,8 +33,8 @@ type ctxConsulStoreKey struct{}
 var consulStoreKey ctxConsulStoreKey
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
-// consulutil.DeploymentKVPrefix/deploymentId
-func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentId string, defPath string) error {
+// consulutil.DeploymentKVPrefix/deploymentID
+func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentID string, defPath string) error {
 	topology := tosca.Topology{}
 	definition, err := os.Open(defPath)
 	if err != nil {
@@ -47,25 +47,25 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentId str
 
 	err = yaml.Unmarshal(defBytes, &topology)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to unmarsh yaml definition for file %q", defPath)
+		return errors.Wrapf(err, "Failed to unmarshal yaml definition for file %q", defPath)
 	}
 
-	err = storeDeployment(ctx, topology, deploymentId, filepath.Dir(defPath))
+	err = storeDeployment(ctx, topology, deploymentID, filepath.Dir(defPath))
 	if err != nil {
-		return errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentId, defPath)
+		return errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath)
 	}
-	return enhanceNodes(ctx, kv, deploymentId)
+	return enhanceNodes(ctx, kv, deploymentID)
 }
 
 // storeDeployment stores a whole deployment.
-func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentId, rootDefPath string) error {
+func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentID, rootDefPath string) error {
 	errCtx, errGroup, consulStore := consulutil.WithContext(ctx)
 	errCtx = context.WithValue(errCtx, errGrpKey, errGroup)
 	errCtx = context.WithValue(errCtx, consulStoreKey, consulStore)
-	consulStore.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "status"), fmt.Sprint(INITIAL))
+	consulStore.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(INITIAL))
 
 	errGroup.Go(func() error {
-		return storeTopology(errCtx, topology, deploymentId, path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology"), "", "", rootDefPath)
+		return storeTopology(errCtx, topology, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"), "", "", rootDefPath)
 	})
 
 	return errGroup.Wait()
@@ -74,7 +74,7 @@ func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentId,
 // storeTopology stores a given topology.
 //
 // The given topology may be an import in this case importPrefix and importPath should be specified
-func storeTopology(ctx context.Context, topology tosca.Topology, deploymentId, topologyPrefix, importPrefix, importPath, rootDefPath string) error {
+func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, topologyPrefix, importPrefix, importPath, rootDefPath string) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -82,7 +82,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentId, t
 	}
 	log.Debugf("Storing topology with name %q (Import prefix %q)", topology.Name, importPrefix)
 	storeTopologyTopLevelKeyNames(ctx, topology, path.Join(topologyPrefix, importPrefix))
-	if err := storeImports(ctx, topology, deploymentId, topologyPrefix, importPath, rootDefPath); err != nil {
+	if err := storeImports(ctx, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
 		return err
 	}
 	storeInputs(ctx, topology, topologyPrefix)
@@ -91,7 +91,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentId, t
 	storeTypes(ctx, topology, topologyPrefix, importPath)
 	storeRelationshipTypes(ctx, topology, topologyPrefix, importPath)
 	storeCapabilityTypes(ctx, topology, topologyPrefix)
-	storeWorkflows(ctx, topology, deploymentId)
+	storeWorkflows(ctx, topology, deploymentID)
 	return nil
 }
 
@@ -108,7 +108,7 @@ func storeTopologyTopLevelKeyNames(ctx context.Context, topology tosca.Topology,
 }
 
 // storeImports parses and store imports.
-func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, topologyPrefix, importPath, rootDefPath string) error {
+func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, topologyPrefix, importPath, rootDefPath string) error {
 	errGroup := ctx.Value(errGrpKey).(*errgroup.Group)
 	for _, element := range topology.Imports {
 		for importName, value := range element {
@@ -126,7 +126,7 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, to
 					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 				errGroup.Go(func() error {
-					return storeTopology(ctx, importedTopology, deploymentId, topologyPrefix, path.Join("imports", importName), "", rootDefPath)
+					return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importName), "", rootDefPath)
 				})
 			} else {
 				uploadFile := filepath.Join(rootDefPath, filepath.FromSlash(importPath), filepath.FromSlash(value.File))
@@ -146,7 +146,7 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentId, to
 				}
 
 				errGroup.Go(func() error {
-					return storeTopology(ctx, importedTopology, deploymentId, topologyPrefix, path.Join("imports", importPath, importName), path.Dir(path.Join(importPath, value.File)), rootDefPath)
+					return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importPath, importName), path.Dir(path.Join(importPath, value.File)), rootDefPath)
 				})
 			}
 
@@ -488,9 +488,9 @@ func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topology
 }
 
 // storeWorkflows stores topology workflows
-func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId string) {
+func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	workflowsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "workflows")
+	workflowsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
 		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
@@ -500,7 +500,7 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentId s
 				// Preserve case for requirement and target node name in case of relationship operation
 				opSlice := strings.SplitN(step.Activity.CallOperation, "/", 2)
 				opSlice[0] = strings.ToLower(opSlice[0])
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/operation", strings.Join(opSlice, "/"))
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/call-operation", strings.Join(opSlice, "/"))
 			}
 			if step.Activity.Delegate != "" {
 				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/delegate", strings.ToLower(step.Activity.Delegate))
@@ -523,7 +523,7 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		return err
 	}
 	createNodeInstances(consulStore, kv, nbInstances, deploymentID, nodeName)
-	ip, networkNodeName, err := checkFloattingIp(kv, deploymentID, nodeName)
+	ip, networkNodeName, err := checkFloattingIP(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -563,7 +563,8 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 		if err != nil {
 			return err
 		}
-		isCompute, err := IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
+		var isCompute bool
+		isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
 		if err != nil {
 			return err
 		}
@@ -659,23 +660,23 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 /**
 This function create a given number of floating IP instances
 */
-func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentId, nodeName string) {
+func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberInstances uint32, deploymentID, nodeName string) {
 
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
 	consulStore.StoreConsulKeyAsString(path.Join(nodePath, "nbInstances"), strconv.FormatUint(uint64(numberInstances), 10))
 
 	for i := uint32(0); i < numberInstances; i++ {
 		instanceName := strconv.FormatUint(uint64(i), 10)
-		createNodeInstance(consulStore, deploymentId, nodeName, instanceName)
+		createNodeInstance(consulStore, deploymentID, nodeName, instanceName)
 	}
 }
 
 /**
 This function check if a nodes need a floating IP, and return the name of Floating IP node.
 */
-func checkFloattingIp(kv *api.KV, deploymentId, nodeName string) (bool, string, error) {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentId, nodeName, "network")
+func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, error) {
+	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return false, "", err
 	}
@@ -683,12 +684,12 @@ func checkFloattingIp(kv *api.KV, deploymentId, nodeName string) (bool, string, 
 	for _, requirement := range requirementsKey {
 		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
 		if err != nil {
-			return false, "", err
+			return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		} else if capability == nil {
 			continue
 		}
 
-		res, err := IsNodeTypeDerivedFrom(kv, deploymentId, string(capability.Value), "janus.capabilities.openstack.FIPConnectivity")
+		res, err := IsNodeTypeDerivedFrom(kv, deploymentID, string(capability.Value), "janus.capabilities.openstack.FIPConnectivity")
 		if err != nil {
 			return false, "", err
 		}
@@ -696,7 +697,7 @@ func checkFloattingIp(kv *api.KV, deploymentId, nodeName string) (bool, string, 
 		if res {
 			networkNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
 			if err != nil {
-				return false, "", err
+				return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 
 			}
 			return true, string(networkNode.Value), nil
@@ -713,7 +714,7 @@ func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *ap
 		return err
 	}
 
-	_, nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
+	nbInstances, err := GetNbInstancesForNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -723,14 +724,14 @@ func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *ap
 	for _, requirement := range requirementsKey {
 		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
 		if err != nil {
-			return err
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		} else if capability == nil {
 			continue
 		}
 
 		bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
 		if err != nil {
-			return err
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 
 		}
 
@@ -747,8 +748,8 @@ func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *ap
 /**
 This function check if a nodes need a floating IP, and return the name of Floating IP node.
 */
-func checkBlockStorage(kv *api.KV, deploymentId, nodeName string) (bool, []string, error) {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentId, nodeName, "local_storage")
+func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []string, error) {
+	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}
@@ -758,14 +759,14 @@ func checkBlockStorage(kv *api.KV, deploymentId, nodeName string) (bool, []strin
 	for _, requirement := range requirementsKey {
 		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
 		if err != nil {
-			return false, nil, err
+			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		} else if capability == nil {
 			continue
 		}
 
 		bsNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
 		if err != nil {
-			return false, nil, err
+			return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 
 		}
 

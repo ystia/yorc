@@ -39,21 +39,24 @@ func ZipPath(path string) ([]byte, error) {
 		}
 	} else {
 		fileName := fileInfo.Name()
-		header, err := zip.FileInfoHeader(fileInfo)
+		var header *zip.FileHeader
+		header, err = zip.FileInfoHeader(fileInfo)
 		if err != nil {
 			return []byte{}, err
 		}
 		header.Name = fileName
 		// Get a writer in the archive based on our header
-		writer, err := w.CreateHeader(header)
+		var writer io.Writer
+		writer, err = w.CreateHeader(header)
 		if err != nil {
 			return []byte{}, err
 		}
-		file, err := os.Open(absPath)
+		var file *os.File
+		file, err = os.Open(absPath)
 		if err != nil {
 			return []byte{}, err
 		}
-		if _, err := io.Copy(writer, file); err != nil {
+		if _, err = io.Copy(writer, file); err != nil {
 			return []byte{}, err
 		}
 	}

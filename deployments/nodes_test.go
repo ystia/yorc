@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"fmt"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
@@ -211,7 +212,7 @@ func testGetDefaultNbInstancesForNode(t *testing.T, kv *api.KV) {
 	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, _, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	require.NotNil(t, err)
 
 	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
@@ -243,7 +244,7 @@ func testGetMaxNbInstancesForNode(t *testing.T, kv *api.KV) {
 	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	res, nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, _, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	fmt.Println(err)
 	require.NotNil(t, err)
 
@@ -276,7 +277,7 @@ func testGetMinNbInstancesForNode(t *testing.T, kv *api.KV) {
 	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	res, nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, _, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	fmt.Println(err)
 	require.NotNil(t, err)
 

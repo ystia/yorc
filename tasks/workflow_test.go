@@ -1,11 +1,12 @@
 package tasks
 
 import (
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"testing"
 )
 
 func TestGroupedTaskParallel(t *testing.T) {
@@ -59,7 +60,7 @@ func readStepFromConsul(t *testing.T) {
 	data := make(map[string][]byte)
 	data["wf/steps/stepName/activity/delegate"] = []byte("install")
 	data["wf/steps/stepName/activity/set-state"] = []byte("installed")
-	data["wf/steps/stepName/activity/operation"] = []byte("script.sh")
+	data["wf/steps/stepName/activity/call-operation"] = []byte("script.sh")
 	data["wf/steps/stepName/node"] = []byte("nodeName")
 
 	srv1.PopulateKV(data)
@@ -99,7 +100,7 @@ func readStepWithNext(t *testing.T) {
 	data["wf/steps/stepName/next/downstream"] = []byte("")
 	data["wf/steps/stepName/node"] = []byte("nodeName")
 
-	data["wf/steps/downstream/activity/operation"] = []byte("script.sh")
+	data["wf/steps/downstream/activity/call-operation"] = []byte("script.sh")
 	data["wf/steps/downstream/node"] = []byte("downstream")
 
 	srv1.PopulateKV(data)

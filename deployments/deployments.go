@@ -2,18 +2,20 @@ package deployments
 
 import (
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"path"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
 type deploymentNotFound struct {
-	deploymentId string
+	deploymentID string
 }
 
 func (d deploymentNotFound) Error() string {
-	return fmt.Sprintf("Deployment with id %q not found", d.deploymentId)
+	return fmt.Sprintf("Deployment with id %q not found", d.deploymentID)
 }
 
 // IsDeploymentNotFoundError checks if an error is a deployment not found error
@@ -49,20 +51,20 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 //  		// Do something in case of deployment not found
 //  	}
 //  }
-func GetDeploymentStatus(kv *api.KV, deploymentId string) (DeploymentStatus, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "status"), nil)
+func GetDeploymentStatus(kv *api.KV, deploymentID string) (DeploymentStatus, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), nil)
 	if err != nil {
-		return INITIAL, err
+		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return INITIAL, deploymentNotFound{deploymentId: deploymentId}
+		return INITIAL, deploymentNotFound{deploymentID: deploymentID}
 	}
 	return DeploymentStatusFromString(string(kvp.Value), true)
 }
 
 // DoesDeploymentExists checks if a given deploymentId refer to an existing deployment
-func DoesDeploymentExists(kv *api.KV, deploymentId string) (bool, error) {
-	if _, err := GetDeploymentStatus(kv, deploymentId); err != nil {
+func DoesDeploymentExists(kv *api.KV, deploymentID string) (bool, error) {
+	if _, err := GetDeploymentStatus(kv, deploymentID); err != nil {
 		if IsDeploymentNotFoundError(err) {
 			return false, nil
 		}

@@ -3,10 +3,13 @@ package tosca
 import (
 	"bytes"
 	"fmt"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
+
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 type ValueAssignment struct {
@@ -25,7 +28,10 @@ func parseExprNode(value interface{}, t *TreeNode) error {
 	switch v := value.(type) {
 	case string:
 		log.Debugf("Found string value %v %T", v, v)
-		t.Add(v)
+		err := t.Add(v)
+		if err != nil {
+			return err
+		}
 	case []interface{}:
 		log.Debugf("Found array value %v %T", v, v)
 		for _, tabVal := range v {
@@ -40,7 +46,10 @@ func parseExprNode(value interface{}, t *TreeNode) error {
 		if err != nil {
 			return err
 		}
-		t.AddChild(c)
+		err = t.AddChild(c)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("Unexpected type for expression element %T", v)
 	}
@@ -95,7 +104,7 @@ func newTreeNode(value string) *TreeNode {
 }
 func (t *TreeNode) AddChild(child *TreeNode) error {
 	if child.parent != nil {
-		return fmt.Errorf("node %s already have a parent, can't adopt it", child)
+		return errors.Errorf("node %s already have a parent, can't adopt it", child)
 	}
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -162,12 +171,12 @@ func (t *TreeNode) String() string {
 // Max uint64 as per https://golang.org/ref/spec#Numeric_types
 const UNBOUNDED uint64 = 18446744073709551615
 
-type ToscaRange struct {
+type Range struct {
 	LowerBound uint64
 	UpperBound uint64
 }
 
-func (r *ToscaRange) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (r *Range) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v []string
 	if err := unmarshal(&v); err != nil {
 		return err
@@ -175,11 +184,12 @@ func (r *ToscaRange) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if len(v) != 2 {
 		return fmt.Errorf("Invalid range definition expected %d elements, actually found %d", 2, len(v))
 	}
-	if bound, err := strconv.ParseUint(v[0], 10, 0); err != nil {
+
+	bound, err := strconv.ParseUint(v[0], 10, 0)
+	if err != nil {
 		return fmt.Errorf("Expecting a unsigned integer as lower bound of the range")
-	} else {
-		r.LowerBound = bound
 	}
+	r.LowerBound = bound
 	if bound, err := strconv.ParseUint(v[1], 10, 0); err != nil {
 		if v[1] != "UNBOUNDED" {
 			return fmt.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range")

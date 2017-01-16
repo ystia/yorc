@@ -15,7 +15,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func getAnsibleJsonResult(output *bytes.Buffer) (*jason.Object, error) {
+func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, error) {
 	// Workaround https://github.com/ansible/ansible/issues/17122
 	b := output.Bytes()
 	if i := bytes.Index(b, []byte("{")); i >= 0 {
@@ -37,13 +37,16 @@ func getAnsibleJsonResult(output *bytes.Buffer) (*jason.Object, error) {
 
 func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 
-	v, err := getAnsibleJsonResult(output)
+	v, err := getAnsibleJSONResult(output)
 	if err != nil {
 		return err
 	}
 
 	//Get the array of object of plays
 	plays, err := v.GetObjectArray("plays")
+	if err != nil {
+		return errors.Wrap(err, "Ansible logs not available")
+	}
 	for _, play := range plays {
 		//Extract the tasks from the play
 		tasks, err := play.GetObjectArray("tasks")
@@ -78,7 +81,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("stderr"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+					key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
 					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
 					if err != nil {
 						err = errors.Wrap(err, "Ansible logs not available")
@@ -91,7 +94,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("stdout"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+					key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
 					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
 					if err != nil {
 						err = errors.Wrap(err, "Ansible logs not available")
@@ -105,7 +108,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("msg"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+					key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
 					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
 					if err != nil {
 						err = errors.Wrap(err, "Ansible logs not available")
@@ -124,15 +127,19 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 
 func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 
-	v, err := getAnsibleJsonResult(output)
+	v, err := getAnsibleJSONResult(output)
 	if err != nil {
 		return err
 	}
 	var buf bytes.Buffer
 	//Get the array of object of plays
 	plays, err := v.GetObjectArray("plays")
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve play name")
+	}
 	for _, play := range plays {
-		playName, err := play.GetString("play", "name")
+		var playName string
+		playName, err = play.GetString("play", "name")
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve play name")
 		}
@@ -202,7 +209,8 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 	for statsHost, statsValue := range stats.Map() {
 		buf.WriteString("\nHost: ")
 		buf.WriteString(statsHost)
-		statsObj, err := statsValue.Object()
+		var statsObj *jason.Object
+		statsObj, err = statsValue.Object()
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve play stats")
 		}
@@ -238,11 +246,6 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		buf.WriteString(strconv.FormatInt(unreachable, 10))
 
 	}
-	key := path.Join(consulutil.DeploymentKVPrefix, e.DeploymentId, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
-	err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, Ansible Playbook result:\n%s", e.NodeName, buf.String()))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+	return consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, Ansible Playbook result:\n%s", e.NodeName, buf.String()))
 }

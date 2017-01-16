@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -27,14 +28,14 @@ func NewGenerator(kv *api.KV, cfg config.Configuration) *Generator {
 	return &Generator{kv: kv, cfg: cfg}
 }
 
-func (g *Generator) getStringFormConsul(baseUrl, property string) (string, error) {
-	getResult, _, err := g.kv.Get(baseUrl+"/"+property, nil)
+func (g *Generator) getStringFormConsul(baseURL, property string) (string, error) {
+	getResult, _, err := g.kv.Get(baseURL+"/"+property, nil)
 	if err != nil {
-		log.Printf("Can't get property %s for node %s", property, baseUrl)
-		return "", fmt.Errorf("Can't get property %s for node %s: %v", property, baseUrl, err)
+		log.Printf("Can't get property %s for node %s", property, baseURL)
+		return "", fmt.Errorf("Can't get property %s for node %s: %v", property, baseURL, err)
 	}
 	if getResult == nil {
-		log.Debugf("Can't get property %s for node %s (not found)", property, baseUrl)
+		log.Debugf("Can't get property %s for node %s (not found)", property, baseURL)
 		return "", nil
 	}
 	return string(getResult.Value), nil
@@ -63,20 +64,20 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 // GenerateTerraformInfraForNode generates the Terraform infrastructure file for the given node.
 // It returns 'true' if a file was generated and 'false' otherwise (in case of a infrastructure component
 // already exists for this node and should just be reused).
-func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool, error) {
+func (g *Generator) GenerateTerraformInfraForNode(deploymentID, nodeName string) (bool, error) {
 
-	log.Debugf("Generating infrastructure for deployment with id %s", depId)
-	nodeKey := path.Join(consulutil.DeploymentKVPrefix, depId, "topology", "nodes", nodeName)
-	instancesKey := path.Join(consulutil.DeploymentKVPrefix, depId, "topology", "instances", nodeName)
+	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
+	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 
 	// Management of variables for Terraform
 	infrastructure := commons.Infrastructure{}
 	infrastructure.Provider = map[string]interface{}{
 		"openstack": map[string]interface{}{
-			"user_name":   g.cfg.OS_USER_NAME,
-			"tenant_name": g.cfg.OS_TENANT_NAME,
-			"password":    g.cfg.OS_PASSWORD,
-			"auth_url":    g.cfg.OS_AUTH_URL}}
+			"user_name":   g.cfg.OSUserName,
+			"tenant_name": g.cfg.OSTenantName,
+			"password":    g.cfg.OSPassword,
+			"auth_url":    g.cfg.OSAuthURL}}
 
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
@@ -85,16 +86,18 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		return false, err
 	}
 	nodeType := string(kvPair.Value)
+	var instances []string
 	switch nodeType {
 	case "janus.nodes.openstack.Compute":
-		instances, _, err := g.kv.Keys(instancesKey+"/", "/", nil)
+		instances, _, err = g.kv.Keys(instancesKey+"/", "/", nil)
 		if err != nil {
 			return false, err
 		}
 
 		for _, instanceName := range instances {
 			instanceName = path.Base(instanceName)
-			compute, err := g.generateOSInstance(nodeKey, depId, instanceName)
+			var compute ComputeInstance
+			compute, err = g.generateOSInstance(nodeKey, deploymentID, instanceName)
 			if err != nil {
 				return false, err
 			}
@@ -103,7 +106,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 			consulKeyAttrib := commons.ConsulKey{Name: compute.Name + "-attrib_ip_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)} // Use latest provisioned network for private access
 			consulKeyFixedIP := commons.ConsulKey{Name: compute.Name + "-ip_fixed_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)}
 			var consulKeys commons.ConsulKeys
-			if compute.Networks[0].FloatingIp != "" {
+			if compute.Networks[0].FloatingIP != "" {
 				consulKeyFloatingIP := commons.ConsulKey{Name: compute.Name + "-ip_floating_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
 				//In order to be backward compatible to components developed for Alien/Cloudify (only the above is standard)
 				consulKeyFloatingIPBak := commons.ConsulKey{Name: compute.Name + "-ip_floating_address_backward_comp-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
@@ -115,42 +118,42 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 
 			for i := range compute.Networks {
 				consulKetNetName := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-name", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", compute.Name, i)}
-				consulKetNetId := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-id", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", compute.Name, i)}
+				consulKetNetID := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-id", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", compute.Name, i)}
 				consulKetNetAddresses := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-addresses", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses"), Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", compute.Name, i)}
-				consulKeys.Keys = append(consulKeys.Keys, consulKetNetName, consulKetNetId, consulKetNetAddresses)
+				consulKeys.Keys = append(consulKeys.Keys, consulKetNetName, consulKetNetID, consulKetNetAddresses)
 			}
 			addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
 		}
 
 	case "janus.nodes.openstack.BlockStorage":
-		instances, err := deployments.GetNodeInstancesIds(g.kv, depId, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(g.kv, deploymentID, nodeName)
 		if err != nil {
 			return false, err
 		}
 
 		var bsIds []string
-
-		if volumeId, err := g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
+		var volumeID string
+		if volumeID, err = g.getStringFormConsul(nodeKey, "properties/volume_id"); err != nil {
 			return false, err
-		} else if volumeId != "" {
-			log.Debugf("Reusing existing volume with id %q for node %q", volumeId, nodeName)
-			bsIds = strings.Split(volumeId, ",")
+		} else if volumeID != "" {
+			log.Debugf("Reusing existing volume with id %q for node %q", volumeID, nodeName)
+			bsIds = strings.Split(volumeID, ",")
 		}
 
 		for instNb, instanceName := range instances {
-
-			bsvol, err := g.generateOSBSVolume(nodeKey, instanceName)
+			var bsVolume BlockStorageVolume
+			bsVolume, err = g.generateOSBSVolume(nodeKey, instanceName)
 			if err != nil {
 				return false, err
 			}
 
 			if len(bsIds)-1 < instNb {
-				addResource(&infrastructure, "openstack_blockstorage_volume_v1", bsvol.Name, &bsvol)
-				consulKey := commons.ConsulKey{Name: bsvol.Name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsvol.Name)}
+				addResource(&infrastructure, "openstack_blockstorage_volume_v1", bsVolume.Name, &bsVolume)
+				consulKey := commons.ConsulKey{Name: bsVolume.Name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsVolume.Name)}
 				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-				addResource(&infrastructure, "consul_keys", bsvol.Name, &consulKeys)
+				addResource(&infrastructure, "consul_keys", bsVolume.Name, &consulKeys)
 			} else {
-				name := g.cfg.OS_PREFIX + nodeName + "-" + instanceName
+				name := g.cfg.ResourcesPrefix + nodeName + "-" + instanceName
 				consulKey := commons.ConsulKey{Name: name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/properties/volume_id"), Value: strings.TrimSpace(bsIds[instNb])}
 				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 				addResource(&infrastructure, "consul_keys", name, &consulKeys)
@@ -159,29 +162,34 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		}
 
 	case "janus.nodes.openstack.FloatingIP":
-		instances, err := deployments.GetNodeInstancesIds(g.kv, depId, nodeName)
+		instances, err = deployments.GetNodeInstancesIds(g.kv, deploymentID, nodeName)
 		if err != nil {
 			return false, err
 		}
 
 		for _, instanceName := range instances {
-
-			ip, err := g.generateFloatingIP(nodeKey, instanceName)
+			var ip IP
+			ip, err = g.generateFloatingIP(nodeKey, instanceName)
 
 			if err != nil {
 				return false, err
 			}
 
-			consulKey := commons.ConsulKey{}
-			if !ip.IsIp {
+			var consulKey commons.ConsulKey
+			if !ip.IsIP {
 				floatingIP := FloatingIP{Pool: ip.Pool}
 				addResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
 				consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
 			} else {
 				ips := strings.Split(ip.Pool, ",")
+				// TODO we should change this. instance name should not be considered as an int
 				instName, err := strconv.Atoi(instanceName)
+				if err != nil {
+					return false, err
+				}
 				if (len(ips) - 1) < instName {
-					networkName, err := g.getStringFormConsul(nodeKey, "properties/floating_network_name")
+					var networkName string
+					networkName, err = g.getStringFormConsul(nodeKey, "properties/floating_network_name")
 					if err != nil {
 						return false, err
 					} else if networkName == "" {
@@ -193,6 +201,7 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 					consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
 
 				} else {
+					// TODO we should change this. instance name should not be considered as an int
 					instName, err = strconv.Atoi(instanceName)
 					if err != nil {
 						return false, err
@@ -206,19 +215,22 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		}
 
 	case "janus.nodes.openstack.Network":
-		if networkId, err := g.getStringFormConsul(nodeKey, "properties/network_id"); err != nil {
+		var networkID string
+		networkID, err = g.getStringFormConsul(nodeKey, "properties/network_id")
+		if err != nil {
 			return false, err
-		} else if networkId != "" {
-			log.Debugf("Reusing existing volume with id %q for node %q", networkId, nodeName)
+		} else if networkID != "" {
+			log.Debugf("Reusing existing volume with id %q for node %q", networkID, nodeName)
 			return false, nil
 		}
-		network, err := g.generateNetwork(nodeKey, depId)
+		var network Network
+		network, err = g.generateNetwork(nodeKey, deploymentID)
 
 		if err != nil {
 			return false, err
 		}
-
-		subnet, err := g.generateSubnet(nodeKey, depId, nodeName)
+		var subnet Subnet
+		subnet, err = g.generateSubnet(nodeKey, deploymentID, nodeName)
 
 		if err != nil {
 			return false, err
@@ -231,11 +243,14 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 	default:
-		return false, fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, depId)
+		return false, fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
-	infraPath := filepath.Join("work", "deployments", fmt.Sprint(depId), "infra", nodeName)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
+	}
+	infraPath := filepath.Join("work", "deployments", fmt.Sprint(deploymentID), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		log.Printf("%+v", err)
 		return false, err
@@ -246,6 +261,6 @@ func (g *Generator) GenerateTerraformInfraForNode(depId, nodeName string) (bool,
 		return false, err
 	}
 
-	log.Printf("Infrastructure generated for deployment with id %s", depId)
+	log.Printf("Infrastructure generated for deployment with id %s", deploymentID)
 	return true, nil
 }

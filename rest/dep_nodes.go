@@ -22,16 +22,16 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	kv := s.consulClient.KV()
 	node := Node{Name: nodeName}
-	links := []AtomLink{newAtomLink(LINK_REL_SELF, r.URL.Path)}
+	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path)}
 	instanceIds, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
 	for _, instanceID := range instanceIds {
-		links = append(links, newAtomLink(LINK_REL_INSTANCE, path.Join(r.URL.Path, "instances", instanceID)))
+		links = append(links, newAtomLink(LinkRelInstance, path.Join(r.URL.Path, "instances", instanceID)))
 	}
 	node.Links = links
-	encodeJsonResponse(w, r, node)
+	encodeJSONResponse(w, r, node)
 }
 
 func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -51,10 +51,10 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	nodePath := path.Clean(r.URL.Path + "/../..")
-	nodeInstance := NodeInstance{Id: instanceID, Status: string(kvp.Value)}
+	nodeInstance := NodeInstance{ID: instanceID, Status: string(kvp.Value)}
 	nodeInstance.Links = []AtomLink{
-		newAtomLink(LINK_REL_SELF, r.URL.Path),
-		newAtomLink(LINK_REL_NODE, nodePath),
+		newAtomLink(LinkRelSelf, r.URL.Path),
+		newAtomLink(LinkRelNode, nodePath),
 	}
 	attributesNames, err := deployments.GetNodeAttributesNames(kv, id, nodeName)
 	if err != nil {
@@ -62,9 +62,9 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	for _, attr := range attributesNames {
-		nodeInstance.Links = append(nodeInstance.Links, newAtomLink(LINK_REL_ATTRIBUTE, path.Join(r.URL.Path, "attributes", attr)))
+		nodeInstance.Links = append(nodeInstance.Links, newAtomLink(LinkRelAttribute, path.Join(r.URL.Path, "attributes", attr)))
 	}
-	encodeJsonResponse(w, r, nodeInstance)
+	encodeJSONResponse(w, r, nodeInstance)
 }
 
 func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *http.Request) {
@@ -73,9 +73,9 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
-	instanceId := params.ByName("instanceId")
+	instanceID := params.ByName("instanceId")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "attributes/state"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceID, "attributes/state"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -91,9 +91,9 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 	}
 	attrList := AttributesCollection{Attributes: make([]AtomLink, len(attributesNames))}
 	for i, attr := range attributesNames {
-		attrList.Attributes[i] = newAtomLink(LINK_REL_ATTRIBUTE, path.Join(r.URL.Path, attr))
+		attrList.Attributes[i] = newAtomLink(LinkRelAttribute, path.Join(r.URL.Path, attr))
 	}
-	encodeJsonResponse(w, r, attrList)
+	encodeJSONResponse(w, r, attrList)
 }
 
 func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.Request) {
@@ -102,10 +102,10 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
-	instanceId := params.ByName("instanceId")
+	instanceID := params.ByName("instanceId")
 	attributeName := params.ByName("attributeName")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceId, "attributes/state"), nil)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceID, "attributes/state"), nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -123,7 +123,7 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 		WriteError(w, r, ErrNotFound)
 		return
 	}
-	instanceAttribute, ok := result[instanceId]
+	instanceAttribute, ok := result[instanceID]
 	if !ok {
 		WriteError(w, r, ErrNotFound)
 		return
@@ -135,11 +135,11 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 			log.Panic(err)
 		}
 		resolver := deployments.NewResolver(kv, id)
-		instanceAttribute, err = resolver.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceId)
+		instanceAttribute, err = resolver.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceID)
 		if err != nil {
 			log.Panic(err)
 		}
 	}
 	attribute := Attribute{Name: attributeName, Value: instanceAttribute}
-	encodeJsonResponse(w, r, attribute)
+	encodeJSONResponse(w, r, attribute)
 }

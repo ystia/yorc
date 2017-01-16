@@ -20,65 +20,67 @@ func NewCollector(consulClient *api.Client) *Collector {
 	return &Collector{consulClient: consulClient}
 }
 
-func (c *Collector) RegisterTaskWithData(targetId string, taskType TaskType, data map[string]string) (string, error) {
-	destroy, lock, taskId, err := c.registerTaskWithoutDestroyLock(targetId, taskType, data)
-	defer destroy(lock, taskId, targetId)
+func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, data map[string]string) (string, error) {
+	destroy, lock, taskID, err := c.registerTaskWithoutDestroyLock(targetID, taskType, data)
+	defer destroy(lock, taskID, targetID)
 	if err != nil {
 		return "", err
 	}
-	return taskId, nil
+	return taskID, nil
 }
 
-func (c *Collector) RegisterTask(targetId string, taskType TaskType) (string, error) {
-	return c.RegisterTaskWithData(targetId, taskType, nil)
+func (c *Collector) RegisterTask(targetID string, taskType TaskType) (string, error) {
+	return c.RegisterTaskWithData(targetID, taskType, nil)
 }
 
-func (c *Collector) registerTaskWithoutDestroyLock(targetId string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
-	taskLock, err := NewTaskLockForTarget(c.consulClient, targetId)
+func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
+	// TODO: check if this is still useful???
+	taskLock, err := NewTaskLockForTarget(c.consulClient, targetID)
 	_, err = taskLock.Lock(10, 500*time.Millisecond)
 	if err != nil {
 		return nil, nil, "", err
 	}
 	defer taskLock.Release()
-	if hasLivingTask, livingTaskId, livingTaskStatus, err := TargetHasLivingTasks(c.consulClient.KV(), targetId); err != nil {
+	hasLivingTask, livingTaskID, livingTaskStatus, err := TargetHasLivingTasks(c.consulClient.KV(), targetID)
+	if err != nil {
 		return nil, nil, "", err
 	} else if hasLivingTask {
-		return nil, nil, "", anotherLivingTaskAlreadyExistsError{taskId: livingTaskId, targetId: targetId, status: livingTaskStatus}
+		return nil, nil, "", anotherLivingTaskAlreadyExistsError{taskID: livingTaskID, targetID: targetID, status: livingTaskStatus}
 	}
-	taskId := fmt.Sprint(uuid.NewV4())
+	taskID := fmt.Sprint(uuid.NewV4())
 	kv := c.consulClient.KV()
-	taskPrefix := consulutil.TasksPrefix + "/" + taskId
+	taskPrefix := consulutil.TasksPrefix + "/" + taskID
 	// Then use a lock in the task to prevent dispatcher to get the task before finishing task creation
 	taskLockCreate, err := c.consulClient.LockKey(taskPrefix + "/.createLock")
 	if err != nil {
-		return nil, nil, taskId, err
+		return nil, nil, taskID, err
 	}
 	stopLockChan := make(chan struct{})
 	defer close(stopLockChan)
 	leaderCh, err := taskLockCreate.Lock(stopLockChan)
 	if err != nil {
-		log.Printf("Failed to acquire create lock for task with id %q (target id %q): %+v", taskId, targetId, err)
-		return nil, nil, taskId, err
+		log.Printf("Failed to acquire create lock for task with id %q (target id %q): %+v", taskID, targetID, err)
+		return nil, nil, taskID, err
 	}
 	if leaderCh == nil {
-		log.Printf("Failed to acquire create lock for task with id %q (target id %q).", taskId, targetId)
-		return nil, nil, taskId, fmt.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskId, targetId)
+		log.Printf("Failed to acquire create lock for task with id %q (target id %q).", taskID, targetID)
+		return nil, nil, taskID, fmt.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskID, targetID)
 	}
 
-	key := &api.KVPair{Key: taskPrefix + "/targetId", Value: []byte(targetId)}
+	key := &api.KVPair{Key: taskPrefix + "/targetId", Value: []byte(targetID)}
 	if _, err := kv.Put(key, nil); err != nil {
 		log.Print(err)
-		return nil, nil, taskId, err
+		return nil, nil, taskID, err
 	}
 	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(strconv.Itoa(int(INITIAL)))}
 	if _, err := kv.Put(key, nil); err != nil {
 		log.Print(err)
-		return nil, nil, taskId, err
+		return nil, nil, taskID, err
 	}
 	key = &api.KVPair{Key: taskPrefix + "/type", Value: []byte(strconv.Itoa(int(taskType)))}
 	if _, err := kv.Put(key, nil); err != nil {
 		log.Print(err)
-		return nil, nil, taskId, err
+		return nil, nil, taskID, err
 	}
 
 	if data != nil {
@@ -86,7 +88,7 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetId string, taskType Tas
 			key = &api.KVPair{Key: path.Join(taskPrefix, keyM), Value: []byte(valM)}
 			if _, err := kv.Put(key, nil); err != nil {
 				log.Print(err)
-				return nil, nil, taskId, err
+				return nil, nil, taskID, err
 			}
 		}
 	}
@@ -101,5 +103,5 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetId string, taskType Tas
 		}
 	}
 
-	return destroy, taskLockCreate, taskId, nil
+	return destroy, taskLockCreate, taskID, nil
 }

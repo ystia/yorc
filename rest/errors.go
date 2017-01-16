@@ -12,7 +12,7 @@ type Errors struct {
 }
 
 type Error struct {
-	Id     string `json:"id"`
+	ID     string `json:"id"`
 	Status int    `json:"status"`
 	Title  string `json:"title"`
 	Detail string `json:"detail"`
@@ -20,7 +20,7 @@ type Error struct {
 
 func WriteError(w http.ResponseWriter, r *http.Request, err *Error) {
 	w.WriteHeader(err.Status)
-	encodeJsonResponse(w, r, Errors{[]*Error{err}})
+	encodeJSONResponse(w, r, Errors{[]*Error{err}})
 }
 
 var (

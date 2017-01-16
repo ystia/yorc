@@ -32,7 +32,7 @@ func (d *Dispatcher) Run() {
 		worker.Start()
 	}
 	log.Printf("%d worker started", d.maxWorkers)
-	var waitIndex uint64 = 0
+	var waitIndex uint64
 	kv := d.client.KV()
 	nodeName, err := d.client.Agent().NodeName()
 	if err != nil {
@@ -134,7 +134,7 @@ func (d *Dispatcher) Run() {
 				log.Printf("Failed to get targetId for key %s: nil value", taskKey)
 				continue
 			}
-			targetId := string(kvPairContent.Value)
+			targetID := string(kvPairContent.Value)
 
 			kvPairContent, _, err = kv.Get(taskKey+"type", nil)
 			if err != nil {
@@ -153,16 +153,16 @@ func (d *Dispatcher) Run() {
 
 			keyPath := strings.Split(taskKey, "/")
 			log.Debugf("%+q", keyPath)
-			var taskId string
+			var taskID string
 			for i := len(keyPath) - 1; i >= 0; i-- {
 				if keyPath[i] != "" {
-					taskId = keyPath[i]
+					taskID = keyPath[i]
 					break
 				}
 			}
 
-			log.Printf("Processing task %q linked to deployment %q", taskId, targetId)
-			task := &Task{Id: taskId, status: status, TargetId: targetId, taskLock: lock, kv: kv, TaskType: TaskType(taskType)}
+			log.Printf("Processing task %q linked to deployment %q", taskID, targetID)
+			task := &Task{ID: taskID, status: status, TargetID: targetID, taskLock: lock, kv: kv, TaskType: TaskType(taskType)}
 			log.Debugf("New task created %+v: pushing it to a work channel", task)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle

@@ -2,6 +2,7 @@ package tabutil
 
 import (
 	"fmt"
+
 	"github.com/stevedomin/termtable"
 )
 

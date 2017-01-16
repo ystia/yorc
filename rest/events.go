@@ -1,14 +1,15 @@
 package rest
 
 import (
-	"github.com/julienschmidt/httprouter"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +29,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 	var err error
 	var waitIndex uint64 = 1
-	var timeout time.Duration = 5 * time.Minute
+	timeout := 5 * time.Minute
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
 			WriteError(w, r, NewBadRequestParameter("index", err))
@@ -53,7 +54,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 
 	eventsCollection := EventsCollection{Events: evts, LastIndex: lastIdx}
 	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
-	encodeJsonResponse(w, r, eventsCollection)
+	encodeJSONResponse(w, r, eventsCollection)
 }
 
 func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +73,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 	var err error
 	var waitIndex uint64 = 1
-	var timeout time.Duration = 5 * time.Minute
+	timeout := 5 * time.Minute
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
 			WriteError(w, r, NewBadRequestParameter("index", err))
@@ -115,7 +116,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 
 	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
 	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
-	encodeJsonResponse(w, r, logCollection)
+	encodeJSONResponse(w, r, logCollection)
 
 }
 

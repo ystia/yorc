@@ -5,13 +5,13 @@ import "fmt"
 type IP struct {
 	Name string
 	Pool string
-	IsIp bool
+	IsIP bool
 }
 
 func (g *Generator) generateFloatingIP(url, instanceName string) (IP, error) {
 	var nodeType string
 	result := IP{}
-	result.IsIp = false
+	result.IsIP = false
 	var err error
 	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
 		return IP{}, err
@@ -19,17 +19,16 @@ func (g *Generator) generateFloatingIP(url, instanceName string) (IP, error) {
 	if nodeType != "janus.nodes.openstack.FloatingIP" {
 		return IP{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
-	var nodeName string
-	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
+	nodeName, err := g.getStringFormConsul(url, "name")
+	if err != nil {
 		return IP{}, err
-	} else {
-		result.Name = nodeName + "-" + instanceName
 	}
+	result.Name = nodeName + "-" + instanceName
 	if ip, err := g.getStringFormConsul(url, "properties/ip"); err != nil {
 		return IP{}, err
 	} else if ip != "" {
 		result.Pool = ip
-		result.IsIp = true
+		result.IsIP = true
 	} else if networkName, err := g.getStringFormConsul(url, "properties/floating_network_name"); err != nil {
 		return IP{}, err
 	} else if networkName != "" {

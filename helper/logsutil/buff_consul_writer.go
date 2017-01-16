@@ -2,12 +2,13 @@ package logsutil
 
 import (
 	"fmt"
-	"github.com/hashicorp/consul/api"
 	"io"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"path"
 	"regexp"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
 type BufferedConsulWriter interface {
@@ -17,18 +18,18 @@ type BufferedConsulWriter interface {
 }
 
 type bufferedConsulWriter struct {
-	kv     *api.KV
-	depId  string
-	buf    []byte
-	prefix string
+	kv           *api.KV
+	deploymentID string
+	buf          []byte
+	prefix       string
 }
 
-func NewBufferedConsulWriter(api *api.KV, depId, prefix string) BufferedConsulWriter {
+func NewBufferedConsulWriter(api *api.KV, deploymentID, prefix string) BufferedConsulWriter {
 	return &bufferedConsulWriter{
-		buf:    make([]byte, 0),
-		kv:     api,
-		prefix: prefix,
-		depId:  depId,
+		buf:          make([]byte, 0),
+		kv:           api,
+		prefix:       prefix,
+		deploymentID: deploymentID,
 	}
 }
 
@@ -41,10 +42,10 @@ func (b *bufferedConsulWriter) Flush() error {
 	if len(b.buf) == 0 {
 		return nil
 	}
-	fmt.Printf(string(b.buf))
+	fmt.Print(string(b.buf))
 	reg := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]`)
 	out := reg.ReplaceAll(b.buf, []byte(""))
-	err := consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, b.depId, "logs", b.prefix+"__"+time.Now().Format(time.RFC3339Nano)), out)
+	err := consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, b.deploymentID, "logs", b.prefix+"__"+time.Now().Format(time.RFC3339Nano)), out)
 	if err != nil {
 		return err
 	}
@@ -58,10 +59,16 @@ func (b *bufferedConsulWriter) Run(quit chan bool) {
 		for {
 			select {
 			case <-quit:
-				b.Flush()
+				err := b.Flush()
+				if err != nil {
+					fmt.Print(err)
+				}
 				return
 			case <-time.After(5 * time.Second):
-				b.Flush()
+				err := b.Flush()
+				if err != nil {
+					fmt.Print(err)
+				}
 			}
 		}
 	}()

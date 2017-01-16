@@ -3,7 +3,7 @@ package rest
 import "novaforge.bull.com/starlings-janus/janus/deployments"
 
 type Deployment struct {
-	Id     string     `json:"id"`
+	ID     string     `json:"id"`
 	Status string     `json:"status"`
 	Links  []AtomLink `json:"links"`
 }
@@ -14,13 +14,13 @@ type Output struct {
 }
 
 const (
-	LINK_REL_SELF       string = "self"
-	LINK_REL_DEPLOYMENT string = "deployment"
-	LINK_REL_NODE       string = "node"
-	LINK_REL_INSTANCE   string = "instance"
-	LINK_REL_OUTPUT     string = "output"
-	LINK_REL_TASK       string = "task"
-	LINK_REL_ATTRIBUTE  string = "attribute"
+	LinkRelSelf       string = "self"
+	LinkRelDeployment string = "deployment"
+	LinkRelNode       string = "node"
+	LinkRelInstance   string = "instance"
+	LinkRelOutput     string = "output"
+	LinkRelTask       string = "task"
+	LinkRelAttribute  string = "attribute"
 )
 
 const (
@@ -57,7 +57,7 @@ type Node struct {
 }
 
 type NodeInstance struct {
-	Id     string     `json:"id"`
+	ID     string     `json:"id"`
 	Status string     `json:"status"`
 	Links  []AtomLink `json:"links"`
 }
@@ -67,8 +67,8 @@ type OutputsCollection struct {
 }
 
 type Task struct {
-	Id       string `json:"id"`
-	TargetId string `json:"target_id"`
+	ID       string `json:"id"`
+	TargetID string `json:"target_id"`
 	Type     string `json:"type"`
 	Status   string `json:"status"`
 }

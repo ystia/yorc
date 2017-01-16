@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"log"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 )
 
 func init() {
@@ -24,7 +25,7 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			janusApi := viper.GetString("janus_api")
+			janusAPI := viper.GetString("janus_api")
 
 			if len(jsonParam) == 0 && len(nodeName) == 0 {
 				return fmt.Errorf("You need to provide a JSON or complete the arguments")
@@ -50,7 +51,7 @@ func init() {
 				jsonParam = string(tmp)
 			}
 
-			request, err := http.NewRequest("POST", "http://"+janusApi+"/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
+			request, err := http.NewRequest("POST", "http://"+janusAPI+"/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
 			if err != nil {
 				errExit(err)
 			}
@@ -66,7 +67,7 @@ func init() {
 				errExit(fmt.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
 			}
 
-			fmt.Println("Command submited. path :", response.Header.Get("Location"))
+			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
 			return nil
 		},
 	}

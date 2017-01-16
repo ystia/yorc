@@ -26,10 +26,10 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			janusApi := viper.GetString("janus_api")
+			janusAPI := viper.GetString("janus_api")
 			colorize := !noColor
 
-			streamsEvents(janusApi, args[0], colorize, fromBeginning, noStream)
+			streamsEvents(janusAPI, args[0], colorize, fromBeginning, noStream)
 			return nil
 		},
 	}
@@ -38,14 +38,14 @@ func init() {
 	deploymentsCmd.AddCommand(eventCmd)
 }
 
-func streamsEvents(janusApi, depId string, colorize, fromBeginning, stop bool) {
+func streamsEvents(janusAPI, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}
 	var lastIdx uint64
 	if !fromBeginning && !stop {
 		// Get last index
-		response, err := http.Head("http://" + janusApi + "/deployments/" + depId + "/events")
+		response, err := http.Head("http://" + janusAPI + "/deployments/" + deploymentID + "/events")
 		if err != nil {
 			errExit(err)
 		}
@@ -67,7 +67,7 @@ func streamsEvents(janusApi, depId string, colorize, fromBeginning, stop bool) {
 	}
 	for {
 
-		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/events?index=%d", janusApi, depId, lastIdx), nil)
+		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/events?index=%d", janusAPI, deploymentID, lastIdx), nil)
 		if err != nil {
 			errExit(err)
 		}

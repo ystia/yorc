@@ -18,13 +18,13 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
 	reqKeys := make([]string, 0)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, reqIndexKey := range reqKVPs {
 		reqIndexKey = path.Clean(reqIndexKey)
 		kvp, _, err := kv.Get(path.Join(reqIndexKey, "name"), nil)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil || len(kvp.Value) == 0 {
 			return nil, fmt.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
@@ -54,7 +54,7 @@ func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requireme
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"), nil)
 	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it futhermore it can refer to a relationship_template_name instead of a relationship_type_name
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
-		return "", err
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return string(kvp.Value), nil
 }
@@ -66,7 +66,7 @@ func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"), nil)
 	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it futhermore it can refer to a node_template_name instead of a node_type_name
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
-		return "", err
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return string(kvp.Value), nil
 }

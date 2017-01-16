@@ -64,7 +64,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 			if err != nil {
 				errExit(err)
 			}
-			fmt.Println("Deployment: ", dep.Id)
+			fmt.Println("Deployment: ", dep.ID)
 
 			fmt.Println("Global status:", getColoredDeploymentStatus(colorize, dep.Status))
 			if colorize {
@@ -103,7 +103,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 	var err error
 	for _, atomLink := range dep.Links {
 
-		if atomLink.Rel == rest.LINK_REL_NODE {
+		if atomLink.Rel == rest.LinkRelNode {
 			var node rest.Node
 
 			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &node)
@@ -115,7 +115,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 			statusesMap := make(map[string]int)
 			totalNbInstances := 0
 			for _, nodeLink := range node.Links {
-				if nodeLink.Rel == rest.LINK_REL_INSTANCE {
+				if nodeLink.Rel == rest.LinkRelInstance {
 					var instance rest.NodeInstance
 					err = getJSONEntityFromAtomGetRequest(janusAPI, nodeLink, &instance)
 					if err != nil {
@@ -137,7 +137,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 				buffer.WriteString(") ")
 			}
 			nodesTable.AddRow(node.Name, buffer.String())
-		} else if atomLink.Rel == rest.LINK_REL_TASK {
+		} else if atomLink.Rel == rest.LinkRelTask {
 			var task rest.Task
 			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &task)
 			if err != nil {
@@ -145,8 +145,8 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 				tasksTable.AddRow(path.Base(atomLink.Href), "", commErrorMsg)
 				continue
 			}
-			tasksTable.AddRow(task.Id, task.Type, getColoredTaskStatus(colorize, task.Status))
-		} else if atomLink.Rel == rest.LINK_REL_OUTPUT {
+			tasksTable.AddRow(task.ID, task.Type, getColoredTaskStatus(colorize, task.Status))
+		} else if atomLink.Rel == rest.LinkRelOutput {
 			var output rest.Output
 
 			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &output)
@@ -178,7 +178,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 	outputsList := []string{"Outputs:"}
 	for _, atomLink := range dep.Links {
 
-		if atomLink.Rel == rest.LINK_REL_NODE {
+		if atomLink.Rel == rest.LinkRelNode {
 			var node rest.Node
 
 			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &node)
@@ -190,7 +190,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 			nodesList = append(nodesList, fmt.Sprintf("  - %s:", node.Name))
 			nodesList = append(nodesList, fmt.Sprintf("    Instances:"))
 			for _, nodeLink := range node.Links {
-				if nodeLink.Rel == rest.LINK_REL_INSTANCE {
+				if nodeLink.Rel == rest.LinkRelInstance {
 					var inst rest.NodeInstance
 					err = getJSONEntityFromAtomGetRequest(janusAPI, nodeLink, &inst)
 					if err != nil {
@@ -198,10 +198,10 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 						nodesList = append(nodesList, fmt.Sprintf("      - %s: %s", path.Base(nodeLink.Href), commErrorMsg))
 						continue
 					}
-					nodesList = append(nodesList, fmt.Sprintf("      - %s: %s", inst.Id, getColoredNodeStatus(colorize, inst.Status)))
+					nodesList = append(nodesList, fmt.Sprintf("      - %s: %s", inst.ID, getColoredNodeStatus(colorize, inst.Status)))
 					nodesList = append(nodesList, fmt.Sprintf("        Attributes:"))
 					for _, instanceLink := range inst.Links {
-						if instanceLink.Rel == rest.LINK_REL_ATTRIBUTE {
+						if instanceLink.Rel == rest.LinkRelAttribute {
 							var attr rest.Attribute
 							err = getJSONEntityFromAtomGetRequest(janusAPI, instanceLink, &attr)
 							if err != nil {
@@ -214,7 +214,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 					}
 				}
 			}
-		} else if atomLink.Rel == rest.LINK_REL_TASK {
+		} else if atomLink.Rel == rest.LinkRelTask {
 			var task rest.Task
 			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &task)
 			if err != nil {
@@ -222,10 +222,10 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 				tasksList = append(tasksList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
 				continue
 			}
-			tasksList = append(tasksList, fmt.Sprintf("  - %s:", task.Id))
+			tasksList = append(tasksList, fmt.Sprintf("  - %s:", task.ID))
 			tasksList = append(tasksList, fmt.Sprintf("      type: %s", task.Type))
 			tasksList = append(tasksList, fmt.Sprintf("      status: %s", getColoredTaskStatus(colorize, task.Status)))
-		} else if atomLink.Rel == rest.LINK_REL_OUTPUT {
+		} else if atomLink.Rel == rest.LinkRelOutput {
 			var output rest.Output
 
 			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &output)
