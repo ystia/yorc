@@ -14,7 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
-func (g *Generator) generateOSInstance(url, deploymentID, instanceName string) (ComputeInstance, error) {
+func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string) (ComputeInstance, error) {
 	nodeType, err := g.getStringFormConsul(url, "type")
 	if err != nil {
 		return ComputeInstance{}, err
@@ -125,7 +125,8 @@ func (g *Generator) generateOSInstance(url, deploymentID, instanceName string) (
 		if instance.Volumes == nil {
 			instance.Volumes = make([]Volume, 0)
 		}
-		if volumeNodeName, err := g.getStringFormConsul(storagePrefix, "node"); err != nil {
+		var volumeNodeName string
+		if volumeNodeName, err = g.getStringFormConsul(storagePrefix, "node"); err != nil {
 			return ComputeInstance{}, err
 		} else if volumeNodeName != "" {
 			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)

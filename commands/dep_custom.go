@@ -33,7 +33,7 @@ func init() {
 			}
 
 			if len(jsonParam) == 0 && len(nodeName) != 0 && len(customCName) != 0 {
-				var InputsStruct rest.InputsPropertyDef
+				var InputsStruct rest.CustomCommandRequest
 				InputsStruct.CustomCommandName = customCName
 				InputsStruct.NodeName = nodeName
 

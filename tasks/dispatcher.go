@@ -12,23 +12,26 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
+// A Dispatcher is in charge to look for new tasks and dispatch them accross availables workers
 type Dispatcher struct {
 	client     *api.Client
 	shutdownCh chan struct{}
-	WorkerPool chan chan *Task
+	WorkerPool chan chan *task
 	maxWorkers int
 	cfg        config.Configuration
 }
 
+// NewDispatcher create a new Dispatcher with a given number of workers
 func NewDispatcher(maxWorkers int, shutdownCh chan struct{}, client *api.Client, cfg config.Configuration) *Dispatcher {
-	pool := make(chan chan *Task, maxWorkers)
+	pool := make(chan chan *task, maxWorkers)
 	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: maxWorkers, cfg: cfg}
 }
 
+// Run creates workers and waits for new tasks
 func (d *Dispatcher) Run() {
 
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := NewWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
+		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
 		worker.Start()
 	}
 	log.Printf("%d worker started", d.maxWorkers)
@@ -162,13 +165,13 @@ func (d *Dispatcher) Run() {
 			}
 
 			log.Printf("Processing task %q linked to deployment %q", taskID, targetID)
-			task := &Task{ID: taskID, status: status, TargetID: targetID, taskLock: lock, kv: kv, TaskType: TaskType(taskType)}
-			log.Debugf("New task created %+v: pushing it to a work channel", task)
+			t := &task{ID: taskID, status: status, TargetID: targetID, taskLock: lock, kv: kv, TaskType: TaskType(taskType)}
+			log.Debugf("New task created %+v: pushing it to a work channel", t)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle
 			select {
 			case taskChannel := <-d.WorkerPool:
-				taskChannel <- task
+				taskChannel <- t
 			case <-leaderChan:
 				// lock lost
 				continue

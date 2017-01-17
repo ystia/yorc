@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -39,11 +40,13 @@ func (are ansibleRetriableError) Error() string {
 	return are.root.Error()
 }
 
+// IsRetriable checks if a given error is an Ansible retriable error
 func IsRetriable(err error) bool {
 	_, ok := err.(ansibleRetriableError)
 	return ok
 }
 
+// IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
 func IsOperationNotImplemented(err error) bool {
 	_, ok := err.(operationNotImplemented)
 	return ok
@@ -63,6 +66,9 @@ type hostConnection struct {
 	instanceID string
 }
 
+// An EnvInput represent a TOSCA operation input
+//
+// This element is exported in order to be used by text.Template but should be consider as internal
 type EnvInput struct {
 	Name           string
 	Value          string
@@ -361,7 +367,7 @@ func (e *executionCommon) resolveInputs() error {
 				if e.isRelationshipOperation {
 					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceID)
 				} else if isPropDef {
-					inputValue, err = resolver.ResolvePropertyDefinitionForCustom(inputName)
+					inputValue, err = resolver.ResolveCustomCommandInput(inputName)
 				} else {
 					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceID)
 				}
@@ -379,7 +385,7 @@ func (e *executionCommon) resolveInputs() error {
 			if e.isRelationshipOperation {
 				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, "")
 			} else if isPropDef {
-				inputValue, err = resolver.ResolvePropertyDefinitionForCustom(inputName)
+				inputValue, err = resolver.ResolveCustomCommandInput(inputName)
 			} else {
 				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
 			}
@@ -663,7 +669,7 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 }
 
 func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
-	deployments.LogInConsul(e.kv, e.deploymentID, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
+	events.LogEngineMessage(e.kv, e.deploymentID, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	var ansibleRecipePath string
 	if e.isRelationshipOperation {
 		ansibleRecipePath = filepath.Join("work", "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
@@ -678,13 +684,13 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.Operation)
 		log.Print(err)
 		log.Debugf("%+v", err)
-		deployments.LogErrorInConsul(e.kv, e.deploymentID, err)
+		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err = os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
-		deployments.LogErrorInConsul(e.kv, e.deploymentID, err)
+		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
 	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
@@ -797,12 +803,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write hosts file")
-		deployments.LogInConsul(e.kv, e.deploymentID, "Failed to write hosts file")
+		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write hosts file")
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)), 0664); err != nil {
 		log.Print("Failed to write ansible.cfg file")
-		deployments.LogInConsul(e.kv, e.deploymentID, "Failed to write ansible.cfg file")
+		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write ansible.cfg file")
 		return err
 	}
 	if e.isRelationshipOperation {
@@ -818,7 +824,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		outputsFiles, err := filepath.Glob(filepath.Join(ansibleRecipePath, "*-out.csv"))
 		if err != nil {
 			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-			deployments.LogErrorInConsul(e.kv, e.deploymentID, err)
+			events.LogEngineError(e.kv, e.deploymentID, err)
 			return err
 		}
 		for _, outFile := range outputsFiles {
@@ -830,14 +836,14 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 			fi, err := os.Open(outFile)
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				deployments.LogErrorInConsul(e.kv, e.deploymentID, err)
+				events.LogEngineError(e.kv, e.deploymentID, err)
 				return err
 			}
 			r := csv.NewReader(fi)
 			records, err := r.ReadAll()
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				deployments.LogErrorInConsul(e.kv, e.deploymentID, err)
+				events.LogEngineError(e.kv, e.deploymentID, err)
 				return err
 			}
 			for _, line := range records {
@@ -866,7 +872,7 @@ func getInstanceName(nodeName, instanceID string) string {
 }
 
 func (e *executionCommon) checkAnsibleRetriableError(err error) error {
-	deployments.LogErrorInConsul(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.Operation, e.NodeName))
+	events.LogEngineError(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.Operation, e.NodeName))
 	log.Print(err)
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The program has exited with an exit code != 0

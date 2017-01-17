@@ -1,17 +1,16 @@
-package logsutil
+package events
 
 import (
 	"fmt"
 	"io"
-	"path"
 	"regexp"
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
-type BufferedConsulWriter interface {
+// A BufferedLogEventWriter is a Writer that buffers writes and flushes its buffer as an event log on a regular basis (every 5s)
+type BufferedLogEventWriter interface {
 	Run(quit chan bool)
 	Flush() error
 	io.Writer
@@ -24,7 +23,8 @@ type bufferedConsulWriter struct {
 	prefix       string
 }
 
-func NewBufferedConsulWriter(api *api.KV, deploymentID, prefix string) BufferedConsulWriter {
+// NewBufferedLogEventWriter returns a BufferedLogEventWriter that will use prefix to publish logs
+func NewBufferedLogEventWriter(api *api.KV, deploymentID, prefix string) BufferedLogEventWriter {
 	return &bufferedConsulWriter{
 		buf:          make([]byte, 0),
 		kv:           api,
@@ -45,10 +45,7 @@ func (b *bufferedConsulWriter) Flush() error {
 	fmt.Print(string(b.buf))
 	reg := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]`)
 	out := reg.ReplaceAll(b.buf, []byte(""))
-	err := consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, b.deploymentID, "logs", b.prefix+"__"+time.Now().Format(time.RFC3339Nano)), out)
-	if err != nil {
-		return err
-	}
+	logInConsul(b.kv, b.deploymentID, b.prefix, out)
 	b.buf = b.buf[:0]
 	return nil
 

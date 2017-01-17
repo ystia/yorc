@@ -101,7 +101,7 @@ func ConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 		i, err := GetLogsEventsIndex(kv, deploymentID)
 		require.Nil(t, err)
 		ready <- struct{}{}
-		events, _, err := sub.NewEvents(i, 5*time.Minute)
+		events, _, err := sub.StatusEvents(i, 5*time.Minute)
 		assert.Nil(t, err)
 		require.Len(t, events, 1)
 		assert.Equal(t, events[0].Node, nodeName)
@@ -121,7 +121,7 @@ func ConsulPubSubNewEventsTimeout(t *testing.T, kv *api.KV) {
 	timeout := 25 * time.Millisecond
 
 	t1 := time.Now()
-	events, _, err := sub.NewEvents(1, timeout)
+	events, _, err := sub.StatusEvents(1, timeout)
 	t2 := time.Now()
 	assert.Nil(t, err)
 	require.Len(t, events, 0)
@@ -150,7 +150,7 @@ func ConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err := sub.NewEvents(1, 5*time.Minute)
+	events, lastIdx, err := sub.StatusEvents(1, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, events, 4)
 	for index, event := range events {
@@ -174,7 +174,7 @@ func ConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err = sub.NewEvents(lastIdx, 5*time.Minute)
+	events, lastIdx, err = sub.StatusEvents(lastIdx, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, events, 3)
 	require.NotZero(t, lastIdx)

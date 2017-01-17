@@ -16,16 +16,17 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 )
 
-type Generator struct {
+type slurmGenerator struct {
 	kv  *api.KV
 	cfg config.Configuration
 }
 
-func NewGenerator(kv *api.KV, cfg config.Configuration) *Generator {
-	return &Generator{kv: kv, cfg: cfg}
+// NewGenerator creates a generator for Slurm resources
+func NewGenerator(kv *api.KV, cfg config.Configuration) commons.Generator {
+	return &slurmGenerator{kv: kv, cfg: cfg}
 }
 
-func (g *Generator) getStringFormConsul(baseURL, property string) (string, error) {
+func (g *slurmGenerator) getStringFormConsul(baseURL, property string) (string, error) {
 	getResult, _, err := g.kv.Get(baseURL+"/"+property, nil)
 	if err != nil {
 		log.Printf("Can't get property %s for node %s", property, baseURL)
@@ -58,7 +59,7 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 	}
 }
 
-func (g *Generator) GenerateTerraformInfraForNode(deploymentID, nodeName string) (bool, error) {
+func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName string) (bool, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)

@@ -23,65 +23,65 @@ const wfDelegateActivity string = "delegate"
 const wfSetStateActivity string = "set-state"
 const wfCallOpActivity string = "call-operation"
 
-type Step struct {
+type step struct {
 	Name       string
 	Node       string
-	Activities []Activity
-	Next       []*Step
-	Previous   []*Step
+	Activities []activity
+	Next       []*step
+	Previous   []*step
 	NotifyChan chan struct{}
 	kv         *api.KV
 	stepPrefix string
-	task       *Task
+	t          *task
 }
 
-type Activity interface {
+type activity interface {
 	ActivityType() string
 	ActivityValue() string
 }
 
-type DelegateActivity struct {
+type delegateActivity struct {
 	delegate string
 }
 
-func (da DelegateActivity) ActivityType() string {
+func (da delegateActivity) ActivityType() string {
 	return wfDelegateActivity
 }
-func (da DelegateActivity) ActivityValue() string {
+func (da delegateActivity) ActivityValue() string {
 	return da.delegate
 }
 
-type SetStateActivity struct {
+type setStateActivity struct {
 	state string
 }
 
-func (s SetStateActivity) ActivityType() string {
+func (s setStateActivity) ActivityType() string {
 	return wfSetStateActivity
 }
-func (s SetStateActivity) ActivityValue() string {
+func (s setStateActivity) ActivityValue() string {
 	return s.state
 }
 
-type CallOperationActivity struct {
+type callOperationActivity struct {
 	operation string
 }
 
-func (c CallOperationActivity) ActivityType() string {
+func (c callOperationActivity) ActivityType() string {
 	return wfCallOpActivity
 }
-func (c CallOperationActivity) ActivityValue() string {
+func (c callOperationActivity) ActivityValue() string {
 	return c.operation
 }
 
-func (s *Step) IsTerminal() bool {
+func (s *step) IsTerminal() bool {
 	return len(s.Next) == 0
 }
 
-func (s *Step) SetTaskID(taskID *Task) {
-	s.task = taskID
+func (s *step) SetTaskID(taskID *task) {
+	s.t = taskID
 }
 
-func (s *Step) notifyNext() {
+func (s *step) notifyNext() {
 	for _, next := range s.Next {
 		log.Debugf("Step %q, notifying step %q", s.Name, next.Name)
 		next.NotifyChan <- struct{}{}
@@ -90,41 +90,41 @@ func (s *Step) notifyNext() {
 
 type visitStep struct {
 	refCount int
-	step     *Step
+	s        *step
 }
 
-func (s *Step) setStatus(status string) error {
+func (s *step) setStatus(status string) error {
 	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(status)}
 	_, err := s.kv.Put(kvp, nil)
 	if err != nil {
 		return err
 	}
-	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.task.ID, s.Name), Value: []byte(status)}
+	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), Value: []byte(status)}
 	_, err = s.kv.Put(kvp, nil)
 	return err
 }
 
-func (s *Step) isRunnable() (bool, error) {
-	if s.task.TaskType == ScaleUp || s.task.TaskType == ScaleDown {
-		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.ID, "node")), nil)
+func (s *step) isRunnable() (bool, error) {
+	if s.t.TaskType == ScaleUp || s.t.TaskType == ScaleDown {
+		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.t.ID, "node")), nil)
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil || len(kvp.Value) == 0 {
-			return false, errors.Errorf("Missing mandatory key \"node\" for task %q", s.task.ID)
+			return false, errors.Errorf("Missing mandatory key \"node\" for task %q", s.t.ID)
 		}
 		nodeName := string(kvp.Value)
-		ok, err := deployments.IsHostedOn(s.kv, s.task.TargetID, s.Node, nodeName)
+		ok, err := deployments.IsHostedOn(s.kv, s.t.TargetID, s.Node, nodeName)
 		if err != nil {
 			return false, err
 		}
 
-		kvp, _, err = s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.task.ID, "req")), nil)
+		kvp, _, err = s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.t.ID, "req")), nil)
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil {
-			return false, errors.Errorf("Missing mandatory key \"req\" for task %q", s.task.ID)
+			return false, errors.Errorf("Missing mandatory key \"req\" for task %q", s.t.ID)
 		}
 		reqArr := strings.Split(string(kvp.Value), ",")
 		isReq := contains(reqArr, s.Node)
@@ -136,7 +136,7 @@ func (s *Step) isRunnable() (bool, error) {
 		}
 	}
 
-	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.task.ID, s.Name), nil)
+	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -157,19 +157,22 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentID, nodeName, status string, instancesIDs ...string) {
+func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentID, nodeName, status string, instancesIDs ...string) error {
 	if len(instancesIDs) == 0 {
 		instancesIDs, _ = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 	}
 	for _, id := range instancesIDs {
 		kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, id, "attributes/state"), Value: []byte(status)}, nil)
 		// Publish status change event
-		eventPub.StatusChange(nodeName, id, status)
+		_, err := eventPub.StatusChange(nodeName, id, status)
+		if err != nil {
+			return err
+		}
 	}
-
+	return nil
 }
 
-func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) error {
+func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) error {
 	haveErr := false
 	eventPub := events.NewPublisher(kv, deploymentID)
 	for i := 0; i < len(s.Previous); i++ {
@@ -199,7 +202,7 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 		return err
 	} else if !runnable {
 		log.Printf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
-		deployments.LogInConsul(kv, deploymentID, fmt.Sprintf("Skipping Step %q", s.Name))
+		events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus("done")
 		s.notifyNext()
 		return nil
@@ -207,7 +210,7 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 
 	log.Printf("Processing step %q", s.Name)
 	var instancesIds []string
-	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.task.ID, "new_instances_ids"), nil)
+	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.t.ID, "new_instances_ids"), nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -234,7 +237,7 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 			case "uninstall":
 				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateDeleting.String(), instancesIds...)
 				nodesIds := ""
-				if s.task.TaskType == ScaleDown {
+				if s.t.TaskType == ScaleDown {
 					nodesIds = strings.Join(instancesIds, ",")
 				}
 				if err := provisioner.DestroyNode(ctx, deploymentID, s.Node, nodesIds); err != nil {
@@ -254,8 +257,8 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 		case actType == wfCallOpActivity:
 			exec := ansible.NewExecutor(kv)
 			var err error
-			if s.task.TaskType == ScaleUp || s.task.TaskType == ScaleDown {
-				err = exec.ExecOperation(ctx, deploymentID, s.Node, activity.ActivityValue(), s.task.ID)
+			if s.t.TaskType == ScaleUp || s.t.TaskType == ScaleDown {
+				err = exec.ExecOperation(ctx, deploymentID, s.Node, activity.ActivityValue(), s.t.ID)
 			} else {
 				err = exec.ExecOperation(ctx, deploymentID, s.Node, activity.ActivityValue())
 			}
@@ -285,9 +288,9 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 	return nil
 }
 
-func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
+func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*step, error) {
 	stepPrefix := stepsPrefix + stepName
-	step := &Step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
+	s := &step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
 	kvPair, _, err := kv.Get(stepPrefix+"/node", nil)
 	if err != nil {
 		log.Print(err)
@@ -296,7 +299,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 	if kvPair == nil {
 		return nil, fmt.Errorf("Missing node attribute for step %s", stepName)
 	}
-	step.Node = string(kvPair.Value)
+	s.Node = string(kvPair.Value)
 
 	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
 	if err != nil {
@@ -305,34 +308,34 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 	if len(kvPairs) == 0 {
 		return nil, fmt.Errorf("Activity missing for step %s, this is not allowed.", stepName)
 	}
-	step.Activities = make([]Activity, 0)
+	s.Activities = make([]activity, 0)
 	for _, actKV := range kvPairs {
 		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activity/")
 		switch {
 		case key == wfDelegateActivity:
-			step.Activities = append(step.Activities, DelegateActivity{delegate: string(actKV.Value)})
+			s.Activities = append(s.Activities, delegateActivity{delegate: string(actKV.Value)})
 		case key == wfSetStateActivity:
-			step.Activities = append(step.Activities, SetStateActivity{state: string(actKV.Value)})
+			s.Activities = append(s.Activities, setStateActivity{state: string(actKV.Value)})
 		case key == wfCallOpActivity:
-			step.Activities = append(step.Activities, CallOperationActivity{operation: string(actKV.Value)})
+			s.Activities = append(s.Activities, callOperationActivity{operation: string(actKV.Value)})
 		default:
 			return nil, fmt.Errorf("Unsupported activity type: %s", key)
 		}
 	}
-	step.NotifyChan = make(chan struct{})
+	s.NotifyChan = make(chan struct{})
 
 	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
 	if err != nil {
 		return nil, err
 	}
-	step.Next = make([]*Step, 0)
-	step.Previous = make([]*Step, 0)
+	s.Next = make([]*step, 0)
+	s.Previous = make([]*step, 0)
 	for _, nextKV := range kvPairs {
-		var nextStep *Step
+		var nextStep *step
 		nextStepName := strings.TrimPrefix(nextKV.Key, stepPrefix+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
 			log.Debugf("Found existing step %s", nextStepName)
-			nextStep = visitStep.step
+			nextStep = visitStep.s
 		} else {
 			log.Debugf("Reading new step %s from Consul", nextStepName)
 			nextStep, err = readStep(kv, stepsPrefix, nextStepName, visitedMap)
@@ -341,26 +344,26 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 			}
 		}
 
-		step.Next = append(step.Next, nextStep)
-		nextStep.Previous = append(nextStep.Previous, step)
+		s.Next = append(s.Next, nextStep)
+		nextStep.Previous = append(nextStep.Previous, s)
 		visitedMap[nextStepName].refCount++
 		log.Debugf("RefCount for step %s set to %d", nextStepName, visitedMap[nextStepName].refCount)
 	}
-	visitedMap[stepName] = &visitStep{refCount: 0, step: step}
-	return step, nil
+	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
+	return s, nil
 
 }
 
 // Creates a workflow tree from values stored in Consul at the given prefix.
 // It returns roots (starting) Steps.
-func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
+func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*step, error) {
 	stepsPrefix := wfPrefix + "/steps/"
 	stepsPrefixes, _, err := kv.Keys(stepsPrefix, "/", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
-	steps := make([]*Step, 0)
+	steps := make([]*step, 0)
 	visitedMap := make(map[string]*visitStep, len(stepsPrefixes))
 	for _, stepPrefix := range stepsPrefixes {
 		stepName := path.Base(stepPrefix)
@@ -371,7 +374,7 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*Step, error) {
 			}
 			steps = append(steps, step)
 		} else {
-			steps = append(steps, visitStep.step)
+			steps = append(steps, visitStep.s)
 		}
 	}
 

@@ -72,9 +72,9 @@ func readStepFromConsul(t *testing.T) {
 	require.Equal(t, "nodeName", step.Node)
 	require.Equal(t, "stepName", step.Name)
 	require.Len(t, step.Activities, 3)
-	require.Contains(t, step.Activities, DelegateActivity{delegate: "install"})
-	require.Contains(t, step.Activities, SetStateActivity{state: "installed"})
-	require.Contains(t, step.Activities, CallOperationActivity{operation: "script.sh"})
+	require.Contains(t, step.Activities, delegateActivity{delegate: "install"})
+	require.Contains(t, step.Activities, setStateActivity{state: "installed"})
+	require.Contains(t, step.Activities, callOperationActivity{operation: "script.sh"})
 
 	require.Len(t, visitedMap, 1)
 	require.Contains(t, visitedMap, "stepName")

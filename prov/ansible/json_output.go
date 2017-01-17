@@ -10,7 +10,7 @@ import (
 
 	"github.com/antonholmquist/jason"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
@@ -81,41 +81,20 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("stderr"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
-					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
-					if err != nil {
-						err = errors.Wrap(err, "Ansible logs not available")
-						log.Printf("%v", err)
-						log.Debugf("%+v", err)
-						continue
-					}
+					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
 				}
 				//Check if a stdout field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("stdout"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
-					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
-					if err != nil {
-						err = errors.Wrap(err, "Ansible logs not available")
-						log.Printf("%v", err)
-						log.Debugf("%+v", err)
-						continue
-					}
+					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
 				}
 
 				//Check if a msg field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("msg"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
-					err = consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
-					if err != nil {
-						err = errors.Wrap(err, "Ansible logs not available")
-						log.Printf("%v", err)
-						log.Debugf("%+v", err)
-						continue
-					}
+					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
 				}
 			}
 		}
@@ -149,13 +128,15 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		log.Debugf("Play name is %q", playName)
 
 		//Extract the tasks from the play
-		tasks, err := play.GetObjectArray("tasks")
+		var tasks []*jason.Object
+		tasks, err = play.GetObjectArray("tasks")
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve play tasks")
 		}
 
 		for _, task := range tasks {
-			taskName, err := task.GetString("task", "name")
+			var taskName string
+			taskName, err = task.GetString("task", "name")
 			if err != nil {
 				return errors.Wrap(err, "Failed to retrieve play tasks")
 			}
@@ -164,7 +145,8 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 			buf.WriteString("]")
 
 			//Extract the hosts object from the  tasks
-			hosts, err := task.GetObject("hosts")
+			var hosts *jason.Object
+			hosts, err = task.GetObject("hosts")
 			if err != nil {
 				return errors.Wrap(err, "Failed to retrieve hosts results for play task")
 			}
@@ -173,24 +155,27 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 			for hostName, hostVal := range hosts.Map() {
 				buf.WriteString("\n")
 				//Convert the value in Object type
-				host, err := hostVal.Object()
+				var host *jason.Object
+				host, err = hostVal.Object()
 				if err != nil {
 					return errors.Wrapf(err, "Failed to retrieve task result for host %q", hostName)
 				}
-				if failed, err := host.GetBoolean("failed"); err == nil && failed {
+				var failed, unreachable, skipped, changed bool
+				if failed, err = host.GetBoolean("failed"); err == nil && failed {
 					buf.WriteString("failed: [")
-				} else if unreachable, err := host.GetBoolean("unreachable"); err == nil && unreachable {
+				} else if unreachable, err = host.GetBoolean("unreachable"); err == nil && unreachable {
 					buf.WriteString("unreachable: [")
-				} else if skipped, err := host.GetBoolean("skipped"); err == nil && skipped {
+				} else if skipped, err = host.GetBoolean("skipped"); err == nil && skipped {
 					buf.WriteString("skipped: [")
-				} else if changed, err := host.GetBoolean("changed"); err == nil && changed {
+				} else if changed, err = host.GetBoolean("changed"); err == nil && changed {
 					buf.WriteString("changed: [")
 				} else {
 					buf.WriteString("ok: [")
 				}
 				buf.WriteString(hostName)
 				buf.WriteString("]")
-				if msg, err := host.GetString("msg"); err == nil && msg != "" {
+				var msg string
+				if msg, err = host.GetString("msg"); err == nil && msg != "" {
 					buf.WriteString(" => {\n\tmsg: \"")
 					buf.WriteString(msg)
 					buf.WriteString("\"\n}")
@@ -246,6 +231,6 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		buf.WriteString(strconv.FormatInt(unreachable, 10))
 
 	}
-	key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", deployments.SOFTWARE_LOG_PREFIX+"__"+time.Now().Format(time.RFC3339Nano))
+	key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", events.SoftwareLogPrefix+"__"+time.Now().Format(time.RFC3339Nano))
 	return consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, Ansible Playbook result:\n%s", e.NodeName, buf.String()))
 }

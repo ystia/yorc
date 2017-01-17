@@ -7,6 +7,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type ImportMapInterface map[string][]map[string]ImportDefinition
+
 func TestGroupedImportsParallel(t *testing.T) {
 	t.Run("groupImports", func(t *testing.T) {
 		t.Run("TestimportDefinitionConcreteUnmarshalYAMLSimpleGrammar", importDefinitionConcreteUnmarshalYAMLSimpleGrammar)
@@ -24,7 +26,7 @@ imports:
       namespace_uri: http://mycompany.com/tosca/1.0/platform
       namespace_prefix: mycompany
 `
-	importMap := ImportMapInteface{}
+	importMap := ImportMapInterface{}
 	err := yaml.Unmarshal([]byte(data), &importMap)
 	if err == nil {
 		assert.Len(t, importMap, 1)

@@ -8,6 +8,7 @@ import (
 
 const janusAPIDefaultErrorMsg string = "Failed to contact Janus API"
 
+// RootCmd is the root of janus commands tree
 var RootCmd = &cobra.Command{
 	Use:   "janus",
 	Short: "A new generation orchestrator",

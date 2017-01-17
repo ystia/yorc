@@ -11,7 +11,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-type TaskLock interface {
+type taskLock interface {
 	Lock(tries int, retryInterval time.Duration) (<-chan struct{}, error)
 	Release() error
 }
@@ -41,7 +41,7 @@ func (l *consulTaskLock) Release() error {
 	return l.lock.Destroy()
 }
 
-type Task struct {
+type task struct {
 	ID       string
 	TargetID string
 	status   TaskStatus
@@ -50,22 +50,23 @@ type Task struct {
 	kv       *api.KV
 }
 
-func (t *Task) releaseLock() {
+func (t *task) releaseLock() {
 	t.taskLock.Unlock()
 	t.taskLock.Destroy()
 }
 
-func (t *Task) Status() TaskStatus {
+func (t *task) Status() TaskStatus {
 	return t.status
 }
 
-func (t *Task) WithStatus(status TaskStatus) error {
+func (t *task) WithStatus(status TaskStatus) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.ID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
 	t.status = status
 	return err
 }
 
+// GetTasksIdsForTarget returns IDs of tasks related to a given targetID
 func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
 	if err != nil {
@@ -84,6 +85,7 @@ func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 	return tasks, nil
 }
 
+// GetTaskStatus retrieves the TaskStatus of a task
 func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
@@ -99,6 +101,7 @@ func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 	return TaskStatus(statusInt), nil
 }
 
+// GetTaskType retrieves the TaskType of a task
 func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "type"), nil)
 	if err != nil {
@@ -114,6 +117,7 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	return TaskType(typeInt), nil
 }
 
+// GetTaskTarget retrieves the targetID of a task
 func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "targetId"), nil)
 	if err != nil {
@@ -125,6 +129,7 @@ func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
 	return string(kvp.Value), nil
 }
 
+// TaskExists checks if a task with the given taskID exists
 func TaskExists(kv *api.KV, taskID string) (bool, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "targetId"), nil)
 	if err != nil {
@@ -136,12 +141,14 @@ func TaskExists(kv *api.KV, taskID string) (bool, error) {
 	return true, nil
 }
 
+// CancelTask marks a task as Canceled
 func CancelTask(kv *api.KV, taskID string) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), Value: []byte("true")}
 	_, err := kv.Put(kvp, nil)
 	return err
 }
 
+// TargetHasLivingTasks checks if a targetID has associated tasks and returns their id and status
 func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
 	if err != nil {
@@ -174,7 +181,8 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 	return false, "", "", nil
 }
 
-func NewTaskLockForTarget(client *api.Client, targetID string) (TaskLock, error) {
+// TODO check if this is still useful
+func newTaskLockForTarget(client *api.Client, targetID string) (taskLock, error) {
 	lock, err := client.LockKey(path.Join(consulutil.TasksLocksPrefix, targetID))
 	if err != nil {
 		return nil, err

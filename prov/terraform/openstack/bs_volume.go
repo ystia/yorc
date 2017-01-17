@@ -9,7 +9,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func (g *Generator) generateOSBSVolume(url, instanceName string) (BlockStorageVolume, error) {
+func (g *osGenerator) generateOSBSVolume(url, instanceName string) (BlockStorageVolume, error) {
 	volume := BlockStorageVolume{}
 	var nodeType string
 	var err error

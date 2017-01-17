@@ -6,7 +6,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func (g *Generator) generateSlurmNode(url, deploymentId string) (ComputeInstance, error) {
+func (g *slurmGenerator) generateSlurmNode(url, deploymentID string) (ComputeInstance, error) {
 	log.Printf("generateSlurmNode begin")
 	nodeType, err := g.getStringFormConsul(url, "type")
 	if err != nil {

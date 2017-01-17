@@ -19,7 +19,7 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 		log.Panic(err)
 	}
 	if !tExists {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return false
 	}
 
@@ -29,7 +29,7 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 		log.Panic(err)
 	}
 	if ttid != id {
-		WriteError(w, r, NewBadRequestError(fmt.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
+		writeError(w, r, newBadRequestError(fmt.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
 		return false
 	}
 	return true
@@ -49,7 +49,7 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
 		log.Panic(err)
 	} else if taskStatus != tasks.RUNNING && taskStatus != tasks.INITIAL {
-		WriteError(w, r, NewBadRequestError(fmt.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
+		writeError(w, r, newBadRequestError(fmt.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
 		return
 	}
 
@@ -97,7 +97,7 @@ func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	} else {
 		if err = json.Unmarshal(body, &tr); err != nil {
-			WriteError(w, r, NewBadRequestError(fmt.Errorf("Can't unmarshal task request %v", err)))
+			writeError(w, r, newBadRequestError(fmt.Errorf("Can't unmarshal task request %v", err)))
 			return
 		}
 	}
@@ -110,7 +110,7 @@ func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
 	taskID, err := s.tasksCollector.RegisterTask(id, taskType)
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)

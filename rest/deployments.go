@@ -108,7 +108,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy); err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)
@@ -133,7 +133,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 
 	if taskID, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)
@@ -153,7 +153,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	status, err := deployments.GetDeploymentStatus(kv, id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
-			WriteError(w, r, ErrNotFound)
+			writeError(w, r, errNotFound)
 			return
 		}
 		log.Panic(err)

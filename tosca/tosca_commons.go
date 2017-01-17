@@ -12,10 +12,15 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
+// An ValueAssignment is the representation of a TOSCA Value Assignment
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_PROPERTY_VALUE_ASSIGNMENT and
+// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_ATTRIBUTE_VALUE_ASSIGNMENT for more details
 type ValueAssignment struct {
 	Expression *TreeNode
 }
 
+// String retruns the textual representation of a ValueAssignment
 func (p ValueAssignment) String() string {
 	if p.Expression == nil {
 		return ""
@@ -74,6 +79,7 @@ func parseExpression(e map[interface{}]interface{}) (*TreeNode, error) {
 	return nil, fmt.Errorf("Missing element in expression %s", e)
 }
 
+// UnmarshalYAML unmarshals a yaml into a ValueAssignment
 func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 	if err := unmarshal(&s); err == nil {
@@ -92,6 +98,7 @@ func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error
 	return nil
 }
 
+// A TreeNode is a tree based structure used to represent a TOSCA value assignment made of TOSCA functions
 type TreeNode struct {
 	Value    string
 	parent   *TreeNode
@@ -102,6 +109,8 @@ type TreeNode struct {
 func newTreeNode(value string) *TreeNode {
 	return &TreeNode{Value: value, children: make([]*TreeNode, 0)}
 }
+
+// AddChild adds a child node to an existing tree
 func (t *TreeNode) AddChild(child *TreeNode) error {
 	if child.parent != nil {
 		return errors.Errorf("node %s already have a parent, can't adopt it", child)
@@ -113,14 +122,19 @@ func (t *TreeNode) AddChild(child *TreeNode) error {
 	return nil
 }
 
+// Add adds a child node to an existing tree
+//
+// This is a shorthands for AddChild(newTreeNode(value))
 func (t *TreeNode) Add(value string) error {
 	return t.AddChild(newTreeNode(value))
 }
 
+// Parent returns the parent tree of a TreeNode
 func (t *TreeNode) Parent() *TreeNode {
 	return t.parent
 }
 
+// SetParent sets the parent tree of a TreeNode
 func (t *TreeNode) SetParent(parent *TreeNode) error {
 	if t.parent != nil {
 		return fmt.Errorf("node %s already have a parent", t)
@@ -129,14 +143,17 @@ func (t *TreeNode) SetParent(parent *TreeNode) error {
 	return nil
 }
 
+// Children retruns the children of a TreeNode
 func (t *TreeNode) Children() []*TreeNode {
 	return t.children
 }
 
+// IsLiteral a TreeNode without children is a literal
 func (t *TreeNode) IsLiteral() bool {
 	return len(t.children) == 0
 }
 
+// IsTargetContext retruns true if the value of the first child of this TreeNode is "TARGET"
 func (t *TreeNode) IsTargetContext() bool {
 	if t.IsLiteral() {
 		return false
@@ -168,14 +185,20 @@ func (t *TreeNode) String() string {
 	return buf.String()
 }
 
+// UNBOUNDED is the maximum value of a Range
 // Max uint64 as per https://golang.org/ref/spec#Numeric_types
 const UNBOUNDED uint64 = 18446744073709551615
 
+// An Range is the representation of a TOSCA Range Type
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#TYPE_TOSCA_RANGE
+// for more details
 type Range struct {
 	LowerBound uint64
 	UpperBound uint64
 }
 
+// UnmarshalYAML unmarshals a yaml into a Range
 func (r *Range) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v []string
 	if err := unmarshal(&v); err != nil {

@@ -1,7 +1,12 @@
+// Package config defines configuration structures
 package config
 
+// DefaultConsulPubMaxRoutines is the default maximum number of parallel goroutines used to store keys/values in Consul
+//
+// See consulutil package for more details
 const DefaultConsulPubMaxRoutines int = 500
 
+// Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`

@@ -6,12 +6,17 @@ import (
 	"github.com/stevedomin/termtable"
 )
 
+// A Table allows to render console text in a table presentation
 type Table interface {
+	// AddRow adds a new line to the table
 	AddRow(items ...interface{})
+	// AddHeaders adds headers to the table
 	AddHeaders(headers ...string)
+	// Render renders the table and returns its string representation
 	Render() string
 }
 
+// NewTable creates a Table
 func NewTable() Table {
 	return &termTable{tt: termtable.NewTable(nil, &termtable.TableOptions{
 		Padding:      1,

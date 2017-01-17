@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -18,12 +19,14 @@ const funcKeywordHOST string = "HOST"
 const funcKeywordSOURCE string = "SOURCE"
 const funcKeywordTARGET string = "TARGET"
 
+// Resolver is used to resolve TOSCA functions
 type Resolver struct {
 	kv           *api.KV
 	deploymentID string
 	taskID       string
 }
 
+// NewResolver creates a Resolver instance
 func NewResolver(kv *api.KV, deploymentID string, taskID ...string) *Resolver {
 	if len(taskID) != 0 {
 		return &Resolver{kv: kv, deploymentID: deploymentID, taskID: taskID[0]}
@@ -181,7 +184,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			}
 			if len(result) > 1 {
 				log.Printf("Deployment %q, node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", r.deploymentID, nodeName, expression, len(result))
-				LogInConsul(r.kv, r.deploymentID, fmt.Sprintf("Node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", nodeName, expression, len(result)))
+				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("Node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", nodeName, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
@@ -408,7 +411,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			}
 			if len(result) > 1 {
 				log.Printf("Deployment %q, SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", r.deploymentID, sourceNode, targetNode, requirementIndex, expression, len(result))
-				LogInConsul(r.kv, r.deploymentID, fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
+				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
@@ -445,8 +448,9 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 	return "", errors.Errorf("Can't resolve expression %q", expression.Value)
 }
 
-func (r *Resolver) ResolvePropertyDefinitionForCustom(inputName string) (string, error) {
-
+// ResolveCustomCommandInput resolve a Custom command input.
+func (r *Resolver) ResolveCustomCommandInput(inputName string) (string, error) {
+	// TODO: is here the best place for this? It is related to tasks.
 	kvP, _, err := r.kv.Get(path.Join(consulutil.TasksPrefix, r.taskID, "inputs", inputName), nil)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)

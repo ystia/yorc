@@ -46,10 +46,11 @@ func wrapHandler(h http.Handler) httprouter.Handle {
 	}
 }
 
-func NewRouter() *router {
+func newRouter() *router {
 	return &router{httprouter.New()}
 }
 
+// A Server is an HTTP server that runs the Janus REST API
 type Server struct {
 	router         *router
 	listener       net.Listener
@@ -58,6 +59,7 @@ type Server struct {
 	config         config.Configuration
 }
 
+// Shutdown stops the HTTP server
 func (s *Server) Shutdown() {
 	if s != nil {
 		log.Printf("Shutting down http server")
@@ -68,15 +70,15 @@ func (s *Server) Shutdown() {
 	}
 }
 
+// NewServer create a Server to serve the REST API
 func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
-
 	listener, err := net.Listen("tcp", ":8800")
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to bind on port 8800")
 	}
 
 	httpServer := &Server{
-		router:         NewRouter(),
+		router:         newRouter(),
 		listener:       listener,
 		consulClient:   client,
 		tasksCollector: tasks.NewCollector(client),

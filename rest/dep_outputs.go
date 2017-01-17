@@ -25,7 +25,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 	status, err := deployments.GetDeploymentStatus(kv, id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
-			WriteError(w, r, ErrNotFound)
+			writeError(w, r, errNotFound)
 		}
 	}
 
@@ -34,7 +34,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 	if expression == nil {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 

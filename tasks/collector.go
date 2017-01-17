@@ -12,14 +12,19 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
+// A Collector is used to register new tasks in Janus
 type Collector struct {
 	consulClient *api.Client
 }
 
+// NewCollector creates a Collector
 func NewCollector(consulClient *api.Client) *Collector {
 	return &Collector{consulClient: consulClient}
 }
 
+// RegisterTaskWithData register an new Task of a given type with some data
+//
+// The task id is returned.
 func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, data map[string]string) (string, error) {
 	destroy, lock, taskID, err := c.registerTaskWithoutDestroyLock(targetID, taskType, data)
 	defer destroy(lock, taskID, targetID)
@@ -29,13 +34,17 @@ func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, dat
 	return taskID, nil
 }
 
+// RegisterTask register an new Task of a given type.
+//
+// The task id is returned.
+// Basically this is a shorthand for RegisterTaskWithData(targetID, taskType, nil)
 func (c *Collector) RegisterTask(targetID string, taskType TaskType) (string, error) {
 	return c.RegisterTaskWithData(targetID, taskType, nil)
 }
 
 func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
 	// TODO: check if this is still useful???
-	taskLock, err := NewTaskLockForTarget(c.consulClient, targetID)
+	taskLock, err := newTaskLockForTarget(c.consulClient, targetID)
 	_, err = taskLock.Lock(10, 500*time.Millisecond)
 	if err != nil {
 		return nil, nil, "", err

@@ -35,7 +35,7 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	var testData = []struct {
 		volURL       string
@@ -81,7 +81,7 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	var testData = []struct {
 		volURL    string
@@ -119,7 +119,7 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -145,7 +145,7 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -172,7 +172,7 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair

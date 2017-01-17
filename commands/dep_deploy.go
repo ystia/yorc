@@ -72,7 +72,7 @@ func init() {
 				}
 			}
 
-			fmt.Println("Deployment submited. Deployment Id:", path.Base(location))
+			fmt.Println("Deployment submitted. Deployment Id:", path.Base(location))
 			if shouldStreamLogs && !shouldStreamEvents {
 				streamsLogs(janusAPI, path.Base(location), !noColor, true, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {

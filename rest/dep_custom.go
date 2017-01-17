@@ -26,7 +26,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	var inputMap InputsPropertyDef
+	var inputMap CustomCommandRequest
 	if err = json.Unmarshal(body, &inputMap); err != nil {
 		log.Panic(err)
 	}
@@ -51,7 +51,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.CustomCommand, data)
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)

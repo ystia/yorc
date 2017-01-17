@@ -14,6 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
+// RunServer starts the Janus server
 func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
 	consulDC := configuration.ConsulDatacenter
 	consulToken := configuration.ConsulToken

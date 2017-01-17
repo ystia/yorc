@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func (g *Generator) generateNetwork(url, deploymentID string) (Network, error) {
+func (g *osGenerator) generateNetwork(url, deploymentID string) (Network, error) {
 	nodeType, err := g.getStringFormConsul(url, "type")
 	if err != nil {
 		return Network{}, err
@@ -28,7 +28,7 @@ func (g *Generator) generateNetwork(url, deploymentID string) (Network, error) {
 
 }
 
-func (g *Generator) generateSubnet(url, deploymentID, nodeName string) (Subnet, error) {
+func (g *osGenerator) generateSubnet(url, deploymentID, nodeName string) (Subnet, error) {
 	nodeType, err := g.getStringFormConsul(url, "type")
 	if err != nil {
 		return Subnet{}, err

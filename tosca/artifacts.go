@@ -6,8 +6,10 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
+// ArtifactDefMap is a map of ArtifactDefinition
 type ArtifactDefMap map[string]ArtifactDefinition
 
+// UnmarshalYAML unmarshals a yaml into an ArtifactDefMap
 func (adm *ArtifactDefMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// Either a map or a seq
 	*adm = make(ArtifactDefMap)
@@ -31,6 +33,9 @@ func (adm *ArtifactDefMap) UnmarshalYAML(unmarshal func(interface{}) error) erro
 	return nil
 }
 
+// An ArtifactDefinition is the representation of a TOSCA Artifact Definition
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_ARTIFACT_DEF for more details
 type ArtifactDefinition struct {
 	Type        string `yaml:"type,omitempty"`
 	File        string `yaml:"file,omitempty"`
@@ -41,6 +46,7 @@ type ArtifactDefinition struct {
 	name string
 }
 
+// UnmarshalYAML unmarshals a yaml into an ArtifactDefinition
 func (a *ArtifactDefinition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 	if err := unmarshal(&s); err == nil {

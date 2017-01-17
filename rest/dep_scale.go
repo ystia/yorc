@@ -32,14 +32,14 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if value, ok := r.URL.Query()["delta"]; ok {
 		if instancesDelta, err = strconv.Atoi(value[0]); err != nil {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		} else if instancesDelta == 0 {
-			WriteError(w, r, NewBadRequestError(errors.New("You need to provide a non zero value as 'delta' parameter")))
+			writeError(w, r, newBadRequestError(errors.New("You need to provide a non zero value as 'delta' parameter")))
 			return
 		}
 	} else {
-		WriteError(w, r, NewBadRequestError(errors.New("You need to provide a 'delta' parameter")))
+		writeError(w, r, newBadRequestError(errors.New("You need to provide a 'delta' parameter")))
 		return
 	}
 
@@ -48,14 +48,14 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 	if !exists {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 	var ok bool
 	if ok, err = deployments.HasScalableCapability(kv, id, nodeName); err != nil {
 		log.Panic(err)
 	} else if !ok {
-		WriteError(w, r, NewBadRequestParameter("node", errors.Errorf("Node %q must be scalable", nodeName)))
+		writeError(w, r, newBadRequestParameter("node", errors.Errorf("Node %q must be scalable", nodeName)))
 		return
 	}
 
@@ -68,7 +68,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)

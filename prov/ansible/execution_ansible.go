@@ -11,9 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -45,7 +44,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	ansibleGroupsVarsPath := filepath.Join(ansibleRecipePath, "group_vars")
 	if err = os.MkdirAll(ansibleGroupsVarsPath, 0775); err != nil {
 		log.Printf("%+v", err)
-		deployments.LogErrorInConsul(e.kv, e.deploymentID, err)
+		events.LogEngineError(e.kv, e.deploymentID, err)
 		return errors.Wrap(err, "Failed to create group_vars directory: ")
 	}
 	var buffer bytes.Buffer
@@ -108,17 +107,17 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
-		deployments.LogInConsul(e.kv, e.deploymentID, "Failed to Generate ansible playbook template")
+		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate ansible playbook template")
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write playbook file")
-		deployments.LogInConsul(e.kv, e.deploymentID, "Failed to write playbook file")
+		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
 		return err
 	}
 
 	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, e.PlaybookPath)
-	deployments.LogInConsul(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
+	events.LogEngineMessage(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "-l", e.Group, "run.ansible.yml")
 
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
@@ -126,7 +125,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer
-	errbuf := logsutil.NewBufferedConsulWriter(e.kv, e.deploymentID, deployments.SOFTWARE_LOG_PREFIX)
+	errbuf := events.NewBufferedLogEventWriter(e.kv, e.deploymentID, events.SoftwareLogPrefix)
 	cmd.Stdout = &outbuf
 	cmd.Stderr = errbuf
 

@@ -22,7 +22,7 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	kv := s.consulClient.KV()
 	node := Node{Name: nodeName}
-	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path)}
+	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path), newAtomLink(LinkRelDeployment, path.Clean(r.URL.Path+"/../.."))}
 	instanceIds, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
@@ -47,7 +47,7 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 		log.Panic(err)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 	nodePath := path.Clean(r.URL.Path + "/../..")
@@ -55,10 +55,11 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 	nodeInstance.Links = []AtomLink{
 		newAtomLink(LinkRelSelf, r.URL.Path),
 		newAtomLink(LinkRelNode, nodePath),
+		newAtomLink(LinkRelDeployment, path.Clean(r.URL.Path+"/../../../..")),
 	}
 	attributesNames, err := deployments.GetNodeAttributesNames(kv, id, nodeName)
 	if err != nil {
-		WriteError(w, r, NewInternalServerError(err))
+		writeError(w, r, newInternalServerError(err))
 		return
 	}
 	for _, attr := range attributesNames {
@@ -80,13 +81,13 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 		log.Panic(err)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 
 	attributesNames, err := deployments.GetNodeAttributesNames(kv, id, nodeName)
 	if err != nil {
-		WriteError(w, r, NewInternalServerError(err))
+		writeError(w, r, newInternalServerError(err))
 		return
 	}
 	attrList := AttributesCollection{Attributes: make([]AtomLink, len(attributesNames))}
@@ -110,22 +111,22 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 		log.Panic(err)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 	found, result, err := deployments.GetNodeAttributes(kv, id, nodeName, attributeName)
 	if err != nil {
-		WriteError(w, r, NewInternalServerError(err))
+		writeError(w, r, newInternalServerError(err))
 		return
 	}
 
 	if !found {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 	instanceAttribute, ok := result[instanceID]
 	if !ok {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 	if instanceAttribute != "" {

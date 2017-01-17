@@ -34,7 +34,7 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 	}
 	for i := startOfDepStatusConst + 1; i < endOfDepStatusConst; i++ {
 		if DeploymentStatus(i).String() == status {
-			return DeploymentStatus(i), nil
+			return i, nil
 		}
 	}
 	return INITIAL, fmt.Errorf("Invalid deployment status %q", status)

@@ -26,26 +26,3 @@ const (
 
 	endOfDepStatusConst // Do not remove this line and define new const before it. It is used to get const value from string
 )
-
-// InfraLogPrefix Consul KV prefix for infrastructure logs
-const InfraLogPrefix = "infrastructure"
-
-// SoftwareLogPrefix Consul KV prefix for software provisioning logs
-const SoftwareLogPrefix = "software"
-
-// EngineLogPrefix Consul KV prefix for janus engine logs
-const EngineLogPrefix = "engine"
-
-// Event represents node instance status change event
-type Event struct {
-	Timestamp string `json:"timestamp"`
-	Node      string `json:"node"`
-	Instance  string `json:"instance"`
-	Status    string `json:"status"`
-}
-
-// Logs represents a log message entry
-type Logs struct {
-	Timestamp string `json:"timestamp"`
-	Logs      string `json:"logs"`
-}

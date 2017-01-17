@@ -8,6 +8,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
+// GetRelationshipPropertyFromRequirement returns the value of a relationship's property identified by a requirement index on a node
 func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex, propertyName string) (bool, string, error) {
 	reqPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex)
 

@@ -19,16 +19,17 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 )
 
-type Generator struct {
+type osGenerator struct {
 	kv  *api.KV
 	cfg config.Configuration
 }
 
-func NewGenerator(kv *api.KV, cfg config.Configuration) *Generator {
-	return &Generator{kv: kv, cfg: cfg}
+// NewGenerator creates a generator for OpenStack resources
+func NewGenerator(kv *api.KV, cfg config.Configuration) commons.Generator {
+	return &osGenerator{kv: kv, cfg: cfg}
 }
 
-func (g *Generator) getStringFormConsul(baseURL, property string) (string, error) {
+func (g *osGenerator) getStringFormConsul(baseURL, property string) (string, error) {
 	getResult, _, err := g.kv.Get(baseURL+"/"+property, nil)
 	if err != nil {
 		log.Printf("Can't get property %s for node %s", property, baseURL)
@@ -61,10 +62,7 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 	}
 }
 
-// GenerateTerraformInfraForNode generates the Terraform infrastructure file for the given node.
-// It returns 'true' if a file was generated and 'false' otherwise (in case of a infrastructure component
-// already exists for this node and should just be reused).
-func (g *Generator) GenerateTerraformInfraForNode(deploymentID, nodeName string) (bool, error) {
+func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName string) (bool, error) {
 
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
@@ -183,7 +181,8 @@ func (g *Generator) GenerateTerraformInfraForNode(deploymentID, nodeName string)
 			} else {
 				ips := strings.Split(ip.Pool, ",")
 				// TODO we should change this. instance name should not be considered as an int
-				instName, err := strconv.Atoi(instanceName)
+				var instName int
+				instName, err = strconv.Atoi(instanceName)
 				if err != nil {
 					return false, err
 				}

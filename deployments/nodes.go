@@ -445,10 +445,10 @@ func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string)
 		}
 		if len(instances) > 0 {
 			for _, instance := range instances {
-				attributes[instance] = string(defaultValue)
+				attributes[instance] = defaultValue
 			}
 		} else {
-			attributes[""] = string(defaultValue)
+			attributes[""] = defaultValue
 		}
 		found = true
 		return
@@ -584,7 +584,7 @@ func GetNodeAttributesNames(kv *api.KV, deploymentID, nodeName string) ([]string
 	}
 	nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	for _, instance := range instances {
-		storeSubKeysInSet(kv, path.Join(nodeInstancesPath, instance, "attributes"), attributesSet)
+		err = storeSubKeysInSet(kv, path.Join(nodeInstancesPath, instance, "attributes"), attributesSet)
 		if err != nil {
 			return nil, err
 		}

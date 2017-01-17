@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
+// An Executor is used to execute a TOSCA operation
 type Executor interface {
+	// Execute a TOSCA operation
 	ExecOperation(ctx context.Context, deploymentID, nodeName, operation string, taskID ...string) error
 }
 
@@ -20,6 +22,7 @@ type defaultExecutor struct {
 	r  *rand.Rand
 }
 
+// NewExecutor returns an Executor
 func NewExecutor(kv *api.KV) Executor {
 	return &defaultExecutor{kv: kv, r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
@@ -29,7 +32,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentID, nodeN
 	if err != nil {
 		if IsOperationNotImplemented(err) {
 			log.Printf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())
-			deployments.LogInConsul(e.kv, deploymentID, fmt.Sprintf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
+			events.LogEngineMessage(e.kv, deploymentID, fmt.Sprintf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
 			return nil
 		}
 		return err

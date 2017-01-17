@@ -1,5 +1,9 @@
 package tosca
 
+// An NodeType is the representation of a TOSCA Node Type
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_NODE_TYPE
+// for more details
 type NodeType struct {
 	DerivedFrom  string                            `yaml:"derived_from,omitempty"`
 	Version      string                            `yaml:"version,omitempty"`
@@ -12,6 +16,10 @@ type NodeType struct {
 	Artifacts    ArtifactDefMap                    `yaml:"artifacts,omitempty"`
 }
 
+// An RelationshipType is the representation of a TOSCA Relationship Type
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_RELATIONSHIP_TYPE
+// for more details
 type RelationshipType struct {
 	DerivedFrom      string                            `yaml:"derived_from,omitempty"`
 	Version          string                            `yaml:"version,omitempty"`
@@ -23,6 +31,10 @@ type RelationshipType struct {
 	ValidTargetTypes []string                          `yaml:"valid_target_types,omitempty"`
 }
 
+// An CapabilityType is the representation of a TOSCA Capability Type
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_CAPABILITY_TYPE
+// for more details
 type CapabilityType struct {
 	DerivedFrom      string                         `yaml:"derived_from,omitempty"`
 	Version          string                         `yaml:"version,omitempty"`

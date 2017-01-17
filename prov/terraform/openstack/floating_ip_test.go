@@ -33,7 +33,7 @@ func generatePoolIP(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -63,17 +63,17 @@ func generateSingleIP(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	ipUrl := "node/NetworkFIP"
-	data[ipUrl+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
-	data[ipUrl+"/properties/ip"] = []byte("10.0.0.2")
+	ipURL := "node/NetworkFIP"
+	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
+	data[ipURL+"/properties/ip"] = []byte("10.0.0.2")
 
 	srv1.PopulateKV(data)
-	gia, err := g.generateFloatingIP(ipUrl, "0")
+	gia, err := g.generateFloatingIP(ipURL, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2", gia.Pool)
 	assert.True(t, gia.IsIP)
@@ -93,7 +93,7 @@ func generateMultipleIP(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair

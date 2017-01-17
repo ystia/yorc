@@ -1,16 +1,20 @@
 package tosca
 
-type ImportMapInteface map[string][]map[string]ImportDefinitionBody
+// ImportMap is a map of ImportDefinition indexed by name
+type ImportMap map[string]ImportDefinition
 
-type ImportMap map[string]ImportDefinitionBody
-type ImportDefinitionBody struct {
+// An ImportDefinition is the representation of a TOSCA Import Definition
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_IMPORT_DEF for more details
+type ImportDefinition struct {
 	File            string `yaml:"file,omitempty"`
 	Repository      string `yaml:"repository,omitempty"`
 	NamespaceURI    string `yaml:"namespace_uri,omitempty"`
 	NamespacePrefix string `yaml:"namespace_prefix,omitempty"`
 }
 
-func (i *ImportDefinitionBody) UnmarshalYAML(unmarshal func(interface{}) error) error {
+// UnmarshalYAML unmarshals a yaml into an ImportDefinition
+func (i *ImportDefinition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 
 	if err := unmarshal(&s); err == nil {

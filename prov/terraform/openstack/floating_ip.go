@@ -2,13 +2,15 @@ package openstack
 
 import "fmt"
 
+// An IP is...
+// TODO consider refactoring this as it is not clear
 type IP struct {
 	Name string
 	Pool string
 	IsIP bool
 }
 
-func (g *Generator) generateFloatingIP(url, instanceName string) (IP, error) {
+func (g *osGenerator) generateFloatingIP(url, instanceName string) (IP, error) {
 	var nodeType string
 	result := IP{}
 	result.IsIP = false
