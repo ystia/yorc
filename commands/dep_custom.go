@@ -8,9 +8,10 @@ import (
 	"net/http"
 	"strings"
 
+	"novaforge.bull.com/starlings-janus/janus/rest"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
 )
 
 func init() {
@@ -32,7 +33,7 @@ func init() {
 			}
 
 			if len(jsonParam) == 0 && len(nodeName) != 0 && len(customCName) != 0 {
-				var InputsStruct deployments.InputsPropertyDef
+				var InputsStruct rest.InputsPropertyDef
 				InputsStruct.CustomCommandName = customCName
 				InputsStruct.NodeName = nodeName
 

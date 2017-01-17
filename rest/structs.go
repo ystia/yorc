@@ -85,3 +85,10 @@ type Attribute struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
+
+
+type InputsPropertyDef struct {
+	NodeName          string            `json:"node"`
+	CustomCommandName string            `json:"name"`
+	Inputs            map[string]string `json:"inputs"`
+}

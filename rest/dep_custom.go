@@ -26,7 +26,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	var inputMap deployments.InputsPropertyDef
+	var inputMap InputsPropertyDef
 	if err = json.Unmarshal(body, &inputMap); err != nil {
 		log.Panic(err)
 	}
