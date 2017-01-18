@@ -127,11 +127,6 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 		log.Panic(err)
 	}
 
-	err = deployments.SetNbInstancesForNode(kv, id, nodeName, currentNbInstance+instancesDelta)
-	if err != nil {
-		log.Panic(err)
-	}
-
 	data := make(map[string]string)
 
 	data["node"] = nodeName
@@ -155,7 +150,7 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 
 	if currentNbInstance-instancesDelta < minInstances {
 		log.Debug("The delta is too low, the min instances number is choosen")
-		instancesDelta = minInstances - currentNbInstance
+		instancesDelta = currentNbInstance - minInstances
 	}
 
 	var req []string
@@ -180,15 +175,10 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 		}
 		reqNameArr = append(reqNameArr, string(reqName.Value))
 	}
-
+	// TODO: we should not make assertions on instance IDs type (should not consider them as int) and should be delegated to the deployments package
 	newInstanceID := []string{}
 	for i := currentNbInstance - 1; i > currentNbInstance-1-instancesDelta; i-- {
 		newInstanceID = append(newInstanceID, strconv.Itoa(int(i)))
-	}
-
-	err = deployments.SetNbInstancesForNode(kv, id, nodeName, currentNbInstance-instancesDelta)
-	if err != nil {
-		log.Panic(err)
 	}
 
 	data := make(map[string]string)
