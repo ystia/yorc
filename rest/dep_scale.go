@@ -71,6 +71,10 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}
+		if restError, ok := err.(*Error); ok {
+			writeError(w, r, restError)
+			return
+		}
 		log.Panic(err)
 	}
 	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskID))
@@ -89,8 +93,11 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 	}
 
 	if currentNbInstance+instancesDelta > maxInstances {
-		log.Debug("The delta is too high, the max instances number is choosen")
+		log.Debug("The delta is too high, the max instances number is chosen")
 		instancesDelta = maxInstances - currentNbInstance
+		if instancesDelta == 0 {
+			return "", newBadRequestMessage("Maximum number of instances reached")
+		}
 	}
 
 	// NOTE: all those stuff on requirements should probably go into deployments.CreateNewNodeStackInstances
@@ -149,8 +156,11 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 	}
 
 	if currentNbInstance-instancesDelta < minInstances {
-		log.Debug("The delta is too low, the min instances number is choosen")
+		log.Debug("The delta is too low, the min instances number is chosen")
 		instancesDelta = currentNbInstance - minInstances
+		if instancesDelta == 0 {
+			return "", newBadRequestMessage("Minimum number of instances reached")
+		}
 	}
 
 	var req []string

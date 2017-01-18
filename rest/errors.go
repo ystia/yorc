@@ -18,6 +18,10 @@ type Error struct {
 	Detail string `json:"detail"`
 }
 
+func (e *Error) Error() string {
+	return fmt.Sprintf("ID: %q, Status: %d, Title: %q, Detail: %q", e.ID, e.Status, e.Title, e.Detail)
+}
+
 func writeError(w http.ResponseWriter, r *http.Request, err *Error) {
 	w.WriteHeader(err.Status)
 	encodeJSONResponse(w, r, Errors{[]*Error{err}})
@@ -45,4 +49,8 @@ func newBadRequestParameter(param string, err error) *Error {
 
 func newBadRequestError(err error) *Error {
 	return &Error{"bad_request", http.StatusBadRequest, "Bad Request", fmt.Sprint(err)}
+}
+
+func newBadRequestMessage(message string) *Error {
+	return &Error{"bad_request", http.StatusBadRequest, "Bad Request", message}
 }
