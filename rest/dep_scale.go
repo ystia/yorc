@@ -79,7 +79,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, error) {
 	kv := s.consulClient.KV()
-	_, maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodeName)
+	maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -139,7 +139,7 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, error) {
 	kv := s.consulClient.KV()
 
-	_, minInstances, err := deployments.GetMinNbInstancesForNode(kv, id, nodeName)
+	minInstances, err := deployments.GetMinNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
 		log.Panic(err)
 	}

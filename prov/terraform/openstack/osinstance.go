@@ -188,7 +188,7 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 		if err != nil {
 			return ComputeInstance{}, err
 		}
-		isFip, err := deployments.IsNodeTypeDerivedFrom(g.kv, deploymentID, capability, "janus.capabilities.openstack.FIPConnectivity")
+		isFip, err := deployments.IsTypeDerivedFrom(g.kv, deploymentID, capability, "janus.capabilities.openstack.FIPConnectivity")
 		if err != nil {
 			return ComputeInstance{}, err
 		}

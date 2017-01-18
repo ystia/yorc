@@ -62,9 +62,12 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
 
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/name":                  []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/id/default": []byte("DefaultComputeTypeid"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/ip/default": []byte(""),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/name":                       []byte("tosca.nodes.Compute"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/capabilities/scalable/type": []byte("tosca.capabilities.Scalable"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/id/default":      []byte("DefaultComputeTypeid"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/ip/default":      []byte(""),
+
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.capabilities.Scalable/name": []byte("tosca.capabilities.Scalable"),
 
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/derived_from": []byte("tosca.nodes.SoftwareComponent"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/name":         []byte("janus.type.DerivedSC1"),
@@ -186,15 +189,15 @@ func TestDeploymentNodes(t *testing.T) {
 func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	ok, err := IsNodeTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.HostedOn")
+	ok, err := IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.HostedOn")
 	require.Nil(t, err)
 	require.True(t, ok)
 
-	ok, err = IsNodeTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.ConnectsTo")
+	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.ConnectsTo")
 	require.Nil(t, err)
 	require.False(t, ok)
 
-	ok, err = IsNodeTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "janus.type.1")
+	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "janus.type.1")
 	require.Nil(t, err)
 	require.True(t, ok)
 }
@@ -202,98 +205,83 @@ func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
 func testGetDefaultNbInstancesForNode(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	res, nb, err := GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	nb, err := GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	_, _, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	require.NotNil(t, err)
 
-	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 }
 
 func testGetMaxNbInstancesForNode(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	res, nb, err := GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	nb, err := GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(20), nb)
 
-	res, nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	_, _, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	fmt.Println(err)
 	require.NotNil(t, err)
 
-	res, nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(20), nb)
 
-	res, nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(20), nb)
 
-	res, nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 }
 
 func testGetMinNbInstancesForNode(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	res, nb, err := GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	nb, err := GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(2), nb)
 
-	res, nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	_, _, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	fmt.Println(err)
 	require.NotNil(t, err)
 
-	res, nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(2), nb)
 
-	res, nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(2), nb)
 
-	res, nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 }
 

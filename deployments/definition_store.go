@@ -518,7 +518,7 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
 func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	_, nbInstances, err := GetDefaultNbInstancesForNode(kv, deploymentID, nodeName)
+	nbInstances, err := GetDefaultNbInstancesForNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -689,7 +689,7 @@ func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, 
 			continue
 		}
 
-		res, err := IsNodeTypeDerivedFrom(kv, deploymentID, string(capability.Value), "janus.capabilities.openstack.FIPConnectivity")
+		res, err := IsTypeDerivedFrom(kv, deploymentID, string(capability.Value), "janus.capabilities.openstack.FIPConnectivity")
 		if err != nil {
 			return false, "", err
 		}
