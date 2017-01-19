@@ -8,11 +8,14 @@ import (
 
 	"context"
 
+	"sort"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"vbom.ml/util/sortorder"
 )
 
 // IsNodeDerivedFrom check if the node's type is derived from another type.
@@ -126,6 +129,7 @@ func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, e
 	for _, instance := range instances {
 		names = append(names, path.Base(instance))
 	}
+	sort.Sort(sortorder.Natural(names))
 	return names, nil
 }
 

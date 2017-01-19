@@ -85,11 +85,11 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 	kv := s.consulClient.KV()
 	maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 
 	if currentNbInstance+instancesDelta > maxInstances {
@@ -105,12 +105,12 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 
 	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "network")
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 
 	storageReq, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage")
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 	req = append(req, storageReq...)
 
@@ -119,19 +119,19 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 		var reqName *api.KVPair
 		reqName, _, err = kv.Get(path.Join(reqPath, "node"), nil)
 		if err != nil {
-			log.Panic(err)
+			return "", err
 		}
 		reqNameArr = append(reqNameArr, string(reqName.Value))
 		// TODO: for now the link between the requirement instance ID and the node instance ID is a kind of black magic. We should found a way to make it rational...
 		_, err = deployments.CreateNewNodeStackInstances(kv, id, string(reqName.Value), int(instancesDelta))
 		if err != nil {
-			log.Panic(err)
+			return "", err
 		}
 	}
 
 	newInstanceID, err := deployments.CreateNewNodeStackInstances(kv, id, nodeName, int(instancesDelta))
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 
 	data := make(map[string]string)
@@ -148,11 +148,11 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 
 	minInstances, err := deployments.GetMinNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 	currentNbInstance, err := deployments.GetNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 
 	if currentNbInstance-instancesDelta < minInstances {
@@ -167,12 +167,12 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 
 	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "network")
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 
 	storageReq, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage")
 	if err != nil {
-		log.Panic(err)
+		return "", err
 	}
 	req = append(req, storageReq...)
 
@@ -181,15 +181,17 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 		var reqName *api.KVPair
 		reqName, _, err = kv.Get(path.Join(reqPath, "node"), nil)
 		if err != nil {
-			log.Panic(err)
+			return "", err
 		}
 		reqNameArr = append(reqNameArr, string(reqName.Value))
 	}
-	// TODO: we should not make assertions on instance IDs type (should not consider them as int) and should be delegated to the deployments package
-	newInstanceID := []string{}
-	for i := currentNbInstance - 1; i > currentNbInstance-1-instancesDelta; i-- {
-		newInstanceID = append(newInstanceID, strconv.Itoa(int(i)))
+
+	instancesIDs, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
+	if err != nil {
+		return "", err
 	}
+
+	newInstanceID := instancesIDs[len(instancesIDs)-int(instancesDelta):]
 
 	data := make(map[string]string)
 

@@ -156,6 +156,28 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Node2/7/attributes/id": []byte("Node2-7"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Node2/8/attributes/id": []byte("Node2-8"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Node2/9/attributes/id": []byte("Node2-9"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/0/attributes/id":  []byte("Node1-0"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/1/attributes/id":  []byte("Node1-1"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/10/attributes/id": []byte("Node1-10"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/11/attributes/id": []byte("Node1-11"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/20/attributes/id": []byte("Node1-20"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/2/attributes/id":  []byte("Node1-2"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/3/attributes/id":  []byte("Node1-3"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/4/attributes/id":  []byte("Node1-4"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/5/attributes/id":  []byte("Node1-5"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/6/attributes/id":  []byte("Node1-6"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/7/attributes/id":  []byte("Node1-7"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/8/attributes/id":  []byte("Node1-8"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/9/attributes/id":  []byte("Node1-9"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab0/attributes/id":   []byte("Node1-0"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab1/attributes/id":   []byte("Node1-1"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab10/attributes/id":  []byte("Node1-10"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/za11/attributes/id":  []byte("Node1-11"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab20a/attributes/id": []byte("Node1-20"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab2/attributes/id":   []byte("Node1-2"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/za3/attributes/id":   []byte("Node1-3"),
 	})
 
 	t.Run("deployment/nodes", func(t *testing.T) {
@@ -179,6 +201,9 @@ func TestDeploymentNodes(t *testing.T) {
 		})
 		t.Run("GetNodeAttributesNames", func(t *testing.T) {
 			testGetNodeAttributesNames(t, kv)
+		})
+		t.Run("GetNodeInstancesIds", func(t *testing.T) {
+			testGetNodeInstancesIds(t, kv)
 		})
 		t.Run("GetTypeAttributesNames", func(t *testing.T) {
 			testGetTypeAttributesNames(t, kv)
@@ -477,4 +502,18 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 	require.Contains(t, attrNames, "dsc2")
 	require.Contains(t, attrNames, "dsc4")
+}
+
+func testGetNodeInstancesIds(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	node1ExpectedResult := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "20"}
+	instancesIDs, err := GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node1")
+	require.NoError(t, err)
+	require.Equal(t, node1ExpectedResult, instancesIDs)
+
+	node2ExpectedResult := []string{"ab0", "ab1", "ab2", "ab10", "ab20a", "za3", "za11"}
+	instancesIDs, err = GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node2")
+	require.NoError(t, err)
+	require.Equal(t, node2ExpectedResult, instancesIDs)
 }
