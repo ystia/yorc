@@ -7,32 +7,27 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 )
 
-// An Executor is used to execute a TOSCA operation
-type Executor interface {
-	// Execute a TOSCA operation
-	ExecOperation(ctx context.Context, deploymentID, nodeName, operation string, taskID ...string) error
-}
-
 type defaultExecutor struct {
-	kv *api.KV
-	r  *rand.Rand
+	r *rand.Rand
 }
 
 // NewExecutor returns an Executor
-func NewExecutor(kv *api.KV) Executor {
-	return &defaultExecutor{kv: kv, r: rand.New(rand.NewSource(time.Now().UnixNano()))}
+func NewExecutor() prov.OperationExecutor {
+	return &defaultExecutor{r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentID, nodeName, operation string, taskID ...string) error {
-	exec, err := newExecution(e.kv, deploymentID, nodeName, operation, taskID...)
+func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, conf config.Configuration, taskID, deploymentID, nodeName, operation string) error {
+	exec, err := newExecution(kv, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
 			log.Printf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())
-			events.LogEngineMessage(e.kv, deploymentID, fmt.Sprintf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
+			events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
 			return nil
 		}
 		return err

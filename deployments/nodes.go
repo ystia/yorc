@@ -163,7 +163,7 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 					return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				}
 				if kvp == nil || len(kvp.Value) == 0 {
-					return "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployement %q", path.Base(reqKey), nodeName, deploymentID)
+					return "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
 				}
 				return string(kvp.Value), nil
 			}
@@ -542,10 +542,86 @@ func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) e
 	return nil
 }
 
-// CreateNewNodeStackInstances create the given number of new instances of the given node and all other nodes hosted on this one
+func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+	localStorageReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	if err != nil {
+		return nil, err
+	}
+	nodesList := make([]string, 0)
+	for _, req := range localStorageReqs {
+		var kvp *api.KVPair
+		kvp, _, err = kv.Get(path.Join(req, "node"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
+
+		}
+		nodesList = append(nodesList, string(kvp.Value))
+	}
+	networkReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	if err != nil {
+		return nil, err
+	}
+	for _, req := range networkReqs {
+		var kvp *api.KVPair
+
+		kvp, _, err = kv.Get(path.Join(req, "capability"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "janus.capabilities.openstack.FIPConnectivity" {
+			// Not a floating ip see next
+			continue
+		}
+
+		kvp, _, err = kv.Get(path.Join(req, "node"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
+
+		}
+		nodesList = append(nodesList, string(kvp.Value))
+	}
+	return nodesList, nil
+}
+
+// SelectNodeStackInstances selects a given number of instances of the given node, all the nodes hosted on this one and all nodes linked to it.
 //
-// CreateNewNodeStackInstances returns the list of newly created instances IDs
-func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, instances int) ([]string, error) {
+// For each node it returns a coma separated list of selected instances
+func SelectNodeStackInstances(kv *api.KV, deploymentID, nodeName string, instancesDelta int) (map[string]string, error) {
+	nodesStack, err := GetNodesHostedOn(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	nodesStack = append(nodesStack, nodeName)
+	linkedNodes, err := getInstancesDependentLinkedNodes(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	nodesStack = append(nodesStack, linkedNodes...)
+
+	// TODO: Improve the way we relate node instances names to dependent (linked nodes) or hosted on instances names
+	instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	instancesList := strings.Join(instances[len(instances)-int(instancesDelta):], ",")
+	nodesMap := make(map[string]string)
+	for _, node := range nodesStack {
+		nodesMap[node] = instancesList
+	}
+	return nodesMap, nil
+}
+
+// CreateNewNodeStackInstances create the given number of new instances of the given node and all other nodes hosted on this one and all linked nodes
+//
+// CreateNewNodeStackInstances returns a map of newly created instances IDs indexed by node name
+func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, instances int) (map[string]string, error) {
+	nodesMap := make(map[string]string)
 	ctx := context.Background()
 	_, errGroup, consulStore := consulutil.WithContext(ctx)
 
@@ -567,6 +643,12 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 		}
 	}
 
+	linkedNodes, err := getInstancesDependentLinkedNodes(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	stackNodes = append(stackNodes, linkedNodes...)
+
 	// Now get existing nodes instances ids to have the
 	existingIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
 	if err != nil {
@@ -574,16 +656,22 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 	}
 	instancesIDs := make([]string, 0)
 	initialID := len(existingIds)
+	// TODO: rethink the instances ids
 	for i := initialID; i < initialID+instances; i++ {
 		id := strconv.FormatUint(uint64(i), 10)
 		instancesIDs = append(instancesIDs, id)
 		for _, stackNode := range stackNodes {
 
 			createNodeInstance(consulStore, deploymentID, stackNode, id)
+			if _, ok := nodesMap[stackNode]; ok {
+				nodesMap[stackNode] = nodesMap[stackNode] + "," + id
+			} else {
+				nodesMap[stackNode] = id
+			}
 		}
 	}
 
-	return instancesIDs, errors.Wrapf(errGroup.Wait(), "Failed to create instances for node %q", nodeName)
+	return nodesMap, errors.Wrapf(errGroup.Wait(), "Failed to create instances for node %q", nodeName)
 
 }
 
@@ -604,33 +692,4 @@ func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return kvp != nil && len(kvp.Value) > 0, nil
-}
-
-// DeleteNodeStack deletes instances data for a given instances IDs of a given node name plus all nodes hosted on this one and given linked nodes (like Volumes of a Compute for instance)
-func DeleteNodeStack(kv *api.KV, deploymentID, nodeName string, instances []string, linkedNodes []string) error {
-	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
-	nodesStack, err := GetNodesHostedOn(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-	nodesStack = append(nodesStack, nodeName)
-	for _, linkedNode := range linkedNodes {
-		linkedNodeStack, err := GetNodesHostedOn(kv, deploymentID, linkedNode)
-		if err != nil {
-			return err
-		}
-		if len(linkedNodeStack) > 0 {
-			nodesStack = append(nodesStack, linkedNodeStack...)
-		}
-		nodesStack = append(nodesStack, linkedNode)
-	}
-	for _, instanceID := range instances {
-		for _, node := range nodesStack {
-			_, err := kv.DeleteTree(path.Join(instancesPath, node, instanceID), nil)
-			if err != nil {
-				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
-		}
-	}
-	return nil
 }

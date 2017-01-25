@@ -5,9 +5,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
-	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -100,46 +98,15 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 		}
 	}
 
-	// NOTE: all those stuff on requirements should probably go into deployments.CreateNewNodeStackInstances
-	var req []string
-
-	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "network")
-	if err != nil {
-		return "", err
-	}
-
-	storageReq, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage")
-	if err != nil {
-		return "", err
-	}
-	req = append(req, storageReq...)
-
-	var reqNameArr []string
-	for _, reqPath := range req {
-		var reqName *api.KVPair
-		reqName, _, err = kv.Get(path.Join(reqPath, "node"), nil)
-		if err != nil {
-			return "", err
-		}
-		reqNameArr = append(reqNameArr, string(reqName.Value))
-		// TODO: for now the link between the requirement instance ID and the node instance ID is a kind of black magic. We should found a way to make it rational...
-		_, err = deployments.CreateNewNodeStackInstances(kv, id, string(reqName.Value), int(instancesDelta))
-		if err != nil {
-			return "", err
-		}
-	}
-
-	newInstanceID, err := deployments.CreateNewNodeStackInstances(kv, id, nodeName, int(instancesDelta))
+	instancesByNodes, err := deployments.CreateNewNodeStackInstances(kv, id, nodeName, int(instancesDelta))
 	if err != nil {
 		return "", err
 	}
 
 	data := make(map[string]string)
-
-	data["node"] = nodeName
-	data["new_instances_ids"] = strings.Join(newInstanceID, ",")
-	data["req"] = strings.Join(reqNameArr, ",")
-
+	for scalableNode, nodeInstances := range instancesByNodes {
+		data[path.Join("nodes", scalableNode)] = nodeInstances
+	}
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleUp, data)
 }
 
@@ -163,41 +130,15 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 		}
 	}
 
-	var req []string
-
-	req, err = deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "network")
+	instancesByNodes, err := deployments.SelectNodeStackInstances(kv, id, nodeName, int(instancesDelta))
 	if err != nil {
 		return "", err
 	}
-
-	storageReq, err := deployments.GetRequirementsKeysByNameForNode(kv, id, nodeName, "local_storage")
-	if err != nil {
-		return "", err
-	}
-	req = append(req, storageReq...)
-
-	var reqNameArr []string
-	for _, reqPath := range req {
-		var reqName *api.KVPair
-		reqName, _, err = kv.Get(path.Join(reqPath, "node"), nil)
-		if err != nil {
-			return "", err
-		}
-		reqNameArr = append(reqNameArr, string(reqName.Value))
-	}
-
-	instancesIDs, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
-	if err != nil {
-		return "", err
-	}
-
-	newInstanceID := instancesIDs[len(instancesIDs)-int(instancesDelta):]
 
 	data := make(map[string]string)
-
-	data["node"] = nodeName
-	data["new_instances_ids"] = strings.Join(newInstanceID, ",")
-	data["req"] = strings.Join(reqNameArr, ",")
+	for scalableNode, nodeInstances := range instancesByNodes {
+		data[path.Join("nodes", scalableNode)] = nodeInstances
+	}
 
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleDown, data)
 

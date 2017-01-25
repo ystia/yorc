@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"strings"
+
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -93,7 +95,7 @@ func (a *RequirementDefinition) UnmarshalYAML(unmarshal func(interface{}) error)
 	}
 	if str.UpperBound != "" {
 		if bound, err := strconv.ParseUint(str.UpperBound, 10, 0); err != nil {
-			if str.UpperBound != "UNBOUNDED" {
+			if strings.ToUpper(str.UpperBound) != "UNBOUNDED" {
 				return fmt.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range got: %q", str.UpperBound)
 			}
 			a.Occurrences.UpperBound = UNBOUNDED

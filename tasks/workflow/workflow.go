@@ -1,4 +1,4 @@
-package tasks
+package workflow
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
@@ -104,67 +105,67 @@ func (s *step) setStatus(status string) error {
 	return err
 }
 
-func (s *step) isRunnable() (bool, error) {
-	if s.t.TaskType == ScaleUp || s.t.TaskType == ScaleDown {
-		kvp, _, err := s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.t.ID, "node")), nil)
-		if err != nil {
-			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp == nil || len(kvp.Value) == 0 {
-			return false, errors.Errorf("Missing mandatory key \"node\" for task %q", s.t.ID)
-		}
-		nodeName := string(kvp.Value)
-		ok, err := deployments.IsHostedOn(s.kv, s.t.TargetID, s.Node, nodeName)
-		if err != nil {
-			return false, err
-		}
-
-		kvp, _, err = s.kv.Get(path.Join(path.Join(consulutil.TasksPrefix, s.t.ID, "req")), nil)
-		if err != nil {
-			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp == nil {
-			return false, errors.Errorf("Missing mandatory key \"req\" for task %q", s.t.ID)
-		}
-		reqArr := strings.Split(string(kvp.Value), ",")
-		isReq := contains(reqArr, s.Node)
-		if err != nil {
-			return false, err
-		}
-		if nodeName != s.Node && !ok && !isReq {
-			return false, nil
+func (s *step) isRelationshipTargetNodeRelated() (bool, error) {
+	for _, activity := range s.Activities {
+		if activity.ActivityType() == wfCallOpActivity {
+			operation := activity.ActivityValue()
+			isRelationshipOp, operationRealName, _, targetNode, err := deployments.DecodeOperation(s.kv, s.t.TargetID, s.Node, operation)
+			if err != nil {
+				return false, err
+			}
+			if isRelationshipOp {
+				if deployments.IsRelationshipOperationOnTargetNode(operationRealName) {
+					isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, targetNode)
+					if err != nil || isNodeTargetTask {
+						return isNodeTargetTask, err
+					}
+				}
+			}
 		}
 	}
+	return false, nil
+}
+
+// isRunnable Checks if a step should be run or bypassed
+//
+// It first checks if the step is not already done in this workflow instance
+// And for ScaleUp and ScaleDown it checks if the node or the target node in case of an operation running on the target node is part of the operation
+func (s *step) isRunnable() (bool, error) {
 
 	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "done" {
-		return true, nil
+	if kvp != nil && string(kvp.Value) == "done" {
+		return false, nil
 	}
 
-	return false, nil
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
+	if s.t.TaskType == tasks.ScaleUp || s.t.TaskType == tasks.ScaleDown {
+		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Node)
+		if err != nil {
+			return false, err
+		}
+		if !isNodeTargetTask {
+			isTargetNodeRelated, err := s.isRelationshipTargetNodeRelated()
+			if err != nil || !isTargetNodeRelated {
+				return false, err
+			}
 		}
 	}
-	return false
+
+	return true, nil
 }
 
-func setNodeStatus(kv *api.KV, eventPub events.Publisher, deploymentID, nodeName, status string, instancesIDs ...string) error {
-	if len(instancesIDs) == 0 {
-		instancesIDs, _ = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, nodeName, status string) error {
+	instancesIDs, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
+	if err != nil {
+		return err
 	}
+
 	for _, id := range instancesIDs {
-		kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, id, "attributes/state"), Value: []byte(status)}, nil)
 		// Publish status change event
-		_, err := eventPub.StatusChange(nodeName, id, status)
+		err := deployments.SetInstanceStateString(kv, deploymentID, nodeName, id, status)
 		if err != nil {
 			return err
 		}
@@ -209,64 +210,34 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 	}
 
 	log.Printf("Processing step %q", s.Name)
-	var instancesIds []string
-	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, s.t.ID, "new_instances_ids"), nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if nodesIdsKv != nil && len(nodesIdsKv.Value) > 0 {
-		instancesIds = strings.Split(string(nodesIdsKv.Value), ",")
-	}
-
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			provisioner := terraform.NewExecutor(kv, cfg)
+			provisioner := terraform.NewExecutor()
 			delegateOp := activity.ActivityValue()
-			switch delegateOp {
-			case "install":
-				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateCreating.String(), instancesIds...)
-				if err := provisioner.ProvisionNode(ctx, deploymentID, s.Node); err != nil {
-					setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
-					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-					s.setStatus(tosca.NodeStateError.String())
-					return err
-				}
-				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateStarted.String(), instancesIds...)
-			case "uninstall":
-				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateDeleting.String(), instancesIds...)
-				nodesIds := ""
-				if s.t.TaskType == ScaleDown {
-					nodesIds = strings.Join(instancesIds, ",")
-				}
-				if err := provisioner.DestroyNode(ctx, deploymentID, s.Node, nodesIds); err != nil {
-					setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
+			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
+				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				s.setStatus(tosca.NodeStateError.String())
+				if isUndeploy {
 					uninstallerrc <- err
 					haveErr = true
 				} else {
-					setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateDeleted.String(), instancesIds...)
+					return err
 				}
-			default:
-				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
-				s.setStatus(tosca.NodeStateError.String())
-				return fmt.Errorf("Unsupported delegate operation '%s' for step '%s'", delegateOp, s.Name)
 			}
 		case actType == wfSetStateActivity:
-			setNodeStatus(kv, eventPub, deploymentID, s.Node, activity.ActivityValue(), instancesIds...)
+			setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
-			exec := ansible.NewExecutor(kv)
-			var err error
-			if s.t.TaskType == ScaleUp || s.t.TaskType == ScaleDown {
-				err = exec.ExecOperation(ctx, deploymentID, s.Node, activity.ActivityValue(), s.t.ID)
-			} else {
-				err = exec.ExecOperation(ctx, deploymentID, s.Node, activity.ActivityValue())
-			}
+			exec := ansible.NewExecutor()
+			err := exec.ExecOperation(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 			if err != nil {
-				setNodeStatus(kv, eventPub, deploymentID, s.Node, tosca.NodeStateError.String(), instancesIds...)
+				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if isUndeploy {
 					uninstallerrc <- err
+					haveErr = true
 				} else {
 					s.setStatus(tosca.NodeStateError.String())
 					return err

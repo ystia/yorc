@@ -47,3 +47,64 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 
 	return GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
 }
+
+// IsNormativeOperation checks if a given operationName is known as a normative operation.
+//
+// The given operationName should be the fully qualified operation name composed of the <interface_type_name>.<operation_name>
+// Basically this function checks if operationName starts with either tosca.interfaces.node.lifecycle.Standard or tosca.interfaces.relationship.Configure (the case is ignored)
+func IsNormativeOperation(kv *api.KV, deploymentID, operationName string) bool {
+	operationName = strings.ToLower(operationName)
+	return strings.HasPrefix(operationName, "tosca.interfaces.relationship.configure") || strings.HasPrefix(operationName, "tosca.interfaces.node.lifecycle.standard")
+}
+
+// IsRelationshipOperationOnTargetNode returns true if the given operationName contains one of the following patterns (case doesn't matter):
+//		pre_configure_target, post_configure_target, add_source
+// Those patterns indicates that a relationship operation executes on the target node
+func IsRelationshipOperationOnTargetNode(operationName string) bool {
+	op := strings.ToLower(operationName)
+	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_source") {
+		return true
+	}
+	return false
+}
+
+// DecodeOperation takes a given operationName that should be formated as <fully_qualified_operation_name> or <fully_qualified_relationship_operation_name>/<requirementIndex> or <fully_qualified_relationship_operation_name>/<requirementName>/<targetNodeName>
+// and extract the revelant information
+//
+// * isRelationshipOp indicates if operationName follows one of the relationship operation format
+// * operationRealName extracts the fully_qualified_operation_name (identical to operationName if isRelationshipOp==false)
+// * requirementIndex is the index of the requirement for this relationship operation (empty if isRelationshipOp==false)
+// * targetNodeName is the name of the target node for this relationship operation (empty if isRelationshipOp==false)
+func DecodeOperation(kv *api.KV, deploymentID, nodeName, operationName string) (isRelationshipOp bool, operationRealName, requirementIndex, targetNodeName string, err error) {
+	opParts := strings.Split(operationName, "/")
+	if len(opParts) == 1 {
+		// not a relationship use default for return values
+		operationRealName = operationName
+		return
+	} else if len(opParts) == 2 {
+		isRelationshipOp = true
+		operationRealName = opParts[0]
+		requirementIndex = opParts[1]
+
+		targetNodeName, err = GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		return
+	} else if len(opParts) == 3 {
+		isRelationshipOp = true
+		operationRealName = opParts[0]
+		requirementName := opParts[1]
+		targetNodeName = opParts[2]
+		var requirementPath string
+		requirementPath, err = GetRequirementByNameAndTargetForNode(kv, deploymentID, nodeName, requirementName, targetNodeName)
+		if err != nil {
+			return
+		}
+		if requirementPath == "" {
+			err = errors.Errorf("Unable to find a matching requirement for this relationship operation %q, source node %q, requirement name %q, target node %q", operationName, nodeName, requirementName, targetNodeName)
+			return
+		}
+		requirementIndex = path.Base(requirementPath)
+		return
+	}
+	err = errors.Errorf("operation %q doesn't follow the format <fully_qualified_operation_name>/<requirementIndex> or <fully_qualified_operation_name>/<requirementName>/<targetNodeName>", operationName)
+	return
+}

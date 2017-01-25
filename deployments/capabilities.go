@@ -93,13 +93,14 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 	return ok, value, nil
 }
 
-// GetCapabilityAttribute  retrieves the value for a given attribute in a given node capability
+// GetInstanceCapabilityAttribute retrieves the value for a given attribute in a given node instance capability
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-func GetCapabilityAttribute(kv *api.KV, deploymentID, nodeName, capabilityName, attributeName string) (bool, string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "attributes", attributeName), nil)
+func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string) (bool, string, error) {
+	// First look at instance scoped attributes
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName), nil)
 	if err != nil {
 		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -107,12 +108,21 @@ func GetCapabilityAttribute(kv *api.KV, deploymentID, nodeName, capabilityName, 
 		return true, string(kvp.Value), nil
 	}
 
-	// Look at capability type for default
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	// Then look at global node level
+	kvp, _, err = kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "attributes", attributeName), nil)
+	if err != nil {
+		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil {
+		return true, string(kvp.Value), nil
+	}
+
+	// Now look at capability type for default
+	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return false, "", err
 	}
-	ok, value, err := GetTypeDefaultAttribute(kv, deploymentID, nodeType, attributeName)
+	ok, value, err := GetTypeDefaultAttribute(kv, deploymentID, capabilityType, attributeName)
 	if err != nil {
 		return false, "", nil
 	}
@@ -120,5 +130,41 @@ func GetCapabilityAttribute(kv *api.KV, deploymentID, nodeName, capabilityName, 
 		return true, value, nil
 	}
 
+	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 	return GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, attributeName)
+}
+
+// GetNodeCapabilityType retrieves the type of a node template capability identified by its name
+//
+// This is a shorthand for GetNodeTypeCapabilityType
+func GetNodeCapabilityType(kv *api.KV, deploymentID, nodeName, capabilityName string) (string, error) {
+	// Now look at capability type for default
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return "", err
+	}
+	return GetNodeTypeCapabilityType(kv, deploymentID, nodeType, capabilityName)
+}
+
+// GetNodeTypeCapabilityType retrieves the type of a node type capability identified by its name
+//
+// It explores the type hierarchy (derived_from) to found the given capability.
+// It may return an empty string if the capability is not found in the type hierarchy
+func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityName string) (string, error) {
+
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "capabilities", capabilityName, "type"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil && len(kvp.Value) != 0 {
+		return string(kvp.Value), nil
+	}
+	parentType, err := GetParentType(kv, deploymentID, nodeType)
+	if err != nil {
+		return "", err
+	}
+	if parentType == "" {
+		return "", nil
+	}
+	return GetNodeTypeCapabilityType(kv, deploymentID, parentType, capabilityName)
 }

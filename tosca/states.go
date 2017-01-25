@@ -7,6 +7,22 @@ import (
 	"github.com/pkg/errors"
 )
 
+type customNodeStateError struct {
+	state string
+}
+
+func (cnse customNodeStateError) Error() string {
+	return fmt.Sprintf("State %q is not TOSCA normative", cnse.state)
+}
+
+// IsCustomNodeStateError checks if the given error is due to a conversion of an non-normative state and if so returns this state as string
+func IsCustomNodeStateError(err error) (bool, string) {
+	if cnse, ok := errors.Cause(err).(customNodeStateError); ok {
+		return true, cnse.state
+	}
+	return false, ""
+}
+
 // NodeState represent the state of a node instance this part is normative
 //
 // We added a non-normative special step "deleted" in order to track deleted instances
@@ -72,5 +88,5 @@ func NodeStateString(s string) (NodeState, error) {
 	if val, ok := _NodeStateNameToValue_map[s]; ok {
 		return val, nil
 	}
-	return 0, errors.Errorf("%s does not belong to State values", s)
+	return 0, errors.WithStack(customNodeStateError{s})
 }

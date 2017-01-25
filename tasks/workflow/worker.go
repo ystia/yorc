@@ -1,4 +1,4 @@
-package tasks
+package workflow
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -16,6 +15,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
@@ -94,19 +94,19 @@ func (w worker) processWorkflow(ctx context.Context, wfSteps []*step, deployment
 }
 
 func (w worker) handleTask(t *task) {
-	t.WithStatus(RUNNING)
+	t.WithStatus(tasks.RUNNING)
 	bgCtx := context.Background()
 	ctx, cancelFunc := context.WithCancel(bgCtx)
 	defer t.releaseLock()
 	defer cancelFunc()
 	w.monitorTaskForCancellation(ctx, cancelFunc, t)
 	switch t.TaskType {
-	case Deploy:
+	case tasks.Deploy:
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/install"))
 		if err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
@@ -118,20 +118,20 @@ func (w worker) handleTask(t *task) {
 			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "initial")
 		}
 		if err = w.processWorkflow(ctx, wf, t.TargetID, false); err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
-	case UnDeploy, Purge:
+	case tasks.UnDeploy, tasks.Purge:
 		w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/uninstall"))
 		if err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_FAILED)
@@ -143,91 +143,101 @@ func (w worker) handleTask(t *task) {
 			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
 		}
 		if err = w.processWorkflow(ctx, wf, t.TargetID, true); err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_FAILED)
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYED)
-		if t.TaskType == Purge {
+		if t.TaskType == tasks.Purge {
 			_, err := w.consulClient.KV().DeleteTree(path.Join(consulutil.DeploymentKVPrefix, t.TargetID), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge deployment definition: %+v", t.TargetID, t.ID, err)
-				t.WithStatus(FAILED)
+				t.WithStatus(tasks.FAILED)
 				return
 			}
-			tasks, err := GetTasksIdsForTarget(w.consulClient.KV(), t.TargetID)
+			tasksList, err := tasks.GetTasksIdsForTarget(w.consulClient.KV(), t.TargetID)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.ID, err)
-				t.WithStatus(FAILED)
+				t.WithStatus(tasks.FAILED)
 				return
 			}
-			for _, tid := range tasks {
+			for _, tid := range tasksList {
 				if tid != t.ID {
 					_, err = w.consulClient.KV().DeleteTree(path.Join(consulutil.TasksPrefix, tid), nil)
 					if err != nil {
 						log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.ID, err)
-						t.WithStatus(FAILED)
+						t.WithStatus(tasks.FAILED)
 						return
 					}
 				}
 				_, err = w.consulClient.KV().DeleteTree(path.Join(consulutil.WorkflowsPrefix, tid), nil)
 				if err != nil {
 					log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.ID, err)
-					t.WithStatus(FAILED)
+					t.WithStatus(tasks.FAILED)
 					return
 				}
 			}
 			// Now cleanup ourself: mark it as done so nobody will try to run it, clear the processing lock and finally delete the task.
-			t.WithStatus(DONE)
+			t.WithStatus(tasks.DONE)
 			t.releaseLock()
 			_, err = w.consulClient.KV().DeleteTree(path.Join(consulutil.TasksPrefix, t.ID), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.ID, err)
-				t.WithStatus(FAILED)
+				t.WithStatus(tasks.FAILED)
 				return
 			}
 			return
 		}
-	case CustomCommand:
+	case tasks.CustomCommand:
 		eventPub := events.NewPublisher(t.kv, t.TargetID)
 
-		nodeNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, t.ID, "node"), nil)
-		if err != nil {
-			log.Printf("Deployment id: %q, Task id: %q, Failed to get nodeName: %+v", t.TargetID, t.ID, err)
-			t.WithStatus(FAILED)
-			return
-		}
-
-		commandNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, t.ID, "name"), nil)
+		commandNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, t.ID, "commandName"), nil)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command name: %+v", t.TargetID, t.ID, err)
-			t.WithStatus(FAILED)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		if commandNameKv == nil || len(commandNameKv.Value) == 0 {
+			log.Printf("Deployment id: %q, Task id: %q, Missing commandName attribute for custom command task", t.TargetID, t.ID)
+			t.WithStatus(tasks.FAILED)
 			return
 		}
 
-		nodeName := string(nodeNameKv.Value)
+		nodes, err := tasks.GetTaskRelatedNodes(w.consulClient.KV(), t.ID)
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command node: %+v", t.TargetID, t.ID, err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		if len(nodes) != 0 {
+			log.Printf("Deployment id: %q, Task id: %q, Expecting custom command task to be related to \"1\" node while it is actually related to \"%d\" nodes", t.TargetID, t.ID, len(nodes))
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+
+		nodeName := nodes[0]
 		commandName := string(commandNameKv.Value)
 
-		exec := ansible.NewExecutor(t.kv)
-		if err := exec.ExecOperation(ctx, t.TargetID, nodeName, "custom."+commandName, t.ID); err != nil {
+		exec := ansible.NewExecutor()
+		if err := exec.ExecOperation(ctx, w.consulClient.KV(), w.cfg, t.ID, t.TargetID, nodeName, "custom."+commandName); err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
-			err = setNodeStatus(t.kv, eventPub, t.TargetID, nodeName, tosca.NodeStateError.String())
+			err = setNodeStatus(t.kv, eventPub, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			}
-			t.WithStatus(FAILED)
+			t.WithStatus(tasks.FAILED)
 			return
 		}
-	case ScaleUp:
+	case tasks.ScaleUp:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/install"))
 		if err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
@@ -239,20 +249,20 @@ func (w worker) handleTask(t *task) {
 			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
 		}
 		if err = w.processWorkflow(ctx, wf, t.TargetID, false); err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
-	case ScaleDown:
+	case tasks.ScaleDown:
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/uninstall"))
 		if err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
@@ -264,8 +274,8 @@ func (w worker) handleTask(t *task) {
 			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
 		}
 		if err = w.processWorkflow(ctx, wf, t.TargetID, true); err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
@@ -274,8 +284,8 @@ func (w worker) handleTask(t *task) {
 
 		// Cleanup
 		if err = w.cleanupScaledDownNodes(t); err != nil {
-			if t.Status() == RUNNING {
-				t.WithStatus(FAILED)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
 			}
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
@@ -285,13 +295,13 @@ func (w worker) handleTask(t *task) {
 	default:
 		events.LogEngineMessage(w.consulClient.KV(), t.TargetID, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", t.TaskType, t.TaskType.String(), t.ID))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", t.TaskType, t.TaskType.String(), t.ID, t.TargetID)
-		if t.Status() == RUNNING {
-			t.WithStatus(FAILED)
+		if t.Status() == tasks.RUNNING {
+			t.WithStatus(tasks.FAILED)
 		}
 		return
 	}
-	if t.Status() == RUNNING {
-		t.WithStatus(DONE)
+	if t.Status() == tasks.RUNNING {
+		t.WithStatus(tasks.DONE)
 	}
 }
 
@@ -299,31 +309,25 @@ func (w worker) handleTask(t *task) {
 func (w worker) cleanupScaledDownNodes(t *task) error {
 	kv := w.consulClient.KV()
 
-	nodeNameKVP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.ID, "node"), nil)
+	nodes, err := tasks.GetTaskRelatedNodes(kv, t.ID)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	} else if nodeNameKVP == nil || len(nodeNameKVP.Value) == 0 {
-		return errors.Errorf("Missing mandatory key \"node\" for task %q", t.ID)
+		return err
 	}
-	nodeName := string(nodeNameKVP.Value)
+	for _, node := range nodes {
+		var instances []string
+		instances, err = tasks.GetInstances(kv, t.ID, t.TargetID, node)
+		if err != nil {
+			return err
+		}
+		for _, instance := range instances {
+			err = deployments.DeleteInstance(kv, t.TargetID, node, instance)
+			if err != nil {
+				return err
+			}
+		}
 
-	nodesIdsKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.ID, "new_instances_ids"), nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	} else if nodesIdsKv == nil || len(nodesIdsKv.Value) == 0 {
-		return errors.Errorf("Missing mandatory key \"new_instances_ids\" for task %q", t.ID)
 	}
-	instancesIDs := strings.Split(string(nodesIdsKv.Value), ",")
-	reqKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.ID, "req"), nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	} else if reqKv == nil {
-		return errors.Errorf("Missing mandatory key \"req\" for task %q", t.ID)
-	}
-
-	linkedNodes := strings.Split(string(reqKv.Value), ",")
-	return deployments.DeleteNodeStack(kv, t.TargetID, nodeName, instancesIDs, linkedNodes)
-
+	return nil
 }
 
 // Start method starts the run loop for the worker, listening for a quit channel in
@@ -369,7 +373,7 @@ func (w worker) monitorTaskForCancellation(ctx context.Context, cancelFunc conte
 			if err == nil && kvp != nil {
 				if strings.ToLower(string(kvp.Value)) == "true" {
 					log.Debugln("[TASK MONITOR] Task cancelation requested.")
-					t.WithStatus(CANCELED)
+					t.WithStatus(tasks.CANCELED)
 					cancelFunc()
 					return
 				}

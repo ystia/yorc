@@ -11,9 +11,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 type slurmGenerator struct {
@@ -75,12 +77,21 @@ func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName st
 	switch nodeType {
 	case "janus.nodes.slurm.Compute":
 		var instances []string
-		instances, _, err = g.kv.Keys(instancesKey+"/", "/", nil)
+		instances, err = deployments.GetNodeInstancesIds(g.kv, deploymentID, nodeName)
 		if err != nil {
 			return false, err
 		}
 
 		for _, instanceName := range instances {
+			var instanceState tosca.NodeState
+			instanceState, err = deployments.GetInstanceState(g.kv, deploymentID, nodeName, instanceName)
+			if err != nil {
+				return false, err
+			}
+			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+				// Do not generate something for this node instance (will be deleted if exists)
+				continue
+			}
 			instanceName = path.Base(instanceName)
 			var compute ComputeInstance
 			compute, err = g.generateSlurmNode(nodeKey, deploymentID)

@@ -20,7 +20,7 @@ const ansiblePlaybook = `
 - include: [[[.PlaybookPath]]]
 [[[if .HaveOutput]]]
 - name: Retrieving Operation outputs
-  hosts: [[[.Group]]]
+  hosts: all
   strategy: free
   tasks:
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s\" state=directory mode=0755" $.OperationRemotePath]]]
@@ -74,14 +74,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		log.Debugf("%+v", err)
 		return err
 	}
-	if len(e.taskID) != 0 && !e.IsCustomCommand {
-		if err = ioutil.WriteFile(filepath.Join(ansibleGroupsVarsPath, "scale.yml"), buffer.Bytes(), 0664); err != nil {
-			err = errors.Wrap(err, "Failed to write global group vars file: ")
-			log.Printf("%v", err)
-			log.Debugf("%+v", err)
-			return err
-		}
-	}
+
 	if e.HaveOutput {
 		buffer.Reset()
 		for outputName := range e.Output {
@@ -118,7 +111,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, e.PlaybookPath)
 	events.LogEngineMessage(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
-	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "-l", e.Group, "run.ansible.yml")
+	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml")
 
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))

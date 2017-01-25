@@ -214,7 +214,7 @@ func (r *Range) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	r.LowerBound = bound
 	if bound, err := strconv.ParseUint(v[1], 10, 0); err != nil {
-		if v[1] != "UNBOUNDED" {
+		if strings.ToUpper(v[1]) != "UNBOUNDED" {
 			return fmt.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range")
 		}
 		r.UpperBound = UNBOUNDED

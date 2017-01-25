@@ -17,6 +17,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 type osGenerator struct {
@@ -78,22 +79,28 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 			"auth_url":    g.cfg.OSAuthURL}}
 
 	log.Debugf("inspecting node %s", nodeKey)
-	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
+	nodeType, err := deployments.GetNodeType(g.kv, deploymentID, nodeName)
 	if err != nil {
-		log.Print(err)
 		return false, err
 	}
-	nodeType := string(kvPair.Value)
 	var instances []string
 	switch nodeType {
 	case "janus.nodes.openstack.Compute":
-		instances, _, err = g.kv.Keys(instancesKey+"/", "/", nil)
+		instances, err = deployments.GetNodeInstancesIds(g.kv, deploymentID, nodeName)
 		if err != nil {
 			return false, err
 		}
 
 		for _, instanceName := range instances {
-			instanceName = path.Base(instanceName)
+			var instanceState tosca.NodeState
+			instanceState, err = deployments.GetInstanceState(g.kv, deploymentID, nodeName, instanceName)
+			if err != nil {
+				return false, err
+			}
+			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+				// Do not generate something for this node instance (will be deleted if exists)
+				continue
+			}
 			var compute ComputeInstance
 			compute, err = g.generateOSInstance(nodeKey, deploymentID, instanceName)
 			if err != nil {
@@ -139,6 +146,15 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 		}
 
 		for instNb, instanceName := range instances {
+			var instanceState tosca.NodeState
+			instanceState, err = deployments.GetInstanceState(g.kv, deploymentID, nodeName, instanceName)
+			if err != nil {
+				return false, err
+			}
+			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+				// Do not generate something for this node instance (will be deleted if exists)
+				continue
+			}
 			var bsVolume BlockStorageVolume
 			bsVolume, err = g.generateOSBSVolume(nodeKey, instanceName)
 			if err != nil {
@@ -166,6 +182,15 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 		}
 
 		for _, instanceName := range instances {
+			var instanceState tosca.NodeState
+			instanceState, err = deployments.GetInstanceState(g.kv, deploymentID, nodeName, instanceName)
+			if err != nil {
+				return false, err
+			}
+			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+				// Do not generate something for this node instance (will be deleted if exists)
+				continue
+			}
 			var ip IP
 			ip, err = g.generateFloatingIP(nodeKey, instanceName)
 

@@ -88,6 +88,8 @@ func testExecutionOnNode(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/is_property_definition"): []byte("false"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/is_property_definition"): []byte("false"),
 
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.nodes.Compute/name"): []byte("tosca.nodes.Compute"),
+
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "type"): []byte(nodeTypeName),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "properties/document_root"):    []byte("/var/www"),
@@ -96,10 +98,10 @@ func testExecutionOnNode(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements/0/name"):         []byte("host"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements/0/node"):         []byte("Compute"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
-
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/0/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/1/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/2/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/Compute/type"):                             []byte("tosca.nodes.Compute"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/0/attributes/ip_address"):      []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/1/attributes/ip_address"):      []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/2/attributes/ip_address"):      []byte("10.10.10.3"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Compute/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
@@ -130,7 +132,10 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 		VarInputsNames:          make([]string, 0),
 		EnvInputs:               make([]*EnvInput, 0)}
 
-	err := execution.resolveInputs()
+	err := execution.resolveOperation()
+	require.Nil(t, err)
+
+	err = execution.resolveInputs()
 	require.Nil(t, err)
 	require.Len(t, execution.EnvInputs, 9)
 	instanceNames := make(map[string]struct{})
@@ -229,7 +234,7 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 
 
 `
-	execution, err := newExecution(kv, deploymentID, nodeName, operation)
+	execution, err := newExecution(kv, "taskIDNotUsedForNow", deploymentID, nodeName, operation)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -286,6 +291,8 @@ func testExecutionOnRelationshipSource(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/is_property_definition"): []byte("false"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/is_property_definition"): []byte("false"),
 
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.nodes.Compute/name"): []byte("tosca.nodes.Compute"),
+
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.B/name"): []byte("janus.types.B"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
@@ -306,15 +313,16 @@ func testExecutionOnRelationshipSource(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeBName, "requirements/0/name"):         []byte("host"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeBName, "requirements/0/node"):         []byte("ComputeB"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeBName, "requirements/0/relationship"): []byte("tosca.relationships.HostedOn"),
-
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/2/attributes/ip_address"): []byte("10.10.10.3"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/ComputeA/type"):                             []byte("tosca.nodes.Compute"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/0/attributes/ip_address"):      []byte("10.10.10.1"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/1/attributes/ip_address"):      []byte("10.10.10.2"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/2/attributes/ip_address"):      []byte("10.10.10.3"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
 
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/ComputeB/type"):                        []byte("tosca.nodes.Compute"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeB/0/attributes/ip_address"): []byte("10.10.10.10"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeB/1/attributes/ip_address"): []byte("10.10.10.11"),
 
@@ -351,10 +359,13 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 		relationshipType:        relationshipTypeName,
 		relationshipTargetName:  nodeBName,
 		VarInputsNames:          make([]string, 0),
-		EnvInputs:               make([]*EnvInput, 0)}
+		EnvInputs:               make([]*EnvInput, 0),
+		sourceNodeInstances:     []string{"0", "1", "2"},
+		targetNodeInstances:     []string{"0", "1"},
+	}
 
 	err := execution.resolveInputs()
-	require.Nil(t, err)
+	require.Nil(t, err, "%+v", err)
 	require.Len(t, execution.EnvInputs, 5)
 	instanceNames := make(map[string]struct{})
 	for _, envInput := range execution.EnvInputs {
@@ -424,7 +435,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 
 
 `
-	execution, err := newExecution(kv, deploymentID, nodeName, operation)
+	execution, err := newExecution(kv, "taskIDNotUsedForNow", deploymentID, nodeName, operation)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -481,6 +492,8 @@ func testExecutionOnRelationshipTarget(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/is_property_definition"): []byte("false"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/is_property_definition"): []byte("false"),
 
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.nodes.Compute/name"): []byte("tosca.nodes.Compute"),
+
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.B/name"): []byte("janus.types.B"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeAName, "properties/document_root"): []byte("/var/www"),
@@ -502,6 +515,7 @@ func testExecutionOnRelationshipTarget(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeAName, "requirements/1/node"):         []byte("NodeB"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeAName, "requirements/1/relationship"): []byte(relationshipTypeName),
 
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/ComputeA/type"):                        []byte("tosca.nodes.Compute"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/0/attributes/ip_address"): []byte("10.10.10.1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/1/attributes/ip_address"): []byte("10.10.10.2"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/2/attributes/ip_address"): []byte("10.10.10.3"),
@@ -510,15 +524,16 @@ func testExecutionOnRelationshipTarget(t *testing.T) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.2"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeA/2/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.3"),
 
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/ComputeB/type"):                        []byte("tosca.nodes.Compute"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeB/0/attributes/ip_address"): []byte("10.10.10.10"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeB/1/attributes/ip_address"): []byte("10.10.10.11"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeB/0/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.10"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/ComputeB/1/capabilities/endpoint/attributes/ip_address"): []byte("10.10.10.11"),
 
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeAName, "0/staattributes/statetus"): []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeAName, "1/attributes/state"):       []byte("initial"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeAName, "2/attributes/state"):       []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeAName, "0/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeAName, "1/attributes/state"): []byte("initial"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeAName, "2/attributes/state"): []byte("initial"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "0/attributes/state"): []byte("initial"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "1/attributes/state"): []byte("initial"),
@@ -548,7 +563,10 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 		VarInputsNames:           make([]string, 0),
 		EnvInputs:                make([]*EnvInput, 0)}
 
-	err := execution.resolveInputs()
+	err := execution.resolveOperation()
+	require.Nil(t, err)
+
+	err = execution.resolveInputs()
 	require.Nil(t, err)
 	require.Len(t, execution.EnvInputs, 5)
 	instanceNames := make(map[string]struct{})
@@ -590,7 +608,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
 
-	execution, err := newExecution(kv, deploymentID, nodeName, operation)
+	execution, err := newExecution(kv, "taskIDNotUsedForNow", deploymentID, nodeName, operation)
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free

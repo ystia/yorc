@@ -22,6 +22,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
@@ -97,7 +98,6 @@ type executionCommon struct {
 	NodeType                 string
 	Description              string
 	OperationRemotePath      string
-	Group                    string
 	EnvInputs                []*EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -120,17 +120,18 @@ type executionCommon struct {
 	relationshipTargetName   string
 	requirementIndex         string
 	ansibleRunner            ansibleRunner
+	sourceNodeInstances      []string
+	targetNodeInstances      []string
 }
 
-func newExecution(kv *api.KV, deploymentID, nodeName, operation string, taskID ...string) (execution, error) {
+func newExecution(kv *api.KV, taskID, deploymentID, nodeName, operation string) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		deploymentID:   deploymentID,
 		NodeName:       nodeName,
 		Operation:      operation,
 		VarInputsNames: make([]string, 0),
-		EnvInputs:      make([]*EnvInput, 0)}
-	if len(taskID) != 0 {
-		execCommon.taskID = taskID[0]
+		EnvInputs:      make([]*EnvInput, 0),
+		taskID:         taskID,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -160,68 +161,24 @@ func (e *executionCommon) resolveOperation() error {
 		return err
 	}
 	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType)
-	var kvPair *api.KVPair
-	if strings.Contains(e.Operation, "standard") {
-		e.isRelationshipOperation = false
-	} else if strings.Contains(e.Operation, "custom") {
-		e.IsCustomCommand = true
-	} else {
-		// In a relationship
-		e.isRelationshipOperation = true
-		opAndReq := strings.Split(e.Operation, "/")
-		e.isRelationshipTargetNode = false
-		if isTargetOperation(opAndReq[0]) {
-			e.isRelationshipTargetNode = true
-		}
-		if len(opAndReq) == 2 {
-			e.Operation = opAndReq[0]
-			e.requirementIndex = opAndReq[1]
-
-			reqPath := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName, "requirements", e.requirementIndex)
-			kvPair, _, err = e.kv.Get(path.Join(reqPath, "relationship"), nil)
-			if err != nil {
-				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
-			}
-			if kvPair == nil || len(kvPair.Value) == 0 {
-				return errors.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.deploymentID)
-			}
-			e.relationshipType = string(kvPair.Value)
-			kvPair, _, err = e.kv.Get(path.Join(reqPath, "node"), nil)
-			if err != nil {
-				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
-			}
-			if kvPair == nil || len(kvPair.Value) == 0 {
-				return errors.Errorf("Missing required parameter \"node\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.deploymentID)
-			}
-			e.relationshipTargetName = string(kvPair.Value)
-		} else if len(opAndReq) == 3 {
-			e.Operation = opAndReq[0]
-			requirementName := opAndReq[1]
-			e.relationshipTargetName = opAndReq[2]
-			var requirementPath string
-			requirementPath, err = deployments.GetRequirementByNameAndTargetForNode(e.kv, e.deploymentID, e.NodeName, requirementName, e.relationshipTargetName)
-			if err != nil {
-				return err
-			}
-			if requirementPath == "" {
-				return errors.Errorf("Unable to find a matching requirement for this relationship operation %q, source node %q, requirement name %q, target node %q", e.Operation, e.NodeName, requirementName, e.relationshipTargetName)
-			}
-			e.requirementIndex = path.Base(requirementPath)
-			kvPair, _, err = e.kv.Get(path.Join(requirementPath, "relationship"), nil)
-			if err != nil {
-				return errors.Wrap(err, "Consul read issue when resolving the operation execution")
-			}
-			if kvPair == nil || len(kvPair.Value) == 0 {
-				return errors.Errorf("Missing required parameter \"relationship\" for requirement at index %q for node %q in deployment %q.", e.requirementIndex, e.NodeName, e.deploymentID)
-			}
-			e.relationshipType = string(kvPair.Value)
-
-		}
-		err = e.resolveIsPerInstanceOperation(opAndReq[0])
+	e.isRelationshipOperation, e.Operation, e.requirementIndex, e.relationshipTargetName, err = deployments.DecodeOperation(e.kv, e.deploymentID, e.NodeName, e.Operation)
+	if err != nil {
+		return err
+	}
+	if e.isRelationshipOperation {
+		e.relationshipType, err = deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.requirementIndex)
 		if err != nil {
 			return err
 		}
+		err = e.resolveIsPerInstanceOperation(e.Operation)
+		if err != nil {
+			return err
+		}
+
+	} else if strings.Contains(e.Operation, "custom") {
+		e.IsCustomCommand = true
 	}
+
 	operationNodeType := e.NodeType
 	if e.isRelationshipOperation {
 		operationNodeType = e.relationshipType
@@ -236,7 +193,7 @@ func (e *executionCommon) resolveOperation() error {
 	e.Primary = strings.TrimSpace(e.Primary)
 	log.Debugf("Operation Path: %q, primary implementation: %q", e.OperationPath, e.Primary)
 	e.BasePrimary = path.Base(e.Primary)
-	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/dependencies", nil)
+	kvPair, _, err := e.kv.Get(e.OperationPath+"/implementation/dependencies", nil)
 	if err != nil {
 		return err
 	}
@@ -254,7 +211,19 @@ func (e *executionCommon) resolveOperation() error {
 		e.Description = string(kvPair.Value)
 	}
 
-	return nil
+	return e.resolveInstances()
+}
+
+func (e *executionCommon) resolveInstances() error {
+	var err error
+	if e.isRelationshipOperation {
+		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.relationshipTargetName)
+		if err != nil {
+			return err
+		}
+	}
+	e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+	return err
 }
 
 func (e *executionCommon) resolveArtifacts() error {
@@ -294,12 +263,7 @@ func (e *executionCommon) resolveArtifacts() error {
 
 func (e *executionCommon) resolveInputs() error {
 	log.Debug("resolving inputs")
-	var resolver *deployments.Resolver
-	if e.IsCustomCommand {
-		resolver = deployments.NewResolver(e.kv, e.deploymentID, e.taskID)
-	} else {
-		resolver = deployments.NewResolver(e.kv, e.deploymentID)
-	}
+	resolver := deployments.NewResolver(e.kv, e.deploymentID)
 
 	var inputKeys []string
 	var err error
@@ -347,53 +311,34 @@ func (e *executionCommon) resolveInputs() error {
 		}
 
 		var instancesIds []string
-		if e.isRelationshipOperation && targetContext {
-			instancesIds, err = deployments.GetNodeInstancesIds(e.kv, e.deploymentID, e.relationshipTargetName)
+		if targetContext {
+			instancesIds = e.targetNodeInstances
 		} else {
-			instancesIds, err = deployments.GetNodeInstancesIds(e.kv, e.deploymentID, e.NodeName)
-		}
-		if err != nil {
-			return err
+			instancesIds = e.sourceNodeInstances
 		}
 		var inputValue string
-		if len(instancesIds) > 0 {
-			for i, instanceID := range instancesIds {
-				envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
-				if e.isRelationshipOperation && targetContext {
-					envI.InstanceName = getInstanceName(e.relationshipTargetName, instanceID)
-				} else {
-					envI.InstanceName = getInstanceName(e.NodeName, instanceID)
-				}
-				if e.isRelationshipOperation {
-					inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceID)
-				} else if isPropDef {
-					inputValue, err = resolver.ResolveCustomCommandInput(inputName)
-				} else {
-					inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceID)
-				}
-				if err != nil {
-					return err
-				}
-				envI.Value = inputValue
-				e.EnvInputs = append(e.EnvInputs, envI)
-				if i == 0 {
-					e.VarInputsNames = append(e.VarInputsNames, sanitizeForShell(inputName))
-				}
-			}
-		} else {
+		for i, instanceID := range instancesIds {
 			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
-			if e.isRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, "")
-			} else if isPropDef {
-				inputValue, err = resolver.ResolveCustomCommandInput(inputName)
+			if e.isRelationshipOperation && targetContext {
+				envI.InstanceName = getInstanceName(e.relationshipTargetName, instanceID)
 			} else {
-				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "")
+				envI.InstanceName = getInstanceName(e.NodeName, instanceID)
+			}
+			if e.isRelationshipOperation {
+				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceID)
+			} else if isPropDef {
+				inputValue, err = tasks.GetTaskInput(e.kv, e.taskID, inputName)
+			} else {
+				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceID)
 			}
 			if err != nil {
 				return err
 			}
 			envI.Value = inputValue
 			e.EnvInputs = append(e.EnvInputs, envI)
+			if i == 0 {
+				e.VarInputsNames = append(e.VarInputsNames, sanitizeForShell(inputName))
+			}
 		}
 	}
 
@@ -402,23 +347,23 @@ func (e *executionCommon) resolveInputs() error {
 }
 
 func (e *executionCommon) resolveHosts(nodeName string) error {
-
-	// e.nodePath
-	instancesPath := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/instances", nodeName)
 	log.Debugf("Resolving hosts for node %q", nodeName)
 
 	hosts := make(map[string]hostConnection)
-	instances, err := deployments.GetNodeInstancesIds(e.kv, e.deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-	for _, instance := range instances {
 
-		kvp, _, err := e.kv.Get(path.Join(instancesPath, instance, "capabilities/endpoint/attributes/ip_address"), nil)
+	var instances []string
+	if e.isRelationshipTargetNode {
+		instances = e.targetNodeInstances
+	} else {
+		instances = e.sourceNodeInstances
+	}
+
+	for _, instance := range instances {
+		found, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, nodeName, instance, "endpoint", "ip_address")
 		if err != nil {
 			return err
 		}
-		if kvp != nil && len(kvp.Value) != 0 {
+		if found && ipAddress != "" {
 			var instanceName string
 			if e.isRelationshipTargetNode {
 				instanceName = getInstanceName(e.relationshipTargetName, instance)
@@ -426,14 +371,15 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 				instanceName = getInstanceName(e.NodeName, instance)
 			}
 
-			hostConn := hostConnection{host: string(kvp.Value), instanceID: instance}
-			kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", nodeName, "properties/user"), nil)
+			hostConn := hostConnection{host: ipAddress, instanceID: instance}
+			var user string
+			found, user, err = deployments.GetNodeProperty(e.kv, e.deploymentID, nodeName, "user")
 			if err != nil {
 				return err
 			}
-			if kvp != nil && len(kvp.Value) != 0 {
+			if found && user != "" {
 				va := tosca.ValueAssignment{}
-				err = yaml.Unmarshal(kvp.Value, &va)
+				err = yaml.Unmarshal([]byte(user), &va)
 				if err != nil {
 					return errors.Wrapf(err, "Unable to resolve username to connect to host %q, unmarshaling yaml failed: ", nodeName)
 				}
@@ -480,27 +426,23 @@ func sanitizeForShell(str string) string {
 }
 
 func (e *executionCommon) resolveContext() error {
-
-	e.Group = "all"
-	if len(e.taskID) != 0 && !e.IsCustomCommand {
-		e.Group = "scale"
-	}
 	execContext := make(map[string]string)
 
 	newNode := sanitizeForShell(e.NodeName)
 	if !e.isRelationshipOperation {
 		execContext["NODE"] = newNode
 	}
-	names, err := deployments.GetNodeInstancesIds(e.kv, e.deploymentID, e.NodeName)
-	if err != nil {
-		return err
+	var instances []string
+	if e.isRelationshipTargetNode {
+		instances = e.targetNodeInstances
+	} else {
+		instances = e.sourceNodeInstances
 	}
-	for i := range names {
-		instanceName := getInstanceName(e.NodeName, names[i])
+
+	names := make([]string, len(instances))
+	for i := range instances {
+		instanceName := getInstanceName(e.NodeName, instances[i])
 		names[i] = instanceName
-	}
-	if len(names) == 0 {
-		names = append(names, newNode)
 	}
 	if !e.isRelationshipOperation {
 		e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
@@ -528,18 +470,17 @@ func (e *executionCommon) resolveContext() error {
 		} else {
 			e.VarInputsNames = append(e.VarInputsNames, "SOURCE_INSTANCE")
 		}
-		execContext["SOURCE_INSTANCES"] = strings.Join(names, ",")
+
+		sourceNames := make([]string, len(e.sourceNodeInstances))
+		for i := range e.sourceNodeInstances {
+			sourceNames[i] = getInstanceName(e.NodeName, e.sourceNodeInstances[i])
+		}
+		execContext["SOURCE_INSTANCES"] = strings.Join(sourceNames, ",")
 		execContext["TARGET_NODE"] = sanitizeForShell(e.relationshipTargetName)
 
-		targetNames, err := deployments.GetNodeInstancesIds(e.kv, e.deploymentID, e.relationshipTargetName)
-		if err != nil {
-			return err
-		}
-		for i := range targetNames {
-			targetNames[i] = getInstanceName(e.relationshipTargetName, targetNames[i])
-		}
-		if len(targetNames) == 0 {
-			targetNames = append(targetNames, execContext["TARGET_NODE"])
+		targetNames := make([]string, len(e.targetNodeInstances))
+		for i := range e.targetNodeInstances {
+			targetNames[i] = getInstanceName(e.relationshipTargetName, e.targetNodeInstances[i])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
@@ -645,19 +586,19 @@ func (e *executionCommon) resolveExecution() error {
 func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 	if e.isPerInstanceOperation {
 		var nodeName string
+		var instances []string
 		if !e.isRelationshipTargetNode {
 			nodeName = e.relationshipTargetName
+			instances = e.targetNodeInstances
 		} else {
 			nodeName = e.NodeName
+			instances = e.sourceNodeInstances
 		}
-		instancesIds, err := deployments.GetNodeInstancesIds(e.kv, e.deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-		for _, instanceID := range instancesIds {
+
+		for _, instanceID := range instances {
 			instanceName := getInstanceName(nodeName, instanceID)
 			log.Debugf("Executing operation %q, on node %q, with current instance %q", e.Operation, e.NodeName, instanceName)
-			err = e.executeWithCurrentInstance(ctx, retry, instanceName)
+			err := e.executeWithCurrentInstance(ctx, retry, instanceName)
 			if err != nil {
 				return err
 			}
@@ -772,32 +713,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				log.Printf("Failed to write vars for host %q file: %v", host, err)
 				return err
 			}
-		}
-	}
-
-	if len(e.taskID) != 0 && !e.IsCustomCommand {
-		buffer.WriteString("\n[scale]\n")
-		var newInstIDKv *api.KVPair
-		newInstIDKv, _, err = e.kv.Get(path.Join(consulutil.TasksPrefix, e.taskID, "new_instances_ids"), nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if newInstIDKv == nil || len(newInstIDKv.Value) == 0 {
-			return errors.Errorf("Missing mandatory key \"new_instances_ids\" for task %q", e.taskID)
-		}
-		newInstIDArr := strings.Split(string(newInstIDKv.Value), ",")
-		for _, host := range e.hosts {
-			if !contains(newInstIDArr, host.instanceID) {
-				continue
-			}
-			buffer.WriteString(host.host)
-			sshUser := host.user
-			if sshUser == "" {
-				// Thinking: should we have a default user
-				return errors.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.deploymentID, e.NodeName)
-			}
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
-
 		}
 	}
 

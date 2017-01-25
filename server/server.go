@@ -11,7 +11,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"novaforge.bull.com/starlings-janus/janus/tasks/workflow"
 )
 
 // RunServer starts the Janus server
@@ -42,7 +42,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
-	dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
+	dispatcher := workflow.NewDispatcher(3, shutdownCh, client, configuration)
 	go dispatcher.Run()
 	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {

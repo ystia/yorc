@@ -1,4 +1,4 @@
-package tasks
+package workflow
 
 import (
 	"strconv"
@@ -10,6 +10,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
 // A Dispatcher is in charge to look for new tasks and dispatch them accross availables workers
@@ -82,7 +83,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			if status != INITIAL && status != RUNNING {
+			if status != tasks.INITIAL && status != tasks.RUNNING {
 				log.Printf("Skipping task with status %q", status)
 				continue
 			}
@@ -119,7 +120,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			if status != INITIAL && status != RUNNING {
+			if status != tasks.INITIAL && status != tasks.RUNNING {
 				log.Printf("Skipping task with status %q", status)
 				lock.Unlock()
 				lock.Destroy()
@@ -165,7 +166,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			log.Printf("Processing task %q linked to deployment %q", taskID, targetID)
-			t := &task{ID: taskID, status: status, TargetID: targetID, taskLock: lock, kv: kv, TaskType: TaskType(taskType)}
+			t := &task{ID: taskID, status: status, TargetID: targetID, taskLock: lock, kv: kv, TaskType: tasks.TaskType(taskType)}
 			log.Debugf("New task created %+v: pushing it to a work channel", t)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle
@@ -194,19 +195,19 @@ func (d *Dispatcher) Run() {
 
 }
 
-func checkTaskStatus(kv *api.KV, taskKey string) (TaskStatus, error) {
+func checkTaskStatus(kv *api.KV, taskKey string) (tasks.TaskStatus, error) {
 	kvPairContent, _, err := kv.Get(taskKey+"status", nil)
 	if err != nil {
-		return FAILED, errors.Wrapf(err, "Failed to get status for key %s: %+v", taskKey, err)
+		return tasks.FAILED, errors.Wrapf(err, "Failed to get status for key %s: %+v", taskKey, err)
 	}
 	if kvPairContent == nil {
-		return FAILED, errors.Errorf("Failed to get status for key %s: nil value", taskKey)
+		return tasks.FAILED, errors.Errorf("Failed to get status for key %s: nil value", taskKey)
 	}
 
 	statusInt, err := strconv.Atoi(string(kvPairContent.Value))
 	if err != nil {
-		return FAILED, errors.Wrapf(err, "Failed to get status for key %s", taskKey)
+		return tasks.FAILED, errors.Wrapf(err, "Failed to get status for key %s", taskKey)
 	}
-	return TaskStatus(statusInt), nil
+	return tasks.TaskStatus(statusInt), nil
 
 }

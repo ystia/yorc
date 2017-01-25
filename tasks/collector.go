@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 	"strconv"
-	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/satori/go.uuid"
@@ -43,13 +42,6 @@ func (c *Collector) RegisterTask(targetID string, taskType TaskType) (string, er
 }
 
 func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
-	// TODO: check if this is still useful???
-	taskLock, err := newTaskLockForTarget(c.consulClient, targetID)
-	_, err = taskLock.Lock(10, 500*time.Millisecond)
-	if err != nil {
-		return nil, nil, "", err
-	}
-	defer taskLock.Release()
 	hasLivingTask, livingTaskID, livingTaskStatus, err := TargetHasLivingTasks(c.consulClient.KV(), targetID)
 	if err != nil {
 		return nil, nil, "", err

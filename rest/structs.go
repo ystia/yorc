@@ -25,7 +25,7 @@ const (
 )
 
 // An AtomLink is defined in the Atom specification (https://tools.ietf.org/html/rfc4287#section-4.2.7) it allows to reference REST endpoints
-// in the HATEAOS model
+// in the HATEOAS model
 type AtomLink struct {
 	Rel      string `json:"rel"`
 	Href     string `json:"href"`

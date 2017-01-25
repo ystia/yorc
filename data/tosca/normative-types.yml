@@ -471,6 +471,11 @@ relationship_types:
   # Alien specific just an alias for us
   tosca.relationships.AttachTo:
     derived_from: tosca.relationships.AttachesTo
+  
+  # Alien specific
+  tosca.relationships.Network:
+    derived_from: tosca.relationships.Root
+    valid_target_types: [ tosca.capabilities.Connectivity ]
 
   tosca.relationships.RoutesTo:
     derived_from: tosca.relationships.ConnectsTo

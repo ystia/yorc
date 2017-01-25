@@ -23,14 +23,10 @@ const funcKeywordTARGET string = "TARGET"
 type Resolver struct {
 	kv           *api.KV
 	deploymentID string
-	taskID       string
 }
 
 // NewResolver creates a Resolver instance
-func NewResolver(kv *api.KV, deploymentID string, taskID ...string) *Resolver {
-	if len(taskID) != 0 {
-		return &Resolver{kv: kv, deploymentID: deploymentID, taskID: taskID[0]}
-	}
+func NewResolver(kv *api.KV, deploymentID string) *Resolver {
 	return &Resolver{kv: kv, deploymentID: deploymentID}
 }
 
@@ -446,15 +442,4 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		return r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
 	}
 	return "", errors.Errorf("Can't resolve expression %q", expression.Value)
-}
-
-// ResolveCustomCommandInput resolve a Custom command input.
-func (r *Resolver) ResolveCustomCommandInput(inputName string) (string, error) {
-	// TODO: is here the best place for this? It is related to tasks.
-	kvP, _, err := r.kv.Get(path.Join(consulutil.TasksPrefix, r.taskID, "inputs", inputName), nil)
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-
-	return string(kvP.Value), nil
 }

@@ -8,6 +8,8 @@ import (
 	"path"
 	"strconv"
 
+	"strings"
+
 	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -38,8 +40,10 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 
 	data := make(map[string]string)
 
-	data["node"] = inputMap.NodeName
-	data["name"] = inputMap.CustomCommandName
+	// For now custom commands are for all instances
+	instances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), id, inputMap.NodeName)
+	data[path.Join("nodes", inputMap.NodeName)] = strings.Join(instances, ",")
+	data["commandName"] = inputMap.CustomCommandName
 
 	for _, name := range inputsName {
 		if err != nil {

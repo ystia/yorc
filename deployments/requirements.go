@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"vbom.ml/util/sortorder"
 )
 
 // GetRequirementsKeysByNameForNode returns paths to requirements whose names matches the given requirementName.
@@ -33,7 +34,7 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 			reqKeys = append(reqKeys, reqIndexKey)
 		}
 	}
-	sort.Strings(reqKeys)
+	sort.Sort(sortorder.Natural(reqKeys))
 	return reqKeys, nil
 }
 

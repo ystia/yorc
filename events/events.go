@@ -42,15 +42,22 @@ func NewSubscriber(kv *api.KV, deploymentID string) Subscriber {
 	return &consulPubSub{kv: kv, deploymentID: deploymentID}
 }
 
-func (cp *consulPubSub) StatusChange(nodeName, instance, status string) (string, error) {
+// StatusChange publishes a status change for a given instance of a given node
+//
+// StatusChange returns the published event id
+func StatusChange(kv *api.KV, deploymentID string, nodeName, instance, status string) (string, error) {
 	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "events")
+	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
 	err := consulutil.StoreConsulKeyAsString(path.Join(eventsPrefix, now), nodeName+"\n"+status+"\n"+instance)
 	if err != nil {
 		return "", err
 	}
-	LogEngineMessage(cp.kv, cp.deploymentID, fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
+	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
 	return now, nil
+}
+
+func (cp *consulPubSub) StatusChange(nodeName, instance, status string) (string, error) {
+	return StatusChange(cp.kv, cp.deploymentID, nodeName, instance, status)
 }
 
 func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([]InstanceStatus, uint64, error) {
