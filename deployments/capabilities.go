@@ -82,11 +82,11 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 	}
 
 	// Look at capability type for default
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return false, "", err
 	}
-	ok, value, err := GetTypeDefaultProperty(kv, deploymentID, nodeType, propertyName)
+	ok, value, err := GetTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName)
 	if err != nil {
 		return false, "", nil
 	}

@@ -11,6 +11,7 @@ import (
 )
 
 func TestRequirements(t *testing.T) {
+	t.Parallel()
 	log.SetDebug(true)
 	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
