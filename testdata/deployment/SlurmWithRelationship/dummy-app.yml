@@ -227,14 +227,10 @@ topology_template:
           node: Compute
           activity:
             delegate: uninstall
-          on-success:
-            - Net_uninstall
         Compute-2_uninstall:
           node: Compute-2
           activity:
             delegate: uninstall
-          on-success:
-            - Network_uninstall
         Dummy-2_stopping:
           node: Dummy-2
           activity:
