@@ -492,3 +492,30 @@ HTTP/1.1 202 Accepted
 Content-Length: 0
 Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```
+
+### Scale a node
+Scales a node on a deployed deployment. A non-zero integer query parameter named `delta` is required and indicates the number of instances to 
+add or to remove for this scaling operation. 
+
+A critical note is that the scaling operation is proceeded asynchronously and a success only guarantees that the scaling operation is successfully
+**submitted**.
+
+
+`POST /deployments/<deployment_id>/scale/<node_name>?delta=<int32>`
+
+A successfully submitted scaling operation will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating
+the URI of the task handling this operation.
+
+```
+HTTP/1.1 201 Created
+Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/012906dc-7916-4529-89b8-fdf628838fe5
+Content-Length: 0
+```
+
+This endpoint produces no content except in case of error.
+
+This endpoint will failed with an error "400 Bad Request" if:
+  * another task is already running for this deployment
+  * the delta query parameter is missing
+  * the delta query parameter is not an integer or if it is equal to 0
+

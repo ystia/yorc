@@ -5,22 +5,26 @@ template_version: 1.0.0-SNAPSHOT
 template_author: admin
 
 imports:
+  - openstack-types: <janus-openstack-types.yml>
   - path: demo-lifecycle/1.0.0-SNAPSHOT/expanded/demo-lifecycle.yml
   - path: php-type/2.0.0-SNAPSHOT/expanded/php-type.yml
   - path: apache-type/2.0.0-SNAPSHOT/expanded/apache-type.yml
-  - openstack-types: <janus-openstack-types.yml>
 topology_template:
   description: OpenStack application description
   node_templates:
     ComputeRegistry:
       type: janus.nodes.openstack.Compute
       properties:
-        image: "3c6b792c-ab6d-4290-aab5-f62b724f8d3a"
-        flavor: 2
-        availability_zone: nova
         region: RegionOne
         key_pair: janus
         user: "ubuntu"
+        flavor: 2
+        key_pair: janus
+        # Liberty
+        image: 9b4b5a69-5616-480b-979a-e7e0162f54c6
+        # IceHouse
+#        image: 3c6b792c-ab6d-4290-aab5-f62b724f8d3a
+#        availability_zone: r423-02.share.ops
       requirements:
         - network:
             node: Network
@@ -30,7 +34,7 @@ topology_template:
           properties:
             protocol: tcp
             initiator: source
-            network_name: private_starlings
+            network_name: PRIVATE
             secure: true
         scalable:
           properties:
@@ -40,18 +44,22 @@ topology_template:
     ComputeB:
       type: janus.nodes.openstack.Compute
       properties:
-        image: "3c6b792c-ab6d-4290-aab5-f62b724f8d3a"
-        flavor: 2
-        availability_zone: nova
         region: RegionOne
         key_pair: janus
         user: "ubuntu"
+        flavor: 2
+        key_pair: janus
+        # Liberty
+        image: 9b4b5a69-5616-480b-979a-e7e0162f54c6
+        # IceHouse
+#        image: 3c6b792c-ab6d-4290-aab5-f62b724f8d3a
+#        availability_zone: r423-02.share.ops
       capabilities:
         endpoint:
           properties:
             protocol: tcp
             initiator: source
-            network_name: private_starlings
+            network_name: PRIVATE
             secure: true
         scalable:
           properties:
@@ -72,20 +80,22 @@ topology_template:
     ComputeA:
       type: janus.nodes.openstack.Compute
       properties:
-        image: "3c6b792c-ab6d-4290-aab5-f62b724f8d3a"
-        imageName: blablabla52528
-        flavor: 2
-        flavorName: blablabla52528
-        availability_zone: nova
         region: RegionOne
         key_pair: janus
         user: "ubuntu"
+        flavor: 2
+        key_pair: janus
+        # Liberty
+        image: 9b4b5a69-5616-480b-979a-e7e0162f54c6
+        # IceHouse
+#        image: 3c6b792c-ab6d-4290-aab5-f62b724f8d3a
+#        availability_zone: r423-02.share.ops
       capabilities:
         endpoint:
           properties:
             protocol: tcp
             initiator: source
-            network_name: private_starlings
+            network_name: PRIVATE
             secure: true
         scalable:
           properties:
@@ -159,7 +169,10 @@ topology_template:
     Network:
       type: janus.nodes.openstack.FloatingIP
       properties:
-        floating_network_name: Public_Network
+        # Liberty
+        floating_network_name: public-starlings
+        # IceHouse
+#        floating_network_name: Public_Network
     PHP:
       type: alien.nodes.PHP
       properties:
@@ -189,120 +202,51 @@ topology_template:
   workflows:
     install:
       steps:
-        Apache_created:
-          node: Apache
+        Network_install:
+          node: Network
           activity:
-            set_state: created
+            delegate: install
           on-success:
-            - Apache_configuring
-        GenericA_created:
-          node: GenericA
+            - Compute_install_2
+        Compute_install:
+          node: ComputeA
           activity:
-            set_state: created
+            delegate: install
           on-success:
-            - GenericB_configuring
-            - GenericA_configuring
-        GenericA_started:
-          node: GenericA
+            - GenericHost_initial_1
+            - RegistryConfigurer_initial_1
+        Compute_install_1:
+          node: ComputeB
           activity:
-            set_state: started
-        Apache_started:
-          node: Apache
-          activity:
-            set_state: started
+            delegate: install
           on-success:
-            - Registry_initial
-        GenericHostB_creating:
-          node: GenericHostB
-          activity:
-            set_state: creating
-          on-success:
-            - create_GenericHostB
-        Apache_configured:
-          node: Apache
-          activity:
-            set_state: configured
-          on-success:
-            - Apache_starting
-        start_RegistryConfigurerB:
-          node: RegistryConfigurerB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - add_target_RegistryConfigurerB/1
-        create_GenericHostA:
-          node: GenericHostA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.create
-          on-success:
-            - GenericHostA_created
-        create_GenericHostB:
-          node: GenericHostB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.create
-          on-success:
-            - GenericHostB_created
-        GenericA_initial:
-          node: GenericA
-          activity:
-            set_state: initial
-          on-success:
-            - GenericA_creating
-        Registry_initial:
-          node: Registry
-          activity:
-            set_state: initial
-          on-success:
-            - Registry_creating
-        start_RegistryConfigurerA:
-          node: RegistryConfigurerA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - add_target_RegistryConfigurerA/1
-        ComputeRegistry_install:
+            - GenericHost_initial
+            - RegistryConfigurer_initial
+        Compute_install_2:
           node: ComputeRegistry
           activity:
             delegate: install
           on-success:
             - Apache_initial
             - PHP_initial
-        start_Registry:
+        Registry_initial:
           node: Registry
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+            set_state: initial
           on-success:
-            - Registry_started
-        GenericHostB_starting:
-          node: GenericHostB
+            - Registry_creating
+        Registry_creating:
+          node: Registry
           activity:
-            set_state: starting
+            set_state: creating
           on-success:
-            - start_GenericHostB
+            - create_Registry
         create_Registry:
           node: Registry
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
             - Registry_created
-        RegistryConfigurerA_configured:
-          node: RegistryConfigurerA
-          activity:
-            set_state: configured
-          on-success:
-            - RegistryConfigurerA_starting
-        start_GenericHostB:
-          node: GenericHostB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - GenericHostB_started
-        Apache_initial:
-          node: Apache
-          activity:
-            set_state: initial
-          on-success:
-            - Apache_creating
         Registry_created:
           node: Registry
           activity:
@@ -310,413 +254,103 @@ topology_template:
           on-success:
             - PHP_configuring
             - Registry_configuring
-        RegistryConfigurerA_created:
-          node: RegistryConfigurerA
-          activity:
-            set_state: created
-          on-success:
-            - RegistryConfigurerA_configuring
-            - Registry_configuring
-        ComputeA_install:
-          node: ComputeA
-          activity:
-            delegate: install
-          on-success:
-            - GenericHostA_initial
-            - RegistryConfigurerA_initial
-        start_Apache:
-          node: Apache
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - Apache_started
-        configure_PHP:
-          node: PHP
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - PHP_configured
-        configure_GenericB:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - post_configure_source_GenericB/0
-            - post_configure_target_GenericB/0
-        Apache_configuring:
-          node: Apache
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_Apache
-        RegistryConfigurerB_configured:
-          node: RegistryConfigurerB
-          activity:
-            set_state: configured
-          on-success:
-            - RegistryConfigurerB_starting
-        RegistryConfigurerA_started:
-          node: RegistryConfigurerA
-          activity:
-            set_state: started
-        GenericHostB_created:
-          node: GenericHostB
-          activity:
-            set_state: created
-          on-success:
-            - GenericHostB_configuring
-        GenericHostA_started:
-          node: GenericHostA
-          activity:
-            set_state: started
-          on-success:
-            - GenericA_initial
-        configure_RegistryConfigurerA:
-          node: RegistryConfigurerA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - RegistryConfigurerA_configured
-        Registry_started:
+        Registry_configuring:
           node: Registry
           activity:
-            set_state: started
-          on-success:
-            - RegistryConfigurerB_configuring
-            - RegistryConfigurerA_configuring
-        configure_GenericA:
-          node: GenericA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - post_configure_target_GenericA/1
-            - post_configure_target_GenericA/0
-            - post_configure_source_GenericA/0
-            - post_configure_source_GenericA/1
-        start_GenericHostA:
-          node: GenericHostA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - GenericHostA_started
-        Apache_starting:
-          node: Apache
-          activity:
-            set_state: starting
-          on-success:
-            - start_Apache
-        GenericHostB_configured:
-          node: GenericHostB
-          activity:
-            set_state: configured
-          on-success:
-            - GenericHostB_starting
-        create_GenericA:
-          node: GenericA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.create
-          on-success:
-            - pre_configure_target_GenericA/0
-            - pre_configure_target_GenericA/1
-            - pre_configure_source_GenericA/0
-            - pre_configure_source_GenericA/1
-        PHP_configuring:
-          node: PHP
-          activity:
             set_state: configuring
           on-success:
-            - configure_PHP
-        PHP_configured:
-          node: PHP
-          activity:
-            set_state: configured
-          on-success:
-            - PHP_starting
-        RegistryConfigurerA_initial:
-          node: RegistryConfigurerA
-          activity:
-            set_state: initial
-          on-success:
-            - RegistryConfigurerA_creating
-        create_GenericB:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.create
-          on-success:
-            - pre_configure_source_GenericB/0
-            - pre_configure_target_GenericB/0
-        GenericHostB_configuring:
-          node: GenericHostB
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_GenericHostB
-        start_GenericA:
-          node: GenericA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - remove_target_GenericA/1
-            - add_target_GenericA/0
-            - add_target_GenericA/1
-            - remove_target_GenericA/0
-            - remove_source_GenericA/1
-            - add_source_GenericA/0
-            - remove_source_GenericA/0
-            - add_source_GenericA/1
-        GenericHostA_creating:
-          node: GenericHostA
-          activity:
-            set_state: creating
-          on-success:
-            - create_GenericHostA
-        GenericHostA_configuring:
-          node: GenericHostA
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_GenericHostA
-        GenericB_configuring:
-          node: GenericB
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_GenericB
-        create_PHP:
-          node: PHP
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.create
-          on-success:
-            - PHP_created
-        Apache_creating:
-          node: Apache
-          activity:
-            set_state: creating
-          on-success:
-            - create_Apache
-        GenericA_configuring:
-          node: GenericA
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_GenericA
-        RegistryConfigurerB_starting:
-          node: RegistryConfigurerB
-          activity:
-            set_state: starting
-          on-success:
-            - start_RegistryConfigurerB
-        RegistryConfigurerB_creating:
-          node: RegistryConfigurerB
-          activity:
-            set_state: creating
-          on-success:
-            - RegistryConfigurerB_created
-        start_GenericB:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - add_source_GenericB/0
-            - remove_source_GenericB/0
-            - remove_target_GenericB/0
-            - add_target_GenericB/0
-        GenericHostA_starting:
-          node: GenericHostA
-          activity:
-            set_state: starting
-          on-success:
-            - start_GenericHostA
-        GenericB_created:
-          node: GenericB
-          activity:
-            set_state: created
-          on-success:
-            - GenericB_configuring
-        GenericHostA_configured:
-          node: GenericHostA
-          activity:
-            set_state: configured
-          on-success:
-            - GenericHostA_starting
-        GenericA_creating:
-          node: GenericA
-          activity:
-            set_state: creating
-          on-success:
-            - create_GenericA
-        Registry_configured:
-          node: Registry
-          activity:
-            set_state: configured
-          on-success:
-            - Registry_starting
-        RegistryConfigurerA_starting:
-          node: RegistryConfigurerA
-          activity:
-            set_state: starting
-          on-success:
-            - start_RegistryConfigurerA
-        ComputeB_install:
-          node: ComputeB
-          activity:
-            delegate: install
-          on-success:
-            - GenericHostB_initial
-            - RegistryConfigurerB_initial
-        GenericB_initial:
-          node: GenericB
-          activity:
-            set_state: initial
-          on-success:
-            - GenericB_creating
-        RegistryConfigurerA_creating:
-          node: RegistryConfigurerA
-          activity:
-            set_state: creating
-          on-success:
-            - RegistryConfigurerA_created
-        configure_GenericHostA:
-          node: GenericHostA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - GenericHostA_configured
-        configure_RegistryConfigurerB:
-          node: RegistryConfigurerB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - RegistryConfigurerB_configured
-        GenericHostA_initial:
-          node: GenericHostA
-          activity:
-            set_state: initial
-          on-success:
-            - GenericHostA_creating
-        configure_GenericHostB:
-          node: GenericHostB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - GenericHostB_configured
-        GenericB_started:
-          node: GenericB
-          activity:
-            set_state: started
-          on-success:
-            - GenericA_configuring
-        Registry_creating:
-          node: Registry
-          activity:
-            set_state: creating
-          on-success:
-            - create_Registry
-        GenericB_creating:
-          node: GenericB
-          activity:
-            set_state: creating
-          on-success:
-            - create_GenericB
-        RegistryConfigurerB_created:
-          node: RegistryConfigurerB
-          activity:
-            set_state: created
-          on-success:
-            - RegistryConfigurerB_configuring
-            - Registry_configuring
-        PHP_created:
-          node: PHP
-          activity:
-            set_state: created
-          on-success:
-            - PHP_configuring
-        start_PHP:
-          node: PHP
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - PHP_started
-        Registry_starting:
-          node: Registry
-          activity:
-            set_state: starting
-          on-success:
-            - start_Registry
-        GenericHostA_created:
-          node: GenericHostA
-          activity:
-            set_state: created
-          on-success:
-            - GenericHostA_configuring
-        RegistryConfigurerB_started:
-          node: RegistryConfigurerB
-          activity:
-            set_state: started
-        configure_Apache:
-          node: Apache
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - Apache_configured
-        PHP_started:
-          node: PHP
-          activity:
-            set_state: started
-          on-success:
-            - Registry_configuring
-        GenericHostB_initial:
-          node: GenericHostB
-          activity:
-            set_state: initial
-          on-success:
-            - GenericHostB_creating
-        GenericB_configured:
-          node: GenericB
-          activity:
-            set_state: configured
-          on-success:
-            - GenericB_starting
-        RegistryConfigurerB_configuring:
-          node: RegistryConfigurerB
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_RegistryConfigurerB
-        Network_install:
-          node: Network
-          activity:
-            delegate: install
-        GenericA_starting:
-          node: GenericA
-          activity:
-            set_state: starting
-          on-success:
-            - start_GenericA
-        RegistryConfigurerB_initial:
-          node: RegistryConfigurerB
-          activity:
-            set_state: initial
-          on-success:
-            - RegistryConfigurerB_creating
-        PHP_starting:
-          node: PHP
-          activity:
-            set_state: starting
-          on-success:
-            - start_PHP
-        RegistryConfigurerA_configuring:
-          node: RegistryConfigurerA
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_RegistryConfigurerA
+            - configure_Registry
         configure_Registry:
           node: Registry
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
             - Registry_configured
+        Registry_configured:
+          node: Registry
+          activity:
+            set_state: configured
+          on-success:
+            - Registry_starting
+        Registry_starting:
+          node: Registry
+          activity:
+            set_state: starting
+          on-success:
+            - start_Registry
+        start_Registry:
+          node: Registry
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Registry_started
+        Registry_started:
+          node: Registry
+          activity:
+            set_state: started
+          on-success:
+            - RegistryConfigurer_configuring_1
+            - RegistryConfigurer_configuring
+        Apache_initial:
+          node: Apache
+          activity:
+            set_state: initial
+          on-success:
+            - Apache_creating
+        Apache_creating:
+          node: Apache
+          activity:
+            set_state: creating
+          on-success:
+            - create_Apache
+        create_Apache:
+          node: Apache
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Apache_created
+        Apache_created:
+          node: Apache
+          activity:
+            set_state: created
+          on-success:
+            - Apache_configuring
+        Apache_configuring:
+          node: Apache
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Apache
+        configure_Apache:
+          node: Apache
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Apache_configured
+        Apache_configured:
+          node: Apache
+          activity:
+            set_state: configured
+          on-success:
+            - Apache_starting
+        Apache_starting:
+          node: Apache
+          activity:
+            set_state: starting
+          on-success:
+            - start_Apache
+        start_Apache:
+          node: Apache
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Apache_started
+        Apache_started:
+          node: Apache
+          activity:
+            set_state: started
+          on-success:
+            - Registry_initial
         PHP_initial:
           node: PHP
           activity:
@@ -729,300 +363,545 @@ topology_template:
             set_state: creating
           on-success:
             - create_PHP
-        GenericHostB_started:
+        create_PHP:
+          node: PHP
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - PHP_created
+        PHP_created:
+          node: PHP
+          activity:
+            set_state: created
+          on-success:
+            - PHP_configuring
+        PHP_configuring:
+          node: PHP
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_PHP
+        configure_PHP:
+          node: PHP
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - PHP_configured
+        PHP_configured:
+          node: PHP
+          activity:
+            set_state: configured
+          on-success:
+            - PHP_starting
+        PHP_starting:
+          node: PHP
+          activity:
+            set_state: starting
+          on-success:
+            - start_PHP
+        start_PHP:
+          node: PHP
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - PHP_started
+        PHP_started:
+          node: PHP
+          activity:
+            set_state: started
+          on-success:
+            - Registry_configuring
+        RegistryConfigurer_initial:
+          node: RegistryConfigurerB
+          activity:
+            set_state: initial
+          on-success:
+            - RegistryConfigurer_creating
+        RegistryConfigurer_creating:
+          node: RegistryConfigurerB
+          activity:
+            set_state: creating
+          on-success:
+            - RegistryConfigurer_created
+        RegistryConfigurer_created:
+          node: RegistryConfigurerB
+          activity:
+            set_state: created
+          on-success:
+            - RegistryConfigurer_configuring
+            - Registry_configuring
+        RegistryConfigurer_configuring:
+          node: RegistryConfigurerB
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_RegistryConfigurer
+        configure_RegistryConfigurer:
+          node: RegistryConfigurerB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - RegistryConfigurer_configured
+        RegistryConfigurer_configured:
+          node: RegistryConfigurerB
+          activity:
+            set_state: configured
+          on-success:
+            - RegistryConfigurer_starting
+        RegistryConfigurer_starting:
+          node: RegistryConfigurerB
+          activity:
+            set_state: starting
+          on-success:
+            - start_RegistryConfigurer
+        start_RegistryConfigurer:
+          node: RegistryConfigurerB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - add_target_RegistryConfigurerB/registry/Registry
+        RegistryConfigurer_started:
+          node: RegistryConfigurerB
+          activity:
+            set_state: started
+        RegistryConfigurer_initial_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: initial
+          on-success:
+            - RegistryConfigurer_creating_1
+        RegistryConfigurer_creating_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: creating
+          on-success:
+            - RegistryConfigurer_created_1
+        RegistryConfigurer_created_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: created
+          on-success:
+            - RegistryConfigurer_configuring_1
+            - Registry_configuring
+        RegistryConfigurer_configuring_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_RegistryConfigurer_1
+        configure_RegistryConfigurer_1:
+          node: RegistryConfigurerA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - RegistryConfigurer_configured_1
+        RegistryConfigurer_configured_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: configured
+          on-success:
+            - RegistryConfigurer_starting_1
+        RegistryConfigurer_starting_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: starting
+          on-success:
+            - start_RegistryConfigurer_1
+        start_RegistryConfigurer_1:
+          node: RegistryConfigurerA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - add_target_RegistryConfigurerA/registry/Registry
+        RegistryConfigurer_started_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: started
+        GenericHost_initial:
+          node: GenericHostB
+          activity:
+            set_state: initial
+          on-success:
+            - GenericHost_creating
+        GenericHost_creating:
+          node: GenericHostB
+          activity:
+            set_state: creating
+          on-success:
+            - create_GenericHost
+        create_GenericHost:
+          node: GenericHostB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - GenericHost_created
+        GenericHost_created:
+          node: GenericHostB
+          activity:
+            set_state: created
+          on-success:
+            - GenericHost_configuring
+        GenericHost_configuring:
+          node: GenericHostB
+          activity:
+            set_state: configuring
+          on-success:
+            - pre_configure_target_GenericB/host/GenericHostB
+        configure_GenericHost:
+          node: GenericHostB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - post_configure_target_GenericB/host/GenericHostB
+        GenericHost_configured:
+          node: GenericHostB
+          activity:
+            set_state: configured
+          on-success:
+            - GenericHost_starting
+        GenericHost_starting:
+          node: GenericHostB
+          activity:
+            set_state: starting
+          on-success:
+            - start_GenericHost
+        start_GenericHost:
+          node: GenericHostB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - add_source_GenericB/host/GenericHostB
+        GenericHost_started:
           node: GenericHostB
           activity:
             set_state: started
           on-success:
-            - GenericB_initial
-        create_Apache:
-          node: Apache
+            - Generic_initial
+        Generic_initial:
+          node: GenericB
+          activity:
+            set_state: initial
+          on-success:
+            - Generic_creating
+        Generic_creating:
+          node: GenericB
+          activity:
+            set_state: creating
+          on-success:
+            - create_Generic
+        create_Generic:
+          node: GenericB
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - Apache_created
-        GenericA_configured:
-          node: GenericA
+            - Generic_created
+        Generic_created:
+          node: GenericB
+          activity:
+            set_state: created
+          on-success:
+            - Generic_configuring
+        Generic_configuring:
+          node: GenericB
+          activity:
+            set_state: configuring
+          on-success:
+            - pre_configure_source_GenericB/host/GenericHostB
+            - pre_configure_target_GenericA/generic_requirement/GenericB
+        configure_Generic:
+          node: GenericB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - post_configure_source_GenericB/host/GenericHostB
+            - post_configure_target_GenericA/generic_requirement/GenericB
+        Generic_configured:
+          node: GenericB
           activity:
             set_state: configured
           on-success:
-            - GenericA_starting
-        GenericB_starting:
+            - Generic_starting
+        Generic_starting:
           node: GenericB
           activity:
             set_state: starting
           on-success:
-            - start_GenericB
-        Registry_configuring:
-          node: Registry
+            - start_Generic
+        start_Generic:
+          node: GenericB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - add_source_GenericA/generic_requirement/GenericB
+            - add_target_GenericB/host/GenericHostB
+        Generic_started:
+          node: GenericB
+          activity:
+            set_state: started
+          on-success:
+            - Generic_configuring_1
+        GenericHost_initial_1:
+          node: GenericHostA
+          activity:
+            set_state: initial
+          on-success:
+            - GenericHost_creating_1
+        GenericHost_creating_1:
+          node: GenericHostA
+          activity:
+            set_state: creating
+          on-success:
+            - create_GenericHost_1
+        create_GenericHost_1:
+          node: GenericHostA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - GenericHost_created_1
+        GenericHost_created_1:
+          node: GenericHostA
+          activity:
+            set_state: created
+          on-success:
+            - GenericHost_configuring_1
+        GenericHost_configuring_1:
+          node: GenericHostA
           activity:
             set_state: configuring
           on-success:
-            - configure_Registry
-        pre_configure_source_GenericA/1:
+            - pre_configure_target_GenericA/host/GenericHostA
+        configure_GenericHost_1:
+          node: GenericHostA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - post_configure_target_GenericA/host/GenericHostA
+        GenericHost_configured_1:
+          node: GenericHostA
+          activity:
+            set_state: configured
+          on-success:
+            - GenericHost_starting_1
+        GenericHost_starting_1:
+          node: GenericHostA
+          activity:
+            set_state: starting
+          on-success:
+            - start_GenericHost_1
+        start_GenericHost_1:
+          node: GenericHostA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - add_source_GenericA/host/GenericHostA
+        GenericHost_started_1:
+          node: GenericHostA
+          activity:
+            set_state: started
+          on-success:
+            - Generic_initial_1
+        Generic_initial_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/1
+            set_state: initial
           on-success:
-            - GenericA_created
-        pre_configure_source_GenericA/0:
+            - Generic_creating_1
+        Generic_creating_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/0
+            set_state: creating
           on-success:
-            - GenericA_created
-        pre_configure_target_GenericA/1:
+            - create_Generic_1
+        create_Generic_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/1
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
           on-success:
-            - GenericA_created
-        pre_configure_target_GenericA/0:
+            - Generic_created_1
+        Generic_created_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/0
+            set_state: created
           on-success:
-            - GenericA_created
-        post_configure_source_GenericA/1:
+            - Generic_configuring_1
+            - Generic_configuring
+        Generic_configuring_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/1
+            set_state: configuring
           on-success:
-            - GenericA_configured
-        post_configure_source_GenericA/0:
+            - pre_configure_source_GenericA/generic_requirement/GenericB
+            - pre_configure_source_GenericA/host/GenericHostA
+        configure_Generic_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/0
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
-            - GenericA_configured
-        post_configure_target_GenericA/1:
+            - post_configure_source_GenericA/generic_requirement/GenericB
+            - post_configure_source_GenericA/host/GenericHostA
+        Generic_configured_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/1
+            set_state: configured
           on-success:
-            - GenericA_configured
-        post_configure_target_GenericA/0:
+            - Generic_starting_1
+        Generic_starting_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/0
+            set_state: starting
           on-success:
-            - GenericA_configured
-        add_source_GenericA/1:
+            - start_Generic_1
+        start_Generic_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/1
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
-            - GenericA_started
-        add_source_GenericA/0:
+            - add_target_GenericA/host/GenericHostA
+            - add_target_GenericA/generic_requirement/GenericB
+        Generic_started_1:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/0
-          on-success:
-            - GenericA_started
-        add_target_GenericA/1:
+            set_state: started
+        pre_configure_source_GenericA/generic_requirement/GenericB:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/1
+            call_operation: tosca.interfaces.relationship.configure.pre_configure_source/generic_requirement/GenericB
           on-success:
-            - GenericA_started
-        add_target_GenericA/0:
+            - configure_Generic_1
+        pre_configure_source_GenericA/host/GenericHostA:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/0
+            call_operation: tosca.interfaces.relationship.configure.pre_configure_source/host/GenericHostA
           on-success:
-            - GenericA_started
-        remove_source_GenericA/1:
+            - configure_Generic_1
+        post_configure_source_GenericA/generic_requirement/GenericB:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/1
+            call_operation: tosca.interfaces.relationship.configure.post_configure_source/generic_requirement/GenericB
           on-success:
-            - GenericA_started
-        remove_source_GenericA/0:
+            - Generic_configured_1
+        post_configure_source_GenericA/host/GenericHostA:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/0
+            call_operation: tosca.interfaces.relationship.configure.post_configure_source/host/GenericHostA
           on-success:
-            - GenericA_started
-        remove_target_GenericA/1:
+            - Generic_configured_1
+        add_target_GenericA/generic_requirement/GenericB:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/1
+            call_operation: tosca.interfaces.relationship.configure.add_target/generic_requirement/GenericB
           on-success:
-            - GenericA_started
-        remove_target_GenericA/0:
+            - Generic_started_1
+        add_target_GenericA/host/GenericHostA:
           node: GenericA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/0
+            call_operation: tosca.interfaces.relationship.configure.add_target/host/GenericHostA
           on-success:
-            - GenericA_started
-        pre_configure_source_GenericB/0:
+            - Generic_started_1
+        pre_configure_source_GenericB/host/GenericHostB:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_source/0
+            call_operation: tosca.interfaces.relationship.configure.pre_configure_source/host/GenericHostB
           on-success:
-            - GenericB_created
-        pre_configure_target_GenericB/0:
+            - configure_Generic
+        post_configure_source_GenericB/host/GenericHostB:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.pre_configure_target/0
+            call_operation: tosca.interfaces.relationship.configure.post_configure_source/host/GenericHostB
           on-success:
-            - GenericB_created
-        post_configure_source_GenericB/0:
+            - Generic_configured
+        add_target_GenericB/host/GenericHostB:
           node: GenericB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_source/0
+            call_operation: tosca.interfaces.relationship.configure.add_target/host/GenericHostB
           on-success:
-            - GenericB_configured
-        post_configure_target_GenericB/0:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.post_configure_target/0
-          on-success:
-            - GenericB_configured
-        add_source_GenericB/0:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_source/0
-          on-success:
-            - GenericB_started
-        add_target_GenericB/0:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/0
-          on-success:
-            - GenericB_started
-        remove_source_GenericB/0:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_source/0
-          on-success:
-            - GenericB_started
-        remove_target_GenericB/0:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.remove_target/0
-          on-success:
-            - GenericB_started
-        add_target_RegistryConfigurerB/1:
+            - Generic_started
+        add_target_RegistryConfigurerB/registry/Registry:
           node: RegistryConfigurerB
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/1
+            call_operation: tosca.interfaces.relationship.configure.add_target/registry/Registry
           on-success:
-            - RegistryConfigurerB_started
-        add_target_RegistryConfigurerA/1:
+            - RegistryConfigurer_started
+        add_target_RegistryConfigurerA/registry/Registry:
           node: RegistryConfigurerA
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Configure.add_target/1
+            call_operation: tosca.interfaces.relationship.configure.add_target/registry/Registry
           on-success:
-            - RegistryConfigurerA_started
+            - RegistryConfigurer_started_1
+        pre_configure_target_GenericA/host/GenericHostA:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.pre_configure_target/host/GenericHostA
+          on-success:
+            - configure_GenericHost_1
+        post_configure_target_GenericA/host/GenericHostA:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.post_configure_target/host/GenericHostA
+          on-success:
+            - GenericHost_configured_1
+        add_source_GenericA/host/GenericHostA:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.add_source/host/GenericHostA
+          on-success:
+            - GenericHost_started_1
+        pre_configure_target_GenericA/generic_requirement/GenericB:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.pre_configure_target/generic_requirement/GenericB
+          on-success:
+            - configure_Generic
+        post_configure_target_GenericA/generic_requirement/GenericB:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.post_configure_target/generic_requirement/GenericB
+          on-success:
+            - Generic_configured
+        add_source_GenericA/generic_requirement/GenericB:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.add_source/generic_requirement/GenericB
+          on-success:
+            - Generic_started
+        pre_configure_target_GenericB/host/GenericHostB:
+          node: GenericB
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.pre_configure_target/host/GenericHostB
+          on-success:
+            - configure_GenericHost
+        post_configure_target_GenericB/host/GenericHostB:
+          node: GenericB
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.post_configure_target/host/GenericHostB
+          on-success:
+            - GenericHost_configured
+        add_source_GenericB/host/GenericHostB:
+          node: GenericB
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.add_source/host/GenericHostB
+          on-success:
+            - GenericHost_started
     uninstall:
       steps:
-        ComputeB_uninstall:
+        Network_uninstall:
+          node: Network
+          activity:
+            delegate: uninstall
+        Compute_uninstall:
+          node: ComputeA
+          activity:
+            delegate: uninstall
+        Compute_uninstall_1:
           node: ComputeB
           activity:
             delegate: uninstall
-        GenericHostB_stopping:
-          node: GenericHostB
+        Compute_uninstall_2:
+          node: ComputeRegistry
           activity:
-            set_state: stopping
+            delegate: uninstall
           on-success:
-            - stop_GenericHostB
-        Apache_stopped:
-          node: Apache
-          activity:
-            set_state: stopped
-          on-success:
-            - Apache_deleting
-        stop_GenericB:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
-          on-success:
-            - GenericB_stopped
-        Apache_stopping:
-          node: Apache
-          activity:
-            set_state: stopping
-          on-success:
-            - Apache_stopped
-        GenericHostA_deleting:
-          node: GenericHostA
-          activity:
-            set_state: deleting
-          on-success:
-            - delete_GenericHostA
-        stop_GenericA:
-          node: GenericA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
-          on-success:
-            - GenericA_stopped
-        GenericA_stopped:
-          node: GenericA
-          activity:
-            set_state: stopped
-          on-success:
-            - GenericA_deleting
-        PHP_stopping:
-          node: PHP
-          activity:
-            set_state: stopping
-          on-success:
-            - PHP_stopped
-        RegistryConfigurerA_deleted:
-          node: RegistryConfigurerA
-          activity:
-            set_state: deleted
-          on-success:
-            - ComputeA_uninstall
-        GenericA_stopping:
-          node: GenericA
-          activity:
-            set_state: stopping
-          on-success:
-            - stop_GenericA
-        delete_GenericHostB:
-          node: GenericHostB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
-          on-success:
-            - GenericHostB_deleted
-        delete_GenericHostA:
-          node: GenericHostA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
-          on-success:
-            - GenericHostA_deleted
-        GenericB_stopped:
-          node: GenericB
-          activity:
-            set_state: stopped
-          on-success:
-            - GenericB_deleting
-        RegistryConfigurerB_deleted:
-          node: RegistryConfigurerB
-          activity:
-            set_state: deleted
-          on-success:
-            - ComputeB_uninstall
-        PHP_deleted:
-          node: PHP
-          activity:
-            set_state: deleted
-          on-success:
-            - ComputeRegistry_uninstall
-        stop_GenericHostB:
-          node: GenericHostB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
-          on-success:
-            - GenericHostB_stopped
-        Registry_deleted:
-          node: Registry
-          activity:
-            set_state: deleted
-          on-success:
-            - Apache_stopping
+            - Network_uninstall
         Registry_stopping:
           node: Registry
           activity:
@@ -1035,165 +914,297 @@ topology_template:
             set_state: stopped
           on-success:
             - Registry_deleting
+            - PHP_stopping
         Registry_deleting:
           node: Registry
           activity:
             set_state: deleting
           on-success:
             - Registry_deleted
-        ComputeRegistry_uninstall:
-          node: ComputeRegistry
+        Registry_deleted:
+          node: Registry
           activity:
-            delegate: uninstall
-        RegistryConfigurerA_stopped:
-          node: RegistryConfigurerA
+            set_state: deleted
+          on-success:
+            - Apache_stopping
+        Apache_stopping:
+          node: Apache
+          activity:
+            set_state: stopping
+          on-success:
+            - Apache_stopped
+        Apache_stopped:
+          node: Apache
           activity:
             set_state: stopped
           on-success:
-            - RegistryConfigurerA_deleting
-        RegistryConfigurerA_deleting:
-          node: RegistryConfigurerA
-          activity:
-            set_state: deleting
-          on-success:
-            - RegistryConfigurerA_deleted
+            - Apache_deleting
         Apache_deleting:
           node: Apache
           activity:
             set_state: deleting
           on-success:
             - Apache_deleted
-        GenericA_deleting:
-          node: GenericA
+        Apache_deleted:
+          node: Apache
           activity:
-            set_state: deleting
+            set_state: deleted
           on-success:
-            - delete_GenericA
-        RegistryConfigurerB_stopped:
-          node: RegistryConfigurerB
-          activity:
-            set_state: stopped
-          on-success:
-            - RegistryConfigurerB_deleting
-        PHP_deleting:
+            - Compute_uninstall_2
+        PHP_stopping:
           node: PHP
           activity:
-            set_state: deleting
-          on-success:
-            - PHP_deleted
-        ComputeA_uninstall:
-          node: ComputeA
-          activity:
-            delegate: uninstall
-        GenericB_stopping:
-          node: GenericB
-          activity:
             set_state: stopping
           on-success:
-            - stop_GenericB
-        RegistryConfigurerA_stopping:
-          node: RegistryConfigurerA
-          activity:
-            set_state: stopping
-          on-success:
-            - RegistryConfigurerA_stopped
+            - PHP_stopped
         PHP_stopped:
           node: PHP
           activity:
             set_state: stopped
           on-success:
             - PHP_deleting
-        GenericA_deleted:
-          node: GenericA
-          activity:
-            set_state: deleted
-          on-success:
-            - GenericHostA_stopping
-        delete_GenericB:
-          node: GenericB
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
-          on-success:
-            - GenericB_deleted
-        delete_GenericA:
-          node: GenericA
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
-          on-success:
-            - GenericA_deleted
-        GenericHostB_deleting:
-          node: GenericHostB
+        PHP_deleting:
+          node: PHP
           activity:
             set_state: deleting
           on-success:
-            - delete_GenericHostB
-        RegistryConfigurerB_deleting:
+            - PHP_deleted
+        PHP_deleted:
+          node: PHP
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_2
+        RegistryConfigurer_stopping:
+          node: RegistryConfigurerB
+          activity:
+            set_state: stopping
+          on-success:
+            - RegistryConfigurer_stopped
+        RegistryConfigurer_stopped:
+          node: RegistryConfigurerB
+          activity:
+            set_state: stopped
+          on-success:
+            - RegistryConfigurer_deleting
+        RegistryConfigurer_deleting:
           node: RegistryConfigurerB
           activity:
             set_state: deleting
           on-success:
-            - RegistryConfigurerB_deleted
-        stop_GenericHostA:
+            - RegistryConfigurer_deleted
+        RegistryConfigurer_deleted:
+          node: RegistryConfigurerB
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_1
+        RegistryConfigurer_stopping_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: stopping
+          on-success:
+            - RegistryConfigurer_stopped_1
+        RegistryConfigurer_stopped_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: stopped
+          on-success:
+            - RegistryConfigurer_deleting_1
+        RegistryConfigurer_deleting_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: deleting
+          on-success:
+            - RegistryConfigurer_deleted_1
+        RegistryConfigurer_deleted_1:
+          node: RegistryConfigurerA
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
+        GenericHost_stopping:
+          node: GenericHostB
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_GenericHost
+        stop_GenericHost:
+          node: GenericHostB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - GenericHost_stopped
+        GenericHost_stopped:
+          node: GenericHostB
+          activity:
+            set_state: stopped
+          on-success:
+            - GenericHost_deleting
+        GenericHost_deleting:
+          node: GenericHostB
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_GenericHost
+        delete_GenericHost:
+          node: GenericHostB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - GenericHost_deleted
+        GenericHost_deleted:
+          node: GenericHostB
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall_1
+        Generic_stopping:
+          node: GenericB
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Generic
+        stop_Generic:
+          node: GenericB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Generic_stopped
+        Generic_stopped:
+          node: GenericB
+          activity:
+            set_state: stopped
+          on-success:
+            - Generic_deleting
+        Generic_deleting:
+          node: GenericB
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_Generic
+        delete_Generic:
+          node: GenericB
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - remove_target_GenericB/host/GenericHostB
+            - remove_source_GenericB/host/GenericHostB
+        Generic_deleted:
+          node: GenericB
+          activity:
+            set_state: deleted
+          on-success:
+            - GenericHost_stopping
+        GenericHost_stopping_1:
+          node: GenericHostA
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_GenericHost_1
+        stop_GenericHost_1:
           node: GenericHostA
           activity:
             call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
-            - GenericHostA_stopped
-        GenericB_deleting:
-          node: GenericB
+            - GenericHost_stopped_1
+        GenericHost_stopped_1:
+          node: GenericHostA
+          activity:
+            set_state: stopped
+          on-success:
+            - GenericHost_deleting_1
+        GenericHost_deleting_1:
+          node: GenericHostA
           activity:
             set_state: deleting
           on-success:
-            - delete_GenericB
-        GenericB_deleted:
+            - delete_GenericHost_1
+        delete_GenericHost_1:
+          node: GenericHostA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - GenericHost_deleted_1
+        GenericHost_deleted_1:
+          node: GenericHostA
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
+        Generic_stopping_1:
+          node: GenericA
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Generic_1
+        stop_Generic_1:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Generic_stopped_1
+        Generic_stopped_1:
+          node: GenericA
+          activity:
+            set_state: stopped
+          on-success:
+            - Generic_stopping
+            - Generic_deleting_1
+        Generic_deleting_1:
+          node: GenericA
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_Generic_1
+        delete_Generic_1:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - remove_source_GenericA/generic_requirement/GenericB
+            - remove_target_GenericA/host/GenericHostA
+            - remove_target_GenericA/generic_requirement/GenericB
+            - remove_source_GenericA/host/GenericHostA
+        Generic_deleted_1:
+          node: GenericA
+          activity:
+            set_state: deleted
+          on-success:
+            - GenericHost_stopping_1
+        remove_target_GenericA/host/GenericHostA:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.remove_target/host/GenericHostA
+          on-success:
+            - Generic_deleted_1
+        remove_source_GenericA/host/GenericHostA:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.remove_source/host/GenericHostA
+          on-success:
+            - Generic_deleted_1
+        remove_target_GenericA/generic_requirement/GenericB:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.remove_target/generic_requirement/GenericB
+          on-success:
+            - Generic_deleted_1
+        remove_source_GenericA/generic_requirement/GenericB:
+          node: GenericA
+          activity:
+            call_operation: tosca.interfaces.relationship.configure.remove_source/generic_requirement/GenericB
+          on-success:
+            - Generic_deleted_1
+        remove_target_GenericB/host/GenericHostB:
           node: GenericB
           activity:
-            set_state: deleted
+            call_operation: tosca.interfaces.relationship.configure.remove_target/host/GenericHostB
           on-success:
-            - GenericHostB_stopping
-        GenericHostB_deleted:
-          node: GenericHostB
+            - Generic_deleted
+        remove_source_GenericB/host/GenericHostB:
+          node: GenericB
           activity:
-            set_state: deleted
+            call_operation: tosca.interfaces.relationship.configure.remove_source/host/GenericHostB
           on-success:
-            - ComputeB_uninstall
-        GenericHostA_stopping:
-          node: GenericHostA
-          activity:
-            set_state: stopping
-          on-success:
-            - stop_GenericHostA
-        GenericHostA_deleted:
-          node: GenericHostA
-          activity:
-            set_state: deleted
-          on-success:
-            - ComputeA_uninstall
-        GenericHostA_stopped:
-          node: GenericHostA
-          activity:
-            set_state: stopped
-          on-success:
-            - GenericHostA_deleting
-        Apache_deleted:
-          node: Apache
-          activity:
-            set_state: deleted
-          on-success:
-            - ComputeRegistry_uninstall
-        Network_uninstall:
-          node: Network
-          activity:
-            delegate: uninstall
-        GenericHostB_stopped:
-          node: GenericHostB
-          activity:
-            set_state: stopped
-          on-success:
-            - GenericHostB_deleting
-        RegistryConfigurerB_stopping:
-          node: RegistryConfigurerB
-          activity:
-            set_state: stopping
-          on-success:
-            - RegistryConfigurerB_stopped
+            - Generic_deleted

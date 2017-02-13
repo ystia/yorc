@@ -14,7 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
-func Test_logAnsibleOutputInConsul(t *testing.T) {
+func TestLogAnsibleOutputInConsul(t *testing.T) {
 	data := `
 {
     "plays": [
@@ -254,7 +254,7 @@ func Test_logAnsibleOutputInConsul(t *testing.T) {
 
 	consulutil.InitConsulPublisher(50, kv)
 
-	ec := &executionCommon{kv: kv, DeploymentId: "d1", NodeName: "node"}
+	ec := &executionCommon{kv: kv, deploymentID: "d1", NodeName: "node"}
 	ea := &executionAnsible{executionCommon: ec}
 	var buf bytes.Buffer
 	buf.WriteString(data)
@@ -262,7 +262,7 @@ func Test_logAnsibleOutputInConsul(t *testing.T) {
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 
-	kvps, _, err := kv.List(path.Join(consulutil.DeploymentKVPrefix, ec.DeploymentId, "logs"), nil)
+	kvps, _, err := kv.List(path.Join(consulutil.DeploymentKVPrefix, ec.deploymentID, "logs"), nil)
 	require.Nil(t, err)
 	require.Len(t, kvps, 1)
 

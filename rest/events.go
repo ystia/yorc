@@ -1,14 +1,15 @@
 package rest
 
 import (
-	"github.com/julienschmidt/httprouter"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +21,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
 		log.Panic(err)
 	} else if !depExist {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 
@@ -28,17 +29,17 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 	var err error
 	var waitIndex uint64 = 1
-	var timeout time.Duration = 5 * time.Minute
+	timeout := 5 * time.Minute
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
-			WriteError(w, r, NewBadRequestParameter("index", err))
+			writeError(w, r, newBadRequestParameter("index", err))
 			return
 		}
 	}
 
 	if dur := values.Get("wait"); dur != "" {
 		if timeout, err = time.ParseDuration(dur); err != nil {
-			WriteError(w, r, NewBadRequestParameter("index", err))
+			writeError(w, r, newBadRequestParameter("index", err))
 			return
 		}
 		if timeout > 10*time.Minute {
@@ -46,14 +47,14 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	evts, lastIdx, err := sub.NewEvents(waitIndex, timeout)
+	evts, lastIdx, err := sub.StatusEvents(waitIndex, timeout)
 	if err != nil {
 		log.Panicf("Can't retrieve events: %v", err)
 	}
 
 	eventsCollection := EventsCollection{Events: evts, LastIndex: lastIdx}
 	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
-	encodeJsonResponse(w, r, eventsCollection)
+	encodeJSONResponse(w, r, eventsCollection)
 }
 
 func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
@@ -65,24 +66,24 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
 		log.Panic(err)
 	} else if !depExist {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 	sub := events.NewSubscriber(kv, id)
 	values := r.URL.Query()
 	var err error
 	var waitIndex uint64 = 1
-	var timeout time.Duration = 5 * time.Minute
+	timeout := 5 * time.Minute
 	if idx := values.Get("index"); idx != "" {
 		if waitIndex, err = strconv.ParseUint(idx, 10, 64); err != nil {
-			WriteError(w, r, NewBadRequestParameter("index", err))
+			writeError(w, r, newBadRequestParameter("index", err))
 			return
 		}
 	}
 
 	if dur := values.Get("wait"); dur != "" {
 		if timeout, err = time.ParseDuration(dur); err != nil {
-			WriteError(w, r, NewBadRequestParameter("index", err))
+			writeError(w, r, newBadRequestParameter("index", err))
 			return
 		}
 		if timeout > 10*time.Minute {
@@ -94,14 +95,14 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 		res := strings.Split(filtr, ",")
 		if len(res) != 1 {
 			result = res
-		} else if strings.Contains(filtr, deployments.ENGINE_LOG_PREFIX) ||
-			strings.Contains(filtr, deployments.INFRA_LOG_PREFIX) ||
-			strings.Contains(filtr, deployments.SOFTWARE_LOG_PREFIX) {
+		} else if strings.Contains(filtr, events.EngineLogPrefix) ||
+			strings.Contains(filtr, events.InfraLogPrefix) ||
+			strings.Contains(filtr, events.SoftwareLogPrefix) {
 			result[0] = filtr
 		}
 	}
 
-	var logs []deployments.Logs
+	var logs []events.LogEntry
 	var lastIdx uint64
 
 	for _, data := range result {
@@ -115,7 +116,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 
 	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
 	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
-	encodeJsonResponse(w, r, logCollection)
+	encodeJSONResponse(w, r, logCollection)
 
 }
 
@@ -128,10 +129,10 @@ func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {
 	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
 		log.Panic(err)
 	} else if !depExist {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
-	lastIdx, err := events.GetEventsIndex(kv, id)
+	lastIdx, err := events.GetStatusEventsIndex(kv, id)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -148,7 +149,7 @@ func (s *Server) headLogsEventsIndex(w http.ResponseWriter, r *http.Request) {
 	if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
 		log.Panic(err)
 	} else if !depExist {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 	lastIdx, err := events.GetLogsEventsIndex(kv, id)

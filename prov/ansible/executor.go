@@ -3,32 +3,31 @@ package ansible
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/consul/api"
 	"math/rand"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 )
 
-type Executor interface {
-	ExecOperation(ctx context.Context, deploymentId, nodeName, operation string, taskId ...string) error
-}
-
 type defaultExecutor struct {
-	kv *api.KV
-	r  *rand.Rand
+	r *rand.Rand
 }
 
-func NewExecutor(kv *api.KV) Executor {
-	return &defaultExecutor{kv: kv, r: rand.New(rand.NewSource(time.Now().UnixNano()))}
+// NewExecutor returns an Executor
+func NewExecutor() prov.OperationExecutor {
+	return &defaultExecutor{r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentId, nodeName, operation string, taskId ...string) error {
-	exec, err := newExecution(e.kv, deploymentId, nodeName, operation, taskId...)
+func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, conf config.Configuration, taskID, deploymentID, nodeName, operation string) error {
+	exec, err := newExecution(kv, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
-			log.Printf("Volontary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())
-			deployments.LogInConsul(e.kv, deploymentId, fmt.Sprintf("Volontary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
+			log.Printf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())
+			events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
 			return nil
 		}
 		return err
@@ -43,10 +42,10 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, deploymentId, nodeN
 			return err
 		}
 		if i < reties {
-			log.Printf("Deployment: %q, Node: %q, Operation: %q: Caught a retriable error from Ansible: '%s'. Let's retry in few seconds (%d/%d)", deploymentId, nodeName, operation, err, i+1, reties)
+			log.Printf("Deployment: %q, Node: %q, Operation: %q: Caught a retriable error from Ansible: '%s'. Let's retry in few seconds (%d/%d)", deploymentID, nodeName, operation, err, i+1, reties)
 			time.Sleep(time.Duration(e.r.Int63n(10)) * time.Second)
 		} else {
-			log.Printf("Deployment: %q, Node: %q, Operation: %q: Giving up retries for Ansible error: '%s' (%d/%d)", deploymentId, nodeName, operation, err, i+1, reties)
+			log.Printf("Deployment: %q, Node: %q, Operation: %q: Giving up retries for Ansible error: '%s' (%d/%d)", deploymentID, nodeName, operation, err, i+1, reties)
 		}
 	}
 

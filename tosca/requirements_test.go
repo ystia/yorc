@@ -1,20 +1,21 @@
 package tosca
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"testing"
 )
 
 func TestGroupedRequirementParallel(t *testing.T) {
 	t.Run("groupRequirement", func(t *testing.T) {
-		t.Run("TestRequirementAssignment_Complex", requirementAssignment_Complex)
-		t.Run("TestRequirementAssignment_Simple", requirementAssignment_Simple)
-		t.Run("TestRequirementAssignment_SimpleRelationship", requirementAssignment_SimpleRelationship)
-		t.Run("TestRequirementDefinition_Standard", requirementDefinition_Standard)
-		t.Run("TestRequirementDefinition_Alien", requirementDefinition_Alien)
+		t.Run("TestrequirementAssignmentComplex", requirementAssignmentComplex)
+		t.Run("TestrequirementAssignmentSimple", requirementAssignmentSimple)
+		t.Run("TestrequirementAssignmentSimpleRelationship", requirementAssignmentSimpleRelationship)
+		t.Run("TestrequirementDefinitionStandard", requirementDefinitionStandard)
+		t.Run("TestrequirementDefinitionAlien", requirementDefinitionAlien)
 	})
 }
 
@@ -26,7 +27,7 @@ type ReqDefTestNode struct {
 	Requirements []RequirementDefinitionMap `yaml:"requirements,omitempty"`
 }
 
-func requirementAssignment_Complex(t *testing.T) {
+func requirementAssignmentComplex(t *testing.T) {
 	t.Parallel()
 	data := `Compute:
   requirements:
@@ -51,7 +52,7 @@ func requirementAssignment_Complex(t *testing.T) {
 	assert.Equal(t, "/dev/vde", lc.RelationshipProps["location"].String())
 }
 
-func requirementAssignment_Simple(t *testing.T) {
+func requirementAssignmentSimple(t *testing.T) {
 	t.Parallel()
 	data := `Compute:
   requirements:
@@ -68,7 +69,7 @@ func requirementAssignment_Simple(t *testing.T) {
 	assert.Equal(t, "nodeName", req.Node)
 }
 
-func requirementAssignment_SimpleRelationship(t *testing.T) {
+func requirementAssignmentSimpleRelationship(t *testing.T) {
 	t.Parallel()
 	data := `Compute:
   requirements:
@@ -90,7 +91,7 @@ func requirementAssignment_SimpleRelationship(t *testing.T) {
 	assert.Equal(t, "tosca.relationships.rs", req.Relationship)
 }
 
-func requirementDefinition_Standard(t *testing.T) {
+func requirementDefinitionStandard(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 	data := `NodeType:
@@ -143,7 +144,7 @@ func requirementDefinition_Standard(t *testing.T) {
 
 }
 
-func requirementDefinition_Alien(t *testing.T) {
+func requirementDefinitionAlien(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 	data := `NodeType:

@@ -3,32 +3,33 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
-func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskId string) bool {
+func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskID string) bool {
 	kv := s.consulClient.KV()
 
-	tExists, err := tasks.TaskExists(kv, taskId)
+	tExists, err := tasks.TaskExists(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	if !tExists {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return false
 	}
 
 	// First check that the targetId of the task is the deployment id
-	ttid, err := tasks.GetTaskTarget(kv, taskId)
+	ttid, err := tasks.GetTaskTarget(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	if ttid != id {
-		WriteError(w, r, NewBadRequestError(fmt.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskId, id)))
+		writeError(w, r, newBadRequestError(fmt.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
 		return false
 	}
 	return true
@@ -39,20 +40,20 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	taskId := params.ByName("taskId")
+	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
-	if !s.tasksPreChecks(w, r, id, taskId) {
+	if !s.tasksPreChecks(w, r, id, taskID) {
 		return
 	}
 
-	if taskStatus, err := tasks.GetTaskStatus(kv, taskId); err != nil {
+	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
 		log.Panic(err)
 	} else if taskStatus != tasks.RUNNING && taskStatus != tasks.INITIAL {
-		WriteError(w, r, NewBadRequestError(fmt.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
+		writeError(w, r, newBadRequestError(fmt.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
 		return
 	}
 
-	if err := tasks.CancelTask(kv, taskId); err != nil {
+	if err := tasks.CancelTask(kv, taskID); err != nil {
 		log.Panic(err)
 	}
 	w.WriteHeader(http.StatusAccepted)
@@ -63,26 +64,26 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
-	taskId := params.ByName("taskId")
+	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
 
-	if !s.tasksPreChecks(w, r, id, taskId) {
+	if !s.tasksPreChecks(w, r, id, taskID) {
 		return
 	}
 
-	task := Task{Id: taskId, TargetId: id}
-	status, err := tasks.GetTaskStatus(kv, taskId)
+	task := Task{ID: taskID, TargetID: id}
+	status, err := tasks.GetTaskStatus(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	task.Status = status.String()
 
-	taskType, err := tasks.GetTaskType(kv, taskId)
+	taskType, err := tasks.GetTaskType(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	task.Type = taskType.String()
-	encodeJsonResponse(w, r, task)
+	encodeJSONResponse(w, r, task)
 }
 
 func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +97,7 @@ func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	} else {
 		if err = json.Unmarshal(body, &tr); err != nil {
-			WriteError(w, r, NewBadRequestError(fmt.Errorf("Can't unmarshal task request %v", err)))
+			writeError(w, r, newBadRequestError(fmt.Errorf("Can't unmarshal task request %v", err)))
 			return
 		}
 	}
@@ -106,15 +107,15 @@ func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
-	taskId, err := s.tasksCollector.RegisterTask(id, taskType)
+	taskID, err := s.tasksCollector.RegisterTask(id, taskType)
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)
 	}
 
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskId))
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskID))
 	w.WriteHeader(http.StatusCreated)
 }

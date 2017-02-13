@@ -52,14 +52,14 @@ var listCmd = &cobra.Command{
 		depsTable := tabutil.NewTable()
 		depsTable.AddHeaders("Id", "Status")
 		for _, depLink := range deps.Deployments {
-			if depLink.Rel == rest.LINK_REL_DEPLOYMENT {
+			if depLink.Rel == rest.LinkRelDeployment {
 				var dep rest.Deployment
 
 				err = getJSONEntityFromAtomGetRequest(janusAPI, depLink, &dep)
 				if err != nil {
 					errExit(err)
 				}
-				depsTable.AddRow(dep.Id, getColoredDeploymentStatus(colorize, dep.Status))
+				depsTable.AddRow(dep.ID, getColoredDeploymentStatus(colorize, dep.Status))
 			}
 		}
 		if colorize {

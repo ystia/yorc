@@ -2,8 +2,9 @@ package rest
 
 import (
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"time"
+
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func recoverHandler(next http.Handler) http.Handler {
@@ -11,7 +12,7 @@ func recoverHandler(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("panic: %+v", err)
-				WriteError(w, r, NewInternalServerError(err))
+				writeError(w, r, newInternalServerError(err))
 			}
 		}()
 
@@ -36,7 +37,7 @@ func acceptHandler(cType string) func(http.Handler) http.Handler {
 	m := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Accept") != cType {
-				WriteError(w, r, NewNotAcceptableError(cType))
+				writeError(w, r, newNotAcceptableError(cType))
 				return
 			}
 
@@ -52,7 +53,7 @@ func contentTypeHandler(cType string) func(http.Handler) http.Handler {
 	m := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Content-Type") != cType {
-				WriteError(w, r, NewUnsupportedMediaTypeError(cType))
+				writeError(w, r, newUnsupportedMediaTypeError(cType))
 				return
 			}
 

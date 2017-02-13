@@ -54,13 +54,13 @@ func GetArtifactsForNode(kv *api.KV, deploymentID, nodeName string) (map[string]
 func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsPath string) error {
 	kvps, _, err := kv.Keys(artifactsPath+"/", "/", nil)
 	if err != nil {
-		return errors.Wrap(err, "Consul access error: ")
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	for _, artifactPath := range kvps {
 		kvp, _, err := kv.Get(path.Join(artifactPath, "name"), nil)
 		if err != nil {
-			return errors.Wrap(err, "Consul access error: ")
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil || len(kvp.Value) == 0 {
 			return errors.Errorf("Missing mandatory attribute \"name\" for artifact %q", path.Base(artifactPath))
@@ -68,7 +68,7 @@ func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsP
 		artifactName := string(kvp.Value)
 		kvp, _, err = kv.Get(path.Join(artifactPath, "file"), nil)
 		if err != nil {
-			return errors.Wrap(err, "Consul access error: ")
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil || len(kvp.Value) == 0 {
 			return errors.Errorf("Missing mandatory attribute \"file\" for artifact %q", path.Base(artifactPath))

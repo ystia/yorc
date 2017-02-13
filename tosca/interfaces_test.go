@@ -2,10 +2,11 @@ package tosca
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
-	"testing"
 )
 
 func TestGroupedInterfacesParallel(t *testing.T) {
@@ -153,9 +154,9 @@ start:
 	assert.Equal(t, 4, len(concatChildren))
 
 	var testData = []struct {
-		index      int
-		value      string
-		isLitteral bool
+		index     int
+		value     string
+		isLiteral bool
 	}{
 		{0, "http://", true},
 		{1, "get_attribute", false},
@@ -164,7 +165,7 @@ start:
 	}
 	for _, tt := range testData {
 		assert.Equal(t, tt.value, concatChildren[tt.index].Value)
-		assert.Equal(t, tt.isLitteral, concatChildren[tt.index].IsLiteral())
+		assert.Equal(t, tt.isLiteral, concatChildren[tt.index].IsLiteral())
 		assert.Equal(t, ifDef.Inputs["X"].ValueAssign.Expression, concatChildren[tt.index].Parent())
 	}
 
@@ -174,16 +175,16 @@ start:
 	assert.Equal(t, 2, len(getAttrChildren))
 
 	testData = []struct {
-		index      int
-		value      string
-		isLitteral bool
+		index     int
+		value     string
+		isLiteral bool
 	}{
 		{0, "HOST", true},
 		{1, "public_ip_address", true},
 	}
 	for _, tt := range testData {
 		assert.Equal(t, tt.value, getAttrChildren[tt.index].Value)
-		assert.Equal(t, tt.isLitteral, getAttrChildren[tt.index].IsLiteral())
+		assert.Equal(t, tt.isLiteral, getAttrChildren[tt.index].IsLiteral())
 		assert.Equal(t, getAttr, getAttrChildren[tt.index].Parent())
 	}
 
@@ -193,16 +194,16 @@ start:
 	assert.Equal(t, 2, len(getPropChildren))
 
 	testData = []struct {
-		index      int
-		value      string
-		isLitteral bool
+		index     int
+		value     string
+		isLiteral bool
 	}{
 		{0, "SELF", true},
 		{1, "port", true},
 	}
 	for _, tt := range testData {
 		assert.Equal(t, tt.value, getPropChildren[tt.index].Value)
-		assert.Equal(t, tt.isLitteral, getPropChildren[tt.index].IsLiteral())
+		assert.Equal(t, tt.isLiteral, getPropChildren[tt.index].IsLiteral())
 		assert.Equal(t, getProp, getPropChildren[tt.index].Parent())
 	}
 

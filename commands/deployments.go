@@ -29,7 +29,10 @@ var deploymentsCmd = &cobra.Command{
 	Long:          `Perform different commands on deployments`,
 	SilenceErrors: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		err := cmd.Help()
+		if err != nil {
+			fmt.Print(err)
+		}
 	},
 }
 
@@ -74,11 +77,11 @@ func errExit(msg interface{}) {
 	os.Exit(1)
 }
 
-func printErrors(body io.ReadCloser) {
+func printErrors(body io.Reader) {
 	printRestErrors(getRestErrors(body))
 }
 
-func getRestErrors(body io.ReadCloser) rest.Errors {
+func getRestErrors(body io.Reader) rest.Errors {
 	var errs rest.Errors
 	bodyContent, _ := ioutil.ReadAll(body)
 	json.Unmarshal(bodyContent, &errs)
@@ -88,13 +91,13 @@ func getRestErrors(body io.ReadCloser) rest.Errors {
 func getJSONEntityFromAtomGetRequest(janusAPI string, atomLink rest.AtomLink, entity interface{}) error {
 	request, err := http.NewRequest("GET", "http://"+janusAPI+atomLink.Href, nil)
 	if err != nil {
-		return errors.Wrap(err, "Failed to contact Janus API")
+		return errors.Wrap(err, janusAPIDefaultErrorMsg)
 	}
 	request.Header.Add("Accept", "application/json")
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return errors.Wrap(err, "Failed to contact Janus API")
+		return errors.Wrap(err, janusAPIDefaultErrorMsg)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		// Try to get the reason

@@ -70,19 +70,20 @@
       with_items: "{{net_if.files | default() }}"
       when: (not net_if | skipped) and INSTALL_DNSMASQ == "true" and ansible_os_family == "RedHat" 
 
-    - name: setup resolv.conf
-      copy:
-        src: files/resolv.conf
-        dest: /etc/resolv.conf
-        force: no
-      when: ansible_os_family == "RedHat" and INSTALL_DNSMASQ == "true"
- 
     - name: Restart dnsmasq
       service:
         name: dnsmasq
         enabled: yes
         state: restarted
       when: INSTALL_DNSMASQ == "true"
+
+    - name: setup resolv.conf
+      copy:
+        src: files/resolv.conf
+        dest: /etc/resolv.conf
+        force: yes
+      when: ansible_os_family == "RedHat" and INSTALL_DNSMASQ == "true"
+ 
  
 - name: Install consul
   hosts: all

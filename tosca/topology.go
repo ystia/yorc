@@ -1,5 +1,8 @@
 package tosca
 
+// An Topology is the representation of a TOSCA Service Template definition
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_SERVICE_TEMPLATE for more details
 type Topology struct {
 	TOSCAVersion string `yaml:"tosca_definitions_version"`
 	Description  string `yaml:"description,omitempty"`
@@ -19,6 +22,9 @@ type Topology struct {
 	TopologyTemplate TopologyTemplate `yaml:"topology_template"`
 }
 
+// An TopologyTemplate is the representation of a TOSCA Topology Template
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_TOPOLOGY_TEMPLATE for more details
 type TopologyTemplate struct {
 	Description   string                         `yaml:"description,omitempty"`
 	Inputs        map[string]ParameterDefinition `yaml:"inputs,omitempty"`
@@ -31,6 +37,9 @@ type TopologyTemplate struct {
 	Workflows map[string]Workflow
 }
 
+// An NodeTemplate is the representation of a TOSCA Node Template
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_NODE_TEMPLATE for more details
 type NodeTemplate struct {
 	Type         string                          `yaml:"type"`
 	Description  string                          `yaml:"description,omitempty"`

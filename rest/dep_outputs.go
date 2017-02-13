@@ -1,15 +1,16 @@
 package rest
 
 import (
+	"net/http"
+	"path"
+	"strings"
+
 	"github.com/julienschmidt/httprouter"
 	"gopkg.in/yaml.v2"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"path"
-	"strings"
 )
 
 func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +25,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 	status, err := deployments.GetDeploymentStatus(kv, id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
-			WriteError(w, r, ErrNotFound)
+			writeError(w, r, errNotFound)
 		}
 	}
 
@@ -33,7 +34,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 	if expression == nil {
-		WriteError(w, r, ErrNotFound)
+		writeError(w, r, errNotFound)
 		return
 	}
 
@@ -59,7 +60,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		output = Output{Name: opt, Value: ""}
 	}
-	encodeJsonResponse(w, r, output)
+	encodeJSONResponse(w, r, output)
 }
 
 func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +76,7 @@ func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	optCol := OutputsCollection{Outputs: links}
-	encodeJsonResponse(w, r, optCol)
+	encodeJSONResponse(w, r, optCol)
 }
 
 func (s *Server) listOutputsLinks(id string) []AtomLink {
@@ -89,7 +90,7 @@ func (s *Server) listOutputsLinks(id string) []AtomLink {
 	for optIndex, optP := range optPaths {
 		optName := strings.TrimRight(strings.TrimPrefix(optP, outputsTopoPrefix), "/ ")
 
-		link := newAtomLink(LINK_REL_OUTPUT, path.Join("/deployments", id, "outputs", optName))
+		link := newAtomLink(LinkRelOutput, path.Join("/deployments", id, "outputs", optName))
 		links[optIndex] = link
 	}
 	return links

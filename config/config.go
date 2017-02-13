@@ -1,20 +1,25 @@
+// Package config defines configuration structures
 package config
 
-const DEFAULT_CONSUL_PUB_MAX_ROUTINES int = 500
+// DefaultConsulPubMaxRoutines is the default maximum number of parallel goroutines used to store keys/values in Consul
+//
+// See consulutil package for more details
+const DefaultConsulPubMaxRoutines int = 500
 
+// Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
-	OS_AUTH_URL                string   `json:"os_auth_url,omitempty"`
-	OS_TENANT_ID               string   `json:"os_tenant_id,omitempty"`
-	OS_TENANT_NAME             string   `json:"os_tenant_name,omitempty"`
-	OS_USER_NAME               string   `json:"os_user_name,omitempty"`
-	OS_PASSWORD                string   `json:"os_password,omitempty"`
-	OS_REGION                  string   `json:"os_region,omitempty"`
-	OS_PREFIX                  string   `json:"os_prefix,omitempty"`
-	OS_PRIVATE_NETWORK_NAME    string   `json:"os_private_network_name,omitempty"`
-	OS_PUBLIC_NETWORK_NAME     string   `json:"os_public_network_name,omitempty"`
-	OS_DEFAULT_SECURITY_GROUPS []string `json:"os_default_security_groups,omitempty"`
-	CONSUL_TOKEN               string   `json:"consul_token,omitempty"`
-	CONSUL_DATACENTER          string   `json:"consul_datacenter,omitempty"`
-	CONSUL_ADDRESS             string   `json:"consul_address,omitempty"`
-	CONSUL_PUB_MAX_ROUTINES    int      `json:"rest_consul_publisher_max_routines,omitempty"`
+	OSAuthURL               string   `json:"os_auth_url,omitempty"`
+	OSTenantID              string   `json:"os_tenant_id,omitempty"`
+	OSTenantName            string   `json:"os_tenant_name,omitempty"`
+	OSUserName              string   `json:"os_user_name,omitempty"`
+	OSPassword              string   `json:"os_password,omitempty"`
+	OSRegion                string   `json:"os_region,omitempty"`
+	ResourcesPrefix         string   `json:"os_prefix,omitempty"`
+	OSPrivateNetworkName    string   `json:"os_private_network_name,omitempty"`
+	OSPublicNetworkName     string   `json:"os_public_network_name,omitempty"`
+	OSDefaultSecurityGroups []string `json:"os_default_security_groups,omitempty"`
+	ConsulToken             string   `json:"consul_token,omitempty"`
+	ConsulDatacenter        string   `json:"consul_datacenter,omitempty"`
+	ConsulAddress           string   `json:"consul_address,omitempty"`
+	ConsulPubMaxRoutines    int      `json:"rest_consul_publisher_max_routines,omitempty"`
 }

@@ -1,16 +1,17 @@
 package tosca
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
-	"testing"
 )
 
 func TestGroupedArtifactParallel(t *testing.T) {
 	t.Run("groupArtifact", func(t *testing.T) {
-		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar", artifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar)
-		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar", artifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar)
-		t.Run("TestArtifactDefinitionConcrete_UnmarshalYAML_Failure", artifactDefinitionConcrete_UnmarshalYAML_Failure)
+		t.Run("TestartifactDefinitionConcreteUnmarshalYAMLSimpleGrammar", artifactDefinitionConcreteUnmarshalYAMLSimpleGrammar)
+		t.Run("TestartifactDefinitionConcreteUnmarshalYAMLComplexGrammar", artifactDefinitionConcreteUnmarshalYAMLComplexGrammar)
+		t.Run("TestartifactDefinitionConcreteUnmarshalYAMLFailure", artifactDefinitionConcreteUnmarshalYAMLFailure)
 		t.Run("TestArtifactsInNodeType", artifactsInNodeType)
 		t.Run("TestArtifactsAlien", artifactsAlien)
 		t.Run("TestArtifactsAlien2", artifactsAlien2)
@@ -19,7 +20,7 @@ func TestGroupedArtifactParallel(t *testing.T) {
 	})
 }
 
-func artifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
+func artifactDefinitionConcreteUnmarshalYAMLSimpleGrammar(t *testing.T) {
 	t.Parallel()
 	var data = `artifact: ./artifact.txt`
 
@@ -33,7 +34,7 @@ func artifactDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
 	assert.Equal(t, "./artifact.txt", art.File)
 }
 
-func artifactDefinitionConcrete_UnmarshalYAML_ComplexGrammar(t *testing.T) {
+func artifactDefinitionConcreteUnmarshalYAMLComplexGrammar(t *testing.T) {
 	t.Parallel()
 	var data = `
 artifact:
@@ -57,7 +58,7 @@ artifact:
 	assert.Equal(t, "file_deployment_path", art.DeployPath)
 }
 
-func artifactDefinitionConcrete_UnmarshalYAML_Failure(t *testing.T) {
+func artifactDefinitionConcreteUnmarshalYAMLFailure(t *testing.T) {
 	t.Parallel()
 	var data = `
 artifact:

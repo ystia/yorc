@@ -1,24 +1,25 @@
 package openstack
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"strings"
-	"testing"
 )
 
 func TestGroupedIpParallel(t *testing.T) {
 	t.Run("groupVolume", func(t *testing.T) {
-		t.Run("generatePoolIp", generatePoolIp)
-		t.Run("generateSingleIp", generateSingleIp)
-		t.Run("generateMultipleIp", generateMultipleIp)
+		t.Run("generatePoolIP", generatePoolIP)
+		t.Run("generateSingleIp", generateSingleIP)
+		t.Run("generateMultipleIP", generateMultipleIP)
 	})
 }
 
-func generatePoolIp(t *testing.T) {
+func generatePoolIP(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 	srv1 := testutil.NewTestServer(t)
@@ -32,23 +33,23 @@ func generatePoolIp(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	ipUrl := "node/NetworkFIP"
-	data[ipUrl+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
-	data[ipUrl+"/properties/floating_network_name"] = []byte("Public_Network")
+	ipURL := "node/NetworkFIP"
+	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
+	data[ipURL+"/properties/floating_network_name"] = []byte("Public_Network")
 
 	srv1.PopulateKV(data)
-	gia, err := g.generateFloatingIP(ipUrl, "0")
+	gia, err := g.generateFloatingIP(ipURL, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "Public_Network", gia.Pool)
-	assert.False(t, gia.IsIp)
+	assert.False(t, gia.IsIP)
 }
 
-func generateSingleIp(t *testing.T) {
+func generateSingleIP(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 	srv1 := testutil.NewTestServer(t)
@@ -62,23 +63,23 @@ func generateSingleIp(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	ipUrl := "node/NetworkFIP"
-	data[ipUrl+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
-	data[ipUrl+"/properties/ip"] = []byte("10.0.0.2")
+	ipURL := "node/NetworkFIP"
+	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
+	data[ipURL+"/properties/ip"] = []byte("10.0.0.2")
 
 	srv1.PopulateKV(data)
-	gia, err := g.generateFloatingIP(ipUrl, "0")
+	gia, err := g.generateFloatingIP(ipURL, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2", gia.Pool)
-	assert.True(t, gia.IsIp)
+	assert.True(t, gia.IsIP)
 }
 
-func generateMultipleIp(t *testing.T) {
+func generateMultipleIP(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 	srv1 := testutil.NewTestServer(t)
@@ -92,20 +93,20 @@ func generateMultipleIp(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	ipUrl := "node/NetworkFIP"
-	data[ipUrl+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
-	data[ipUrl+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
+	ipURL := "node/NetworkFIP"
+	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
+	data[ipURL+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
 
 	srv1.PopulateKV(data)
-	gia, err := g.generateFloatingIP(ipUrl, "0")
+	gia, err := g.generateFloatingIP(ipURL, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.Pool)
-	assert.True(t, gia.IsIp)
+	assert.True(t, gia.IsIP)
 	ips := strings.Split(gia.Pool, ",")
 	assert.Len(t, ips, 4)
 }

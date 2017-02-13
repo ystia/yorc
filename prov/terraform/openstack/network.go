@@ -5,11 +5,9 @@ import (
 	"strconv"
 )
 
-func (g *Generator) generateNetwork(url, deploymentId string) (Network, error) {
-	var nodeType string
-	var err error
-
-	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
+func (g *osGenerator) generateNetwork(url, deploymentID string) (Network, error) {
+	nodeType, err := g.getStringFormConsul(url, "type")
+	if err != nil {
 		return Network{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Network" {
@@ -21,20 +19,18 @@ func (g *Generator) generateNetwork(url, deploymentId string) (Network, error) {
 	if nodeName, err := g.getStringFormConsul(url, "properties/network_name"); err != nil {
 		return Network{}, err
 	} else if nodeName != "" {
-		network.Name = g.cfg.OS_PREFIX + nodeName
+		network.Name = g.cfg.ResourcesPrefix + nodeName
 	}
 
-	network.Region = g.cfg.OS_REGION
+	network.Region = g.cfg.OSRegion
 
 	return network, nil
 
 }
 
-func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, error) {
-	var nodeType string
-	var err error
-
-	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
+func (g *osGenerator) generateSubnet(url, deploymentID, nodeName string) (Subnet, error) {
+	nodeType, err := g.getStringFormConsul(url, "type")
+	if err != nil {
 		return Subnet{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Network" {
@@ -43,12 +39,16 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 
 	subnet := Subnet{}
 
-	if nodeName, err := g.getStringFormConsul(url, "properties/network_name"); err != nil {
+	netName, err := g.getStringFormConsul(url, "properties/network_name")
+	if err != nil {
 		return Subnet{}, err
-	} else if nodeName != "" {
-		subnet.Name = g.cfg.OS_PREFIX + nodeName + "_subnet"
+	} else if netName != "" {
+		subnet.Name = g.cfg.ResourcesPrefix + netName + "_subnet"
+	} else {
+		subnet.Name = g.cfg.ResourcesPrefix + nodeName + "_subnet"
 	}
-	if ipVersion, err := g.getStringFormConsul(url, "properties/ip_version"); err != nil {
+	ipVersion, err := g.getStringFormConsul(url, "properties/ip_version")
+	if err != nil {
 		return Subnet{}, err
 	} else if ipVersion != "" {
 		subnet.IPVersion, err = strconv.Atoi(ipVersion)
@@ -58,10 +58,11 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 	} else {
 		subnet.IPVersion = 4
 	}
-	if nodeId, err := g.getStringFormConsul(url, "properties/network_id"); err != nil {
+	nodeID, err := g.getStringFormConsul(url, "properties/network_id")
+	if err != nil {
 		return Subnet{}, err
-	} else if nodeId != "" {
-		subnet.NetworkID = nodeId
+	} else if nodeID != "" {
+		subnet.NetworkID = nodeID
 	} else {
 		subnet.NetworkID = "${openstack_networking_network_v2." + nodeName + ".id}"
 	}
@@ -70,14 +71,14 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 	} else if nodeCIDR != "" {
 		subnet.CIDR = nodeCIDR
 	}
-	if gatewayIp, err := g.getStringFormConsul(url, "properties/gateway_ip"); err != nil {
+	if gatewayIP, err := g.getStringFormConsul(url, "properties/gateway_ip"); err != nil {
 		return Subnet{}, err
-	} else if gatewayIp != "" {
-		subnet.GatewayIP = gatewayIp
+	} else if gatewayIP != "" {
+		subnet.GatewayIP = gatewayIP
 	}
-	if startIp, err := g.getStringFormConsul(url, "properties/start_ip"); err != nil {
+	if startIP, err := g.getStringFormConsul(url, "properties/start_ip"); err != nil {
 		return Subnet{}, err
-	} else if startIp != "" {
+	} else if startIP != "" {
 		endIP, err := g.getStringFormConsul(url, "properties/end_ip")
 		if err != nil {
 			return Subnet{}, err
@@ -85,7 +86,7 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 		if endIP == "" {
 			return Subnet{}, fmt.Errorf("A start_ip and a end_ip need to be provided")
 		}
-		subnet.AllocationPools = &AllocationPool{Start: startIp, End: endIP}
+		subnet.AllocationPools = &AllocationPool{Start: startIP, End: endIP}
 	}
 	if dhcp, err := g.getStringFormConsul(url, "properties/dhcp_enabled"); err != nil {
 		return Subnet{}, err
@@ -98,7 +99,7 @@ func (g *Generator) generateSubnet(url, deploymentId, nodeName string) (Subnet, 
 		subnet.EnableDHCP = true
 	}
 
-	subnet.Region = g.cfg.OS_REGION
+	subnet.Region = g.cfg.OSRegion
 
 	return subnet, nil
 }

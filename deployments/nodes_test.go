@@ -3,6 +3,8 @@ package deployments
 import (
 	"testing"
 
+	"fmt"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
@@ -11,6 +13,7 @@ import (
 )
 
 func TestDeploymentNodes(t *testing.T) {
+	t.Parallel()
 	log.SetDebug(true)
 	srv1 := testutil.NewTestServer(t)
 	defer srv1.Stop()
@@ -40,11 +43,15 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/type":                                               []byte("tosca.nodes.Compute"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/attributes/id":                                      []byte("Not Used as it exists in instances"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/capabilities/scalable/properties/default_instances": []byte("10"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/capabilities/scalable/properties/max_instances":     []byte("20"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute1/capabilities/scalable/properties/min_instances":     []byte("2"),
 		// Case type "tosca.nodes.Compute" default_instance not specified (1 assumed)
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute2/type": []byte("tosca.nodes.Compute"),
 		// Error case default_instance specified but not an uint
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/type":                                               []byte("tosca.nodes.Compute"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/default_instances": []byte("-10"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/max_instances":     []byte("-15"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/min_instances":     []byte("-15"),
 		// Case Node Hosted on another node
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/name":                         []byte("janus.type.1"),
@@ -56,9 +63,12 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
 
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/name":                  []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/id/default": []byte("DefaultComputeTypeid"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/ip/default": []byte(""),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/name":                       []byte("tosca.nodes.Compute"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/capabilities/scalable/type": []byte("tosca.capabilities.Scalable"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/id/default":      []byte("DefaultComputeTypeid"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Compute/attributes/ip/default":      []byte(""),
+
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.capabilities.Scalable/name": []byte("tosca.capabilities.Scalable"),
 
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/derived_from": []byte("tosca.nodes.SoftwareComponent"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/name":         []byte("janus.type.DerivedSC1"),
@@ -147,14 +157,42 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Node2/7/attributes/id": []byte("Node2-7"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Node2/8/attributes/id": []byte("Node2-8"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/instances/Node2/9/attributes/id": []byte("Node2-9"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/0/attributes/id":  []byte("Node1-0"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/1/attributes/id":  []byte("Node1-1"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/10/attributes/id": []byte("Node1-10"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/11/attributes/id": []byte("Node1-11"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/20/attributes/id": []byte("Node1-20"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/2/attributes/id":  []byte("Node1-2"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/3/attributes/id":  []byte("Node1-3"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/4/attributes/id":  []byte("Node1-4"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/5/attributes/id":  []byte("Node1-5"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/6/attributes/id":  []byte("Node1-6"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/7/attributes/id":  []byte("Node1-7"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/8/attributes/id":  []byte("Node1-8"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node1/9/attributes/id":  []byte("Node1-9"),
+
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab0/attributes/id":   []byte("Node1-0"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab1/attributes/id":   []byte("Node1-1"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab10/attributes/id":  []byte("Node1-10"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/za11/attributes/id":  []byte("Node1-11"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab20a/attributes/id": []byte("Node1-20"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/ab2/attributes/id":   []byte("Node1-2"),
+		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/za3/attributes/id":   []byte("Node1-3"),
 	})
 
 	t.Run("deployment/nodes", func(t *testing.T) {
 		t.Run("IsNodeTypeDerivedFrom", func(t *testing.T) {
 			testIsNodeTypeDerivedFrom(t, kv)
 		})
-		t.Run("GetNbInstancesForNode", func(t *testing.T) {
-			testGetNbInstancesForNode(t, kv)
+		t.Run("GetDefaultNbInstancesForNode", func(t *testing.T) {
+			testGetDefaultNbInstancesForNode(t, kv)
+		})
+		t.Run("testGetMaxNbInstancesForNode", func(t *testing.T) {
+			testGetMaxNbInstancesForNode(t, kv)
+		})
+		t.Run("testGetMinNbInstancesForNode", func(t *testing.T) {
+			testGetMinNbInstancesForNode(t, kv)
 		})
 		t.Run("GetNodeProperty", func(t *testing.T) {
 			testGetNodeProperty(t, kv)
@@ -165,6 +203,9 @@ func TestDeploymentNodes(t *testing.T) {
 		t.Run("GetNodeAttributesNames", func(t *testing.T) {
 			testGetNodeAttributesNames(t, kv)
 		})
+		t.Run("GetNodeInstancesIds", func(t *testing.T) {
+			testGetNodeInstancesIds(t, kv)
+		})
 		t.Run("GetTypeAttributesNames", func(t *testing.T) {
 			testGetTypeAttributesNames(t, kv)
 		})
@@ -174,48 +215,99 @@ func TestDeploymentNodes(t *testing.T) {
 func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	ok, err := IsNodeTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.HostedOn")
+	ok, err := IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.HostedOn")
 	require.Nil(t, err)
 	require.True(t, ok)
 
-	ok, err = IsNodeTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.ConnectsTo")
+	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.ConnectsTo")
 	require.Nil(t, err)
 	require.False(t, ok)
 
-	ok, err = IsNodeTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "janus.type.1")
+	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "janus.type.1")
 	require.Nil(t, err)
 	require.True(t, ok)
 }
 
-func testGetNbInstancesForNode(t *testing.T, kv *api.KV) {
+func testGetDefaultNbInstancesForNode(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	res, nb, err := GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	nb, err := GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(1), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	_, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
 	require.NotNil(t, err)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
 	require.Nil(t, err)
-	require.True(t, res)
 	require.Equal(t, uint32(10), nb)
 
-	res, nb, err = GetNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	nb, err = GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
 	require.Nil(t, err)
-	require.True(t, res)
+	require.Equal(t, uint32(1), nb)
+}
+
+func testGetMaxNbInstancesForNode(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	nb, err := GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	require.Nil(t, err)
+	require.Equal(t, uint32(20), nb)
+
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	require.Nil(t, err)
+	require.Equal(t, uint32(1), nb)
+
+	_, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	fmt.Println(err)
+	require.NotNil(t, err)
+
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	require.Nil(t, err)
+	require.Equal(t, uint32(20), nb)
+
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	require.Nil(t, err)
+	require.Equal(t, uint32(20), nb)
+
+	nb, err = GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	require.Nil(t, err)
+	require.Equal(t, uint32(1), nb)
+}
+
+func testGetMinNbInstancesForNode(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	nb, err := GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
+	require.Nil(t, err)
+	require.Equal(t, uint32(2), nb)
+
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute2")
+	require.Nil(t, err)
+	require.Equal(t, uint32(1), nb)
+
+	_, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute3")
+	fmt.Println(err)
+	require.NotNil(t, err)
+
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node1")
+	require.Nil(t, err)
+	require.Equal(t, uint32(2), nb)
+
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node2")
+	require.Nil(t, err)
+	require.Equal(t, uint32(2), nb)
+
+	nb, err = GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Node3")
+	require.Nil(t, err)
 	require.Equal(t, uint32(1), nb)
 }
 
@@ -411,4 +503,18 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 	require.Contains(t, attrNames, "dsc2")
 	require.Contains(t, attrNames, "dsc4")
+}
+
+func testGetNodeInstancesIds(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	node1ExpectedResult := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "20"}
+	instancesIDs, err := GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node1")
+	require.NoError(t, err)
+	require.Equal(t, node1ExpectedResult, instancesIDs)
+
+	node2ExpectedResult := []string{"ab0", "ab1", "ab2", "ab10", "ab20a", "za3", "za11"}
+	instancesIDs, err = GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node2")
+	require.NoError(t, err)
+	require.Equal(t, node2ExpectedResult, instancesIDs)
 }

@@ -1,12 +1,13 @@
 package commands
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/server"
-	"strings"
 )
 
 func init() {
@@ -63,7 +64,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("consul_token", "t", "", "The token by default")
 	serverCmd.PersistentFlags().StringP("consul_datacenter", "d", "", "The datacenter of Consul node")
 
-	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DEFAULT_CONSUL_PUB_MAX_ROUTINES, "Maximum number of paralellism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
+	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
 
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
@@ -108,7 +109,7 @@ func setConfig() {
 	viper.SetDefault("consul_address", "") // Use consul api default
 	viper.SetDefault("consul_datacenter", "dc1")
 	viper.SetDefault("consul_token", "anonymous")
-	viper.SetDefault("consul_publisher_max_routines", config.DEFAULT_CONSUL_PUB_MAX_ROUTINES)
+	viper.SetDefault("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines)
 
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
@@ -119,25 +120,23 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
-	configuration.OS_AUTH_URL = viper.GetString("os_auth_url")
-	configuration.OS_TENANT_ID = viper.GetString("os_tenant_id")
-	configuration.OS_TENANT_NAME = viper.GetString("os_tenant_name")
-	configuration.OS_USER_NAME = viper.GetString("os_user_name")
-	configuration.OS_PASSWORD = viper.GetString("os_password")
-	configuration.OS_REGION = viper.GetString("os_region")
-	configuration.OS_PREFIX = viper.GetString("os_prefix")
-	configuration.OS_PRIVATE_NETWORK_NAME = viper.GetString("os_private_network_name")
-	configuration.OS_PUBLIC_NETWORK_NAME = viper.GetString("os_public_network_name")
-	configuration.CONSUL_ADDRESS = viper.GetString("consul_address")
-	configuration.CONSUL_DATACENTER = viper.GetString("consul_datacenter")
-	configuration.CONSUL_TOKEN = viper.GetString("consul_token")
-	configuration.CONSUL_PUB_MAX_ROUTINES = viper.GetInt("consul_publisher_max_routines")
-	configuration.OS_DEFAULT_SECURITY_GROUPS = make([]string, 0)
+	configuration.OSAuthURL = viper.GetString("os_auth_url")
+	configuration.OSTenantID = viper.GetString("os_tenant_id")
+	configuration.OSTenantName = viper.GetString("os_tenant_name")
+	configuration.OSUserName = viper.GetString("os_user_name")
+	configuration.OSPassword = viper.GetString("os_password")
+	configuration.OSRegion = viper.GetString("os_region")
+	configuration.ResourcesPrefix = viper.GetString("os_prefix")
+	configuration.OSPrivateNetworkName = viper.GetString("os_private_network_name")
+	configuration.OSPublicNetworkName = viper.GetString("os_public_network_name")
+	configuration.ConsulAddress = viper.GetString("consul_address")
+	configuration.ConsulDatacenter = viper.GetString("consul_datacenter")
+	configuration.ConsulToken = viper.GetString("consul_token")
+	configuration.ConsulPubMaxRoutines = viper.GetInt("consul_publisher_max_routines")
+	configuration.OSDefaultSecurityGroups = make([]string, 0)
 	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {
 		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags
-		for _, secg := range strings.Split(secgFlag, ",") {
-			configuration.OS_DEFAULT_SECURITY_GROUPS = append(configuration.OS_DEFAULT_SECURITY_GROUPS, secg)
-		}
+		configuration.OSDefaultSecurityGroups = append(configuration.OSDefaultSecurityGroups, strings.Split(secgFlag, ",")...)
 	}
 	return configuration
 }

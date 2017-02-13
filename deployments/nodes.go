@@ -1,16 +1,21 @@
 package deployments
 
 import (
-	"fmt"
 	"path"
 	"strconv"
 
 	"strings"
 
+	"context"
+
+	"sort"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"vbom.ml/util/sortorder"
 )
 
 // IsNodeDerivedFrom check if the node's type is derived from another type.
@@ -21,127 +26,201 @@ func IsNodeDerivedFrom(kv *api.KV, deploymentID, nodeName, derives string) (bool
 	if err != nil {
 		return false, err
 	}
-	return IsNodeTypeDerivedFrom(kv, deploymentID, nodeType, derives)
+	return IsTypeDerivedFrom(kv, deploymentID, nodeType, derives)
 }
 
-// GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentId.
+// GetDefaultNbInstancesForNode retrieves the default number of instances for a given node nodeName in deployment deploymentId.
 //
-// If the node is or is derived from 'tosca.nodes.Compute' it will look for a property 'default_instances' in the 'scalable' capability of
+// If the node has a capability that is or is derived from 'tosca.capabilities.Scalable' it will look for a property 'default_instances' in this capability of
 // this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
-// the process. If a Compute is finally found it returns 'true' and the instances number.
-// If there is no 'tosca.nodes.Compute' at the end of the hosted on chain then assume that there is only one instance and return 'false'
-func GetNbInstancesForNode(kv *api.KV, deploymentId, nodeName string) (bool, uint32, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
-	kvp, _, err := kv.Get(nodePath+"/type", nil)
+// the process. If a scalable node is finally found it returns the instances number.
+// If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance
+func GetDefaultNbInstancesForNode(kv *api.KV, deploymentID, nodeName string) (uint32, error) {
+	return getScalablePropertyForNode(kv, deploymentID, nodeName, "default_instances")
+}
+
+// GetMaxNbInstancesForNode retrieves the maximum number of instances for a given node nodeName in deployment deploymentId.
+//
+// If the node has a capability that is or is derived from 'tosca.capabilities.Scalable' it will look for a property 'max_instances' in this capability of
+// this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
+// the process. If a scalable node is finally found it returns the instances number.
+// If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance$
+func GetMaxNbInstancesForNode(kv *api.KV, deploymentID, nodeName string) (uint32, error) {
+	return getScalablePropertyForNode(kv, deploymentID, nodeName, "max_instances")
+}
+
+// GetMinNbInstancesForNode retrieves the minimum number of instances for a given node nodeName in deployment deploymentId.
+//
+// If the node has a capability that is or is derived from 'tosca.capabilities.Scalable' it will look for a property 'min_instances' in this capability of
+// this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
+// the process. If a scalable node is finally found it returns the instances number.œ
+// If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance
+func GetMinNbInstancesForNode(kv *api.KV, deploymentID, nodeName string) (uint32, error) {
+	return getScalablePropertyForNode(kv, deploymentID, nodeName, "min_instances")
+}
+
+// getScalablePropertyForNode retrieves one of the scalable property on number of instances.
+//
+// If the node has a capability that is or is derived from 'tosca.capabilities.Scalable' it will look for the given property in this capability of
+// this node. Otherwise it will search for any relationship derived from 'tosca.relationships.HostedOn' in node requirements and reiterate
+// the process. If a scalable node is finally found it returns the instances number.
+// If there is no node with the Scalable capability at the end of the hosted on chain then assume that there is only one instance
+func getScalablePropertyForNode(kv *api.KV, deploymentID, nodeName, propertyName string) (uint32, error) {
+
+	// TODO: Large part of GetDefaultNbInstancesForNode GetMaxNbInstancesForNode GetMinNbInstancesForNode could be factorized
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, 0, err
+		return 0, err
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return false, 0, fmt.Errorf("Missing type for node %q, in deployment %q", nodeName, deploymentId)
+	capabilities, err := GetCapabilitiesOfType(kv, deploymentID, nodeType, "tosca.capabilities.Scalable")
+	if err != nil {
+		return 0, err
 	}
-	nodeType := string(kvp.Value)
-	// It would be a better solution to check if the type or its parent have a scalable capability
-	if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, nodeType, "tosca.nodes.Compute"); err != nil {
-		return false, 0, err
-	} else if ok {
-		//For now we look into default instances in scalable capability but it will be dynamic at runtime we will have to store the
-		//current number of instances somewhere else
-		kvp, _, err = kv.Get(nodePath+"/capabilities/scalable/properties/default_instances", nil)
-		if err != nil {
-			return false, 0, err
-		}
-		if kvp == nil || len(kvp.Value) == 0 {
-			log.Debugf("Missing property 'default_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Lets assume that it is 1.", nodeName, deploymentId)
-			return true, 1, nil
-		}
-		if val, err := strconv.ParseUint(string(kvp.Value), 10, 32); err != nil {
-			return false, 0, fmt.Errorf("Not a valid integer for property 'default_instances' of 'scalable' capability for node %q derived from 'tosca.nodes.Compute', in deployment %q. Error: %v", nodeName, deploymentId, err)
-		} else {
-			return true, uint32(val), nil
+	if len(capabilities) > 0 {
+		for _, capability := range capabilities {
+			var found bool
+			var nbInst string
+			found, nbInst, err = GetCapabilityProperty(kv, deploymentID, nodeName, capability, propertyName)
+			if err != nil {
+				return 0, err
+			}
+			if found {
+				var val uint64
+				val, err = strconv.ParseUint(nbInst, 10, 32)
+				if err != nil {
+					return 0, errors.Errorf("Not a valid integer for property %q of %q capability for node %q. Error: %v", propertyName, capability, nodeName, err)
+				}
+				return uint32(val), nil
+			}
 		}
 	}
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
-	hostNode, err := GetHostedOnNode(kv, deploymentId, nodeName)
+	hostNode, err := GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, 0, err
+		return 0, err
 	} else if hostNode != "" {
-		return GetNbInstancesForNode(kv, deploymentId, hostNode)
+		return getScalablePropertyForNode(kv, deploymentID, hostNode, propertyName)
 	}
-	// Not hosted on a tosca.nodes.Compute assume one instance
-	return false, 1, nil
+	// Not hosted on a node having the Scalable capability lets assume one instance
+	return 1, nil
+}
+
+// GetNbInstancesForNode retrieves the number of instances for a given node nodeName in deployment deploymentID.
+func GetNbInstancesForNode(kv *api.KV, deploymentID, nodeName string) (uint32, error) {
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
+	keys, _, err := kv.Keys(instancesPath+"/", "/", nil)
+	if err != nil {
+		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return uint32(len(keys)), nil
 }
 
 // GetNodeInstancesIds returns the names of the different instances for a given node.
 //
 // It may be an empty array if the given node is not HostedOn a scalable node.
-func GetNodeInstancesIds(kv *api.KV, deploymentId, nodeName string) ([]string, error) {
+func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
 	names := make([]string, 0)
-	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/instances", nodeName)
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
 	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
 	if err != nil {
-		return names, err
+		return names, errors.Wrap(err, "Consul communication error")
 	}
 	for _, instance := range instances {
 		names = append(names, path.Base(instance))
 	}
+	sort.Sort(sortorder.Natural(names))
 	return names, nil
 }
 
-// GetNodeInstancesNames returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"
+// GetHostedOnNode returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
-func GetHostedOnNode(kv *api.KV, deploymentId, nodeName string) (string, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) {
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	// So we have to traverse the hosted on relationships...
 	// Lets inspect the requirements to found hosted on relationships
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
-	log.Debugf("Deployment: %q. Node %q. Requirements %v", deploymentId, nodeName, reqKVPs)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	log.Debugf("Deployment: %q. Node %q. Requirements %v", deploymentID, nodeName, reqKVPs)
 	for _, reqKey := range reqKVPs {
-		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentId, nodeName, reqKey)
+		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, reqKey)
 		// Check requirement relationship
 		kvp, _, err := kv.Get(path.Join(reqKey, "relationship"), nil)
 		if err != nil {
-			return "", err
-		}
-		if kvp == nil || len(kvp.Value) == 0 {
-			return "", fmt.Errorf("Missing 'relationship' attribute for requirement %q for node %q in deployement %q", path.Base(reqKey), nodeName, deploymentId)
+			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		// Is this relationship an HostedOn?
-		if ok, err := IsNodeTypeDerivedFrom(kv, deploymentId, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
-			return "", err
-		} else if ok {
-			// An HostedOn! Great! let inspect the target node.
-			kvp, _, err := kv.Get(path.Join(reqKey, "node"), nil)
-			if err != nil {
+		if kvp.Value != nil {
+			if ok, err := IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
 				return "", err
+			} else if ok {
+				// An HostedOn! Great! let inspect the target node.
+				kvp, _, err := kv.Get(path.Join(reqKey, "node"), nil)
+				if err != nil {
+					return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				}
+				if kvp == nil || len(kvp.Value) == 0 {
+					return "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
+				}
+				return string(kvp.Value), nil
 			}
-			if kvp == nil || len(kvp.Value) == 0 {
-				return "", fmt.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployement %q", path.Base(reqKey), nodeName, deploymentId)
-			}
-			return string(kvp.Value), nil
 		}
 	}
 	return "", nil
+}
+
+// IsHostedOn checks if a given nodeName is hosted on another given node hostedOn by traversing the hostedOn hierarchy
+func IsHostedOn(kv *api.KV, deploymentID, nodeName, hostedOn string) (bool, error) {
+	if host, err := GetHostedOnNode(kv, deploymentID, nodeName); err != nil {
+		return false, err
+	} else if host == "" {
+		return false, nil
+	} else if host != hostedOn {
+		return IsHostedOn(kv, deploymentID, host, hostedOn)
+	}
+	return true, nil
+
+}
+
+// GetNodesHostedOn returns the list of nodes that are hosted on a given node
+func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, error) {
+	// Thinking: maybe we can store at parsing time for each node the list of nodes on which it is hosted on and/or the opposite rather than re-scan the whole node list
+	nodesList, err := GetNodes(kv, deploymentID)
+	if err != nil {
+		return nil, err
+	}
+	stackNodes := nodesList[:0]
+	for _, node := range nodesList {
+		var hostedOn bool
+		hostedOn, err = IsHostedOn(kv, deploymentID, node, hostNode)
+		if err != nil {
+			return nil, err
+		}
+
+		if hostedOn {
+			stackNodes = append(stackNodes, node)
+		}
+	}
+	return stackNodes, nil
 }
 
 // GetTypeDefaultProperty checks if a type has a default value for a given property.
 //
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-func GetTypeDefaultProperty(kv *api.KV, deploymentId, typeName, propertyName string) (bool, string, error) {
-	return getTypeDefaultAttributeOrProperty(kv, deploymentId, typeName, propertyName, true)
+func GetTypeDefaultProperty(kv *api.KV, deploymentID, typeName, propertyName string) (bool, string, error) {
+	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, propertyName, true)
 }
 
 // GetTypeDefaultAttribute checks if a type has a default value for a given attribute.
 //
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-func GetTypeDefaultAttribute(kv *api.KV, deploymentId, typeName, attributeName string) (bool, string, error) {
-	return getTypeDefaultAttributeOrProperty(kv, deploymentId, typeName, attributeName, false)
+func GetTypeDefaultAttribute(kv *api.KV, deploymentID, typeName, attributeName string) (bool, string, error) {
+	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, attributeName, false)
 }
 
 // GetNodeProperty retrieves the value for a given property in a given node
@@ -149,11 +228,11 @@ func GetTypeDefaultAttribute(kv *api.KV, deploymentId, typeName, attributeName s
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
-func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string) (bool, string, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (bool, string, error) {
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	kvp, _, err := kv.Get(path.Join(nodePath, "properties", propertyName), nil)
 	if err != nil {
-		return false, "", err
+		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil {
 		return true, string(kvp.Value), nil
@@ -162,27 +241,27 @@ func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string) (b
 	// Not found look at node type
 	kvp, _, err = kv.Get(path.Join(nodePath, "type"), nil)
 	if err != nil {
-		return false, "", err
+		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return false, "", fmt.Errorf("Missing type for node %q in deployment %q", nodeName, deploymentId)
+		return false, "", errors.Errorf("Missing type for node %q in deployment %q", nodeName, deploymentID)
 	}
 
-	ok, value, err := GetTypeDefaultProperty(kv, deploymentId, string(kvp.Value), propertyName)
+	ok, value, err := GetTypeDefaultProperty(kv, deploymentID, string(kvp.Value), propertyName)
 	if err != nil {
-		return false, "", nil
+		return false, "", err
 	}
 	if ok {
 		return true, value, nil
 	}
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
-	host, err := GetHostedOnNode(kv, deploymentId, nodeName)
+	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return false, "", err
 	}
 	if host != "" {
-		return GetNodeProperty(kv, deploymentId, host, propertyName)
+		return GetNodeProperty(kv, deploymentID, host, propertyName)
 	}
 	// Not found anywhere
 	return false, "", nil
@@ -196,20 +275,21 @@ func GetNodeProperty(kv *api.KV, deploymentId, nodeName, propertyName string) (b
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
-func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string) (found bool, attributes map[string]string, err error) {
+func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string) (found bool, attributes map[string]string, err error) {
 	found = false
-	instances, err := GetNodeInstancesIds(kv, deploymentId, nodeName)
+	instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
 	if err != nil {
 		return
 	}
 
 	if len(instances) > 0 {
 		attributes = make(map[string]string)
-		nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "instances", nodeName)
+		nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 		for _, instance := range instances {
 			var kvp *api.KVPair
 			kvp, _, err = kv.Get(path.Join(nodeInstancesPath, instance, "attributes", attributeName), nil)
 			if err != nil {
+				err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				return
 			}
 			if kvp != nil {
@@ -223,10 +303,11 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 	}
 
 	// Look at not instance-scoped attribute
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "nodes", nodeName)
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
 	kvp, _, err := kv.Get(path.Join(nodePath, "attributes", attributeName), nil)
 	if err != nil {
+		err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		return
 	}
 	if kvp != nil {
@@ -247,14 +328,15 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 	// Not found look at node type
 	kvp, _, err = kv.Get(path.Join(nodePath, "type"), nil)
 	if err != nil {
+		err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		return
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		err = fmt.Errorf("Missing type for node %q in deployment %q", nodeName, deploymentId)
+		err = errors.Errorf("Missing type for node %q in deployment %q", nodeName, deploymentID)
 		return
 	}
 
-	ok, defaultValue, err := GetTypeDefaultAttribute(kv, deploymentId, string(kvp.Value), attributeName)
+	ok, defaultValue, err := GetTypeDefaultAttribute(kv, deploymentID, string(kvp.Value), attributeName)
 	if err != nil {
 		return
 	}
@@ -264,10 +346,10 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 		}
 		if len(instances) > 0 {
 			for _, instance := range instances {
-				attributes[instance] = string(defaultValue)
+				attributes[instance] = defaultValue
 			}
 		} else {
-			attributes[""] = string(defaultValue)
+			attributes[""] = defaultValue
 		}
 		found = true
 		return
@@ -275,12 +357,12 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
 	var host string
-	host, err = GetHostedOnNode(kv, deploymentId, nodeName)
+	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
 		return
 	}
 	if host != "" {
-		found, attributes, err = GetNodeAttributes(kv, deploymentId, host, attributeName)
+		found, attributes, err = GetNodeAttributes(kv, deploymentID, host, attributeName)
 		if found || err != nil {
 			return
 		}
@@ -288,7 +370,7 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 
 	// Now check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 	var prop string
-	found, prop, err = GetNodeProperty(kv, deploymentId, nodeName, attributeName)
+	found, prop, err = GetNodeProperty(kv, deploymentID, nodeName, attributeName)
 	if !found || err != nil {
 		return
 	}
@@ -308,8 +390,8 @@ func GetNodeAttributes(kv *api.KV, deploymentId, nodeName, attributeName string)
 // getTypeDefaultProperty checks if a type has a default value for a given property or attribute.
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentId, typeName, propertyName string, isProperty bool) (bool, string, error) {
-	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology", "types", typeName)
+func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, propertyName string, isProperty bool) (bool, string, error) {
+	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName)
 	var defaultPath string
 	if isProperty {
 		defaultPath = path.Join(typePath, "properties", propertyName, "default")
@@ -318,30 +400,30 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentId, typeName, prope
 	}
 	kvp, _, err := kv.Get(defaultPath, nil)
 	if err != nil {
-		return false, "", err
+		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil {
 		return true, string(kvp.Value), nil
 	}
 	// No default in this type
 	// Lets look at parent type
-	kvp, _, err = kv.Get(typePath+"/derived_from", nil)
+	parentType, err := GetParentType(kv, deploymentID, typeName)
 	if err != nil {
 		return false, "", err
 	}
-	if kvp == nil || len(kvp.Value) == 0 {
+	if parentType == "" {
 		return false, "", nil
 	}
-	return getTypeDefaultAttributeOrProperty(kv, deploymentId, string(kvp.Value), propertyName, isProperty)
+	return getTypeDefaultAttributeOrProperty(kv, deploymentID, parentType, propertyName, isProperty)
 }
 
 // GetNodes returns the names of the different nodes for a given deployment.
-func GetNodes(kv *api.KV, deploymentId string) ([]string, error) {
+func GetNodes(kv *api.KV, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
-	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes")
+	nodesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes")
 	nodes, _, err := kv.Keys(nodesPath+"/", "/", nil)
 	if err != nil {
-		return names, err
+		return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, node := range nodes {
 		names = append(names, path.Base(node))
@@ -386,7 +468,7 @@ func GetNodeAttributesNames(kv *api.KV, deploymentID, nodeName string) ([]string
 	}
 	nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	for _, instance := range instances {
-		storeSubKeysInSet(kv, path.Join(nodeInstancesPath, instance, "attributes"), attributesSet)
+		err = storeSubKeysInSet(kv, path.Join(nodeInstancesPath, instance, "attributes"), attributesSet)
 		if err != nil {
 			return nil, err
 		}
@@ -417,7 +499,8 @@ func GetTypeAttributesNames(kv *api.KV, deploymentID, typeName string) ([]string
 		return nil, err
 	}
 	if parentType != "" {
-		parentAttrs, err := GetTypeAttributesNames(kv, deploymentID, parentType)
+		var parentAttrs []string
+		parentAttrs, err = GetTypeAttributesNames(kv, deploymentID, parentType)
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +531,7 @@ func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) e
 	}
 	keys, _, err := kv.Keys(parentPath+"/", "/", nil)
 	if err != nil {
-		return errors.Wrap(err, "Consul access error: ")
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, key := range keys {
 		attr := path.Base(key)
@@ -457,4 +540,156 @@ func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) e
 		}
 	}
 	return nil
+}
+
+func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+	localStorageReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	if err != nil {
+		return nil, err
+	}
+	nodesList := make([]string, 0)
+	for _, req := range localStorageReqs {
+		var kvp *api.KVPair
+		kvp, _, err = kv.Get(path.Join(req, "node"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
+
+		}
+		nodesList = append(nodesList, string(kvp.Value))
+	}
+	networkReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	if err != nil {
+		return nil, err
+	}
+	for _, req := range networkReqs {
+		var kvp *api.KVPair
+
+		kvp, _, err = kv.Get(path.Join(req, "capability"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "janus.capabilities.openstack.FIPConnectivity" {
+			// Not a floating ip see next
+			continue
+		}
+
+		kvp, _, err = kv.Get(path.Join(req, "node"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			return nil, errors.Errorf("Missing attribute \"node\" for requirement %q on node %q", path.Join(path.Base(path.Clean(req+"/..")), path.Base(req)), nodeName)
+
+		}
+		nodesList = append(nodesList, string(kvp.Value))
+	}
+	return nodesList, nil
+}
+
+// SelectNodeStackInstances selects a given number of instances of the given node, all the nodes hosted on this one and all nodes linked to it.
+//
+// For each node it returns a coma separated list of selected instances
+func SelectNodeStackInstances(kv *api.KV, deploymentID, nodeName string, instancesDelta int) (map[string]string, error) {
+	nodesStack, err := GetNodesHostedOn(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	nodesStack = append(nodesStack, nodeName)
+	linkedNodes, err := getInstancesDependentLinkedNodes(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	nodesStack = append(nodesStack, linkedNodes...)
+
+	// TODO: Improve the way we relate node instances names to dependent (linked nodes) or hosted on instances names
+	instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	instancesList := strings.Join(instances[len(instances)-int(instancesDelta):], ",")
+	nodesMap := make(map[string]string)
+	for _, node := range nodesStack {
+		nodesMap[node] = instancesList
+	}
+	return nodesMap, nil
+}
+
+// CreateNewNodeStackInstances create the given number of new instances of the given node and all other nodes hosted on this one and all linked nodes
+//
+// CreateNewNodeStackInstances returns a map of newly created instances IDs indexed by node name
+func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, instances int) (map[string]string, error) {
+	nodesMap := make(map[string]string)
+	ctx := context.Background()
+	_, errGroup, consulStore := consulutil.WithContext(ctx)
+
+	nodes, err := GetNodes(kv, deploymentID)
+	if err != nil {
+		return nil, err
+	}
+	stackNodes := nodes[:0]
+	for _, node := range nodes {
+		if node == nodeName {
+			stackNodes = append(stackNodes, node)
+		} else {
+			var hostedOnNode bool
+			if hostedOnNode, err = IsHostedOn(kv, deploymentID, node, nodeName); err != nil {
+				return nil, err
+			} else if hostedOnNode {
+				stackNodes = append(stackNodes, node)
+			}
+		}
+	}
+
+	linkedNodes, err := getInstancesDependentLinkedNodes(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	stackNodes = append(stackNodes, linkedNodes...)
+
+	// Now get existing nodes instances ids to have the
+	existingIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	instancesIDs := make([]string, 0)
+	initialID := len(existingIds)
+	// TODO: rethink the instances ids
+	for i := initialID; i < initialID+instances; i++ {
+		id := strconv.FormatUint(uint64(i), 10)
+		instancesIDs = append(instancesIDs, id)
+		for _, stackNode := range stackNodes {
+
+			createNodeInstance(consulStore, deploymentID, stackNode, id)
+			if _, ok := nodesMap[stackNode]; ok {
+				nodesMap[stackNode] = nodesMap[stackNode] + "," + id
+			} else {
+				nodesMap[stackNode] = id
+			}
+		}
+	}
+
+	return nodesMap, errors.Wrapf(errGroup.Wait(), "Failed to create instances for node %q", nodeName)
+
+}
+
+// createNodeInstance creates required elements for a new node
+func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeName, instanceName string) {
+
+	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
+
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), tosca.NodeStateInitial.String())
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
+}
+
+// DoesNodeExist checks if a given node exist in a deployment
+func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "name"), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return kvp != nil && len(kvp.Value) > 0, nil
 }

@@ -4,8 +4,6 @@ template_name: apache-type
 template_version: 2.0.0-SNAPSHOT
 template_author: FastConnect
 
-imports:
-  - normative-types: <normative-types.yml>
 
 node_types:
   alien.nodes.Apache:

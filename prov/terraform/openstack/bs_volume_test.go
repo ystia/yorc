@@ -1,13 +1,14 @@
 package openstack
 
 import (
+	"strconv"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"strconv"
-	"testing"
 )
 
 func TestGroupedVolumeParallel(t *testing.T) {
@@ -33,11 +34,11 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OS_REGION: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	cfg := config.Configuration{OSRegion: "RegionOne"}
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	var testData = []struct {
-		volUrl       string
+		volURL       string
 		inputSize    string
 		expectedSize int
 	}{
@@ -55,11 +56,11 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volUrl+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
-		data[tt.volUrl+"/properties/size"] = []byte(tt.inputSize)
+		data[tt.volURL+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(data)
-		bsv, err := g.generateOSBSVolume(tt.volUrl, strconv.Itoa(i))
+		bsv, err := g.generateOSBSVolume(tt.volURL, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
 		// Default region
@@ -79,11 +80,11 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OS_REGION: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	cfg := config.Configuration{OSRegion: "RegionOne"}
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	var testData = []struct {
-		volUrl    string
+		volURL    string
 		inputSize string
 	}{
 		{"node/volume1", "1 bar"},
@@ -95,11 +96,11 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volUrl+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
-		data[tt.volUrl+"/properties/size"] = []byte(tt.inputSize)
+		data[tt.volURL+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(data)
-		_, err := g.generateOSBSVolume(tt.volUrl, strconv.Itoa(i))
+		_, err := g.generateOSBSVolume(tt.volURL, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
 }
@@ -117,8 +118,8 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OS_REGION: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	cfg := config.Configuration{OSRegion: "RegionOne"}
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -144,7 +145,7 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := NewGenerator(kv, cfg)
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -170,8 +171,8 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OS_REGION: "RegionOne"}
-	g := NewGenerator(kv, cfg)
+	cfg := config.Configuration{OSRegion: "RegionOne"}
+	g := osGenerator{kv: kv, cfg: cfg}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair

@@ -13,3 +13,6 @@ work
 /testdata/deployment/*/*.zip
 /janus.tgz
 /pkg/janus
+/.vscode
+**/debug.test
+**/debug

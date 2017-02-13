@@ -4,10 +4,6 @@ template_name: demo-lifecycle
 template_author: Alien4cloud
 template_version: 1.0.0-SNAPSHOT
 
-imports:
-  - normative-types: <normative-types.yml>
-  - apache-type:2.0.0-SNAPSHOT
-  - php-type:2.0.0-SNAPSHOT
 
 description: Generic type that echoes operations in a file for tests.
 

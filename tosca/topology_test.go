@@ -1,9 +1,10 @@
 package tosca
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
-	"testing"
 )
 
 func TestTopologyTemplate_Inputs(t *testing.T) {
