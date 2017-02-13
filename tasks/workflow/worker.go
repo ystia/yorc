@@ -212,7 +212,7 @@ func (w worker) handleTask(t *task) {
 			t.WithStatus(tasks.FAILED)
 			return
 		}
-		if len(nodes) != 0 {
+		if len(nodes) != 1 {
 			log.Printf("Deployment id: %q, Task id: %q, Expecting custom command task to be related to \"1\" node while it is actually related to \"%d\" nodes", t.TargetID, t.ID, len(nodes))
 			t.WithStatus(tasks.FAILED)
 			return

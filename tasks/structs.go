@@ -23,6 +23,7 @@ const (
 	Purge
 	// CustomCommand defines a Task of type "custom-command"
 	CustomCommand
+	// NOTE: if a new task type should be added then change validity check on GetTaskType
 )
 
 // TaskTypeForName converts a textual representation of a task into a TaskType
@@ -59,6 +60,7 @@ const (
 	FAILED
 	// CANCELED is the status of a canceled task
 	CANCELED
+	// NOTE: if a new status should be added then change validity check on GetTaskStatus
 )
 
 type anotherLivingTaskAlreadyExistsError struct {

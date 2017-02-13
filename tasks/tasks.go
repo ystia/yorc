@@ -23,7 +23,7 @@ func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 	for _, taskKey := range tasksKeys {
 		kvp, _, err := kv.Get(path.Join(taskKey, "targetId"), nil)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp != nil && len(kvp.Value) > 0 && string(kvp.Value) == targetID {
 			tasks = append(tasks, path.Base(taskKey))
@@ -36,14 +36,17 @@ func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
-		return FAILED, err
+		return FAILED, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return FAILED, fmt.Errorf("Missing status for task with id %q", taskID)
+		return FAILED, errors.Errorf("Missing status for task with id %q", taskID)
 	}
 	statusInt, err := strconv.Atoi(string(kvp.Value))
 	if err != nil {
-		return FAILED, err
+		return FAILED, errors.Wrapf(err, "Invalid task status:")
+	}
+	if statusInt < 0 || statusInt > int(CANCELED) {
+		return FAILED, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskStatus(statusInt), nil
 }
@@ -52,14 +55,17 @@ func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "type"), nil)
 	if err != nil {
-		return Deploy, err
+		return Deploy, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return Deploy, fmt.Errorf("Missing status for type with id %q", taskID)
+		return Deploy, errors.Errorf("Missing status for type with id %q", taskID)
 	}
 	typeInt, err := strconv.Atoi(string(kvp.Value))
 	if err != nil {
-		return Deploy, err
+		return Deploy, errors.Wrapf(err, "Invalid task type:")
+	}
+	if typeInt < 0 || typeInt > int(CustomCommand) {
+		return Deploy, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil
 }
@@ -68,10 +74,10 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "targetId"), nil)
 	if err != nil {
-		return "", nil
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return "", fmt.Errorf("Missing targetId for task with id %q", taskID)
+		return "", errors.Errorf("Missing targetId for task with id %q", taskID)
 	}
 	return string(kvp.Value), nil
 }
@@ -80,7 +86,7 @@ func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
 func TaskExists(kv *api.KV, taskID string) (bool, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "targetId"), nil)
 	if err != nil {
-		return false, nil
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
 		return false, nil
@@ -92,32 +98,32 @@ func TaskExists(kv *api.KV, taskID string) (bool, error) {
 func CancelTask(kv *api.KV, taskID string) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), Value: []byte("true")}
 	_, err := kv.Put(kvp, nil)
-	return err
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
-// TargetHasLivingTasks checks if a targetID has associated tasks and returns their id and status
+// TargetHasLivingTasks checks if a targetID has associated tasks in status INITIAL or RUNNING and returns the id and status of the first one found
 func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
 	if err != nil {
-		return false, "", "", err
+		return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, taskKey := range tasksKeys {
 		kvp, _, err := kv.Get(path.Join(taskKey, "targetId"), nil)
 		if err != nil {
-			return false, "", "", err
+			return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp != nil && len(kvp.Value) > 0 && string(kvp.Value) == targetID {
 			kvp, _, err := kv.Get(path.Join(taskKey, "status"), nil)
 			taskID := path.Base(taskKey)
 			if err != nil {
-				return false, "", "", err
+				return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
 			if kvp == nil || len(kvp.Value) == 0 {
 				return false, "", "", fmt.Errorf("Missing status for task with id %q", taskID)
 			}
 			statusInt, err := strconv.Atoi(string(kvp.Value))
 			if err != nil {
-				return false, "", "", err
+				return false, "", "", errors.Wrap(err, "Invalid task status")
 			}
 			switch TaskStatus(statusInt) {
 			case INITIAL, RUNNING:
