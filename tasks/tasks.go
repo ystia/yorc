@@ -164,7 +164,7 @@ func GetTaskRelatedNodes(kv *api.KV, taskID string) ([]string, error) {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for i := range nodes {
-		nodes[i] = path.Dir(nodes[i])
+		nodes[i] = path.Base(nodes[i])
 	}
 	return nodes, nil
 }

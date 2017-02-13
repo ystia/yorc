@@ -15,3 +15,4 @@ work
 /pkg/janus
 /.vscode
 **/debug.test
+**/debug
