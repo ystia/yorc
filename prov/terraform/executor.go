@@ -112,7 +112,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	events.LogEngineMessage(kv, deploymentID, "Applying the infrastructure")
-	infraPath := filepath.Join("work", "deployments", deploymentID, "infra", nodeName)
+	infraPath := filepath.Join(config.GetWorkingDirectory(), "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
 	errbuf := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)

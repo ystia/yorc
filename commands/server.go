@@ -26,6 +26,7 @@ var serverCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		configuration := getConfig()
+		config.SetConfig(configuration)
 		shutdownCh := make(chan struct{})
 		return server.RunServer(configuration, shutdownCh)
 	},
@@ -120,6 +121,7 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
+	configuration.WorkingDirectory = viper.GetString("janus_working_directory")
 	configuration.OSAuthURL = viper.GetString("os_auth_url")
 	configuration.OSTenantID = viper.GetString("os_tenant_id")
 	configuration.OSTenantName = viper.GetString("os_tenant_name")

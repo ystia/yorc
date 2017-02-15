@@ -1,4 +1,5 @@
 {
+        "janus_working_directory": "work",
         "os_auth_url": "http://10.197.132.150:5000/v2.0",
         "os_tenant_id": "1f219ffcff2342e189ef47c0e9689dfb",
         "os_tenant_name": "starlings",
