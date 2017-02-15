@@ -12,6 +12,7 @@ const DefaultWorkersNumber int = 3
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	WorkersNumber           int      `json:"workers_number,omitempty"`
+	WorkingDirectory        string   `json:"working_directory,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`
 	OSTenantName            string   `json:"os_tenant_name,omitempty"`
@@ -26,4 +27,19 @@ type Configuration struct {
 	ConsulDatacenter        string   `json:"consul_datacenter,omitempty"`
 	ConsulAddress           string   `json:"consul_address,omitempty"`
 	ConsulPubMaxRoutines    int      `json:"rest_consul_publisher_max_routines,omitempty"`
+}
+
+var (
+	jConfig Configuration
+)
+
+func SetConfig(cfg Configuration) {
+	jConfig.WorkingDirectory = cfg.WorkingDirectory
+}
+
+func GetWorkingDirectory() (workingDir string) {
+	return jConfig.WorkingDirectory
+}
+func SetWorkingDirectory(workingDir string) {
+	jConfig.WorkingDirectory = workingDir
 }

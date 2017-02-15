@@ -71,7 +71,7 @@ func BenchmarkHttpApiNewDeployment(b *testing.B) {
 
 	b.StopTimer()
 	close(shutdownCh)
-	if err := os.RemoveAll("work"); err != nil {
+	if err := os.RemoveAll(config.GetWorkingDirectory()); err != nil {
 		b.Fatal(err)
 	}
 }

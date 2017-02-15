@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -555,7 +556,7 @@ func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) er
 
 func (e *executionCommon) resolveExecution() error {
 	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.deploymentID)
-	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.deploymentID, "overlay"))
+	ovPath, err := filepath.Abs(filepath.Join(config.GetWorkingDirectory(), "deployments", e.deploymentID, "overlay"))
 	if err != nil {
 		return err
 	}
@@ -613,9 +614,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	events.LogEngineMessage(e.kv, e.deploymentID, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	var ansibleRecipePath string
 	if e.isRelationshipOperation {
-		ansibleRecipePath = filepath.Join("work", "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
+		ansibleRecipePath = filepath.Join(config.GetWorkingDirectory(), "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
 	} else {
-		ansibleRecipePath = filepath.Join("work", "deployments", e.deploymentID, "ansible", e.NodeName, e.Operation, currentInstance)
+		ansibleRecipePath = filepath.Join(config.GetWorkingDirectory(), "deployments", e.deploymentID, "ansible", e.NodeName, e.Operation, currentInstance)
 	}
 	ansibleRecipePath, err := filepath.Abs(ansibleRecipePath)
 	if err != nil {

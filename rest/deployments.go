@@ -12,6 +12,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/satori/go.uuid"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -43,7 +44,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var file *os.File
-	uploadPath := filepath.Join("work", "deployments", uid)
+	uploadPath := filepath.Join(config.GetWorkingDirectory(), "deployments", uid)
 	if err = os.MkdirAll(uploadPath, 0775); err != nil {
 		log.Panicf("%+v", err)
 	}
