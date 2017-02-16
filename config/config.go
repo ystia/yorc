@@ -28,18 +28,3 @@ type Configuration struct {
 	ConsulAddress           string   `json:"consul_address,omitempty"`
 	ConsulPubMaxRoutines    int      `json:"rest_consul_publisher_max_routines,omitempty"`
 }
-
-var (
-	jConfig Configuration
-)
-
-func SetConfig(cfg Configuration) {
-	jConfig.WorkingDirectory = cfg.WorkingDirectory
-}
-
-func GetWorkingDirectory() (workingDir string) {
-	return jConfig.WorkingDirectory
-}
-func SetWorkingDirectory(workingDir string) {
-	jConfig.WorkingDirectory = workingDir
-}
