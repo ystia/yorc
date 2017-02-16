@@ -25,8 +25,11 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: nova
+        # Liberty
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+#        availability_zone: nova
         key_pair: janus
         security_groups: openbar,default
       requirements:
@@ -39,7 +42,7 @@ topology_template:
             protocol: tcp
             initiator: source
             secure: true
-            network_name: private_starlings
+            network_name: PRIVATE
         scalable:
           properties:
             max_instances: 1
@@ -48,7 +51,10 @@ topology_template:
     Network:
       type: janus.nodes.openstack.FloatingIP
       properties:
-        floating_network_name: Public_Network
+        # Liberty
+        floating_network_name: public-starlings
+        # IceHouse
+#        floating_network_name: Public_Network
   outputs:
     Registry_url:
       value: { get_attribute: [ Welcome, url ] }
