@@ -60,8 +60,11 @@ topology_template:
       properties:
         user: cloud-user
         flavor: 2
-        image: 89ec515c-3251-4c2f-8402-bda280c31650
-        availability_zone: nova
+        # Liberty
+        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        # IceHouse
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+#        availability_zone: nova
         key_pair: janus
       capabilities:
         endpoint:
@@ -69,7 +72,7 @@ topology_template:
             protocol: tcp
             initiator: source
             secure: true
-            network_name: private_starlings
+            network_name: PRIVATE
         scalable:
           properties:
             max_instances: 1
