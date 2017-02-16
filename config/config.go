@@ -6,8 +6,12 @@ package config
 // See consulutil package for more details
 const DefaultConsulPubMaxRoutines int = 500
 
+// DefaultWorkersNumber is the default number of workers in the Janus server
+const DefaultWorkersNumber int = 3
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
+	WorkersNumber           int      `json:"workers_number,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`
 	OSTenantName            string   `json:"os_tenant_name,omitempty"`
