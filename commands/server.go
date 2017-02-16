@@ -26,7 +26,6 @@ var serverCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		configuration := getConfig()
-		config.SetConfig(configuration)
 		shutdownCh := make(chan struct{})
 		return server.RunServer(configuration, shutdownCh)
 	},
@@ -48,6 +47,9 @@ func initConfig() {
 
 func setConfig() {
 
+	//Flags definition for Janus
+	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Janus server")
+
 	//Flags definition for OpenStack
 	serverCmd.PersistentFlags().StringP("os_auth_url", "a", "", "will use the 1.1 *compute api*")
 	serverCmd.PersistentFlags().StringP("os_tenant_id", "i", "", "The ID of the tenant")
@@ -67,6 +69,8 @@ func setConfig() {
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
 
+	//Bind Flags for Janus
+	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
 	viper.BindPFlag("os_tenant_id", serverCmd.PersistentFlags().Lookup("os_tenant_id"))
@@ -90,6 +94,7 @@ func setConfig() {
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
 	viper.AutomaticEnv()        // read in environment variables that match
+	viper.BindEnv("working_directory")
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
@@ -104,6 +109,7 @@ func setConfig() {
 	viper.BindEnv("consul_address")
 
 	//Setting Defaults
+	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("os_prefix", "janus-")
 	viper.SetDefault("os_region", "RegionOne")
 	viper.SetDefault("os_default_security_groups", make([]string, 0))
@@ -121,7 +127,7 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
-	configuration.WorkingDirectory = viper.GetString("janus_working_directory")
+	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.OSAuthURL = viper.GetString("os_auth_url")
 	configuration.OSTenantID = viper.GetString("os_tenant_id")
 	configuration.OSTenantName = viper.GetString("os_tenant_name")

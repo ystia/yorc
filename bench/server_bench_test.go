@@ -2,14 +2,15 @@ package bench
 
 import (
 	"bytes"
-	"github.com/hashicorp/consul/testutil"
 	"net/http"
+	"os"
+	"testing"
+
+	"github.com/hashicorp/consul/testutil"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/server"
-	"os"
-	"testing"
 )
 
 var response *http.Response
@@ -71,7 +72,8 @@ func BenchmarkHttpApiNewDeployment(b *testing.B) {
 
 	b.StopTimer()
 	close(shutdownCh)
-	if err := os.RemoveAll(config.GetWorkingDirectory()); err != nil {
+	// TODO : Use config.Configuration.WorkingDirectory
+	if err := os.RemoveAll("work"); err != nil {
 		b.Fatal(err)
 	}
 }
