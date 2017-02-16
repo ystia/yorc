@@ -13,6 +13,8 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/server"
 )
 
+const defaultWorkingDirectory string = "work"
+
 var response *http.Response
 
 type noopWriter struct{}
@@ -35,6 +37,7 @@ func setupServer(b *testing.B) (*testutil.TestServer, chan struct{}) {
 	})
 
 	configuration := config.Configuration{
+		WorkingDirectory:     defaultWorkingDirectory,
 		ConsulAddress:        srv1.HTTPAddr,
 		ConsulPubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 	}
@@ -72,8 +75,7 @@ func BenchmarkHttpApiNewDeployment(b *testing.B) {
 
 	b.StopTimer()
 	close(shutdownCh)
-	// TODO : Use config.Configuration.WorkingDirectory
-	if err := os.RemoveAll("work"); err != nil {
+	if err := os.RemoveAll(defaultWorkingDirectory); err != nil {
 		b.Fatal(err)
 	}
 }
