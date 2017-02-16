@@ -13,6 +13,7 @@ const DefaultWorkersNumber int = 3
 type Configuration struct {
 	WorkersNumber           int      `json:"workers_number,omitempty"`
 	WorkingDirectory        string   `json:"working_directory,omitempty"`
+	WorkersNumber           int      `json:"workers_number,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`
 	OSTenantName            string   `json:"os_tenant_name,omitempty"`
