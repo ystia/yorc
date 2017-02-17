@@ -42,8 +42,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
-	nbWorkers := configuration.WorkersNumber
-	dispatcher := workflow.NewDispatcher(nbWorkers, shutdownCh, client, configuration)
+	dispatcher := workflow.NewDispatcher(configuration.WorkersNumber, shutdownCh, client, configuration)
 	go dispatcher.Run()
 	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {
