@@ -8,6 +8,7 @@ const DefaultConsulPubMaxRoutines int = 500
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
+	WorkingDirectory        string   `json:"working_directory,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`
 	OSTenantName            string   `json:"os_tenant_name,omitempty"`

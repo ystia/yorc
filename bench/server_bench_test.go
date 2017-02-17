@@ -2,15 +2,18 @@ package bench
 
 import (
 	"bytes"
-	"github.com/hashicorp/consul/testutil"
 	"net/http"
+	"os"
+	"testing"
+
+	"github.com/hashicorp/consul/testutil"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/server"
-	"os"
-	"testing"
 )
+
+const defaultWorkingDirectory string = "work"
 
 var response *http.Response
 
@@ -34,6 +37,7 @@ func setupServer(b *testing.B) (*testutil.TestServer, chan struct{}) {
 	})
 
 	configuration := config.Configuration{
+		WorkingDirectory:     defaultWorkingDirectory,
 		ConsulAddress:        srv1.HTTPAddr,
 		ConsulPubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 	}
@@ -71,7 +75,7 @@ func BenchmarkHttpApiNewDeployment(b *testing.B) {
 
 	b.StopTimer()
 	close(shutdownCh)
-	if err := os.RemoveAll("work"); err != nil {
+	if err := os.RemoveAll(defaultWorkingDirectory); err != nil {
 		b.Fatal(err)
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -91,6 +92,7 @@ type ansibleRunner interface {
 }
 type executionCommon struct {
 	kv                       *api.KV
+	cfg                      config.Configuration
 	deploymentID             string
 	taskID                   string
 	NodeName                 string
@@ -124,8 +126,9 @@ type executionCommon struct {
 	targetNodeInstances      []string
 }
 
-func newExecution(kv *api.KV, taskID, deploymentID, nodeName, operation string) (execution, error) {
+func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, operation string) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
+		cfg:            cfg,
 		deploymentID:   deploymentID,
 		NodeName:       nodeName,
 		Operation:      operation,
@@ -555,7 +558,7 @@ func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) er
 
 func (e *executionCommon) resolveExecution() error {
 	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.deploymentID)
-	ovPath, err := filepath.Abs(filepath.Join("work", "deployments", e.deploymentID, "overlay"))
+	ovPath, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "overlay"))
 	if err != nil {
 		return err
 	}
@@ -613,9 +616,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	events.LogEngineMessage(e.kv, e.deploymentID, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
 	var ansibleRecipePath string
 	if e.isRelationshipOperation {
-		ansibleRecipePath = filepath.Join("work", "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
+		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
 	} else {
-		ansibleRecipePath = filepath.Join("work", "deployments", e.deploymentID, "ansible", e.NodeName, e.Operation, currentInstance)
+		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.Operation, currentInstance)
 	}
 	ansibleRecipePath, err := filepath.Abs(ansibleRecipePath)
 	if err != nil {
