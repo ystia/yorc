@@ -94,7 +94,7 @@ func setConfig() {
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
 	viper.AutomaticEnv()        // read in environment variables that match
-	viper.BindEnv("workers_number", "WORKERS_NUMBER")
+	viper.BindEnv("workers_number")
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
