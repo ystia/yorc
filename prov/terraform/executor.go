@@ -72,7 +72,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 		return err
 	}
 	if infraGenerated {
-		if err = e.applyInfrastructure(ctx, kv, deploymentID, nodeName); err != nil {
+		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
 			return err
 		}
 	}
@@ -97,7 +97,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		return err
 	}
 	if infraGenerated {
-		if err = e.destroyInfrastructure(ctx, kv, deploymentID, nodeName); err != nil {
+		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
 			return err
 		}
 	}
@@ -110,9 +110,9 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	return nil
 }
 
-func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 	events.LogEngineMessage(kv, deploymentID, "Applying the infrastructure")
-	infraPath := filepath.Join("work", "deployments", deploymentID, "infra", nodeName)
+	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
 	errbuf := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
@@ -133,7 +133,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, d
 
 }
 
-func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -151,6 +151,6 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 			return nil
 		}
 	}
-	return e.applyInfrastructure(ctx, kv, deploymentID, nodeName)
+	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName)
 
 }

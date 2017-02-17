@@ -129,7 +129,7 @@ func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName st
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
 	}
-	infraPath := filepath.Join("work", "deployments", fmt.Sprint(deploymentID), "infra", nodeName)
+	infraPath := filepath.Join(g.cfg.WorkingDirectory, "deployments", fmt.Sprint(deploymentID), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		log.Printf("%+v", err)
 		return false, err

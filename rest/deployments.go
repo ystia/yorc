@@ -43,7 +43,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var file *os.File
-	uploadPath := filepath.Join("work", "deployments", uid)
+	uploadPath := filepath.Join(s.config.WorkingDirectory, "deployments", uid)
 	if err = os.MkdirAll(uploadPath, 0775); err != nil {
 		log.Panicf("%+v", err)
 	}

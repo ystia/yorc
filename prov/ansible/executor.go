@@ -23,7 +23,7 @@ func NewExecutor() prov.OperationExecutor {
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, conf config.Configuration, taskID, deploymentID, nodeName, operation string) error {
-	exec, err := newExecution(kv, taskID, deploymentID, nodeName, operation)
+	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
 			log.Printf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())

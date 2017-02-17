@@ -13,9 +13,18 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
+
+// From now only WorkingDirectory is necessary for those tests
+func GetConfig() config.Configuration {
+	config := config.Configuration{
+		WorkingDirectory: "work",
+	}
+	return config
+}
 
 func TestAnsibleParallel(t *testing.T) {
 	t.Run("ansible", func(t *testing.T) {
@@ -234,7 +243,7 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 
 
 `
-	execution, err := newExecution(kv, "taskIDNotUsedForNow", deploymentID, nodeName, operation)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, operation)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -435,7 +444,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 
 
 `
-	execution, err := newExecution(kv, "taskIDNotUsedForNow", deploymentID, nodeName, operation)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, operation)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -608,7 +617,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
 
-	execution, err := newExecution(kv, "taskIDNotUsedForNow", deploymentID, nodeName, operation)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, operation)
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free

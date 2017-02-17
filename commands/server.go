@@ -47,6 +47,11 @@ func initConfig() {
 
 func setConfig() {
 
+	//Flags definition for Janus server
+	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
+	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Janus server")
+	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Janus server. If not set the default value will be used")
+
 	//Flags definition for OpenStack
 	serverCmd.PersistentFlags().StringP("os_auth_url", "a", "", "will use the 1.1 *compute api*")
 	serverCmd.PersistentFlags().StringP("os_tenant_id", "i", "", "The ID of the tenant")
@@ -65,10 +70,6 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("consul_datacenter", "d", "", "The datacenter of Consul node")
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
-
-	//Flags definition for Janus server
-	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
-	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Janus server. If not set the default value will be used")
 
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
@@ -89,11 +90,13 @@ func setConfig() {
 	viper.BindPFlag("consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("consul_publisher_max_routines"))
 
 	//Bind Flags for Janus server
+	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
 	viper.BindPFlag("workers_number", serverCmd.PersistentFlags().Lookup("workers_number"))
 
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
 	viper.AutomaticEnv()        // read in environment variables that match
+	viper.BindEnv("working_directory")
 	viper.BindEnv("workers_number")
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
@@ -109,6 +112,7 @@ func setConfig() {
 	viper.BindEnv("consul_address")
 
 	//Setting Defaults
+	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("os_prefix", "janus-")
 	viper.SetDefault("os_region", "RegionOne")
 	viper.SetDefault("os_default_security_groups", make([]string, 0))
@@ -127,6 +131,7 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
+	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")
 	configuration.OSAuthURL = viper.GetString("os_auth_url")
 	configuration.OSTenantID = viper.GetString("os_tenant_id")
