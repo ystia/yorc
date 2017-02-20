@@ -11,7 +11,6 @@ const DefaultWorkersNumber int = 3
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
-	WorkersNumber           int      `json:"workers_number,omitempty"`
 	WorkingDirectory        string   `json:"working_directory,omitempty"`
 	WorkersNumber           int      `json:"workers_number,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
