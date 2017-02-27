@@ -47,8 +47,10 @@ func initConfig() {
 
 func setConfig() {
 
-	//Flags definition for Janus
+	//Flags definition for Janus server
+	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
 	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Janus server")
+	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Janus server. If not set the default value will be used")
 
 	//Flags definition for OpenStack
 	serverCmd.PersistentFlags().StringP("os_auth_url", "a", "", "will use the 1.1 *compute api*")
@@ -89,12 +91,15 @@ func setConfig() {
 
 	viper.BindPFlag("consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("consul_publisher_max_routines"))
 
-	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
+	//Bind Flags for Janus server
+	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
+	viper.BindPFlag("workers_number", serverCmd.PersistentFlags().Lookup("workers_number"))
 
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
 	viper.AutomaticEnv()        // read in environment variables that match
 	viper.BindEnv("working_directory")
+	viper.BindEnv("workers_number")
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
@@ -117,6 +122,7 @@ func setConfig() {
 	viper.SetDefault("consul_datacenter", "dc1")
 	viper.SetDefault("consul_token", "anonymous")
 	viper.SetDefault("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines)
+	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
@@ -128,6 +134,7 @@ func setConfig() {
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
 	configuration.WorkingDirectory = viper.GetString("working_directory")
+	configuration.WorkersNumber = viper.GetInt("workers_number")
 	configuration.OSAuthURL = viper.GetString("os_auth_url")
 	configuration.OSTenantID = viper.GetString("os_tenant_id")
 	configuration.OSTenantName = viper.GetString("os_tenant_name")
