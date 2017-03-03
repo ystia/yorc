@@ -114,6 +114,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 
 func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 
+	// TODO (HJo) Factorize the code with applyInfrastructure(...) function
 	events.LogEngineMessage(kv, deploymentID, "Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	tfBackendConfigPath := path.Join(consulutil.TerraformStateKVPrefix, deploymentID, nodeName)
