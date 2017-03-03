@@ -2,6 +2,7 @@ package terraform
 
 import (
 	"context"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
@@ -110,7 +112,40 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	return nil
 }
 
+func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+
+	events.LogEngineMessage(kv, deploymentID, "Remote configuring the infrastructure")
+	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
+	tfBackendConfigPath := path.Join(consulutil.TerraformStateKVPrefix, deploymentID, nodeName)
+	tfBackendConfigName := "tfstate_" + deploymentID + "_" + nodeName
+	cmd := executil.Command(ctx, "terraform", "remote", "config", "-backend=consul",
+		"-backend-config=path="+tfBackendConfigPath, "-backend-config=name="+tfBackendConfigName)
+	cmd.Dir = infraPath
+	errbuf := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
+	out := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
+	cmd.Stdout = out
+	cmd.Stderr = errbuf
+
+	quit := make(chan bool)
+	defer close(quit)
+	out.Run(quit)
+	errbuf.Run(quit)
+
+	if err := cmd.Start(); err != nil {
+		log.Print(err)
+	}
+
+	return cmd.Wait()
+
+}
+
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+
+	// Remote Configuration for Terraform State to store it in the Consul KV store
+	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
+		return err
+	}
+
 	events.LogEngineMessage(kv, deploymentID, "Applying the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
@@ -134,6 +169,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 }
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+	// TODO (HJo) May be a purge of the terraform state must be done in consul KV store ?
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err

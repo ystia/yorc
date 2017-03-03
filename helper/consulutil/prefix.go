@@ -2,6 +2,9 @@ package consulutil
 
 const janusPrefix string = "_janus"
 
+// TerraformStateKVPrefix is the prefix in Consul KV store for terraform state
+const TerraformStateKVPrefix string = janusPrefix + "/terraform-state"
+
 // DeploymentKVPrefix is the prefix in Consul KV store for deployments
 const DeploymentKVPrefix string = janusPrefix + "/deployments"
 

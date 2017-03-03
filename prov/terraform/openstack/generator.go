@@ -68,9 +68,20 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
+	terraformStateKey := path.Join(consulutil.TerraformStateKVPrefix, deploymentID, nodeName)
+
+	infrastructure := commons.Infrastructure{}
+
+	// TODO (HJo) Must also be done in generator for Slurm
+	// Remote Configuration for Terraform State to store it in the Consul KV store
+	infrastructure.Data = map[string]interface{}{
+		"terraform_remote_state": map[string]interface{}{
+			"tfstate_" + deploymentID: map[string]interface{}{
+				"backend": "consul",
+				"config": map[string]interface{}{
+					"path": terraformStateKey}}}}
 
 	// Management of variables for Terraform
-	infrastructure := commons.Infrastructure{}
 	infrastructure.Provider = map[string]interface{}{
 		"openstack": map[string]interface{}{
 			"user_name":   g.cfg.OSUserName,
