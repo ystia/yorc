@@ -1,9 +1,10 @@
 package tosca
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
-	"testing"
 )
 
 func TestGroupedImplementationsParallel(t *testing.T) {

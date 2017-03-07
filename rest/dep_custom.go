@@ -3,15 +3,18 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
 	"io/ioutil"
 	"net/http"
+	"path"
+	"strconv"
+
+	"strings"
+
+	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"path"
-	"strconv"
 )
 
 func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request) {
@@ -25,8 +28,8 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	var inputMap deployments.InputsPropertyDef
-	if err := json.Unmarshal(body, &inputMap); err != nil {
+	var inputMap CustomCommandRequest
+	if err = json.Unmarshal(body, &inputMap); err != nil {
 		log.Panic(err)
 	}
 
@@ -37,8 +40,10 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 
 	data := make(map[string]string)
 
-	data["node"] = inputMap.NodeName
-	data["name"] = inputMap.CustomCommandName
+	// For now custom commands are for all instances
+	instances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), id, inputMap.NodeName)
+	data[path.Join("nodes", inputMap.NodeName)] = strings.Join(instances, ",")
+	data["commandName"] = inputMap.CustomCommandName
 
 	for _, name := range inputsName {
 		if err != nil {
@@ -47,30 +52,28 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		data[path.Join("inputs", name)] = inputMap.Inputs[name]
 	}
 
-	destroy, lock, taskId, err := s.tasksCollector.RegisterTaskWithoutDestroyLock(id, tasks.CustomCommand, data)
+	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.CustomCommand, data)
 	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)
 	}
 
-	destroy(lock, taskId, id)
-
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskId))
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskID))
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *Server) getInputNameFromCustom(depId, nodeName, customCName string) ([]string, error) {
-	nodeType, err := deployments.GetNodeType(s.consulClient.KV(), depId, nodeName)
+func (s *Server) getInputNameFromCustom(deploymentID, nodeName, customCName string) ([]string, error) {
+	nodeType, err := deployments.GetNodeType(s.consulClient.KV(), deploymentID, nodeName)
 
 	if err != nil {
 		return nil, err
 	}
 
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, depId, "topology/types", nodeType, "interfaces/custom", customCName, "inputs")+"/", "/", nil)
+	kvp, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces/custom", customCName, "inputs")+"/", "/", nil)
 	if err != nil {
 		log.Panic(err)
 	}

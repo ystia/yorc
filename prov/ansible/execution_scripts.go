@@ -11,13 +11,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-const output_custom_wrapper = `
+const outputCustomWrapper = `
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Output -]]]
 [[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName $artName $.OperationRemotePath]]]
@@ -26,7 +25,7 @@ const output_custom_wrapper = `
 [[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
 `
 
-const shell_ansible_playbook = `
+const shellAnsiblePlaybook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
@@ -76,40 +75,41 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		"path": filepath.Dir,
 		"abs":  filepath.Abs,
 	}
+
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
 	if e.HaveOutput {
-		wrap_template := template.New("execTemplate")
-		wrap_template = wrap_template.Delims("[[[", "]]]")
-		wrap_template, err := tmpl.Parse(output_custom_wrapper)
+		wrapTemplate := template.New("execTemplate")
+		wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
+		wrapTemplate, err := tmpl.Parse(outputCustomWrapper)
 		if err != nil {
 			return err
 		}
-		if err := wrap_template.Execute(&buffer, e); err != nil {
+		if err := wrapTemplate.Execute(&buffer, e); err != nil {
 			log.Print("Failed to Generate wrapper template")
-			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate wrapper template")
+			events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate wrapper template")
 			return err
 		}
 		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
 			log.Print("Failed to write playbook file")
-			deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
+			events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
 			return err
 		}
 	}
 	buffer.Reset()
-	tmpl, err := tmpl.Parse(shell_ansible_playbook)
+	tmpl, err := tmpl.Parse(shellAnsiblePlaybook)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate ansible playbook")
 	}
-	if err := tmpl.Execute(&buffer, e); err != nil {
+	if err = tmpl.Execute(&buffer, e); err != nil {
 		log.Print("Failed to Generate ansible playbook template")
-		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to Generate ansible playbook template")
+		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate ansible playbook template")
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
+	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		log.Print("Failed to write playbook file")
-		deployments.LogInConsul(e.kv, e.DeploymentId, "Failed to write playbook file")
+		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
 		return err
 	}
 
@@ -117,8 +117,8 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	if err != nil {
 		return err
 	}
-	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.DeploymentId, e.NodeName, scriptPath)
-	deployments.LogInConsul(e.kv, e.DeploymentId, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
+	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, scriptPath)
+	events.LogEngineMessage(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
 	var cmd *executil.Cmd
 	var wrapperPath string
 	if e.HaveOutput {
@@ -132,7 +132,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer
-	errbuf := logsutil.NewBufferedConsulWriter(e.kv, e.DeploymentId, deployments.SOFTWARE_LOG_PREFIX)
+	errbuf := events.NewBufferedLogEventWriter(e.kv, e.deploymentID, events.SoftwareLogPrefix)
 	cmd.Stdout = &outbuf
 	cmd.Stderr = errbuf
 

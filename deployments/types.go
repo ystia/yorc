@@ -30,8 +30,8 @@ func GetParentType(kv *api.KV, deploymentID, typeName string) (string, error) {
 	return string(kvp.Value), nil
 }
 
-// IsNodeTypeDerivedFrom traverses 'derived_from' to check if type derives from another type
-func IsNodeTypeDerivedFrom(kv *api.KV, deploymentID, nodeType, derives string) (bool, error) {
+// IsTypeDerivedFrom traverses 'derived_from' to check if type derives from another type
+func IsTypeDerivedFrom(kv *api.KV, deploymentID, nodeType, derives string) (bool, error) {
 	if nodeType == derives {
 		return true, nil
 	}
@@ -39,5 +39,5 @@ func IsNodeTypeDerivedFrom(kv *api.KV, deploymentID, nodeType, derives string) (
 	if err != nil || parent == "" {
 		return false, err
 	}
-	return IsNodeTypeDerivedFrom(kv, deploymentID, parent, derives)
+	return IsTypeDerivedFrom(kv, deploymentID, parent, derives)
 }

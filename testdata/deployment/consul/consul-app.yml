@@ -296,6 +296,7 @@ topology_template:
             set_state: stopped
           on-success:
             - ConsulAgent_deleting
+            - ConsulServer_stopping
         ConsulAgent_deleting:
           node: ConsulAgent
           activity:

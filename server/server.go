@@ -2,45 +2,47 @@ package server
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"os"
-	"os/signal"
-	"syscall"
+	"novaforge.bull.com/starlings-janus/janus/tasks/workflow"
 )
 
+// RunServer starts the Janus server
 func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
-	var ConsulDC string = configuration.CONSUL_DATACENTER
-	var ConsulToken string = configuration.CONSUL_TOKEN
+	consulDC := configuration.ConsulDatacenter
+	consulToken := configuration.ConsulToken
 
-	ConsulCustomConfig := api.DefaultConfig()
-	if configuration.CONSUL_ADDRESS != "" {
-		ConsulCustomConfig.Address = configuration.CONSUL_ADDRESS
+	consulCustomConfig := api.DefaultConfig()
+	if configuration.ConsulAddress != "" {
+		consulCustomConfig.Address = configuration.ConsulAddress
 	}
-	if ConsulDC != "" {
-		ConsulCustomConfig.Datacenter = fmt.Sprintf("%s", ConsulDC)
+	if consulDC != "" {
+		consulCustomConfig.Datacenter = fmt.Sprintf("%s", consulDC)
 	}
-	if ConsulToken != "" {
-		ConsulCustomConfig.Token = fmt.Sprintf("%s", ConsulToken)
+	if consulToken != "" {
+		consulCustomConfig.Token = fmt.Sprintf("%s", consulToken)
 	}
-	client, err := api.NewClient(ConsulCustomConfig)
+	client, err := api.NewClient(consulCustomConfig)
 	if err != nil {
 		log.Printf("Can't connect to Consul")
 		return err
 	}
 
-	maxConsulPubRoutines := configuration.CONSUL_PUB_MAX_ROUTINES
+	maxConsulPubRoutines := configuration.ConsulPubMaxRoutines
 	if maxConsulPubRoutines <= 0 {
-		maxConsulPubRoutines = config.DEFAULT_CONSUL_PUB_MAX_ROUTINES
+		maxConsulPubRoutines = config.DefaultConsulPubMaxRoutines
 	}
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
-	dispatcher := tasks.NewDispatcher(3, shutdownCh, client, configuration)
+	dispatcher := workflow.NewDispatcher(configuration.WorkersNumber, shutdownCh, client, configuration)
 	go dispatcher.Run()
 	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {

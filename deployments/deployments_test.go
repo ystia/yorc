@@ -1,8 +1,9 @@
 package deployments
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeploymentStatusFromString(t *testing.T) {
@@ -23,13 +24,13 @@ func TestDeploymentStatusFromString(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, INITIAL, status)
 
-	status, err = DeploymentStatusFromString("initial", false)
+	_, err = DeploymentStatusFromString("initial", false)
 	require.NotNil(t, err)
 
-	status, err = DeploymentStatusFromString("iNiTiAL", false)
+	_, err = DeploymentStatusFromString("iNiTiAL", false)
 	require.NotNil(t, err)
 
-	status, err = DeploymentStatusFromString("iNiTiAL", false)
+	_, err = DeploymentStatusFromString("iNiTiAL", false)
 	require.NotNil(t, err)
 
 	status, err = DeploymentStatusFromString("UNDEPLOYMENT_FAILED", true)
@@ -40,13 +41,13 @@ func TestDeploymentStatusFromString(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, UNDEPLOYMENT_FAILED, status)
 
-	status, err = DeploymentStatusFromString("startOfDepStatusConst", false)
+	_, err = DeploymentStatusFromString("startOfDepStatusConst", false)
 	require.NotNil(t, err)
 
-	status, err = DeploymentStatusFromString("endOfDepStatusConst", false)
+	_, err = DeploymentStatusFromString("endOfDepStatusConst", false)
 	require.NotNil(t, err)
 
-	status, err = DeploymentStatusFromString("does_not_exist", false)
+	_, err = DeploymentStatusFromString("does_not_exist", false)
 	require.NotNil(t, err)
 
 }

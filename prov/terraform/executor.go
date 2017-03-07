@@ -2,82 +2,121 @@ package terraform
 
 import (
 	"context"
-	"fmt"
-	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/helper/logsutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/slurm"
-	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/helper/executil"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/slurm"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
-type Executor interface {
-	ProvisionNode(ctx context.Context, deploymentId, nodeName string) error
-	DestroyNode(ctx context.Context, deploymentId, nodeName string) error
-}
-
 type defaultExecutor struct {
-	kv  *api.KV
-	cfg config.Configuration
 }
 
-func NewExecutor(kv *api.KV, cfg config.Configuration) Executor {
-	return &defaultExecutor{kv: kv, cfg: cfg}
+// NewExecutor returns an Executor
+func NewExecutor() prov.DelegateExecutor {
+	return &defaultExecutor{}
 }
 
-func (e *defaultExecutor) ProvisionNode(ctx context.Context, deploymentId, nodeName string) error {
-	kvPair, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentId, "topology/nodes", nodeName, "type"), nil)
+func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
-	if kvPair == nil {
-		return fmt.Errorf("Type for node '%s' in deployment '%s' not found", nodeName, deploymentId)
-	}
-	nodeType := string(kvPair.Value)
-	infraGenerated := true
+	var generator commons.Generator
 	switch {
 	case strings.HasPrefix(nodeType, "janus.nodes.openstack."):
-		osGenerator := openstack.NewGenerator(e.kv, e.cfg)
-		if infraGenerated, err = osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
-			return err
-		}
+		generator = openstack.NewGenerator(kv, cfg)
 	case strings.HasPrefix(nodeType, "janus.nodes.slurm."):
+		generator = slurm.NewGenerator(kv, cfg)
+	default:
+		return errors.Errorf("Unsupported node type '%s' for node '%s'", nodeType, nodeName)
+	}
 
-		osGenerator := slurm.NewGenerator(e.kv, e.cfg)
-		if infraGenerated, err = osGenerator.GenerateTerraformInfraForNode(deploymentId, nodeName); err != nil {
+	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
+	op := strings.ToLower(delegateOperation)
+	switch {
+	case op == "install":
+		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, generator)
+	case op == "uninstall":
+		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, generator)
+	default:
+		return errors.Errorf("Unsupported operation %q", delegateOperation)
+	}
+	return err
+}
+
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, generator commons.Generator) error {
+	for _, instance := range instances {
+		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
+		if err != nil {
 			return err
 		}
-	default:
-		return fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentId)
+	}
+	infraGenerated, err := generator.GenerateTerraformInfraForNode(deploymentID, nodeName)
+	if err != nil {
+		return err
 	}
 	if infraGenerated {
-		if err := e.applyInfrastructure(ctx, deploymentId, nodeName); err != nil {
+		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
+			return err
+		}
+	}
+	for _, instance := range instances {
+		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateStarted)
+		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *defaultExecutor) DestroyNode(ctx context.Context, deploymentId, nodeName string) error {
-	if err := e.destroyInfrastructure(ctx, deploymentId, nodeName); err != nil {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, generator commons.Generator) error {
+	for _, instance := range instances {
+		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+		if err != nil {
+			return err
+		}
+	}
+	infraGenerated, err := generator.GenerateTerraformInfraForNode(deploymentID, nodeName)
+	if err != nil {
 		return err
+	}
+	if infraGenerated {
+		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
+			return err
+		}
+	}
+	for _, instance := range instances {
+		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleted)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeName string) error {
-	deployments.LogInConsul(e.kv, depId, "Applying the infrastructure")
-	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
+func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+	events.LogEngineMessage(kv, deploymentID, "Applying the infrastructure")
+	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
-	errbuf := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
-	out := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
+	errbuf := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
+	out := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 
@@ -90,49 +129,28 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, depId, nodeNa
 		log.Print(err)
 	}
 
-	err := cmd.Wait()
-
-	return err
+	return cmd.Wait()
 
 }
 
-func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, depId, nodeName string) error {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, depId, "topology/nodes", nodeName)
-	if kp, _, err := e.kv.Get(nodePath+"/type", nil); err != nil {
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
 		return err
-	} else if kp == nil {
-		return fmt.Errorf("Can't retrieve node type for node %q, in deployment %q", nodeName, depId)
-	} else {
-		if string(kp.Value) == "janus.nodes.openstack.BlockStorage" {
-			if kp, _, err = e.kv.Get(nodePath+"/properties/deletable", nil); err != nil {
-				return err
-			} else if kp == nil || strings.ToLower(string(kp.Value)) != "true" {
-				// False by default
-				log.Printf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
-				return nil
-			}
+	}
+	if nodeType == "janus.nodes.openstack.BlockStorage" {
+		var deletable string
+		var found bool
+		found, deletable, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "deletable")
+		if err != nil {
+			return err
+		}
+		if !found || strings.ToLower(deletable) != "true" {
+			// False by default
+			log.Printf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
+			return nil
 		}
 	}
-
-	infraPath := filepath.Join("work", "deployments", depId, "infra", nodeName)
-	cmd := executil.Command(ctx, "terraform", "destroy", "-force")
-	cmd.Dir = infraPath
-	errbuf := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
-	out := logsutil.NewBufferedConsulWriter(e.kv, depId, deployments.INFRA_LOG_PREFIX)
-	cmd.Stdout = out
-	cmd.Stderr = errbuf
-
-	quit := make(chan bool)
-	defer close(quit)
-	out.Run(quit)
-	errbuf.Run(quit)
-
-	if err := cmd.Start(); err != nil {
-		log.Print(err)
-	}
-
-	err := cmd.Wait()
-
-	return err
+	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName)
 
 }

@@ -9,7 +9,11 @@ gen
 # Project specific
 work
 /janus
+/janus.exe
 /testdata/deployment/*.zip
 /testdata/deployment/*/*.zip
 /janus.tgz
 /pkg/janus
+/.vscode
+**/debug.test
+**/debug

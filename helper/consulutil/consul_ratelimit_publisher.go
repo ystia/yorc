@@ -2,6 +2,7 @@ package consulutil
 
 import (
 	"context"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -82,12 +83,6 @@ func (cs *consulStore) StoreConsulKey(key string, value []byte) {
 	p := &api.KVPair{Key: key, Value: value}
 	// Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
 	consulPub.publish(cs.ctx, p)
-}
-
-// consulPublishRequest holds the Key/Value pair for Consul and the context used to store it in Consul
-type consulPublishRequest struct {
-	kvp *api.KVPair
-	ctx context.Context
 }
 
 // rateLimitedConsulPublisher is used to store Consul keys.

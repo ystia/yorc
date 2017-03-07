@@ -1,19 +1,26 @@
 package tosca
 
+// An CapabilityDefinition is the representation of a TOSCA Capability Definition
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_CAPABILITY_DEFN for more details
 type CapabilityDefinition struct {
 	Type             string                         `yaml:"type"`
 	Description      string                         `yaml:"description,omitempty"`
 	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
 	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
 	ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow"`
-	Occurrences      ToscaRange                     `yaml:"occurrences,omitempty"`
+	Occurrences      Range                          `yaml:"occurrences,omitempty"`
 }
 
+// An CapabilityAssignment is the representation of a TOSCA Capability Assignment
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_CAPABILITY_ASSIGNMENT for more details
 type CapabilityAssignment struct {
 	Properties map[string]ValueAssignment `yaml:"properties,omitempty"`
 	Attributes map[string]ValueAssignment `yaml:"attributes,omitempty"`
 }
 
+// UnmarshalYAML unmarshals a yaml into an CapabilityDefinition
 func (c *CapabilityDefinition) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 	if err := unmarshal(&s); err == nil {
@@ -26,7 +33,7 @@ func (c *CapabilityDefinition) UnmarshalYAML(unmarshal func(interface{}) error) 
 		Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
 		Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
 		ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow"`
-		Occurrences      ToscaRange                     `yaml:"occurrences,omitempty"`
+		Occurrences      Range                          `yaml:"occurrences,omitempty"`
 	}
 	if err := unmarshal(&str); err != nil {
 		return err

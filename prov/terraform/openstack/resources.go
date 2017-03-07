@@ -1,13 +1,14 @@
 package openstack
 
+// A ComputeInstance represent an OpenStack compute
 type ComputeInstance struct {
 	Region           string           `json:"region"`
 	Name             string           `json:"name,omitempty"`
-	ImageId          string           `json:"image_id,omitempty"`
+	ImageID          string           `json:"image_id,omitempty"`
 	ImageName        string           `json:"image_name,omitempty"`
-	FlavorId         string           `json:"flavor_id,omitempty"`
+	FlavorID         string           `json:"flavor_id,omitempty"`
 	FlavorName       string           `json:"flavor_name,omitempty"`
-	FloatingIp       string           `json:"floating_ip,omitempty"`
+	FloatingIP       string           `json:"floating_ip,omitempty"`
 	SecurityGroups   []string         `json:"security_groups,omitempty"`
 	AvailabilityZone string           `json:"availability_zone,omitempty"`
 	Networks         []ComputeNetwork `json:"network,omitempty"`
@@ -18,20 +19,23 @@ type ComputeInstance struct {
 	Volumes []Volume `json:"volume,omitempty"`
 }
 
+// A Volume represent an OpenStack volume (BlockStorage) attachment to a ComputeInstance
 type Volume struct {
-	VolumeId string `json:"volume_id"`
+	VolumeID string `json:"volume_id"`
 	Device   string `json:"device,omitempty"`
 }
 
+// A ComputeNetwork represent an OpenStack virtual network bound to a ComputeInstance
 type ComputeNetwork struct {
 	UUID          string `json:"uuid,omitempty"`
 	Name          string `json:"name,omitempty"`
 	Port          string `json:"port,omitempty"`
-	FixedIpV4     string `json:"fixed_ip_v4,omitempty"`
-	FloatingIp    string `json:"floating_ip,omitempty"`
+	FixedIPV4     string `json:"fixed_ip_v4,omitempty"`
+	FloatingIP    string `json:"floating_ip,omitempty"`
 	AccessNetwork bool   `json:"access_network,omitempty"`
 }
 
+// A BlockStorageVolume represent an OpenStack volume (BlockStorage)
 type BlockStorageVolume struct {
 	Region           string `json:"region"`
 	Size             int    `json:"size"`
@@ -40,10 +44,12 @@ type BlockStorageVolume struct {
 	AvailabilityZone string `json:"availability_zone,omitempty"`
 }
 
+// A FloatingIP represent an OpenStack Floating IP pool configuration
 type FloatingIP struct {
 	Pool string `json:"pool,omitempty"`
 }
 
+// A Network represent an OpenStack virtual network
 type Network struct {
 	Region     string `json:"region,omitempty"`
 	Name       string `json:"name,omitempty"`
@@ -51,6 +57,7 @@ type Network struct {
 	AdminState string `json:"admin_state_up,omitempty"`
 }
 
+// A Subnet represent an OpenStack virtual subnetwork
 type Subnet struct {
 	Region          string          `json:"region"`
 	NetworkID       string          `json:"network_id"`
@@ -62,6 +69,7 @@ type Subnet struct {
 	EnableDHCP      bool            `json:"enable_dhcp,omitempty"`
 }
 
+// A AllocationPool represent an allocation pool for OpenStack virtual subnetwork
 type AllocationPool struct {
 	Start string `json:"start"`
 	End   string `json:"end"`

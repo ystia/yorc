@@ -3,18 +3,19 @@ package rest
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
-	"github.com/satori/go.uuid"
 	"io"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/julienschmidt/httprouter"
+	"github.com/satori/go.uuid"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
 func extractFile(f *zip.File, path string) {
@@ -42,7 +43,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var file *os.File
-	uploadPath := filepath.Join("work", "deployments", uid)
+	uploadPath := filepath.Join(s.config.WorkingDirectory, "deployments", uid)
 	if err = os.MkdirAll(uploadPath, 0775); err != nil {
 		log.Panicf("%+v", err)
 	}
@@ -93,9 +94,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		if yamls, err := filepath.Glob(filepath.Join(destDir, pattern.pattern)); err != nil {
 			log.Panicf("%+v", err)
 		} else {
-			for _, yamlFile := range yamls {
-				yamlList = append(yamlList, yamlFile)
-			}
+			yamlList = append(yamlList, yamls...)
 		}
 	}
 	if len(yamlList) != 1 {
@@ -109,7 +108,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy); err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)
@@ -132,14 +131,14 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		taskType = tasks.UnDeploy
 	}
 
-	if taskId, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
+	if taskID, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			WriteError(w, r, NewBadRequestError(err))
+			writeError(w, r, newBadRequestError(err))
 			return
 		}
 		log.Panic(err)
 	} else {
-		w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskId))
+		w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskID))
 	}
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -154,20 +153,20 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	status, err := deployments.GetDeploymentStatus(kv, id)
 	if err != nil {
 		if deployments.IsDeploymentNotFoundError(err) {
-			WriteError(w, r, ErrNotFound)
+			writeError(w, r, errNotFound)
 			return
 		}
 		log.Panic(err)
 	}
 
-	deployment := Deployment{Id: id, Status: status.String()}
-	links := []AtomLink{newAtomLink(LINK_REL_SELF, r.URL.Path)}
+	deployment := Deployment{ID: id, Status: status.String()}
+	links := []AtomLink{newAtomLink(LinkRelSelf, r.URL.Path)}
 	nodes, err := deployments.GetNodes(kv, id)
 	if err != nil {
 		log.Panic(err)
 	}
 	for _, node := range nodes {
-		links = append(links, newAtomLink(LINK_REL_NODE, path.Join(r.URL.Path, "nodes", node)))
+		links = append(links, newAtomLink(LinkRelNode, path.Join(r.URL.Path, "nodes", node)))
 	}
 
 	tasksList, err := tasks.GetTasksIdsForTarget(kv, id)
@@ -175,13 +174,13 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 	for _, task := range tasksList {
-		links = append(links, newAtomLink(LINK_REL_TASK, path.Join(r.URL.Path, "tasks", task)))
+		links = append(links, newAtomLink(LinkRelTask, path.Join(r.URL.Path, "tasks", task)))
 	}
 
 	links = append(links, s.listOutputsLinks(id)...)
 
 	deployment.Links = links
-	encodeJsonResponse(w, r, deployment)
+	encodeJSONResponse(w, r, deployment)
 }
 
 func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -197,9 +196,9 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 
 	depCol := DeploymentsCollection{Deployments: make([]AtomLink, len(depPaths))}
 	for depIndex, depPath := range depPaths {
-		depId := strings.TrimRight(strings.TrimPrefix(depPath, consulutil.DeploymentKVPrefix), "/ ")
-		link := newAtomLink(LINK_REL_DEPLOYMENT, "/deployments"+depId)
+		deploymentID := strings.TrimRight(strings.TrimPrefix(depPath, consulutil.DeploymentKVPrefix), "/ ")
+		link := newAtomLink(LinkRelDeployment, "/deployments"+deploymentID)
 		depCol.Deployments[depIndex] = link
 	}
-	encodeJsonResponse(w, r, depCol)
+	encodeJSONResponse(w, r, depCol)
 }

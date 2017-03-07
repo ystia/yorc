@@ -23,6 +23,7 @@ func init() {
 	}
 }
 
+// SetDebug sets the log level
 func SetDebug(d bool) {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -127,7 +128,7 @@ func Output(calldepth int, s string) error {
 	return std.Output(calldepth+1, "[INFO] "+s) // +1 for this frame.
 }
 
-// Print calls Output to print to the standard logger if debug is enable.
+// Debug calls Output to print to the standard logger if debug is enable.
 // Arguments are handled in the manner of fmt.Print.
 func Debug(v ...interface{}) {
 	if debug {
@@ -138,7 +139,7 @@ func Debug(v ...interface{}) {
 
 }
 
-// Printf calls Output to print to the standard logger if debug is enable.
+// Debugf calls Output to print to the standard logger if debug is enable.
 // Arguments are handled in the manner of fmt.Printf.
 func Debugf(format string, v ...interface{}) {
 	if debug {
@@ -146,7 +147,7 @@ func Debugf(format string, v ...interface{}) {
 	}
 }
 
-// Println calls Output to print to the standard logger if debug is enable.
+// Debugln calls Output to print to the standard logger if debug is enable.
 // Arguments are handled in the manner of fmt.Println.
 func Debugln(v ...interface{}) {
 	if debug {

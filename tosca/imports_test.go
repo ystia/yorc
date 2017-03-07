@@ -1,18 +1,21 @@
 package tosca
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
-	"testing"
 )
+
+type ImportMapInterface map[string][]map[string]ImportDefinition
 
 func TestGroupedImportsParallel(t *testing.T) {
 	t.Run("groupImports", func(t *testing.T) {
-		t.Run("TestImportDefinitionConcrete_UnmarshalYAML_SimpleGrammar", importDefinitionConcrete_UnmarshalYAML_SimpleGrammar)
+		t.Run("TestimportDefinitionConcreteUnmarshalYAMLSimpleGrammar", importDefinitionConcreteUnmarshalYAMLSimpleGrammar)
 	})
 }
 
-func importDefinitionConcrete_UnmarshalYAML_SimpleGrammar(t *testing.T) {
+func importDefinitionConcreteUnmarshalYAMLSimpleGrammar(t *testing.T) {
 	t.Parallel()
 	var data = `
 imports:
@@ -23,7 +26,7 @@ imports:
       namespace_uri: http://mycompany.com/tosca/1.0/platform
       namespace_prefix: mycompany
 `
-	importMap := ImportMapInteface{}
+	importMap := ImportMapInterface{}
 	err := yaml.Unmarshal([]byte(data), &importMap)
 	if err == nil {
 		assert.Len(t, importMap, 1)

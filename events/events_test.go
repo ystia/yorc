@@ -27,52 +27,53 @@ func TestGroupedEventParallel(t *testing.T) {
 
 	consulutil.InitConsulPublisher(500, kv)
 	t.Run("groupEvent", func(t *testing.T) {
-		t.Run("TestConsulPubSub_StatusChange", func(t *testing.T) {
-			ConsulPubSub_StatusChange(t, kv)
+		t.Run("TestConsulPubSubStatusChange", func(t *testing.T) {
+			ConsulPubSubStatusChange(t, kv)
 		})
-		t.Run("TestConsulPubSub_NewEvents", func(t *testing.T) {
-			ConsulPubSub_NewEvents(t, kv)
+		t.Run("TestConsulPubSubNewEvents", func(t *testing.T) {
+			ConsulPubSubNewEvents(t, kv)
 		})
-		t.Run("TestConsulPubSub_NewEventsTimeout", func(t *testing.T) {
-			ConsulPubSub_NewEventsTimeout(t, kv)
+		t.Run("TestConsulPubSubNewEventsTimeout", func(t *testing.T) {
+			ConsulPubSubNewEventsTimeout(t, kv)
 		})
-		t.Run("TestConsulPubSub_NewEventsWithIndex", func(t *testing.T) {
-			ConsulPubSub_NewEventsWithIndex(t, kv)
+		t.Run("TestConsulPubSubNewEventsWithIndex", func(t *testing.T) {
+			ConsulPubSubNewEventsWithIndex(t, kv)
 		})
-		t.Run("TestConsulPubSub_NewNodeEvents", func(t *testing.T) {
-			ConsulPubSub_NewNodeEvents(t, kv)
+		t.Run("TestConsulPubSubNewNodeEvents", func(t *testing.T) {
+			ConsulPubSubNewNodeEvents(t, kv)
 		})
 	})
 }
 
-func ConsulPubSub_StatusChange(t *testing.T, kv *api.KV) {
+func ConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentId := "test1"
-	pub := NewPublisher(kv, deploymentId)
+	deploymentID := "test1"
+	pub := NewPublisher(kv, deploymentID)
 
 	var testData = []struct {
-		node   string
-		status string
+		node     string
+		instance string
+		status   string
 	}{
-		{"node1", "initial"},
-		{"node2", "initial"},
-		{"node1", "created"},
-		{"node1", "started"},
-		{"node2", "created"},
-		{"node3", "initial"},
-		{"node2", "configured"},
-		{"node3", "created"},
-		{"node2", "started"},
-		{"node3", "error"},
+		{"node1", "0", "initial"},
+		{"node2", "0", "initial"},
+		{"node1", "0", "created"},
+		{"node1", "0", "started"},
+		{"node2", "0", "created"},
+		{"node3", "0", "initial"},
+		{"node2", "0", "configured"},
+		{"node3", "0", "created"},
+		{"node2", "0", "started"},
+		{"node3", "0", "error"},
 	}
 
 	ids := make([]string, 0)
 	for _, tc := range testData {
-		id, err := pub.StatusChange(tc.node, tc.status)
+		id, err := pub.StatusChange(tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
-	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentId, "events")
+	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(testData))
@@ -80,110 +81,121 @@ func ConsulPubSub_StatusChange(t *testing.T, kv *api.KV) {
 	for index, kvp := range kvps {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := testData[index]
-		assert.Equal(t, tc.node+"\n"+tc.status, string(kvp.Value))
+		assert.Equal(t, tc.node+"\n"+tc.status+"\n"+tc.instance, string(kvp.Value))
 	}
 }
 
-func ConsulPubSub_NewEvents(t *testing.T, kv *api.KV) {
+func ConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentId := "test2"
-	pub := NewPublisher(kv, deploymentId)
-	sub := NewSubscriber(kv, deploymentId)
+	deploymentID := "test2"
+	pub := NewPublisher(kv, deploymentID)
+	sub := NewSubscriber(kv, deploymentID)
 
 	nodeName := "node1"
+	instance := "0"
 	nodeStatus := "error"
 
 	ready := make(chan struct{})
 
 	go func() {
-		i, err := GetLogsEventsIndex(kv, deploymentId)
+		i, err := GetLogsEventsIndex(kv, deploymentID)
+		require.Nil(t, err)
 		ready <- struct{}{}
-		events, _, err := sub.NewEvents(i, 5*time.Minute)
+		events, _, err := sub.StatusEvents(i, 5*time.Minute)
 		assert.Nil(t, err)
 		require.Len(t, events, 1)
 		assert.Equal(t, events[0].Node, nodeName)
 		assert.Equal(t, events[0].Status, nodeStatus)
+		assert.Equal(t, events[0].Instance, instance)
 	}()
 	<-ready
-	_, err := pub.StatusChange(nodeName, nodeStatus)
+	_, err := pub.StatusChange(nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 }
 
-func ConsulPubSub_NewEventsTimeout(t *testing.T, kv *api.KV) {
+func ConsulPubSubNewEventsTimeout(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentId := "test3"
-	sub := NewSubscriber(kv, deploymentId)
+	deploymentID := "test3"
+	sub := NewSubscriber(kv, deploymentID)
 
 	timeout := 25 * time.Millisecond
 
 	t1 := time.Now()
-	events, _, err := sub.NewEvents(1, timeout)
+	events, _, err := sub.StatusEvents(1, timeout)
 	t2 := time.Now()
 	assert.Nil(t, err)
 	require.Len(t, events, 0)
 	assert.WithinDuration(t, t1, t2, timeout+50*time.Millisecond)
 }
 
-func ConsulPubSub_NewEventsWithIndex(t *testing.T, kv *api.KV) {
+func ConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentId := "test4"
-	pub := NewPublisher(kv, deploymentId)
-	sub := NewSubscriber(kv, deploymentId)
+	deploymentID := "test4"
+	pub := NewPublisher(kv, deploymentID)
+	sub := NewSubscriber(kv, deploymentID)
 
 	var testData = []struct {
-		node   string
-		status string
+		node     string
+		instance string
+		status   string
 	}{
-		{"node1", "initial"},
-		{"node1", "creating"},
+		{"node1", "0", "initial"},
+		{"node1", "1", "initial"},
+		{"node1", "0", "creating"},
+		{"node1", "1", "creating"},
 	}
 
 	for _, tc := range testData {
-		_, err := pub.StatusChange(tc.node, tc.status)
+		_, err := pub.StatusChange(tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err := sub.NewEvents(1, 5*time.Minute)
+	events, lastIdx, err := sub.StatusEvents(1, 5*time.Minute)
 	assert.Nil(t, err)
-	require.Len(t, events, 2)
+	require.Len(t, events, 4)
 	for index, event := range events {
 		assert.Equal(t, testData[index].node, event.Node)
+		assert.Equal(t, testData[index].instance, event.Instance)
 		assert.Equal(t, testData[index].status, event.Status)
 	}
 
 	testData = []struct {
-		node   string
-		status string
+		node     string
+		instance string
+		status   string
 	}{
-		{"node1", "created"},
-		{"node1", "configuring"},
-		{"node1", "configured"},
+		{"node1", "0", "created"},
+		{"node1", "0", "configuring"},
+		{"node1", "0", "configured"},
 	}
 
 	for _, tc := range testData {
-		_, err := pub.StatusChange(tc.node, tc.status)
+		_, err = pub.StatusChange(tc.node, tc.instance, tc.status)
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err = sub.NewEvents(lastIdx, 5*time.Minute)
+	events, lastIdx, err = sub.StatusEvents(lastIdx, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, events, 3)
+	require.NotZero(t, lastIdx)
 
 	for index, event := range events {
 		assert.Equal(t, testData[index].node, event.Node)
+		assert.Equal(t, testData[index].instance, event.Instance)
 		assert.Equal(t, testData[index].status, event.Status)
 	}
 }
 
-func ConsulPubSub_NewNodeEvents(t *testing.T, kv *api.KV) {
+func ConsulPubSubNewNodeEvents(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentId := "test5"
-	pub := NewPublisher(kv, deploymentId)
+	deploymentID := "test5"
+	pub := NewPublisher(kv, deploymentID)
 
 	nodeName := "node1"
+	instance := "0"
 	nodeStatus := "error"
 
-	_, err := pub.StatusChange(nodeName, nodeStatus)
+	_, err := pub.StatusChange(nodeName, instance, nodeStatus)
 	assert.Nil(t, err)
 
 }

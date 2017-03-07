@@ -21,9 +21,9 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			janusApi := viper.GetString("janus_api")
+			janusAPI := viper.GetString("janus_api")
 
-			url := "http://" + janusApi + "/deployments/" + args[0]
+			url := "http://" + janusAPI + "/deployments/" + args[0]
 			if purge {
 				url = url + "?purge=true"
 			}
@@ -44,11 +44,11 @@ func init() {
 				errExit(fmt.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
 			}
 
-			fmt.Println("Undeployment submited. In progress...")
+			fmt.Println("Undeployment submitted. In progress...")
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(janusApi, args[0], !noColor, true, false)
+				streamsLogs(janusAPI, args[0], !noColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(janusApi, args[0], !noColor, true, false)
+				streamsEvents(janusAPI, args[0], !noColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}

@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
+	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -45,41 +46,43 @@ func wrapHandler(h http.Handler) httprouter.Handle {
 	}
 }
 
-func NewRouter() *router {
+func newRouter() *router {
 	return &router{httprouter.New()}
 }
 
+// A Server is an HTTP server that runs the Janus REST API
 type Server struct {
 	router         *router
 	listener       net.Listener
 	consulClient   *api.Client
 	tasksCollector *tasks.Collector
+	config         config.Configuration
 }
 
+// Shutdown stops the HTTP server
 func (s *Server) Shutdown() {
 	if s != nil {
 		log.Printf("Shutting down http server")
-		s.listener.Close()
+		err := s.listener.Close()
+		if err != nil {
+			log.Print(err)
+		}
 	}
 }
 
+// NewServer create a Server to serve the REST API
 func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
-	var listener net.Listener
-	var err error
-	if listener, err = net.Listen("tcp", ":8800"); err != nil {
-		return nil, err
-	}
-
-	maxConsulPubRoutines := configuration.CONSUL_PUB_MAX_ROUTINES
-	if maxConsulPubRoutines <= 0 {
-		maxConsulPubRoutines = config.DEFAULT_CONSUL_PUB_MAX_ROUTINES
+	listener, err := net.Listen("tcp", ":8800")
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to bind on port 8800")
 	}
 
 	httpServer := &Server{
-		router:         NewRouter(),
+		router:         newRouter(),
 		listener:       listener,
 		consulClient:   client,
 		tasksCollector: tasks.NewCollector(client),
+		config:         configuration,
 	}
 
 	httpServer.registerHandlers()
@@ -106,12 +109,13 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskHandler))
 	s.router.Delete("/deployments/:id/tasks/:taskId", commonHandlers.ThenFunc(s.cancelTaskHandler))
 	s.router.Post("/deployments/:id/tasks", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newTaskHandler))
+	s.router.Post("/deployments/:id/scale/:nodeName", commonHandlers.ThenFunc(s.scaleHandler))
 	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributesListHandler))
 	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes/:attributeName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributeHandler))
 	s.router.Post("/deployments/:id/custom", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newCustomCommandHandler))
 }
 
-func encodeJsonResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {
+func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {
 	jEnc := json.NewEncoder(w)
 	if _, ok := r.URL.Query()["pretty"]; ok {
 		jEnc.SetIndent("", "  ")

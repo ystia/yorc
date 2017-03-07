@@ -3,15 +3,16 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/rest"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
 func init() {
@@ -27,10 +28,10 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			janusApi := viper.GetString("janus_api")
+			janusAPI := viper.GetString("janus_api")
 			colorize := !noColor
 
-			streamsLogs(janusApi, args[0], colorize, fromBeginning, noStream, filters...)
+			streamsLogs(janusAPI, args[0], colorize, fromBeginning, noStream, filters...)
 			return nil
 		},
 	}
@@ -40,14 +41,14 @@ func init() {
 	deploymentsCmd.AddCommand(logCmd)
 }
 
-func streamsLogs(janusApi, depId string, colorize, fromBeginning, stop bool, filters ...string) {
+func streamsLogs(janusAPI, deploymentID string, colorize, fromBeginning, stop bool, filters ...string) {
 	if colorize {
 		defer color.Unset()
 	}
 	var lastIdx uint64
 	if !fromBeginning && !stop {
 		// Get last index
-		response, err := http.Head("http://" + janusApi + "/deployments/" + depId + "/logs")
+		response, err := http.Head("http://" + janusAPI + "/deployments/" + deploymentID + "/logs")
 		if err != nil {
 			errExit(err)
 		}
@@ -67,13 +68,12 @@ func streamsLogs(janusApi, depId string, colorize, fromBeginning, stop bool, fil
 			fmt.Fprint(os.Stderr, "Failed to get latest log index from Janus, logs will appear from the beginning.")
 		}
 	}
-	var filtersParam string = ""
+	var filtersParam string
 	if len(filters) > 0 {
 		filtersParam = fmt.Sprintf("&filter=%s", strings.Join(filters, ","))
 	}
 	for {
-
-		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/logs?index=%d%s", janusApi, depId, lastIdx, filtersParam), nil)
+		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/logs?index=%d%s", janusAPI, deploymentID, lastIdx, filtersParam), nil)
 		if err != nil {
 			errExit(err)
 		}

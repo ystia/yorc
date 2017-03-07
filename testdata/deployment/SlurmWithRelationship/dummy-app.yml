@@ -30,7 +30,8 @@ topology_template:
       properties:
         imageId: 2
         flavorId: 2
-        gpuType: 3
+        gpuType: "none"
+        user: slurm
       capabilities:
         endpoint:
           properties:
@@ -59,7 +60,8 @@ topology_template:
       properties:
         imageId: 2
         flavorId: 2
-        gpuType: 3
+        gpuType: none
+        user: slurm
       capabilities:
         endpoint:
           properties:
@@ -225,14 +227,10 @@ topology_template:
           node: Compute
           activity:
             delegate: uninstall
-          on-success:
-            - Net_uninstall
         Compute-2_uninstall:
           node: Compute-2
           activity:
             delegate: uninstall
-          on-success:
-            - Network_uninstall
         Dummy-2_stopping:
           node: Dummy-2
           activity:

@@ -2,10 +2,11 @@ package slurm
 
 import (
 	"fmt"
+
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func (g *Generator) generateSlurmCntk(url, deploymentId string) (Cntk, error) {
+func (g *slurmGenerator) generateSlurmCntk(url, deploymentId string) (Cntk, error) {
 	var nodeType string
 	var err error
 	log.Printf("generateSlurmNode begin")

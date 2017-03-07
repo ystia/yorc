@@ -1,7 +1,7 @@
 {
 	"ImportPath": "novaforge.bull.com/starlings-janus/janus",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GodepVersion": "v77",
 	"Packages": [
 		"./..."
 	],
@@ -282,6 +282,10 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "a5b47d31c556af34a302ce5d659e6fea44d90de0"
+		},
+		{
+			"ImportPath": "vbom.ml/util/sortorder",
+			"Rev": "db5cfe13f5cc80a4990d98e2e1b0707a4d1a5394"
 		}
 	]
 }
