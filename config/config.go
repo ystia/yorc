@@ -9,10 +9,14 @@ const DefaultConsulPubMaxRoutines int = 500
 // DefaultWorkersNumber is the default number of workers in the Janus server
 const DefaultWorkersNumber int = 3
 
+// DefaultHTTPPort is the default port number for the HTTP REST API
+const DefaultHTTPPort int = 8800
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	WorkingDirectory        string   `json:"working_directory,omitempty"`
 	WorkersNumber           int      `json:"workers_number,omitempty"`
+	HTTPPort                int      `json:"http_port,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`
 	OSTenantName            string   `json:"os_tenant_name,omitempty"`

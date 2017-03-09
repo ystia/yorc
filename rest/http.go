@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 
+	"strconv"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
@@ -72,9 +74,19 @@ func (s *Server) Shutdown() {
 
 // NewServer create a Server to serve the REST API
 func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
-	listener, err := net.Listen("tcp", ":8800")
+	var port string
+	if configuration.HTTPPort == 0 {
+		// Use default value
+		port = strconv.Itoa(config.DefaultHTTPPort)
+	} else if configuration.HTTPPort < 0 {
+		// Use random port
+		port = "0"
+	} else {
+		port = strconv.Itoa(configuration.HTTPPort)
+	}
+	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to bind on port 8800")
+		return nil, errors.Wrapf(err, "Failed to bind on port %s", port)
 	}
 
 	httpServer := &Server{
@@ -86,7 +98,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 	}
 
 	httpServer.registerHandlers()
-	log.Printf("Starting HTTPServer on port 8800")
+	log.Printf("Starting HTTPServer on address %s", listener.Addr())
 	go http.Serve(httpServer.listener, httpServer.router)
 
 	return httpServer, nil
