@@ -55,6 +55,7 @@ func setConfig() {
 
 	// Flags definition for Janus HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
+	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Janus HTTP REST API.")
 
 	//Flags definition for OpenStack
 	serverCmd.PersistentFlags().StringP("os_auth_url", "a", "", "will use the 1.1 *compute api*")
@@ -99,6 +100,7 @@ func setConfig() {
 
 	//Bind Flags Janus HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
+	viper.BindPFlag("http_address", serverCmd.PersistentFlags().Lookup("http_address"))
 
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
@@ -106,6 +108,7 @@ func setConfig() {
 	viper.BindEnv("working_directory")
 	viper.BindEnv("workers_number")
 	viper.BindEnv("http_port")
+	viper.BindEnv("http_address")
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
@@ -122,6 +125,7 @@ func setConfig() {
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("http_port", config.DefaultHTTPPort)
+	viper.SetDefault("http_address", config.DefaultHTTPAddress)
 	viper.SetDefault("os_prefix", "janus-")
 	viper.SetDefault("os_region", "RegionOne")
 	viper.SetDefault("os_default_security_groups", make([]string, 0))
@@ -143,6 +147,7 @@ func getConfig() config.Configuration {
 	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")
 	configuration.HTTPPort = viper.GetInt("http_port")
+	configuration.HTTPAddress = viper.GetString("http_address")
 	configuration.OSAuthURL = viper.GetString("os_auth_url")
 	configuration.OSTenantID = viper.GetString("os_tenant_id")
 	configuration.OSTenantName = viper.GetString("os_tenant_name")

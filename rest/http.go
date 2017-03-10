@@ -6,8 +6,6 @@ import (
 	"net"
 	"net/http"
 
-	"strconv"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
@@ -74,19 +72,13 @@ func (s *Server) Shutdown() {
 
 // NewServer create a Server to serve the REST API
 func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
-	var port string
-	if configuration.HTTPPort == 0 {
-		// Use default value
-		port = strconv.Itoa(config.DefaultHTTPPort)
-	} else if configuration.HTTPPort < 0 {
-		// Use random port
-		port = "0"
-	} else {
-		port = strconv.Itoa(configuration.HTTPPort)
-	}
-	listener, err := net.Listen("tcp", ":"+port)
+	addr, err := getAddress(configuration)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to bind on port %s", port)
+		return nil, err
+	}
+	listener, err := net.Listen(addr.Network(), addr.String())
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to bind on %s", addr)
 	}
 
 	httpServer := &Server{
@@ -134,4 +126,28 @@ func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	jEnc.Encode(resp)
+}
+
+func getAddress(configuration config.Configuration) (net.Addr, error) {
+
+	var port int
+	if configuration.HTTPPort == 0 {
+		// Use default value
+		port = config.DefaultHTTPPort
+	} else if configuration.HTTPPort < 0 {
+		// Use random port
+		port = 0
+	} else {
+		port = configuration.HTTPPort
+	}
+	var ip net.IP
+	if configuration.HTTPAddress != "" {
+		ip = net.ParseIP(configuration.HTTPAddress)
+	} else {
+		ip = net.ParseIP(config.DefaultHTTPAddress)
+	}
+	if ip == nil {
+		return nil, errors.Errorf("Failed to parse IP: %v", configuration.HTTPAddress)
+	}
+	return &net.TCPAddr{IP: ip, Port: port}, nil
 }

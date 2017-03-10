@@ -12,11 +12,15 @@ const DefaultWorkersNumber int = 3
 // DefaultHTTPPort is the default port number for the HTTP REST API
 const DefaultHTTPPort int = 8800
 
+// DefaultHTTPAddress is the default listening address for the HTTP REST API
+const DefaultHTTPAddress string = "0.0.0.0"
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	WorkingDirectory        string   `json:"working_directory,omitempty"`
 	WorkersNumber           int      `json:"workers_number,omitempty"`
 	HTTPPort                int      `json:"http_port,omitempty"`
+	HTTPAddress             string   `json:"http_address,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`
 	OSTenantName            string   `json:"os_tenant_name,omitempty"`
