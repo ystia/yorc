@@ -11,7 +11,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
 )
 
@@ -29,7 +28,10 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a path to a file or directory (got %d parameters)", len(args))
 			}
-			janusAPI := viper.GetString("janus_api")
+			client, err := getClient()
+			if err != nil {
+				errExit(err)
+			}
 			absPath, err := filepath.Abs(args[0])
 			if err != nil {
 				return err
@@ -53,7 +55,7 @@ func init() {
 				}
 				fileType := http.DetectContentType(buff)
 				if fileType == "application/zip" {
-					location, err = postCSAR(buff, janusAPI)
+					location, err = postCSAR(buff, client)
 					if err != nil {
 						errExit(err)
 					}
@@ -65,7 +67,7 @@ func init() {
 				if err != nil {
 					errExit(err)
 				}
-				location, err = postCSAR(csarZip, janusAPI)
+				location, err = postCSAR(csarZip, client)
 
 				if err != nil {
 					errExit(err)
@@ -74,9 +76,9 @@ func init() {
 
 			fmt.Println("Deployment submitted. Deployment Id:", path.Base(location))
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(janusAPI, path.Base(location), !noColor, true, false)
+				streamsLogs(client, path.Base(location), !noColor, true, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(janusAPI, path.Base(location), !noColor, true, false)
+				streamsEvents(client, path.Base(location), !noColor, true, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
@@ -88,8 +90,8 @@ func init() {
 	deploymentsCmd.AddCommand(deployCmd)
 }
 
-func postCSAR(csarZip []byte, janusAPI string) (string, error) {
-	r, err := http.Post("http://"+janusAPI+"/deployments", "application/zip", bytes.NewReader(csarZip))
+func postCSAR(csarZip []byte, client *janusClient) (string, error) {
+	r, err := client.Post("/deployments", "application/zip", bytes.NewReader(csarZip))
 	if err != nil {
 		return "", err
 	}

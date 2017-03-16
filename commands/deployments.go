@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 
 	"github.com/pkg/errors"
@@ -39,12 +38,23 @@ var deploymentsCmd = &cobra.Command{
 func setDeploymentsConfig() {
 
 	deploymentsCmd.PersistentFlags().StringP("janus-api", "j", "localhost:8800", "specify the host and port used to join the Janus' REST API")
+	deploymentsCmd.PersistentFlags().StringP("ca-file", "", "", "This provides a file path to a PEM-encoded certificate authority. This implies the use of HTTPS to connect to the Janus REST API.")
 	deploymentsCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable coloring output")
+	deploymentsCmd.PersistentFlags().BoolP("secured", "s", false, "Use HTTPS to connect to the Janus REST API")
+	deploymentsCmd.PersistentFlags().BoolP("skip-tls-verify", "", false, "skip-tls-verify controls whether a client verifies the server's certificate chain and host name. If set to true, TLS accepts any certificate presented by the server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing. This implies the use of HTTPS to connect to the Janus REST API.")
 
 	viper.BindPFlag("janus_api", deploymentsCmd.PersistentFlags().Lookup("janus-api"))
+	viper.BindPFlag("secured", deploymentsCmd.PersistentFlags().Lookup("secured"))
+	viper.BindPFlag("ca_file", deploymentsCmd.PersistentFlags().Lookup("ca-file"))
+	viper.BindPFlag("skip_tls_verify", deploymentsCmd.PersistentFlags().Lookup("skip-tls-verify"))
 	viper.SetEnvPrefix("janus")
 	viper.BindEnv("janus_api", "JANUS_API")
+	viper.BindEnv("secured")
+	viper.BindEnv("ca_file")
+	viper.BindEnv("skip_tls_verify")
 	viper.SetDefault("janus_api", "localhost:8800")
+	viper.SetDefault("secured", false)
+	viper.SetDefault("skip_tls_verify", false)
 
 }
 
@@ -88,14 +98,14 @@ func getRestErrors(body io.Reader) rest.Errors {
 	return errs
 }
 
-func getJSONEntityFromAtomGetRequest(janusAPI string, atomLink rest.AtomLink, entity interface{}) error {
-	request, err := http.NewRequest("GET", "http://"+janusAPI+atomLink.Href, nil)
+func getJSONEntityFromAtomGetRequest(client *janusClient, atomLink rest.AtomLink, entity interface{}) error {
+	request, err := client.NewRequest("GET", atomLink.Href, nil)
 	if err != nil {
 		return errors.Wrap(err, janusAPIDefaultErrorMsg)
 	}
 	request.Header.Add("Accept", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := client.Do(request)
 	if err != nil {
 		return errors.Wrap(err, janusAPIDefaultErrorMsg)
 	}

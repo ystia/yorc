@@ -21,6 +21,8 @@ type Configuration struct {
 	WorkersNumber           int      `json:"workers_number,omitempty"`
 	HTTPPort                int      `json:"http_port,omitempty"`
 	HTTPAddress             string   `json:"http_address,omitempty"`
+	KeyFile                 string   `json:"key_file,omitempty"`
+	CertFile                string   `json:"cert_file,omitempty"`
 	OSAuthURL               string   `json:"os_auth_url,omitempty"`
 	OSTenantID              string   `json:"os_tenant_id,omitempty"`
 	OSTenantName            string   `json:"os_tenant_name,omitempty"`

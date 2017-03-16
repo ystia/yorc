@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -22,15 +20,17 @@ var listCmd = &cobra.Command{
 	Short: "List active deployments",
 	Long:  `List active deployments. Giving there ids and statuses.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		janusAPI := viper.GetString("janus_api")
 		colorize := !noColor
-
-		request, err := http.NewRequest("GET", "http://"+janusAPI+"/deployments", nil)
+		client, err := getClient()
+		if err != nil {
+			errExit(err)
+		}
+		request, err := client.NewRequest("GET", "/deployments", nil)
 		if err != nil {
 			errExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
-		response, err := http.DefaultClient.Do(request)
+		response, err := client.Do(request)
 		if err != nil {
 			errExit(err)
 		}
@@ -55,7 +55,7 @@ var listCmd = &cobra.Command{
 			if depLink.Rel == rest.LinkRelDeployment {
 				var dep rest.Deployment
 
-				err = getJSONEntityFromAtomGetRequest(janusAPI, depLink, &dep)
+				err = getJSONEntityFromAtomGetRequest(client, depLink, &dep)
 				if err != nil {
 					errExit(err)
 				}

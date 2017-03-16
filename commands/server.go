@@ -56,6 +56,8 @@ func setConfig() {
 	// Flags definition for Janus HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
 	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Janus HTTP REST API.")
+	serverCmd.PersistentFlags().String("key_file", "", "File path to a PEM-encoded private key. The key is used to enable SSL for the Janus HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.")
+	serverCmd.PersistentFlags().String("cert_file", "", "File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Janus HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.")
 
 	//Flags definition for OpenStack
 	serverCmd.PersistentFlags().StringP("os_auth_url", "a", "", "will use the 1.1 *compute api*")
@@ -101,6 +103,8 @@ func setConfig() {
 	//Bind Flags Janus HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
 	viper.BindPFlag("http_address", serverCmd.PersistentFlags().Lookup("http_address"))
+	viper.BindPFlag("cert_file", serverCmd.PersistentFlags().Lookup("cert_file"))
+	viper.BindPFlag("key_file", serverCmd.PersistentFlags().Lookup("key_file"))
 
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
@@ -109,6 +113,8 @@ func setConfig() {
 	viper.BindEnv("workers_number")
 	viper.BindEnv("http_port")
 	viper.BindEnv("http_address")
+	viper.BindEnv("key_file")
+	viper.BindEnv("cert_file")
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
@@ -148,6 +154,8 @@ func getConfig() config.Configuration {
 	configuration.WorkersNumber = viper.GetInt("workers_number")
 	configuration.HTTPPort = viper.GetInt("http_port")
 	configuration.HTTPAddress = viper.GetString("http_address")
+	configuration.CertFile = viper.GetString("cert_file")
+	configuration.KeyFile = viper.GetString("key_file")
 	configuration.OSAuthURL = viper.GetString("os_auth_url")
 	configuration.OSTenantID = viper.GetString("os_tenant_id")
 	configuration.OSTenantName = viper.GetString("os_tenant_name")

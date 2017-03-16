@@ -1,7 +1,7 @@
 {
 	"ImportPath": "novaforge.bull.com/starlings-janus/janus",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v77",
+	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
 	],
@@ -10,6 +10,15 @@
 			"ImportPath": "github.com/BurntSushi/toml",
 			"Comment": "v0.2.0-21-g9906417",
 			"Rev": "99064174e013895bbd9b025c31100bd1d9b590ca"
+		},
+		{
+			"ImportPath": "github.com/PuerkitoBio/purell",
+			"Comment": "v1.1.0",
+			"Rev": "0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4"
+		},
+		{
+			"ImportPath": "github.com/PuerkitoBio/urlesc",
+			"Rev": "5bd2802263f21d8788851d5305584c82a5c75d7e"
 		},
 		{
 			"ImportPath": "github.com/antonholmquist/jason",
@@ -46,6 +55,10 @@
 			"ImportPath": "github.com/gorilla/context",
 			"Comment": "v1.1-7-g08b5f42",
 			"Rev": "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+		},
+		{
+			"ImportPath": "github.com/goware/urlx",
+			"Rev": "8bb4a2e4339f55b15164907177e96e9faf885504"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/acl",
@@ -264,6 +277,10 @@
 			"Rev": "ffe101cce3477a6c6d8f0754d103bb0a84ec1266"
 		},
 		{
+			"ImportPath": "golang.org/x/net/idna",
+			"Rev": "ffe101cce3477a6c6d8f0754d103bb0a84ec1266"
+		},
+		{
 			"ImportPath": "golang.org/x/sync/errgroup",
 			"Rev": "1ae7c7b29e06598039be46c5083819ba6fd7a97e"
 		},
@@ -277,6 +294,10 @@
 		},
 		{
 			"ImportPath": "golang.org/x/text/unicode/norm",
+			"Rev": "098f51fb687dbaba1f6efabeafbb6461203f9e21"
+		},
+		{
+			"ImportPath": "golang.org/x/text/width",
 			"Rev": "098f51fb687dbaba1f6efabeafbb6461203f9e21"
 		},
 		{

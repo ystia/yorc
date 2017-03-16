@@ -81,6 +81,13 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		return nil, errors.Wrapf(err, "Failed to bind on %s", addr)
 	}
 
+	if configuration.CertFile != "" && configuration.KeyFile != "" {
+		listener, err = wrapListenerTLS(listener, configuration)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	httpServer := &Server{
 		router:         newRouter(),
 		listener:       listener,
