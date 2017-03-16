@@ -15,8 +15,11 @@ topology_template:
         user: ubuntu
         flavor: 2
         key_pair: janus
-        image: b3a66fe8-473f-43ce-9979-1dc0a5f01dda
-        availability_zone: nova
+        # Liberty
+        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
+        # IceHouse
+#        image: 89ec515c-3251-4c2f-8402-bda280c31650
+#        availability_zone: nova
       requirements:
         - network:
             capability: tosca.capabilities.Connectivity
@@ -30,7 +33,7 @@ topology_template:
             protocol: tcp
             initiator: source
             secure: true
-            network_name: private_starlings
+            network_name: PRIVATE
         scalable:
           properties:
             max_instances: 1
