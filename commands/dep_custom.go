@@ -37,7 +37,7 @@ func init() {
 				var InputsStruct rest.CustomCommandRequest
 				InputsStruct.CustomCommandName = customCName
 				InputsStruct.NodeName = nodeName
-
+				InputsStruct.Inputs = make(map[string]string)
 				for _, arg := range inputs {
 					for _, split := range strings.Split(arg, ",") {
 						tmp := strings.Split(split, "=")
