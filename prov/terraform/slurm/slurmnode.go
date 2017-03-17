@@ -13,7 +13,7 @@ func (g *slurmGenerator) generateSlurmNode(url, deploymentID string) (ComputeIns
 		return ComputeInstance{}, err
 	}
 	if nodeType != "janus.nodes.slurm.Compute" {
-		return ComputeInstance{}, fmt.Errorf("In slurm/generateOSInstance : Unsupported node type for %s: %s", url, nodeType)
+		return ComputeInstance{}, fmt.Errorf("In slurm/generateSlurmNode : Unsupported node type for %s: %s", url, nodeType)
 	}
 	instance := ComputeInstance{}
 	gpuType, err := g.getStringFormConsul(url, "properties/gpuType")
