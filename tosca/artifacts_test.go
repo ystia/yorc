@@ -17,6 +17,7 @@ func TestGroupedArtifactParallel(t *testing.T) {
 		t.Run("TestArtifactsAlien2", artifactsAlien2)
 		t.Run("TestArtifactsInNodeTypeAlien", artifactsInNodeTypeAlien)
 		t.Run("TestArtifactsInNodeTemplateAlien", artifactsInNodeTemplateAlien)
+		t.Run("TestArtifactsInNodeTemplateAlien130", artifactsInNodeTemplateAlien130)
 	})
 }
 
@@ -184,4 +185,28 @@ nodes.ANode:
 	assert.Equal(t, "tosca.artifacts.File", artScripts.Type)
 	artUtilsScripts := nodeTemplate["nodes.ANode"].Artifacts["utils_scripts"]
 	assert.Equal(t, "utils_scripts", artUtilsScripts.File)
+}
+
+func artifactsInNodeTemplateAlien130(t *testing.T) {
+	t.Parallel()
+	var data = `
+  nodes.ANode:
+    artifacts:
+      - scripts13:
+          type: tosca.artifacts.File
+          file: scripts13
+      - utils_scripts13: utils_scripts13
+`
+
+	var nodeTemplate map[string]NodeTemplate
+	err := yaml.Unmarshal([]byte(data), &nodeTemplate)
+	assert.Nil(t, err)
+	//t.Log(nodeTemplate["nodes.ANode"].Artifacts)
+	assert.Contains(t, nodeTemplate["nodes.ANode"].Artifacts, "scripts13")
+	assert.Contains(t, nodeTemplate["nodes.ANode"].Artifacts, "utils_scripts13")
+	artScripts := nodeTemplate["nodes.ANode"].Artifacts["scripts13"]
+	assert.Equal(t, "scripts13", artScripts.File)
+	assert.Equal(t, "tosca.artifacts.File", artScripts.Type)
+	artUtilsScripts := nodeTemplate["nodes.ANode"].Artifacts["utils_scripts13"]
+	assert.Equal(t, "utils_scripts13", artUtilsScripts.File)
 }

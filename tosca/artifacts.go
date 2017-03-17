@@ -1,8 +1,7 @@
 package tosca
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -11,6 +10,7 @@ type ArtifactDefMap map[string]ArtifactDefinition
 
 // UnmarshalYAML unmarshals a yaml into an ArtifactDefMap
 func (adm *ArtifactDefMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	log.Debugf("Resolving in artifacts in standard TOSCA format")
 	// Either a map or a seq
 	*adm = make(ArtifactDefMap)
 	var m map[string]ArtifactDefinition
@@ -20,15 +20,28 @@ func (adm *ArtifactDefMap) UnmarshalYAML(unmarshal func(interface{}) error) erro
 		}
 		return nil
 	}
-	log.Debugf("Resolving in artifacts in Alien format")
+
+	log.Debugf("Resolving in artifacts in Alien format 1.2")
 	//var l []map[string]interface{}
 	var l []ArtifactDefinition
-	if err := unmarshal(&l); err != nil {
+	if err := unmarshal(&l); err == nil {
+
+		log.Debugf("list: %v", l)
+		for _, a := range l {
+			(*adm)[a.name] = a
+		}
+		return nil
+	}
+
+	log.Debugf("Resolving in artifacts in Alien format 1.3")
+	var lmap []ArtifactDefMap
+	if err := unmarshal(&lmap); err != nil {
 		return err
 	}
-	log.Debugf("list: %v", l)
-	for _, a := range l {
-		(*adm)[a.name] = a
+	for _, m := range lmap {
+		for k, v := range m {
+			(*adm)[k] = v
+		}
 	}
 	return nil
 }
@@ -67,7 +80,7 @@ func (a *ArtifactDefinition) UnmarshalYAML(unmarshal func(interface{}) error) er
 	if err := unmarshal(&str); err != nil {
 		return err
 	}
-	log.Debugf("Unmarshalled complex ArtifactDefinition %#v", str)
+	log.Debugf("Unmarshalled complex ArtifactDefinition %+v", str)
 	a.Type = str.Type
 	a.File = str.File
 	a.Description = str.Description
@@ -76,8 +89,16 @@ func (a *ArtifactDefinition) UnmarshalYAML(unmarshal func(interface{}) error) er
 	if str.File == "" && len(str.XXX) == 1 {
 		for k, v := range str.XXX {
 			a.name = k
-			a.File = fmt.Sprint(v)
+			var ok bool
+			a.File, ok = v.(string)
+			if !ok {
+				return errors.New("Missing mandatory attribute \"file\" for artifact")
+			}
 		}
+	}
+
+	if a.File == "" {
+		return errors.New("Missing mandatory attribute \"file\" for artifact")
 	}
 	return nil
 }
