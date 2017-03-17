@@ -18,26 +18,26 @@ import (
 
 type janusClient struct {
 	*http.Client
-	baseUrl string
+	baseURL string
 }
 
 func (c *janusClient) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
-	return http.NewRequest(method, c.baseUrl+path, body)
+	return http.NewRequest(method, c.baseURL+path, body)
 }
 
 func (c *janusClient) Get(path string) (*http.Response, error) {
-	return c.Client.Get(c.baseUrl + path)
+	return c.Client.Get(c.baseURL + path)
 }
 
 func (c *janusClient) Head(path string) (*http.Response, error) {
-	return c.Client.Head(c.baseUrl + path)
+	return c.Client.Head(c.baseURL + path)
 }
 func (c *janusClient) Post(path string, contentType string, body io.Reader) (*http.Response, error) {
-	return c.Client.Post(c.baseUrl+path, contentType, body)
+	return c.Client.Post(c.baseURL+path, contentType, body)
 }
 
 func (c *janusClient) PostForm(path string, data url.Values) (*http.Response, error) {
-	return c.Client.PostForm(c.baseUrl+path, data)
+	return c.Client.PostForm(c.baseURL+path, data)
 }
 
 func getClient() (*janusClient, error) {
@@ -72,13 +72,13 @@ func getClient() (*janusClient, error) {
 			TLSClientConfig: tlsConfig,
 		}
 		return &janusClient{
-			baseUrl: "https://" + janusAPI,
+			baseURL: "https://" + janusAPI,
 			Client:  &http.Client{Transport: tr},
 		}, nil
 	}
 
 	return &janusClient{
-		baseUrl: "http://" + janusAPI,
+		baseURL: "http://" + janusAPI,
 		Client:  &http.Client{},
 	}, nil
 
