@@ -6,7 +6,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func (g *slurmGenerator) generateSlurmCntk(url, deploymentId string) (Cntk, error) {
+func (g *slurmGenerator) generateSlurmCntk(url, deploymentID string) (Cntk, error) {
 	var nodeType string
 	var err error
 	log.Printf("generateSlurmNode begin")
@@ -18,54 +18,53 @@ func (g *slurmGenerator) generateSlurmCntk(url, deploymentId string) (Cntk, erro
 	}
 
 	instance := Cntk{}
-
-	if partition, err := g.getStringFormConsul(url, "properties/partition"); err != nil {
+	partition, err := g.getStringFormConsul(url, "properties/partition")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'partition' for %s", url)
-	} else {
-		instance.Partition = partition
 	}
+	instance.Partition = partition
 
-	if runAsUser, err := g.getStringFormConsul(url, "properties/runAsUser"); err != nil {
+	runAsUser, err := g.getStringFormConsul(url, "properties/runAsUser")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'runAsUser' for %s", url)
-	} else {
-		instance.RunAsUser = runAsUser
 	}
+	instance.RunAsUser = runAsUser
 
-	if modelPath, err := g.getStringFormConsul(url, "properties/modelPath"); err != nil {
+	modelPath, err := g.getStringFormConsul(url, "properties/modelPath")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'modelPath' for %s", url)
-	} else {
-		instance.ModelPath = modelPath
 	}
+	instance.ModelPath = modelPath
 
-	if modelFile, err := g.getStringFormConsul(url, "properties/modelFile"); err != nil {
+	modelFile, err := g.getStringFormConsul(url, "properties/modelFile")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'modelFile' for %s", url)
-	} else {
-		instance.ModelFile = modelFile
 	}
+	instance.ModelFile = modelFile
 
-	if imgPath, err := g.getStringFormConsul(url, "properties/imgPath"); err != nil {
+	imgPath, err := g.getStringFormConsul(url, "properties/imgPath")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'imgPath' for %s", url)
-	} else {
-		instance.ImgPath = imgPath
 	}
+	instance.ImgPath = imgPath
 
-	if nbNode, err := g.getStringFormConsul(url, "properties/nbNode"); err != nil {
+	nbNode, err := g.getStringFormConsul(url, "properties/nbNode")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'nbNode' for %s", url)
-	} else {
-		instance.NbNode = nbNode
 	}
+	instance.NbNode = nbNode
 
-	if nodesName, err := g.getStringFormConsul(url, "properties/nodesName"); err != nil {
+	nodesName, err := g.getStringFormConsul(url, "properties/nodesName")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'nodesName' for %s", url)
-	} else {
-		instance.NodesName = nodesName
 	}
+	instance.NodesName = nodesName
 
-	if nbMpiProcess, err := g.getStringFormConsul(url, "properties/nbMpiProcess"); err != nil {
+	nbMpiProcess, err := g.getStringFormConsul(url, "properties/nbMpiProcess")
+	if err != nil {
 		return Cntk{}, fmt.Errorf("Missing mandatory parameter 'nbMpiProcess' for %s", url)
-	} else {
-		instance.NbMpiProcess = nbMpiProcess
 	}
+	instance.NbMpiProcess = nbMpiProcess
 
 	return instance, nil
 }

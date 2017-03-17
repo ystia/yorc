@@ -5,6 +5,7 @@ type ComputeInstance struct {
 	GpuType string `json:"gpu,omitempty"`
 }
 
+// A Cntk represent a CNTK singularity instance running on top of SLURM compute nodes
 type Cntk struct {
 	Partition    string `json:"partition,omitempty"`
 	RunAsUser    string `json:"runAsUser,omitempty"`
