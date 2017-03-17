@@ -66,12 +66,21 @@ func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName st
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 	infrastructure := commons.Infrastructure{}
+	// infrastructure.Provider = map[string]interface{}{
+	// 	"slurm": map[string]interface{}{
+	// 		"username": "root",
+	// 		"password": "root",
+	// 		"name":     "name",
+	// 		"url":      "172.17.0.1",
+	// 		"port":     "22"}} // TODO : hardcoded variable
+
 	log.Debugf("inspecting node %s", nodeKey)
 	kvPair, _, err := g.kv.Get(nodeKey+"/type", nil)
 	if err != nil {
 		log.Print(err)
 		return false, err
 	}
+
 	nodeType := string(kvPair.Value)
 	log.Printf("GenerateTerraformInfraForNode switch begin")
 	switch nodeType {
@@ -81,6 +90,9 @@ func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName st
 		if err != nil {
 			return false, err
 		}
+		log.Debugf("-----------------------")
+		log.Debugf("%+v\n", instances)
+		log.Debugf("-----------------------")
 
 		for _, instanceName := range instances {
 			var instanceState tosca.NodeState
@@ -105,9 +117,8 @@ func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName st
 			addResource(&infrastructure, "slurm_node", computeName, &compute)
 
 			consulKey := commons.ConsulKey{Name: computeName + "-node_name", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
-			consulKey2 := commons.ConsulKey{Name: computeName + "-ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
+			consulKey2 := commons.ConsulKey{Name: computeName + "-attrib_node_name", Path: path.Join(instancesKey, instanceName, "/attributes/node_name"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
 			consulKeyAttrib := commons.ConsulKey{Name: computeName + "-attrib_ip_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${slurm_node.%s.node_name}", computeName)}
-
 			consulKeyJobID := commons.ConsulKey{Name: computeName + "-job_id", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/job_id"), Value: fmt.Sprintf("${slurm_node.%s.job_id}", computeName)}
 
 			var consulKeys commons.ConsulKeys
@@ -116,10 +127,43 @@ func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName st
 
 		} //End instances loop
 
-		// Add Provider
-		infrastructure.Provider = make(map[string]interface{})
-		providerSlurmMap := make(map[string]interface{})
-		infrastructure.Provider["slurm"] = providerSlurmMap
+	case "janus.nodes.slurm.Cntk":
+		var instances []string
+		instances, err = deployments.GetNodeInstancesIds(g.kv, deploymentID, nodeName)
+		if err != nil {
+			return false, err
+		}
+		log.Debugf("-----------------------")
+		log.Debugf("%+v\n", instances)
+		log.Debugf("-----------------------")
+
+		for _, instanceName := range instances {
+			var instanceState tosca.NodeState
+			instanceState, err = deployments.GetInstanceState(g.kv, deploymentID, nodeName, instanceName)
+			if err != nil {
+				return false, err
+			}
+			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+				// Do not generate something for this node instance (will be deleted if exists)
+				continue
+			}
+			job, err := g.generateSlurmCntk(nodeKey, deploymentID)
+			var jobName = nodeName + "-" + instanceName
+			log.Debugf("XBD JobName : IN FOR  %s", jobName)
+			log.Debugf("XBD instanceName: IN FOR  %s", instanceName)
+			if err != nil {
+				return false, err
+			}
+
+			addResource(&infrastructure, "slurm_cntk", jobName, &job)
+
+			consulKeyFinalError := commons.ConsulKey{Name: jobName + "-attrib_final_error", Path: path.Join(instancesKey, instanceName, "/attributes/final_error"), Value: fmt.Sprintf("${slurm_cntk.%s.finalError}", jobName)}
+			consulKeyJobID := commons.ConsulKey{Name: jobName + "-job_id", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/job_id"), Value: fmt.Sprintf("${slurm_cntk.%s.job_id}", jobName)}
+			var consulKeys commons.ConsulKeys
+			consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKeyFinalError, consulKeyJobID}}
+			addResource(&infrastructure, "consul_keys", jobName, &consulKeys)
+
+		} //End instances loop
 
 	default:
 		return false, fmt.Errorf("In Slurm : Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
