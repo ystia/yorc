@@ -62,28 +62,28 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/acl",
-			"Comment": "v0.7.0-rc1",
-			"Rev": "4a07a5cb78e604393ef0e28d40d32f77019eb6d6"
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/api",
-			"Comment": "v0.7.0-rc1",
-			"Rev": "4a07a5cb78e604393ef0e28d40d32f77019eb6d6"
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/consul/structs",
-			"Comment": "v0.7.0-rc1",
-			"Rev": "4a07a5cb78e604393ef0e28d40d32f77019eb6d6"
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/testutil",
-			"Comment": "v0.7.0-rc1",
-			"Rev": "4a07a5cb78e604393ef0e28d40d32f77019eb6d6"
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/consul/types",
-			"Comment": "v0.7.0-rc1",
-			"Rev": "4a07a5cb78e604393ef0e28d40d32f77019eb6d6"
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-cleanhttp",
@@ -307,6 +307,91 @@
 		{
 			"ImportPath": "vbom.ml/util/sortorder",
 			"Rev": "db5cfe13f5cc80a4990d98e2e1b0707a4d1a5394"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/armon/go-radix",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/golang-lru",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/golang-lru/simplelru",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/hcl/ast",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/hcl/parser",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/hcl/token",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/json/parser",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/hcl/scanner",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/hcl/strconv",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/json/scanner",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/hcl/json/token",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/go-cleanhttp",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/serf/coordinate",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/go-msgpack/codec",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/hashicorp/raft",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/vendor/github.com/armon/go-metrics",
+			"Comment": "v0.7.5",
+			"Rev": "21f2d5ad0c02af6c4b32d8fd04f7c81e9b002d41"
 		}
 	]
 }
