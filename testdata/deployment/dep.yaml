@@ -15,17 +15,17 @@ topology_template:
         user: cloud-user
         flavor: 2
         # Liberty
-        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
+#        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         # IceHouse
-#        image: 89ec515c-3251-4c2f-8402-bda280c31650
-#        availability_zone: nova
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
       capabilities:
         endpoint:
           properties:
             protocol: tcp
             initiator: source
             secure: true
-            network_name: PRIVATE
+            network_name: private_starlings
         scalable:
           properties:
             max_instances: 1
