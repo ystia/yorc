@@ -72,7 +72,6 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 
 	infrastructure := commons.Infrastructure{}
 
-	// TODO (HJo) Must also be done in generator for Slurm
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	infrastructure.Data = map[string]interface{}{
 		"terraform_remote_state": map[string]interface{}{
