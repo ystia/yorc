@@ -114,7 +114,6 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 
 func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 
-	// TODO (HJo) Factorize the code with applyInfrastructure(...) function
 	events.LogEngineMessage(kv, deploymentID, "Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	tfBackendConfigPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
@@ -170,7 +169,6 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 }
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
-	// TODO (HJo) May be a purge of the terraform state must be done in consul KV store ?
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
