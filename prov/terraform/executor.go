@@ -117,7 +117,7 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	// TODO (HJo) Factorize the code with applyInfrastructure(...) function
 	events.LogEngineMessage(kv, deploymentID, "Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
-	tfBackendConfigPath := path.Join(consulutil.TerraformStateKVPrefix, deploymentID, nodeName)
+	tfBackendConfigPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 	tfBackendConfigName := "tfstate_" + deploymentID + "_" + nodeName
 	cmd := executil.Command(ctx, "terraform", "remote", "config", "-backend=consul",
 		"-backend-config=path="+tfBackendConfigPath, "-backend-config=name="+tfBackendConfigName)

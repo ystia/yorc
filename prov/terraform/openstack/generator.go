@@ -68,7 +68,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
-	terraformStateKey := path.Join(consulutil.TerraformStateKVPrefix, deploymentID, nodeName)
+	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
 
 	infrastructure := commons.Infrastructure{}
 
