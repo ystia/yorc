@@ -2,6 +2,7 @@ package terraform
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
@@ -132,10 +133,14 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	errbuf.Run(quit)
 
 	if err := cmd.Start(); err != nil {
-		log.Print(err)
+		return fmt.Errorf("executor.remoteConfigInfrastructure: %v", err)
 	}
 
-	return cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("executor.remoteConfigInfrastructure: %v", err)
+	}
+
+	return nil
 
 }
 
@@ -143,7 +148,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
-		return err
+		return fmt.Errorf("executor.applyInfrastructure: %v", err)
 	}
 
 	events.LogEngineMessage(kv, deploymentID, "Applying the infrastructure")
@@ -161,24 +166,28 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	errbuf.Run(quit)
 
 	if err := cmd.Start(); err != nil {
-		log.Print(err)
+		return fmt.Errorf("executor.applyInfrastructure: %v", err)
 	}
 
-	return cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("executor.applyInfrastructure: %v", err)
+	}
+
+	return nil
 
 }
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
-		return err
+		return fmt.Errorf("executor.destroyInfrastructure: %v", err)
 	}
 	if nodeType == "janus.nodes.openstack.BlockStorage" {
 		var deletable string
 		var found bool
 		found, deletable, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "deletable")
 		if err != nil {
-			return err
+			return fmt.Errorf("executor.destroyInfrastructure: %v", err)
 		}
 		if !found || strings.ToLower(deletable) != "true" {
 			// False by default
@@ -186,6 +195,8 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 			return nil
 		}
 	}
-	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName)
-
+	if err := e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
+		return fmt.Errorf("executor.destroyInfrastructure: %v", err)
+	}
+	return nil
 }
