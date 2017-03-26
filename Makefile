@@ -18,6 +18,9 @@ checks:
 dist: build
 	@echo "--> Creating an archive"
 	@tar czvf janus.tgz janus
+	@cd doc && make html && cd _build && zip -r janus-html-doc.zip html && cp janus-html-doc.zip ../..
+	@cd doc && make latexpdf && cp _build/latex/Janus.pdf  ../
+	@zip janus-distrib.zip janus.tgz Janus.pdf janus-html-doc.zip && rm Janus.pdf janus-html-doc.zip
 
 test: checks
 ifndef SKIP_TESTS

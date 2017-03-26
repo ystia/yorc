@@ -18,3 +18,4 @@ work
 **/debug.test
 **/debug
 build/consul
+/doc/_build/*
