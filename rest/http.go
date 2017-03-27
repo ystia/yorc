@@ -97,7 +97,12 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 	}
 
 	httpServer.registerHandlers()
-	log.Printf("Starting HTTPServer on address %s", listener.Addr())
+	if configuration.CertFile != "" && configuration.KeyFile != "" {
+		log.Printf("Starting HTTPServer over TLS on address %s", listener.Addr())
+		log.Debugf("TLS KeyFile in use: %q. TLS CertFile in use: %q", configuration.KeyFile, configuration.CertFile)
+	} else {
+		log.Printf("Starting HTTPServer on address %s", listener.Addr())
+	}
 	go http.Serve(httpServer.listener, httpServer.router)
 
 	return httpServer, nil
