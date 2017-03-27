@@ -9,8 +9,10 @@ buildnformat: build format
 
 build: test
 	@echo "--> Running go build"
-	@go generate $(PACKAGES)
 	@CGO_ENABLED=0 go build
+
+generate: checks
+	@go generate $(PACKAGES)
 
 checks:
 	@./build/checks.sh $(GOTOOLS)
@@ -22,7 +24,7 @@ dist: build
 	@cd doc && make latexpdf && cp _build/latex/Janus.pdf  ../
 	@zip janus-distrib.zip janus.tgz Janus.pdf janus-html-doc.zip && rm Janus.pdf janus-html-doc.zip
 
-test: checks
+test: generate
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
 	@export PATH=$$PWD/build:$$PATH; go test $(PACKAGES) $(TESTARGS) -timeout=30s -p 1
