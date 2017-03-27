@@ -86,7 +86,8 @@ func ConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 }
 
 func ConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// Do not run this test in // as it cause some concurrency issue
+	// t.Parallel()
 	deploymentID := "test2"
 	pub := NewPublisher(kv, deploymentID)
 	sub := NewSubscriber(kv, deploymentID)

@@ -61,7 +61,7 @@ topology_template:
         user: cloud-user
         flavor: 2
         # Liberty
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: nova

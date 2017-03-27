@@ -11,7 +11,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/rest"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -26,8 +25,10 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			janusAPI := viper.GetString("janus_api")
-
+			client, err := getClient()
+			if err != nil {
+				errExit(err)
+			}
 			if len(jsonParam) == 0 && len(nodeName) == 0 {
 				return fmt.Errorf("You need to provide a JSON or complete the arguments")
 			}
@@ -36,7 +37,7 @@ func init() {
 				var InputsStruct rest.CustomCommandRequest
 				InputsStruct.CustomCommandName = customCName
 				InputsStruct.NodeName = nodeName
-
+				InputsStruct.Inputs = make(map[string]string)
 				for _, arg := range inputs {
 					for _, split := range strings.Split(arg, ",") {
 						tmp := strings.Split(split, "=")
@@ -52,13 +53,13 @@ func init() {
 				jsonParam = string(tmp)
 			}
 
-			request, err := http.NewRequest("POST", "http://"+janusAPI+"/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
+			request, err := client.NewRequest("POST", "/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
 			if err != nil {
 				errExit(err)
 			}
 			request.Header.Add("Content-Type", "application/json")
 
-			response, err := http.DefaultClient.Do(request)
+			response, err := client.Do(request)
 			if err != nil {
 				errExit(err)
 			}
