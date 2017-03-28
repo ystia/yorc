@@ -8,6 +8,9 @@ General Options
 
   * ``--janus-api``: Specifies the host and port used to join the Janus' REST API. Defaults to ``localhost:8800``. Configuration entry ``janus_api`` and env var ``JANUS_API`` may also be used.
   * ``--no-color``: Disable coloring output (By default coloring is enable). 
+  * ``-s`` or ``--secured``: Use HTTPS to connect to the Janus REST API
+  * ``--ca-file``: This provides a file path to a PEM-encoded certificate authority. This implies the use of HTTPS to connect to the Janus REST API.
+  * ``--skip-tls-verify``: skip-tls-verify controls whether a client verifies the server's certificate chain and host name. If set to true, TLS accepts any certificate presented by the server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing. This implies the use of HTTPS to connect to the Janus REST API.
 
 CLI Commands related to deployments
 -----------------------------------

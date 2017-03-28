@@ -29,6 +29,22 @@ Command-line options
 
   * ``--consul_publisher_max_routines``: Maximum number of parallelism used to store key/values in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value (500) will be used.
 
+.. _option_http_addr_cmd:
+
+  * ``--http_address``: Restrict the listening interface for the Janus HTTP REST API. By default Janus listens on all available interfaces
+
+.. _option_http_port_cmd:
+
+  * ``--http_port``: Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.
+
+.. _option_keyfile_cmd:
+
+  * ``--key_file``: File path to a PEM-encoded private key. The key is used to enable SSL for the Janus HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.
+
+.. _option_certfile_cmd:
+
+  * ``--cert_file``: File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Janus HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.
+
 .. _option_os_authurl_cmd:
 
   * ``--os_auth_url``: Specify the authentication url for OpenStack (should be the Keystone endpoint ie: http://your-openstack:5000/v2.0). There is no default for this option.
@@ -94,6 +110,22 @@ Bellow is an example of configuration file.
     }
 
 
+Bellow is an example of configuration file with TLS enable.
+
+.. code-block:: JSON
+    
+    {
+        "os_auth_url": "http://your-openstack:5000/v2.0",
+        "os_tenant_name": "your-tenant",
+        "os_user_name": "os-user",
+        "os_password": "os-password",
+        "os_prefix": "janus1-",
+        "os_private_network_name": "default-private-network",
+        "key_file": "/etc/pki/tls/private/janus.key",
+        "cert_file": "/etc/pki/tls/certs/janus.crt"
+    }
+
+
 .. _option_consul_addr_cfg:
 
   * ``consul_address``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
@@ -109,6 +141,22 @@ Bellow is an example of configuration file.
 .. _option_pub_routines_cfg:
 
   * ``consul_publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
+
+.. _option_http_addr_cfg:
+
+  * ``http_address``: Equivalent to :ref:`--http_address <option_http_addr_cmd>` command-line flag.
+
+.. _option_http_port_cfg:
+
+  * ``http_port``: Equivalent to :ref:`--http_port <option_http_port_cmd>` command-line flag.
+
+.. _option_keyfile_cfg:
+
+  * ``key_file``: Equivalent to :ref:`--key_file <option_keyfile_cmd>` command-line flag.
+
+.. _option_certfile_cfg:
+
+  * ``cert_file``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
 
 .. _option_os_authurl_cfg:
 
@@ -173,6 +221,22 @@ Environment variables
 .. _option_pub_routines_env:
 
   * ``JANUS_CONSUL_PUBLISHER_MAX_ROUTINES``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
+
+.. _option_http_addr_env:
+
+  * ``JANUS_HTTP_ADDRESS``: Equivalent to :ref:`--http_address <option_http_addr_cmd>` command-line flag.
+
+.. _option_http_port_env:
+
+  * ``JANUS_HTTP_PORT``: Equivalent to :ref:`--http_port <option_http_port_cmd>` command-line flag.
+
+.. _option_keyfile_env:
+
+  * ``JANUS_KEY_FILE``: Equivalent to :ref:`--key_file <option_keyfile_cmd>` command-line flag.
+
+.. _option_certfile_env:
+
+  * ``JANUS_CERT_FILE``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
 
 .. _option_os_authurl_env:
 
