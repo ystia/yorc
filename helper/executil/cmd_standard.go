@@ -5,6 +5,8 @@ package executil
 import (
 	"context"
 	"os/exec"
+
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 // Cmd represents an external command being prepared or run.
@@ -20,6 +22,7 @@ type Cmd struct {
 // The provided context is used to kill the process if the context becomes done before the command
 // completes on its own.
 func Command(ctx context.Context, name string, arg ...string) *Cmd {
+	log.Debugf("The standard command '%s %q' will be executed...", name, arg)
 	innerCmd := exec.CommandContext(ctx, name, arg...)
 	return &Cmd{Cmd: innerCmd}
 }

@@ -63,9 +63,22 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 
 func (g *slurmGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName string) (bool, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
+
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
+	terraformStateKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
+
 	infrastructure := commons.Infrastructure{}
+
+	// Remote Configuration for Terraform State to store it in the Consul KV store
+	infrastructure.Data = map[string]interface{}{
+		"terraform_remote_state": map[string]interface{}{
+			"tfstate_" + deploymentID: map[string]interface{}{
+				"backend": "consul",
+				"config": map[string]interface{}{
+					"path": terraformStateKey}}}}
+
+	// Management of variables for Terraform
 	// infrastructure.Provider = map[string]interface{}{
 	// 	"slurm": map[string]interface{}{
 	// 		"username": "root",

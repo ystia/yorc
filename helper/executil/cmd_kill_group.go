@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os/exec"
 	"syscall"
+
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 // Cmd represents an external command being prepared or run.
@@ -25,6 +27,7 @@ type Cmd struct {
 // syscall.Kill(-c.Process.Pid, syscall.SIGKILL)) if the context becomes done before the command
 // completes on its own.
 func Command(ctx context.Context, name string, arg ...string) *Cmd {
+	log.Debugf("The 'kill group' command '%s %q' will be executed...", name, arg)
 	if ctx == nil {
 		panic("nil Context")
 	}
