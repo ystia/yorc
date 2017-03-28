@@ -2,11 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -21,20 +19,23 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			janusAPI := viper.GetString("janus_api")
+			client, err := getClient()
+			if err != nil {
+				errExit(err)
+			}
 
-			url := "http://" + janusAPI + "/deployments/" + args[0]
+			url := "/deployments/" + args[0]
 			if purge {
 				url = url + "?purge=true"
 			}
 
-			request, err := http.NewRequest("DELETE", url, nil)
+			request, err := client.NewRequest("DELETE", url, nil)
 			if err != nil {
 				errExit(err)
 			}
 
 			request.Header.Add("Accept", "application/json")
-			response, err := http.DefaultClient.Do(request)
+			response, err := client.Do(request)
 			if err != nil {
 				errExit(err)
 			}
@@ -46,9 +47,9 @@ func init() {
 
 			fmt.Println("Undeployment submitted. In progress...")
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(janusAPI, args[0], !noColor, false, false)
+				streamsLogs(client, args[0], !noColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(janusAPI, args[0], !noColor, false, false)
+				streamsEvents(client, args[0], !noColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}

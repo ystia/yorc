@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"strings"
 
 	"path"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -36,17 +34,20 @@ It prints the deployment status and the status of all the nodes contained in thi
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			janusAPI := viper.GetString("janus_api")
+			client, err := getClient()
+			if err != nil {
+				errExit(err)
+			}
 			colorize := !noColor
 			if colorize {
 				commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(commErrorMsg)
 			}
-			request, err := http.NewRequest("GET", "http://"+janusAPI+"/deployments/"+args[0], nil)
+			request, err := client.NewRequest("GET", "/deployments/"+args[0], nil)
 			if err != nil {
 				errExit(err)
 			}
 			request.Header.Add("Accept", "application/json")
-			response, err := http.DefaultClient.Do(request)
+			response, err := client.Do(request)
 			if err != nil {
 				errExit(err)
 			}
@@ -72,9 +73,9 @@ It prints the deployment status and the status of all the nodes contained in thi
 			}
 			var errs []error
 			if !detailedInfo {
-				errs = tableBasedDeploymentRendering(janusAPI, dep, colorize)
+				errs = tableBasedDeploymentRendering(client, dep, colorize)
 			} else {
-				errs = detailedDeploymentRendering(janusAPI, dep, colorize)
+				errs = detailedDeploymentRendering(client, dep, colorize)
 			}
 			if len(errs) > 0 {
 				fmt.Fprintln(os.Stderr, "\n\nErrors encountered:")
@@ -90,7 +91,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 	deploymentsCmd.AddCommand(infoCmd)
 }
 
-func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize bool) []error {
+func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	nodesTable := tabutil.NewTable()
 	nodesTable.AddHeaders("Node", "Statuses")
@@ -106,7 +107,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 		if atomLink.Rel == rest.LinkRelNode {
 			var node rest.Node
 
-			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &node)
+			err = getJSONEntityFromAtomGetRequest(client, atomLink, &node)
 			if err != nil {
 				errs = append(errs, err)
 				nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg, "")
@@ -117,7 +118,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 			for _, nodeLink := range node.Links {
 				if nodeLink.Rel == rest.LinkRelInstance {
 					var instance rest.NodeInstance
-					err = getJSONEntityFromAtomGetRequest(janusAPI, nodeLink, &instance)
+					err = getJSONEntityFromAtomGetRequest(client, nodeLink, &instance)
 					if err != nil {
 						errs = append(errs, err)
 						nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg, "")
@@ -139,7 +140,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 			nodesTable.AddRow(node.Name, buffer.String())
 		} else if atomLink.Rel == rest.LinkRelTask {
 			var task rest.Task
-			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &task)
+			err = getJSONEntityFromAtomGetRequest(client, atomLink, &task)
 			if err != nil {
 				errs = append(errs, err)
 				tasksTable.AddRow(path.Base(atomLink.Href), "", commErrorMsg)
@@ -149,7 +150,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 		} else if atomLink.Rel == rest.LinkRelOutput {
 			var output rest.Output
 
-			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &output)
+			err = getJSONEntityFromAtomGetRequest(client, atomLink, &output)
 			if err != nil {
 				errs = append(errs, err)
 				outputsTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
@@ -170,7 +171,7 @@ func tableBasedDeploymentRendering(janusAPI string, dep rest.Deployment, coloriz
 	return errs
 }
 
-func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize bool) []error {
+func detailedDeploymentRendering(client *janusClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	var err error
 	nodesList := []string{"Nodes:"}
@@ -181,7 +182,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 		if atomLink.Rel == rest.LinkRelNode {
 			var node rest.Node
 
-			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &node)
+			err = getJSONEntityFromAtomGetRequest(client, atomLink, &node)
 			if err != nil {
 				errs = append(errs, err)
 				nodesList = append(nodesList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
@@ -192,7 +193,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 			for _, nodeLink := range node.Links {
 				if nodeLink.Rel == rest.LinkRelInstance {
 					var inst rest.NodeInstance
-					err = getJSONEntityFromAtomGetRequest(janusAPI, nodeLink, &inst)
+					err = getJSONEntityFromAtomGetRequest(client, nodeLink, &inst)
 					if err != nil {
 						errs = append(errs, err)
 						nodesList = append(nodesList, fmt.Sprintf("      - %s: %s", path.Base(nodeLink.Href), commErrorMsg))
@@ -203,7 +204,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 					for _, instanceLink := range inst.Links {
 						if instanceLink.Rel == rest.LinkRelAttribute {
 							var attr rest.Attribute
-							err = getJSONEntityFromAtomGetRequest(janusAPI, instanceLink, &attr)
+							err = getJSONEntityFromAtomGetRequest(client, instanceLink, &attr)
 							if err != nil {
 								errs = append(errs, err)
 								nodesList = append(nodesList, fmt.Sprintf("          - %s: %s", path.Base(instanceLink.Href), commErrorMsg))
@@ -216,7 +217,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 			}
 		} else if atomLink.Rel == rest.LinkRelTask {
 			var task rest.Task
-			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &task)
+			err = getJSONEntityFromAtomGetRequest(client, atomLink, &task)
 			if err != nil {
 				errs = append(errs, err)
 				tasksList = append(tasksList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
@@ -228,7 +229,7 @@ func detailedDeploymentRendering(janusAPI string, dep rest.Deployment, colorize 
 		} else if atomLink.Rel == rest.LinkRelOutput {
 			var output rest.Output
 
-			err = getJSONEntityFromAtomGetRequest(janusAPI, atomLink, &output)
+			err = getJSONEntityFromAtomGetRequest(client, atomLink, &output)
 			if err != nil {
 				errs = append(errs, err)
 				outputsList = append(outputsList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))

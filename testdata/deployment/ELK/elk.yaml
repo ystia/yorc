@@ -17,11 +17,11 @@ topology_template:
     repository_default:
       type: string
       required: false
-      default: "http://10.197.132.16/sla"
+      default: "http://10.197.135.244/starlings/sla/"
     repository_value:
       type: string
       required: false
-      value: "http://10.197.132.16/sla"
+      value: "http://10.197.135.244/starlings/sla/"
   node_templates:
     JavaES:
       type: starlings.nodes.Java
@@ -66,7 +66,7 @@ topology_template:
         flavor: 2
         key_pair: janus
         # Liberty
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: r423-02.share.ops
@@ -133,7 +133,7 @@ topology_template:
         flavor: 2
         key_pair: janus
         # Liberty
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: r423-02.share.ops
@@ -209,7 +209,7 @@ topology_template:
         flavor: 2
         key_pair: janus
         # Liberty
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: r423-02.share.ops
@@ -259,7 +259,7 @@ topology_template:
         flavor: 2
         key_pair: janus
         # Liberty
-        image: 1234b814-ec38-4c1a-948a-3435e13aae99
+        image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         # IceHouse
 #        image: 89ec515c-3251-4c2f-8402-bda280c31650
 #        availability_zone: r423-02.share.ops

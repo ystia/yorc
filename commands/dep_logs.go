@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
@@ -28,10 +26,13 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			janusAPI := viper.GetString("janus_api")
+			client, err := getClient()
+			if err != nil {
+				errExit(err)
+			}
 			colorize := !noColor
 
-			streamsLogs(janusAPI, args[0], colorize, fromBeginning, noStream, filters...)
+			streamsLogs(client, args[0], colorize, fromBeginning, noStream, filters...)
 			return nil
 		},
 	}
@@ -41,14 +42,14 @@ func init() {
 	deploymentsCmd.AddCommand(logCmd)
 }
 
-func streamsLogs(janusAPI, deploymentID string, colorize, fromBeginning, stop bool, filters ...string) {
+func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginning, stop bool, filters ...string) {
 	if colorize {
 		defer color.Unset()
 	}
 	var lastIdx uint64
 	if !fromBeginning && !stop {
 		// Get last index
-		response, err := http.Head("http://" + janusAPI + "/deployments/" + deploymentID + "/logs")
+		response, err := client.Head("/deployments/" + deploymentID + "/logs")
 		if err != nil {
 			errExit(err)
 		}
@@ -73,12 +74,12 @@ func streamsLogs(janusAPI, deploymentID string, colorize, fromBeginning, stop bo
 		filtersParam = fmt.Sprintf("&filter=%s", strings.Join(filters, ","))
 	}
 	for {
-		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/logs?index=%d%s", janusAPI, deploymentID, lastIdx, filtersParam), nil)
+		request, err := client.NewRequest("GET", fmt.Sprintf("/deployments/%s/logs?index=%d%s", deploymentID, lastIdx, filtersParam), nil)
 		if err != nil {
 			errExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
-		response, err := http.DefaultClient.Do(request)
+		response, err := client.Do(request)
 		if err != nil {
 			errExit(err)
 		}

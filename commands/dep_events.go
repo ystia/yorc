@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
@@ -26,10 +24,13 @@ func init() {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			janusAPI := viper.GetString("janus_api")
+			client, err := getClient()
+			if err != nil {
+				errExit(err)
+			}
 			colorize := !noColor
 
-			streamsEvents(janusAPI, args[0], colorize, fromBeginning, noStream)
+			streamsEvents(client, args[0], colorize, fromBeginning, noStream)
 			return nil
 		},
 	}
@@ -38,14 +39,14 @@ func init() {
 	deploymentsCmd.AddCommand(eventCmd)
 }
 
-func streamsEvents(janusAPI, deploymentID string, colorize, fromBeginning, stop bool) {
+func streamsEvents(client *janusClient, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}
 	var lastIdx uint64
 	if !fromBeginning && !stop {
 		// Get last index
-		response, err := http.Head("http://" + janusAPI + "/deployments/" + deploymentID + "/events")
+		response, err := client.Head("/deployments/" + deploymentID + "/events")
 		if err != nil {
 			errExit(err)
 		}
@@ -67,12 +68,12 @@ func streamsEvents(janusAPI, deploymentID string, colorize, fromBeginning, stop 
 	}
 	for {
 
-		request, err := http.NewRequest("GET", fmt.Sprintf("http://%s/deployments/%s/events?index=%d", janusAPI, deploymentID, lastIdx), nil)
+		request, err := client.NewRequest("GET", fmt.Sprintf("/deployments/%s/events?index=%d", deploymentID, lastIdx), nil)
 		if err != nil {
 			errExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
-		response, err := http.DefaultClient.Do(request)
+		response, err := client.Do(request)
 		if err != nil {
 			errExit(err)
 		}

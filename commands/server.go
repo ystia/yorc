@@ -20,9 +20,10 @@ var cfgFile string
 
 var serverCmd = &cobra.Command{
 
-	Use:   "server",
-	Short: "Perform the server command",
-	Long:  `Perform the server command`,
+	Use:          "server",
+	Short:        "Perform the server command",
+	Long:         `Perform the server command`,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		configuration := getConfig()
@@ -52,6 +53,12 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Janus server")
 	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Janus server. If not set the default value will be used")
 
+	// Flags definition for Janus HTTP REST API
+	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
+	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Janus HTTP REST API.")
+	serverCmd.PersistentFlags().String("key_file", "", "File path to a PEM-encoded private key. The key is used to enable SSL for the Janus HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.")
+	serverCmd.PersistentFlags().String("cert_file", "", "File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Janus HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.")
+
 	//Flags definition for OpenStack
 	serverCmd.PersistentFlags().StringP("os_auth_url", "a", "", "will use the 1.1 *compute api*")
 	serverCmd.PersistentFlags().StringP("os_tenant_id", "i", "", "The ID of the tenant")
@@ -71,8 +78,6 @@ func setConfig() {
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
 
-	//Bind Flags for Janus
-	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
 	viper.BindPFlag("os_tenant_id", serverCmd.PersistentFlags().Lookup("os_tenant_id"))
@@ -95,11 +100,21 @@ func setConfig() {
 	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
 	viper.BindPFlag("workers_number", serverCmd.PersistentFlags().Lookup("workers_number"))
 
+	//Bind Flags Janus HTTP REST API
+	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
+	viper.BindPFlag("http_address", serverCmd.PersistentFlags().Lookup("http_address"))
+	viper.BindPFlag("cert_file", serverCmd.PersistentFlags().Lookup("cert_file"))
+	viper.BindPFlag("key_file", serverCmd.PersistentFlags().Lookup("key_file"))
+
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
 	viper.AutomaticEnv()        // read in environment variables that match
 	viper.BindEnv("working_directory")
 	viper.BindEnv("workers_number")
+	viper.BindEnv("http_port")
+	viper.BindEnv("http_address")
+	viper.BindEnv("key_file")
+	viper.BindEnv("cert_file")
 	viper.BindEnv("os_auth_url", "OS_AUTH_URL")
 	viper.BindEnv("os_tenant_id", "OS_TENANT_ID")
 	viper.BindEnv("os_tenant_name", "OS_TENANT_NAME")
@@ -115,6 +130,8 @@ func setConfig() {
 
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
+	viper.SetDefault("http_port", config.DefaultHTTPPort)
+	viper.SetDefault("http_address", config.DefaultHTTPAddress)
 	viper.SetDefault("os_prefix", "janus-")
 	viper.SetDefault("os_region", "RegionOne")
 	viper.SetDefault("os_default_security_groups", make([]string, 0))
@@ -135,6 +152,10 @@ func getConfig() config.Configuration {
 	configuration := config.Configuration{}
 	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")
+	configuration.HTTPPort = viper.GetInt("http_port")
+	configuration.HTTPAddress = viper.GetString("http_address")
+	configuration.CertFile = viper.GetString("cert_file")
+	configuration.KeyFile = viper.GetString("key_file")
 	configuration.OSAuthURL = viper.GetString("os_auth_url")
 	configuration.OSTenantID = viper.GetString("os_tenant_id")
 	configuration.OSTenantName = viper.GetString("os_tenant_name")

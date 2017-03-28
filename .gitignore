@@ -17,3 +17,4 @@ work
 /.vscode
 **/debug.test
 **/debug
+build/consul

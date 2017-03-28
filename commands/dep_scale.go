@@ -11,7 +11,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -36,20 +35,22 @@ func init() {
 				return errors.New("Missing non-zero \"delta\" flag")
 			}
 
-			janusAPI := viper.GetString("janus_api")
-
+			client, err := getClient()
+			if err != nil {
+				errExit(err)
+			}
 			deploymentID := args[0]
 
-			location, err := postScalingRequest(janusAPI, deploymentID, nodeName, instancesDelta)
+			location, err := postScalingRequest(client, deploymentID, nodeName, instancesDelta)
 			if err != nil {
 				return err
 			}
 
 			fmt.Println("Scaling request submitted. Task Id:", path.Base(location))
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(janusAPI, deploymentID, !noColor, false, false)
+				streamsLogs(client, deploymentID, !noColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(janusAPI, deploymentID, !noColor, false, false)
+				streamsEvents(client, deploymentID, !noColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
@@ -63,8 +64,8 @@ func init() {
 	deploymentsCmd.AddCommand(scaleCmd)
 }
 
-func postScalingRequest(janusAPI, deploymentID, nodeName string, instancesDelta int32) (string, error) {
-	request, err := http.NewRequest("POST", "http://"+path.Join(janusAPI, "deployments", deploymentID, "scale", nodeName), nil)
+func postScalingRequest(client *janusClient, deploymentID, nodeName string, instancesDelta int32) (string, error) {
+	request, err := client.NewRequest("POST", path.Join("/deployments", deploymentID, "scale", nodeName), nil)
 	if err != nil {
 		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
 	}
@@ -76,13 +77,13 @@ func postScalingRequest(janusAPI, deploymentID, nodeName string, instancesDelta 
 
 	log.Debugf("POST: %s", request.URL.String())
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := client.Do(request)
 	if err != nil {
 		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
 	}
 
 	if response.StatusCode == http.StatusNotFound {
-		errExit(errors.New("Deployment or Node not found."))
+		errExit(errors.New("Deployment or Node not found"))
 	}
 	if response.StatusCode != http.StatusAccepted {
 		// Try to get the reason

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #set -x
+scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 error_exit () {
     >&2 echo "${1}"
@@ -27,3 +28,12 @@ for tool in $@; do
         error_exit "Tool not found $GOPATH/bin/${tool##*/} doesn't exist. This could be fixed by running 'make tools'"
     fi
 done
+
+if [[ ! -e "${scriptDir}/consul" ]]; then
+    cd ${scriptDir}
+    zipName="consul_0.7.5_$(go env GOHOSTOS)_$(go env GOHOSTARCH).zip"
+    wget "https://releases.hashicorp.com/consul/0.7.5/${zipName}"
+    unzip ${zipName}
+    rm ${zipName}
+    chmod +x consul
+fi

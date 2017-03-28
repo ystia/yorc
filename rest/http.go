@@ -72,9 +72,20 @@ func (s *Server) Shutdown() {
 
 // NewServer create a Server to serve the REST API
 func NewServer(configuration config.Configuration, client *api.Client, shutdownCh chan struct{}) (*Server, error) {
-	listener, err := net.Listen("tcp", ":8800")
+	addr, err := getAddress(configuration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to bind on port 8800")
+		return nil, err
+	}
+	listener, err := net.Listen(addr.Network(), addr.String())
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to bind on %s", addr)
+	}
+
+	if configuration.CertFile != "" && configuration.KeyFile != "" {
+		listener, err = wrapListenerTLS(listener, configuration)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	httpServer := &Server{
@@ -86,7 +97,12 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 	}
 
 	httpServer.registerHandlers()
-	log.Printf("Starting HTTPServer on port 8800")
+	if configuration.CertFile != "" && configuration.KeyFile != "" {
+		log.Printf("Starting HTTPServer over TLS on address %s", listener.Addr())
+		log.Debugf("TLS KeyFile in use: %q. TLS CertFile in use: %q", configuration.KeyFile, configuration.CertFile)
+	} else {
+		log.Printf("Starting HTTPServer on address %s", listener.Addr())
+	}
 	go http.Serve(httpServer.listener, httpServer.router)
 
 	return httpServer, nil
@@ -122,4 +138,28 @@ func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	jEnc.Encode(resp)
+}
+
+func getAddress(configuration config.Configuration) (net.Addr, error) {
+
+	var port int
+	if configuration.HTTPPort == 0 {
+		// Use default value
+		port = config.DefaultHTTPPort
+	} else if configuration.HTTPPort < 0 {
+		// Use random port
+		port = 0
+	} else {
+		port = configuration.HTTPPort
+	}
+	var ip net.IP
+	if configuration.HTTPAddress != "" {
+		ip = net.ParseIP(configuration.HTTPAddress)
+	} else {
+		ip = net.ParseIP(config.DefaultHTTPAddress)
+	}
+	if ip == nil {
+		return nil, errors.Errorf("Failed to parse IP: %v", configuration.HTTPAddress)
+	}
+	return &net.TCPAddr{IP: ip, Port: port}, nil
 }

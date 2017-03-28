@@ -1,6 +1,8 @@
 {
         "working_directory": "work",
         "workers_number": 3,
+        "http_port": 8800,
+        "http_address": "0.0.0.0",
         "os_auth_url": "http://10.197.132.150:5000/v2.0",
         "os_tenant_id": "1f219ffcff2342e189ef47c0e9689dfb",
         "os_tenant_name": "starlings",
