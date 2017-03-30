@@ -22,7 +22,7 @@ dist: build
 	@echo "--> Creating an archive"
 	@tar czvf janus.tgz janus && echo "TODO: clean this part after CI update" &&  cp janus janus.tgz dist/
 	@cd doc && make html latexpdf && cd _build && cp -r html latex/Janus.pdf ../../dist
-	@cd ./dist && zip -r janus-documentation.zip html Janus.pdf && zip janus-distrib.zip janus janus-documentation.zip
+	@cd ./dist && zip -r janus-server-documentation.zip html Janus.pdf && zip janus-server-distrib.zip janus janus-server-documentation.zip
 
 test: generate
 ifndef SKIP_TESTS
