@@ -61,4 +61,4 @@ restoredeps: checks
 	@godep restore -v
 
 
-.PHONY: buildnformat build cov checks test cover format vet tools
+.PHONY: buildnformat build cov checks test cover format vet tools dist
