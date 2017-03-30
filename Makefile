@@ -18,11 +18,11 @@ checks:
 	@./build/checks.sh $(GOTOOLS)
 
 dist: build
+	@rm -rf ./dist && mkdir -p ./dist
 	@echo "--> Creating an archive"
-	@tar czvf janus.tgz janus
-	@cd doc && make html && cd _build && zip -r janus-html-doc.zip html && cp janus-html-doc.zip ../..
-	@cd doc && make latexpdf && cp _build/latex/Janus.pdf  ../
-	@zip janus-distrib.zip janus.tgz Janus.pdf janus-html-doc.zip && rm Janus.pdf janus-html-doc.zip
+	@tar czvf janus.tgz janus && echo "TODO: clean this part after CI update" &&  cp janus janus.tgz dist/
+	@cd doc && make html latexpdf && cd _build && cp -r html latex/Janus.pdf ../../dist
+	@cd ./dist && zip -r janus-documentation.zip html Janus.pdf && zip janus-distrib.zip janus janus-documentation.zip
 
 test: generate
 ifndef SKIP_TESTS

@@ -20,7 +20,7 @@ work
 **/debug
 build/consul
 /doc/_build/*
-
+/dist
 
 # Generated sources
 /tosca/assets.go
