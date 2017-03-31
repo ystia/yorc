@@ -64,7 +64,7 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	if err != nil {
 		return Deploy, errors.Wrapf(err, "Invalid task type:")
 	}
-	if typeInt < 0 || typeInt > int(CustomCommand) {
+	if typeInt < 0 || typeInt > int(CustomWorkflow) {
 		return Deploy, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil
