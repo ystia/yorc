@@ -106,7 +106,8 @@ Bellow is an example of configuration file.
         "os_user_name": "os-user",
         "os_password": "os-password",
         "os_prefix": "janus1-",
-        "os_private_network_name": "default-private-network"
+        "os_private_network_name": "default-private-network",
+        "os_default_security_groups": ["default"]
     }
 
 
@@ -121,6 +122,7 @@ Bellow is an example of configuration file with TLS enable.
         "os_password": "os-password",
         "os_prefix": "janus1-",
         "os_private_network_name": "default-private-network",
+        "os_default_security_groups": ["default"],
         "key_file": "/etc/pki/tls/private/janus.key",
         "cert_file": "/etc/pki/tls/certs/janus.crt"
     }
