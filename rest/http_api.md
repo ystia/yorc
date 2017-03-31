@@ -467,12 +467,12 @@ Content-Length: 0
 ```
 
 
-### Submit a custom command
-
+### Execute a custom command
 Submit a custom command for a given deployment.  
 'Content-Type' header should be set to 'application/json'.
 
 `POST    /deployments/<deployment_id>/custom`
+
 Request body:
 ```json
 {
@@ -519,3 +519,19 @@ This endpoint will failed with an error "400 Bad Request" if:
   * the delta query parameter is missing
   * the delta query parameter is not an integer or if it is equal to 0
 
+
+### Execute a workflow
+Submit a custom workflow for a given deployment.  
+
+`POST /deployments/<deployment_id>/workflows/<workflow_name>`
+
+A successfully submitted workflow result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating
+the URI of the task handling this workflow execution.
+
+
+**Response**
+```
+HTTP/1.1 201 Created
+Content-Length: 0
+Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/workflows/277b47aa-9c8c-4936-837e-39261237cec4
+```
