@@ -29,7 +29,7 @@ Packages installation
 
 Following packages are required to perform the installation:
   * python
-  * pip
+  * python-pip
   * zip/unzip
   * openssh-client
   * wget 
