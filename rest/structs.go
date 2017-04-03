@@ -17,6 +17,8 @@ const (
 	LinkRelTask string = "task"
 	// LinkRelAttribute defines the AtomLink Rel attribute for relationships of the "attribute"
 	LinkRelAttribute string = "attribute"
+	// LinkRelWorkflow defines the AtomLink Rel attribute for relationships of the "attribute"
+	LinkRelWorkflow string = "workflow"
 )
 
 const (
@@ -121,4 +123,11 @@ type CustomCommandRequest struct {
 	NodeName          string            `json:"node"`
 	CustomCommandName string            `json:"name"`
 	Inputs            map[string]string `json:"inputs"`
+}
+
+// WorkflowsCollection is a collection of workflows links
+//
+// Links are all of type LinkRelWorkflow.
+type WorkflowsCollection struct {
+	Workflows []AtomLink `json:"workflows"`
 }

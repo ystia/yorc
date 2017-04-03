@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"path"
+
 	"github.com/julienschmidt/httprouter"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
@@ -31,4 +34,21 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/workflows/%s", id, taskID))
 	w.WriteHeader(http.StatusCreated)
 
+}
+
+func (s *Server) listWorkflowsHandler(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	deploymentID := params.ByName("id")
+	workflows, err := deployments.GetWorkflows(s.consulClient.KV(), deploymentID)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	wfCol := WorkflowsCollection{Workflows: make([]AtomLink, len(workflows))}
+	for i, wf := range workflows {
+		wfCol.Workflows[i] = newAtomLink(LinkRelWorkflow, path.Join("/deployments", deploymentID, "workflows", wf))
+	}
+	encodeJSONResponse(w, r, wfCol)
 }
