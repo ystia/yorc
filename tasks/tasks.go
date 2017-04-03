@@ -136,12 +136,17 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 
 // GetTaskInput retrieves inputs for tasks
 func GetTaskInput(kv *api.KV, taskID, inputName string) (string, error) {
-	kvP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "inputs", inputName), nil)
+	return GetTaskData(kv, taskID, path.Join("inputs", inputName))
+}
+
+// GetTaskData retrieves data for tasks
+func GetTaskData(kv *api.KV, taskID, dataName string) (string, error) {
+	kvP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, dataName), nil)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvP == nil {
-		return "", errors.Errorf("Input %q not found for task %q", inputName, taskID)
+		return "", errors.Errorf("Data %q not found for task %q", dataName, taskID)
 	}
 	return string(kvP.Value), nil
 }
