@@ -44,8 +44,8 @@ func (w worker) setDeploymentStatus(deploymentID string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
-func (w worker) processWorkflow(ctx context.Context, wfSteps []*step, deploymentID string, bypassErrors bool) error {
-	events.LogEngineMessage(w.consulClient.KV(), deploymentID, "Start processing workflow")
+func (w worker) processWorkflow(ctx context.Context, workflowName string, wfSteps []*step, deploymentID string, bypassErrors bool) error {
+	events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Start processing workflow %q", workflowName))
 	uninstallerrc := make(chan error)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -78,17 +78,17 @@ func (w worker) processWorkflow(ctx context.Context, wfSteps []*step, deployment
 	errors := <-faninErrCh
 
 	if err != nil {
-		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Error '%v' happened in workflow.", err))
+		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
 		return err
 	}
 
 	if len(errors) > 0 {
 		uninstallerr := fmt.Errorf("%s", strings.Join(errors, " ; "))
-		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", uninstallerr))
-		log.Printf("One or more error appear in uninstall workflow, please check : %v", uninstallerr)
+		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
+		log.Printf("One or more error appear workflow %q, please check : %v", workflowName, uninstallerr)
 	} else {
-		events.LogEngineMessage(w.consulClient.KV(), deploymentID, "Workflow ended without error")
-		log.Printf("Workflow ended without error")
+		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Workflow %q ended without error", workflowName))
+		log.Printf("Workflow %q ended without error", workflowName)
 	}
 	return nil
 }
@@ -344,7 +344,7 @@ func (w worker) runWorkflows(ctx context.Context, t *task, workflows []string, b
 			step.SetTaskID(t)
 			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
 		}
-		if err = w.processWorkflow(ctx, wf, t.TargetID, bypassErrors); err != nil {
+		if err = w.processWorkflow(ctx, workflow, wf, t.TargetID, bypassErrors); err != nil {
 			if t.Status() == tasks.RUNNING {
 				t.WithStatus(tasks.FAILED)
 			}
