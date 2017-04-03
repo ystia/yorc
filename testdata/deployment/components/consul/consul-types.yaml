@@ -79,6 +79,17 @@ node_types:
           inputs:
             INSTALL_DIR: { get_property: [SELF, installation_directory] }
           implementation: ansible/consul_stop.yaml
+      custom:
+        maintenance_on:
+          inputs:
+            MAINT_MODE: "on"
+            INSTALL_DIR: { get_property: [SELF, installation_directory] }
+          implementation: ansible/consul_maint.yml
+        maintenance_off:
+          inputs:
+            MAINT_MODE: "off"
+            INSTALL_DIR: { get_property: [SELF, installation_directory] }
+          implementation: ansible/consul_maint.yml
     artifacts:
       - scripts: scripts
         type: tosca.artifacts.File
