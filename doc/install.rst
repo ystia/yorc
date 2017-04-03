@@ -8,7 +8,7 @@ In order to provision softwares on virtual machines that do not necessary have a
 in your OpenStack tenant. Alien4Cloud and the Alien4Cloud Janus Plugin (see their dedicated documentation to know how to install them) may be collocated
 on the same VM or resides in a different VM.
 
-Virtual Machines created by Janus should be connected to the same private network than the Janus VM (the :ref:`--os_private_network_name <option_os_privatenet_cmd>`
+Virtual Machines created by Janus should be connected to the same private network as the Janus VM (the :ref:`--os_private_network_name <option_os_privatenet_cmd>`
 configuration flag allows to do it automatically). In order to provision Floating IPs, this private network should be connected to the public network 
 of the tenant through a router.
 
@@ -49,7 +49,7 @@ Finally you can install the Janus binary into ``/usr/local/bin``.
 Final setup
 -----------
 
-In order to provision softwares through ssh (Ansible), you need to store the ssh private key that will be used to connect to the nodes under 
+In order to provision softwares through ssh, you need to store the ssh private key that will be used to connect to the nodes under 
 ``$HOME/.ssh/janus.pem`` where ``$HOME`` is the home directory of the user running Janus. This key should part of the authorized keys on remote hosts.
 Generally, for OpenStack, it corresponds to the private key of the keypair used to create the instance. 
 
