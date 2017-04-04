@@ -18,8 +18,8 @@ func init() {
 	var horizontal bool
 	var wfGraphCmd = &cobra.Command{
 		Use:   "graph <id>",
-		Short: "Generate a GraphViz Dot format representation of a given workflow",
 		Long:  "Generate a GraphViz Dot format representation of a given workflow. The output can be easily converted to an image by making use of the dot command provided by GraphViz:\n\tjanus deployments workflows graph <id> | dot -Tpng > graph.png",
+		Short: "Generate a GraphViz Dot format representation of a given workflow",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
