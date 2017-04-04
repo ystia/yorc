@@ -298,7 +298,7 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
 				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
 				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
-				consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
+				consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
 			}
 		}
 
