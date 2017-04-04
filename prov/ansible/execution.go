@@ -173,6 +173,9 @@ func (e *executionCommon) resolveOperation() error {
 		if err != nil {
 			return err
 		}
+
+		e.isRelationshipTargetNode = isTargetOperation(e.Operation)
+
 		err = e.resolveIsPerInstanceOperation(e.Operation)
 		if err != nil {
 			return err
