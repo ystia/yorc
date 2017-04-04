@@ -2,6 +2,7 @@ package commons
 
 // An Infrastructure is the top-level element of a Terraform infrastructure definition
 type Infrastructure struct {
+	Data     map[string]interface{} `json:"data"`
 	Variable map[string]interface{} `json:"variable,omitempty"`
 	Provider map[string]interface{} `json:"provider,omitempty"`
 	Resource map[string]interface{} `json:"resource,omitempty"`
