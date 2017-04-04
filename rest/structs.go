@@ -1,6 +1,7 @@
 package rest
 
 import "novaforge.bull.com/starlings-janus/janus/events"
+import "novaforge.bull.com/starlings-janus/janus/tosca"
 
 const (
 	// LinkRelSelf defines the AtomLink Rel attribute for relationships of the "self"
@@ -130,4 +131,10 @@ type CustomCommandRequest struct {
 // Links are all of type LinkRelWorkflow.
 type WorkflowsCollection struct {
 	Workflows []AtomLink `json:"workflows"`
+}
+
+// Workflow is a workflow representation.
+type Workflow struct {
+	Name string `json:"Name"`
+	tosca.Workflow
 }
