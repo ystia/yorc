@@ -77,8 +77,8 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	if e.HaveOutput {
 		buffer.Reset()
-		for outputName, attrName  := range e.Output {
-			buffer.WriteString(filepath.Base(attrName))
+		for outputName, _  := range e.Output {
+			buffer.WriteString(outputName)
 			buffer.WriteString(",{{")
 			buffer.WriteString(outputName)
 			buffer.WriteString("}}\n")

@@ -525,7 +525,7 @@ func (e *executionCommon) resolveOperationOutput() error {
 			if err != nil {
 				return errors.Wrap(err, "Fail to get the attribute name")
 			}
-			output[path.Base(outputPath)] = "/attributes/" + string(kvp.Value)
+			output[path.Base(outputPath)] = "attributes/" + string(kvp.Value)
 		}
 	}
 
