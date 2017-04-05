@@ -9,17 +9,22 @@ buildnformat: build format
 
 build: test
 	@echo "--> Running go build"
-	@go generate $(PACKAGES)
 	@CGO_ENABLED=0 go build
+
+generate: checks
+	@go generate $(PACKAGES)
 
 checks:
 	@./build/checks.sh $(GOTOOLS)
 
 dist: build
+	@rm -rf ./dist && mkdir -p ./dist
 	@echo "--> Creating an archive"
-	@tar czvf janus.tgz janus
+	@tar czvf janus.tgz janus && echo "TODO: clean this part after CI update" &&  cp janus janus.tgz dist/
+	@cd doc && make html latexpdf && cd _build && cp -r html latex/Janus.pdf ../../dist
+	@cd ./dist && zip -r janus-server-documentation.zip html Janus.pdf && zip janus-server-distrib.zip janus janus-server-documentation.zip
 
-test: checks
+test: generate
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
 	@export PATH=$$PWD/build:$$PATH; go test $(PACKAGES) $(TESTARGS) -timeout=30s -p 1
@@ -56,4 +61,4 @@ restoredeps: checks
 	@godep restore -v
 
 
-.PHONY: buildnformat build cov checks test cover format vet tools
+.PHONY: buildnformat build cov checks test cover format vet tools dist

@@ -13,8 +13,14 @@ work
 /testdata/deployment/*.zip
 /testdata/deployment/*/*.zip
 /janus.tgz
+/janus-distrib.zip
 /pkg/janus
 /.vscode
 **/debug.test
 **/debug
 build/consul
+/doc/_build/*
+/dist
+
+# Generated sources
+/tosca/assets.go
