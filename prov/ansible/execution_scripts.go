@@ -19,7 +19,7 @@ import (
 const outputCustomWrapper = `
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Output -]]]
-[[[printf "echo %s,$%s >> $HOME/%s/out.csv" (base $art) $artName $.OperationRemotePath]]]
+[[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName $artName $.OperationRemotePath]]]
 [[[printf "echo $%s" $artName]]]
 [[[end]]]
 [[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
