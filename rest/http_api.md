@@ -533,5 +533,5 @@ the URI of the task handling this workflow execution.
 ```
 HTTP/1.1 201 Created
 Content-Length: 0
-Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/workflows/277b47aa-9c8c-4936-837e-39261237cec4
+Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```

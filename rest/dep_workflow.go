@@ -42,7 +42,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/workflows/%s", deploymentID, taskID))
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", deploymentID, taskID))
 	w.WriteHeader(http.StatusCreated)
 
 }
