@@ -74,7 +74,6 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
 		"abs":  filepath.Abs,
-		"base": filepath.Base,
 	}
 
 	tmpl := template.New("execTemplate")
