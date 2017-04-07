@@ -299,6 +299,15 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
 				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
 				consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
+			} else if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "concat" {
+				for _, data := range attrDefinition.Default.Expression.Children() {
+					if data.Value == "get_operation_output" {
+						interfaceName := url.QueryEscape(data.Children()[1].Value)
+						operationName := url.QueryEscape(data.Children()[2].Value)
+						outputVariableName := url.QueryEscape(data.Children()[3].Value)
+						consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
+					}
+				}
 			}
 		}
 
@@ -408,7 +417,16 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
 				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
 				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
-				consulStore.StoreConsulKeyAsString(relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
+				consulStore.StoreConsulKeyAsString(relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
+			} else if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "concat" {
+				for _, data := range attrDefinition.Default.Expression.Children() {
+					if data.Value == "get_operation_output" {
+						interfaceName := url.QueryEscape(data.Children()[1].Value)
+						operationName := url.QueryEscape(data.Children()[2].Value)
+						outputVariableName := url.QueryEscape(data.Children()[3].Value)
+						consulStore.StoreConsulKeyAsString(relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
+					}
+				}
 			}
 		}
 
