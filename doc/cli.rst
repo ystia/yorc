@@ -138,3 +138,55 @@ Flags:
   * ``-n``, ``--node``: Provide the node name (use with flag c and i)           
 
 
+List workflows of a given deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Lists workflows defined in a deployment <DeploymentId>.
+
+.. code-block:: bash
+
+     janus deployments workflows list <DeploymentId> [flags]
+
+Execute a workflow on a given deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Trigger a workflow on deployment <DeploymentId>.
+
+.. code-block:: bash
+
+     janus deployments workflows execute <DeploymentId> [flags]
+
+Flags:
+  * ``--continue-on-error``: By default if an error occurs in a step of a workflow then other running steps are cancelled and the workflow is stopped. This flag allows to continue to the next steps even if an error occurs.
+  * ``-e``, ``--stream-events``: Stream events after riggering a workflow.
+  * ``-l``, ``--stream-logs``: Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the "log" command.
+  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
+
+Show a workflow on a given deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Show a human readable textual representation of a given TOSCA workflow defined in deployment <DeploymentId>.
+
+.. code-block:: bash
+
+     janus deployments workflows show <DeploymentId> [flags]
+
+Flags:
+  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
+
+Generate a graphical representation of a workflow on a given deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Generate a GraphViz Dot format representation of a given workflow. The output can be easily converted to an image by making use of the dot 
+command provided by GraphViz:
+
+
+
+.. code-block:: bash
+
+     janus deployments workflows graph <DeploymentId> [flags]| dot -Tpng > graph.png 
+
+Flags:
+  * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
+  * ``--horizontal``: Draw graph with an horizontal layout. (layout is vertical by default)
+
