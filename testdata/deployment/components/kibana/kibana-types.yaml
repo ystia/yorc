@@ -17,7 +17,7 @@ node_types:
     tags:
       icon: /images/kibana-icon.png
     attributes:
-      url: { concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_operation_output: [ SELF, Standard, Configure, CONSUL_MODE ] ,"/#/dashboard" ] }
+      url: { concat: ["http://", get_attribute: [HOST, public_ip_address], ":5601/#/dashboard" ] }
     properties:
       component_version:
         type: version
