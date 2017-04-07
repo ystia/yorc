@@ -1,4 +1,4 @@
-FROM loicalbertin/alpine-consul
+FROM loicalbertin/alpine-consul:1.0.1
 
 # 0.7.3 last stable version
 ENV TERRAFORM_VERSION=0.7.3
