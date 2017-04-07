@@ -520,9 +520,12 @@ func (e *executionCommon) resolveOperationOutput() error {
 		tmp := strings.Split(e.Operation, ".")
 		outOPPrefix := strings.ToLower(path.Join(e.NodeTypePath, "output", tmp[len(tmp)-2], tmp[len(tmp)-1]))
 		if strings.Contains(strings.ToLower(outputPath), outOPPrefix) {
-			nodeOutPath := path.Join("attributes", strings.ToLower(path.Base(outputPath)))
 			e.HaveOutput = true
-			output[path.Base(outputPath)] = nodeOutPath
+			kvp, _, err := e.kv.Get(outputPath, nil)
+			if err != nil {
+				return errors.Wrap(err, "Fail to get the attribute name")
+			}
+			output[path.Base(outputPath)] = "attributes/" + string(kvp.Value)
 		}
 	}
 
