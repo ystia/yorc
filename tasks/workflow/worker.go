@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"strconv"
+
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/sync/errgroup"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -228,13 +230,26 @@ func (w worker) handleTask(t *task) {
 	case tasks.CustomWorkflow:
 		wfName, err := tasks.GetTaskData(w.consulClient.KV(), t.ID, "workflowName")
 		if err != nil {
-			if err != nil {
-				log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.ID, err)
-				log.Debugf("%+v", err)
-			}
+			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.ID, err)
+			log.Debugf("%+v", err)
 			t.WithStatus(tasks.FAILED)
+			return
 		}
-		err = w.runWorkflows(ctx, t, strings.Split(wfName, ","), false)
+		continueOnError, err := tasks.GetTaskData(w.consulClient.KV(), t.ID, "continueOnError")
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.ID, err)
+			log.Debugf("%+v", err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		bypassErrors, err := strconv.ParseBool(continueOnError)
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q Failed to parse continueOnError parameter: %v", t.TargetID, t.ID, err)
+			log.Debugf("%+v", err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		err = w.runWorkflows(ctx, t, strings.Split(wfName, ","), bypassErrors)
 		if err != nil {
 			return
 		}

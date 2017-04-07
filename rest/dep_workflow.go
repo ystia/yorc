@@ -6,6 +6,8 @@ import (
 
 	"path"
 
+	"strconv"
+
 	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/collections"
@@ -32,6 +34,11 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 
 	data := make(map[string]string)
 	data["workflowName"] = workflowName
+	if _, ok := r.URL.Query()["continueOnError"]; ok {
+		data["continueOnError"] = strconv.FormatBool(true)
+	} else {
+		data["continueOnError"] = strconv.FormatBool(false)
+	}
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.CustomWorkflow, data)
 	if err != nil {

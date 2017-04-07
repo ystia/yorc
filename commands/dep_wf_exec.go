@@ -13,6 +13,7 @@ import (
 func init() {
 	var shouldStreamLogs bool
 	var shouldStreamEvents bool
+	var continueOnError bool
 	var workflowName string
 	var wfExecCmd = &cobra.Command{
 		Use:     "execute <id>",
@@ -29,8 +30,11 @@ func init() {
 			if workflowName == "" {
 				return errors.New("Missing mandatory \"workflow-name\" parameter")
 			}
-
-			request, err := client.NewRequest("POST", fmt.Sprintf("/deployments/%s/workflows/%s", args[0], workflowName), nil)
+			url := fmt.Sprintf("/deployments/%s/workflows/%s", args[0], workflowName)
+			if continueOnError {
+				url = url + "?continueOnError"
+			}
+			request, err := client.NewRequest("POST", url, nil)
 			if err != nil {
 				errExit(err)
 			}
@@ -57,6 +61,7 @@ func init() {
 		},
 	}
 	wfExecCmd.PersistentFlags().StringVarP(&workflowName, "workflow-name", "w", "", "The workflows name")
+	wfExecCmd.PersistentFlags().BoolVarP(&continueOnError, "continue-on-error", "", false, "By default if an error occurs in a step of a workflow then other running steps are cancelled and the workflow is stopped. This flag allows to continue to the next steps even if an error occurs.")
 	wfExecCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after triggering a workflow. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 	wfExecCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after riggering a workflow.")
 	workflowsCmd.AddCommand(wfExecCmd)

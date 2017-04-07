@@ -521,9 +521,10 @@ This endpoint will failed with an error "400 Bad Request" if:
 
 
 ### Execute a workflow <a name="workflow-exec"></a>
-Submit a custom workflow for a given deployment.  
+Submit a custom workflow for a given deployment. By adding the optional 'continueOnError' url parameter to your request workflow will
+not stop at the first encountered error and will run to its end. 
 
-`POST /deployments/<deployment_id>/workflows/<workflow_name>`
+`POST /deployments/<deployment_id>/workflows/<workflow_name>[?continueOnError]`
 
 A successfully submitted workflow result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating
 the URI of the task handling this workflow execution.
