@@ -173,7 +173,7 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, 
 	return nil
 }
 
-func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, uninstallerrc chan error, shutdownChan chan struct{}, cfg config.Configuration, isUndeploy bool) error {
+func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool) error {
 	haveErr := false
 	eventPub := events.NewPublisher(kv, deploymentID)
 	for i := 0; i < len(s.Previous); i++ {
@@ -220,8 +220,8 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
-				if isUndeploy {
-					uninstallerrc <- err
+				if bypassErrors {
+					ignoredErrsChan <- err
 					haveErr = true
 				} else {
 					return err
@@ -235,8 +235,8 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, uninsta
 			if err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-				if isUndeploy {
-					uninstallerrc <- err
+				if bypassErrors {
+					ignoredErrsChan <- err
 					haveErr = true
 				} else {
 					s.setStatus(tosca.NodeStateError.String())

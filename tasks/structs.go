@@ -23,6 +23,8 @@ const (
 	Purge
 	// CustomCommand defines a Task of type "custom-command"
 	CustomCommand
+	// CustomWorkflow defines a Task of type "CustomWorkflow"
+	CustomWorkflow
 	// NOTE: if a new task type should be added then change validity check on GetTaskType
 )
 
@@ -41,6 +43,8 @@ func TaskTypeForName(taskType string) (TaskType, error) {
 		return ScaleUp, nil
 	case "scale-down":
 		return ScaleDown, nil
+	case "customworkflow":
+		return CustomWorkflow, nil
 	default:
 		return Deploy, fmt.Errorf("Unsupported task type %q", taskType)
 	}

@@ -257,6 +257,10 @@
 			"Rev": "8d64eb7173c7753d6419fd4a9caf057398611364"
 		},
 		{
+			"ImportPath": "github.com/tmc/dot",
+			"Rev": "2ca5f650b7700041dd0a689af81eb8e46c5158d1"
+		},
+		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
 			"Rev": "7682e7e3945130cf3cde089834664f68afdd1523"
 		},

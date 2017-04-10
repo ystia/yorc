@@ -64,7 +64,7 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	if err != nil {
 		return Deploy, errors.Wrapf(err, "Invalid task type:")
 	}
-	if typeInt < 0 || typeInt > int(CustomCommand) {
+	if typeInt < 0 || typeInt > int(CustomWorkflow) {
 		return Deploy, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil
@@ -136,12 +136,17 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 
 // GetTaskInput retrieves inputs for tasks
 func GetTaskInput(kv *api.KV, taskID, inputName string) (string, error) {
-	kvP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "inputs", inputName), nil)
+	return GetTaskData(kv, taskID, path.Join("inputs", inputName))
+}
+
+// GetTaskData retrieves data for tasks
+func GetTaskData(kv *api.KV, taskID, dataName string) (string, error) {
+	kvP, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, dataName), nil)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvP == nil {
-		return "", errors.Errorf("Input %q not found for task %q", inputName, taskID)
+		return "", errors.Errorf("Data %q not found for task %q", dataName, taskID)
 	}
 	return string(kvP.Value), nil
 }
