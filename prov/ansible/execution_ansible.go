@@ -11,6 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"strings"
+
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -77,10 +79,11 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	if e.HaveOutput {
 		buffer.Reset()
-		for outputName := range e.Output {
+		for outputName := range e.Outputs {
 			buffer.WriteString(outputName)
 			buffer.WriteString(",{{")
-			buffer.WriteString(outputName)
+			idx := strings.LastIndex(outputName, "_")
+			buffer.WriteString(outputName[:idx])
 			buffer.WriteString("}}\n")
 		}
 		if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "outputs.csv.j2"), buffer.Bytes(), 0664); err != nil {

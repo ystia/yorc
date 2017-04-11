@@ -290,26 +290,6 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			propPrefix := propertiesPrefix + "/" + propName
 			storePropertyDefinition(ctx, propPrefix, propName, propDefinition)
 		}
-		attributesPrefix := nodeTypePrefix + "/attributes"
-		for attrName, attrDefinition := range nodeType.Attributes {
-			attrPrefix := attributesPrefix + "/" + attrName
-			storeAttributeDefinition(ctx, attrPrefix, attrName, attrDefinition)
-			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
-				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
-				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
-				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
-				consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
-			} else if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "concat" {
-				for _, data := range attrDefinition.Default.Expression.Children() {
-					if data.Value == "get_operation_output" {
-						interfaceName := url.QueryEscape(data.Children()[1].Value)
-						operationName := url.QueryEscape(data.Children()[2].Value)
-						outputVariableName := url.QueryEscape(data.Children()[3].Value)
-						consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
-					}
-				}
-			}
-		}
 
 		requirementsPrefix := nodeTypePrefix + "/requirements"
 		for reqIndex, reqMap := range nodeType.Requirements {
@@ -362,6 +342,12 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 					if inputDef.ValueAssign != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/expression", inputDef.ValueAssign.String())
 						isValueAssignement = true
+						if inputDef.ValueAssign.Expression.Value == "get_operation_output" {
+							interfaceName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[1].Value)
+							operationName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[2].Value)
+							outputVariableName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[3].Value)
+							consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(inputDef.ValueAssign.Expression.Children()[0].Value)+"/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+						}
 					}
 					if inputDef.PropDef != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/type", inputDef.PropDef.Type)
@@ -377,6 +363,27 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				}
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+			}
+		}
+
+		attributesPrefix := nodeTypePrefix + "/attributes"
+		for attrName, attrDefinition := range nodeType.Attributes {
+			attrPrefix := attributesPrefix + "/" + attrName
+			storeAttributeDefinition(ctx, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
+				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
+				consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(attrDefinition.Default.Expression.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.String())
+			} else if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "concat" {
+				for _, data := range attrDefinition.Default.Expression.Children() {
+					if data.Value == "get_operation_output" {
+						interfaceName := url.QueryEscape(data.Children()[1].Value)
+						operationName := url.QueryEscape(data.Children()[2].Value)
+						outputVariableName := url.QueryEscape(data.Children()[3].Value)
+						consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.String())
+					}
+				}
 			}
 		}
 
@@ -417,14 +424,15 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
 				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
 				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
-				consulStore.StoreConsulKeyAsString(relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
+				consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(attrDefinition.Default.Expression.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.Expression.String())
 			} else if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "concat" {
 				for _, data := range attrDefinition.Default.Expression.Children() {
 					if data.Value == "get_operation_output" {
 						interfaceName := url.QueryEscape(data.Children()[1].Value)
 						operationName := url.QueryEscape(data.Children()[2].Value)
 						outputVariableName := url.QueryEscape(data.Children()[3].Value)
-						consulStore.StoreConsulKeyAsString(relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
+						consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.Expression.String())
+
 					}
 				}
 			}
@@ -447,6 +455,12 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 					if inputDef.ValueAssign != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/expression", inputDef.ValueAssign.String())
 						isValueAssignement = true
+						if inputDef.ValueAssign.Expression.Value == "get_operation_output" {
+							interfaceName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[1].Value)
+							operationName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[2].Value)
+							outputVariableName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[3].Value)
+							consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+						}
 					}
 					if inputDef.PropDef != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/type", inputDef.PropDef.Type)

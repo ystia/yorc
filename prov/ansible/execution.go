@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"strconv"
 
@@ -112,7 +113,7 @@ type executionCommon struct {
 	Artifacts                map[string]string
 	OverlayPath              string
 	Context                  map[string]string
-	Output                   map[string]string
+	Outputs                  map[string]string
 	HaveOutput               bool
 	isRelationshipOperation  bool
 	isRelationshipTargetNode bool
@@ -135,6 +136,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*EnvInput, 0),
 		taskID:         taskID,
+		Outputs:        make(map[string]string),
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -503,34 +505,56 @@ func (e *executionCommon) resolveContext() error {
 	return nil
 }
 
-func (e *executionCommon) resolveOperationOutput() error {
-	log.Debugf(e.OperationPath)
-	log.Debugf(e.Operation)
-	//We get all the output of the NodeType
-	outputsPathList, _, err := e.kv.Keys(e.NodeTypePath+"/output/", "", nil)
-
+func (e *executionCommon) resolveOperationOutputPath() error {
+	entities, _, err := e.kv.Keys(e.OperationPath+"/outputs/", "/", nil)
 	if err != nil {
 		return err
 	}
 
-	output := make(map[string]string)
+	if len(entities) == 0 {
+		return nil
+	}
 
-	//For each type we compare if we are in the good lifecycle operation
-	for _, outputPath := range outputsPathList {
-		tmp := strings.Split(e.Operation, ".")
-		outOPPrefix := strings.ToLower(path.Join(e.NodeTypePath, "output", tmp[len(tmp)-2], tmp[len(tmp)-1]))
-		if strings.Contains(strings.ToLower(outputPath), outOPPrefix) {
-			e.HaveOutput = true
-			kvp, _, err := e.kv.Get(outputPath, nil)
+	e.HaveOutput = true
+	va := tosca.ValueAssignment{}
+	for _, entity := range entities {
+		outputKeys, _, err := e.kv.Keys(entity, "/", nil)
+		if err != nil {
+			return err
+		}
+		for _, output := range outputKeys {
+			kvPair, _, err := e.kv.Get(output+"/expression", nil)
 			if err != nil {
-				return errors.Wrap(err, "Fail to get the attribute name")
+				return err
 			}
-			output[path.Base(outputPath)] = "attributes/" + string(kvp.Value)
+
+			err = yaml.Unmarshal(kvPair.Value, &va)
+			if err != nil {
+				return errors.Wrap(err, "Fail to parse operation output, check the following expression : ")
+			}
+
+			targetContext := va.Expression.IsTargetContext()
+
+			var instancesIds []string
+			if targetContext {
+				instancesIds = e.targetNodeInstances
+			} else {
+				instancesIds = e.sourceNodeInstances
+			}
+
+			for _, instanceId := range instancesIds {
+				b := uint32(time.Now().Nanosecond())
+				fmt.Println(fmt.Sprint(b))
+				if targetContext {
+					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join(e.relationshipTargetName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+				} else {
+					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join(e.NodeName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+				}
+
+			}
 		}
 	}
 
-	log.Debugf("Resolved outputs: %v", output)
-	e.Output = output
 	return nil
 }
 
@@ -584,7 +608,7 @@ func (e *executionCommon) resolveExecution() error {
 	if err != nil {
 		return err
 	}
-	if err = e.resolveOperationOutput(); err != nil {
+	if err = e.resolveOperationOutputPath(); err != nil {
 		return err
 	}
 
@@ -752,11 +776,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 			return err
 		}
 		for _, outFile := range outputsFiles {
-			currentHost := strings.TrimSuffix(filepath.Base(outFile), "-out.csv")
-			instanceID, err := e.getInstanceIDFromHost(currentHost)
-			if err != nil {
-				return err
-			}
 			fi, err := os.Open(outFile)
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
@@ -771,7 +790,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				return err
 			}
 			for _, line := range records {
-				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/instances", e.NodeName, instanceID, e.Output[line[0]]), line[1]); err != nil {
+				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/instances", e.Outputs[line[0]]), line[1]); err != nil {
 					return err
 				}
 
