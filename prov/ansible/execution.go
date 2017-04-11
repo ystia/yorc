@@ -544,11 +544,26 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 
 			for _, instanceId := range instancesIds {
 				b := uint32(time.Now().Nanosecond())
-				fmt.Println(fmt.Sprint(b))
 				if targetContext {
-					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join(e.relationshipTargetName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join("instances", e.relationshipTargetName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
 				} else {
-					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join(e.NodeName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+					if va.Expression.Children()[0].Value == "SELF" && e.isRelationshipOperation {
+						kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName, "requirements", e.requirementIndex, "relationship"), nil)
+						if err != nil {
+							return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+						}
+						if kvp == nil || len(kvp.Value) == 0 {
+							return errors.Errorf("Deployment %q, requirement index %q, in source node %q can't retrieve relationship type. (Expression was %q)", e.deploymentID, e.requirementIndex, e.NodeName, va.Expression.String())
+						}
+						relationshipType := string(kvp.Value)
+						relationShipPrefix := filepath.Join("relationship_instances", relationshipType, instanceId)
+						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join(relationShipPrefix, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+						longPrefix := filepath.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", relationShipPrefix)
+						consulutil.StoreConsulKey(filepath.Join(longPrefix, "source"), []byte(e.NodeName+"_"+instanceId))
+						consulutil.StoreConsulKey(filepath.Join(longPrefix, "target"), []byte(e.relationshipTargetName+"_"+instanceId))
+					} else {
+						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join("instances", e.NodeName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+					}
 				}
 
 			}
@@ -790,7 +805,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				return err
 			}
 			for _, line := range records {
-				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/instances", e.Outputs[line[0]]), line[1]); err != nil {
+				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
 					return err
 				}
 

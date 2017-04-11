@@ -5,6 +5,8 @@ import (
 	"path"
 	"strings"
 
+	"path/filepath"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -213,6 +215,51 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			return "", err
 		}
 		return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
+	case "get_operation_output":
+		if len(params) != 4 {
+			return "", errors.Errorf("get_operation_output doesn't support more than one parameter")
+		}
+		switch params[0] {
+		case funcKeywordSELF:
+			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", nodeName, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			if err != nil {
+				return "", err
+			}
+
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal(result.Value, resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
+		case funcKeywordHOST:
+			hostNode, err := GetHostedOnNode(r.kv, r.deploymentID, nodeName)
+			if err != nil {
+				return "", err
+			} else if hostNode == "" {
+				// Try to resolve on current node
+				hostNode = nodeName
+			}
+			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", hostNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			if err != nil {
+				return "", err
+			}
+			if strRes := string(result.Value); strRes == "" {
+				return strRes, nil
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			if result == nil {
+				return "", errors.Errorf("Can't resolve expression %q for HOST", expression.Value)
+			}
+			err = yaml.Unmarshal(result.Value, resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, hostNode, instanceName)
+		case funcKeywordSOURCE, funcKeywordTARGET:
+			return "", errors.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", params[0])
+
+		}
 	}
 	return "", errors.Errorf("Can't resolve expression %q", expression.Value)
 }
@@ -440,6 +487,67 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			return "", err
 		}
 		return r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
+	case "get_operation_ouput":
+		if len(params) != 4 {
+			return "", errors.Errorf("get_operation_ouput on requirement or capability or in nested property is not yet supported")
+		}
+		switch params[0] {
+		case funcKeywordSELF:
+			kvp, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/nodes", sourceNode, "requirements", requirementIndex, "relationship"), nil)
+			if err != nil {
+				return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+			if kvp == nil || len(kvp.Value) == 0 {
+				return "", errors.Errorf("Deployment %q, requirement index %q, in source node %q can't retrieve relationship type. (Expression was %q)", r.deploymentID, requirementIndex, sourceNode, expression.String())
+			}
+			relationshipType := string(kvp.Value)
+			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/relationship_instances", relationshipType, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			if err != nil {
+				return "", err
+			}
+
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal(result.Value, resultExpr)
+			if err != nil {
+				return "", err
+			}
+			resultVar, err := r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
+			return resultVar, err
+		case funcKeywordHOST:
+			return "", errors.Errorf("Keyword %q not supported for a relationship expression", params[0])
+		case funcKeywordSOURCE:
+			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", sourceNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			if err != nil {
+				return "", err
+			}
+
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal(result.Value, resultExpr)
+			if err != nil {
+				return "", err
+			}
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
+			return res, err
+		case funcKeywordTARGET:
+			found, result, err := GetNodeAttributes(r.kv, r.deploymentID, targetNode, params[1])
+			if err != nil {
+				return "", err
+			}
+			if !found {
+				log.Debugf("Deployment %q, requirement index %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentID, requirementIndex, sourceNode, targetNode, expression.String())
+				return "", errors.Errorf("Can't resolve expression %q", expression.String())
+			}
+			if r, ok := result[instanceName]; !ok || r == "" {
+				return "", nil
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, targetNode, instanceName)
+			return res, err
+		}
 	}
 	return "", errors.Errorf("Can't resolve expression %q", expression.Value)
 }
