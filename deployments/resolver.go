@@ -516,26 +516,26 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		case funcKeywordHOST:
 			return "", errors.Errorf("Keyword %q not supported for a relationship expression", params[0])
 		case funcKeywordSOURCE:
-			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", sourceNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, sourceNode, []string{params[1], params[2], params[3]}...)
 			if err != nil {
 				return "", err
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal(result.Value, resultExpr)
+			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
 			if err != nil {
 				return "", err
 			}
 			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return res, err
 		case funcKeywordTARGET:
-			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", targetNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, targetNode, []string{params[1], params[2], params[3]}...)
 			if err != nil {
 				return "", err
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal(result.Value, resultExpr)
+			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
 			if err != nil {
 				return "", err
 			}
