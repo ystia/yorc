@@ -529,23 +529,17 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return res, err
 		case funcKeywordTARGET:
-			found, result, err := GetNodeAttributes(r.kv, r.deploymentID, targetNode, params[1])
+			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", targetNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
 			if err != nil {
 				return "", err
 			}
-			if !found {
-				log.Debugf("Deployment %q, requirement index %q, in source node %q, target node %q, can't resolve expression %q", r.deploymentID, requirementIndex, sourceNode, targetNode, expression.String())
-				return "", errors.Errorf("Can't resolve expression %q", expression.String())
-			}
-			if r, ok := result[instanceName]; !ok || r == "" {
-				return "", nil
-			}
+
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal([]byte(result[instanceName]), resultExpr)
+			err = yaml.Unmarshal(result.Value, resultExpr)
 			if err != nil {
 				return "", err
 			}
-			res, err := r.ResolveExpressionForNode(resultExpr.Expression, targetNode, instanceName)
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return res, err
 		}
 	}

@@ -347,6 +347,16 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 							operationName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[2].Value)
 							outputVariableName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[3].Value)
 							consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(inputDef.ValueAssign.Expression.Children()[0].Value)+"/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+						} else if inputDef.ValueAssign.Expression != nil && inputDef.ValueAssign.Expression.Value == "concat" {
+							for _, data := range inputDef.ValueAssign.Expression.Children() {
+								if data.Value == "get_operation_output" {
+									interfaceName := url.QueryEscape(data.Children()[1].Value)
+									operationName := url.QueryEscape(data.Children()[2].Value)
+									outputVariableName := url.QueryEscape(data.Children()[3].Value)
+									consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+
+								}
+							}
 						}
 					}
 					if inputDef.PropDef != nil {
@@ -460,6 +470,16 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 							operationName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[2].Value)
 							outputVariableName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[3].Value)
 							consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+						} else if inputDef.ValueAssign.Expression != nil && inputDef.ValueAssign.Expression.Value == "concat" {
+							for _, data := range inputDef.ValueAssign.Expression.Children() {
+								if data.Value == "get_operation_output" {
+									interfaceName := url.QueryEscape(data.Children()[1].Value)
+									operationName := url.QueryEscape(data.Children()[2].Value)
+									outputVariableName := url.QueryEscape(data.Children()[3].Value)
+									consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+
+								}
+							}
 						}
 					}
 					if inputDef.PropDef != nil {
