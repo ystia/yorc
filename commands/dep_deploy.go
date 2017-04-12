@@ -12,11 +12,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
+	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
 func init() {
 	var shouldStreamLogs bool
 	var shouldStreamEvents bool
+	var deploymentID string
 	var deployCmd = &cobra.Command{
 		Use:   "deploy <csar_path>",
 		Short: "Deploy a CSAR",
@@ -55,7 +57,7 @@ func init() {
 				}
 				fileType := http.DetectContentType(buff)
 				if fileType == "application/zip" {
-					location, err = postCSAR(buff, client)
+					location, err = submitCSAR(buff, client, deploymentID)
 					if err != nil {
 						errExit(err)
 					}
@@ -67,7 +69,7 @@ func init() {
 				if err != nil {
 					errExit(err)
 				}
-				location, err = postCSAR(csarZip, client)
+				location, err = submitCSAR(csarZip, client, deploymentID)
 
 				if err != nil {
 					errExit(err)
@@ -87,14 +89,23 @@ func init() {
 	}
 	deployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after deploying the CSAR. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 	deployCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after deploying the CSAR.")
+	deployCmd.PersistentFlags().StringVarP(&deploymentID, "id", "", "", fmt.Sprintf("Specify a id for this deployment. This id should not already exists, should respect the following format: %q and should be less than %d characters long", rest.JanusDeploymentIDPattern, rest.JanusDeploymentIDMaxLength))
 	deploymentsCmd.AddCommand(deployCmd)
 }
 
-func postCSAR(csarZip []byte, client *janusClient) (string, error) {
-	r, err := client.Post("/deployments", "application/zip", bytes.NewReader(csarZip))
+func submitCSAR(csarZip []byte, client *janusClient, deploymentID string) (string, error) {
+	var request *http.Request
+	var err error
+	if deploymentID != "" {
+		request, err = client.NewRequest(http.MethodPut, path.Join("/deployments", deploymentID), bytes.NewReader(csarZip))
+	} else {
+		request, err = client.NewRequest(http.MethodPost, "/deployments", bytes.NewReader(csarZip))
+	}
 	if err != nil {
 		return "", err
 	}
+	request.Header.Add("Content-Type", "application/zip")
+	r, err := client.Do(request)
 	if r.StatusCode != 201 {
 		// Try to get the reason
 		printErrors(r.Body)
