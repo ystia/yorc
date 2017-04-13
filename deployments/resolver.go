@@ -250,10 +250,10 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 					return "", err
 				}
 				if host != "" {
-					result, _, err = r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", host, instanceName, "outputs", params[1], params[2], params[3]), nil)
+					result, err := r.ResolveExpressionForNode(expression,host,instanceName)
 					if err != nil {
 						return "", err
-					} else if result == nil {
+					} else if result == "" {
 						return "", errors.Errorf("Can't resolve expression %q for HOST", expression.Value)
 					}
 				}
