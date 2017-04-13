@@ -561,6 +561,9 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 						longPrefix := filepath.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", relationShipPrefix)
 						consulutil.StoreConsulKey(filepath.Join(longPrefix, "source"), []byte(e.NodeName+"_"+instanceId))
 						consulutil.StoreConsulKey(filepath.Join(longPrefix, "target"), []byte(e.relationshipTargetName+"_"+instanceId))
+					} else if va.Expression.Children()[0].Value == "HOST" {
+						continue
+
 					} else {
 						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join("instances", e.NodeName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
 					}

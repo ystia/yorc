@@ -607,6 +607,10 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 	}
 	computes := make([]string, 0)
 	for _, nodeName := range nodes {
+		err = fixOutputForHost(ctxStore, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
 		err = createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
 		if err != nil {
 			return err
@@ -632,6 +636,49 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 		}
 	}
 	return errGroup.Wait()
+}
+
+func fixOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if nodeType != "" && err == nil {
+		interfacesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType, "interfaces")
+		interfacesName, _, err := kv.Keys(interfacesPath+"/", "/", nil)
+		if err != nil {
+			return err
+		}
+		for _, interfaceN := range interfacesName {
+			operationPath, _, err := kv.Keys(interfaceN+"/", "/", nil)
+			if err != nil {
+				return err
+			}
+			for _, operationN := range operationPath {
+				outputsPath := path.Join(operationN, "outputs", "HOST")
+				ouputsName, _, err := kv.Keys(outputsPath+"/", "/", nil)
+				if err != nil {
+					return err
+				}
+				if ouputsName == nil || len(ouputsName) == 0 {
+					continue
+				}
+				for _, outputN := range ouputsName {
+					hostedOn, err := GetHostedOnNode(kv, deploymentID, nodeName)
+					if err != nil {
+						return nil
+					} else if hostedOn == "" {
+						return errors.New("Fail to get the hostedOn to fix the output")
+					}
+					if hostedNodeType, err := GetNodeType(kv, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
+						consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", hostedNodeType, "interfaces", path.Base(interfaceN), path.Base(operationN), "outputs", "self", path.Base(outputN), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceN)+","+path.Base(operationN)+","+path.Base(outputN)+"]")
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification
