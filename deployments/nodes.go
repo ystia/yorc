@@ -11,6 +11,7 @@ import (
 
 	"sort"
 
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -212,13 +213,15 @@ func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, erro
 //The "params" parameter is necessary to pass the path of the output
 func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, params ...string) (outputValue map[string]string, err error) {
 	//We only check instances for nodes, because the saving are instances index based
-	instancesArray, _, err := kv.Keys(filepath.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName), "/", nil)
+
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
+	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
 	if err != nil {
 		return nil, err
 	}
 	outputValue = make(map[string]string)
 
-	for _, instancePath := range instancesArray {
+	for _, instancePath := range instances {
 		output, _, err := kv.Get(filepath.Join(instancePath, "outputs", params[0], params[1], params[2]), nil)
 		if err != nil {
 			return nil, err
@@ -229,10 +232,14 @@ func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, params ...
 		outputValue[filepath.Base(instancePath)] = string(output.Value)
 	}
 
+	if len(outputValue) > 0 {
+		return
+	}
+
 	var host string
 	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
-		return
+		return nil, err
 	}
 	if host != "" {
 		outputValue, err = GetOutputValueForNode(kv, deploymentID, host, params[0], params[1], params[2])
@@ -241,7 +248,7 @@ func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, params ...
 		}
 	}
 
-	return outputValue, nil
+	return
 }
 
 // GetTypeDefaultProperty checks if a type has a default value for a given property.
