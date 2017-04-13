@@ -5,8 +5,6 @@ import (
 	"path"
 	"strings"
 
-	"path/filepath"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -217,11 +215,11 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
 	case "get_operation_output":
 		if len(params) != 4 {
-			return "", errors.Errorf("get_operation_output doesn't support more than one parameter")
+			return "", errors.Errorf("get_operation_output only support four parameters exactly")
 		}
 		switch params[0] {
 		case funcKeywordSELF:
-			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", nodeName, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			result, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", nodeName, instanceName, "outputs", params[1], params[2], params[3]), nil)
 			if err != nil {
 				return "", err
 			}
@@ -240,17 +238,28 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				// Try to resolve on current node
 				hostNode = nodeName
 			}
-			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", hostNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			result, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", hostNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
 			if err != nil {
 				return "", err
 			}
-			if strRes := string(result.Value); strRes == "" {
-				return strRes, nil
-			}
-			resultExpr := &tosca.ValueAssignment{}
+
 			if result == nil {
-				return "", errors.Errorf("Can't resolve expression %q for HOST", expression.Value)
+				var host string
+				host, err = GetHostedOnNode(r.kv, r.deploymentID, nodeName)
+				if err != nil {
+					return "", err
+				}
+				if host != "" {
+					result, _, err = r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", host, instanceName, "outputs", params[1], params[2], params[3]), nil)
+					if err != nil {
+						return "", err
+					} else if result == nil {
+						return "", errors.Errorf("Can't resolve expression %q for HOST", expression.Value)
+					}
+				}
 			}
+
+			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal(result.Value, resultExpr)
 			if err != nil {
 				return "", err
@@ -501,7 +510,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", errors.Errorf("Deployment %q, requirement index %q, in source node %q can't retrieve relationship type. (Expression was %q)", r.deploymentID, requirementIndex, sourceNode, expression.String())
 			}
 			relationshipType := string(kvp.Value)
-			result, _, err := r.kv.Get(filepath.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/relationship_instances", relationshipType, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			result, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/relationship_instances", relationshipType, instanceName, "outputs", params[1], params[2], params[3]), nil)
 			if err != nil {
 				return "", err
 			}
