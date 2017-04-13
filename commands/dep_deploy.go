@@ -106,6 +106,9 @@ func submitCSAR(csarZip []byte, client *janusClient, deploymentID string) (strin
 	}
 	request.Header.Add("Content-Type", "application/zip")
 	r, err := client.Do(request)
+	if err != nil {
+		return "", err
+	}
 	if r.StatusCode != 201 {
 		// Try to get the reason
 		printErrors(r.Body)
