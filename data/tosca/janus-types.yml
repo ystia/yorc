@@ -14,3 +14,141 @@ artifact_types:
     description: This artifact type represents a Ansible playbook type that contains Ansible commands that can be executed.
     mime_type: application/x-yaml
     file_ext: [ yml, yaml ]
+
+node_types:
+  janus.nodes.DockerContainer:
+    abstract: true
+    derived_from: tosca.nodes.Container.Application
+    description: >
+      The TOSCA Container Application Docker node represents an application running in a Docker container.
+      Properties defined in the node will be interpreted as the entrypoint's arguments.
+    properties:
+      image:
+        type: string
+        required: true
+        description: >
+          The Docker image used to launch the container.
+          The format should be REPOSITORY:TAG as it's describe in Docker documentation.
+          Example: my_local_repository:5000/my_image:latest
+      cpu_share:
+        type: integer
+        required: false
+        description: >
+          Container CPU shares (relative weight). Example: "512"
+      mem_share:
+        type: string
+        required: false
+        description: >
+          Shared memory with the Docker container. Example: "512M"
+      docker_options:
+        type: string
+        required: false
+        description: >
+          Arbitrary command-line options for the docker run command.
+      docker_run_cmd:
+        type: string
+        required: false
+        description: >
+          Docker run command. Will override the Dockerfile CMD statement.
+    capabilities:
+      attach: janus.capabilities.DockerVolumeAttachment
+    requirements:
+      - host:
+          capability: janus.capabilities.Container.Docker
+          relationship: tosca.relationships.HostedOn
+          occurrences: [0, 1]
+
+  janus.nodes.DockerVolume:
+    derived_from: tosca.nodes.Root
+    properties:
+      container_path:
+        type: string
+        required: true
+        description: Specifies where the volume is mounted inside the container.
+    capabilities:
+      depends:
+        type: janus.capabilities.DockerVolume
+    requirements:
+      - filesystem_endpoint:
+          capability: janus.capabilities.DockerVolumeAttachment
+          relationship: janus.relationships.MountDockerVolume
+          occurrences: [1,1]
+
+  janus.nodes.KubernetesContainer:
+    derived_from: janus.nodes.DockerContainer
+    description: >
+      The TOSCA Container Application Docker node represents an application running in a Docker container.
+      Properties defined in the node will be interpreted as the entrypoint's arguments. At this moment this version don't private image repository
+    tags:
+      icon: /images/container.png
+    properties:
+      image:
+        type: string
+        required: true
+        description: >
+          The Docker image used to launch the container.
+          The format should be REPOSITORY:TAG as it's describe in Docker documentation.
+          Example: my_local_repository:5000/my_image:latest
+      cpu_share:
+        type: integer
+        required: false
+        description: >
+          Container CPU shares (relative weight). The mapping will be done with "CPU Request" Example: "512"
+      namespace:
+        type: string
+        required: false
+        description: >
+          The Kuberntes namespace where the container need to be placed.
+      imagePullPolicy:
+        type: string
+        required: false
+        constraints:
+          - valid_values: [IfNotPresent, Always, Never]
+      cpu_limit:
+        type: integer
+        required: false
+        description: >
+          Container CPU limit. Example: "512"
+      mem_share:
+        type: string
+        required: false
+        description: >
+          Shared memory with the Docker container. Example: "512M"
+      mem_limits:
+        type: string
+        required: false
+        description: >
+          Memory limit with the Docker container. Example: "512M"
+      docker_options:
+        type: string
+        required: false
+        description: >
+          Arbitrary command-line options for the docker run command.
+      docker_run_cmd:
+        type: string
+        required: false
+        description: >
+          Docker run command. Will override the Dockerfile CMD statement.
+    capabilities:
+      attach: janus.capabilities.DockerVolumeAttachment
+
+
+capability_types:
+  janus.capabilities.Container.Docker:
+    derived_from: tosca.capabilities.Container
+    description: >
+      The capacity to host and run Docker containers.
+
+  janus.capabilities.DockerVolumeAttachment:
+    derived_from: tosca.capabilities.Attachment
+    description: >
+      Capability to mount a Docker volume
+
+  janus.capabilities.DockerVolume:
+    description: >
+      Capability to connects to a Docker volume
+
+relationship_types:
+  janus.relationships.MountDockerVolume:
+    derived_from: tosca.relationships.AttachTo
+    valid_target_types: [ janus.capabilities.DockerVolumeAttachment ]
