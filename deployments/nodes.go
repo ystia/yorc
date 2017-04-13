@@ -11,7 +11,6 @@ import (
 
 	"sort"
 
-	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
