@@ -223,7 +223,22 @@ func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, params ...
 		if err != nil {
 			return nil, err
 		}
+		if output == nil {
+			continue
+		}
 		outputValue[filepath.Base(instancePath)] = string(output.Value)
+	}
+
+	var host string
+	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return
+	}
+	if host != "" {
+		outputValue, err = GetOutputValueForNode(kv, deploymentID, host, params[0], params[1], params[2])
+		if len(outputValue) == 0 || err != nil {
+			return
+		}
 	}
 
 	return outputValue, nil

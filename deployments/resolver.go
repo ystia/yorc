@@ -219,13 +219,13 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		}
 		switch params[0] {
 		case funcKeywordSELF:
-			result, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", nodeName, instanceName, "outputs", params[1], params[2], params[3]), nil)
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, nodeName, []string{params[1], params[2], params[3]}...)
 			if err != nil {
 				return "", err
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal(result.Value, resultExpr)
+			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
 			if err != nil {
 				return "", err
 			}
@@ -238,29 +238,15 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				// Try to resolve on current node
 				hostNode = nodeName
 			}
-			result, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/instances", hostNode, instanceName, "outputs", params[1], params[2], params[3]), nil)
+
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, hostNode, []string{params[1], params[2], params[3]}...)
 			if err != nil {
 				return "", err
 			}
 
-			if result == nil {
-				var host string
-				host, err = GetHostedOnNode(r.kv, r.deploymentID, nodeName)
-				if err != nil {
-					return "", err
-				}
-				if host != "" {
-					result, err := r.ResolveExpressionForNode(expression,host,instanceName)
-					if err != nil {
-						return "", err
-					} else if result == "" {
-						return "", errors.Errorf("Can't resolve expression %q for HOST", expression.Value)
-					}
-				}
-			}
-
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal(result.Value, resultExpr)
+			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
+
 			if err != nil {
 				return "", err
 			}
