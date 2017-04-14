@@ -27,6 +27,13 @@ const (
 	JanusIndexHeader string = "X-Janus-Index"
 )
 
+const (
+	// JanusDeploymentIDPattern is the allowed pattern for Janus deployments IDs
+	JanusDeploymentIDPattern string = "^[-_0-9a-zA-Z]+$"
+	// JanusDeploymentIDMaxLength is the maximum allowed length for Janus deployments IDs
+	JanusDeploymentIDMaxLength int = 36
+)
+
 // An AtomLink is defined in the Atom specification (https://tools.ietf.org/html/rfc4287#section-4.2.7) it allows to reference REST endpoints
 // in the HATEOAS model
 type AtomLink struct {

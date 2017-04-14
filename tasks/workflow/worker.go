@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"strconv"
+
+	"os"
 
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/sync/errgroup"
@@ -147,6 +150,12 @@ func (w worker) handleTask(t *task) {
 					t.WithStatus(tasks.FAILED)
 					return
 				}
+			}
+			err = os.RemoveAll(filepath.Join(w.cfg.WorkingDirectory, "deployments", t.TargetID))
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.ID, err)
+				t.WithStatus(tasks.FAILED)
+				return
 			}
 			// Now cleanup ourself: mark it as done so nobody will try to run it, clear the processing lock and finally delete the task.
 			t.WithStatus(tasks.DONE)

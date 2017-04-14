@@ -10,9 +10,25 @@ Adding the 'pretty' url parameter to your requests allow to generate an indented
 ### Submit a CSAR to deploy <a name="submit-csar"></a>
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
 
+There is two ways to submit a new deployment, you can let Janus generate a unique deployment ID or you can specify it
+
+#### Auto-generated deployment ID
+In this case you should use a `POST` method.
+
 `POST /deployments`
 
-A successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
+
+#### Customized deployment ID
+In this case you should use a `PUT` method. There is some constraints on submitting a deployment with a given ID:
+  * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
+  * This ID should not already be in used (otherwise a `409 Conflict` error is returned)
+
+`PUT /deployments/<deployment_id>`
+
+
+#### Result
+
+In both submission ways, a successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
 deployment URI.
 
 ```

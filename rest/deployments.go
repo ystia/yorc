@@ -10,8 +10,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"regexp"
+
+	"net/url"
+
 	"github.com/julienschmidt/httprouter"
-	"github.com/satori/go.uuid"
+	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -38,7 +43,40 @@ func extractFile(f *zip.File, path string) {
 
 func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 
-	uid := fmt.Sprint(uuid.NewV4())
+	var uid string
+	if r.Method == http.MethodPut {
+		var params httprouter.Params
+		ctx := r.Context()
+		params = ctx.Value("params").(httprouter.Params)
+		id := params.ByName("id")
+		id, err := url.QueryUnescape(id)
+		if err != nil {
+			log.Panicf("%v", errors.Wrapf(err, "Failed to unescape given deployment id %q", id))
+		}
+		matched, err := regexp.MatchString(JanusDeploymentIDPattern, id)
+		if err != nil {
+			log.Panicf("%v", errors.Wrapf(err, "Failed to parse given deployment id %q", id))
+		}
+		if !matched {
+			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should respect the following format: %q", JanusDeploymentIDPattern)))
+			return
+		}
+		if len(id) > JanusDeploymentIDMaxLength {
+			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", JanusDeploymentIDMaxLength, len(id))))
+			return
+		}
+		dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+		if err != nil {
+			log.Panicf("%v", err)
+		}
+		if dExits {
+			writeError(w, r, newConflictRequest(fmt.Sprintf("Deployment with id %q already exists", id)))
+			return
+		}
+		uid = id
+	} else {
+		uid = fmt.Sprint(uuid.NewV4())
+	}
 	log.Printf("Analyzing deployment %s\n", uid)
 
 	var err error
