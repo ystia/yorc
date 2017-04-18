@@ -668,7 +668,6 @@ func createRelationshipInstances(ctx context.Context, kv *api.KV, deploymentID, 
 		}
 
 		if reqType == nil {
-			fmt.Println("ici" + req)
 			continue
 		}
 
