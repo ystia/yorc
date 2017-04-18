@@ -639,7 +639,63 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 			return err
 		}
 	}
-	return errGroup.Wait()
+	err = errGroup.Wait()
+	if err != nil {
+		return err
+	}
+
+	for _, nodeName := range nodes {
+		err = createRelationshipInstances(ctx, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createRelationshipInstances(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
+	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances")
+	reqKeys, _, err := kv.Keys(reqPath+"/", "/", nil)
+	if err != nil {
+		return err
+	}
+	for _, req := range reqKeys {
+		reqType, _, err := kv.Get(path.Join(req, "relationship"), nil)
+		if err != nil {
+			return err
+		}
+
+		if reqType == nil {
+			fmt.Println("ici" + req)
+			continue
+		}
+
+		reqTypeStr := string(reqType.Value)
+		if reqTypeStr == "" {
+			continue
+		}
+
+		targetName, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, path.Base(req))
+		if err != nil {
+			return err
+		}
+
+		nodeInstanceIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		for _, instanceId := range nodeInstanceIds {
+			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceId, "source"), nodeName)
+			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceId, "target"), targetName)
+		}
+
+	}
+
+	return nil
 }
 
 func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
@@ -719,7 +775,7 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 						return err
 					}
 					for _, outputN := range outputsName {
-						if path.Base(entityN) != "SOURCE" ||  path.Base(entityN) != "TARGET" {
+						if path.Base(entityN) != "SOURCE" || path.Base(entityN) != "TARGET" {
 							continue
 						}
 						var nodeType string

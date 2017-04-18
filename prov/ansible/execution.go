@@ -556,7 +556,7 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 							return errors.Errorf("Deployment %q, requirement index %q, in source node %q can't retrieve relationship type. (Expression was %q)", e.deploymentID, e.requirementIndex, e.NodeName, va.Expression.String())
 						}
 						relationshipType := string(kvp.Value)
-						relationShipPrefix := filepath.Join("relationship_instances", relationshipType, instanceId)
+						relationShipPrefix := filepath.Join("relationship_instances", e.NodeName, relationshipType, instanceId)
 						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join(relationShipPrefix, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
 						longPrefix := filepath.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", relationShipPrefix)
 						consulutil.StoreConsulKey(filepath.Join(longPrefix, "source"), []byte(e.NodeName+"_"+instanceId))
