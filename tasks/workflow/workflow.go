@@ -14,12 +14,12 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
+	"novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
 )
 
 const wfDelegateActivity string = "delegate"

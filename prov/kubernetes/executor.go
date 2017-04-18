@@ -12,10 +12,8 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
 
 	"novaforge.bull.com/starlings-janus/janus/prov"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type defaultExecutor struct {
@@ -60,61 +58,20 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg conf
 
 func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 
-	found, dockerImage, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "image")
+	generator := NewGenerator(kv, cfg)
+
+	found, namespace, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "namespace")
 	if err != nil {
 		return err
 	}
-	if !found || dockerImage == ""{
-		return errors.Errorf("Property image not found on node %s", nodeName)
-	}
-
-	found, namespace, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "namespace")
 
 	if !found || namespace == "" {
 		namespace = "default"
 	}
 
-	_, cpuShareStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "cpu_share")
-	_, cpuLimitStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "cpu_limit")
-	_, memShareStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "mem_share")
-	_, memLimitStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "mem_limit")
-	_, imagePullPolicy, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "imagePullPolicy")
-	_, dockerRunCmd, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "docker_run_cmd")
-
-	cpuLimit, err := resource.ParseQuantity(cpuLimitStr)
-	cpuShare, _ := resource.ParseQuantity(cpuShareStr)
-	memLimit, _ := resource.ParseQuantity(memLimitStr)
-	memShare, _ := resource.ParseQuantity(memShareStr)
-
-	pod := v1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   strings.ToLower(nodeName),
-			Labels: map[string]string{"name": strings.ToLower(nodeName)},
-		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
-				{
-					Name:  strings.ToLower(nodeName),
-					Image: dockerImage,
-					ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
-					Command: strings.Fields(dockerRunCmd),
-					Resources: v1.ResourceRequirements{
-						Requests: v1.ResourceList{
-							v1.ResourceCPU: cpuShare,
-							v1.ResourceMemory: memShare,
-						},
-						Limits: v1.ResourceList{
-							v1.ResourceCPU: cpuLimit,
-							v1.ResourceMemory: memLimit,
-						},
-					},
-				},
-			},
-		},
+	pod, err := generator.GeneratePod(deploymentID, nodeName)
+	if err != nil {
+		return err
 	}
 
 	_, err = e.clientset.CoreV1().Pods(namespace).Create(&pod)
