@@ -79,13 +79,13 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   nodeName,
-			Labels: map[string]string{"name": nodeName},
+			Name:   strings.ToLower(nodeName),
+			Labels: map[string]string{"name": strings.ToLower(nodeName)},
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name:  nodeName,
+					Name:  strings.ToLower(nodeName),
 					Image: dockerImage,
 				},
 			},
@@ -105,6 +105,6 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		namespace = "default"
 	}
 
-	err = e.clientset.CoreV1().Pods(namespace).Delete(nodeName, &metav1.DeleteOptions{})
+	err = e.clientset.CoreV1().Pods(namespace).Delete(strings.ToLower(nodeName), &metav1.DeleteOptions{})
 	return err
 }

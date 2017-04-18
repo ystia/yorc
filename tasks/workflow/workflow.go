@@ -18,6 +18,8 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
 )
 
 const wfDelegateActivity string = "delegate"
@@ -173,6 +175,23 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, 
 	return nil
 }
 
+func getDelegateExecutor(kv *api.KV, deploymentID, nodeName string) (prov.DelegateExecutor, error) {
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	switch {
+	case strings.HasPrefix(nodeType, "janus.nodes.openstack."),
+		strings.HasPrefix(nodeType, "janus.nodes.slurm."):
+		return terraform.NewExecutor(), nil
+	case strings.HasPrefix(nodeType, "janus.nodes.KubernetesContainer"):
+		return kubernetes.NewExecutor(), nil
+	default:
+		return nil, errors.Errorf("Unsupported node type '%s' for node '%s'", nodeType, nodeName)
+	}
+}
+
 func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool) error {
 	haveErr := false
 	eventPub := events.NewPublisher(kv, deploymentID)
@@ -214,7 +233,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			provisioner := terraform.NewExecutor()
+			provisioner, _ := getDelegateExecutor(kv, deploymentID, s.Node)
 			delegateOp := activity.ActivityValue()
 			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())

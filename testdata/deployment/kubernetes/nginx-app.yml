@@ -14,9 +14,16 @@ topology_template:
       type: janus.nodes.KubernetesContainer
       properties:
         image: nginx
+        namespace: default
   workflows:
     install:
       steps:
+        KubernetesContainer_install:
+          node: KubernetesContainer
+          activity:
+            delegate: install
+          on-success:
+            - KubernetesContainer_initial
         KubernetesContainer_initial:
           node: KubernetesContainer
           activity:
@@ -80,7 +87,7 @@ topology_template:
         stop_KubernetesContainer:
           node: KubernetesContainer
           activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+            delegate: uninstall
           on-success:
             - KubernetesContainer_stopped
         KubernetesContainer_stopped:
