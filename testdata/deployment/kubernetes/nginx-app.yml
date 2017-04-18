@@ -15,6 +15,8 @@ topology_template:
       properties:
         image: nginx
         namespace: default
+        mem_share: 1G
+        mem_limit: 2G
   workflows:
     install:
       steps:

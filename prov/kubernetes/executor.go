@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type defaultExecutor struct {
@@ -63,15 +64,27 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	if err != nil {
 		return err
 	}
-	if !found {
+	if !found || dockerImage == ""{
 		return errors.Errorf("Property image not found on node %s", nodeName)
 	}
 
 	found, namespace, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "namespace")
 
-	if !found {
+	if !found || namespace == "" {
 		namespace = "default"
 	}
+
+	_, cpuShareStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "cpu_share")
+	_, cpuLimitStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "cpu_limit")
+	_, memShareStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "mem_share")
+	_, memLimitStr, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "mem_limit")
+	_, imagePullPolicy, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "imagePullPolicy")
+	_, dockerRunCmd, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "docker_run_cmd")
+
+	cpuLimit, err := resource.ParseQuantity(cpuLimitStr)
+	cpuShare, _ := resource.ParseQuantity(cpuShareStr)
+	memLimit, _ := resource.ParseQuantity(memLimitStr)
+	memShare, _ := resource.ParseQuantity(memShareStr)
 
 	pod := v1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -87,6 +100,18 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 				{
 					Name:  strings.ToLower(nodeName),
 					Image: dockerImage,
+					ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
+					Command: strings.Fields(dockerRunCmd),
+					Resources: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU: cpuShare,
+							v1.ResourceMemory: memShare,
+						},
+						Limits: v1.ResourceList{
+							v1.ResourceCPU: cpuLimit,
+							v1.ResourceMemory: memLimit,
+						},
+					},
 				},
 			},
 		},
@@ -101,7 +126,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	if err != nil {
 		return err
 	}
-	if !found {
+	if !found || namespace == "" {
 		namespace = "default"
 	}
 
