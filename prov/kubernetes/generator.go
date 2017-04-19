@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -23,11 +24,12 @@ func NewGenerator(kv *api.KV, cfg config.Configuration) *K8sGenerator {
 	return &K8sGenerator{kv: kv, cfg: cfg}
 }
 
-func generateCpuRessources(cpuLimitStr, cpuShareStr string) (v1.ResourceList, error) {
-	if cpuLimitStr == "" && cpuShareStr == "" {
+func generateLimitsRessources(cpuLimitStr, memLimitStr string) (v1.ResourceList, error) {
+	if cpuLimitStr == "" && memLimitStr == "" {
 		return nil, nil
 	}
 
+	nilValue, _ := resource.ParseQuantity("0")
 	if cpuLimitStr == "" {
 		cpuLimitStr = "0"
 	}
@@ -36,33 +38,34 @@ func generateCpuRessources(cpuLimitStr, cpuShareStr string) (v1.ResourceList, er
 		return nil, err
 	}
 
-	if cpuShareStr == "" {
-		cpuShareStr = "0"
-	}
-	cpuShare, err := resource.ParseQuantity(cpuShareStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if cpuShare == (resource.Quantity{}) {
-		return v1.ResourceList{v1.ResourceLimitsCPU: cpuLimit}, nil
-	} else if cpuLimit == (resource.Quantity{}) {
-		return v1.ResourceList{v1.ResourceRequestsCPU: cpuShare}, nil
-	}
-
-	return v1.ResourceList{v1.ResourceLimitsCPU: cpuLimit, v1.ResourceRequestsCPU: cpuShare}, nil
-
-}
-
-func generateMemRessources(memLimitStr, memShareStr string) (v1.ResourceList, error) {
-	if memLimitStr == "" && memShareStr == "" {
-		return nil, nil
-	}
-
 	if memLimitStr == "" {
 		memLimitStr = "0"
 	}
 	memLimit, err := resource.ParseQuantity(memLimitStr)
+	if err != nil {
+		return nil, err
+	}
+
+	if memLimit == (nilValue) {
+		return v1.ResourceList{v1.ResourceCPU: cpuLimit}, nil
+	} else if cpuLimit == (nilValue) {
+		return v1.ResourceList{v1.ResourceMemory: memLimit}, nil
+	}
+
+	return v1.ResourceList{v1.ResourceCPU: cpuLimit, v1.ResourceMemory: memLimit}, nil
+
+}
+
+func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList, error) {
+	if cpuShareStr == "" && memShareStr == "" {
+		return nil, nil
+	}
+
+	nilValue, _ := resource.ParseQuantity("0")
+	if cpuShareStr == "" {
+		cpuShareStr = "0"
+	}
+	cpuShare, err := resource.ParseQuantity(cpuShareStr)
 	if err != nil {
 		return nil, err
 	}
@@ -75,13 +78,13 @@ func generateMemRessources(memLimitStr, memShareStr string) (v1.ResourceList, er
 		return nil, err
 	}
 
-	if memShare == (resource.Quantity{}) {
-		return v1.ResourceList{v1.ResourceLimitsMemory: memLimit}, nil
-	} else if memLimit == (resource.Quantity{}) {
-		return v1.ResourceList{v1.ResourceRequestsMemory: memShare}, nil
+	if memShare == (nilValue) {
+		return v1.ResourceList{v1.ResourceCPU: cpuShare}, nil
+	} else if cpuShare == (nilValue) {
+		return v1.ResourceList{v1.ResourceMemory: memShare}, nil
 	}
 
-	return v1.ResourceList{v1.ResourceLimitsCPU: memLimit, v1.ResourceRequestsCPU: memShare}, nil
+	return v1.ResourceList{v1.ResourceCPU: cpuShare, v1.ResourceMemory: memShare}, nil
 
 }
 
@@ -101,12 +104,12 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, err
 	_, imagePullPolicy, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "imagePullPolicy")
 	_, dockerRunCmd, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "docker_run_cmd")
 
-	memRessources, err := generateMemRessources(memLimitStr, memShareStr)
+	limits, err := generateLimitsRessources(cpuLimitStr, memLimitStr)
 	if err != nil {
 		return v1.Pod{}, err
 	}
 
-	cpuRessources, err := generateCpuRessources(cpuLimitStr, cpuShareStr)
+	requests, err := generateRequestRessources(cpuShareStr, memShareStr)
 	if err != nil {
 		return v1.Pod{}, err
 	}
@@ -128,13 +131,15 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, err
 					ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 					Command:         strings.Fields(dockerRunCmd),
 					Resources: v1.ResourceRequirements{
-						Requests: memRessources,
-						Limits:   cpuRessources,
+						Requests: requests,
+						Limits:   limits,
 					},
 				},
 			},
 		},
 	}
 
+	val, _ := json.Marshal(pod)
+	fmt.Println(string(val))
 	return pod, nil
 }

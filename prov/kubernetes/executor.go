@@ -22,15 +22,7 @@ type defaultExecutor struct {
 
 // NewExecutor returns an Executor
 func NewExecutor() prov.DelegateExecutor {
-
-	var clientset *kubernetes.Clientset
-	conf, err := clientcmd.BuildConfigFromFlags("", "./kubconfig.yaml")
-	if err != nil {
-		panic(err)
-	}
-	clientset, err = kubernetes.NewForConfig(conf)
-
-	return &defaultExecutor{clientset: clientset}
+	return &defaultExecutor{}
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -58,6 +50,17 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg conf
 
 func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 
+	var clientset *kubernetes.Clientset
+	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubeMasterIp, "")
+	if err != nil {
+		panic(err)
+	}
+	clientset, err = kubernetes.NewForConfig(conf)
+	if err != nil {
+		return nil
+	}
+
+	e.clientset = clientset
 	generator := NewGenerator(kv, cfg)
 
 	found, namespace, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "namespace")
@@ -74,7 +77,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 		return err
 	}
 
-	_, err = e.clientset.CoreV1().Pods(namespace).Create(&pod)
+	_, err = clientset.CoreV1().Pods(namespace).Create(&pod)
 	return err
 }
 

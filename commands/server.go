@@ -78,6 +78,9 @@ func setConfig() {
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
 
+	//Flags config fot Kubernetes
+	serverCmd.PersistentFlags().StringP("kube_master_ip", "", "", "Address where the HTTP API of Kubernetes is exposed (format: <host>:<port>")
+
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
 	viper.BindPFlag("os_tenant_id", serverCmd.PersistentFlags().Lookup("os_tenant_id"))
@@ -170,6 +173,7 @@ func getConfig() config.Configuration {
 	configuration.ConsulToken = viper.GetString("consul_token")
 	configuration.ConsulPubMaxRoutines = viper.GetInt("consul_publisher_max_routines")
 	configuration.OSDefaultSecurityGroups = make([]string, 0)
+	configuration.KubeMasterIp = viper.GetString("kube_master_ip")
 	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {
 		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags
 		configuration.OSDefaultSecurityGroups = append(configuration.OSDefaultSecurityGroups, strings.Split(secgFlag, ",")...)
