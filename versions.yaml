@@ -1,0 +1,5 @@
+janus_version: 1.0.0-SNAPSHOT
+consul_version: 0.7.5
+terraform_version: 0.7.3
+ansible_version: 2.1.4.0
+
