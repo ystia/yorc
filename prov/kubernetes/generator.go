@@ -24,15 +24,21 @@ func NewGenerator(kv *api.KV, cfg config.Configuration) *K8sGenerator {
 }
 
 func generateCpuRessources(cpuLimitStr, cpuShareStr string) (v1.ResourceList, error) {
-	if cpuLimitStr == "0" && cpuShareStr == "0" {
+	if cpuLimitStr == "" && cpuShareStr == "" {
 		return nil, nil
 	}
 
+	if cpuLimitStr == "" {
+		cpuLimitStr = "0"
+	}
 	cpuLimit, err := resource.ParseQuantity(cpuLimitStr)
 	if err != nil {
 		return nil, err
 	}
 
+	if cpuShareStr == "" {
+		cpuShareStr = "0"
+	}
 	cpuShare, err := resource.ParseQuantity(cpuShareStr)
 	if err != nil {
 		return nil, err
@@ -49,15 +55,21 @@ func generateCpuRessources(cpuLimitStr, cpuShareStr string) (v1.ResourceList, er
 }
 
 func generateMemRessources(memLimitStr, memShareStr string) (v1.ResourceList, error) {
-	if memLimitStr == "0" && memShareStr == "0" {
+	if memLimitStr == "" && memShareStr == "" {
 		return nil, nil
 	}
 
+	if memLimitStr == "" {
+		memLimitStr = "0"
+	}
 	memLimit, err := resource.ParseQuantity(memLimitStr)
 	if err != nil {
 		return nil, err
 	}
 
+	if memShareStr == "" {
+		memShareStr = "0"
+	}
 	memShare, err := resource.ParseQuantity(memShareStr)
 	if err != nil {
 		return nil, err
