@@ -10,8 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 
-	"encoding/json"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"strings"
 )
 
@@ -88,6 +88,21 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 }
 
+func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName string, client *kubernetes.Clientset) error {
+	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: namespaceName},
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, error) {
 	found, dockerImage, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "image")
 	if err != nil {
@@ -120,13 +135,13 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, err
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   strings.ToLower(nodeName),
+			Name:   strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
 			Labels: map[string]string{"name": strings.ToLower(nodeName)},
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name:            strings.ToLower(nodeName),
+					Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
 					Image:           dockerImage,
 					ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 					Command:         strings.Fields(dockerRunCmd),
@@ -139,7 +154,5 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, err
 		},
 	}
 
-	val, _ := json.Marshal(pod)
-	fmt.Println(string(val))
 	return pod, nil
 }

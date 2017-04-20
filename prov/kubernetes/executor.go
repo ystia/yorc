@@ -1,19 +1,19 @@
 package kubernetes
 
 import (
-	"context"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
+	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+
+	"context"
+	"strings"
 )
 
 type defaultExecutor struct {
@@ -63,13 +63,15 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	e.clientset = clientset
 	generator := NewGenerator(kv, cfg)
 
-	found, namespace, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "namespace")
+	namespace, err := deployments.GetDeploymentTemplateName(kv, deploymentID)
 	if err != nil {
 		return err
 	}
 
-	if !found || namespace == "" {
-		namespace = "default"
+	namespace = strings.ToLower(namespace)
+	err = generator.CreateNamespaceIfMissing(deploymentID, namespace, clientset)
+	if err != nil {
+		return err
 	}
 
 	pod, err := generator.GeneratePod(deploymentID, nodeName)
