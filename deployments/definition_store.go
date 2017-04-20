@@ -85,6 +85,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	if err := storeImports(ctx, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
 		return err
 	}
+	storeRepositories(ctx, topology, topologyPrefix)
 	storeInputs(ctx, topology, topologyPrefix)
 	storeOutputs(ctx, topology, topologyPrefix)
 	storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
@@ -105,6 +106,20 @@ func storeTopologyTopLevelKeyNames(ctx context.Context, topology tosca.Topology,
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/name", topology.Name)
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/version", topology.Version)
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/author", topology.Author)
+}
+
+//storeRepositories store repositories
+func storeRepositories(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
+	for repositoryName, repo := range topology.Repositories {
+		repoPrefix := path.Join(repositoriesPrefix, repositoryName)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "url"), repo.Url)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "type"), repo.Type)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "description"), repo.Description)
+	}
+
+	return nil
 }
 
 // storeImports parses and store imports.
