@@ -31,7 +31,7 @@ done
 
 if [[ ! -e "${scriptDir}/consul" ]]; then
     cd ${scriptDir}
-    consulVersion=$(grep consul_version ../versions.yaml | awk 'print $2')
+    consulVersion=$(grep consul_version ../versions.yaml | awk '{print $2}')
 
     zipName="consul_${consulVersion}_$(go env GOHOSTOS)_$(go env GOHOSTARCH).zip"
     wget "https://releases.hashicorp.com/consul/${consulVersion}/${zipName}"
