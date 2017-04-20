@@ -12,6 +12,8 @@ type Topology struct {
 
 	Imports []ImportMap `yaml:"imports,omitempty"`
 
+	Repositories map[string]Repository `yaml:"repositories,omitempty"`
+
 	// TODO Data Types
 	NodeTypes         map[string]NodeType         `yaml:"node_types,omitempty"`
 	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty"`
@@ -49,4 +51,10 @@ type NodeTemplate struct {
 	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
 	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
 	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
+}
+
+type Repository struct {
+	Url         string `yaml:"url,omitempty"`
+	Type        string `yaml:"type,omitempty"`
+	Description string `yaml:"descritpion,omitempty"`
 }
