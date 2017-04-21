@@ -77,11 +77,10 @@ func (e *defaultExecutor) checkNode(ctx context.Context, kv *api.KV, cfg config.
 	latestReason := ""
 
 	for status != v1.PodRunning && latestReason != "ErrImagePull" {
-		pod, _ = e.clientset.CoreV1().Pods(strings.ToLower(namespace)).Get(strings.ToLower(cfg.ResourcesPrefix + nodeName), metav1.GetOptions{})
+		pod, err = e.clientset.CoreV1().Pods(strings.ToLower(namespace)).Get(strings.ToLower(cfg.ResourcesPrefix + nodeName), metav1.GetOptions{})
 
 		if err != nil {
-			log.Printf(err.Error())
-			events.LogEngineMessage(kv, deploymentID, err.Error())
+			return errors.Wrap(err, "Failed to fetch pod")
 		}
 
 		status = pod.Status.Phase
@@ -101,24 +100,23 @@ func (e *defaultExecutor) checkNode(ctx context.Context, kv *api.KV, cfg config.
 		time.Sleep(2 * time.Second)
 	}
 
-	ok := true
+	ready := true
 	for _, condition := range pod.Status.Conditions {
 		if condition.Status == v1.ConditionFalse {
-			ok = false
+			ready = false
 		}
 	}
 
-	if !ok {
+	if !ready {
 		reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
 		message := pod.Status.ContainerStatuses[0].State.Waiting.Message
 
-		podLogs := ""
 		if reason == "RunContainerError" {
 			logs, err := e.clientset.CoreV1().Pods(strings.ToLower(namespace)).GetLogs(strings.ToLower(cfg.ResourcesPrefix + nodeName), &v1.PodLogOptions{}).Do().Raw()
 			if err != nil {
-				log.Printf(err.Error())
+				return errors.Wrap(err, "Failed to fetch pod logs")
 			}
-			podLogs = string(logs)
+			podLogs := string(logs)
 			return errors.Errorf("Pod failed to start reason : %s --- Message : %s --- Pod logs : %s", reason, message, podLogs)
 		}
 
