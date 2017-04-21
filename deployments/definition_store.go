@@ -381,8 +381,17 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_value_assignment", strconv.FormatBool(isValueAssignement))
 					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_property_definition", strconv.FormatBool(isPropertyDefinition))
 				}
-				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
-				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+				if intDef.Implementation.Artifact != (tosca.ArtifactDefinition{}) {
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/file", intDef.Implementation.Artifact.File)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/type", intDef.Implementation.Artifact.Type)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/repository", intDef.Implementation.Artifact.Repository)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/description", intDef.Implementation.Artifact.Description)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/deploy_path", intDef.Implementation.Artifact.DeployPath)
+
+				} else {
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+				}
 			}
 		}
 

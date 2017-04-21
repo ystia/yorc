@@ -6,23 +6,33 @@ package tosca
 type Implementation struct {
 	Primary      string   `yaml:"primary"`
 	Dependencies []string `yaml:"dependencies,omitempty"`
+	Artifact     ArtifactDefinition
 }
 
 // UnmarshalYAML unmarshals a yaml into an Implementation
 func (i *Implementation) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var err error
 	var s string
-	if err := unmarshal(&s); err == nil {
+	if err = unmarshal(&s); err == nil {
 		i.Primary = s
 		return nil
 	}
+
+	var art ArtifactDefinition
+	if err = unmarshal(&art); err == nil {
+		i.Artifact = art
+		return nil
+	}
+
 	var str struct {
 		Primary      string   `yaml:"primary"`
 		Dependencies []string `yaml:"dependencies,omitempty"`
 	}
-	if err := unmarshal(&str); err != nil {
-		return err
+	if err = unmarshal(&str); err == nil {
+		i.Primary = str.Primary
+		i.Dependencies = str.Dependencies
+		return nil
 	}
-	i.Primary = str.Primary
-	i.Dependencies = str.Dependencies
-	return nil
+
+	return err
 }
