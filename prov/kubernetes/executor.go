@@ -53,11 +53,11 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	var clientset *kubernetes.Clientset
 	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubeMasterIp, "")
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "Failed to build kubernetes config")
 	}
 	clientset, err = kubernetes.NewForConfig(conf)
 	if err != nil {
-		return nil
+		return errors.Wrap(err, "Failed to create kubernetes clientset from config")
 	}
 
 	e.clientset = clientset
@@ -80,7 +80,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	}
 
 	_, err = clientset.CoreV1().Pods(namespace).Create(&pod)
-	return err
+	return errors.Wrap(err, "Failed to create pod")
 }
 
 func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {

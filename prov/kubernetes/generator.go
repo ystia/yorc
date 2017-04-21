@@ -10,9 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 
-	"fmt"
 	"k8s.io/client-go/kubernetes"
 	"strings"
+	"github.com/pkg/errors"
 )
 
 type K8sGenerator struct {
@@ -35,7 +35,7 @@ func generateLimitsRessources(cpuLimitStr, memLimitStr string) (v1.ResourceList,
 	}
 	cpuLimit, err := resource.ParseQuantity(cpuLimitStr)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to parse cpuLimit quantity")
 	}
 
 	if memLimitStr == "" {
@@ -43,7 +43,7 @@ func generateLimitsRessources(cpuLimitStr, memLimitStr string) (v1.ResourceList,
 	}
 	memLimit, err := resource.ParseQuantity(memLimitStr)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to parse memLimit quantity")
 	}
 
 	if memLimit == (nilValue) {
@@ -67,7 +67,7 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 	}
 	cpuShare, err := resource.ParseQuantity(cpuShareStr)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to parse cpuShare quantity")
 	}
 
 	if memShareStr == "" {
@@ -75,7 +75,7 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 	}
 	memShare, err := resource.ParseQuantity(memShareStr)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to parse memShare quantity")
 	}
 
 	if memShare == (nilValue) {
@@ -96,7 +96,7 @@ func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName st
 				ObjectMeta: metav1.ObjectMeta{Name: namespaceName},
 			})
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Failed to create namespace")
 			}
 		}
 	}
@@ -109,7 +109,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, err
 		return v1.Pod{}, err
 	}
 	if !found || dockerImage == "" {
-		return v1.Pod{}, fmt.Errorf("Property image not found on node %s", nodeName)
+		return v1.Pod{}, errors.Errorf("Property image not found on node %s", nodeName)
 	}
 
 	_, cpuShareStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "cpu_share")
