@@ -14,8 +14,10 @@ import (
 
 	"context"
 	"strings"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"log"
+	"k8s.io/client-go/pkg/api/v1"
+	"time"
+	"novaforge.bull.com/starlings-janus/janus/events"
 )
 
 type defaultExecutor struct {
@@ -23,11 +25,11 @@ type defaultExecutor struct {
 }
 
 // NewExecutor returns an Executor
-func NewExecutor() prov.DelegateExecutor {
+func NewExecutor() prov.OperationExecutor {
 	return &defaultExecutor{}
 }
 
-func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, operation string) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -37,32 +39,96 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg conf
 		return errors.Errorf("Unsupported node type '%s' for node '%s'", nodeType, nodeName)
 	}
 
-	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
-	op := strings.ToLower(delegateOperation)
+	op := strings.ToLower(operation)
 	switch {
-	case op == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances)
-	case op == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances)
+	case op == "tosca.interfaces.node.lifecycle.standard.delete":
+		log.Printf("Voluntary bypassing operation %s", operation)
+		err = nil
+	case op == "tosca.interfaces.node.lifecycle.standard.configure":
+		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName)
+	case op == "tosca.interfaces.node.lifecycle.standard.start":
+		err = e.checkNode(ctx, kv, cfg, deploymentID, nodeName)
+	case op == "tosca.interfaces.node.lifecycle.standard.stop":
+		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName)
 	default:
-		return errors.Errorf("Unsupported operation %q", delegateOperation)
+		return errors.Errorf("Unsupported operation %q", operation)
 	}
 
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
-	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
+func (e *defaultExecutor) checkNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+	err := e.initClientSet(cfg)
+	if err != nil {
+		return err
+	}
+
+	namespace, err := getNamespace(kv,deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+
+	pod := &v1.Pod{}
+	status := v1.PodUnknown
+	latestReason := ""
+
+	for status != v1.PodRunning && latestReason != "ErrImagePull" {
+		pod, _ = e.clientset.CoreV1().Pods(strings.ToLower(namespace)).Get(strings.ToLower(cfg.ResourcesPrefix + nodeName), metav1.GetOptions{})
+
 		if err != nil {
-			return err
+			log.Printf(err.Error())
+			events.LogEngineMessage(kv, deploymentID, err.Error())
+		}
+
+		status = pod.Status.Phase
+
+		if status == v1.PodPending && len(pod.Status.ContainerStatuses) > 0{
+			reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
+			if reason != latestReason {
+				latestReason = reason
+				log.Printf(string(pod.Status.Phase) + "->" + reason)
+				events.LogEngineMessage(kv, deploymentID, "Pod status : " + string(pod.Status.Phase)+" -> " + reason)
+			}
+		} else {
+			log.Printf(string(pod.Status.Phase))
+			events.LogEngineMessage(kv, deploymentID, "Pod status : " + string(pod.Status.Phase))
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	ok := true
+	for _, condition := range pod.Status.Conditions {
+		if condition.Status == v1.ConditionFalse {
+			ok = false
 		}
 	}
 
+	if !ok {
+		reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
+		message := pod.Status.ContainerStatuses[0].State.Waiting.Message
+
+		podLogs := ""
+		if reason == "RunContainerError" {
+			logs, err := e.clientset.CoreV1().Pods(strings.ToLower(namespace)).GetLogs(strings.ToLower(cfg.ResourcesPrefix + nodeName), &v1.PodLogOptions{}).Do().Raw()
+			if err != nil {
+				log.Printf(err.Error())
+			}
+			podLogs = string(logs)
+			return errors.Errorf("Pod failed to start reason : %s --- Message : %s --- Pod logs : %s", reason, message, podLogs)
+		}
+
+		return errors.Errorf("Pod failed to start reason : %s --- Message : %s", reason, message)
+	}
+
+	return nil
+}
+
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 	err := e.initClientSet(cfg)
 	if err != nil {
 		return err
@@ -88,31 +154,12 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 
 	_, err = e.clientset.CoreV1().Pods(namespace).Create(&pod)
 	if err != nil {
-		for _, instance := range instances {
-			err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateError)
-			if err != nil {
-				return err
-			}
-		}
 		return errors.Wrap(err, "Failed to create pod")
-	}
-
-	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateStarted)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
-	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
-		if err != nil {
-			return err
-		}
-	}
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
 	err := e.initClientSet(cfg)
 	if err != nil {
 		return err
@@ -126,12 +173,6 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	err = e.clientset.CoreV1().Pods(strings.ToLower(namespace)).Delete(strings.ToLower(cfg.ResourcesPrefix + nodeName), &metav1.DeleteOptions{})
 	if err != nil {
 		return err
-	}
-	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleted)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
