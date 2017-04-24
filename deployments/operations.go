@@ -16,21 +16,7 @@ import (
 // If the operation is not found in the type hierarchy then empty strings are returned.
 func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentID, nodeType, operationName string) (string, string, error) {
 	// First check if operation exists in current nodeType
-	var op string
-	if idx := strings.Index(operationName, "configure."); idx >= 0 {
-		op = operationName[idx:]
-	} else if idx := strings.Index(operationName, "standard."); idx >= 0 {
-		op = operationName[idx:]
-	} else if idx := strings.Index(operationName, "custom."); idx >= 0 {
-		op = operationName[idx:]
-	} else {
-		op = strings.TrimPrefix(operationName, "tosca.interfaces.node.lifecycle.")
-		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
-		op = strings.TrimPrefix(op, "tosca.interfaces.node.lifecycle.")
-		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
-	}
-	op = strings.Replace(op, ".", "/", -1)
-	operationPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", op)
+	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/primary"), nil)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
@@ -46,6 +32,70 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 	}
 
 	return GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
+}
+
+func GetOperationPath(deploymentID, nodeType, operationName string) string {
+	var op string
+	if idx := strings.Index(operationName, "configure."); idx >= 0 {
+		op = operationName[idx:]
+	} else if idx := strings.Index(operationName, "standard."); idx >= 0 {
+		op = operationName[idx:]
+	} else if idx := strings.Index(operationName, "custom."); idx >= 0 {
+		op = operationName[idx:]
+	} else {
+		op = strings.TrimPrefix(operationName, "tosca.interfaces.node.lifecycle.")
+		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
+		op = strings.TrimPrefix(op, "tosca.interfaces.node.lifecycle.")
+		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
+	}
+	op = strings.Replace(op, ".", "/", -1)
+	operationPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", op)
+
+	return operationPath
+
+}
+
+//This function allows you when the implementation of an operation is an artifact to retrive the type of this artifact
+func GetOperationImplementationType(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
+	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
+	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/type"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, "Fail to get the type of operation implementation")
+	}
+
+	if kvp == nil {
+		return "", errors.Errorf("Operation type not found for %q", operationName)
+	}
+
+	return string(kvp.Value), nil
+}
+
+func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
+	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
+	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/file"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, "Fail to get the file of operation implementation")
+	}
+
+	if kvp == nil {
+		return "", errors.Errorf("Operation type not found for %q", operationName)
+	}
+
+	return string(kvp.Value), nil
+}
+
+func GetOperationImplementationRepository(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
+	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
+	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/repository"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, "Fail to get the file of operation implementation")
+	}
+
+	if kvp == nil {
+		return "", errors.Errorf("Operation type not found for %q", operationName)
+	}
+
+	return string(kvp.Value), nil
 }
 
 // IsNormativeOperation checks if a given operationName is known as a normative operation.
