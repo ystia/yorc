@@ -91,7 +91,6 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName string, client *kubernetes.Clientset) error {
 	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
-	fmt.Println(err)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{
