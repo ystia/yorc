@@ -10,9 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 
+	"fmt"
+	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 	"strings"
-	"github.com/pkg/errors"
 )
 
 type K8sGenerator struct {
@@ -90,6 +91,7 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName string, client *kubernetes.Clientset) error {
 	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
+	fmt.Println(err)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{
@@ -98,17 +100,16 @@ func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName st
 			if err != nil {
 				return errors.Wrap(err, "Failed to create namespace")
 			}
+		} else {
+			return errors.Wrap(err, "Failed to create namespace")
 		}
 	}
 	return nil
 }
 
-func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, error) {
-	found, dockerImage, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "image")
+func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1.Pod, error) {
+	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
-		return v1.Pod{}, err
-	}
-	if !found || dockerImage == "" {
 		return v1.Pod{}, errors.Errorf("Property image not found on node %s", nodeName)
 	}
 
@@ -142,13 +143,14 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName string) (v1.Pod, err
 			Containers: []v1.Container{
 				{
 					Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
-					Image:           dockerImage,
+					Image:           imgName,
 					ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 					Command:         strings.Fields(dockerRunCmd),
 					Resources: v1.ResourceRequirements{
 						Requests: requests,
 						Limits:   limits,
 					},
+					Env: inputs,
 				},
 			},
 		},

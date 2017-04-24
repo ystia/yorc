@@ -22,6 +22,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -343,7 +344,7 @@ func (e *executionCommon) resolveInputs() error {
 			envI.Value = inputValue
 			e.EnvInputs = append(e.EnvInputs, envI)
 			if i == 0 {
-				e.VarInputsNames = append(e.VarInputsNames, sanitizeForShell(inputName))
+				e.VarInputsNames = append(e.VarInputsNames, provutil.SanitizeForShell(inputName))
 			}
 		}
 	}
@@ -412,29 +413,10 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 	return nil
 }
 
-func sanitizeForShell(str string) string {
-	return strings.Map(func(r rune) rune {
-		// Replace hyphen by underscore
-		if r == '-' {
-			return '_'
-		}
-		// Keep underscores
-		if r == '_' {
-			return r
-		}
-		// Drop any other non-alphanum rune
-		if r < '0' || r > 'z' || r > '9' && r < 'A' || r > 'Z' && r < 'a' {
-			return rune(-1)
-		}
-		return r
-
-	}, str)
-}
-
 func (e *executionCommon) resolveContext() error {
 	execContext := make(map[string]string)
 
-	newNode := sanitizeForShell(e.NodeName)
+	newNode := provutil.SanitizeForShell(e.NodeName)
 	if !e.isRelationshipOperation {
 		execContext["NODE"] = newNode
 	}
@@ -482,7 +464,7 @@ func (e *executionCommon) resolveContext() error {
 			sourceNames[i] = getInstanceName(e.NodeName, e.sourceNodeInstances[i])
 		}
 		execContext["SOURCE_INSTANCES"] = strings.Join(sourceNames, ",")
-		execContext["TARGET_NODE"] = sanitizeForShell(e.relationshipTargetName)
+		execContext["TARGET_NODE"] = provutil.SanitizeForShell(e.relationshipTargetName)
 
 		targetNames := make([]string, len(e.targetNodeInstances))
 		for i := range e.targetNodeInstances {
@@ -783,7 +765,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 }
 
 func getInstanceName(nodeName, instanceID string) string {
-	return sanitizeForShell(nodeName + "_" + instanceID)
+	return provutil.SanitizeForShell(nodeName + "_" + instanceID)
 }
 
 func (e *executionCommon) checkAnsibleRetriableError(err error) error {

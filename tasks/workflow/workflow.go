@@ -14,7 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
+	"novaforge.bull.com/starlings-janus/janus/prov/helper"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -214,7 +214,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			provisioner := terraform.NewExecutor()
+			provisioner :=  terraform.NewExecutor()
 			delegateOp := activity.ActivityValue()
 			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
@@ -230,7 +230,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfSetStateActivity:
 			setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
-			exec := kubernetes.NewExecutor()
+			exec := helper.GetOperationExecutor(kv, deploymentID, s.Node, activity.ActivityValue())
 			err := exec.ExecOperation(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 			if err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
