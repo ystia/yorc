@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 
-	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 	"strings"
