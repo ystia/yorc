@@ -12,4 +12,4 @@ ansible_version=$(grep ansible_version ${script_dir}/versions.yaml | awk '{print
 
 cp ${script_dir}/janus ${script_dir}/pkg/
 cd ${script_dir}/pkg
-docker build --build-arg "TERRAFORM_VERSION=${tf_version}" --build-arg "ANSIBLE_VERSION=${ansible_version}" -t "starlings/janus:${DOCKER_TAG:-latest}" .
+docker build ${BUILD_ARGS} --build-arg "TERRAFORM_VERSION=${tf_version}" --build-arg "ANSIBLE_VERSION=${ansible_version}" -t "starlings/janus:${DOCKER_TAG:-latest}" .
