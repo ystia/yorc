@@ -36,13 +36,13 @@ Following packages are required to perform the installation:
 
 Now you can proceed with the installation of softwares used by Janus.
 
-.. code-block:: bash
+.. parsed-literal::
 
-    sudo pip install ansible==2.1.4.0
-    wget https://releases.hashicorp.com/consul/0.7.5/consul_0.7.5_linux_amd64.zip
-    sudo unzip consul_0.7.5_linux_amd64.zip -d /usr/local/bin
-    wget https://releases.hashicorp.com/terraform/0.7.3/terraform_0.7.3_linux_amd64.zip
-    sudo unzip terraform_0.7.3_linux_amd64.zip -d /usr/local/bin
+    sudo pip install ansible==\ |ansible_version|
+    wget \https://releases.hashicorp.com/consul/\ |consul_version|\ /consul\_\ |consul_version|\ _linux_amd64.zip
+    sudo unzip consul\_\ |consul_version|\ _linux_amd64.zip -d /usr/local/bin
+    wget \https://releases.hashicorp.com/terraform/\ |terraform_version|\ /terraform\_\ |terraform_version|\ _linux_amd64.zip
+    sudo unzip terraform\_\ |terraform_version|\ _linux_amd64.zip -d /usr/local/bin
 
 Finally you can install the Janus binary into ``/usr/local/bin``.
 

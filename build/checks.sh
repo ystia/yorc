@@ -31,8 +31,10 @@ done
 
 if [[ ! -e "${scriptDir}/consul" ]]; then
     cd ${scriptDir}
-    zipName="consul_0.7.5_$(go env GOHOSTOS)_$(go env GOHOSTARCH).zip"
-    wget "https://releases.hashicorp.com/consul/0.7.5/${zipName}"
+    consulVersion=$(grep consul_version ../versions.yaml | awk '{print $2}')
+
+    zipName="consul_${consulVersion}_$(go env GOHOSTOS)_$(go env GOHOSTARCH).zip"
+    wget "https://releases.hashicorp.com/consul/${consulVersion}/${zipName}"
     unzip ${zipName}
     rm ${zipName}
     chmod +x consul

@@ -301,15 +301,15 @@ X-Janus-Index: 1812
 ```json
 {
   "events": [
-    {"timestamp":"2016-08-16T14:49:25.90310537+02:00","node":"Network","status":"started"},
-    {"timestamp":"2016-08-16T14:50:20.712776954+02:00","node":"Compute","status":"started"},
-    {"timestamp":"2016-08-16T14:50:20.713890682+02:00","node":"Welcome","status":"initial"},
-    {"timestamp":"2016-08-16T14:50:20.7149454+02:00","node":"Welcome","status":"creating"},
-    {"timestamp":"2016-08-16T14:50:20.715875775+02:00","node":"Welcome","status":"created"},
-    {"timestamp":"2016-08-16T14:50:20.716840754+02:00","node":"Welcome","status":"configuring"},
-    {"timestamp":"2016-08-16T14:50:33.355114629+02:00","node":"Welcome","status":"configured"},
-    {"timestamp":"2016-08-16T14:50:33.3562717+02:00","node":"Welcome","status":"starting"},
-    {"timestamp":"2016-08-16T14:50:54.550463885+02:00","node":"Welcome","status":"started"}
+    {"timestamp":"2016-08-16T14:49:25.90310537+02:00","node":"Network","instance":"0","status":"started"},
+    {"timestamp":"2016-08-16T14:50:20.712776954+02:00","node":"Compute","instance":"0","status":"started"},
+    {"timestamp":"2016-08-16T14:50:20.713890682+02:00","node":"Welcome","instance":"0","status":"initial"},
+    {"timestamp":"2016-08-16T14:50:20.7149454+02:00","node":"Welcome","instance":"0","status":"creating"},
+    {"timestamp":"2016-08-16T14:50:20.715875775+02:00","node":"Welcome","instance":"0","status":"created"},
+    {"timestamp":"2016-08-16T14:50:20.716840754+02:00","node":"Welcome","instance":"0","status":"configuring"},
+    {"timestamp":"2016-08-16T14:50:33.355114629+02:00","node":"Welcome","instance":"0","status":"configured"},
+    {"timestamp":"2016-08-16T14:50:33.3562717+02:00","node":"Welcome","instance":"0","status":"starting"},
+    {"timestamp":"2016-08-16T14:50:54.550463885+02:00","node":"Welcome","instance":"0","status":"started"}
   ],
   "last_index":1812
 }
