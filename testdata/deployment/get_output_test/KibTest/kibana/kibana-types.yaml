@@ -106,7 +106,7 @@ node_types:
       custom:
         updateDashboardFile:
           inputs:
-            dashboard_url: { get_operation_output: [HOST, Standard, create , JAVA_TEST]}
+            test: { get_operation_output: [HOST, Standard, create , JAVA_TEST]}
           implementation: scripts/updateDashboardFile.sh
     artifacts:
       - scripts: scripts

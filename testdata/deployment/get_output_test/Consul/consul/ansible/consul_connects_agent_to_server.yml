@@ -25,4 +25,8 @@
     
     - name: echo servers list
       debug: msg="Consul Agent configured to connects to server on [{{ consul_servers | join(', ') }}]"
+
+    - name: Set DUMMY_VAR
+      set_fact:
+        DUMMY_VAR: "MoiAussiJeSuisUnTest"
       

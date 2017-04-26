@@ -102,6 +102,7 @@ relationship_types:
     attributes:
       consul_test1: { get_operation_output: [ SOURCE, Standard, Configure, DUMMY_VAR ] }
       consul_test2: { get_operation_output: [ TARGET, Standard, Configure, DUMMY_VAR ] }
+      consul_test3: { get_operation_output: [ SELF, Configure, pre_configure_source, DUMMY_VAR ] }
     interfaces:
       Configure:
         pre_configure_source:
