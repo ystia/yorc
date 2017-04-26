@@ -158,19 +158,21 @@ func (e *executionCommon) resolveInputs() error {
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
 	switch e.Operation {
-	case "tosca.interfaces.node.lifecycle.standard.delete":
+	case "tosca.interfaces.node.lifecycle.standard.delete",
+		"tosca.interfaces.node.lifecycle.standard.configure":
 		log.Printf("Voluntary bypassing operation %s", e.Operation)
-		err = nil
-	case "tosca.interfaces.node.lifecycle.standard.configure":
-		err = e.deployPod(ctx)
+		return nil
 	case "tosca.interfaces.node.lifecycle.standard.start":
-		err = e.checkNode(ctx)
+		err = e.deployPod(ctx)
+		if err != nil {
+			return err
+		}
+		return e.checkNode(ctx)
 	case "tosca.interfaces.node.lifecycle.standard.stop":
-		err = e.uninstallNode(ctx)
+		return e.uninstallNode(ctx)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation)
 	}
-	return err
 
 }
 
@@ -203,18 +205,24 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 	e.resolveInputs()
 	inputs := e.parseEnvInputs()
 
-	pod, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation, e.NodeType, inputs)
+	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation, e.NodeType, inputs)
 	if err != nil {
 		return err
 	}
 
 	_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Pods(namespace).Create(&pod)
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to create pod")
 	}
+
+	_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create service")
+	}
+
 	return nil
 }
-
 
 func (e *executionCommon) checkNode(ctx context.Context) error {
 	clientset := ctx.Value("clientset")
@@ -288,8 +296,14 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 
 	err = (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to delete pod")
 	}
+
+	err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete service")
+	}
+
 	return nil
 }
 

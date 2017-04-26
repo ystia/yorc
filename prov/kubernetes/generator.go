@@ -105,10 +105,10 @@ func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName st
 	return nil
 }
 
-func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1.Pod, error) {
+func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1.Pod, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
-		return v1.Pod{}, errors.Errorf("Property image not found on node %s", nodeName)
+		return v1.Pod{}, v1.Service{}, err
 	}
 
 	_, cpuShareStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "cpu_share")
@@ -120,12 +120,17 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 
 	limits, err := generateLimitsRessources(cpuLimitStr, memLimitStr)
 	if err != nil {
-		return v1.Pod{}, err
+		return v1.Pod{}, v1.Service{}, err
 	}
 
 	requests, err := generateRequestRessources(cpuShareStr, memShareStr)
 	if err != nil {
-		return v1.Pod{}, err
+		return v1.Pod{}, v1.Service{}, err
+	}
+
+	metadata := metav1.ObjectMeta{
+		Name:   strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
+		Labels: map[string]string{"name": strings.ToLower(nodeName),"deploymentId":deploymentID},
 	}
 
 	pod := v1.Pod{
@@ -133,10 +138,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 			Kind:       "Pod",
 			APIVersion: "v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
-			Labels: map[string]string{"name": strings.ToLower(nodeName)},
-		},
+		ObjectMeta: metadata,
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
@@ -154,5 +156,19 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 		},
 	}
 
-	return pod, nil
+	service := v1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metadata,
+		Spec: v1.ServiceSpec{
+			Selector: map[string]string{"deploymentId":deploymentID},
+			Ports: []v1.ServicePort{
+				{Port: 80},
+			},
+		},
+	}
+
+	return pod, service, nil
 }
