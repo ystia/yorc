@@ -506,6 +506,7 @@ func (e *executionCommon) resolveContext() error {
 }
 
 func (e *executionCommon) resolveOperationOutputPath() error {
+	//Here we get the modelable entity output of the operation
 	entities, _, err := e.kv.Keys(e.OperationPath+"/outputs/", "/", nil)
 	if err != nil {
 		return err
@@ -517,12 +518,15 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 
 	e.HaveOutput = true
 	va := tosca.ValueAssignment{}
+	//We iterate over all entity of the output in this operation
 	for _, entity := range entities {
+		//We get the name of the output
 		outputKeys, _, err := e.kv.Keys(entity, "/", nil)
 		if err != nil {
 			return err
 		}
 		for _, output := range outputKeys {
+			//We get the expression  of the output
 			kvPair, _, err := e.kv.Get(output+"/expression", nil)
 			if err != nil {
 				return err
@@ -542,11 +546,14 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 				instancesIds = e.sourceNodeInstances
 			}
 
+			//For each instance of the node we create a new entry in the output map
 			for _, instanceId := range instancesIds {
+				//We decide to add an in to differenciate if we export many time the same output
 				b := uint32(time.Now().Nanosecond())
 				if targetContext {
-					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join("instances", e.relationshipTargetName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.relationshipTargetName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
 				} else {
+					//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
 					if va.Expression.Children()[0].Value == "SELF" && e.isRelationshipOperation {
 						kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName, "requirements", e.requirementIndex, "relationship"), nil)
 						if err != nil {
@@ -557,15 +564,14 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 						}
 						relationshipType := string(kvp.Value)
 						relationShipPrefix := filepath.Join("relationship_instances", e.NodeName, relationshipType, instanceId)
-						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join(relationShipPrefix, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
-						longPrefix := filepath.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", relationShipPrefix)
-						consulutil.StoreConsulKey(filepath.Join(longPrefix, "source"), []byte(e.NodeName+"_"+instanceId))
-						consulutil.StoreConsulKey(filepath.Join(longPrefix, "target"), []byte(e.relationshipTargetName+"_"+instanceId))
+						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
 					} else if va.Expression.Children()[0].Value == "HOST" {
+						// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
 						continue
 
 					} else {
-						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = filepath.Join("instances", e.NodeName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+						//In all others case we simply save the result of the output on the instance directory of the node
+						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceId, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
 					}
 				}
 
