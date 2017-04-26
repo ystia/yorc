@@ -691,10 +691,10 @@ func createRelationshipInstances(ctx context.Context, kv *api.KV, deploymentID, 
 			return err
 		}
 
-		for _, instanceId := range nodeInstanceIds {
+		for _, instanceID := range nodeInstanceIds {
 			targetInstanceIdsString := strings.Join(targetInstanceIds, ",")
-			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceId, "target", "name"), targetName)
-			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceId, "target", "instances"), targetInstanceIdsString)
+			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceID, "target", "name"), targetName)
+			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceID, "target", "instances"), targetInstanceIdsString)
 		}
 
 	}
