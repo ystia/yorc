@@ -654,6 +654,7 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 	return nil
 }
 
+//This function create an instance of each relationship and reference who is the target and the instanceID of this one
 func createRelationshipInstances(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
 	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances")
@@ -702,6 +703,7 @@ func createRelationshipInstances(ctx context.Context, kv *api.KV, deploymentID, 
 	return nil
 }
 
+//In this function we iterate over all node to know which node need to have an HOST output and search for this HOST and tell him to export this output
 func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if nodeType != "" && err == nil {
@@ -745,7 +747,7 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 	return nil
 }
 
-//This function help us to fix the get_operation_output when it on a relation ship
+//This function help us to fix the get_operation_output when it on a relationship
 //Ex: To get an variable from a past operation or a future operation
 func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")

@@ -72,6 +72,7 @@ node_types:
         start:
           inputs:
             ELASTICSEARCH_HEAP_SIZE: { get_property: [SELF, es_heap_size] }
+            TEST: { get_operation_output: [HOST, Standard, create , JAVA_TEST]}
           implementation: scripts/kibana_start.sh
         stop:
           implementation: scripts/kibana_stop.sh
@@ -91,30 +92,6 @@ node_types:
         type: tosca.artifacts.File
       - plugins: plugins
         type: tosca.artifacts.File
-
-  starlings.nodes.KibanaDashboard:
-    derived_from: tosca.nodes.Root
-    description: The abstract dashboard element hosted on Kibana
-    tags:
-      icon: /images/chart-icon.png
-    requirements:
-      - dashboard_host: starlings.capabilities.DashboardHosting
-        relationship_type: starlings.relationships.DashboardHostedOnKibana
-        lower_bound: 1
-        upper_bound: 1
-    interfaces:
-      custom:
-        updateDashboardFile:
-          inputs:
-            test: { get_operation_output: [HOST, Standard, create , JAVA_TEST]}
-          implementation: scripts/updateDashboardFile.sh
-    artifacts:
-      - scripts: scripts
-        type: tosca.artifacts.File
-      - utils_scripts: utils_scripts
-        type: tosca.artifacts.File
-      - dashboard_file: dashboardFiles/kdb_default.json
-        type: starlings.artifacts.Dashboard
 
   starlings.nodes.BeatsDashboards:
     derived_from: tosca.nodes.Root
