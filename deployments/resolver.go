@@ -219,11 +219,10 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		}
 		switch params[0] {
 		case funcKeywordSELF:
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, nodeName, []string{params[1], params[2], params[3]}...)
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, nodeName, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
 			if err != nil {
 				return "", err
 			}
-
 			resultExpr := &tosca.ValueAssignment{}
 			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
 			if err != nil {
@@ -239,7 +238,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				hostNode = nodeName
 			}
 
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, hostNode, []string{params[1], params[2], params[3]}...)
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, hostNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
 			if err != nil {
 				return "", err
 			}
@@ -511,7 +510,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		case funcKeywordHOST:
 			return "", errors.Errorf("Keyword %q not supported for a relationship expression", params[0])
 		case funcKeywordSOURCE:
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, sourceNode, []string{params[1], params[2], params[3]}...)
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, sourceNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
 			if err != nil {
 				return "", err
 			}
@@ -524,7 +523,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return res, err
 		case funcKeywordTARGET:
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, targetNode, []string{params[1], params[2], params[3]}...)
+			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, targetNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
 			if err != nil {
 				return "", err
 			}

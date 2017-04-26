@@ -210,7 +210,7 @@ func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, erro
 
 //GetOutputValueForNode return a map with in index the instance number and in value the result of the output
 //The "params" parameter is necessary to pass the path of the output
-func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, params ...string) (outputValue map[string]string, err error) {
+func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, outputPath string) (outputValue map[string]string, err error) {
 	//We only check instances for nodes, because the saving are instances index based
 
 	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
@@ -221,7 +221,7 @@ func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, params ...
 	outputValue = make(map[string]string)
 
 	for _, instancePath := range instances {
-		output, _, err := kv.Get(filepath.Join(instancePath, "outputs", params[0], params[1], params[2]), nil)
+		output, _, err := kv.Get(filepath.Join(instancePath, "outputs", outputPath), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +241,7 @@ func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, params ...
 		return nil, err
 	}
 	if host != "" {
-		outputValue, err = GetOutputValueForNode(kv, deploymentID, host, params[0], params[1], params[2])
+		outputValue, err = GetOutputValueForNode(kv, deploymentID, host, outputPath)
 		if len(outputValue) == 0 || err != nil {
 			return
 		}
