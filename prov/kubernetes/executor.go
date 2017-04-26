@@ -8,11 +8,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 
 	"context"
-	"strings"
 )
 
 type defaultExecutor struct {
@@ -35,23 +33,10 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, cfg con
 		return err
 	}
 
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-
-	if !strings.HasPrefix(nodeType, "janus.nodes.KubernetesContainer") {
-		return errors.Errorf("Unsupported node type '%s' for node '%s'", nodeType, nodeName)
-	}
-
 	new_ctx := context.WithValue(ctx, "clientset", e.clientset)
 
-	exec.execute(new_ctx)
-
-	return err
+	return exec.execute(new_ctx)
 }
-
-
 
 func (e *defaultExecutor) initClientSet(cfg config.Configuration) error {
 	var clientset *kubernetes.Clientset

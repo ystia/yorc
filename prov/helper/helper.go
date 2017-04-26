@@ -8,9 +8,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
 )
 
-func GetOperationExecutor(kv *api.KV, deploymentID, nodeName, operation string) prov.OperationExecutor {
+func GetOperationExecutor(kv *api.KV, deploymentID, nodeName string) prov.OperationExecutor {
 	nType, _ := deployments.GetNodeType(kv, deploymentID, nodeName)
-	otype, _ := deployments.GetOperationImplementationType(kv, deploymentID, nType, operation)
+	otype, _ := deployments.GetOperationImplementationType(kv, deploymentID, nType, "tosca.interfaces.node.lifecycle.standard.start")
 
 	if otype == "tosca.artifacts.Deployment.Image.Container.Kubernetes" {
 		return kubernetes.NewExecutor()

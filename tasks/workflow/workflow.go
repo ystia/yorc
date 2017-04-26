@@ -230,7 +230,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfSetStateActivity:
 			setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
-			exec := helper.GetOperationExecutor(kv, deploymentID, s.Node, activity.ActivityValue())
+			exec := helper.GetOperationExecutor(kv, deploymentID, s.Node)
 			err := exec.ExecOperation(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 			if err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
