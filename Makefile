@@ -27,7 +27,7 @@ dist: build
 test: generate
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@export PATH=$$PWD/build:$$PATH; go test $(PACKAGES) $(TESTARGS) -timeout=30s -p 1
+	@export PATH=$$PWD/build:$$PATH; go test $(PACKAGES) $(TESTARGS) -p 1
 endif
 
 
