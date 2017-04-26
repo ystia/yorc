@@ -707,26 +707,26 @@ func createRelationshipInstances(ctx context.Context, kv *api.KV, deploymentID, 
 func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if nodeType != "" && err == nil {
-		interfacesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType, "interfaces")
-		interfacesName, _, err := kv.Keys(interfacesPath+"/", "/", nil)
+		interfacesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType, "interfaces")
+		interfacesNamesPaths, _, err := kv.Keys(interfacesPrefix+"/", "/", nil)
 		if err != nil {
 			return err
 		}
-		for _, interfaceN := range interfacesName {
-			operationPath, _, err := kv.Keys(interfaceN+"/", "/", nil)
+		for _, interfaceNamePath := range interfacesNamesPaths {
+			operationsPaths, _, err := kv.Keys(interfaceNamePath+"/", "/", nil)
 			if err != nil {
 				return err
 			}
-			for _, operationN := range operationPath {
-				outputsPath := path.Join(operationN, "outputs", "HOST")
-				ouputsName, _, err := kv.Keys(outputsPath+"/", "/", nil)
+			for _, operationPath := range operationsPaths {
+				outputsPrefix := path.Join(operationPath, "outputs", "HOST")
+				ouputsNamesPaths, _, err := kv.Keys(outputsPrefix+"/", "/", nil)
 				if err != nil {
 					return err
 				}
-				if ouputsName == nil || len(ouputsName) == 0 {
+				if ouputsNamesPaths == nil || len(ouputsNamesPaths) == 0 {
 					continue
 				}
-				for _, outputN := range ouputsName {
+				for _, outputNamePath := range ouputsNamesPaths {
 					hostedOn, err := GetHostedOnNode(kv, deploymentID, nodeName)
 					if err != nil {
 						return nil
@@ -734,7 +734,7 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 						return errors.New("Fail to get the hostedOn to fix the output")
 					}
 					if hostedNodeType, err := GetNodeType(kv, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
-						consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", hostedNodeType, "interfaces", path.Base(interfaceN), path.Base(operationN), "outputs", "SELF", path.Base(outputN), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceN)+","+path.Base(operationN)+","+path.Base(outputN)+"]")
+						consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", hostedNodeType, "interfaces", path.Base(interfaceNamePath), path.Base(operationPath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationPath)+","+path.Base(outputNamePath)+"]")
 					}
 				}
 			}
@@ -761,40 +761,40 @@ func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deplo
 			return err
 		}
 		relationshipPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", relationshipType, "interfaces")
-		interfaceName, _, err := kv.Keys(relationshipPrefix+"/", "/", nil)
+		interfaceNamesPaths, _, err := kv.Keys(relationshipPrefix+"/", "/", nil)
 		if err != nil {
 			return err
 		}
-		for _, intN := range interfaceName {
-			operationsName, _, err := kv.Keys(intN+"/", "/", nil)
+		for _, interfaceNamePath := range interfaceNamesPaths {
+			operationsNamesPaths, _, err := kv.Keys(interfaceNamePath+"/", "/", nil)
 			if err != nil {
 				return err
 			}
-			for _, opeN := range operationsName {
-				entityName, _, err := kv.Keys(opeN+"/outputs/", "/", nil)
+			for _, operationNamePath := range operationsNamesPaths {
+				modEntityNamesPaths, _, err := kv.Keys(operationNamePath+"/outputs/", "/", nil)
 				if err != nil {
 					return err
 				}
-				for _, entityN := range entityName {
-					outputsName, _, _ := kv.Keys(entityN+"/", "/", nil)
+				for _, modEntityNamePath := range modEntityNamesPaths {
+					outputsNamesPaths, _, _ := kv.Keys(modEntityNamePath+"/", "/", nil)
 					if err != nil {
 						return err
 					}
-					for _, outputN := range outputsName {
-						if path.Base(entityN) != "SOURCE" || path.Base(entityN) != "TARGET" {
+					for _, outputNamePath := range outputsNamesPaths {
+						if path.Base(modEntityNamePath) != "SOURCE" || path.Base(modEntityNamePath) != "TARGET" {
 							continue
 						}
 						var nodeType string
-						if path.Base(entityN) == "SOURCE" {
+						if path.Base(modEntityNamePath) == "SOURCE" {
 							nodeType, _ = GetNodeType(kv, deploymentID, nodeName)
-						} else if path.Base(entityN) == "TARGET" {
+						} else if path.Base(modEntityNamePath) == "TARGET" {
 							targetNode, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, reqKeyIndex)
 							if err != nil {
 								return err
 							}
 							nodeType, _ = GetNodeType(kv, deploymentID, targetNode)
 						}
-						consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType, "interfaces", path.Base(intN), path.Base(opeN), "outputs", "SELF", path.Base(outputN), "expression"), "get_operation_output: [SELF,"+path.Base(intN)+","+path.Base(opeN)+","+path.Base(outputN)+"]")
+						consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType, "interfaces", path.Base(interfaceNamePath), path.Base(operationNamePath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationNamePath)+","+path.Base(outputNamePath)+"]")
 					}
 				}
 			}
