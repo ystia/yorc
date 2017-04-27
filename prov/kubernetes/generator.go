@@ -105,6 +105,10 @@ func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName st
 	return nil
 }
 
+func GeneratePodName(nodeName string) string {
+	return strings.Replace(nodeName, "_", "-", -1)
+}
+
 func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1.Pod, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
@@ -129,7 +133,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 	}
 
 	metadata := metav1.ObjectMeta{
-		Name:   strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
+		Name:   strings.ToLower(GeneratePodName(k8s.cfg.ResourcesPrefix + nodeName)),
 		Labels: map[string]string{"name": strings.ToLower(nodeName),"deploymentId":deploymentID},
 	}
 
@@ -142,7 +146,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
+					Name:            strings.ToLower(GeneratePodName(k8s.cfg.ResourcesPrefix + nodeName)),
 					Image:           imgName,
 					ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 					Command:         strings.Fields(dockerRunCmd),
