@@ -216,9 +216,11 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 		return errors.Wrap(err, "Failed to create pod")
 	}
 
-	_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create service")
+	if service.Name != "" {
+		_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create service")
+		}
 	}
 
 	return nil

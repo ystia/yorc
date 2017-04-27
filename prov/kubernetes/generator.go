@@ -162,32 +162,44 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 			},
 		},
 	}
+	service := v1.Service{}
 
-	portMaps := strings.Split(dockerPorts, " ")
-	servicePorts := []v1.ServicePort{}
+	if dockerPorts != "" {
+		servicePorts := []v1.ServicePort{}
+		portMaps := strings.Split(dockerPorts, " ")
 
-	for i, portMap := range portMaps {
-		ports := strings.Split(portMap, ":")
-		port, _ := strconv.Atoi(ports[0])
-		targetPort, _ := strconv.Atoi(ports[1])
-		servicePorts = append(servicePorts, v1.ServicePort{
-			Name: "port-"+strconv.Itoa(i),
-			Port: int32(port),
-			TargetPort: intstr.IntOrString{IntVal:int32(targetPort)},
-		})
+		for i, portMap := range portMaps {
+			ports := strings.Split(portMap, ":")
+			port, _ := strconv.Atoi(ports[0])
+			var targetPort int32
+			if len(ports)>1 {
+				p, _ := strconv.Atoi(ports[1])
+				targetPort = int32(p)
+			} else {
+				p, _ := strconv.Atoi(ports[0])
+				targetPort = int32(p)
+			}
+			servicePorts = append(servicePorts, v1.ServicePort{
+				Name: "port-"+strconv.Itoa(i),
+				Port: int32(port),
+				TargetPort: intstr.IntOrString{IntVal:targetPort},
+			})
+		}
+
+		service = v1.Service{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Service",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metadata,
+			Spec: v1.ServiceSpec{
+				//Type: v1.ServiceTypeNodePort,
+				Selector: map[string]string{"nodeId":deploymentID + "-" + GeneratePodName(nodeName)},
+				Ports: servicePorts,
+			},
+		}
 	}
 
-	service := v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metadata,
-		Spec: v1.ServiceSpec{
-			Selector: map[string]string{"nodeId":deploymentID + "-" + GeneratePodName(nodeName)},
-			Ports: servicePorts,
-		},
-	}
 
 	return pod, service, nil
 }
