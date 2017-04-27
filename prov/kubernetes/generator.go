@@ -97,7 +97,7 @@ func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentId, namespaceName st
 			_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: namespaceName},
 			})
-			if err != nil {
+			if err != nil && !strings.Contains(err.Error(), "already exists") {
 				return errors.Wrap(err, "Failed to create namespace")
 			}
 		} else {
@@ -193,7 +193,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 			},
 			ObjectMeta: metadata,
 			Spec: v1.ServiceSpec{
-				//Type: v1.ServiceTypeNodePort,
+				//Type:     v1.ServiceTypeNodePort,
 				Selector: map[string]string{"nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
 				Ports:    servicePorts,
 			},
