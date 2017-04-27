@@ -118,6 +118,32 @@ func IsRelationshipOperationOnTargetNode(operationName string) bool {
 	return false
 }
 
+func GetImplementationDependencies(kv *api.KV, operationPath string) ([]string, error) {
+	kvPair, _, err := kv.Get(operationPath+"/implementation/dependencies", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if kvPair != nil {
+		return strings.Split(string(kvPair.Value), ","), nil
+	}
+
+	return make([]string, 0), nil
+
+}
+
+func GetOperationDescripton(kv *api.KV, operationPath string) (string, error) {
+	kvPair, _, err := kv.Get(operationPath+"/description", nil)
+	if err != nil {
+		return "", errors.Wrap(err, "Consul query failed: ")
+	}
+	if kvPair != nil && len(kvPair.Value) > 0 {
+		return string(kvPair.Value), nil
+	}
+
+	return "", errors.Errorf("Fail to get the operation %s  description", operationPath)
+}
+
 // DecodeOperation takes a given operationName that should be formated as <fully_qualified_operation_name> or <fully_qualified_relationship_operation_name>/<requirementIndex> or <fully_qualified_relationship_operation_name>/<requirementName>/<targetNodeName>
 // and extract the revelant information
 //
