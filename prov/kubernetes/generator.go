@@ -11,10 +11,10 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/pkg/errors"
-	"k8s.io/client-go/kubernetes"
-	"strings"
-	"strconv"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
+	"strconv"
+	"strings"
 )
 
 type K8sGenerator struct {
@@ -137,7 +137,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 
 	metadata := metav1.ObjectMeta{
 		Name:   strings.ToLower(GeneratePodName(k8s.cfg.ResourcesPrefix + nodeName)),
-		Labels: map[string]string{"name": strings.ToLower(nodeName),"nodeId":deploymentID + "-" + GeneratePodName(nodeName)},
+		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
 	}
 
 	pod := v1.Pod{
@@ -172,7 +172,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 			ports := strings.Split(portMap, ":")
 			port, _ := strconv.Atoi(ports[0])
 			var targetPort int32
-			if len(ports)>1 {
+			if len(ports) > 1 {
 				p, _ := strconv.Atoi(ports[1])
 				targetPort = int32(p)
 			} else {
@@ -180,9 +180,9 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 				targetPort = int32(p)
 			}
 			servicePorts = append(servicePorts, v1.ServicePort{
-				Name: "port-"+strconv.Itoa(i),
-				Port: int32(port),
-				TargetPort: intstr.IntOrString{IntVal:targetPort},
+				Name:       "port-" + strconv.Itoa(i),
+				Port:       int32(port),
+				TargetPort: intstr.IntOrString{IntVal: targetPort},
 			})
 		}
 
@@ -194,12 +194,11 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 			ObjectMeta: metadata,
 			Spec: v1.ServiceSpec{
 				//Type: v1.ServiceTypeNodePort,
-				Selector: map[string]string{"nodeId":deploymentID + "-" + GeneratePodName(nodeName)},
-				Ports: servicePorts,
+				Selector: map[string]string{"nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
+				Ports:    servicePorts,
 			},
 		}
 	}
-
 
 	return pod, service, nil
 }

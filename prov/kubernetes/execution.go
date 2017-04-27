@@ -4,30 +4,24 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"novaforge.bull.com/starlings-janus/janus/prov/operations"
+	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"path"
-	"strconv"
 	"strings"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 )
 
 // An EnvInput represent a TOSCA operation input
 //
 // This element is exported in order to be used by text.Template but should be consider as internal
-type EnvInput struct {
-	Name  string
-	Value string
-}
 
 type execution interface {
 	execute(ctx context.Context) error
@@ -48,7 +42,7 @@ type executionCommon struct {
 	Description         string
 	OperationRemotePath string
 	OperationPath       string
-	EnvInputs           []*EnvInput
+	EnvInputs           []*structs.EnvInput
 	VarInputsNames      []string
 	Repositories        map[string]string
 	NodePath            string
@@ -64,7 +58,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		NodeName:       nodeName,
 		Operation:      operation,
 		VarInputsNames: make([]string, 0),
-		EnvInputs:      make([]*EnvInput, 0),
+		EnvInputs:      make([]*structs.EnvInput, 0),
 		taskID:         taskID,
 	}
 
@@ -86,73 +80,6 @@ func (e *executionCommon) resolveOperation() error {
 		return err
 	}
 
-	return nil
-}
-
-func (e *executionCommon) resolveInputs() error {
-	log.Debug("resolving inputs")
-	resolver := deployments.NewResolver(e.kv, e.deploymentID)
-
-	var inputKeys []string
-	var err error
-
-	inputKeys, _, err = e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
-
-	if err != nil {
-		return err
-	}
-	for _, input := range inputKeys {
-		kvPair, _, err := e.kv.Get(input+"/name", nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvPair == nil {
-			return errors.Errorf("%s/name missing", input)
-		}
-		inputName := string(kvPair.Value)
-
-		kvPair, _, err = e.kv.Get(input+"/is_property_definition", nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		isPropDef, err := strconv.ParseBool(string(kvPair.Value))
-		if err != nil {
-			return err
-		}
-
-		va := tosca.ValueAssignment{}
-		if !isPropDef {
-			kvPair, _, err = e.kv.Get(input+"/expression", nil)
-			if err != nil {
-				return err
-			}
-			if kvPair == nil {
-				return errors.Errorf("%s/expression missing", input)
-			}
-
-			err = yaml.Unmarshal(kvPair.Value, &va)
-			if err != nil {
-				return errors.Wrap(err, "Failed to resolve operation inputs, unable to unmarshal yaml expression: ")
-			}
-		}
-
-		var inputValue string
-
-		envI := &EnvInput{Name: inputName}
-		if isPropDef {
-			inputValue, err = tasks.GetTaskInput(e.kv, e.taskID, inputName)
-		} else {
-			inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, "0")
-		}
-		if err != nil {
-			return err
-		}
-		envI.Value = inputValue
-		e.EnvInputs = append(e.EnvInputs, envI)
-
-	}
-
-	log.Debugf("Resolved env inputs: %s", e.EnvInputs)
 	return nil
 }
 
@@ -202,7 +129,7 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 		return err
 	}
 
-	e.resolveInputs()
+	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation)
 	inputs := e.parseEnvInputs()
 
 	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation, e.NodeType, inputs)
@@ -239,7 +166,7 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 	latestReason := ""
 
 	for status != v1.PodRunning && latestReason != "ErrImagePull" {
-		pod, err = (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).Get(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix + e.NodeName)), metav1.GetOptions{})
+		pod, err = (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).Get(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), metav1.GetOptions{})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch pod")

@@ -81,6 +81,7 @@ type executionCommon struct {
 	OperationPath            string
 	NodePath                 string
 	NodeTypePath             string
+	rawOperation		 string
 	Artifacts                map[string]string
 	OverlayPath              string
 	Context                  map[string]string
@@ -103,11 +104,16 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		cfg:            cfg,
 		deploymentID:   deploymentID,
 		NodeName:       nodeName,
-		Operation:      operation,
+		rawOperation:      operation,
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*structs.EnvInput, 0),
 		taskID:         taskID,
 	}
+
+	if err := execCommon.resolveOperation(); err != nil {
+		return nil, err
+	}
+
 	// TODO: should use implementation artifacts (tosca.artifacts.Implementation.Bash, tosca.artifacts.Implementation.Python, tosca.artifacts.Implementation.Ansible...) in some way
 	var exec execution
 	if strings.HasSuffix(execCommon.BasePrimary, ".sh") || strings.HasSuffix(execCommon.BasePrimary, ".py") {
@@ -122,8 +128,6 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %q, primary implementation: %q", nodeName, operation, execCommon.Primary)
 	}
 
-	execCommon.resolveOperation()
-
 	return exec, exec.resolveExecution()
 }
 
@@ -131,7 +135,7 @@ func (e *executionCommon) resolveInputs() error {
 	log.Debug("resolving inputs")
 	var err error
 
-	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation)
+	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.rawOperation)
 	if err != nil {
 		return err
 	}
@@ -142,12 +146,12 @@ func (e *executionCommon) resolveInputs() error {
 
 func (e *executionCommon) resolveOperation() (err error) {
 	e.NodePath = operations.GetNodePath(e.NodeName, e.deploymentID)
-	e.NodeType, e.NodeTypePath, err = operations.GetNodeTypeAndPath(e.kv, e.NodeType, e.deploymentID)
+	e.NodeType, e.NodeTypePath, err = operations.GetNodeTypeAndPath(e.kv, e.NodeName, e.deploymentID)
 	if err != nil {
 		return
 	}
 
-	e.isRelationshipOperation, e.Operation, e.requirementIndex, e.relationshipTargetName, err = deployments.DecodeOperation(e.kv, e.deploymentID, e.NodeName, e.Operation)
+	e.isRelationshipOperation, e.Operation, e.requirementIndex, e.relationshipTargetName, err = deployments.DecodeOperation(e.kv, e.deploymentID, e.NodeName, e.rawOperation)
 	if err != nil {
 		return
 	}

@@ -16,6 +16,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 )
 
 // From now only WorkingDirectory is necessary for those tests
@@ -134,12 +135,12 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 	execution := &executionCommon{kv: kv,
 		deploymentID:            deploymentID,
 		NodeName:                nodeName,
-		Operation:               operation,
+		rawOperation:		 operation,
 		OperationPath:           path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create"),
 		isRelationshipOperation: false,
 		isPerInstanceOperation:  false,
 		VarInputsNames:          make([]string, 0),
-		EnvInputs:               make([]*EnvInput, 0)}
+		EnvInputs:               make([]*structs.EnvInput, 0)}
 
 	err := execution.resolveOperation()
 	require.Nil(t, err)
@@ -360,7 +361,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 	execution := &executionCommon{kv: kv,
 		deploymentID:            deploymentID,
 		NodeName:                nodeAName,
-		Operation:               operation,
+		rawOperation:            operation,
 		OperationPath:           path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source"),
 		isRelationshipOperation: true,
 		isPerInstanceOperation:  false,
@@ -368,7 +369,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 		relationshipType:        relationshipTypeName,
 		relationshipTargetName:  nodeBName,
 		VarInputsNames:          make([]string, 0),
-		EnvInputs:               make([]*EnvInput, 0),
+		EnvInputs:               make([]*structs.EnvInput, 0),
 		sourceNodeInstances:     []string{"0", "1", "2"},
 		targetNodeInstances:     []string{"0", "1"},
 	}
@@ -561,7 +562,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 	execution := &executionCommon{kv: kv,
 		deploymentID:             deploymentID,
 		NodeName:                 nodeAName,
-		Operation:                operation,
+		rawOperation:             operation,
 		OperationPath:            path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source"),
 		isRelationshipOperation:  true,
 		isRelationshipTargetNode: true,
@@ -570,7 +571,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 		relationshipType:         relationshipTypeName,
 		relationshipTargetName:   nodeBName,
 		VarInputsNames:           make([]string, 0),
-		EnvInputs:                make([]*EnvInput, 0)}
+		EnvInputs:                make([]*structs.EnvInput, 0)}
 
 	err := execution.resolveOperation()
 	require.Nil(t, err)

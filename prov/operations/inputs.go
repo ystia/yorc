@@ -25,6 +25,7 @@ func InputsResolver(kv *api.KV, operationPath, deploymentID, nodeName, taskID, o
 	}
 
 	isRelationshipOperation, _, requirementIndex, relationshipTargetName, err := deployments.DecodeOperation(kv, deploymentID, nodeName, operation)
+
 	if err != nil {
 		return EnvInputs, VarInputsNames, err
 	}

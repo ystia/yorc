@@ -214,7 +214,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			provisioner :=  terraform.NewExecutor()
+			provisioner := terraform.NewExecutor()
 			delegateOp := activity.ActivityValue()
 			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())

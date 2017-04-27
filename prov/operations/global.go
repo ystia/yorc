@@ -37,7 +37,7 @@ func ResolveIsPerInstanceOperation(operationName, deploymentID, relationshipType
 		}
 		return true, nil
 	}
-	return true, nil
+	return false, nil
 }
 
 // isTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
