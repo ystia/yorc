@@ -13,8 +13,6 @@ import (
 	"strings"
 	"syscall"
 
-	"strconv"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -24,7 +22,8 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"novaforge.bull.com/starlings-janus/janus/prov/operations"
+	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
@@ -49,38 +48,10 @@ func IsRetriable(err error) bool {
 	return ok
 }
 
-// IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
-func IsOperationNotImplemented(err error) bool {
-	_, ok := err.(operationNotImplemented)
-	return ok
-}
-
-type operationNotImplemented struct {
-	msg string
-}
-
-func (oni operationNotImplemented) Error() string {
-	return oni.msg
-}
-
 type hostConnection struct {
 	host       string
 	user       string
 	instanceID string
-}
-
-// An EnvInput represent a TOSCA operation input
-//
-// This element is exported in order to be used by text.Template but should be consider as internal
-type EnvInput struct {
-	Name           string
-	Value          string
-	InstanceName   string
-	IsTargetScoped bool
-}
-
-func (ei EnvInput) String() string {
-	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsTargetScoped: \"%t\"]", ei.Name, ei.Value, ei.InstanceName, ei.IsTargetScoped)
 }
 
 type execution interface {
@@ -101,7 +72,7 @@ type executionCommon struct {
 	NodeType                 string
 	Description              string
 	OperationRemotePath      string
-	EnvInputs                []*EnvInput
+	EnvInputs                []*structs.EnvInput
 	VarInputsNames           []string
 	Primary                  string
 	BasePrimary              string
@@ -134,11 +105,8 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		NodeName:       nodeName,
 		Operation:      operation,
 		VarInputsNames: make([]string, 0),
-		EnvInputs:      make([]*EnvInput, 0),
+		EnvInputs:      make([]*structs.EnvInput, 0),
 		taskID:         taskID,
-	}
-	if err := execCommon.resolveOperation(); err != nil {
-		return nil, err
 	}
 	// TODO: should use implementation artifacts (tosca.artifacts.Implementation.Bash, tosca.artifacts.Implementation.Python, tosca.artifacts.Implementation.Ansible...) in some way
 	var exec execution
@@ -154,82 +122,68 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %q, primary implementation: %q", nodeName, operation, execCommon.Primary)
 	}
 
+	execCommon.resolveOperation()
+
 	return exec, exec.resolveExecution()
 }
 
-func (e *executionCommon) resolveOperation() error {
-	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
+func (e *executionCommon) resolveInputs() error {
+	log.Debug("resolving inputs")
 	var err error
-	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
+
+	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation)
 	if err != nil {
 		return err
 	}
-	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType)
+
+	log.Debugf("Resolved env inputs: %s", e.EnvInputs)
+	return nil
+}
+
+func (e *executionCommon) resolveOperation() (err error) {
+	e.NodePath = operations.GetNodePath(e.NodeName, e.deploymentID)
+	e.NodeType, e.NodeTypePath, err = operations.GetNodeTypeAndPath(e.kv, e.NodeType, e.deploymentID)
+	if err != nil {
+		return
+	}
+
 	e.isRelationshipOperation, e.Operation, e.requirementIndex, e.relationshipTargetName, err = deployments.DecodeOperation(e.kv, e.deploymentID, e.NodeName, e.Operation)
 	if err != nil {
-		return err
+		return
 	}
-	if e.isRelationshipOperation {
-		e.relationshipType, err = deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.requirementIndex)
-		if err != nil {
-			return err
-		}
 
-		e.isRelationshipTargetNode = isTargetOperation(e.Operation)
-
-		err = e.resolveIsPerInstanceOperation(e.Operation)
-		if err != nil {
-			return err
-		}
-
-	} else if strings.Contains(e.Operation, "custom") {
-		e.IsCustomCommand = true
+	e.relationshipType, e.isRelationshipTargetNode, e.isPerInstanceOperation, e.IsCustomCommand, err = operations.GetRelationshipInfos(e.isRelationshipOperation, e.kv, e.deploymentID, e.NodeName, e.requirementIndex, e.Operation)
+	if err != nil {
+		return
 	}
 
 	operationNodeType := e.NodeType
 	if e.isRelationshipOperation {
 		operationNodeType = e.relationshipType
 	}
+
 	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.deploymentID, operationNodeType, e.Operation)
 	if err != nil {
-		return err
+		return
 	}
+
 	if e.OperationPath == "" || e.Primary == "" {
-		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.Operation, e.NodeType, e.deploymentID)}
+		return operations.OperationNotImplemented{Msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.Operation, e.NodeType, e.deploymentID)}
 	}
+
 	e.Primary = strings.TrimSpace(e.Primary)
+
 	log.Debugf("Operation Path: %q, primary implementation: %q", e.OperationPath, e.Primary)
 	e.BasePrimary = path.Base(e.Primary)
-	kvPair, _, err := e.kv.Get(e.OperationPath+"/implementation/dependencies", nil)
+	e.Dependencies, err = deployments.GetImplementationDependencies(e.kv, e.OperationPath)
 	if err != nil {
-		return err
+		return
 	}
 
-	if kvPair != nil {
-		e.Dependencies = strings.Split(string(kvPair.Value), ",")
-	} else {
-		e.Dependencies = make([]string, 0)
-	}
-	kvPair, _, err = e.kv.Get(e.OperationPath+"/description", nil)
-	if err != nil {
-		return errors.Wrap(err, "Consul query failed: ")
-	}
-	if kvPair != nil && len(kvPair.Value) > 0 {
-		e.Description = string(kvPair.Value)
-	}
+	e.Description, err = deployments.GetOperationDescripton(e.kv, e.OperationPath)
 
-	return e.resolveInstances()
-}
+	e.sourceNodeInstances, e.targetNodeInstances, err = operations.ResolveInstances(e.kv, e.taskID, e.deploymentID, e.relationshipTargetName, e.NodeName, e.isRelationshipOperation)
 
-func (e *executionCommon) resolveInstances() error {
-	var err error
-	if e.isRelationshipOperation {
-		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.relationshipTargetName)
-		if err != nil {
-			return err
-		}
-	}
-	e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	return err
 }
 
@@ -265,91 +219,6 @@ func (e *executionCommon) resolveArtifacts() error {
 		}
 	}
 	log.Debugf("Resolved artifacts: %v", e.Artifacts)
-	return nil
-}
-
-func (e *executionCommon) resolveInputs() error {
-	log.Debug("resolving inputs")
-	resolver := deployments.NewResolver(e.kv, e.deploymentID)
-
-	var inputKeys []string
-	var err error
-
-	inputKeys, _, err = e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
-
-	if err != nil {
-		return err
-	}
-	for _, input := range inputKeys {
-		kvPair, _, err := e.kv.Get(input+"/name", nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvPair == nil {
-			return errors.Errorf("%s/name missing", input)
-		}
-		inputName := string(kvPair.Value)
-
-		kvPair, _, err = e.kv.Get(input+"/is_property_definition", nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		isPropDef, err := strconv.ParseBool(string(kvPair.Value))
-		if err != nil {
-			return err
-		}
-
-		va := tosca.ValueAssignment{}
-		var targetContext bool
-		if !isPropDef {
-			kvPair, _, err = e.kv.Get(input+"/expression", nil)
-			if err != nil {
-				return err
-			}
-			if kvPair == nil {
-				return errors.Errorf("%s/expression missing", input)
-			}
-
-			err = yaml.Unmarshal(kvPair.Value, &va)
-			if err != nil {
-				return errors.Wrap(err, "Failed to resolve operation inputs, unable to unmarshal yaml expression: ")
-			}
-			targetContext = va.Expression.IsTargetContext()
-		}
-
-		var instancesIds []string
-		if targetContext {
-			instancesIds = e.targetNodeInstances
-		} else {
-			instancesIds = e.sourceNodeInstances
-		}
-		var inputValue string
-		for i, instanceID := range instancesIds {
-			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
-			if e.isRelationshipOperation && targetContext {
-				envI.InstanceName = getInstanceName(e.relationshipTargetName, instanceID)
-			} else {
-				envI.InstanceName = getInstanceName(e.NodeName, instanceID)
-			}
-			if e.isRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceID)
-			} else if isPropDef {
-				inputValue, err = tasks.GetTaskInput(e.kv, e.taskID, inputName)
-			} else {
-				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceID)
-			}
-			if err != nil {
-				return err
-			}
-			envI.Value = inputValue
-			e.EnvInputs = append(e.EnvInputs, envI)
-			if i == 0 {
-				e.VarInputsNames = append(e.VarInputsNames, provutil.SanitizeForShell(inputName))
-			}
-		}
-	}
-
-	log.Debugf("Resolved env inputs: %s", e.EnvInputs)
 	return nil
 }
 
@@ -513,34 +382,6 @@ func (e *executionCommon) resolveOperationOutput() error {
 
 	log.Debugf("Resolved outputs: %v", output)
 	e.Output = output
-	return nil
-}
-
-// isTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
-//	pre_configure_target, post_configure_target, add_source
-func isTargetOperation(operationName string) bool {
-	op := strings.ToLower(operationName)
-	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_source") {
-		return true
-	}
-	return false
-}
-
-// resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
-//	add_target, remove_target, add_source, target_changed
-// And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
-func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) error {
-	op := strings.ToLower(operationName)
-	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") {
-		// Do not call the call the operation several time for an HostedOn relationship (makes no sense till we scale at compute level)
-		if hostedOn, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn"); err != nil || hostedOn {
-			e.isPerInstanceOperation = false
-			return err
-		}
-		e.isPerInstanceOperation = true
-		return nil
-	}
-	e.isPerInstanceOperation = false
 	return nil
 }
 
@@ -764,10 +605,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 }
 
-func getInstanceName(nodeName, instanceID string) string {
-	return provutil.SanitizeForShell(nodeName + "_" + instanceID)
-}
-
 func (e *executionCommon) checkAnsibleRetriableError(err error) error {
 	events.LogEngineError(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.Operation, e.NodeName))
 	log.Print(err)
@@ -796,4 +633,8 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 		}
 	}
 	return "", errors.Errorf("Unknown host %q", host)
+}
+
+func getInstanceName(nodeName, instanceID string) string {
+	return provutil.SanitizeForShell(nodeName + "_" + instanceID)
 }

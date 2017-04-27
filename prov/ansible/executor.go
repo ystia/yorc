@@ -11,6 +11,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 )
 
 type defaultExecutor struct {
@@ -25,7 +26,7 @@ func NewExecutor() prov.OperationExecutor {
 func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, conf config.Configuration, taskID, deploymentID, nodeName, operation string) error {
 	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
-		if IsOperationNotImplemented(err) {
+		if operations.IsOperationNotImplemented(err) {
 			log.Printf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())
 			events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
 			return nil
