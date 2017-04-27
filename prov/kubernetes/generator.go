@@ -13,6 +13,8 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 	"strings"
+	"strconv"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type K8sGenerator struct {
@@ -121,6 +123,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 	_, memLimitStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "mem_limit")
 	_, imagePullPolicy, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "imagePullPolicy")
 	_, dockerRunCmd, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "docker_run_cmd")
+	_, dockerPorts, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "docker_ports")
 
 	limits, err := generateLimitsRessources(cpuLimitStr, memLimitStr)
 	if err != nil {
@@ -134,7 +137,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 
 	metadata := metav1.ObjectMeta{
 		Name:   strings.ToLower(GeneratePodName(k8s.cfg.ResourcesPrefix + nodeName)),
-		Labels: map[string]string{"name": strings.ToLower(nodeName),"deploymentId":deploymentID},
+		Labels: map[string]string{"name": strings.ToLower(nodeName),"nodeId":deploymentID + "-" + GeneratePodName(nodeName)},
 	}
 
 	pod := v1.Pod{
@@ -160,6 +163,20 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 		},
 	}
 
+	portMaps := strings.Split(dockerPorts, " ")
+	servicePorts := []v1.ServicePort{}
+
+	for i, portMap := range portMaps {
+		ports := strings.Split(portMap, ":")
+		port, _ := strconv.Atoi(ports[0])
+		targetPort, _ := strconv.Atoi(ports[1])
+		servicePorts = append(servicePorts, v1.ServicePort{
+			Name: "port-"+strconv.Itoa(i),
+			Port: int32(port),
+			TargetPort: intstr.IntOrString{IntVal:int32(targetPort)},
+		})
+	}
+
 	service := v1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -167,10 +184,8 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 		},
 		ObjectMeta: metadata,
 		Spec: v1.ServiceSpec{
-			Selector: map[string]string{"deploymentId":deploymentID},
-			Ports: []v1.ServicePort{
-				{Port: 80},
-			},
+			Selector: map[string]string{"nodeId":deploymentID + "-" + GeneratePodName(nodeName)},
+			Ports: servicePorts,
 		},
 	}
 
