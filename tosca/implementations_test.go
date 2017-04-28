@@ -45,7 +45,6 @@ implementation:
 	assert.Len(t, implem.Implementation.Dependencies, 0, "Expecting no dependencies but found %d", len(implem.Implementation.Dependencies))
 }
 
-
 func implementationArtifact(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
@@ -60,7 +59,6 @@ implementation:
 	assert.Equal(t, "nginx", implem.Implementation.Artifact.File)
 	assert.Len(t, implem.Implementation.Dependencies, 0, "Expecting no dependencies but found %d", len(implem.Implementation.Dependencies))
 }
-
 
 func implementationComplexGrammarWithDependencies(t *testing.T) {
 	t.Parallel()

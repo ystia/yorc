@@ -81,7 +81,7 @@ type executionCommon struct {
 	OperationPath            string
 	NodePath                 string
 	NodeTypePath             string
-	rawOperation		 string
+	rawOperation             string
 	Artifacts                map[string]string
 	OverlayPath              string
 	Context                  map[string]string
@@ -104,7 +104,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		cfg:            cfg,
 		deploymentID:   deploymentID,
 		NodeName:       nodeName,
-		rawOperation:      operation,
+		rawOperation:   operation,
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*structs.EnvInput, 0),
 		taskID:         taskID,

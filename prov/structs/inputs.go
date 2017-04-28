@@ -14,6 +14,6 @@ type EnvInput struct {
 	IsTargetScoped bool
 }
 
-func (ei EnvInput)String() string {
+func (ei EnvInput) String() string {
 	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsTargetScoped: \"%t\"]", ei.Name, ei.Value, ei.InstanceName, ei.IsTargetScoped)
 }

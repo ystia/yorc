@@ -135,7 +135,7 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 	execution := &executionCommon{kv: kv,
 		deploymentID:            deploymentID,
 		NodeName:                nodeName,
-		rawOperation:		 operation,
+		rawOperation:            operation,
 		OperationPath:           path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create"),
 		isRelationshipOperation: false,
 		isPerInstanceOperation:  false,

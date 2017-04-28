@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
