@@ -551,7 +551,7 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 				//We decide to add an in to differenciate if we export many time the same output
 				b := uint32(time.Now().Nanosecond())
 				if targetContext {
-					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.relationshipTargetName, instanceID, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.relationshipTargetName, instanceID, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
 				} else {
 					//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
 					if va.Expression.Children()[0].Value == "SELF" && e.isRelationshipOperation {
@@ -564,14 +564,14 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 						}
 						relationshipType := string(kvp.Value)
 						relationShipPrefix := filepath.Join("relationship_instances", e.NodeName, relationshipType, instanceID)
-						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
 					} else if va.Expression.Children()[0].Value == "HOST" {
 						// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
 						continue
 
 					} else {
 						//In all others case we simply save the result of the output on the instance directory of the node
-						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", va.Expression.Children()[1].Value, va.Expression.Children()[2].Value, va.Expression.Children()[3].Value)
+						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
 					}
 				}
 
