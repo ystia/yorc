@@ -5,7 +5,7 @@ template_author: Janus
 template_version: 1.0.0-SNAPSHOT
 
 imports:
-  - janus: <janus-types.yml>
+  - janus-types: <janus-types.yml>
 
 repositories:
   docker:
