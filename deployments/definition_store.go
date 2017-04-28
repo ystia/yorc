@@ -747,7 +747,7 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 	return nil
 }
 
-//This function help us to fix the get_operation_output when it on a relationship
+//This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
 //Ex: To get an variable from a past operation or a future operation
 func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
