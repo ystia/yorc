@@ -11,6 +11,7 @@ func TestGroupedImplementationsParallel(t *testing.T) {
 	t.Run("groupImplementations", func(t *testing.T) {
 		t.Run("TestImplementationSimpleGrammar", implementationSimpleGrammar)
 		t.Run("TestImplementationComplexGrammar", implementationComplexGrammar)
+		t.Run("TestImplementationArtifact", implementationArtifact)
 		t.Run("TestImplementationComplexGrammarWithDependencies", implementationComplexGrammarWithDependencies)
 		t.Run("TestImplementationFailing", implementationFailing)
 	})
@@ -43,6 +44,23 @@ implementation:
 	assert.Equal(t, "scripts/start_server.sh", implem.Implementation.Primary)
 	assert.Len(t, implem.Implementation.Dependencies, 0, "Expecting no dependencies but found %d", len(implem.Implementation.Dependencies))
 }
+
+
+func implementationArtifact(t *testing.T) {
+	t.Parallel()
+	var inputYaml = `
+implementation:
+    file: nginx
+    repository: docker
+    type: tosca.artifacts.Deployment.Image.Container.Kubernetes`
+	implem := implementationTestType{}
+
+	err := yaml.Unmarshal([]byte(inputYaml), &implem)
+	assert.Nil(t, err, "Expecting no error when unmarshaling Implementation with simple grammar")
+	assert.Equal(t, "nginx", implem.Implementation.Artifact.File)
+	assert.Len(t, implem.Implementation.Dependencies, 0, "Expecting no dependencies but found %d", len(implem.Implementation.Dependencies))
+}
+
 
 func implementationComplexGrammarWithDependencies(t *testing.T) {
 	t.Parallel()
