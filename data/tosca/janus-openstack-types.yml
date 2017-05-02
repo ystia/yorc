@@ -74,6 +74,11 @@ node_types:
         description: >
           The Openstack Region. Defaults to 'RegionOne'
         required: false
+      deletable:
+        type: boolean
+        description: should this volume be deleted at undeployment
+        required: false
+        default: false
 
   janus.nodes.openstack.FloatingIP:
     derived_from: tosca.nodes.Root
