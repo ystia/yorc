@@ -548,7 +548,7 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 
 			//For each instance of the node we create a new entry in the output map
 			for _, instanceID := range instancesIds {
-				//We decide to add an in to differenciate if we export many time the same output
+				//We decide to add an in to differentiate if we export many time the same output
 				b := uint32(time.Now().Nanosecond())
 				if targetContext {
 					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.relationshipTargetName, instanceID, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)

@@ -297,8 +297,8 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				reqPrefix := requirementsPrefix + "/" + strconv.Itoa(reqIndex)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/name", reqName)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/node", reqDefinition.Node)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
+				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
+				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
 			}
@@ -310,8 +310,8 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/name", capName)
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/type", capability.Type)
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/description", capability.Description)
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurences/lower_bound", strconv.FormatUint(capability.Occurrences.LowerBound, 10))
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurences/upper_bound", strconv.FormatUint(capability.Occurrences.UpperBound, 10))
+			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/lower_bound", strconv.FormatUint(capability.Occurrences.LowerBound, 10))
+			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/upper_bound", strconv.FormatUint(capability.Occurrences.UpperBound, 10))
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
@@ -644,66 +644,17 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 		return err
 	}
 
+	_, errGroup, consulStore = consulutil.WithContext(ctx)
 	for _, nodeName := range nodes {
-		err = createRelationshipInstances(ctx, kv, deploymentID, nodeName)
+		err = createRelationshipInstances(consulStore, kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
 	}
-
-	return nil
+	return errGroup.Wait()
 }
 
-//This function create an instance of each relationship and reference who is the target and the instanceID of this one
-func createRelationshipInstances(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
-	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
-	relInstancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances")
-	reqKeys, _, err := kv.Keys(reqPath+"/", "/", nil)
-	if err != nil {
-		return err
-	}
-	for _, req := range reqKeys {
-		reqType, _, err := kv.Get(path.Join(req, "relationship"), nil)
-		if err != nil {
-			return err
-		}
-
-		if reqType == nil {
-			continue
-		}
-
-		reqTypeStr := string(reqType.Value)
-		if reqTypeStr == "" {
-			continue
-		}
-
-		targetName, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, path.Base(req))
-		if err != nil {
-			return err
-		}
-
-		nodeInstanceIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-
-		targetInstanceIds, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-
-		for _, instanceID := range nodeInstanceIds {
-			targetInstanceIdsString := strings.Join(targetInstanceIds, ",")
-			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceID, "target", "name"), targetName)
-			consulutil.StoreConsulKeyAsString(path.Join(relInstancePath, nodeName, reqTypeStr, instanceID, "target", "instances"), targetInstanceIdsString)
-		}
-
-	}
-
-	return nil
-}
-
-//In this function we iterate over all node to know which node need to have an HOST output and search for this HOST and tell him to export this output
+// In this function we iterate over all node to know which node need to have an HOST output and search for this HOST and tell him to export this output
 func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if nodeType != "" && err == nil {
@@ -719,14 +670,14 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 			}
 			for _, operationPath := range operationsPaths {
 				outputsPrefix := path.Join(operationPath, "outputs", "HOST")
-				ouputsNamesPaths, _, err := kv.Keys(outputsPrefix+"/", "/", nil)
+				outputsNamesPaths, _, err := kv.Keys(outputsPrefix+"/", "/", nil)
 				if err != nil {
 					return err
 				}
-				if ouputsNamesPaths == nil || len(ouputsNamesPaths) == 0 {
+				if outputsNamesPaths == nil || len(outputsNamesPaths) == 0 {
 					continue
 				}
-				for _, outputNamePath := range ouputsNamesPaths {
+				for _, outputNamePath := range outputsNamesPaths {
 					hostedOn, err := GetHostedOnNode(kv, deploymentID, nodeName)
 					if err != nil {
 						return nil
@@ -747,8 +698,8 @@ func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID,
 	return nil
 }
 
-//This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
-//Ex: To get an variable from a past operation or a future operation
+// This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
+// Ex: To get an variable from a past operation or a future operation
 func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
 	reqName, _, err := kv.Keys(reqPath+"/", "/", nil)
