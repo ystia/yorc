@@ -105,6 +105,12 @@ topology_template:
         # IceHouse
 #        floating_network_name: Public_Network
   workflows:
+    agentsInMaintenance:
+      steps:
+        ConsulAgent_Maintenance:
+          node: ConsulAgent
+          activity:
+            call_operation: custom.maintenance_on
     install:
       steps:
         Network_install:

@@ -111,6 +111,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 func (s *Server) registerHandlers() {
 	commonHandlers := alice.New(loggingHandler, recoverHandler)
 	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
+	s.router.Put("/deployments/:id", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
 	s.router.Delete("/deployments/:id", commonHandlers.ThenFunc(s.deleteDeploymentHandler))
 	s.router.Get("/deployments/:id", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getDeploymentHandler))
 	s.router.Get("/deployments", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listDeploymentsHandler))
@@ -129,6 +130,9 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributesListHandler))
 	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes/:attributeName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributeHandler))
 	s.router.Post("/deployments/:id/custom", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newCustomCommandHandler))
+	s.router.Post("/deployments/:id/workflows/:workflowName", commonHandlers.ThenFunc(s.newWorkflowHandler))
+	s.router.Get("/deployments/:id/workflows/:workflowName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getWorkflowHandler))
+	s.router.Get("/deployments/:id/workflows", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listWorkflowsHandler))
 }
 
 func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {

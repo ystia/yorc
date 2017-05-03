@@ -7,12 +7,28 @@ Currently supported urls are:
 
 Adding the 'pretty' url parameter to your requests allow to generate an indented json output. 
 
-### Submit a CSAR to deploy
+### Submit a CSAR to deploy <a name="submit-csar"></a>
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
+
+There is two ways to submit a new deployment, you can let Janus generate a unique deployment ID or you can specify it
+
+#### Auto-generated deployment ID
+In this case you should use a `POST` method.
 
 `POST /deployments`
 
-A successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
+
+#### Customized deployment ID
+In this case you should use a `PUT` method. There is some constraints on submitting a deployment with a given ID:
+  * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
+  * This ID should not already be in used (otherwise a `409 Conflict` error is returned)
+
+`PUT /deployments/<deployment_id>`
+
+
+#### Result
+
+In both submission ways, a successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
 deployment URI.
 
 ```
@@ -28,7 +44,7 @@ A critical note is that the deployment is proceeded asynchronously and a success
 
 Actually, this endpoint implicitly call a [submit new deploy task](#submit-new-task).
 
-### List deployments
+### List deployments <a name="list-deps"></a>
 
 Retrieves the list of deployments. 'Accept' header should be set to 'application/json'.
 
@@ -48,12 +64,12 @@ Content-Type: application/json
 }
 ```
 
-### Undeploy  an active deployment
+### Undeploy  an active deployment <a name="undeploy"></a>
 
-Undeploy a deployment. By adding a 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus 
+Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus 
 database at the end of the undeployment. 
 
-`DELETE /deployments/<deployment_id>`
+`DELETE /deployments/<deployment_id>[?purge]`
 
 ```
 HTTP/1.1 202 Accepted
@@ -62,9 +78,9 @@ Content-Length: 0
 
 This endpoint produces no content except in case of error.
 
-Actually, this endpoint implicitly call a [submit new undeploy task](#submit-new-task).
+Actually, this endpoint implicitly call a [submit new undeploy (or purge) task](#submit-new-task).
 
-### Get the deployment information
+### Get the deployment information <a name="dep-info"></a>
 
 Retrieve the deployment status and the list (as Atom links) of the nodes and tasks related the deployment.
 
@@ -113,7 +129,7 @@ Content-Type: application/json
 }
 ```
 
-### Get the deployment information about a given node
+### Get the deployment information about a given node <a name="node-info"></a>
 
 Retrieve the node status and the list (as Atom links) of the instances for this node.
  
@@ -152,7 +168,7 @@ Content-Type: application/json
 ```
 
 
-### Get the deployment information about a given node instance
+### Get the deployment information about a given node instance <a name="instance-info"></a>
 
 Retrieve the node instance status and the list (as Atom links) of the attributes for this instance.
  
@@ -201,7 +217,7 @@ Content-Type: application/json
 ```
 
 
-### Get the attributes list of a given node instance
+### Get the attributes list of a given node instance <a name="instance-attributes"></a>
 
 Retrieve the list (as Atom links) of the attributes for this instance.
  
@@ -239,7 +255,7 @@ Content-Type: application/json
 ```
 
 
-### Get the value of an attribute for a given node instance
+### Get the value of an attribute for a given node instance <a name="attribute-value"></a>
 
 Retrieve the value an attributes for this instance.
  
@@ -260,7 +276,7 @@ Content-Type: application/json
 }
 ```
 
-### List deployment events
+### List deployment events <a name="list-events"></a>
 
 Retrieve a list of events. 'Accept' header should be set to 'application/json'.
 This endpoint supports long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
@@ -285,21 +301,21 @@ X-Janus-Index: 1812
 ```json
 {
   "events": [
-    {"timestamp":"2016-08-16T14:49:25.90310537+02:00","node":"Network","status":"started"},
-    {"timestamp":"2016-08-16T14:50:20.712776954+02:00","node":"Compute","status":"started"},
-    {"timestamp":"2016-08-16T14:50:20.713890682+02:00","node":"Welcome","status":"initial"},
-    {"timestamp":"2016-08-16T14:50:20.7149454+02:00","node":"Welcome","status":"creating"},
-    {"timestamp":"2016-08-16T14:50:20.715875775+02:00","node":"Welcome","status":"created"},
-    {"timestamp":"2016-08-16T14:50:20.716840754+02:00","node":"Welcome","status":"configuring"},
-    {"timestamp":"2016-08-16T14:50:33.355114629+02:00","node":"Welcome","status":"configured"},
-    {"timestamp":"2016-08-16T14:50:33.3562717+02:00","node":"Welcome","status":"starting"},
-    {"timestamp":"2016-08-16T14:50:54.550463885+02:00","node":"Welcome","status":"started"}
+    {"timestamp":"2016-08-16T14:49:25.90310537+02:00","node":"Network","instance":"0","status":"started"},
+    {"timestamp":"2016-08-16T14:50:20.712776954+02:00","node":"Compute","instance":"0","status":"started"},
+    {"timestamp":"2016-08-16T14:50:20.713890682+02:00","node":"Welcome","instance":"0","status":"initial"},
+    {"timestamp":"2016-08-16T14:50:20.7149454+02:00","node":"Welcome","instance":"0","status":"creating"},
+    {"timestamp":"2016-08-16T14:50:20.715875775+02:00","node":"Welcome","instance":"0","status":"created"},
+    {"timestamp":"2016-08-16T14:50:20.716840754+02:00","node":"Welcome","instance":"0","status":"configuring"},
+    {"timestamp":"2016-08-16T14:50:33.355114629+02:00","node":"Welcome","instance":"0","status":"configured"},
+    {"timestamp":"2016-08-16T14:50:33.3562717+02:00","node":"Welcome","instance":"0","status":"starting"},
+    {"timestamp":"2016-08-16T14:50:54.550463885+02:00","node":"Welcome","instance":"0","status":"started"}
   ],
   "last_index":1812
 }
 ```
 
-### Get latest events index
+### Get latest events index <a name="last-event-idx"></a>
 
 You can retrieve the latest events `index` by using an HTTP `HEAD` request.
 
@@ -316,7 +332,7 @@ HTTP/1.1 200 OK
 X-Janus-Index: 1812
 ```
 
-### Get logs of a deployment
+### Get logs of a deployment <a name="list-logs"></a>
 
 Retrieve a list of logs. 'Accept' header should be set to 'application/json'.
 This endpoint supports long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
@@ -352,7 +368,7 @@ X-Janus-Index: 1781
 ```
 
 
-### Get latest logs index
+### Get latest logs index <a name="last-log-idx"></a>
 
 You can retrieve the latest logs `index` by using an HTTP `HEAD` request.
 
@@ -369,7 +385,7 @@ HTTP/1.1 200 OK
 X-Janus-Index: 1812
 ```
 
-### Get an output
+### Get an output <a name="output-value"></a>
 
 Retrieve a specific output. While the deployment status is DEPLOYMENT_IN_PROGRESS an output may be unresolvable in this case an empty string
 is returned. With other deployment statuses an unresolvable output leads to an Internal Server Error. 
@@ -390,7 +406,7 @@ Content-Type: application/json
 }
 ```
 
-### List outputs
+### List outputs <a name="list-outputs"></a>
 
 Retrieve a list of outputs. 'Accept' header should be set to 'application/json'.
 
@@ -410,7 +426,7 @@ Content-Type: application/json
 }
 ```
 
-### Get task information
+### Get task information <a name="task-info"></a>
 
 Retrieve information about a task for a given deployment.
 'Accept' header should be set to 'application/json'.
@@ -432,7 +448,7 @@ Content-Type: application/json
 ```
 
 
-### Cancel a task
+### Cancel a task <a name="task-cancel"></a>
 
 Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be canceled otherwise an HTTP 400 
 (Bad request) error is returned. 
@@ -467,12 +483,12 @@ Content-Length: 0
 ```
 
 
-### Submit a custom command
-
+### Execute a custom command <a name="custom-cmd-exec"></a>
 Submit a custom command for a given deployment.  
 'Content-Type' header should be set to 'application/json'.
 
 `POST    /deployments/<deployment_id>/custom`
+
 Request body:
 ```json
 {
@@ -493,7 +509,7 @@ Content-Length: 0
 Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```
 
-### Scale a node
+### Scale a node <a name="scale-node"></a>
 Scales a node on a deployed deployment. A non-zero integer query parameter named `delta` is required and indicates the number of instances to 
 add or to remove for this scaling operation. 
 
@@ -519,3 +535,65 @@ This endpoint will failed with an error "400 Bad Request" if:
   * the delta query parameter is missing
   * the delta query parameter is not an integer or if it is equal to 0
 
+
+### Execute a workflow <a name="workflow-exec"></a>
+Submit a custom workflow for a given deployment. By adding the optional 'continueOnError' url parameter to your request workflow will
+not stop at the first encountered error and will run to its end. 
+
+`POST /deployments/<deployment_id>/workflows/<workflow_name>[?continueOnError]`
+
+A successfully submitted workflow result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating
+the URI of the task handling this workflow execution.
+
+
+**Response**
+```
+HTTP/1.1 201 Created
+Content-Length: 0
+Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
+```
+
+### List workflows <a name="list-workflows></a>
+Retrieves the list of workflows for a given deployment. 'Accept' header should be set to 'application/json'.
+
+`GET /deployments/<deployment_id>/workflows`
+
+**Response**
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "workflows": [
+    {"rel":"workflow","href":"/deployments/55d54226-5ce5-4278-96e4-97dd4cbb4e62/workflows/install","type":"application/json"},
+    {"rel":"workflow","href":"/deployments/55d54226-5ce5-4278-96e4-97dd4cbb4e62/workflows/run_job","type":"application/json"},
+    {"rel":"workflow","href":"/deployments/55d54226-5ce5-4278-96e4-97dd4cbb4e62/workflows/uninstall","type":"application/json"}
+  ]
+}
+```
+
+### Get workflow description <a name="workflow-info"></a>
+Retrieves a JSON representation of a given workflow. 'Accept' header should be set to 'application/json'.
+
+`GET /deployments/<deployment_id>/workflows/<workflow_name>`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+  "Name": "agentsInMaintenance",
+  "steps": {
+    "ConsulAgent_Maintenance": {
+      "node": "ConsulAgent",
+      "activity": {
+        "call_operation": "custom.maintenance_on"
+      }
+    }
+  }
+}
+```

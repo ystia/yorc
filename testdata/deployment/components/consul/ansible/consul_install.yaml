@@ -123,6 +123,12 @@
         src: files/consul_start.sh.j2
         dest: "{{INSTALL_DIR}}/consul_start.sh"
         mode: "u=rwx,g=rwx,o=r" 
+
+    - name: Install consul maintenance script
+      template: 
+        src: files/consul_maintenance.sh.j2
+        dest: "{{INSTALL_DIR}}/consul_maintenance.sh"
+        mode: "u=rwx,g=rwx,o=r" 
     
     - name: create starlings conf dir
       file:

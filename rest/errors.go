@@ -54,3 +54,7 @@ func newBadRequestError(err error) *Error {
 func newBadRequestMessage(message string) *Error {
 	return &Error{"bad_request", http.StatusBadRequest, "Bad Request", message}
 }
+
+func newConflictRequest(message string) *Error {
+	return &Error{"conflict", http.StatusConflict, "Conflict", message}
+}

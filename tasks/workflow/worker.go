@@ -4,8 +4,13 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
+
+	"strconv"
+
+	"os"
 
 	"github.com/hashicorp/consul/api"
 	"golang.org/x/sync/errgroup"
@@ -44,8 +49,8 @@ func (w worker) setDeploymentStatus(deploymentID string, status deployments.Depl
 	kv.Put(p, nil)
 }
 
-func (w worker) processWorkflow(ctx context.Context, wfSteps []*step, deploymentID string, isUndeploy bool) error {
-	events.LogEngineMessage(w.consulClient.KV(), deploymentID, "Start processing workflow")
+func (w worker) processWorkflow(ctx context.Context, workflowName string, wfSteps []*step, deploymentID string, bypassErrors bool) error {
+	events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Start processing workflow %q", workflowName))
 	uninstallerrc := make(chan error)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -56,7 +61,7 @@ func (w worker) processWorkflow(ctx context.Context, wfSteps []*step, deployment
 		// ie in the other go routine and at this time step may have changed as we are in a for loop.
 		func(s *step) {
 			g.Go(func() error {
-				return s.run(ctx, deploymentID, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, isUndeploy)
+				return s.run(ctx, deploymentID, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, bypassErrors)
 			})
 		}(s)
 	}
@@ -78,17 +83,17 @@ func (w worker) processWorkflow(ctx context.Context, wfSteps []*step, deployment
 	errors := <-faninErrCh
 
 	if err != nil {
-		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Error '%v' happened in workflow.", err))
+		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
 		return err
 	}
 
 	if len(errors) > 0 {
 		uninstallerr := fmt.Errorf("%s", strings.Join(errors, " ; "))
-		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("One or more error appear in unistall workflow, please check : %v", uninstallerr))
-		log.Printf("One or more error appear in uninstall workflow, please check : %v", uninstallerr)
+		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
+		log.Printf("One or more error appear workflow %q, please check : %v", workflowName, uninstallerr)
 	} else {
-		events.LogEngineMessage(w.consulClient.KV(), deploymentID, "Workflow ended without error")
-		log.Printf("Workflow ended without error")
+		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Workflow %q ended without error", workflowName))
+		log.Printf("Workflow %q ended without error", workflowName)
 	}
 	return nil
 }
@@ -103,50 +108,16 @@ func (w worker) handleTask(t *task) {
 	switch t.TaskType {
 	case tasks.Deploy:
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_IN_PROGRESS)
-		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/install"))
+		err := w.runWorkflows(ctx, t, []string{"install"}, false)
 		if err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
-			return
-
-		}
-		for _, step := range wf {
-			step.SetTaskID(t)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "initial")
-		}
-		if err = w.processWorkflow(ctx, wf, t.TargetID, false); err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
 	case tasks.UnDeploy, tasks.Purge:
 		w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
-		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/uninstall"))
+		err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
 		if err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_FAILED)
-			return
-
-		}
-		for _, step := range wf {
-			step.SetTaskID(t)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
-		}
-		if err = w.processWorkflow(ctx, wf, t.TargetID, true); err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_FAILED)
 			return
 		}
@@ -179,6 +150,12 @@ func (w worker) handleTask(t *task) {
 					t.WithStatus(tasks.FAILED)
 					return
 				}
+			}
+			err = os.RemoveAll(filepath.Join(w.cfg.WorkingDirectory, "deployments", t.TargetID))
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.ID, err)
+				t.WithStatus(tasks.FAILED)
+				return
 			}
 			// Now cleanup ourself: mark it as done so nobody will try to run it, clear the processing lock and finally delete the task.
 			t.WithStatus(tasks.DONE)
@@ -234,50 +211,17 @@ func (w worker) handleTask(t *task) {
 	case tasks.ScaleUp:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
-		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/install"))
-		if err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
-			return
 
-		}
-		for _, step := range wf {
-			step.SetTaskID(t)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
-		}
-		if err = w.processWorkflow(ctx, wf, t.TargetID, false); err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
+		err := w.runWorkflows(ctx, t, []string{"install"}, false)
+		if err != nil {
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
 	case tasks.ScaleDown:
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
-		wf, err := readWorkFlowFromConsul(w.consulClient.KV(), path.Join(consulutil.DeploymentKVPrefix, t.TargetID, "workflows/uninstall"))
+		err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
 		if err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
-			return
-
-		}
-		for _, step := range wf {
-			step.SetTaskID(t)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
-		}
-		if err = w.processWorkflow(ctx, wf, t.TargetID, true); err != nil {
-			if t.Status() == tasks.RUNNING {
-				t.WithStatus(tasks.FAILED)
-			}
-			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
@@ -292,6 +236,32 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
+	case tasks.CustomWorkflow:
+		wfName, err := tasks.GetTaskData(w.consulClient.KV(), t.ID, "workflowName")
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.ID, err)
+			log.Debugf("%+v", err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		continueOnError, err := tasks.GetTaskData(w.consulClient.KV(), t.ID, "continueOnError")
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.ID, err)
+			log.Debugf("%+v", err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		bypassErrors, err := strconv.ParseBool(continueOnError)
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q Failed to parse continueOnError parameter: %v", t.TargetID, t.ID, err)
+			log.Debugf("%+v", err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		err = w.runWorkflows(ctx, t, strings.Split(wfName, ","), bypassErrors)
+		if err != nil {
+			return
+		}
 	default:
 		events.LogEngineMessage(w.consulClient.KV(), t.TargetID, fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", t.TaskType, t.TaskType.String(), t.ID))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", t.TaskType, t.TaskType.String(), t.ID, t.TargetID)
@@ -380,4 +350,31 @@ func (w worker) monitorTaskForCancellation(ctx context.Context, cancelFunc conte
 			}
 		}
 	}()
+}
+
+func (w worker) runWorkflows(ctx context.Context, t *task, workflows []string, bypassErrors bool) error {
+	kv := w.consulClient.KV()
+	for _, workflow := range workflows {
+		wf, err := readWorkFlowFromConsul(kv, path.Join(consulutil.DeploymentKVPrefix, t.TargetID, path.Join("workflows", workflow)))
+		if err != nil {
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
+			}
+			log.Printf("%v. Aborting", err)
+			return err
+
+		}
+		for _, step := range wf {
+			step.SetTaskID(t)
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
+		}
+		if err = w.processWorkflow(ctx, workflow, wf, t.TargetID, bypassErrors); err != nil {
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
+			}
+			log.Printf("%v. Aborting", err)
+			return err
+		}
+	}
+	return nil
 }

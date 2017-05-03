@@ -825,15 +825,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 func getInstanceName(nodeName, instanceID string) string {
 	return sanitizeForShell(nodeName + "_" + instanceID)
 }

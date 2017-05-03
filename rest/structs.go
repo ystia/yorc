@@ -1,6 +1,7 @@
 package rest
 
 import "novaforge.bull.com/starlings-janus/janus/events"
+import "novaforge.bull.com/starlings-janus/janus/tosca"
 
 const (
 	// LinkRelSelf defines the AtomLink Rel attribute for relationships of the "self"
@@ -17,11 +18,20 @@ const (
 	LinkRelTask string = "task"
 	// LinkRelAttribute defines the AtomLink Rel attribute for relationships of the "attribute"
 	LinkRelAttribute string = "attribute"
+	// LinkRelWorkflow defines the AtomLink Rel attribute for relationships of the "attribute"
+	LinkRelWorkflow string = "workflow"
 )
 
 const (
 	// JanusIndexHeader is the name of the HTTP header containing the last index for long polling endpoints
 	JanusIndexHeader string = "X-Janus-Index"
+)
+
+const (
+	// JanusDeploymentIDPattern is the allowed pattern for Janus deployments IDs
+	JanusDeploymentIDPattern string = "^[-_0-9a-zA-Z]+$"
+	// JanusDeploymentIDMaxLength is the maximum allowed length for Janus deployments IDs
+	JanusDeploymentIDMaxLength int = 36
 )
 
 // An AtomLink is defined in the Atom specification (https://tools.ietf.org/html/rfc4287#section-4.2.7) it allows to reference REST endpoints
@@ -121,4 +131,17 @@ type CustomCommandRequest struct {
 	NodeName          string            `json:"node"`
 	CustomCommandName string            `json:"name"`
 	Inputs            map[string]string `json:"inputs"`
+}
+
+// WorkflowsCollection is a collection of workflows links
+//
+// Links are all of type LinkRelWorkflow.
+type WorkflowsCollection struct {
+	Workflows []AtomLink `json:"workflows"`
+}
+
+// Workflow is a workflow representation.
+type Workflow struct {
+	Name string `json:"Name"`
+	tosca.Workflow
 }

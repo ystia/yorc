@@ -1,12 +1,15 @@
 FROM loicalbertin/alpine-consul:1.0.1
-
-# 0.7.3 last stable version
-ENV TERRAFORM_VERSION=0.7.3
+ARG TERRAFORM_VERSION
+ARG ANSIBLE_VERSION
+# Update terraform default when possible
+ENV TERRAFORM_VERSION ${TERRAFORM_VERSION:-0.7.3}
+ENV ANSIBLE_VERSION ${ANSIBLE_VERSION:-2.1.4.0}
 
 ADD rootfs /
 
-RUN apk add --update ansible openssh-client && \
-    rm -rf /var/cache/apk/* && \
+# Python is required here as it should not be removed automatically when uninstalling python-dev
+RUN apk add --update openssh-client python python-dev py-pip gcc musl-dev libffi-dev openssl-dev && \
+    pip install ansible==${ANSIBLE_VERSION} && \
     cd /tmp && \
     curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     cd /usr/local/bin && \
@@ -18,6 +21,8 @@ RUN apk add --update ansible openssh-client && \
     umask 0022 && \
     chown -R janus:janus /var/janus && \
     chmod 400 /var/janus/.ssh/*.pem && \
+    apk del py-pip python-dev gcc musl-dev libffi-dev openssl-dev && \
+    rm -rf /var/cache/apk/* && \
     rm -fr /tmp/*
 
 COPY ./janus /usr/local/bin/
