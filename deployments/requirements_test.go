@@ -13,7 +13,10 @@ import (
 func TestRequirements(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -24,7 +27,7 @@ func TestRequirements(t *testing.T) {
 
 	kv := client.KV()
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/type":                []byte("tosca.nodes.Compute"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/0/name": []byte("network"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/1/name": []byte("host"),

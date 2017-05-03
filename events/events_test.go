@@ -14,7 +14,10 @@ import (
 )
 
 func TestGroupedEventParallel(t *testing.T) {
-	srv1 := testutil.NewTestServerConfig(t, nil)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
