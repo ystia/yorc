@@ -290,17 +290,6 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			propPrefix := propertiesPrefix + "/" + propName
 			storePropertyDefinition(ctx, propPrefix, propName, propDefinition)
 		}
-		attributesPrefix := nodeTypePrefix + "/attributes"
-		for attrName, attrDefinition := range nodeType.Attributes {
-			attrPrefix := attributesPrefix + "/" + attrName
-			storeAttributeDefinition(ctx, attrPrefix, attrName, attrDefinition)
-			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
-				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
-				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
-				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
-				consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, attrName)
-			}
-		}
 
 		requirementsPrefix := nodeTypePrefix + "/requirements"
 		for reqIndex, reqMap := range nodeType.Requirements {
@@ -308,8 +297,8 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				reqPrefix := requirementsPrefix + "/" + strconv.Itoa(reqIndex)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/name", reqName)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/node", reqDefinition.Node)
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
-				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
+				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/lower_bound", strconv.FormatUint(reqDefinition.Occurrences.LowerBound, 10))
+				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
 			}
@@ -321,8 +310,8 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/name", capName)
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/type", capability.Type)
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/description", capability.Description)
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurences/lower_bound", strconv.FormatUint(capability.Occurrences.LowerBound, 10))
-			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurences/upper_bound", strconv.FormatUint(capability.Occurrences.UpperBound, 10))
+			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/lower_bound", strconv.FormatUint(capability.Occurrences.LowerBound, 10))
+			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/occurrences/upper_bound", strconv.FormatUint(capability.Occurrences.UpperBound, 10))
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
@@ -353,6 +342,22 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 					if inputDef.ValueAssign != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/expression", inputDef.ValueAssign.String())
 						isValueAssignement = true
+						if inputDef.ValueAssign.Expression.Value == "get_operation_output" {
+							interfaceName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[1].Value)
+							operationName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[2].Value)
+							outputVariableName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[3].Value)
+							consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(inputDef.ValueAssign.Expression.Children()[0].Value)+"/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+						} else if inputDef.ValueAssign.Expression != nil && inputDef.ValueAssign.Expression.Value == "concat" {
+							for _, data := range inputDef.ValueAssign.Expression.Children() {
+								if data.Value == "get_operation_output" {
+									interfaceName := url.QueryEscape(data.Children()[1].Value)
+									operationName := url.QueryEscape(data.Children()[2].Value)
+									outputVariableName := url.QueryEscape(data.Children()[3].Value)
+									consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+
+								}
+							}
+						}
 					}
 					if inputDef.PropDef != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/type", inputDef.PropDef.Type)
@@ -368,6 +373,27 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				}
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+			}
+		}
+
+		attributesPrefix := nodeTypePrefix + "/attributes"
+		for attrName, attrDefinition := range nodeType.Attributes {
+			attrPrefix := attributesPrefix + "/" + attrName
+			storeAttributeDefinition(ctx, attrPrefix, attrName, attrDefinition)
+			if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "get_operation_output" {
+				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
+				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
+				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
+				consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(attrDefinition.Default.Expression.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.String())
+			} else if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "concat" {
+				for _, data := range attrDefinition.Default.Expression.Children() {
+					if data.Value == "get_operation_output" {
+						interfaceName := url.QueryEscape(data.Children()[1].Value)
+						operationName := url.QueryEscape(data.Children()[2].Value)
+						outputVariableName := url.QueryEscape(data.Children()[3].Value)
+						consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.String())
+					}
+				}
 			}
 		}
 
@@ -408,7 +434,17 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 				interfaceName := url.QueryEscape(attrDefinition.Default.Expression.Children()[1].Value)
 				operationName := url.QueryEscape(attrDefinition.Default.Expression.Children()[2].Value)
 				outputVariableName := url.QueryEscape(attrDefinition.Default.Expression.Children()[3].Value)
-				consulStore.StoreConsulKeyAsString(relationTypePrefix+"/output/"+interfaceName+"/"+operationName+"/"+outputVariableName, outputVariableName)
+				consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(attrDefinition.Default.Expression.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.Expression.String())
+			} else if attrDefinition.Default.Expression != nil && attrDefinition.Default.Expression.Value == "concat" {
+				for _, data := range attrDefinition.Default.Expression.Children() {
+					if data.Value == "get_operation_output" {
+						interfaceName := url.QueryEscape(data.Children()[1].Value)
+						operationName := url.QueryEscape(data.Children()[2].Value)
+						outputVariableName := url.QueryEscape(data.Children()[3].Value)
+						consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", attrDefinition.Default.Expression.String())
+
+					}
+				}
 			}
 		}
 
@@ -429,6 +465,22 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 					if inputDef.ValueAssign != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/expression", inputDef.ValueAssign.String())
 						isValueAssignement = true
+						if inputDef.ValueAssign.Expression.Value == "get_operation_output" {
+							interfaceName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[1].Value)
+							operationName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[2].Value)
+							outputVariableName := url.QueryEscape(inputDef.ValueAssign.Expression.Children()[3].Value)
+							consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+						} else if inputDef.ValueAssign.Expression != nil && inputDef.ValueAssign.Expression.Value == "concat" {
+							for _, data := range inputDef.ValueAssign.Expression.Children() {
+								if data.Value == "get_operation_output" {
+									interfaceName := url.QueryEscape(data.Children()[1].Value)
+									operationName := url.QueryEscape(data.Children()[2].Value)
+									outputVariableName := url.QueryEscape(data.Children()[3].Value)
+									consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+strings.ToLower(interfaceName)+"/"+strings.ToLower(operationName)+"/outputs/"+url.QueryEscape(data.Children()[0].Value)+"/"+outputVariableName+"/expression", inputDef.ValueAssign.Expression.String())
+
+								}
+							}
+						}
 					}
 					if inputDef.PropDef != nil {
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/type", inputDef.PropDef.Type)
@@ -555,6 +607,14 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 	}
 	computes := make([]string, 0)
 	for _, nodeName := range nodes {
+		err = fixGetOperationOutputForRelationship(ctx, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+		err = fixGetOperationOutputForHost(ctxStore, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
 		err = createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
 		if err != nil {
 			return err
@@ -579,7 +639,120 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 			return err
 		}
 	}
+	err = errGroup.Wait()
+	if err != nil {
+		return err
+	}
+
+	_, errGroup, consulStore = consulutil.WithContext(ctx)
+	for _, nodeName := range nodes {
+		err = createRelationshipInstances(consulStore, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+	}
 	return errGroup.Wait()
+}
+
+// In this function we iterate over all node to know which node need to have an HOST output and search for this HOST and tell him to export this output
+func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if nodeType != "" && err == nil {
+		interfacesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType, "interfaces")
+		interfacesNamesPaths, _, err := kv.Keys(interfacesPrefix+"/", "/", nil)
+		if err != nil {
+			return err
+		}
+		for _, interfaceNamePath := range interfacesNamesPaths {
+			operationsPaths, _, err := kv.Keys(interfaceNamePath+"/", "/", nil)
+			if err != nil {
+				return err
+			}
+			for _, operationPath := range operationsPaths {
+				outputsPrefix := path.Join(operationPath, "outputs", "HOST")
+				outputsNamesPaths, _, err := kv.Keys(outputsPrefix+"/", "/", nil)
+				if err != nil {
+					return err
+				}
+				if outputsNamesPaths == nil || len(outputsNamesPaths) == 0 {
+					continue
+				}
+				for _, outputNamePath := range outputsNamesPaths {
+					hostedOn, err := GetHostedOnNode(kv, deploymentID, nodeName)
+					if err != nil {
+						return nil
+					} else if hostedOn == "" {
+						return errors.New("Fail to get the hostedOn to fix the output")
+					}
+					if hostedNodeType, err := GetNodeType(kv, deploymentID, hostedOn); hostedNodeType != "" && err == nil {
+						consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", hostedNodeType, "interfaces", path.Base(interfaceNamePath), path.Base(operationPath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationPath)+","+path.Base(outputNamePath)+"]")
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// This function help us to fix the get_operation_output when it on a relationship, to tell to the SOURCE or TARGET to store the exported value in consul
+// Ex: To get an variable from a past operation or a future operation
+func fixGetOperationOutputForRelationship(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
+	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
+	reqName, _, err := kv.Keys(reqPath+"/", "/", nil)
+	if err != nil {
+		return err
+	}
+	for _, reqKeyIndex := range reqName {
+		relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, path.Base(reqKeyIndex))
+		if err != nil {
+			return err
+		}
+		relationshipPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", relationshipType, "interfaces")
+		interfaceNamesPaths, _, err := kv.Keys(relationshipPrefix+"/", "/", nil)
+		if err != nil {
+			return err
+		}
+		for _, interfaceNamePath := range interfaceNamesPaths {
+			operationsNamesPaths, _, err := kv.Keys(interfaceNamePath+"/", "/", nil)
+			if err != nil {
+				return err
+			}
+			for _, operationNamePath := range operationsNamesPaths {
+				modEntityNamesPaths, _, err := kv.Keys(operationNamePath+"/outputs/", "/", nil)
+				if err != nil {
+					return err
+				}
+				for _, modEntityNamePath := range modEntityNamesPaths {
+					outputsNamesPaths, _, _ := kv.Keys(modEntityNamePath+"/", "/", nil)
+					if err != nil {
+						return err
+					}
+					for _, outputNamePath := range outputsNamesPaths {
+						if path.Base(modEntityNamePath) != "SOURCE" || path.Base(modEntityNamePath) != "TARGET" {
+							continue
+						}
+						var nodeType string
+						if path.Base(modEntityNamePath) == "SOURCE" {
+							nodeType, _ = GetNodeType(kv, deploymentID, nodeName)
+						} else if path.Base(modEntityNamePath) == "TARGET" {
+							targetNode, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, reqKeyIndex)
+							if err != nil {
+								return err
+							}
+							nodeType, _ = GetNodeType(kv, deploymentID, targetNode)
+						}
+						consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", nodeType, "interfaces", path.Base(interfaceNamePath), path.Base(operationNamePath), "outputs", "SELF", path.Base(outputNamePath), "expression"), "get_operation_output: [SELF,"+path.Base(interfaceNamePath)+","+path.Base(operationNamePath)+","+path.Base(outputNamePath)+"]")
+					}
+				}
+			}
+		}
+
+	}
+	return nil
 }
 
 // fixAlienBlockStorages rewrites the relationship between a BlockStorage and a Compute to match the TOSCA specification

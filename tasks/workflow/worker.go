@@ -294,6 +294,10 @@ func (w worker) cleanupScaledDownNodes(t *task) error {
 			if err != nil {
 				return err
 			}
+			err = deployments.DeleteRelationshipInstance(kv, t.TargetID, node, instance)
+			if err != nil {
+				return err
+			}
 		}
 
 	}

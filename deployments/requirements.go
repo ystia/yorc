@@ -38,6 +38,19 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 	return reqKeys, nil
 }
 
+// GetRequirementsIndexes returns the list of requirements indexes for a given node
+func GetRequirementsIndexes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
+	reqKVPs, _, err := kv.Keys(reqPath+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, consulutil.ConsulGenericErrMsg)
+	}
+	for i := range reqKVPs {
+		reqKVPs[i] = path.Base(reqKVPs[i])
+	}
+	return reqKVPs, nil
+}
+
 // GetNbRequirementsForNode returns the number of requirements declared for the given node
 func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)

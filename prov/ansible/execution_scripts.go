@@ -11,6 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"strings"
+
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -18,8 +20,8 @@ import (
 
 const outputCustomWrapper = `
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
-[[[range $artName, $art := .Output -]]]
-[[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName $artName $.OperationRemotePath]]]
+[[[range $artName, $art := .Outputs -]]]
+[[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName (cut $artName) $.OperationRemotePath]]]
 [[[printf "echo $%s" $artName]]]
 [[[end]]]
 [[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
@@ -68,12 +70,18 @@ func (e *executionScript) setOperationRemotePath(opPath string) {
 	e.OperationRemotePath = opPath
 }
 
+func cutAfterLastUnderscore(str string) string {
+	idx := strings.LastIndex(str, "_")
+	return str[:idx]
+}
+
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
 	var buffer bytes.Buffer
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
 		"abs":  filepath.Abs,
+		"cut":  cutAfterLastUnderscore,
 	}
 
 	tmpl := template.New("execTemplate")
