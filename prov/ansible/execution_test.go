@@ -68,7 +68,10 @@ func templatesTest(t *testing.T) {
 func testExecutionOnNode(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -83,7 +86,7 @@ func testExecutionOnNode(t *testing.T) {
 	nodeTypeName := "janus.types.A"
 	operation := "tosca.interfaces.node.lifecycle.standard.create"
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "name"):                                                        []byte(nodeTypeName),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):                   []byte("A1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):             []byte("get_property: [SELF, document_root]"),
@@ -268,7 +271,10 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 func testExecutionOnRelationshipSource(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -288,7 +294,7 @@ func testExecutionOnRelationshipSource(t *testing.T) {
 		"tosca.interfaces.node.lifecycle.Configure.pre_configure_source/connect/" + nodeBName,
 	}
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                                  []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                                       []byte(relationshipTypeName),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):                   []byte("A1"),
@@ -469,7 +475,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 func testExecutionOnRelationshipTarget(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -489,7 +498,7 @@ func testExecutionOnRelationshipTarget(t *testing.T) {
 		"tosca.interfaces.node.lifecycle.Configure.add_source/connect/" + nodeBName,
 	}
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                        []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                             []byte(relationshipTypeName),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):                   []byte("A1"),

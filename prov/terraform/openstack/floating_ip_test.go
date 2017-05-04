@@ -22,7 +22,10 @@ func TestGroupedIpParallel(t *testing.T) {
 func generatePoolIP(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -42,7 +45,7 @@ func generatePoolIP(t *testing.T) {
 	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
 	data[ipURL+"/properties/floating_network_name"] = []byte("Public_Network")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	gia, err := g.generateFloatingIP(ipURL, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "Public_Network", gia.Pool)
@@ -52,7 +55,10 @@ func generatePoolIP(t *testing.T) {
 func generateSingleIP(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -72,7 +78,7 @@ func generateSingleIP(t *testing.T) {
 	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
 	data[ipURL+"/properties/ip"] = []byte("10.0.0.2")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	gia, err := g.generateFloatingIP(ipURL, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2", gia.Pool)
@@ -82,7 +88,10 @@ func generateSingleIP(t *testing.T) {
 func generateMultipleIP(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -102,7 +111,7 @@ func generateMultipleIP(t *testing.T) {
 	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
 	data[ipURL+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	gia, err := g.generateFloatingIP(ipURL, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6", gia.Pool)
