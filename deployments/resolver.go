@@ -220,7 +220,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		switch params[0] {
 		case funcKeywordSELF:
 			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, nodeName, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil {
+			if err != nil || outputs[instanceName] == "" {
 				return "", err
 			}
 			resultExpr := &tosca.ValueAssignment{}
@@ -239,7 +239,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			}
 
 			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, hostNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil {
+			if err != nil || outputs[instanceName] == "" {
 				return "", err
 			}
 
@@ -481,23 +481,25 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			return "", err
 		}
 		return r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
-	case "get_operation_ouput":
+	case "get_operation_output":
 		if len(params) != 4 {
-			return "", errors.Errorf("get_operation_ouput on requirement or capability or in nested property is not yet supported")
+			return "", errors.Errorf("get_operation_output on requirement or capability or in nested property is not yet supported")
 		}
 		switch params[0] {
 		case funcKeywordSELF:
-			kvp, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/nodes", sourceNode, "requirements", requirementIndex, "relationship"), nil)
+			relationshipType, err := GetRelationshipForRequirement(r.kv, r.deploymentID, sourceNode, requirementIndex)
 			if err != nil {
-				return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				return "", err
 			}
-			if kvp == nil || len(kvp.Value) == 0 {
-				return "", errors.Errorf("Deployment %q, requirement index %q, in source node %q can't retrieve relationship type. (Expression was %q)", r.deploymentID, requirementIndex, sourceNode, expression.String())
-			}
-			relationshipType := string(kvp.Value)
 			result, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/relationship_instances", relationshipType, instanceName, "outputs", params[1], params[2], params[3]), nil)
 			if err != nil {
 				return "", err
+			}
+			if result == nil {
+				return "", errors.Errorf("Missing operation output for relationship: %q, instance %q, output: %q", relationshipType, instanceName, path.Join(params[1], params[2], params[3]))
+			}
+			if len(result.Value) == 0 {
+				return "", nil
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
@@ -511,7 +513,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			return "", errors.Errorf("Keyword %q not supported for a relationship expression", params[0])
 		case funcKeywordSOURCE:
 			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, sourceNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil {
+			if err != nil || outputs[instanceName] == "" {
 				return "", err
 			}
 
@@ -524,7 +526,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			return res, err
 		case funcKeywordTARGET:
 			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, targetNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil {
+			if err != nil || outputs[instanceName] == "" {
 				return "", err
 			}
 
