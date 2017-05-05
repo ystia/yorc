@@ -33,7 +33,7 @@ type StatusUpdate struct {
 	Type      string `json:"type"`
 	Node      string `json:"node,omitempty"`
 	Instance  string `json:"instance,omitempty"`
-	TaskID    string `json:"task-id,omitempty"`
+	TaskID    string `json:"task_id,omitempty"`
 	Status    string `json:"status"`
 }
 
