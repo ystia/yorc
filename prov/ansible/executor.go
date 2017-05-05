@@ -2,13 +2,11 @@ package ansible
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 )
@@ -26,8 +24,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, conf co
 	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
-			log.Printf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error())
-			events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Voluntary bypassing error: %s. This is a deprecated feature please update your topology", err.Error()))
+			log.Debugf("Voluntary bypassing error: %s.", err.Error())
 			return nil
 		}
 		return err
