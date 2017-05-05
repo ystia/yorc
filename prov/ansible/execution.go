@@ -555,14 +555,10 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 				} else {
 					//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
 					if va.Expression.Children()[0].Value == "SELF" && e.isRelationshipOperation {
-						kvp, _, err := e.kv.Get(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName, "requirements", e.requirementIndex, "relationship"), nil)
+						relationshipType, err := deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.requirementIndex)
 						if err != nil {
-							return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+							return err
 						}
-						if kvp == nil || len(kvp.Value) == 0 {
-							return errors.Errorf("Deployment %q, requirement index %q, in source node %q can't retrieve relationship type. (Expression was %q)", e.deploymentID, e.requirementIndex, e.NodeName, va.Expression.String())
-						}
-						relationshipType := string(kvp.Value)
 						relationShipPrefix := filepath.Join("relationship_instances", e.NodeName, relationshipType, instanceID)
 						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
 					} else if va.Expression.Children()[0].Value == "HOST" {
