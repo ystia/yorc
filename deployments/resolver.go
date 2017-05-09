@@ -219,12 +219,19 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 		}
 		switch params[0] {
 		case funcKeywordSELF:
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, nodeName, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil || outputs[instanceName] == "" {
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, nodeName, instanceName, params[1], params[2], params[3])
+			if err != nil {
 				return "", err
 			}
+			if output == "" {
+				// Workaround to be backward compatible lets look at relationships
+				output, err = getOperationOutputForRequirements(r.kv, r.deploymentID, nodeName, instanceName, params[1], params[2], params[3])
+				if err != nil || output == "" {
+					return "", err
+				}
+			}
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
+			err = yaml.Unmarshal([]byte(output), resultExpr)
 			if err != nil {
 				return "", err
 			}
@@ -238,13 +245,13 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				hostNode = nodeName
 			}
 
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, hostNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil || outputs[instanceName] == "" {
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, hostNode, instanceName, params[1], params[2], params[3])
+			if err != nil || output == "" {
 				return "", err
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
+			err = yaml.Unmarshal([]byte(output), resultExpr)
 
 			if err != nil {
 				return "", err
@@ -487,23 +494,13 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 		switch params[0] {
 		case funcKeywordSELF:
-			relationshipType, err := GetRelationshipForRequirement(r.kv, r.deploymentID, sourceNode, requirementIndex)
-			if err != nil {
+			result, err := GetOperationOutputForRelationship(r.kv, r.deploymentID, sourceNode, instanceName, requirementIndex, params[1], params[2], params[3])
+			if err != nil || result == "" {
 				return "", err
-			}
-			result, _, err := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology/relationship_instances", relationshipType, instanceName, "outputs", params[1], params[2], params[3]), nil)
-			if err != nil {
-				return "", err
-			}
-			if result == nil {
-				return "", errors.Errorf("Missing operation output for relationship: %q, instance %q, output: %q", relationshipType, instanceName, path.Join(params[1], params[2], params[3]))
-			}
-			if len(result.Value) == 0 {
-				return "", nil
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal(result.Value, resultExpr)
+			err = yaml.Unmarshal([]byte(result), resultExpr)
 			if err != nil {
 				return "", err
 			}
@@ -512,26 +509,26 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		case funcKeywordHOST:
 			return "", errors.Errorf("Keyword %q not supported for a relationship expression", params[0])
 		case funcKeywordSOURCE:
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, sourceNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil || outputs[instanceName] == "" {
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, sourceNode, instanceName, params[1], params[2], params[3])
+			if err != nil || output == "" {
 				return "", err
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
+			err = yaml.Unmarshal([]byte(output), resultExpr)
 			if err != nil {
 				return "", err
 			}
 			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
 			return res, err
 		case funcKeywordTARGET:
-			outputs, err := GetOutputValueForNode(r.kv, r.deploymentID, targetNode, path.Join(strings.ToLower(path.Join(params[1], params[2])), params[3]))
-			if err != nil || outputs[instanceName] == "" {
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, targetNode, instanceName, params[1], params[2], params[3])
+			if err != nil || output == "" {
 				return "", err
 			}
 
 			resultExpr := &tosca.ValueAssignment{}
-			err = yaml.Unmarshal([]byte(outputs[instanceName]), resultExpr)
+			err = yaml.Unmarshal([]byte(output), resultExpr)
 			if err != nil {
 				return "", err
 			}
