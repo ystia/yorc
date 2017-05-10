@@ -30,9 +30,13 @@ func TestResovler(t *testing.T) {
 	require.Nil(t, err)
 
 	kv := client.KV()
+	consulutil.InitConsulPublisher(config.DefaultConsulPubMaxRoutines, kv)
 
 	t.Run("deployments/resolver/operation_outputs", func(t *testing.T) {
 		testGetOperationOutput(t, kv)
+	})
+	t.Run("deployments/resolver/operation_outputs_real", func(t *testing.T) {
+		testGetOperationOutputReal(t, kv)
 	})
 }
 
@@ -46,8 +50,7 @@ func generateToscaExpressionFromString(t *testing.T, valueAssignment string) *to
 }
 
 func testGetOperationOutput(t *testing.T, kv *api.KV) {
-	consulutil.InitConsulPublisher(config.DefaultConsulPubMaxRoutines, kv)
-
+	// t.Parallel()
 	deploymentID := "testGetOperationOutput"
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
@@ -81,5 +84,22 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 	result, err = r.ResolveExpressionForNode(generateToscaExpressionFromString(t, `{ get_attribute: [ SELF, partition_name ] }`), "GetOPOutputsNodeSecondReq", "0")
 	require.Nil(t, err, "%+v", err)
 	require.Equal(t, "part3", result)
+
+}
+
+func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
+	// t.Parallel()
+	deploymentID := "testGetOperationOutputReal"
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output_real.yaml")
+	require.Nil(t, err, "Failed to parse testdata/get_op_output_real.yaml definition: %+v", err)
+
+	r := NewResolver(kv, deploymentID)
+
+	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/starlings.relationships.DependsOnDockerVolume/0/outputs/configure/post_configure_target/HOST_PATH"), Value: []byte("/mypath")}, nil)
+	require.Nil(t, err)
+
+	result, err := r.ResolveExpressionForNode(generateToscaExpressionFromString(t, `{ get_attribute: [ SELF, host_path ] }`), "PublisherFromDockerVolume", "0")
+	require.Nil(t, err)
+	require.Equal(t, "/mypath", result)
 
 }

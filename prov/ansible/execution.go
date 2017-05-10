@@ -531,6 +531,9 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 			if err != nil {
 				return err
 			}
+			if kvPair == nil {
+				return errors.Errorf("Operation output expression is missing for key: %q", output)
+			}
 
 			err = yaml.Unmarshal(kvPair.Value, &va)
 			if err != nil {
@@ -538,6 +541,10 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 			}
 
 			targetContext := va.Expression.IsTargetContext()
+			sourceContext := va.Expression.IsSourceContext()
+			if (targetContext || sourceContext) && !e.isRelationshipOperation {
+				return errors.Errorf("Can't resolve an operation output in SOURCE or TARGET context without a relationship operation: %q", va.String())
+			}
 
 			var instancesIds []string
 			if targetContext {

@@ -143,12 +143,12 @@ func GetOperationOutputForRelationship(kv *api.KV, deploymentID, nodeName, insta
 		return "", err
 	}
 	node := nodeName
-	if IsRelationshipOperationOnTargetNode(operationName) {
-		node, err = GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return "", err
-		}
-	}
+	// if IsRelationshipOperationOnTargetNode(operationName) {
+	// 	node, err = GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	// 	if err != nil {
+	// 		return "", err
+	// 	}
+	// }
 	result, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", node, relationshipType, instanceName, "outputs", strings.ToLower(path.Join(interfaceName, operationName)), outputName), nil)
 	if err != nil {
 		return "", err
