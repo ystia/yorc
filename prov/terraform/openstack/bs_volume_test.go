@@ -24,7 +24,10 @@ func TestGroupedVolumeParallel(t *testing.T) {
 func generateOSBSVolumeSizeConvert(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -59,7 +62,7 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 		data[tt.volURL+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
 		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
-		srv1.PopulateKV(data)
+		srv1.PopulateKV(t, data)
 		bsv, err := g.generateOSBSVolume(tt.volURL, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
@@ -70,7 +73,10 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 func generateOSBSVolumeSizeConvertError(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -99,7 +105,7 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 		data[tt.volURL+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
 		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
-		srv1.PopulateKV(data)
+		srv1.PopulateKV(t, data)
 		_, err := g.generateOSBSVolume(tt.volURL, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
@@ -108,7 +114,10 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 func generateOSBSVolumeMissingSize(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -126,7 +135,7 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 	data := make(map[string][]byte)
 	data["vol/type"] = []byte("janus.nodes.openstack.BlockStorage")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	_, err = g.generateOSBSVolume("vol", "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
@@ -134,7 +143,10 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 func generateOSBSVolumeWrongType(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -152,7 +164,7 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 	data := make(map[string][]byte)
 	data["vol/type"] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	_, err = g.generateOSBSVolume("vol", "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
@@ -161,7 +173,10 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -182,7 +197,7 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	data["vol/properties/availability_zone"] = []byte("az1")
 	data["vol/properties/region"] = []byte("Region2")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	bsv, err := g.generateOSBSVolume("vol", "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)

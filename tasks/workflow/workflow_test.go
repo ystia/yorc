@@ -21,7 +21,10 @@ func TestGroupedTaskParallel(t *testing.T) {
 func readStepFromConsulFailing(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
@@ -34,7 +37,7 @@ func readStepFromConsulFailing(t *testing.T) {
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
-	srv1.SetKV("wf/steps/stepName/activity/delegate", []byte("install"))
+	srv1.SetKV(t, "wf/steps/stepName/activity/delegate", []byte("install"))
 
 	step, err := readStep(kv, "wf/steps/", "stepName", nil)
 	t.Log(err)
@@ -44,7 +47,10 @@ func readStepFromConsulFailing(t *testing.T) {
 
 func readStepFromConsul(t *testing.T) {
 	t.Parallel()
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
@@ -63,7 +69,7 @@ func readStepFromConsul(t *testing.T) {
 	data["wf/steps/stepName/activity/call-operation"] = []byte("script.sh")
 	data["wf/steps/stepName/node"] = []byte("nodeName")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	//kv.Put(&api.KVPair{Key: "/wf/steps/stepName/activity/delegate", Value:[]byte("install")}, nil)
 
 	visitedMap := make(map[string]*visitStep)
@@ -82,7 +88,10 @@ func readStepFromConsul(t *testing.T) {
 
 func readStepWithNext(t *testing.T) {
 	t.Parallel()
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
@@ -103,7 +112,7 @@ func readStepWithNext(t *testing.T) {
 	data["wf/steps/downstream/activity/call-operation"] = []byte("script.sh")
 	data["wf/steps/downstream/node"] = []byte("downstream")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	//kv.Put(&api.KVPair{Key: "/wf/steps/stepName/activity/delegate", Value:[]byte("install")}, nil)
 
 	visitedMap := make(map[string]*visitStep)
@@ -123,7 +132,10 @@ func readStepWithNext(t *testing.T) {
 
 func testReadWorkFlowFromConsul(t *testing.T) {
 	t.Parallel()
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	config := api.DefaultConfig()
@@ -157,7 +169,7 @@ func testReadWorkFlowFromConsul(t *testing.T) {
 	data["wf/steps/step20/activity/delegate"] = []byte("install")
 	data["wf/steps/step20/node"] = []byte("nodeName")
 
-	srv1.PopulateKV(data)
+	srv1.PopulateKV(t, data)
 	//kv.Put(&api.KVPair{Key: "/wf/steps/stepName/activity/delegate", Value:[]byte("install")}, nil)
 
 	steps, err := readWorkFlowFromConsul(kv, "wf")

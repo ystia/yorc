@@ -15,7 +15,10 @@ import (
 func TestCapabilities(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -26,7 +29,7 @@ func TestCapabilities(t *testing.T) {
 
 	kv := client.KV()
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.1/derived_from": []byte("janus.type.2"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.1/name":         []byte("janus.type.1"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.2/derived_from": []byte("janus.type.3"),

@@ -19,7 +19,8 @@ import (
 
 func TestResovler(t *testing.T) {
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	require.Nil(t, err)
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()

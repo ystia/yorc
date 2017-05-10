@@ -30,11 +30,12 @@ func setupServer(b *testing.B) (*testutil.TestServer, chan struct{}) {
 	//log.SetDebug(true)
 	//log.SetDebug(false)
 	log.SetOutput(nw)
-	srv1 := testutil.NewTestServerConfig(b, func(c *testutil.TestServerConfig) {
+	srv1, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
 		c.LogLevel = "err"
 		c.Stderr = nw
 		c.Stdout = nw
 	})
+	b.Fatalf("Failed to setup consul server: %v", err)
 
 	configuration := config.Configuration{
 		WorkingDirectory:     defaultWorkingDirectory,

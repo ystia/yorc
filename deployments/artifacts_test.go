@@ -13,7 +13,10 @@ import (
 func TestArtifacts(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -24,7 +27,7 @@ func TestArtifacts(t *testing.T) {
 
 	kv := client.KV()
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
 
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/derived_from":        []byte("janus.types.ParentA"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/janus.types.A/artifacts/art1/name": []byte("art1"),
