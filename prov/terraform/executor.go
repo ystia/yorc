@@ -30,7 +30,12 @@ func NewExecutor() prov.DelegateExecutor {
 	return &defaultExecutor{}
 }
 
-func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+	consulClient, err := cfg.GetConsulClient()
+	if err != nil {
+		return err
+	}
+	kv := consulClient.KV()
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err

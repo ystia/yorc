@@ -199,7 +199,7 @@ func (w worker) handleTask(t *task) {
 		commandName := string(commandNameKv.Value)
 
 		exec := ansible.NewExecutor()
-		if err := exec.ExecOperation(ctx, w.consulClient.KV(), w.cfg, t.ID, t.TargetID, nodeName, "custom."+commandName); err != nil {
+		if err := exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, "custom."+commandName); err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			err = setNodeStatus(t.kv, eventPub, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
 			if err != nil {

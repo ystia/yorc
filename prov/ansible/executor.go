@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -22,7 +21,12 @@ func NewExecutor() prov.OperationExecutor {
 	return &defaultExecutor{r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, conf config.Configuration, taskID, deploymentID, nodeName, operation string) error {
+func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, operation string) error {
+	consulClient, err := conf.GetConsulClient()
+	if err != nil {
+		return err
+	}
+	kv := consulClient.KV()
 	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		if IsOperationNotImplemented(err) {

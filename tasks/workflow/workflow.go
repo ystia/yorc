@@ -216,7 +216,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfDelegateActivity:
 			provisioner := terraform.NewExecutor()
 			delegateOp := activity.ActivityValue()
-			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
+			if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
@@ -231,7 +231,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
 			exec := ansible.NewExecutor()
-			err := exec.ExecOperation(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
+			err := exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 			if err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
