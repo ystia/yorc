@@ -15,8 +15,12 @@ const DefaultHTTPPort int = 8800
 // DefaultHTTPAddress is the default listening address for the HTTP REST API
 const DefaultHTTPAddress string = "0.0.0.0"
 
+// DefaultPluginDir is the default path for the plugin directory
+const DefaultPluginDir = "plugins"
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
+	PluginsDirectory        string   `json:"plugins_directory,omitempty"`
 	WorkingDirectory        string   `json:"working_directory,omitempty"`
 	WorkersNumber           int      `json:"workers_number,omitempty"`
 	HTTPPort                int      `json:"http_port,omitempty"`
