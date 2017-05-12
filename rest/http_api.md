@@ -460,28 +460,6 @@ HTTP/1.1 202 OK
 Content-Length: 0
 ```
 
-### Submit a new task <a name="submit-new-task"></a>
-
-Submit a new task for a given deployment.  
-'Content-Type' header should be set to 'application/json'.
-Request should contains a valid task type (DEPLOY or UNDEPLOY or PURGE)
-
-`POST    /deployments/<deployment_id>/tasks`
-
-Request body:
-```json
-{
-  "type": "DEPLOY"
-}
-```
-
-**Response**
-```
-HTTP/1.1 202 OK
-Content-Length: 0
-```
-
-
 ### Execute a custom command <a name="custom-cmd-exec"></a>
 Submit a custom command for a given deployment.  
 'Content-Type' header should be set to 'application/json'.
