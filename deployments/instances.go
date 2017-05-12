@@ -16,7 +16,7 @@ func SetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName, st
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = events.StatusChange(kv, deploymentID, nodeName, instanceName, state)
+	_, err = events.InstanceStatusChange(kv, deploymentID, nodeName, instanceName, state)
 	return err
 }
 

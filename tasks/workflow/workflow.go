@@ -157,7 +157,7 @@ func (s *step) isRunnable() (bool, error) {
 	return true, nil
 }
 
-func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, nodeName, status string) error {
+func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) error {
 	instancesIDs, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -175,7 +175,6 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, 
 
 func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool) error {
 	haveErr := false
-	eventPub := events.NewPublisher(kv, deploymentID)
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
 		log.Debugf("Step %q waiting for %d previous steps", s.Name, len(s.Previous)-i)
@@ -217,7 +216,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			provisioner := terraform.NewExecutor()
 			delegateOp := activity.ActivityValue()
 			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
 				if bypassErrors {
@@ -228,12 +227,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				}
 			}
 		case actType == wfSetStateActivity:
-			setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
+			setNodeStatus(kv, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
 			exec := ansible.NewExecutor()
 			err := exec.ExecOperation(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 			if err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if bypassErrors {
 					ignoredErrsChan <- err

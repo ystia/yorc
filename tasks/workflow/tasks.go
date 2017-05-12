@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
@@ -31,5 +32,10 @@ func (t *task) WithStatus(status tasks.TaskStatus) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.ID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
 	t.status = status
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	_, err = tasks.EmitTaskEvent(t.kv, t.TargetID, t.ID, t.TaskType, t.status.String())
+
 	return err
 }

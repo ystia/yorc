@@ -70,8 +70,8 @@ type DeploymentsCollection struct {
 
 // EventsCollection is a collection of instances status change events
 type EventsCollection struct {
-	Events    []events.InstanceStatus `json:"events"`
-	LastIndex uint64                  `json:"last_index"`
+	Events    []events.StatusUpdate `json:"events"`
+	LastIndex uint64                `json:"last_index"`
 }
 
 // LogsCollection is a collection of logs events

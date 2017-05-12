@@ -9,6 +9,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
@@ -82,25 +83,46 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 			printErrors(response.Body)
 			errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
 		}
-		var events rest.EventsCollection
+		var evts rest.EventsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
 			errExit(err)
 		}
-		err = json.Unmarshal(body, &events)
+		err = json.Unmarshal(body, &evts)
 		if err != nil {
 			errExit(err)
 		}
-		if lastIdx == events.LastIndex {
+		if lastIdx == evts.LastIndex {
 			continue
 		}
-		lastIdx = events.LastIndex
-		for _, event := range events.Events {
+		lastIdx = evts.LastIndex
+		for _, event := range evts.Events {
+			ts := event.Timestamp
 			if colorize {
-				fmt.Printf("%s:\t Node: %s\t Instance: %s\t State: %s\n", color.CyanString("%s", event.Timestamp), event.Node, event.Instance, event.Status)
-			} else {
-				fmt.Printf("%s:\t Node: %s\t Instance: %s\t State: %s\n", event.Timestamp, event.Node, event.Instance, event.Status)
+				ts = color.CyanString("%s", event.Timestamp)
 			}
+			evType, err := events.StatusUpdateTypeString(event.Type)
+			if err != nil {
+				if colorize {
+					fmt.Printf("%s: ", color.MagentaString("Warning"))
+				} else {
+					fmt.Print("Warning: ")
+				}
+				fmt.Printf("Unknown event type: %q\n", event.Type)
+			}
+			switch evType {
+			case events.InstanceStatusChangeType:
+				fmt.Printf("%s:\t Node: %s\t Instance: %s\t State: %s\n", ts, event.Node, event.Instance, event.Status)
+			case events.DeploymentStatusChangeType:
+				fmt.Printf("%s:\t Deployment Status: %s\n", ts, event.Status)
+			case events.CustomCommandStatusChangeType:
+				fmt.Printf("%s:\t Task %q (custom command)\t Status: %s\n", ts, event.TaskID, event.Status)
+			case events.ScalingStatusChangeType:
+				fmt.Printf("%s:\t Task %q (scaling)\t Status: %s\n", ts, event.TaskID, event.Status)
+			case events.WorkflowStatusChangeType:
+				fmt.Printf("%s:\t Task %q (workflow)\t Status: %s\n", ts, event.TaskID, event.Status)
+			}
+
 		}
 
 		if stop {
