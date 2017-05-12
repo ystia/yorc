@@ -28,12 +28,11 @@ In this case you should use a `PUT` method. There is some constraints on submitt
 
 #### Result
 
-In both submission ways, a successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
-deployment URI.
+In both submission ways, a successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the task URI handling the deployment process.
 
 ```
 HTTP/1.1 201 Created
-Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0
+Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/b4144668-5ec8-41c0-8215-842661520147
 Content-Length: 0
 ```
 
@@ -41,8 +40,6 @@ This endpoint produces no content except in case of error.
 
 A critical note is that the deployment is proceeded asynchronously and a success only guarantees that the deployment is successfully
 **submitted**.
-
-Actually, this endpoint implicitly call a [submit new deploy task](#submit-new-task).
 
 ### List deployments <a name="list-deps"></a>
 
@@ -66,19 +63,21 @@ Content-Type: application/json
 
 ### Undeploy  an active deployment <a name="undeploy"></a>
 
-Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus 
-database at the end of the undeployment. 
+Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus database at the end of the undeployment. A successful call to this endpoint results in a HTTP status code 202 with a 'Location' header relative to the base URI indicating the task URI handling the undeployment process.
 
 `DELETE /deployments/<deployment_id>[?purge]`
 
 ```
 HTTP/1.1 202 Accepted
+Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/b4144668-5ec8-41c0-8215-842661520147
 Content-Length: 0
 ```
 
 This endpoint produces no content except in case of error.
 
-Actually, this endpoint implicitly call a [submit new undeploy (or purge) task](#submit-new-task).
+A critical note is that the undeployment is proceeded asynchronously and a success only guarantees that the undeployment task is successfully
+**submitted**.
+
 
 ### Get the deployment information <a name="dep-info"></a>
 
