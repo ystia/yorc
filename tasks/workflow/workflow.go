@@ -267,7 +267,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, err
 	}
 	if kvPair == nil {
-		return nil, fmt.Errorf("Missing node attribute for step %s", stepName)
+		return nil, errors.Errorf("Missing node attribute for step %s", stepName)
 	}
 	s.Node = string(kvPair.Value)
 
@@ -276,7 +276,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, err
 	}
 	if len(kvPairs) == 0 {
-		return nil, fmt.Errorf("Activity missing for step %s, this is not allowed.", stepName)
+		return nil, errors.Errorf("Activity missing for step %s, this is not allowed", stepName)
 	}
 	s.Activities = make([]activity, 0)
 	for _, actKV := range kvPairs {
@@ -289,7 +289,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		case key == wfCallOpActivity:
 			s.Activities = append(s.Activities, callOperationActivity{operation: string(actKV.Value)})
 		default:
-			return nil, fmt.Errorf("Unsupported activity type: %s", key)
+			return nil, errors.Errorf("Unsupported activity type: %s", key)
 		}
 	}
 	s.NotifyChan = make(chan struct{})

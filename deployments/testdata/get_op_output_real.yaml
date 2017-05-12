@@ -1,0 +1,698 @@
+tosca_definitions_version: alien_dsl_1_3_0
+description: Alien4Cloud generated service template
+template_name: GetOpOutputTest2
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - slurm-types: <janus-slurm-types.yml>
+
+node_types:
+
+  starlings.nodes.PublisherFromDockerVolume:
+    derived_from: tosca.nodes.SoftwareComponent
+    description: >
+      This TOSCA component allows to publish (copy) a file to a given directory from a host mount point of a Docker volume
+    properties:
+      target_directory:
+        type: string
+        required: true
+        description: >
+          The OS path where files will be copied
+      web_dir_matching:
+        type: string
+        required: true
+        description: >
+          The Web directory that corresponds to the folder given in 'target_directory' property
+    attributes:
+      host_path: { get_operation_output: [ SELF, Configure, post_configure_target, HOST_PATH ] }
+      container_id: { get_operation_output: [ SELF, Configure, add_target, CONTAINER_ID ] }
+      published_url: { concat: [ get_property: [SELF, web_dir_matching], "/", get_attribute: [SELF, container_id] ] } #TODO use get_operation_output: [ SELF, custom, publish, WEB_PUBLISHED_FOLDER ] }
+    requirements:
+      - host:
+          capability: starlings.capabilities.Container.Docker
+          relationship: starlings.relationships.HostedOnDockerContainer
+          occurrences: [1,1]
+      - volume_to_get_file:
+          capability: starlings.capabilities.DockerVolume
+          relationship: starlings.relationships.DependsOnDockerVolume
+          occurrences: [1,1]
+    interfaces:
+      custom:
+        publish:
+          inputs:
+            TARGET_DIRECTORY: { get_property: [SELF, target_directory] }
+            HOST_PATH: { get_attribute: [ SELF, host_path ] }
+            CONTAINER_ID: { get_attribute: [ SELF, container_id ] }
+            WEB_DIR_MATCHING: { get_property: [SELF, web_dir_matching] }
+          implementation: scripts/publisher_publish.sh
+    artifacts:
+      - utils_scripts:
+          type: tosca.artifacts.File
+          file: utils_scripts
+
+  starlings.nodes.DockerContainer:
+    derived_from: tosca.nodes.SoftwareComponent
+    description: >
+      The TOSCA Container Application Docker node represents an application running in a Docker container.
+      Properties defined in the node will be interpreted as the entrypoint's arguments.
+    tags:
+      icon: images/docker.png
+    properties:
+      image:
+        type: string
+        required: true
+        description: >
+          The Docker image used to launch the container.
+          The format should be REPOSITORY:TAG as it's describe in Docker documentation.
+          Example: my_local_repository:5000/my_image:latest
+      cpu_share:
+        type: integer
+        required: false
+        description: >
+          Container CPU shares (relative weight). Example: "512"
+      mem_share:
+        type: string
+        required: false
+        description: >
+          Shared memory with the Docker container. Example: "512M"
+      docker_options:
+        type: string
+        required: false
+        description: >
+          Arbitrary command-line options for the docker run command.
+      docker_run_cmd:
+        type: string
+        required: false
+        description: >
+          Docker run command. Will override the Dockerfile CMD statement.
+      use_gpu:
+        type: boolean
+        required: true
+        default: false
+        description: >
+          If checked, will use nvidia-docker command instead of docker command.
+    attributes:
+      container_id: { get_operation_output: [SELF, Standard, start, CONTAINER_ID] }
+    capabilities:
+      attach: starlings.capabilities.DockerVolumeAttachment
+      host: starlings.capabilities.Container.Docker
+    interfaces:
+      Standard:
+        configure:
+          implementation: scripts/docker_configure.sh
+        start:
+          inputs:
+            IMAGE: { get_property: [SELF, image] }
+            CPU_SHARE: { get_property: [SELF, cpu_share] }
+            MEM_SHARE: { get_property: [SELF, mem_share] }
+            DOCKER_OPTIONS: { get_property: [SELF, docker_options] }
+            DOCKER_RUN_CMD: { get_property: [SELF, docker_run_cmd] }
+            USE_GPU: { get_property: [SELF, use_gpu] }
+          implementation: scripts/docker_start.sh
+        stop:
+          inputs:
+            CONTAINER_ID: { get_attribute: [SELF, container_id] }
+            USE_GPU: { get_property: [SELF, use_gpu] }
+          implementation: scripts/docker_stop.sh
+        delete:
+          inputs:
+            CONTAINER_ID: { get_attribute: [SELF, container_id] }
+          implementation: scripts/docker_delete.sh
+      custom:
+        run:
+          inputs:
+            CONTAINER_ID: { get_attribute: [SELF, container_id] }
+            USE_GPU: { get_property: [SELF, use_gpu] }
+          implementation: scripts/docker_run.sh
+    artifacts:
+      - utils_scripts:
+          type: tosca.artifacts.File
+          file: utils_scripts
+
+  starlings.nodes.DockerVolume:
+    derived_from: tosca.nodes.Root
+    tags:
+      icon: images/docker_volume.png
+    properties:
+      host_path:
+        type: string
+        required: true
+        description: Specifies where from the volume is mounted inside the host.
+      container_path:
+        type: string
+        required: true
+        description: Specifies where the volume is mounted inside the container.
+    capabilities:
+      depends:
+        type: starlings.capabilities.DockerVolume
+    requirements:
+      - hosted_on:
+          capability: tosca.capabilities.Container
+          relationship: tosca.relationships.HostedOn
+          occurrences: [1,1]
+      - filesystem_endpoint:
+          capability: starlings.capabilities.DockerVolumeAttachment
+          relationship: starlings.relationships.MountDockerVolume
+          occurrences: [1,1]
+
+capability_types:
+
+  starlings.capabilities.Container.Docker:
+    derived_from: tosca.capabilities.Container
+    description: Allows DockerContainer component to host another ones
+
+  starlings.capabilities.DockerVolumeAttachment:
+    derived_from: tosca.capabilities.Attachment
+    description: >
+      Capability to mount a Docker volume
+
+  starlings.capabilities.DockerVolume:
+    description: >
+      Capability to connects to a Docker volume
+
+relationship_types:
+  starlings.relationships.MountDockerVolume:
+    derived_from: tosca.relationships.AttachTo
+    valid_target_types: [ starlings.capabilities.DockerVolumeAttachment ]
+    interfaces:
+      Configure:
+        post_configure_target:
+          inputs:
+            HOST_PATH: { get_property: [SOURCE, host_path] }
+            CONTAINER_PATH: { get_property: [SOURCE, container_path] }
+          implementation: scripts/docker_attach_volume.sh
+    artifacts:
+      - utils_scripts:
+          type: tosca.artifacts.File
+          file: utils_scripts
+
+  starlings.relationships.DependsOnDockerVolume:
+    derived_from: tosca.relationships.DependsOn
+    valid_target_types: [ starlings.capabilities.DockerVolume ]
+    attributes:
+      host_path: { get_operation_output: [ SELF, Configure, post_configure_target, HOST_PATH ] }
+    interfaces:
+      Configure:
+        post_configure_target:
+          inputs:
+            HOST_PATH: { get_property: [TARGET, host_path] }
+            TARGET_DIRECTORY: { get_property: [SOURCE, target_directory] }
+          implementation: scripts/publisher_configure_copy_directories.sh
+    artifacts:
+      - utils_scripts:
+          type: tosca.artifacts.File
+          file: utils_scripts
+
+  starlings.relationships.HostedOnDockerContainer:
+    derived_from: tosca.relationships.HostedOn
+    valid_target_types: [ starlings.capabilities.Container.Docker ]
+    attributes:
+      container_id: { get_operation_output: [ SELF, Configure, add_target, CONTAINER_ID ] }
+    interfaces:
+      Configure:
+        add_target:
+          inputs:
+            CONTAINER_ID: { get_attribute: [TARGET, container_id] }
+          implementation: scripts/get_container_id.sh
+
+
+topology_template:
+  node_templates:
+    DockerContainer:
+      type: starlings.nodes.DockerContainer
+      properties:
+        image: "hpda-docker-registry:5000/siemens-demo"
+        docker_options: "-w /siemens"
+        docker_run_cmd: "./run.sh /nfs_inputs/data.csv /nfs_outputs/output.txt"
+      requirements:
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Compute:
+      type: janus.nodes.slurm.Compute
+      properties:
+        gpuType: none
+        user: root
+      capabilities:
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    DataInputs:
+      type: starlings.nodes.DockerVolume
+      properties:
+        host_path: "/home_nfs/gavillom/siemens/inputs"
+        container_path: "/nfs_inputs"
+      requirements:
+        - hosted_on:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - filesystem_endpoint:
+            node: DockerContainer
+            capability: starlings.capabilities.DockerVolumeAttachment
+            relationship: starlings.relationships.MountDockerVolume
+    DataOutputs:
+      type: starlings.nodes.DockerVolume
+      properties:
+        host_path: "/home_nfs/gavillom/siemens/outputs"
+        container_path: "/nfs_outputs"
+      requirements:
+        - hosted_on:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - filesystem_endpoint:
+            node: DockerContainer
+            capability: starlings.capabilities.DockerVolumeAttachment
+            relationship: starlings.relationships.MountDockerVolume
+    PublisherFromDockerVolume:
+      type: starlings.nodes.PublisherFromDockerVolume
+      properties:
+        target_directory: "/home_nfs/www"
+        web_dir_matching: "http://10.197.80.20/experiment_results"
+      requirements:
+        - host:
+            node: DockerContainer
+            capability: starlings.capabilities.Container.Docker
+            relationship: starlings.relationships.HostedOnDockerContainer
+        - volume_to_get_file:
+            node: DataOutputs
+            capability: starlings.capabilities.DockerVolume
+            relationship: starlings.relationships.DependsOnDockerVolume
+  outputs:
+    published_folder:
+      value: { get_attribute: [ PublisherFromDockerVolume, published_url ] }
+  workflows:
+    install:
+      steps:
+        configure_DockerContainer:
+          node: DockerContainer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - DockerContainer_configured
+        DataInputs_initial:
+          node: DataInputs
+          activity:
+            set_state: initial
+          on-success:
+            - DataInputs_creating
+        start_DataOutputs:
+          node: DataOutputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - DataOutputs_started
+        DataOutputs_initial:
+          node: DataOutputs
+          activity:
+            set_state: initial
+          on-success:
+            - DataOutputs_creating
+        DockerContainer_configured:
+          node: DockerContainer
+          activity:
+            set_state: configured
+          on-success:
+            - DockerContainer_starting
+        DataInputs_starting:
+          node: DataInputs
+          activity:
+            set_state: starting
+          on-success:
+            - start_DataInputs
+        PublisherFromDockerVolume_configuring:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_PublisherFromDockerVolume
+        DataInputs_creating:
+          node: DataInputs
+          activity:
+            set_state: creating
+          on-success:
+            - DataInputs_created
+        DataOutputs_created:
+          node: DataOutputs
+          activity:
+            set_state: created
+          on-success:
+            - DataOutputs_configuring
+            - DockerContainer_configuring
+        PublisherFromDockerVolume_initial:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: initial
+          on-success:
+            - PublisherFromDockerVolume_creating
+        Compute_install:
+          node: Compute
+          activity:
+            delegate: install
+          on-success:
+            - DataInputs_initial
+            - DataOutputs_initial
+            - DockerContainer_initial
+        configure_PublisherFromDockerVolume:
+          node: PublisherFromDockerVolume
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - PublisherFromDockerVolume_configured
+        PublisherFromDockerVolume_creating:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: creating
+          on-success:
+            - PublisherFromDockerVolume_created
+        PublisherFromDockerVolume_created:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: created
+          on-success:
+            - PublisherFromDockerVolume_configuring
+            - DataOutputs_configuring
+        DataOutputs_configured:
+          node: DataOutputs
+          activity:
+            set_state: configured
+          on-success:
+            - DataOutputs_starting
+        PublisherFromDockerVolume_configured:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: configured
+          on-success:
+            - PublisherFromDockerVolume_starting
+        PublisherFromDockerVolume_starting:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: starting
+          on-success:
+            - start_PublisherFromDockerVolume
+        PublisherFromDockerVolume_started:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: started
+          on-success:
+            - run_DockerContainer
+        DataOutputs_started:
+          node: DataOutputs
+          activity:
+            set_state: started
+          on-success:
+            - PublisherFromDockerVolume_configuring
+        DataOutputs_configuring:
+          node: DataOutputs
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_DataOutputs
+        DataInputs_configuring:
+          node: DataInputs
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_DataInputs
+        DataOutputs_starting:
+          node: DataOutputs
+          activity:
+            set_state: starting
+          on-success:
+            - start_DataOutputs
+        DataOutputs_creating:
+          node: DataOutputs
+          activity:
+            set_state: creating
+          on-success:
+            - DataOutputs_created
+        start_DataInputs:
+          node: DataInputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - DataInputs_started
+        DockerContainer_initial:
+          node: DockerContainer
+          activity:
+            set_state: initial
+          on-success:
+            - DockerContainer_creating
+        start_DockerContainer:
+          node: DockerContainer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - DockerContainer_started
+        configure_DataInputs:
+          node: DataInputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - DataInputs_configured
+        configure_DataOutputs:
+          node: DataOutputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - DataOutputs_configured
+        DockerContainer_started:
+          node: DockerContainer
+          activity:
+            set_state: started
+          on-success:
+            - DataInputs_configuring
+            - PublisherFromDockerVolume_initial
+            - DataOutputs_configuring
+        start_PublisherFromDockerVolume:
+          node: PublisherFromDockerVolume
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - PublisherFromDockerVolume_started
+        DataInputs_started:
+          node: DataInputs
+          activity:
+            set_state: started
+          on-success:
+            - run_DockerContainer
+        DockerContainer_starting:
+          node: DockerContainer
+          activity:
+            set_state: starting
+          on-success:
+            - start_DockerContainer
+        DataInputs_created:
+          node: DataInputs
+          activity:
+            set_state: created
+          on-success:
+            - DataInputs_configuring
+            - DockerContainer_configuring
+        DataInputs_configured:
+          node: DataInputs
+          activity:
+            set_state: configured
+          on-success:
+            - DataInputs_starting
+        DockerContainer_creating:
+          node: DockerContainer
+          activity:
+            set_state: creating
+          on-success:
+            - DockerContainer_created
+        DockerContainer_created:
+          node: DockerContainer
+          activity:
+            set_state: created
+          on-success:
+            - DockerContainer_configuring
+        DockerContainer_configuring:
+          node: DockerContainer
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_DockerContainer
+        run_DockerContainer:
+          node: DockerContainer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.custom.run
+          on-success:
+            - DockerContainer_finished
+        DockerContainer_finished:
+          node: DockerContainer
+          activity:
+            set_state: finished
+          on-success:
+            - publish_PublisherFromDockerVolume
+        publish_PublisherFromDockerVolume:
+          node: PublisherFromDockerVolume
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.custom.publish
+          on-success:
+            - PublisherFromDockerVolume_published
+        PublisherFromDockerVolume_published:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: published
+    uninstall:
+      steps:
+        Compute_uninstall:
+          node: Compute
+          activity:
+            delegate: uninstall
+        DockerContainer_stopping:
+          node: DockerContainer
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_DockerContainer
+        stop_DockerContainer:
+          node: DockerContainer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - DockerContainer_stopped
+        DockerContainer_stopped:
+          node: DockerContainer
+          activity:
+            set_state: stopped
+          on-success:
+            - DockerContainer_deleting
+        DockerContainer_deleting:
+          node: DockerContainer
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_DockerContainer
+        delete_DockerContainer:
+          node: DockerContainer
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - DockerContainer_deleted
+        DockerContainer_deleted:
+          node: DockerContainer
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
+        DockerVolume_stopping:
+          node: DataInputs
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_DockerVolume
+        stop_DockerVolume:
+          node: DataInputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - DockerVolume_stopped
+        DockerVolume_stopped:
+          node: DataInputs
+          activity:
+            set_state: stopped
+          on-success:
+            - DockerVolume_deleting
+        DockerVolume_deleting:
+          node: DataInputs
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_DockerVolume
+        delete_DockerVolume:
+          node: DataInputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - DockerVolume_deleted
+        DockerVolume_deleted:
+          node: DataInputs
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
+        DockerVolume_2_stopping:
+          node: DataOutputs
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_DockerVolume_2
+        stop_DockerVolume_2:
+          node: DataOutputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - DockerVolume_2_stopped
+        DockerVolume_2_stopped:
+          node: DataOutputs
+          activity:
+            set_state: stopped
+          on-success:
+            - DockerVolume_2_deleting
+        DockerVolume_2_deleting:
+          node: DataOutputs
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_DockerVolume_2
+        delete_DockerVolume_2:
+          node: DataOutputs
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - DockerVolume_2_deleted
+        DockerVolume_2_deleted:
+          node: DataOutputs
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
+        PublisherFromDockerVolume_stopping:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_PublisherFromDockerVolume
+        stop_PublisherFromDockerVolume:
+          node: PublisherFromDockerVolume
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - PublisherFromDockerVolume_stopped
+        PublisherFromDockerVolume_stopped:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: stopped
+          on-success:
+            - PublisherFromDockerVolume_deleting
+        PublisherFromDockerVolume_deleting:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_PublisherFromDockerVolume
+        delete_PublisherFromDockerVolume:
+          node: PublisherFromDockerVolume
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - PublisherFromDockerVolume_deleted
+        PublisherFromDockerVolume_deleted:
+          node: PublisherFromDockerVolume
+          activity:
+            set_state: deleted
+          on-success:
+            - DockerContainer_stopping

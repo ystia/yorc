@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"path/filepath"
 	"strings"
 
 	"path"
@@ -107,4 +108,68 @@ func DecodeOperation(kv *api.KV, deploymentID, nodeName, operationName string) (
 	}
 	err = errors.Errorf("operation %q doesn't follow the format <fully_qualified_operation_name>/<requirementIndex> or <fully_qualified_operation_name>/<requirementName>/<targetNodeName>", operationName)
 	return
+}
+
+// GetOperationOutputForNode return a map with in index the instance number and in value the result of the output
+// The "params" parameter is necessary to pass the path of the output
+func GetOperationOutputForNode(kv *api.KV, deploymentID, nodeName, instanceName, interfaceName, operationName, outputName string) (string, error) {
+	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
+
+	output, _, err := kv.Get(filepath.Join(instancesPath, instanceName, "outputs", strings.ToLower(interfaceName), strings.ToLower(operationName), outputName), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if output != nil && len(output.Value) > 0 {
+		return string(output.Value), nil
+	}
+	// Look at host node
+	var host string
+	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return "", err
+	}
+	if host != "" {
+		// TODO we consider that instance name is the same for the host but we should not
+		return GetOperationOutputForNode(kv, deploymentID, host, instanceName, interfaceName, operationName, outputName)
+	}
+	return "", nil
+}
+
+// GetOperationOutputForRelationship retrieves an operation output for a relationship
+// The returned value may be empty if the operation output could not be retrieved
+func GetOperationOutputForRelationship(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, interfaceName, operationName, outputName string) (string, error) {
+	relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	if err != nil {
+		return "", err
+	}
+	node := nodeName
+	// if IsRelationshipOperationOnTargetNode(operationName) {
+	// 	node, err = GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	// 	if err != nil {
+	// 		return "", err
+	// 	}
+	// }
+	result, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", node, relationshipType, instanceName, "outputs", strings.ToLower(path.Join(interfaceName, operationName)), outputName), nil)
+	if err != nil {
+		return "", err
+	}
+
+	if result == nil || len(result.Value) == 0 {
+		return "", nil
+	}
+	return string(result.Value), nil
+}
+
+func getOperationOutputForRequirements(kv *api.KV, deploymentID, nodeName, instanceName, interfaceName, operationName, outputName string) (string, error) {
+	reqIndexes, err := GetRequirementsIndexes(kv, deploymentID, nodeName)
+	if err != nil {
+		return "", err
+	}
+	for _, reqIndex := range reqIndexes {
+		result, err := GetOperationOutputForRelationship(kv, deploymentID, nodeName, instanceName, reqIndex, interfaceName, operationName, outputName)
+		if err != nil || result != "" {
+			return result, err
+		}
+	}
+	return "", nil
 }
