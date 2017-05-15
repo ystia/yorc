@@ -19,6 +19,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks/workflow"
+
+	// Registering openstack delegate executor in the registry
+	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 )
 
 // RunServer starts the Janus server

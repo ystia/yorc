@@ -5,26 +5,28 @@ import (
 	"strconv"
 
 	"github.com/dustin/go-humanize"
+	"github.com/hashicorp/consul/api"
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/mathutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func (g *osGenerator) generateOSBSVolume(url, instanceName string) (BlockStorageVolume, error) {
+func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, url, instanceName string) (BlockStorageVolume, error) {
 	volume := BlockStorageVolume{}
 	var nodeType string
 	var err error
-	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
+	if nodeType, err = g.getStringFormConsul(kv, url, "type"); err != nil {
 		return volume, err
 	}
 	if nodeType != "janus.nodes.openstack.BlockStorage" {
 		return volume, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	var nodeName string
-	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
+	if nodeName, err = g.getStringFormConsul(kv, url, "name"); err != nil {
 		return volume, err
 	}
-	volume.Name = g.cfg.ResourcesPrefix + nodeName + "-" + instanceName
-	size, err := g.getStringFormConsul(url, "properties/size")
+	volume.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
+	size, err := g.getStringFormConsul(kv, url, "properties/size")
 	if err != nil {
 		return volume, err
 	}
@@ -56,15 +58,15 @@ func (g *osGenerator) generateOSBSVolume(url, instanceName string) (BlockStorage
 		volume.Size = int(gSize)
 	}
 
-	region, err := g.getStringFormConsul(url, "properties/region")
+	region, err := g.getStringFormConsul(kv, url, "properties/region")
 	if err != nil {
 		return volume, err
 	} else if region != "" {
 		volume.Region = region
 	} else {
-		volume.Region = g.cfg.OSRegion
+		volume.Region = cfg.OSRegion
 	}
-	az, err := g.getStringFormConsul(url, "properties/availability_zone")
+	az, err := g.getStringFormConsul(kv, url, "properties/availability_zone")
 	if err != nil {
 		return volume, err
 	}

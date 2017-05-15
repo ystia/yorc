@@ -15,7 +15,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
+	"novaforge.bull.com/starlings-janus/janus/prov/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -214,7 +214,30 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			provisioner := terraform.NewExecutor()
+			nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
+			if err != nil {
+				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				s.setStatus(tosca.NodeStateError.String())
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					return err
+				}
+			}
+			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
+			if err != nil {
+				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				s.setStatus(tosca.NodeStateError.String())
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					return err
+				}
+			}
 			delegateOp := activity.ActivityValue()
 			if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
 				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())

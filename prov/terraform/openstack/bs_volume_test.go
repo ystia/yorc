@@ -38,7 +38,7 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := osGenerator{kv: kv, cfg: cfg}
+	g := osGenerator{}
 
 	var testData = []struct {
 		volURL       string
@@ -63,7 +63,7 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		bsv, err := g.generateOSBSVolume(tt.volURL, strconv.Itoa(i))
+		bsv, err := g.generateOSBSVolume(kv, cfg, tt.volURL, strconv.Itoa(i))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
 		// Default region
@@ -87,7 +87,7 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := osGenerator{kv: kv, cfg: cfg}
+	g := osGenerator{}
 
 	var testData = []struct {
 		volURL    string
@@ -106,7 +106,7 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
-		_, err := g.generateOSBSVolume(tt.volURL, strconv.Itoa(i))
+		_, err := g.generateOSBSVolume(kv, cfg, tt.volURL, strconv.Itoa(i))
 		assert.NotNil(t, err)
 	}
 }
@@ -128,7 +128,7 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := osGenerator{kv: kv, cfg: cfg}
+	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -136,7 +136,7 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 	data["vol/type"] = []byte("janus.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume("vol", "0")
+	_, err = g.generateOSBSVolume(kv, cfg, "vol", "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
 }
@@ -157,7 +157,7 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{}
-	g := osGenerator{kv: kv, cfg: cfg}
+	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -165,7 +165,7 @@ func generateOSBSVolumeWrongType(t *testing.T) {
 	data["vol/type"] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume("vol", "0")
+	_, err = g.generateOSBSVolume(kv, cfg, "vol", "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
@@ -187,7 +187,7 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 
 	kv := client.KV()
 	cfg := config.Configuration{OSRegion: "RegionOne"}
-	g := osGenerator{kv: kv, cfg: cfg}
+	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
@@ -198,7 +198,7 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	data["vol/properties/region"] = []byte("Region2")
 
 	srv1.PopulateKV(t, data)
-	bsv, err := g.generateOSBSVolume("vol", "0")
+	bsv, err := g.generateOSBSVolume(kv, cfg, "vol", "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)
