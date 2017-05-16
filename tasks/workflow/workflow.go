@@ -15,7 +15,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
-	"novaforge.bull.com/starlings-janus/janus/prov/registry"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )

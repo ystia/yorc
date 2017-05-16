@@ -1,6 +1,6 @@
 package openstack
 
-import "novaforge.bull.com/starlings-janus/janus/prov/registry"
+import "novaforge.bull.com/starlings-janus/janus/registry"
 import "novaforge.bull.com/starlings-janus/janus/prov/terraform"
 
 func init() {

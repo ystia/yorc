@@ -3,7 +3,7 @@ package rest
 import (
 	"net/http"
 
-	"novaforge.bull.com/starlings-janus/janus/prov/registry"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 )
 
 var reg = registry.GetRegistry()

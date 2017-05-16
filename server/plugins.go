@@ -10,7 +10,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/plugin"
-	"novaforge.bull.com/starlings-janus/janus/prov/registry"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 
 	// Registering openstack delegate executor in the registry
 	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
