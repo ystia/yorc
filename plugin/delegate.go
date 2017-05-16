@@ -18,10 +18,11 @@ type DelegateExecutor interface {
 type DelegatePlugin struct {
 	F              func() prov.DelegateExecutor
 	SupportedTypes []string
+	Definitions    map[string][]byte
 }
 
 func (p *DelegatePlugin) Server(b *plugin.MuxBroker) (interface{}, error) {
-	return &DelegateExecutorServer{Broker: b, Delegate: p.F(), SupportedTypes: p.SupportedTypes}, nil
+	return &DelegateExecutorServer{Broker: b, Delegate: p.F(), SupportedTypes: p.SupportedTypes, Definitions: p.Definitions}, nil
 }
 
 func (p *DelegatePlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
@@ -64,6 +65,7 @@ type DelegateExecutorServer struct {
 	Broker         *plugin.MuxBroker
 	Delegate       prov.DelegateExecutor
 	SupportedTypes []string
+	Definitions    map[string][]byte
 }
 
 type DelegateExecutorExecDelegateArgs struct {

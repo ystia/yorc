@@ -2,18 +2,17 @@ package server
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/plugin"
+	"novaforge.bull.com/starlings-janus/janus/prov/registry"
 
 	// Registering openstack delegate executor in the registry
-
-	"novaforge.bull.com/starlings-janus/janus/prov/registry"
 	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 )
 
@@ -65,24 +64,18 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 	reg := registry.GetRegistry()
 	for _, pFile := range plugins {
 		log.Debugf("Loading plugin %q...", pFile)
-		client := gplugin.NewClient(&gplugin.ClientConfig{
-			HandshakeConfig: plugin.HandshakeConfig,
-			Plugins: map[string]gplugin.Plugin{
-				plugin.DelegatePluginName: &plugin.DelegatePlugin{},
-			},
-			Cmd: exec.Command(pFile),
-		})
+		client := plugin.NewClient(pFile)
 		pm.pluginClients = append(pm.pluginClients, client)
 		// Connect via RPC
 		rpcClient, err := client.Client()
 		if err != nil {
-			log.Fatal(err)
+			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
 		}
 
-		// Request the plugin
+		// Request the delegate plugin
 		raw, err := rpcClient.Dispense(plugin.DelegatePluginName)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
 		}
 
 		delegateExecutor := raw.(plugin.DelegateExecutor)
@@ -92,6 +85,7 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 		}
 
 		reg.RegisterDelegates(supportedTypes, delegateExecutor, filepath.Base(pFile))
+
 	}
 
 	return nil

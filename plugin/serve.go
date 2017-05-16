@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	DelegatePluginName = "delegate"
+	DelegatePluginName    = "delegate"
+	DefinitionsPluginName = "definitions"
 )
 
 // HandshakeConfig are used to just do a basic handshake between
@@ -25,6 +26,7 @@ type DelegateFunc func() prov.DelegateExecutor
 type ServeOpts struct {
 	DelegateFunc           DelegateFunc
 	DelegateSupportedTypes []string
+	Definitions            map[string][]byte
 }
 
 // Serve serves a plugin. This function never returns and should be the final
@@ -32,8 +34,17 @@ type ServeOpts struct {
 func Serve(opts *ServeOpts) {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: HandshakeConfig,
-		Plugins: map[string]plugin.Plugin{
-			DelegatePluginName: &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
-		},
+		Plugins: getPlugins(opts),
 	})
+}
+
+
+func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
+	if opts == nil {
+		opts = new(ServeOpts)
+	}
+	return map[string]plugin.Plugin{
+			DelegatePluginName:    &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
+			DefinitionsPluginName: &DefinitionsPlugin{Definitions: opts.Definitions},
+		}
 }
