@@ -90,3 +90,25 @@ func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	require.True(t, mock.contextCancelled, "Context not cancelled")
 }
+
+func TestDelegateGetSupportedTypes(t *testing.T) {
+	mock := new(mockDelegateExecutor)
+	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
+		DelegatePluginName: &DelegatePlugin{
+			F: func() prov.DelegateExecutor {
+				return mock
+			},
+			SupportedTypes: []string{"tosca.my.types", "test"}},
+	})
+	defer client.Close()
+	raw, err := client.Dispense(DelegatePluginName)
+	require.Nil(t, err)
+	delagateExec := raw.(DelegateExecutor)
+
+	supportedTypes, err := delagateExec.GetSupportedTypes()
+	require.Nil(t, err)
+	require.Len(t, supportedTypes, 2)
+	require.Contains(t, supportedTypes, "tosca.my.types")
+	require.Contains(t, supportedTypes, "test")
+
+}

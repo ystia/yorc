@@ -142,6 +142,15 @@ type WorkflowsCollection struct {
 
 // Workflow is a workflow representation.
 type Workflow struct {
-	Name string `json:"Name"`
+	Name string `json:"name"`
 	tosca.Workflow
+}
+
+type Delegate struct {
+	NodeType string `json:"node_type"`
+	Origin   string `json:"origin"`
+}
+
+type DelegatesCollection struct {
+	Delegates []Delegate `json:"delegates"`
 }

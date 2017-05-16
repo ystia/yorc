@@ -23,7 +23,8 @@ type DelegateFunc func() prov.DelegateExecutor
 
 // ServeOpts are the configurations to serve a plugin.
 type ServeOpts struct {
-	DelegateFunc DelegateFunc
+	DelegateFunc           DelegateFunc
+	DelegateSupportedTypes []string
 }
 
 // Serve serves a plugin. This function never returns and should be the final
@@ -32,7 +33,7 @@ func Serve(opts *ServeOpts) {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: HandshakeConfig,
 		Plugins: map[string]plugin.Plugin{
-			DelegatePluginName: &DelegatePlugin{F: opts.DelegateFunc},
+			DelegatePluginName: &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
 		},
 	})
 }
