@@ -1,8 +1,17 @@
 package server
 
+// Initialization imports
+import (
+	// Registering openstack delegate executor in the registry
+	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
+	// Registering builtin Tosca definition files
+	_ "novaforge.bull.com/starlings-janus/janus/tosca"
+)
+
 import (
 	"os"
 	"path/filepath"
+	"sync"
 
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
@@ -11,28 +20,27 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/plugin"
 	"novaforge.bull.com/starlings-janus/janus/registry"
-
-	// Registering openstack delegate executor in the registry
-	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	// Registering builtin Tosca definition files
-	_ "novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 type pluginManager struct {
 	pluginClients []*gplugin.Client
 	shutdownChan  chan struct{}
+	wg            *sync.WaitGroup
 }
 
-func newPluginManager(shutdownChan chan struct{}) *pluginManager {
+func newPluginManager(shutdownChan chan struct{}, wg *sync.WaitGroup) *pluginManager {
 	pm := &pluginManager{
 		pluginClients: make([]*gplugin.Client, 0),
 		shutdownChan:  shutdownChan,
+		wg:            wg,
 	}
 	go pm.cleanup()
 	return pm
 }
 
 func (pm *pluginManager) cleanup() {
+	pm.wg.Add(1)
+	defer pm.wg.Done()
 	<-pm.shutdownChan
 	for _, client := range pm.pluginClients {
 		client.Kill()

@@ -31,16 +31,19 @@ type worker struct {
 	consulClient *api.Client
 	cfg          config.Configuration
 	runStepLock  sync.Locker
+	wg           *sync.WaitGroup
 }
 
-func newWorker(workerPool chan chan *task, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration) worker {
+func newWorker(workerPool chan chan *task, shutdownCh chan struct{}, consulClient *api.Client, cfg config.Configuration, wg *sync.WaitGroup) worker {
 	return worker{
 		workerPool:   workerPool,
 		TaskChannel:  make(chan *task),
 		shutdownCh:   shutdownCh,
 		consulClient: consulClient,
 		cfg:          cfg,
-		runStepLock:  &sync.Mutex{}}
+		runStepLock:  &sync.Mutex{},
+		wg:           wg,
+	}
 }
 
 func (w worker) setDeploymentStatus(deploymentID string, status deployments.DeploymentStatus) {
@@ -307,6 +310,7 @@ func (w worker) cleanupScaledDownNodes(t *task) error {
 // Start method starts the run loop for the worker, listening for a quit channel in
 // case we need to stop it
 func (w worker) Start() {
+	w.wg.Add(1)
 	go func() {
 		for {
 			// register the current worker into the worker queue.
@@ -321,6 +325,7 @@ func (w worker) Start() {
 			case <-w.shutdownCh:
 				// we have received a signal to stop
 				log.Printf("Worker received shutdown signal. Exiting...")
+				w.wg.Done()
 				return
 			}
 		}

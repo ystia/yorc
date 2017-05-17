@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"sync"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -20,19 +22,20 @@ type Dispatcher struct {
 	WorkerPool chan chan *task
 	maxWorkers int
 	cfg        config.Configuration
+	wg         *sync.WaitGroup
 }
 
 // NewDispatcher create a new Dispatcher with a given number of workers
-func NewDispatcher(maxWorkers int, shutdownCh chan struct{}, client *api.Client, cfg config.Configuration) *Dispatcher {
-	pool := make(chan chan *task, maxWorkers)
-	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: maxWorkers, cfg: cfg}
+func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
+	pool := make(chan chan *task, cfg.WorkersNumber)
+	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
 }
 
 // Run creates workers and waits for new tasks
 func (d *Dispatcher) Run() {
 
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
+		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg, d.wg)
 		worker.Start()
 	}
 	log.Printf("%d worker started", d.maxWorkers)

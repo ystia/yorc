@@ -5,6 +5,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"sync"
+
+	"time"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -14,6 +18,7 @@ import (
 
 // RunServer starts the Janus server
 func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
+	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()
 	if err != nil {
 		log.Printf("Can't connect to Consul")
@@ -27,7 +32,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
-	dispatcher := workflow.NewDispatcher(configuration.WorkersNumber, shutdownCh, client, configuration)
+	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
 	go dispatcher.Run()
 	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
 	if err != nil {
@@ -36,7 +41,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	}
 	defer httpServer.Shutdown()
 
-	pm := newPluginManager(shutdownCh)
+	pm := newPluginManager(shutdownCh, &wg)
 
 	err = pm.loadPlugins(configuration)
 	if err != nil {
@@ -62,6 +67,23 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		} else {
 			if !shutdownChClosed {
 				close(shutdownCh)
+			}
+			gracefulTimeout := configuration.ServerGracefulShutdownTimeout
+			if gracefulTimeout == 0 {
+				gracefulTimeout = config.DefaultServerGracefulShutdownTimeout
+			}
+			log.Printf("Waiting at least %v for a graceful server shutdown. Send another termination signal to exit immediately.", gracefulTimeout)
+			gracefulCh := make(chan struct{})
+			go func() {
+				wg.Wait()
+				close(gracefulCh)
+			}()
+			select {
+			// In case of double Ctrl+C then exit immediately
+			case <-signalCh:
+			case <-gracefulCh:
+			case <-time.After(gracefulTimeout):
+
 			}
 			return nil
 		}
