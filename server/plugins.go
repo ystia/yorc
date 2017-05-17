@@ -11,7 +11,6 @@ import (
 import (
 	"os"
 	"path/filepath"
-	"sync"
 
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
@@ -24,24 +23,16 @@ import (
 
 type pluginManager struct {
 	pluginClients []*gplugin.Client
-	shutdownChan  chan struct{}
-	wg            *sync.WaitGroup
 }
 
-func newPluginManager(shutdownChan chan struct{}, wg *sync.WaitGroup) *pluginManager {
+func newPluginManager() *pluginManager {
 	pm := &pluginManager{
 		pluginClients: make([]*gplugin.Client, 0),
-		shutdownChan:  shutdownChan,
-		wg:            wg,
 	}
-	go pm.cleanup()
 	return pm
 }
 
 func (pm *pluginManager) cleanup() {
-	pm.wg.Add(1)
-	defer pm.wg.Done()
-	<-pm.shutdownChan
 	for _, client := range pm.pluginClients {
 		client.Kill()
 	}

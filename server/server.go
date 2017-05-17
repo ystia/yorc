@@ -34,20 +34,23 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
 	go dispatcher.Run()
-	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
-	if err != nil {
-		close(shutdownCh)
-		return err
-	}
-	defer httpServer.Shutdown()
-
-	pm := newPluginManager(shutdownCh, &wg)
-
+	var httpServer *rest.Server
+	pm := newPluginManager()
+	defer pm.cleanup()
 	err = pm.loadPlugins(configuration)
 	if err != nil {
 		close(shutdownCh)
-		return err
+		goto WAIT
 	}
+
+	httpServer, err = rest.NewServer(configuration, client, shutdownCh)
+	if err != nil {
+		close(shutdownCh)
+		goto WAIT
+	}
+	defer httpServer.Shutdown()
+
+WAIT:
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {
@@ -79,13 +82,12 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 				close(gracefulCh)
 			}()
 			select {
-			// In case of double Ctrl+C then exit immediately
+			// Wait for another signal, a timeout or a notification that the graceful shutdown is done
 			case <-signalCh:
 			case <-gracefulCh:
 			case <-time.After(gracefulTimeout):
-
 			}
-			return nil
+			return err
 		}
 	}
 }
