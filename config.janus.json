@@ -2,7 +2,7 @@
         "working_directory": "work",
         "plugins_directory": "plugins",
         "workers_number": 3,
-        "server_graceful_shutdown_timeout": "30s",
+        "server_graceful_shutdown_timeout": "5m",
         "http_port": 8800,
         "http_address": "0.0.0.0",
         "os_auth_url": "http://10.197.132.150:5000/v2.0",
