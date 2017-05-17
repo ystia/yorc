@@ -30,6 +30,11 @@ func SetDebug(d bool) {
 	debug = d
 }
 
+// IsDebug returns the debug flag
+func IsDebug() bool {
+	return debug
+}
+
 // SetOutput sets the output destination for the standard logger.
 func SetOutput(w io.Writer) {
 	std.SetOutput(w)
