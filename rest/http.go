@@ -135,6 +135,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id/workflows", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listWorkflowsHandler))
 
 	s.router.Get("/registry/delegates", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDelegatesHandler))
+	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDefinitionsHandler))
 }
 
 func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {

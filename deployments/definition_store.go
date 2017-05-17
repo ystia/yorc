@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
@@ -31,6 +32,8 @@ type ctxConsulStoreKey struct{}
 
 // Internal variable used to uniquely identify the ConsulStore in a context
 var consulStoreKey ctxConsulStoreKey
+
+var reg = registry.GetRegistry()
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
 // consulutil.DeploymentKVPrefix/deploymentID
@@ -119,7 +122,7 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, to
 				importValue = strings.Trim(importValue, "<>")
 				var defBytes []byte
 				var err error
-				if defBytes, err = tosca.Asset(importValue); err != nil {
+				if defBytes, err = reg.GetToscaDefinition(importValue); err != nil {
 					return fmt.Errorf("Failed to import internal definition %s: %v", importValue, err)
 				}
 				if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {

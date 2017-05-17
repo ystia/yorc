@@ -8,6 +8,7 @@ import (
 
 func NewClient(pluginPath string) *gplugin.Client {
 	return gplugin.NewClient(&gplugin.ClientConfig{
+		Managed:         true,
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         getPlugins(nil),
 		Cmd:             exec.Command(pluginPath),

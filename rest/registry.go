@@ -10,9 +10,12 @@ var reg = registry.GetRegistry()
 
 func (s *Server) listRegistryDelegatesHandler(w http.ResponseWriter, r *http.Request) {
 	delegates := reg.ListDelegateExecutors()
-	delegatesCollection := DelegatesCollection{Delegates: make([]Delegate, 0)}
-	for match, origin := range delegates {
-		delegatesCollection.Delegates = append(delegatesCollection.Delegates, Delegate{NodeType: match, Origin: origin})
-	}
+	delegatesCollection := RegistryDelegatesCollection{Delegates: delegates}
 	encodeJSONResponse(w, r, delegatesCollection)
+}
+
+func (s *Server) listRegistryDefinitionsHandler(w http.ResponseWriter, r *http.Request) {
+	definitions := reg.ListToscaDefinitions()
+	definitionsCollection := RegistryDefinitionsCollection{Definitions: definitions}
+	encodeJSONResponse(w, r, definitionsCollection)
 }

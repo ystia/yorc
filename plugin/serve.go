@@ -34,17 +34,16 @@ type ServeOpts struct {
 func Serve(opts *ServeOpts) {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: HandshakeConfig,
-		Plugins: getPlugins(opts),
+		Plugins:         getPlugins(opts),
 	})
 }
-
 
 func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 	if opts == nil {
 		opts = new(ServeOpts)
 	}
 	return map[string]plugin.Plugin{
-			DelegatePluginName:    &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
-			DefinitionsPluginName: &DefinitionsPlugin{Definitions: opts.Definitions},
-		}
+		DelegatePluginName:    &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
+		DefinitionsPluginName: &DefinitionsPlugin{Definitions: opts.Definitions},
+	}
 }

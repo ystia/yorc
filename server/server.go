@@ -38,7 +38,11 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	pm := newPluginManager(shutdownCh)
 
-	pm.loadPlugins(configuration)
+	err = pm.loadPlugins(configuration)
+	if err != nil {
+		close(shutdownCh)
+		return err
+	}
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {

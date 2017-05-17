@@ -14,6 +14,8 @@ import (
 
 	// Registering openstack delegate executor in the registry
 	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
+	// Registering builtin Tosca definition files
+	_ "novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 type pluginManager struct {
@@ -64,6 +66,7 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 	reg := registry.GetRegistry()
 	for _, pFile := range plugins {
 		log.Debugf("Loading plugin %q...", pFile)
+		pluginID := filepath.Base(pFile)
 		client := plugin.NewClient(pFile)
 		pm.pluginClients = append(pm.pluginClients, client)
 		// Connect via RPC
@@ -83,8 +86,24 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve supported type for delegate")
 		}
-
-		reg.RegisterDelegates(supportedTypes, delegateExecutor, filepath.Base(pFile))
+		if len(supportedTypes) > 0 {
+			log.Debugf("Registering supported node types %v into registry for plugin %q", supportedTypes, pluginID)
+			reg.RegisterDelegates(supportedTypes, delegateExecutor, pluginID)
+		}
+		// Request the delegate plugin
+		raw, err = rpcClient.Dispense(plugin.DefinitionsPluginName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
+		}
+		definitionPlugin := raw.(plugin.Definitions)
+		definitions, err := definitionPlugin.GetDefinitions()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve plugin specific TOSCA definitions")
+		}
+		for defName, defContent := range definitions {
+			log.Debugf("Registering TOSCA definition %q into registry for plugin %q", defName, pluginID)
+			reg.AddToscaDefinition(defName, pluginID, defContent)
+		}
 
 	}
 

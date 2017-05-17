@@ -2,6 +2,7 @@ package rest
 
 import "novaforge.bull.com/starlings-janus/janus/events"
 import "novaforge.bull.com/starlings-janus/janus/tosca"
+import "novaforge.bull.com/starlings-janus/janus/registry"
 
 const (
 	// LinkRelSelf defines the AtomLink Rel attribute for relationships of the "self"
@@ -146,11 +147,12 @@ type Workflow struct {
 	tosca.Workflow
 }
 
-type Delegate struct {
-	NodeType string `json:"node_type"`
-	Origin   string `json:"origin"`
+// RegistryDelegatesCollection is the collection of Delegates executors registered in the Janus registry
+type RegistryDelegatesCollection struct {
+	Delegates []registry.DelegateMatch `json:"delegates"`
 }
 
-type DelegatesCollection struct {
-	Delegates []Delegate `json:"delegates"`
+// RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Janus registry
+type RegistryDefinitionsCollection struct {
+	Definitions []registry.Definition `json:"definitions"`
 }
