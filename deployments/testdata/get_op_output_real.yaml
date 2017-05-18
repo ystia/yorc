@@ -5,7 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
-  - slurm-types: <janus-slurm-types.yml>
+  - type-types: <normative-types.yml>
 
 node_types:
 
@@ -231,10 +231,7 @@ topology_template:
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     Compute:
-      type: janus.nodes.slurm.Compute
-      properties:
-        gpuType: none
-        user: root
+      type: tosca.nodes.Compute
       capabilities:
         endpoint:
           properties:
