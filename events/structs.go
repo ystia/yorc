@@ -62,6 +62,7 @@ var _StatusUpdateTypeNameToValue_map = map[string]StatusUpdateType{
 	_StatusUpdateType_name[39:47]: 4,
 }
 
+// StatusUpdateTypeString returns a StatusUpdateType given its string representation
 func StatusUpdateTypeString(s string) (StatusUpdateType, error) {
 	if val, ok := _StatusUpdateTypeNameToValue_map[s]; ok {
 		return val, nil

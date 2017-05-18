@@ -25,13 +25,18 @@ func clientMonitorContextCancellation(ctx context.Context, closeChan chan struct
 	}
 }
 
-//
+// RPCContextCanceller is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type RPCContextCanceller struct {
 	CancelFunc context.CancelFunc
 }
 
+// CancelContextResponse is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type CancelContextResponse struct{}
 
+// CancelContext is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 func (r *RPCContextCanceller) CancelContext(nothing interface{}, resp *CancelContextResponse) error {
 	r.CancelFunc()
 	return nil

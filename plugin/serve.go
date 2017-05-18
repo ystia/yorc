@@ -6,7 +6,9 @@ import (
 )
 
 const (
-	DelegatePluginName    = "delegate"
+	// DelegatePluginName is the name of Delegates Plugins it could be used as a lookup key in Client.Dispense
+	DelegatePluginName = "delegate"
+	// DefinitionsPluginName is the name of Delegates Plugins it could be used as a lookup key in Client.Dispense
 	DefinitionsPluginName = "definitions"
 )
 
@@ -20,6 +22,7 @@ var HandshakeConfig = plugin.HandshakeConfig{
 	MagicCookieValue: "a3292e718f7c96578aae47e92b7475394e72e6da3de3455554462ba15dde56d1b3187ad0e5f809f50767e0d10ca6944fdf4c6c412380d3aa083b9e8951f7101e",
 }
 
+// DelegateFunc is a function that is called when creating a plugin server
 type DelegateFunc func() prov.DelegateExecutor
 
 // ServeOpts are the configurations to serve a plugin.

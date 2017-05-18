@@ -10,38 +10,47 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov"
 )
 
+// DelegateExecutor is an extention of prov.DelegateExecutor that expose its supported node types
 type DelegateExecutor interface {
 	prov.DelegateExecutor
+	// Returns a list of regexp matches for node types
 	GetSupportedTypes() ([]string, error)
 }
 
+// DelegatePlugin is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type DelegatePlugin struct {
 	F              func() prov.DelegateExecutor
 	SupportedTypes []string
 	Definitions    map[string][]byte
 }
 
+// Server is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 func (p *DelegatePlugin) Server(b *plugin.MuxBroker) (interface{}, error) {
 	return &DelegateExecutorServer{Broker: b, Delegate: p.F(), SupportedTypes: p.SupportedTypes, Definitions: p.Definitions}, nil
 }
 
+// Client is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 func (p *DelegatePlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
 	return &DelegateExecutorClient{Broker: b, Client: c}, nil
 }
 
-// DelegateExecutorClient is an implementation of prov.DelegateExecutorClient
-// that communicates over RPC.
+// DelegateExecutorClient is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type DelegateExecutorClient struct {
 	Broker *plugin.MuxBroker
 	Client *rpc.Client
 }
 
-// ExecDelegate implements prov.DelegateExecutor
-func (p *DelegateExecutorClient) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-	id := p.Broker.NextId()
+// ExecDelegate is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
+func (c *DelegateExecutorClient) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+	id := c.Broker.NextId()
 	closeChan := make(chan struct{}, 0)
 	defer close(closeChan)
-	go clientMonitorContextCancellation(ctx, closeChan, id, p.Broker)
+	go clientMonitorContextCancellation(ctx, closeChan, id, c.Broker)
 
 	var resp DelegateExecutorExecDelegateResponse
 	args := &DelegateExecutorExecDelegateArgs{
@@ -52,15 +61,15 @@ func (p *DelegateExecutorClient) ExecDelegate(ctx context.Context, conf config.C
 		NodeName:          nodeName,
 		DelegateOperation: delegateOperation,
 	}
-	err := p.Client.Call("Plugin.ExecDelegate", args, &resp)
+	err := c.Client.Call("Plugin.ExecDelegate", args, &resp)
 	if err != nil {
 		return err
 	}
 	return resp.Error
 }
 
-// DelegateExecutorServer is a net/rpc compatible structure for serving
-// a DelegateProvider. This should not be used directly.
+// DelegateExecutorServer is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type DelegateExecutorServer struct {
 	Broker         *plugin.MuxBroker
 	Delegate       prov.DelegateExecutor
@@ -68,6 +77,8 @@ type DelegateExecutorServer struct {
 	Definitions    map[string][]byte
 }
 
+// DelegateExecutorExecDelegateArgs is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type DelegateExecutorExecDelegateArgs struct {
 	ChannelID         uint32
 	Conf              config.Configuration
@@ -77,10 +88,14 @@ type DelegateExecutorExecDelegateArgs struct {
 	DelegateOperation string
 }
 
+// DelegateExecutorExecDelegateResponse is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type DelegateExecutorExecDelegateResponse struct {
 	Error error
 }
 
+// ExecDelegate is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 func (s *DelegateExecutorServer) ExecDelegate(args *DelegateExecutorExecDelegateArgs, reply *DelegateExecutorExecDelegateResponse) error {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -94,16 +109,22 @@ func (s *DelegateExecutorServer) ExecDelegate(args *DelegateExecutorExecDelegate
 	return nil
 }
 
+// GetSupportedTypes is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 func (s *DelegateExecutorServer) GetSupportedTypes(_ interface{}, reply *DelegateExecutorGetTypesResponse) error {
 	*reply = DelegateExecutorGetTypesResponse{SupportedTypes: s.SupportedTypes}
 	return nil
 }
 
+// DelegateExecutorGetTypesResponse is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 type DelegateExecutorGetTypesResponse struct {
 	SupportedTypes []string
 	Error          error
 }
 
+// GetSupportedTypes is public for use by reflexion and should be considered as private to this package.
+// Please do not use it directly.
 func (c *DelegateExecutorClient) GetSupportedTypes() ([]string, error) {
 	var resp DelegateExecutorGetTypesResponse
 	err := c.Client.Call("Plugin.GetSupportedTypes", new(interface{}), &resp)
