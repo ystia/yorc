@@ -13,17 +13,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-// A Publisher is used to publish a node instance status change.
-type Publisher interface {
-	// StatusChange publishes a status change for a given instance of a given node
-	//
-	// StatusChange returns the published event id
-	StatusChange(nodeName, instance, status string) (string, error)
-}
-
-// A Subscriber is used to poll for new InstanceStatus and LogEntry events
+// A Subscriber is used to poll for new StatusChange and LogEntry events
 type Subscriber interface {
-	StatusEvents(waitIndex uint64, timeout time.Duration) ([]InstanceStatus, uint64, error)
+	StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error)
 	LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]LogEntry, uint64, error)
 }
 
@@ -32,39 +24,87 @@ type consulPubSub struct {
 	deploymentID string
 }
 
-// NewPublisher returns an instance of Publisher
-func NewPublisher(kv *api.KV, deploymentID string) Publisher {
-	return &consulPubSub{kv: kv, deploymentID: deploymentID}
-}
-
 // NewSubscriber returns an instance of Subscriber
 func NewSubscriber(kv *api.KV, deploymentID string) Subscriber {
 	return &consulPubSub{kv: kv, deploymentID: deploymentID}
 }
 
-// StatusChange publishes a status change for a given instance of a given node
+// InstanceStatusChange publishes a status change for a given instance of a given node
 //
-// StatusChange returns the published event id
-func StatusChange(kv *api.KV, deploymentID string, nodeName, instance, status string) (string, error) {
-	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
-	err := consulutil.StoreConsulKeyAsString(path.Join(eventsPrefix, now), nodeName+"\n"+status+"\n"+instance)
+// InstanceStatusChange returns the published event id
+func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
+	id, err := storeStatusUpdateEvent(kv, deploymentID, InstanceStatusChangeType, nodeName+"\n"+status+"\n"+instance)
 	if err != nil {
 		return "", err
 	}
 	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
+	return id, nil
+}
+
+// DeploymentStatusChange publishes a status change for a given deployment
+//
+// DeploymentStatusChange returns the published event id
+func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, error) {
+	id, err := storeStatusUpdateEvent(kv, deploymentID, DeploymentStatusChangeType, status)
+	if err != nil {
+		return "", err
+	}
+	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for deployment %q changed to %q", deploymentID, status))
+	return id, nil
+}
+
+// CustomCommandStatusChange publishes a status change for a custom command
+//
+// CustomCommandStatusChange returns the published event id
+func CustomCommandStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	id, err := storeStatusUpdateEvent(kv, deploymentID, CustomCommandStatusChangeType, taskID+"\n"+status)
+	if err != nil {
+		return "", err
+	}
+	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for custom-command %q changed to %q", taskID, status))
+	return id, nil
+}
+
+// ScalingStatusChange publishes a status change for a scaling task
+//
+// ScalingStatusChange returns the published event id
+func ScalingStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	id, err := storeStatusUpdateEvent(kv, deploymentID, ScalingStatusChangeType, taskID+"\n"+status)
+	if err != nil {
+		return "", err
+	}
+	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for scaling task %q changed to %q", taskID, status))
+	return id, nil
+}
+
+// WorkflowStatusChange publishes a status change for a workflow task
+//
+// WorkflowStatusChange returns the published event id
+func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	id, err := storeStatusUpdateEvent(kv, deploymentID, WorkflowStatusChangeType, taskID+"\n"+status)
+	if err != nil {
+		return "", err
+	}
+	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for workflow task %q changed to %q", taskID, status))
+	return id, nil
+}
+
+func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpdateType, data string) (string, error) {
+	now := time.Now().Format(time.RFC3339Nano)
+	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	p := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(data), Flags: uint64(eventType)}
+	_, err := kv.Put(p, nil)
+	if err != nil {
+		return "", err
+	}
 	return now, nil
 }
 
-func (cp *consulPubSub) StatusChange(nodeName, instance, status string) (string, error) {
-	return StatusChange(cp.kv, cp.deploymentID, nodeName, instance, status)
-}
-
-func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([]InstanceStatus, uint64, error) {
+func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
 
 	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "events")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	events := make([]InstanceStatus, 0)
+	events := make([]StatusUpdate, 0)
 
 	if err != nil || qm == nil {
 		return events, 0, err
@@ -79,10 +119,27 @@ func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([
 
 		eventTimestamp := strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
 		values := strings.Split(string(kvp.Value), "\n")
-		if len(values) != 3 {
-			return events, qm.LastIndex, fmt.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+		eventType := StatusUpdateType(kvp.Flags)
+		switch eventType {
+		case InstanceStatusChangeType:
+			if len(values) != 3 {
+				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+			}
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Node: values[0], Status: values[1], Instance: values[2]})
+		case DeploymentStatusChangeType:
+			if len(values) != 1 {
+				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+			}
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Status: values[0]})
+		case CustomCommandStatusChangeType, ScalingStatusChangeType, WorkflowStatusChangeType:
+			if len(values) != 2 {
+				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+			}
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), TaskID: values[0], Status: values[1]})
+		default:
+			return events, qm.LastIndex, errors.Errorf("Unsupported event type %d for event %q", kvp.Flags, kvp.Key)
 		}
-		events = append(events, InstanceStatus{Timestamp: eventTimestamp, Node: values[0], Status: values[1], Instance: values[2]})
+
 	}
 
 	log.Debugf("Found %d events after filtering", len(events))

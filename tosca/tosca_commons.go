@@ -161,6 +161,14 @@ func (t *TreeNode) IsTargetContext() bool {
 	return t.children[0].Value == "TARGET"
 }
 
+// IsSourceContext retruns true if the value of the first child of this TreeNode is "SOURCE"
+func (t *TreeNode) IsSourceContext() bool {
+	if t.IsLiteral() {
+		return false
+	}
+	return t.children[0].Value == "SOURCE"
+}
+
 func (t *TreeNode) String() string {
 	buf := &bytes.Buffer{}
 	shouldQuote := strings.ContainsAny(t.Value, ":[],")

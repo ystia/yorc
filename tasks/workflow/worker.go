@@ -50,6 +50,7 @@ func (w worker) setDeploymentStatus(deploymentID string, status deployments.Depl
 	p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), Value: []byte(fmt.Sprint(status))}
 	kv := w.consulClient.KV()
 	kv.Put(p, nil)
+	events.DeploymentStatusChange(kv, deploymentID, strings.ToLower(status.String()))
 }
 
 func (w worker) processWorkflow(ctx context.Context, workflowName string, wfSteps []*step, deploymentID string, bypassErrors bool) error {
@@ -172,8 +173,6 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 	case tasks.CustomCommand:
-		eventPub := events.NewPublisher(t.kv, t.TargetID)
-
 		commandNameKv, _, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, t.ID, "commandName"), nil)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command name: %+v", t.TargetID, t.ID, err)
@@ -204,7 +203,7 @@ func (w worker) handleTask(t *task) {
 		exec := ansible.NewExecutor()
 		if err := exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, "custom."+commandName); err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
-			err = setNodeStatus(t.kv, eventPub, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
+			err = setNodeStatus(t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			}

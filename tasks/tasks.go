@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
@@ -187,4 +188,17 @@ func IsTaskRelatedNode(kv *api.KV, taskID, nodeName string) (bool, error) {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return kvp != nil, nil
+}
+
+// EmitTaskEvent emits a task event based on task type
+func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (eventID string, err error) {
+	switch taskType {
+	case CustomCommand:
+		eventID, err = events.CustomCommandStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+	case CustomWorkflow:
+		eventID, err = events.WorkflowStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+	case ScaleDown, ScaleUp:
+		eventID, err = events.ScalingStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+	}
+	return
 }

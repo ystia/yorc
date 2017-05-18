@@ -2,7 +2,6 @@ package deployments
 
 import (
 	"path"
-	"path/filepath"
 	"strconv"
 
 	"strings"
@@ -206,48 +205,6 @@ func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, erro
 		}
 	}
 	return stackNodes, nil
-}
-
-//GetOutputValueForNode return a map with in index the instance number and in value the result of the output
-//The "params" parameter is necessary to pass the path of the output
-func GetOutputValueForNode(kv *api.KV, deploymentID, nodeName string, outputPath string) (outputValue map[string]string, err error) {
-	//We only check instances for nodes, because the saving are instances index based
-
-	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
-	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
-	if err != nil {
-		return nil, err
-	}
-	outputValue = make(map[string]string)
-
-	for _, instancePath := range instances {
-		output, _, err := kv.Get(filepath.Join(instancePath, "outputs", outputPath), nil)
-		if err != nil {
-			return nil, err
-		}
-		if output == nil {
-			continue
-		}
-		outputValue[filepath.Base(instancePath)] = string(output.Value)
-	}
-
-	if len(outputValue) > 0 {
-		return
-	}
-
-	var host string
-	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
-	if err != nil {
-		return nil, err
-	}
-	if host != "" {
-		outputValue, err = GetOutputValueForNode(kv, deploymentID, host, outputPath)
-		if len(outputValue) == 0 || err != nil {
-			return
-		}
-	}
-
-	return
 }
 
 // GetTypeDefaultProperty checks if a type has a default value for a given property.

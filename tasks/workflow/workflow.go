@@ -157,7 +157,7 @@ func (s *step) isRunnable() (bool, error) {
 	return true, nil
 }
 
-func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, nodeName, status string) error {
+func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) error {
 	instancesIDs, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -175,7 +175,6 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, 
 
 func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool) error {
 	haveErr := false
-	eventPub := events.NewPublisher(kv, deploymentID)
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
 		log.Debugf("Step %q waiting for %d previous steps", s.Name, len(s.Previous)-i)
@@ -216,7 +215,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfDelegateActivity:
 			nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
 			if err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
 				if bypassErrors {
@@ -228,7 +227,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			}
 			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
 			if err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
 				if bypassErrors {
@@ -240,7 +239,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			}
 			delegateOp := activity.ActivityValue()
 			if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
 				if bypassErrors {
@@ -251,12 +250,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				}
 			}
 		case actType == wfSetStateActivity:
-			setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
+			setNodeStatus(kv, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
 			exec := ansible.NewExecutor()
 			err := exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 			if err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if bypassErrors {
 					ignoredErrsChan <- err
@@ -291,7 +290,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, err
 	}
 	if kvPair == nil {
-		return nil, fmt.Errorf("Missing node attribute for step %s", stepName)
+		return nil, errors.Errorf("Missing node attribute for step %s", stepName)
 	}
 	s.Node = string(kvPair.Value)
 
@@ -300,7 +299,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, err
 	}
 	if len(kvPairs) == 0 {
-		return nil, fmt.Errorf("Activity missing for step %s, this is not allowed.", stepName)
+		return nil, errors.Errorf("Activity missing for step %s, this is not allowed", stepName)
 	}
 	s.Activities = make([]activity, 0)
 	for _, actKV := range kvPairs {
@@ -313,7 +312,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		case key == wfCallOpActivity:
 			s.Activities = append(s.Activities, callOperationActivity{operation: string(actKV.Value)})
 		default:
-			return nil, fmt.Errorf("Unsupported activity type: %s", key)
+			return nil, errors.Errorf("Unsupported activity type: %s", key)
 		}
 	}
 	s.NotifyChan = make(chan struct{})
