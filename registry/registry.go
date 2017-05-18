@@ -113,8 +113,8 @@ func (r *defaultRegistry) GetToscaDefinition(name string) ([]byte, error) {
 	defer r.definitionsLock.RUnlock()
 	for _, def := range r.definitions {
 		if def.Name == name {
+			return def.Data, nil
 		}
-		return def.Data, nil
 	}
 	return nil, errors.Errorf("Unknown definition: %q", name)
 }
