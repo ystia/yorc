@@ -10,17 +10,16 @@ import (
 )
 
 func clientMonitorContextCancellation(ctx context.Context, closeChan chan struct{}, id uint32, broker *plugin.MuxBroker) {
+	conn, err := broker.Dial(id)
+	if err != nil {
+		log.Panicf("Failed to dial plugin %+v", errors.WithStack(err))
+	}
+	client := rpc.NewClient(conn)
+	defer client.Close()
+
 	select {
 	case <-ctx.Done():
-		conn, err := broker.Dial(id)
-		if err != nil {
-			log.Panicf("Failed to dial plugin %+v", errors.WithStack(err))
-		}
-		defer conn.Close()
-		client := rpc.NewClient(conn)
-		defer client.Close()
 		client.Call("Plugin.CancelContext", new(interface{}), &CancelContextResponse{})
-
 	case <-closeChan:
 	}
 }

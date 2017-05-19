@@ -71,11 +71,24 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 		// Connect via RPC
 		rpcClient, err := client.Client()
 		if err != nil {
+			log.Printf("Failed to load %q as a plugin: %v. Skipping it and continue loading plugins.", pFile, err)
+			log.Debugf("Error details: %+v", err)
+			continue
+		}
+
+		// Request the configManager plugin
+		raw, err := rpcClient.Dispense(plugin.ConfigManagerPluginName)
+		if err != nil {
 			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
+		}
+		cfgManager := raw.(plugin.ConfigManager)
+		err = cfgManager.SetupConfig(cfg)
+		if err != nil {
+			return errors.Wrap(err, "Failed to setup configuration on plugin")
 		}
 
 		// Request the delegate plugin
-		raw, err := rpcClient.Dispense(plugin.DelegatePluginName)
+		raw, err = rpcClient.Dispense(plugin.DelegatePluginName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
 		}

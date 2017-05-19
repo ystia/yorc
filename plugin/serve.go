@@ -10,6 +10,8 @@ const (
 	DelegatePluginName = "delegate"
 	// DefinitionsPluginName is the name of Delegates Plugins it could be used as a lookup key in Client.Dispense
 	DefinitionsPluginName = "definitions"
+	// ConfigManagerPluginName is the name of ConfigManager plugin it could be used as a lookup key in Client.Dispense
+	ConfigManagerPluginName = "cfgManager"
 )
 
 // HandshakeConfig are used to just do a basic handshake between
@@ -46,7 +48,8 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 		opts = new(ServeOpts)
 	}
 	return map[string]plugin.Plugin{
-		DelegatePluginName:    &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
-		DefinitionsPluginName: &DefinitionsPlugin{Definitions: opts.Definitions},
+		DelegatePluginName:      &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
+		DefinitionsPluginName:   &DefinitionsPlugin{Definitions: opts.Definitions},
+		ConfigManagerPluginName: &ConfigManagerPlugin{&defaultConfigManager{}},
 	}
 }
