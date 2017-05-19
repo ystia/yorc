@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	deploymentsCmd.AddCommand(cancelTaskCmd)
+	tasksCmd.AddCommand(cancelTaskCmd)
 }
 
 var cancelTaskCmd = &cobra.Command{
