@@ -57,6 +57,11 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentID str
 	if err != nil {
 		return errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath)
 	}
+	err = registerImplementationTypes(ctx, kv, deploymentID)
+	if err != nil {
+		return err
+	}
+
 	return enhanceNodes(ctx, kv, deploymentID)
 }
 
@@ -618,6 +623,43 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		}
 
 	}
+	return nil
+}
+
+func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID string) error {
+	// We use synchronous communication with consul here to allow to check for duplicates
+	types, err := GetTypes(kv, deploymentID)
+	if err != nil {
+		return err
+	}
+	for _, t := range types {
+		isImpl, err := IsTypeDerivedFrom(kv, deploymentID, t, "tosca.artifacts.Implementation")
+		if err != nil {
+			return err
+		}
+		if isImpl {
+			extensions, err := GetArtifactTypeExtensions(kv, deploymentID, t)
+			if err != nil {
+				return err
+			}
+			for _, ext := range extensions {
+				ext = strings.ToLower(ext)
+				check, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+				if err != nil {
+					return err
+				}
+				if check != "" {
+					return errors.Errorf("Duplicate implementation artifact file extension %q found in artifact %q and %q", ext, check, t)
+				}
+				extPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, ext)
+				_, err = kv.Put(&api.KVPair{Key: extPath, Value: []byte(t)}, nil)
+				if err != nil {
+					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

@@ -11,6 +11,8 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
+const implementationArtifactsExtensionsPath = "implementation_artifacts_extensions"
+
 // GetOperationPathAndPrimaryImplementationForNodeType traverses the type hierarchy to find an operation matching the given operationName.
 //
 // Once found it returns the path to the operation and the value of its primary implementation.
@@ -172,4 +174,19 @@ func getOperationOutputForRequirements(kv *api.KV, deploymentID, nodeName, insta
 		}
 	}
 	return "", nil
+}
+
+// GetImplementationArtifactForExtension returns the implementation artifact type for a given extension.
+//
+// If the extension is unknown then an empty string is returned
+func GetImplementationArtifactForExtension(kv *api.KV, deploymentID, extension string) (string, error) {
+	extension = strings.ToLower(extension)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, extension), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil {
+		return "", nil
+	}
+	return string(kvp.Value), nil
 }

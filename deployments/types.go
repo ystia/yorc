@@ -41,3 +41,16 @@ func IsTypeDerivedFrom(kv *api.KV, deploymentID, nodeType, derives string) (bool
 	}
 	return IsTypeDerivedFrom(kv, deploymentID, parent, derives)
 }
+
+// GetTypes returns the names of the different types for a given deployment.
+func GetTypes(kv *api.KV, deploymentID string) ([]string, error) {
+	names := make([]string, 0)
+	types, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types")+"/", "/", nil)
+	if err != nil {
+		return names, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, t := range types {
+		names = append(names, path.Base(t))
+	}
+	return names, nil
+}
