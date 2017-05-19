@@ -21,7 +21,7 @@ func init() {
 	var deploymentID string
 	var deployCmd = &cobra.Command{
 		Use:   "deploy <csar_path>",
-		Short: "Deploy a CSAR",
+		Short: "Deploy an application",
 		Long: `Deploy a file or directory pointed by <csar_path>
 	If <csar_path> point to a valid zip archive it is submitted to Janus as it.
 	If <csar_path> point to a file or directory it is zipped before beeing submitted to Janus.

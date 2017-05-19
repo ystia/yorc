@@ -20,7 +20,7 @@ func init() {
 	var inputs []string
 	var customCmd = &cobra.Command{
 		Use:   "custom <id>",
-		Short: "Use a custom command",
+		Short: "Execute a custom command",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return fmt.Errorf("Expecting an id (got %d parameters)", len(args))
