@@ -143,8 +143,8 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("ERROR: %+v", err)
 		log.Panic(err)
 	}
-
-	if _, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy); err != nil {
+	taskID, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy)
+	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
 			writeError(w, r, newBadRequestError(err))
 			return
@@ -152,7 +152,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s", uid))
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", uid, taskID))
 	w.WriteHeader(http.StatusCreated)
 }
 

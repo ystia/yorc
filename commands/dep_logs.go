@@ -19,8 +19,8 @@ func init() {
 	var filters []string
 	var logCmd = &cobra.Command{
 		Use:     "logs <DeploymentId>",
-		Short:   "Streams logs for a given deployment id",
-		Long:    `Streams logs for a given deployment id`,
+		Short:   "Stream logs for a deployment",
+		Long:    `Stream logs for a given deployment id`,
 		Aliases: []string{"log"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
