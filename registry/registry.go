@@ -31,6 +31,16 @@ type Registry interface {
 	GetToscaDefinition(name string) ([]byte, error)
 	// ListToscaDefinitions returns a map of definitions names to their origin
 	ListToscaDefinitions() []Definition
+
+	// RegisterDelegates register a list of implementation artifact type that should be used along with the given
+	// prov.OperationExecutor. Origin is the origin of the executor (builtin for builtin executors or the plugin name in case of a plugin)
+	RegisterOperationExecutor(artifacts []string, executor prov.OperationExecutor, origin string)
+	// Returns the first prov.OperationExecutor that matches the given artifact implementation
+	//
+	// If the given nodeType can't match any prov.DelegateExecutor an error is returned
+	GetOperationExecutor(artifact string) (prov.OperationExecutor, error)
+	// ListOperationExecutors returns a map of node types matches to prov.DelegateExecutor origin
+	ListOperationExecutors() []OperationExecMatch
 }
 
 var defaultReg Registry
@@ -51,6 +61,13 @@ type DelegateMatch struct {
 	Origin   string                `json:"origin"`
 }
 
+// OperationExecMatch represents a matching between an implementation artifact match and an OperationExecutor from a given origin
+type OperationExecMatch struct {
+	Artifact string                 `json:"implementation_artifact"`
+	Executor prov.OperationExecutor `json:"-"`
+	Origin   string                 `json:"origin"`
+}
+
 // Definition represents a TOSCA definition with its Name, Origin and Data content
 type Definition struct {
 	Name   string `json:"name"`
@@ -59,10 +76,12 @@ type Definition struct {
 }
 
 type defaultRegistry struct {
-	delegateMatches []DelegateMatch
-	definitions     []Definition
-	delegatesLock   sync.RWMutex
-	definitionsLock sync.RWMutex
+	delegateMatches  []DelegateMatch
+	operationMatches []OperationExecMatch
+	definitions      []Definition
+	delegatesLock    sync.RWMutex
+	operationsLock   sync.RWMutex
+	definitionsLock  sync.RWMutex
 }
 
 func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.DelegateExecutor, origin string) {
@@ -124,5 +143,37 @@ func (r *defaultRegistry) ListToscaDefinitions() []Definition {
 	defer r.definitionsLock.RUnlock()
 	result := make([]Definition, len(r.definitions))
 	copy(result, r.definitions)
+	return result
+}
+
+func (r *defaultRegistry) RegisterOperationExecutor(matches []string, executor prov.OperationExecutor, origin string) {
+	r.operationsLock.Lock()
+	defer r.operationsLock.Unlock()
+	if len(matches) > 0 {
+		newOpExecMatch := make([]OperationExecMatch, len(matches))
+		for i := range matches {
+			newOpExecMatch[i] = OperationExecMatch{Artifact: matches[i], Executor: executor, Origin: origin}
+		}
+		// Put them at the begining
+		r.operationMatches = append(newOpExecMatch, r.operationMatches...)
+	}
+}
+
+func (r *defaultRegistry) GetOperationExecutor(artifact string) (prov.OperationExecutor, error) {
+	r.operationsLock.RLock()
+	defer r.operationsLock.RUnlock()
+	for _, m := range r.operationMatches {
+		if artifact == m.Artifact {
+			return m.Executor, nil
+		}
+	}
+	return nil, errors.Errorf("Unsupported artifact implementation %q for a call-operation", artifact)
+}
+
+func (r *defaultRegistry) ListOperationExecutors() []OperationExecMatch {
+	r.operationsLock.RLock()
+	defer r.operationsLock.RUnlock()
+	result := make([]OperationExecMatch, len(r.operationMatches))
+	copy(result, r.operationMatches)
 	return result
 }

@@ -22,13 +22,18 @@ type DelegateExecutor interface {
 type DelegatePlugin struct {
 	F              func() prov.DelegateExecutor
 	SupportedTypes []string
-	Definitions    map[string][]byte
 }
 
 // Server is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (p *DelegatePlugin) Server(b *plugin.MuxBroker) (interface{}, error) {
-	return &DelegateExecutorServer{Broker: b, Delegate: p.F(), SupportedTypes: p.SupportedTypes, Definitions: p.Definitions}, nil
+	des := &DelegateExecutorServer{Broker: b, SupportedTypes: p.SupportedTypes}
+	if p.F != nil {
+		des.Delegate = p.F()
+	} else if len(p.SupportedTypes) > 0 {
+		return nil, errors.New("If DelegateSupportedTypes is defined then you have to defined a DelegateFunc")
+	}
+	return des, nil
 }
 
 // Client is public for use by reflexion and should be considered as private to this package.
@@ -74,7 +79,6 @@ type DelegateExecutorServer struct {
 	Broker         *plugin.MuxBroker
 	Delegate       prov.DelegateExecutor
 	SupportedTypes []string
-	Definitions    map[string][]byte
 }
 
 // DelegateExecutorExecDelegateArgs is public for use by reflexion and should be considered as private to this package.

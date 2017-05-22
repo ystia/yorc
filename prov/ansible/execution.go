@@ -139,13 +139,25 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
+	isBash, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, implementationArtifactBash)
+	if err != nil {
+		return nil, err
+	}
+	isPython, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, implementationArtifactPython)
+	if err != nil {
+		return nil, err
+	}
+	isAnsible, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, implementationArtifactAnsible)
+	if err != nil {
+		return nil, err
+	}
 	// TODO: should use implementation artifacts (tosca.artifacts.Implementation.Bash, tosca.artifacts.Implementation.Python, tosca.artifacts.Implementation.Ansible...) in some way
 	var exec execution
-	if strings.HasSuffix(execCommon.BasePrimary, ".sh") || strings.HasSuffix(execCommon.BasePrimary, ".py") {
+	if isBash || isPython {
 		execScript := &executionScript{executionCommon: execCommon}
 		execCommon.ansibleRunner = execScript
 		exec = execScript
-	} else if strings.HasSuffix(execCommon.BasePrimary, ".yml") || strings.HasSuffix(execCommon.BasePrimary, ".yaml") {
+	} else if isAnsible {
 		execAnsible := &executionAnsible{executionCommon: execCommon}
 		execCommon.ansibleRunner = execAnsible
 		exec = execAnsible

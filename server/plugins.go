@@ -4,6 +4,8 @@ package server
 import (
 	// Registering openstack delegate executor in the registry
 	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
+	// Registering ansible operation executor in the registry
+	_ "novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	// Registering builtin Tosca definition files
 	_ "novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -102,7 +104,23 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 			log.Debugf("Registering supported node types %v into registry for plugin %q", supportedTypes, pluginID)
 			reg.RegisterDelegates(supportedTypes, delegateExecutor, pluginID)
 		}
-		// Request the delegate plugin
+		// Request the operation plugin
+		raw, err = rpcClient.Dispense(plugin.OperationPluginName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
+		}
+
+		operationExecutor := raw.(plugin.OperationExecutor)
+		supportedArtTypes, err := operationExecutor.GetSupportedArtifactTypes()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve supported implementation artifact types for operation plugin")
+		}
+		if len(supportedArtTypes) > 0 {
+			log.Debugf("Registering supported implementation artifact types %v into registry for plugin %q", supportedArtTypes, pluginID)
+			reg.RegisterOperationExecutor(supportedArtTypes, operationExecutor, pluginID)
+		}
+
+		// Request the definitions plugin
 		raw, err = rpcClient.Dispense(plugin.DefinitionsPluginName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load plugin %q", pFile)

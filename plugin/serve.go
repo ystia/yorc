@@ -12,6 +12,8 @@ const (
 	DefinitionsPluginName = "definitions"
 	// ConfigManagerPluginName is the name of ConfigManager plugin it could be used as a lookup key in Client.Dispense
 	ConfigManagerPluginName = "cfgManager"
+	// OperationPluginName is the name of Operation Plugins it could be used as a lookup key in Client.Dispense
+	OperationPluginName = "operation"
 )
 
 // HandshakeConfig are used to just do a basic handshake between
@@ -27,11 +29,16 @@ var HandshakeConfig = plugin.HandshakeConfig{
 // DelegateFunc is a function that is called when creating a plugin server
 type DelegateFunc func() prov.DelegateExecutor
 
+// OperationFunc is a function that is called when creating a plugin server
+type OperationFunc func() prov.OperationExecutor
+
 // ServeOpts are the configurations to serve a plugin.
 type ServeOpts struct {
-	DelegateFunc           DelegateFunc
-	DelegateSupportedTypes []string
-	Definitions            map[string][]byte
+	DelegateFunc                    DelegateFunc
+	DelegateSupportedTypes          []string
+	Definitions                     map[string][]byte
+	OperationFunc                   OperationFunc
+	OperationSupportedArtifactTypes []string
 }
 
 // Serve serves a plugin. This function never returns and should be the final
@@ -49,6 +56,7 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 	}
 	return map[string]plugin.Plugin{
 		DelegatePluginName:      &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
+		OperationPluginName:     &OperationPlugin{F: opts.OperationFunc, SupportedTypes: opts.OperationSupportedArtifactTypes},
 		DefinitionsPluginName:   &DefinitionsPlugin{Definitions: opts.Definitions},
 		ConfigManagerPluginName: &ConfigManagerPlugin{&defaultConfigManager{}},
 	}

@@ -14,6 +14,12 @@ func (s *Server) listRegistryDelegatesHandler(w http.ResponseWriter, r *http.Req
 	encodeJSONResponse(w, r, delegatesCollection)
 }
 
+func (s *Server) listRegistryOperationsHandler(w http.ResponseWriter, r *http.Request) {
+	operations := reg.ListOperationExecutors()
+	operationsCollection := RegistryOperationsCollection{Operations: operations}
+	encodeJSONResponse(w, r, operationsCollection)
+}
+
 func (s *Server) listRegistryDefinitionsHandler(w http.ResponseWriter, r *http.Request) {
 	definitions := reg.ListToscaDefinitions()
 	definitionsCollection := RegistryDefinitionsCollection{Definitions: definitions}

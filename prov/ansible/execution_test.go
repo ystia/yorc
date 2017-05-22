@@ -110,7 +110,9 @@ func testExecutionOnNode(t *testing.T) {
 	operation := "tosca.interfaces.node.lifecycle.standard.create"
 
 	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"):                                             []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"):         []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.artifacts.Implementation.Bash/name"): []byte("tosca.artifacts.Implementation.Bash"),
+
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "name"):                                                        []byte(nodeTypeName),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):                   []byte("A1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):             []byte("get_property: [SELF, document_root]"),
@@ -322,7 +324,8 @@ func testExecutionOnRelationshipSource(t *testing.T) {
 	}
 
 	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"): []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"):         []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.artifacts.Implementation.Bash/name"): []byte("tosca.artifacts.Implementation.Bash"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                                  []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                                       []byte(relationshipTypeName),
@@ -528,7 +531,8 @@ func testExecutionOnRelationshipTarget(t *testing.T) {
 	}
 
 	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"): []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"):         []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.artifacts.Implementation.Bash/name"): []byte("tosca.artifacts.Implementation.Bash"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                        []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                             []byte(relationshipTypeName),

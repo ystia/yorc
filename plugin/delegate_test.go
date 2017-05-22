@@ -6,7 +6,6 @@ import (
 	"time"
 
 	plugin "github.com/hashicorp/go-plugin"
-
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/prov"

@@ -19,7 +19,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -211,7 +210,16 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 
-		exec := ansible.NewExecutor()
+		exec, err := getOperationExecutor(kv, t.TargetID, op.ImplementationArtifact)
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
+			err = setNodeStatus(t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.TargetID, t.ID, nodeName, err)
+			}
+			t.WithStatus(tasks.FAILED)
+			return
+		}
 		if err := exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, op); err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			err = setNodeStatus(t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())

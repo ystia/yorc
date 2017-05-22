@@ -14,7 +14,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -264,7 +263,19 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					return err
 				}
 			}
-			exec := ansible.NewExecutor()
+
+			exec, err := getOperationExecutor(kv, deploymentID, op.ImplementationArtifact)
+			if err != nil {
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					s.setStatus(tosca.NodeStateError.String())
+					return err
+				}
+			}
 			err = exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
