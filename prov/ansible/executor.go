@@ -19,7 +19,7 @@ func NewExecutor() prov.OperationExecutor {
 	return &defaultExecutor{r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, operation string) error {
+func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {
 		return err

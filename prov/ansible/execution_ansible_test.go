@@ -6,13 +6,14 @@ import (
 	"text/template"
 
 	"github.com/stretchr/testify/require"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 )
 
 func TestAnsibleTemplate(t *testing.T) {
 	t.Parallel()
 	ec := &executionCommon{
 		NodeName:            "Welcome",
-		Operation:           "tosca.interfaces.node.lifecycle.standard.start",
+		operation:           prov.Operation{Name: "tosca.interfaces.node.lifecycle.standard.start"},
 		Artifacts:           map[string]string{"scripts": "my_scripts"},
 		OverlayPath:         "/some/local/path",
 		VarInputsNames:      []string{"INSTANCE", "PORT"},

@@ -190,3 +190,39 @@ func GetImplementationArtifactForExtension(kv *api.KV, deploymentID, extension s
 	}
 	return string(kvp.Value), nil
 }
+
+// GetImplementationArtifactForOperation returns the implementation artifact type for a given operation.
+// operationName, isRelationshipOp and requirementIndex are typically the result of the DecodeOperation function that
+// should generally call prior to call this function.
+func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, operationName string, isRelationshipOp bool, requirementIndex string) (string, error) {
+	var nodeOrRelType string
+	var err error
+	if isRelationshipOp {
+		nodeOrRelType, err = GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	} else {
+		nodeOrRelType, err = GetNodeType(kv, deploymentID, nodeName)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	// TODO keep in mind that with Alien we may have a an implementation artifact directly in the operation. This part is currently under development in the Kubernetes branch
+	// and we should take this into account when it will be merged.
+	_, primary, err := GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, nodeOrRelType, operationName)
+	if err != nil {
+		return "", err
+	}
+	if primary == "" {
+		return "", errors.Errorf("Failed to resolve primary implementation for type %q and operation %q", nodeOrRelType, operationName)
+	}
+	primarySlice := strings.Split(primary, ".")
+	ext := primarySlice[len(primarySlice)-1]
+	artImpl, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+	if err != nil {
+		return "", err
+	}
+	if artImpl == "" {
+		return "", errors.Errorf("Failed to resolve implementation artifact for type %q, operation %q, implementation %q and extension %q", nodeOrRelType, operationName, primary, ext)
+	}
+	return artImpl, nil
+}
