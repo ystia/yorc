@@ -26,8 +26,7 @@ type osGenerator struct {
 func (g *osGenerator) getStringFormConsul(kv *api.KV, baseURL, property string) (string, error) {
 	getResult, _, err := kv.Get(baseURL+"/"+property, nil)
 	if err != nil {
-		log.Printf("Can't get property %s for node %s", property, baseURL)
-		return "", fmt.Errorf("Can't get property %s for node %s: %v", property, baseURL, err)
+		return "", errors.Errorf("Can't get property %s for node %s: %v", property, baseURL, err)
 	}
 	if getResult == nil {
 		log.Debugf("Can't get property %s for node %s (not found)", property, baseURL)
@@ -283,15 +282,13 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 	}
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", fmt.Sprint(deploymentID), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
-		log.Printf("%+v", err)
-		return false, err
+		return false, errors.Wrapf(err, "Failed to create infrastructure working directory %q", infraPath)
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
-		log.Print("Failed to write file")
-		return false, err
+		return false, errors.Wrapf(err, "Failed to write file %q", filepath.Join(infraPath, "infra.tf.json"))
 	}
 
-	log.Printf("Infrastructure generated for deployment with id %s", deploymentID)
+	log.Debugf("Infrastructure generated for deployment with id %s", deploymentID)
 	return true, nil
 }

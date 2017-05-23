@@ -173,7 +173,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 		}
 		if !found || strings.ToLower(deletable) != "true" {
 			// False by default
-			log.Printf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
+			log.Debugf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
 			return nil
 		}
 	}

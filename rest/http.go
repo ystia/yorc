@@ -65,7 +65,7 @@ func (s *Server) Shutdown() {
 		log.Printf("Shutting down http server")
 		err := s.listener.Close()
 		if err != nil {
-			log.Print(err)
+			log.Print(errors.Wrap(err, "Failed to close server listener"))
 		}
 	}
 }

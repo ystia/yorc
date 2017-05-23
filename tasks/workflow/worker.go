@@ -93,10 +93,10 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 	if len(errors) > 0 {
 		uninstallerr := fmt.Errorf("%s", strings.Join(errors, " ; "))
 		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
-		log.Printf("One or more error appear workflow %q, please check : %v", workflowName, uninstallerr)
+		log.Printf("DeploymentID %q One or more error appear workflow %q, please check : %v", deploymentID, workflowName, uninstallerr)
 	} else {
 		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Workflow %q ended without error", workflowName))
-		log.Printf("Workflow %q ended without error", workflowName)
+		log.Printf("DeploymentID %q Workflow %q ended without error", deploymentID, workflowName)
 	}
 	return nil
 }
@@ -337,7 +337,7 @@ func (w worker) Start() {
 			select {
 			case task := <-w.TaskChannel:
 				// we have received a work request.
-				log.Printf("Worker got task with id %s", task.ID)
+				log.Debugf("Worker got task with id %s", task.ID)
 				w.handleTask(task)
 
 			case <-w.shutdownCh:

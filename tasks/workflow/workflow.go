@@ -200,14 +200,14 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	if runnable, err := s.isRunnable(); err != nil {
 		return err
 	} else if !runnable {
-		log.Printf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
+		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
 		events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus("done")
 		s.notifyNext()
 		return nil
 	}
 
-	log.Printf("Processing step %q", s.Name)
+	log.Debugf("Processing step %q", s.Name)
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {

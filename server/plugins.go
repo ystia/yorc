@@ -135,6 +135,8 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 			reg.AddToscaDefinition(defName, pluginID, defContent)
 		}
 
+		log.Printf("Plugin %q successfully loaded", pluginID)
+
 	}
 
 	return nil

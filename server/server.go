@@ -5,6 +5,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/pkg/errors"
+
 	"sync"
 
 	"time"
@@ -21,8 +23,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()
 	if err != nil {
-		log.Printf("Can't connect to Consul")
-		return err
+		return errors.Wrap(err, "Can't connect to Consul")
 	}
 
 	maxConsulPubRoutines := configuration.ConsulPubMaxRoutines

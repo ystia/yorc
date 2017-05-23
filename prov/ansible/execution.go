@@ -620,7 +620,7 @@ func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) er
 }
 
 func (e *executionCommon) resolveExecution() error {
-	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
+	log.Debugf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
 	ovPath, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "overlay"))
 	if err != nil {
 		return err
@@ -689,14 +689,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 	if err = os.RemoveAll(ansibleRecipePath); err != nil {
 		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
-		log.Print(err)
 		log.Debugf("%+v", err)
 		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err = os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
-		log.Printf("%+v", err)
 		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
@@ -776,20 +774,19 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		}
 		if perInstanceInputsBuffer.Len() > 0 {
 			if err = ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host.host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
-				log.Printf("Failed to write vars for host %q file: %v", host, err)
-				return err
+				return errors.Wrapf(err, "Failed to write vars for host %q file: %v", host, err)
 			}
 		}
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
-		log.Print("Failed to write hosts file")
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write hosts file")
+		err = errors.Wrap(err, "Failed to write hosts file")
+		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)), 0664); err != nil {
-		log.Print("Failed to write ansible.cfg file")
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write ansible.cfg file")
+		err = errors.Wrap(err, "Failed to write ansible.cfg file")
+		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
 	if e.operation.RelOp.IsRelationshipOperation {
@@ -840,7 +837,7 @@ func getInstanceName(nodeName, instanceID string) string {
 
 func (e *executionCommon) checkAnsibleRetriableError(err error) error {
 	events.LogEngineError(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName))
-	log.Print(err)
+	log.Debug(err)
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The program has exited with an exit code != 0
 

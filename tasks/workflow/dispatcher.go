@@ -57,7 +57,9 @@ func (d *Dispatcher) Run() {
 		log.Debugf("Long pooling task list")
 		tasksKeys, rMeta, err := kv.Keys(consulutil.TasksPrefix+"/", "/", q)
 		if err != nil {
-			log.Printf("Error getting tasks list: %+v", err)
+			err = errors.Wrap(err, "Error getting tasks list")
+			log.Print(err)
+			log.Debugf("%+v", err)
 			continue
 		}
 		if waitIndex == rMeta.LastIndex {
@@ -87,7 +89,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			if status != tasks.INITIAL && status != tasks.RUNNING {
-				log.Printf("Skipping task with status %q", status)
+				log.Debugf("Skipping task with status %q", status)
 				continue
 			}
 
@@ -124,7 +126,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			if status != tasks.INITIAL && status != tasks.RUNNING {
-				log.Printf("Skipping task with status %q", status)
+				log.Debugf("Skipping task with status %q", status)
 				lock.Unlock()
 				lock.Destroy()
 				continue
