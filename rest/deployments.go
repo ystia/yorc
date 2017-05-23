@@ -166,7 +166,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		log.Panicf("%v", err)
 	}
-	if dExits {
+	if !dExits {
 		writeError(w, r, errNotFound)
 		return
 	}

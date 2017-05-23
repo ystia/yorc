@@ -26,7 +26,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panicf("%v", err)
 	}
-	if dExits {
+	if !dExits {
 		writeError(w, r, errNotFound)
 		return
 	}
@@ -73,7 +73,7 @@ func (s *Server) listWorkflowsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panicf("%v", err)
 	}
-	if dExits {
+	if !dExits {
 		writeError(w, r, errNotFound)
 		return
 	}
@@ -102,7 +102,7 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panicf("%v", err)
 	}
-	if dExits {
+	if !dExits {
 		writeError(w, r, errNotFound)
 		return
 	}
