@@ -152,9 +152,9 @@ type RegistryDelegatesCollection struct {
 	Delegates []registry.DelegateMatch `json:"delegates"`
 }
 
-// RegistryOperationsCollection is the collection of Operation executors registered in the Janus registry
-type RegistryOperationsCollection struct {
-	Operations []registry.OperationExecMatch `json:"operation"`
+// RegistryImplementationsCollection is the collection of Operation executors registered in the Janus registry
+type RegistryImplementationsCollection struct {
+	Implementations []registry.OperationExecMatch `json:"implementations"`
 }
 
 // RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Janus registry

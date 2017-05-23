@@ -597,3 +597,80 @@ Content-Type: application/json
   }
 }
 ```
+
+
+## Registry
+
+### Get TOSCA Definitions <a name="registry-definitions"></a>
+
+Retrieves the list of the embedded TOSCA definitions and there origins. The origin parameter cloud be `builtin` for Janus builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/definitions`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+  "definitions": [
+    {"name": "my-custom-types.yml", "origin": "my-custom-plugin"},
+    {"name": "normative-types.yml", "origin": "builtin"},
+    {"name": "janus-types.yml", "origin": "builtin"},
+    {"name": "janus-openstack-types.yml", "origin": "builtin"}
+  ]
+}
+```
+
+### Get Delegates Executors <a name="registry-delegates"></a>
+
+Retrieves the list of delegates executors and there origins. The origin parameter cloud be `builtin` for Janus builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/delegates`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+  "delegates": [
+    {"node_type": "janus\\.nodes\\.myCustomTypes\\..*", "origin": "my-custom-plugin"},
+    {"node_type": "janus\\.nodes\\.openstack\\..*", "origin": "builtin"}
+  ]
+}
+```
+
+### Get Implementations Executors <a name="registry-implementations"></a>
+
+Retrieves the list of implementations executors and there origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/implementations`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+  "implementations": [
+    {"implementation_artifact": "tosca.artifacts.Implementation.MyImplementation", "origin": "my-custom-plugin"},
+    {"implementation_artifact": "tosca.artifacts.Implementation.Bash", "origin": "builtin"},
+    {"implementation_artifact": "tosca.artifacts.Implementation.Python", "origin": "builtin"},
+    {"implementation_artifact": "tosca.artifacts.Implementation.Ansible", "origin": "builtin"}
+  ]
+}
+```
+
