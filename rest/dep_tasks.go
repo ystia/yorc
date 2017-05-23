@@ -1,9 +1,7 @@
 package rest
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -84,38 +82,4 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	task.Type = taskType.String()
 	encodeJSONResponse(w, r, task)
-}
-
-func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
-
-	var tr TaskRequest
-	if body, err := ioutil.ReadAll(r.Body); err != nil {
-		log.Panic(err)
-	} else {
-		if err = json.Unmarshal(body, &tr); err != nil {
-			writeError(w, r, newBadRequestError(fmt.Errorf("Can't unmarshal task request %v", err)))
-			return
-		}
-	}
-
-	taskType, err := tasks.TaskTypeForName(tr.Type)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	taskID, err := s.tasksCollector.RegisterTask(id, taskType)
-	if err != nil {
-		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			writeError(w, r, newBadRequestError(err))
-			return
-		}
-		log.Panic(err)
-	}
-
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskID))
-	w.WriteHeader(http.StatusCreated)
 }

@@ -18,8 +18,8 @@ func init() {
 	var noStream bool
 	var eventCmd = &cobra.Command{
 		Use:     "events <DeploymentId>",
-		Short:   "Streams events for a given deployment id",
-		Long:    `Streams events for a given deployment id`,
+		Short:   "Stream events for a deployment",
+		Long:    `Stream events for a given deployment id`,
 		Aliases: []string{"events"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {

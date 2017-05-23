@@ -21,7 +21,7 @@ func init() {
 	var deploymentID string
 	var deployCmd = &cobra.Command{
 		Use:   "deploy <csar_path>",
-		Short: "Deploy a CSAR",
+		Short: "Deploy an application",
 		Long: `Deploy a file or directory pointed by <csar_path>
 	If <csar_path> point to a valid zip archive it is submitted to Janus as it.
 	If <csar_path> point to a file or directory it is zipped before beeing submitted to Janus.
@@ -75,12 +75,15 @@ func init() {
 					errExit(err)
 				}
 			}
-
-			fmt.Println("Deployment submitted. Deployment Id:", path.Base(location))
+			taskID := path.Base(location)
+			if deploymentID == "" {
+				deploymentID = path.Base(path.Clean(location + "/../.."))
+			}
+			fmt.Printf("Deployment submitted. Deployment Id: %s\t(Deployment Task Id: %s)\n", deploymentID, taskID)
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(client, path.Base(location), !noColor, true, false)
+				streamsLogs(client, deploymentID, !noColor, true, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(client, path.Base(location), !noColor, true, false)
+				streamsEvents(client, deploymentID, !noColor, true, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}

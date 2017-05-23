@@ -17,7 +17,7 @@ func init() {
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List active deployments",
+	Short: "List deployments",
 	Long:  `List active deployments. Giving their id and status.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		colorize := !noColor
