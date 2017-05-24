@@ -1,0 +1,131 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+template_name: TestPlugins
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - my-types: <my-def.yaml>
+
+topology_template:
+  node_templates:
+    Compute:
+      type: janus.my.types.Compute
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+        scalable:
+          properties:
+            max_instances: 5
+            min_instances: 1
+            default_instances: 2
+
+    Soft:
+      type: janus.my.types.Soft
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          node: Compute
+          activity:
+            delegate: install
+          on-success:
+            - Soft_initial
+        Soft_initial:
+          node: Soft
+          activity:
+            set_state: initial
+          on-success:
+            - Soft_creating
+        Soft_creating:
+          node: Soft
+          activity:
+            set_state: creating
+          on-success:
+            - create_Soft
+        create_Soft:
+          node: Soft
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.create
+          on-success:
+            - Soft_created
+        Soft_created:
+          node: Soft
+          activity:
+            set_state: created
+          on-success:
+            - Soft_configuring
+        Soft_configuring:
+          node: Soft
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_Soft
+        configure_Soft:
+          node: Soft
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - Soft_configured
+        Soft_configured:
+          node: Soft
+          activity:
+            set_state: configured
+          on-success:
+            - Soft_starting
+        Soft_starting:
+          node: Soft
+          activity:
+            set_state: starting
+          on-success:
+            - start_Soft
+        start_Soft:
+          node: Soft
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Soft_started
+        Soft_started:
+          node: Soft
+          activity:
+            set_state: started
+    uninstall:
+      steps:
+        Soft_stopping:
+          node: Soft
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Soft
+        stop_Soft:
+          node: Soft
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Soft_stopped
+        Soft_stopped:
+          node: Soft
+          activity:
+            set_state: stopped
+          on-success:
+            - Soft_deleting
+            - ConsulServer_stopping
+        Soft_deleting:
+          node: Soft
+          activity:
+            set_state: deleting
+          on-success:
+            - Soft_deleted
+        Soft_deleted:
+          node: Soft
+          activity:
+            set_state: deleted
+          on-success:
+            - Compute_uninstall
+        Compute_uninstall:
+          node: Compute
+          activity:
+            delegate: uninstall
