@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/plugin"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 )
@@ -13,6 +14,11 @@ type myDelegateExecutor struct{}
 
 func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	log.Printf("Hello from myDelegateExecutor")
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		return err
+	}
+	events.LogEngineMessage(cc.KV(), deploymentID, "Hello from myDelegateExecutor")
 	return nil
 }
 
@@ -20,6 +26,11 @@ type myOperationExecutor struct{}
 
 func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Printf("Hello from myOperationExecutor")
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		return err
+	}
+	events.LogEngineMessage(cc.KV(), deploymentID, "Hello from myOperationExecutor")
 	return nil
 }
 
