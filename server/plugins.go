@@ -67,13 +67,14 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 	reg := registry.GetRegistry()
 	for _, pFile := range plugins {
 		log.Debugf("Loading plugin %q...", pFile)
+		// OK the idea here is to _try_ to load the plugin if we can't we give up with this plugin and try the others
+		// There is no reason to stop the server loading if we can't load a plugin.
 		pluginID := filepath.Base(pFile)
 		client := plugin.NewClient(pFile)
-		pm.pluginClients = append(pm.pluginClients, client)
 		// Connect via RPC
 		rpcClient, err := client.Client()
 		if err != nil {
-			log.Printf("Failed to load %q as a plugin: %v. Skipping it and continue loading plugins.", pFile, err)
+			log.Printf("[Warning] Failed to load %q as a plugin: %v. Skipping it and continue loading plugins.", pFile, err)
 			log.Debugf("Error details: %+v", err)
 			continue
 		}
@@ -81,59 +82,77 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 		// Request the configManager plugin
 		raw, err := rpcClient.Dispense(plugin.ConfigManagerPluginName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
+			log.Printf("[Warning] Failed to load %q as a plugin: %v. Skipping it and continue loading plugins.", pFile, err)
+			log.Debugf("Error details: %+v", err)
+			client.Kill()
+			continue
 		}
 		cfgManager := raw.(plugin.ConfigManager)
 		err = cfgManager.SetupConfig(cfg)
 		if err != nil {
-			return errors.Wrap(err, "Failed to setup configuration on plugin")
+			log.Printf("[Warning] Failed to load %q as a plugin: %v. Skipping it and continue loading plugins.", pFile, err)
+			log.Debugf("Error details: %+v", err)
+			client.Kill()
+			continue
 		}
 
 		// Request the delegate plugin
 		raw, err = rpcClient.Dispense(plugin.DelegatePluginName)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
+		if err == nil {
+			delegateExecutor := raw.(plugin.DelegateExecutor)
+			supportedTypes, err := delegateExecutor.GetSupportedTypes()
+			if err != nil {
+				log.Printf("[Warning] Failed to retrieve delegate executor supported type for plugin %q.", pluginID)
+				log.Debugf("%+v", err)
+			}
+			if len(supportedTypes) > 0 {
+				log.Debugf("Registering supported node types %v into registry for plugin %q", supportedTypes, pluginID)
+				reg.RegisterDelegates(supportedTypes, delegateExecutor, pluginID)
+			}
+		} else {
+			log.Printf("[Warning] Can't retrieve delegate executor from plugin %q: %v. This is likely due to a outdated plugin.", pluginID, err)
+			log.Debugf("%+v", err)
 		}
 
-		delegateExecutor := raw.(plugin.DelegateExecutor)
-		supportedTypes, err := delegateExecutor.GetSupportedTypes()
-		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve supported type for delegate")
-		}
-		if len(supportedTypes) > 0 {
-			log.Debugf("Registering supported node types %v into registry for plugin %q", supportedTypes, pluginID)
-			reg.RegisterDelegates(supportedTypes, delegateExecutor, pluginID)
-		}
 		// Request the operation plugin
 		raw, err = rpcClient.Dispense(plugin.OperationPluginName)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
-		}
-
-		operationExecutor := raw.(plugin.OperationExecutor)
-		supportedArtTypes, err := operationExecutor.GetSupportedArtifactTypes()
-		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve supported implementation artifact types for operation plugin")
-		}
-		if len(supportedArtTypes) > 0 {
-			log.Debugf("Registering supported implementation artifact types %v into registry for plugin %q", supportedArtTypes, pluginID)
-			reg.RegisterOperationExecutor(supportedArtTypes, operationExecutor, pluginID)
+		if err == nil {
+			operationExecutor := raw.(plugin.OperationExecutor)
+			supportedArtTypes, err := operationExecutor.GetSupportedArtifactTypes()
+			if err != nil {
+				log.Printf("[Warning] Failed to retrieve operation executor supported implementation artifacts for plugin %q.", pluginID)
+				log.Debugf("%+v", err)
+			}
+			if len(supportedArtTypes) > 0 {
+				log.Debugf("Registering supported implementation artifact types %v into registry for plugin %q", supportedArtTypes, pluginID)
+				reg.RegisterOperationExecutor(supportedArtTypes, operationExecutor, pluginID)
+			}
+		} else {
+			log.Printf("[Warning] Can't retrieve operation executor from plugin %q: %v. This is likely due to a outdated plugin.", pluginID, err)
+			log.Debugf("%+v", err)
 		}
 
 		// Request the definitions plugin
 		raw, err = rpcClient.Dispense(plugin.DefinitionsPluginName)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to load plugin %q", pFile)
+		if err == nil {
+			definitionPlugin := raw.(plugin.Definitions)
+			definitions, err := definitionPlugin.GetDefinitions()
+			if err != nil {
+				log.Printf("[Warning] Failed to retrieve TOSCA definitions for plugin %q.", pluginID)
+				log.Debugf("%+v", err)
+			}
+			if len(definitions) > 0 {
+				for defName, defContent := range definitions {
+					log.Debugf("Registering TOSCA definition %q into registry for plugin %q", defName, pluginID)
+					reg.AddToscaDefinition(defName, pluginID, defContent)
+				}
+			}
+		} else {
+			log.Printf("[Warning] Can't retrieve TOSCA definitions from plugin %q: %v. This is likely due to a outdated plugin.", pluginID, err)
+			log.Debugf("%+v", err)
 		}
-		definitionPlugin := raw.(plugin.Definitions)
-		definitions, err := definitionPlugin.GetDefinitions()
-		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve plugin specific TOSCA definitions")
-		}
-		for defName, defContent := range definitions {
-			log.Debugf("Registering TOSCA definition %q into registry for plugin %q", defName, pluginID)
-			reg.AddToscaDefinition(defName, pluginID, defContent)
-		}
+
+		pm.pluginClients = append(pm.pluginClients, client)
 
 		log.Printf("Plugin %q successfully loaded", pluginID)
 
