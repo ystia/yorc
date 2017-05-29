@@ -3,17 +3,18 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
-	"strconv"
-
-	"os"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/hashicorp/consul/api"
-	"golang.org/x/sync/errgroup"
+	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -72,26 +73,26 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 	faninErrCh := make(chan []string)
 	defer close(faninErrCh)
 	go func() {
-		errors := make([]string, 0)
+		errs := make([]string, 0)
 		// Reads from uninstallerrc until the channel is close
 		for err := range uninstallerrc {
-			errors = append(errors, err.Error())
+			errs = append(errs, err.Error())
 		}
-		faninErrCh <- errors
+		faninErrCh <- errs
 	}()
 
 	err := g.Wait()
 	// Be sure to close the uninstall errors channel before exiting or trying to read from fan-in errors channel
 	close(uninstallerrc)
-	errors := <-faninErrCh
+	errs := <-faninErrCh
 
 	if err != nil {
 		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
 		return err
 	}
 
-	if len(errors) > 0 {
-		uninstallerr := fmt.Errorf("%s", strings.Join(errors, " ; "))
+	if len(errs) > 0 {
+		uninstallerr := errors.Errorf("%s", strings.Join(errs, " ; "))
 		events.LogEngineMessage(w.consulClient.KV(), deploymentID, fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
 		log.Printf("DeploymentID %q One or more error appear workflow %q, please check : %v", deploymentID, workflowName, uninstallerr)
 	} else {

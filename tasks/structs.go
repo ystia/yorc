@@ -3,6 +3,8 @@ package tasks
 import (
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 //go:generate stringer -type=TaskStatus,TaskType -output=structs_string.go structs.go
@@ -46,7 +48,7 @@ func TaskTypeForName(taskType string) (TaskType, error) {
 	case "customworkflow":
 		return CustomWorkflow, nil
 	default:
-		return Deploy, fmt.Errorf("Unsupported task type %q", taskType)
+		return Deploy, errors.Errorf("Unsupported task type %q", taskType)
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -89,14 +91,14 @@ func (a *RequirementDefinition) UnmarshalYAML(unmarshal func(interface{}) error)
 	if str.LowerBound != "" {
 		bound, err := strconv.ParseUint(str.LowerBound, 10, 0)
 		if err != nil {
-			return fmt.Errorf("Expecting a unsigned integer as lower bound got: %q", str.LowerBound)
+			return errors.Errorf("Expecting a unsigned integer as lower bound got: %q", str.LowerBound)
 		}
 		a.Occurrences.LowerBound = bound
 	}
 	if str.UpperBound != "" {
 		if bound, err := strconv.ParseUint(str.UpperBound, 10, 0); err != nil {
 			if strings.ToUpper(str.UpperBound) != "UNBOUNDED" {
-				return fmt.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range got: %q", str.UpperBound)
+				return errors.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range got: %q", str.UpperBound)
 			}
 			a.Occurrences.UpperBound = UNBOUNDED
 		} else {

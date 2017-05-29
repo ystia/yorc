@@ -1,7 +1,9 @@
 package openstack
 
-import "fmt"
-import "github.com/hashicorp/consul/api"
+import (
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+)
 
 // An IP is...
 // TODO consider refactoring this as it is not clear
@@ -20,7 +22,7 @@ func (g *osGenerator) generateFloatingIP(kv *api.KV, url, instanceName string) (
 		return IP{}, err
 	}
 	if nodeType != "janus.nodes.openstack.FloatingIP" {
-		return IP{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return IP{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	nodeName, err := g.getStringFormConsul(kv, url, "name")
 	if err != nil {
@@ -37,7 +39,7 @@ func (g *osGenerator) generateFloatingIP(kv *api.KV, url, instanceName string) (
 	} else if networkName != "" {
 		result.Pool = networkName
 	} else {
-		return IP{}, fmt.Errorf("A network name or IP need to be provided")
+		return IP{}, errors.Errorf("A network name or IP need to be provided")
 	}
 
 	return result, nil

@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"fmt"
 	"path"
 	"strconv"
 
@@ -120,7 +119,7 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 				return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
 			if kvp == nil || len(kvp.Value) == 0 {
-				return false, "", "", fmt.Errorf("Missing status for task with id %q", taskID)
+				return false, "", "", errors.Errorf("Missing status for task with id %q", taskID)
 			}
 			statusInt, err := strconv.Atoi(string(kvp.Value))
 			if err != nil {

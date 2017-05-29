@@ -1,8 +1,7 @@
 package commands
 
 import (
-	"fmt"
-
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +16,7 @@ var cancelTaskCmd = &cobra.Command{
 	The task should be in status "INITIAL" or "RUNNING" to be canceled.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 2 {
-			return fmt.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
+			return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
 		}
 		client, err := getClient()
 		if err != nil {
@@ -38,7 +37,7 @@ var cancelTaskCmd = &cobra.Command{
 		if response.StatusCode != 202 {
 			// Try to get the reason
 			printErrors(response.Body)
-			errExit(fmt.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
+			errExit(errors.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
 		}
 
 		return nil

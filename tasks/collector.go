@@ -66,7 +66,7 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 	}
 	if leaderCh == nil {
 		log.Debugf("Failed to acquire create lock for task with id %q (target id %q).", taskID, targetID)
-		return nil, nil, taskID, fmt.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskID, targetID)
+		return nil, nil, taskID, errors.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskID, targetID)
 	}
 
 	key := &api.KVPair{Key: taskPrefix + "/targetId", Value: []byte(targetID)}

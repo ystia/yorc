@@ -11,6 +11,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/rest"
 
 	"github.com/fatih/color"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +26,7 @@ var tasksCmd = &cobra.Command{
     It prints the tasks ID, type and status.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
+			return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 		}
 		client, err := getClient()
 		if err != nil {
@@ -47,7 +48,7 @@ var tasksCmd = &cobra.Command{
 		if response.StatusCode != 200 {
 			// Try to get the reason
 			printErrors(response.Body)
-			errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+			errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
 		}
 		var dep rest.Deployment
 		body, err := ioutil.ReadAll(response.Body)

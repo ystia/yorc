@@ -129,10 +129,10 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, to
 				var defBytes []byte
 				var err error
 				if defBytes, err = reg.GetToscaDefinition(importValue); err != nil {
-					return fmt.Errorf("Failed to import internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to import internal definition %s: %v", importValue, err)
 				}
 				if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 				errGroup.Go(func() error {
 					return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importName), "", rootDefPath)
@@ -142,16 +142,16 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, to
 
 				definition, err := os.Open(uploadFile)
 				if err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 
 				defBytes, err := ioutil.ReadAll(definition)
 				if err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 
 				if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 
 				errGroup.Go(func() error {

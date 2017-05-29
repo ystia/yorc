@@ -1,13 +1,15 @@
 package openstack
 
 import (
-	"fmt"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
 	"gopkg.in/yaml.v2"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -22,7 +24,7 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 		return ComputeInstance{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Compute" {
-		return ComputeInstance{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return ComputeInstance{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	instance := ComputeInstance{}
 	var nodeName string
@@ -84,10 +86,10 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 	}
 
 	if instance.ImageID == "" && instance.ImageName == "" {
-		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", url)
+		return ComputeInstance{}, errors.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", url)
 	}
 	if instance.FlavorID == "" && instance.FlavorName == "" {
-		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", url)
+		return ComputeInstance{}, errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", url)
 	}
 
 	networkName, err := g.getStringFormConsul(kv, url, "capabilities/endpoint/properties/network_name")
@@ -101,7 +103,7 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 			networkSlice = append(networkSlice, ComputeNetwork{Name: cfg.OSPrivateNetworkName, AccessNetwork: true})
 		} else if strings.EqualFold(networkName, "public") {
 			//TODO
-			return ComputeInstance{}, fmt.Errorf("Public Network aliases currently not supported")
+			return ComputeInstance{}, errors.Errorf("Public Network aliases currently not supported")
 		} else {
 			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName, AccessNetwork: true})
 		}
@@ -115,7 +117,7 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 	if user, err = g.getStringFormConsul(kv, url, "properties/user"); err != nil {
 		return ComputeInstance{}, err
 	} else if user == "" {
-		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'user' node type for %s", url)
+		return ComputeInstance{}, errors.Errorf("Missing mandatory parameter 'user' node type for %s", url)
 	}
 
 	// TODO deal with multi-instances

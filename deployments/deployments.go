@@ -37,7 +37,7 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 			return i, nil
 		}
 	}
-	return INITIAL, fmt.Errorf("Invalid deployment status %q", status)
+	return INITIAL, errors.Errorf("Invalid deployment status %q", status)
 }
 
 // GetDeploymentStatus returns a DeploymentStatus for a given deploymentId

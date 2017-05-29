@@ -223,7 +223,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 					if err != nil {
 						return false, err
 					} else if networkName == "" {
-						return false, fmt.Errorf("You need to provide enough IP address or a Pool to generate missing IP address")
+						return false, errors.Errorf("You need to provide enough IP address or a Pool to generate missing IP address")
 					}
 
 					floatingIP := FloatingIP{Pool: networkName}
@@ -273,7 +273,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 	default:
-		return false, fmt.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
+		return false, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")

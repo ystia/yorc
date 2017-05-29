@@ -1,7 +1,6 @@
 package deployments
 
 import (
-	"fmt"
 	"path"
 	"sort"
 
@@ -28,7 +27,7 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if kvp == nil || len(kvp.Value) == 0 {
-			return nil, fmt.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
+			return nil, errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
 		}
 		if string(kvp.Value) == requirementName {
 			reqKeys = append(reqKeys, reqIndexKey)

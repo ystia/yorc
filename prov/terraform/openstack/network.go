@@ -1,12 +1,12 @@
 package openstack
 
 import (
-	"fmt"
 	"strconv"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"novaforge.bull.com/starlings-janus/janus/config"
 )
 
 func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, url, deploymentID string) (Network, error) {
@@ -15,7 +15,7 @@ func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, url,
 		return Network{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Network" {
-		return Network{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return Network{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 
 	network := Network{}
@@ -38,7 +38,7 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, url, 
 		return Subnet{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Network" {
-		return Subnet{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return Subnet{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 
 	subnet := Subnet{}
@@ -88,7 +88,7 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, url, 
 			return Subnet{}, err
 		}
 		if endIP == "" {
-			return Subnet{}, fmt.Errorf("A start_ip and a end_ip need to be provided")
+			return Subnet{}, errors.Errorf("A start_ip and a end_ip need to be provided")
 		}
 		subnet.AllocationPools = &AllocationPool{Start: startIP, End: endIP}
 	}

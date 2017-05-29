@@ -1,11 +1,12 @@
 package openstack
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/mathutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -19,7 +20,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, u
 		return volume, err
 	}
 	if nodeType != "janus.nodes.openstack.BlockStorage" {
-		return volume, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return volume, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	var nodeName string
 	if nodeName, err = g.getStringFormConsul(kv, url, "name"); err != nil {
@@ -31,7 +32,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, u
 		return volume, err
 	}
 	if size == "" {
-		return volume, fmt.Errorf("Missing mandatory property 'size' for %s", url)
+		return volume, errors.Errorf("Missing mandatory property 'size' for %s", url)
 	}
 	// Default size unit is MB
 	log.Debugf("Size form consul is %q", size)
@@ -40,7 +41,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, u
 		var bsize uint64
 		bsize, err = humanize.ParseBytes(size)
 		if err != nil {
-			return volume, fmt.Errorf("Can't convert size to bytes value: %v", err)
+			return volume, errors.Errorf("Can't convert size to bytes value: %v", err)
 		}
 		// OpenStack needs the size in GB so we round it up.
 		gSize := float64(bsize) / humanize.GByte
