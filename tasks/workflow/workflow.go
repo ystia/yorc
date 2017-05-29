@@ -253,6 +253,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfCallOpActivity:
 			op, err := getOperation(kv, s.t.TargetID, s.Node, activity.ActivityValue())
 			if err != nil {
+				if deployments.IsOperationNotImplemented(err) {
+					// Operation not implemented just skip it
+					log.Debugf("Voluntary bypassing error: %s.", err.Error())
+					continue
+				}
+
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if bypassErrors {

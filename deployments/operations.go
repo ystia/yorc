@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -10,6 +11,20 @@ import (
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
+
+// IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
+func IsOperationNotImplemented(err error) bool {
+	_, ok := err.(operationNotImplemented)
+	return ok
+}
+
+type operationNotImplemented struct {
+	msg string
+}
+
+func (oni operationNotImplemented) Error() string {
+	return oni.msg
+}
 
 const implementationArtifactsExtensionsPath = "implementation_artifacts_extensions"
 
@@ -213,7 +228,7 @@ func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, o
 		return "", err
 	}
 	if primary == "" {
-		return "", errors.Errorf("Failed to resolve primary implementation for type %q and operation %q", nodeOrRelType, operationName)
+		return "", operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", operationName, nodeOrRelType, deploymentID)}
 	}
 	primarySlice := strings.Split(primary, ".")
 	ext := primarySlice[len(primarySlice)-1]

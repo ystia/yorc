@@ -63,6 +63,12 @@ topology_template:
           activity:
             set_state: configuring
           on-success:
+            - configure_Soft
+        configure_Soft:
+          node: Soft
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
             - Soft_configured
         Soft_configured:
           node: Soft
@@ -75,6 +81,12 @@ topology_template:
           activity:
             set_state: starting
           on-success:
+            - start_Soft
+        start_Soft:
+          node: Soft
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
             - Soft_started
         Soft_started:
           node: Soft
@@ -86,6 +98,12 @@ topology_template:
           node: Soft
           activity:
             set_state: stopping
+          on-success:
+            - stop_Soft
+        stop_Soft:
+          node: Soft
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
             - Soft_stopped
         Soft_stopped:
