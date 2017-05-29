@@ -13,6 +13,28 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
+// TaskTypeForName converts a textual representation of a task into a TaskType
+func TaskTypeForName(taskType string) (TaskType, error) {
+	switch strings.ToLower(taskType) {
+	case "deploy":
+		return Deploy, nil
+	case "undeploy":
+		return UnDeploy, nil
+	case "purge":
+		return Purge, nil
+	case "custom":
+		return CustomCommand, nil
+	case "scale-up":
+		return ScaleUp, nil
+	case "scale-down":
+		return ScaleDown, nil
+	case "customworkflow":
+		return CustomWorkflow, nil
+	default:
+		return Deploy, errors.Errorf("Unsupported task type %q", taskType)
+	}
+}
+
 // GetTasksIdsForTarget returns IDs of tasks related to a given targetID
 func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
