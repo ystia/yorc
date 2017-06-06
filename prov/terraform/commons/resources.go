@@ -2,11 +2,12 @@ package commons
 
 // An Infrastructure is the top-level element of a Terraform infrastructure definition
 type Infrastructure struct {
-	Data     map[string]interface{} `json:"data"`
-	Variable map[string]interface{} `json:"variable,omitempty"`
-	Provider map[string]interface{} `json:"provider,omitempty"`
-	Resource map[string]interface{} `json:"resource,omitempty"`
-	Output   map[string]interface{} `json:"output,omitempty"`
+	Terraform map[string]interface{} `json:"terraform,omitempty"`
+	Data      map[string]interface{} `json:"data,omitempty"`
+	Variable  map[string]interface{} `json:"variable,omitempty"`
+	Provider  map[string]interface{} `json:"provider,omitempty"`
+	Resource  map[string]interface{} `json:"resource,omitempty"`
+	Output    map[string]interface{} `json:"output,omitempty"`
 }
 
 // The ConsulKeys resource writes sets of individual values into Consul.

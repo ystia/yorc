@@ -73,12 +73,13 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 	infrastructure := commons.Infrastructure{}
 
 	// Remote Configuration for Terraform State to store it in the Consul KV store
-	infrastructure.Data = map[string]interface{}{
-		"terraform_remote_state": map[string]interface{}{
-			"tfstate_" + deploymentID: map[string]interface{}{
-				"backend": "consul",
-				"config": map[string]interface{}{
-					"path": terraformStateKey}}}}
+	infrastructure.Terraform = map[string]interface{}{
+		"backend": map[string]interface{}{
+			"consul": map[string]interface{}{
+				"path": terraformStateKey,
+			},
+		},
+	}
 
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{

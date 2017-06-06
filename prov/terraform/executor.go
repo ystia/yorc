@@ -2,7 +2,6 @@ package terraform
 
 import (
 	"context"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -11,7 +10,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
@@ -116,10 +114,7 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 
 	events.LogEngineMessage(kv, deploymentID, "Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
-	tfBackendConfigPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "terraform-state", nodeName)
-	tfBackendConfigName := "tfstate_" + deploymentID + "_" + nodeName
-	cmd := executil.Command(ctx, "terraform", "remote", "config", "-backend=consul",
-		"-backend-config=path="+tfBackendConfigPath, "-backend-config=name="+tfBackendConfigName)
+	cmd := executil.Command(ctx, "terraform", "init")
 	cmd.Dir = infraPath
 	errbuf := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
 	out := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
