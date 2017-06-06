@@ -118,14 +118,14 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 				return false, err
 			}
 			addResource(&infrastructure, "openstack_compute_instance_v2", compute.Name, &compute)
-			consulKey := commons.ConsulKey{Name: compute.Name + "-ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}                           // Use access ip here
-			consulKeyAttrib := commons.ConsulKey{Name: compute.Name + "-attrib_ip_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)} // Use latest provisioned network for private access
-			consulKeyFixedIP := commons.ConsulKey{Name: compute.Name + "-ip_fixed_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)}
+			consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}                    // Use access ip here
+			consulKeyAttrib := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)} // Use latest provisioned network for private access
+			consulKeyFixedIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)}
 			var consulKeys commons.ConsulKeys
 			if compute.Networks[0].FloatingIP != "" {
-				consulKeyFloatingIP := commons.ConsulKey{Name: compute.Name + "-ip_floating_address-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
-				//In order to be backward compatible to components developed for Alien/Cloudify (only the above is standard)
-				consulKeyFloatingIPBak := commons.ConsulKey{Name: compute.Name + "-ip_floating_address_backward_comp-key", Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
+				consulKeyFloatingIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
+				//In order to be backward compatible to components developed for Alien (only the above is standard)
+				consulKeyFloatingIPBak := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
 				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP, consulKeyFloatingIP, consulKeyFloatingIPBak}}
 
 			} else {
@@ -133,9 +133,9 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 			}
 
 			for i := range compute.Networks {
-				consulKetNetName := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-name", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", compute.Name, i)}
-				consulKetNetID := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-id", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", compute.Name, i)}
-				consulKetNetAddresses := commons.ConsulKey{Name: fmt.Sprintf("%s-network-%d-addresses", compute.Name, i), Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses"), Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", compute.Name, i)}
+				consulKetNetName := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", compute.Name, i)}
+				consulKetNetID := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", compute.Name, i)}
+				consulKetNetAddresses := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses"), Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", compute.Name, i)}
 				consulKeys.Keys = append(consulKeys.Keys, consulKetNetName, consulKetNetID, consulKetNetAddresses)
 			}
 			addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
@@ -174,12 +174,12 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 
 			if len(bsIds)-1 < instNb {
 				addResource(&infrastructure, "openstack_blockstorage_volume_v1", bsVolume.Name, &bsVolume)
-				consulKey := commons.ConsulKey{Name: bsVolume.Name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsVolume.Name)}
+				consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/volume_id"), Value: fmt.Sprintf("${openstack_blockstorage_volume_v1.%s.id}", bsVolume.Name)}
 				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 				addResource(&infrastructure, "consul_keys", bsVolume.Name, &consulKeys)
 			} else {
 				name := g.cfg.ResourcesPrefix + nodeName + "-" + instanceName
-				consulKey := commons.ConsulKey{Name: name + "-bsVolumeID", Path: path.Join(instancesKey, instanceName, "/properties/volume_id"), Value: strings.TrimSpace(bsIds[instNb])}
+				consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/properties/volume_id"), Value: strings.TrimSpace(bsIds[instNb])}
 				consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 				addResource(&infrastructure, "consul_keys", name, &consulKeys)
 			}
@@ -213,7 +213,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 			if !ip.IsIP {
 				floatingIP := FloatingIP{Pool: ip.Pool}
 				addResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
-				consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
+				consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
 			} else {
 				ips := strings.Split(ip.Pool, ",")
 				// TODO we should change this. instance name should not be considered as an int
@@ -233,7 +233,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 
 					floatingIP := FloatingIP{Pool: networkName}
 					addResource(&infrastructure, "openstack_compute_floatingip_v2", ip.Name, &floatingIP)
-					consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
+					consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: fmt.Sprintf("${openstack_compute_floatingip_v2.%s.address}", ip.Name)}
 
 				} else {
 					// TODO we should change this. instance name should not be considered as an int
@@ -241,7 +241,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 					if err != nil {
 						return false, err
 					}
-					consulKey = commons.ConsulKey{Name: ip.Name + "-floating_ip_address-key", Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: ips[instName]}
+					consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: ips[instName]}
 				}
 
 			}
@@ -273,7 +273,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(deploymentID, nodeName strin
 
 		addResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
 		addResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
-		consulKey := commons.ConsulKey{Name: nodeName + "-NetworkID", Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
+		consulKey := commons.ConsulKey{Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
