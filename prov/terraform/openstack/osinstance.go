@@ -1,12 +1,16 @@
 package openstack
 
 import (
-	"fmt"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
 	"gopkg.in/yaml.v2"
+
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -14,64 +18,64 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
-func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string) (ComputeInstance, error) {
-	nodeType, err := g.getStringFormConsul(url, "type")
+func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, url, deploymentID, instanceName string) (ComputeInstance, error) {
+	nodeType, err := g.getStringFormConsul(kv, url, "type")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Compute" {
-		return ComputeInstance{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return ComputeInstance{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	instance := ComputeInstance{}
 	var nodeName string
-	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
+	if nodeName, err = g.getStringFormConsul(kv, url, "name"); err != nil {
 		return ComputeInstance{}, err
 	}
-	instance.Name = g.cfg.ResourcesPrefix + nodeName + "-" + instanceName
-	image, err := g.getStringFormConsul(url, "properties/image")
+	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
+	image, err := g.getStringFormConsul(kv, url, "properties/image")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	instance.ImageID = image
-	image, err = g.getStringFormConsul(url, "properties/imageName")
+	image, err = g.getStringFormConsul(kv, url, "properties/imageName")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	instance.ImageName = image
-	flavor, err := g.getStringFormConsul(url, "properties/flavor")
+	flavor, err := g.getStringFormConsul(kv, url, "properties/flavor")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	instance.FlavorID = flavor
-	flavor, err = g.getStringFormConsul(url, "properties/flavorName")
+	flavor, err = g.getStringFormConsul(kv, url, "properties/flavorName")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	instance.FlavorName = flavor
 
-	az, err := g.getStringFormConsul(url, "properties/availability_zone")
+	az, err := g.getStringFormConsul(kv, url, "properties/availability_zone")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	instance.AvailabilityZone = az
-	region, err := g.getStringFormConsul(url, "properties/region")
+	region, err := g.getStringFormConsul(kv, url, "properties/region")
 	if err != nil {
 		return ComputeInstance{}, err
 	} else if region != "" {
 		instance.Region = region
 	} else {
-		instance.Region = g.cfg.OSRegion
+		instance.Region = cfg.OSRegion
 	}
 
-	keyPair, err := g.getStringFormConsul(url, "properties/key_pair")
+	keyPair, err := g.getStringFormConsul(kv, url, "properties/key_pair")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	// TODO if empty use a default one or fail ?
 	instance.KeyPair = keyPair
 
-	instance.SecurityGroups = g.cfg.OSDefaultSecurityGroups
-	secGroups, err := g.getStringFormConsul(url, "properties/security_groups")
+	instance.SecurityGroups = cfg.OSDefaultSecurityGroups
+	secGroups, err := g.getStringFormConsul(kv, url, "properties/security_groups")
 	if err != nil {
 		return ComputeInstance{}, err
 	} else if secGroups != "" {
@@ -82,13 +86,13 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 	}
 
 	if instance.ImageID == "" && instance.ImageName == "" {
-		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", url)
+		return ComputeInstance{}, errors.Errorf("Missing mandatory parameter 'image' or 'imageName' node type for %s", url)
 	}
 	if instance.FlavorID == "" && instance.FlavorName == "" {
-		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", url)
+		return ComputeInstance{}, errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", url)
 	}
 
-	networkName, err := g.getStringFormConsul(url, "capabilities/endpoint/properties/network_name")
+	networkName, err := g.getStringFormConsul(kv, url, "capabilities/endpoint/properties/network_name")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
@@ -96,28 +100,28 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 		// TODO Deal with networks aliases (PUBLIC/PRIVATE)
 		var networkSlice []ComputeNetwork
 		if strings.EqualFold(networkName, "private") {
-			networkSlice = append(networkSlice, ComputeNetwork{Name: g.cfg.OSPrivateNetworkName, AccessNetwork: true})
+			networkSlice = append(networkSlice, ComputeNetwork{Name: cfg.OSPrivateNetworkName, AccessNetwork: true})
 		} else if strings.EqualFold(networkName, "public") {
 			//TODO
-			return ComputeInstance{}, fmt.Errorf("Public Network aliases currently not supported")
+			return ComputeInstance{}, errors.Errorf("Public Network aliases currently not supported")
 		} else {
 			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName, AccessNetwork: true})
 		}
 		instance.Networks = networkSlice
 	} else {
 		// Use a default
-		instance.Networks = append(instance.Networks, ComputeNetwork{Name: g.cfg.OSPrivateNetworkName, AccessNetwork: true})
+		instance.Networks = append(instance.Networks, ComputeNetwork{Name: cfg.OSPrivateNetworkName, AccessNetwork: true})
 	}
 
 	var user string
-	if user, err = g.getStringFormConsul(url, "properties/user"); err != nil {
+	if user, err = g.getStringFormConsul(kv, url, "properties/user"); err != nil {
 		return ComputeInstance{}, err
 	} else if user == "" {
-		return ComputeInstance{}, fmt.Errorf("Missing mandatory parameter 'user' node type for %s", url)
+		return ComputeInstance{}, errors.Errorf("Missing mandatory parameter 'user' node type for %s", url)
 	}
 
 	// TODO deal with multi-instances
-	storageKeys, err := deployments.GetRequirementsKeysByNameForNode(g.kv, deploymentID, nodeName, "local_storage")
+	storageKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
@@ -126,16 +130,16 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 			instance.Volumes = make([]Volume, 0)
 		}
 		var volumeNodeName string
-		if volumeNodeName, err = g.getStringFormConsul(storagePrefix, "node"); err != nil {
+		if volumeNodeName, err = g.getStringFormConsul(kv, storagePrefix, "node"); err != nil {
 			return ComputeInstance{}, err
 		} else if volumeNodeName != "" {
 			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 			var device string
-			if device, err = g.getStringFormConsul(storagePrefix, "properties/location"); err != nil {
+			if device, err = g.getStringFormConsul(kv, storagePrefix, "properties/location"); err != nil {
 				return ComputeInstance{}, err
 			}
 			if device != "" {
-				resolver := deployments.NewResolver(g.kv, deploymentID)
+				resolver := deployments.NewResolver(kv, deploymentID)
 				expr := tosca.ValueAssignment{}
 				if err = yaml.Unmarshal([]byte(device), &expr); err != nil {
 					return ComputeInstance{}, err
@@ -147,7 +151,8 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 			}
 			var volumeID string
 			log.Debugf("Looking for volume_id")
-			if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", volumeNodeName, instanceName, "properties/volume_id"), nil); kp != nil {
+			// TODO consider the use of a method in the deployments package
+			if kp, _, _ := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", volumeNodeName, instanceName, "properties/volume_id"), nil); kp != nil {
 				if dID := string(kp.Value); dID != "" {
 					volumeID = dID
 				}
@@ -156,7 +161,8 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 				go func() {
 					for {
 						// ignore errors and retry
-						if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", volumeNodeName, instanceName, "attributes/volume_id"), nil); kp != nil {
+						// TODO consider the use of a method in the deployments package
+						if kp, _, _ := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", volumeNodeName, instanceName, "attributes/volume_id"), nil); kp != nil {
 							if dID := string(kp.Value); dID != "" {
 								resultChan <- dID
 								return
@@ -179,20 +185,20 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 	instance.Provisioners = make(map[string]interface{})
 	instance.Provisioners["remote-exec"] = re
 
-	networkKeys, err := deployments.GetRequirementsKeysByNameForNode(g.kv, deploymentID, nodeName, "network")
+	networkKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return ComputeInstance{}, err
 	}
 	for _, networkReqPrefix := range networkKeys {
-		capability, err := g.getStringFormConsul(networkReqPrefix, "capability")
+		capability, err := g.getStringFormConsul(kv, networkReqPrefix, "capability")
 		if err != nil {
 			return ComputeInstance{}, err
 		}
-		isFip, err := deployments.IsTypeDerivedFrom(g.kv, deploymentID, capability, "janus.capabilities.openstack.FIPConnectivity")
+		isFip, err := deployments.IsTypeDerivedFrom(kv, deploymentID, capability, "janus.capabilities.openstack.FIPConnectivity")
 		if err != nil {
 			return ComputeInstance{}, err
 		}
-		networkNodeName, err := g.getStringFormConsul(networkReqPrefix, "node")
+		networkNodeName, err := g.getStringFormConsul(kv, networkReqPrefix, "node")
 		if err != nil {
 			return ComputeInstance{}, err
 		}
@@ -202,7 +208,8 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 			resultChan := make(chan string, 1)
 			go func() {
 				for {
-					if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", networkNodeName, instanceName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
+					// TODO consider the use of a method in the deployments package
+					if kp, _, _ := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", networkNodeName, instanceName, "capabilities/endpoint/attributes/floating_ip_address"), nil); kp != nil {
 						if dID := string(kp.Value); dID != "" {
 							resultChan <- dID
 							return
@@ -219,7 +226,8 @@ func (g *osGenerator) generateOSInstance(url, deploymentID, instanceName string)
 			resultChan := make(chan string, 1)
 			go func() {
 				for {
-					if kp, _, _ := g.kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", networkNodeName, "attributes/network_id"), nil); kp != nil {
+					// TODO consider the use of a method in the deployments package
+					if kp, _, _ := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", networkNodeName, "attributes/network_id"), nil); kp != nil {
 						if dID := string(kp.Value); dID != "" {
 							resultChan <- dID
 							return

@@ -22,12 +22,20 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 
 	kv := s.consulClient.KV()
 
+	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
+
 	if len(nodeName) == 0 {
 		log.Panic("You must provide a nodename")
 	}
 
 	var instancesDelta int
-	var err error
 	if value, ok := r.URL.Query()["delta"]; ok {
 		if instancesDelta, err = strconv.Atoi(value[0]); err != nil {
 			writeError(w, r, newBadRequestError(err))

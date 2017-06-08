@@ -50,8 +50,10 @@ func setConfig() {
 
 	//Flags definition for Janus server
 	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
+	serverCmd.PersistentFlags().String("plugins_directory", config.DefaultPluginDir, "The name of the plugins directory of the Janus server")
 	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Janus server")
 	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Janus server. If not set the default value will be used")
+	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Janus server. After this delay the server immediately exits.")
 
 	// Flags definition for Janus HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
@@ -98,7 +100,9 @@ func setConfig() {
 
 	//Bind Flags for Janus server
 	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
+	viper.BindPFlag("plugins_directory", serverCmd.PersistentFlags().Lookup("plugins_directory"))
 	viper.BindPFlag("workers_number", serverCmd.PersistentFlags().Lookup("workers_number"))
+	viper.BindPFlag("server_graceful_shutdown_timeout", serverCmd.PersistentFlags().Lookup("graceful_shutdown_timeout"))
 
 	//Bind Flags Janus HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
@@ -110,6 +114,8 @@ func setConfig() {
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
 	viper.AutomaticEnv()        // read in environment variables that match
 	viper.BindEnv("working_directory")
+	viper.BindEnv("plugins_directory")
+	viper.BindEnv("server_graceful_shutdown_timeout")
 	viper.BindEnv("workers_number")
 	viper.BindEnv("http_port")
 	viper.BindEnv("http_address")
@@ -130,6 +136,8 @@ func setConfig() {
 
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
+	viper.SetDefault("server_graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout)
+	viper.SetDefault("plugins_directory", config.DefaultPluginDir)
 	viper.SetDefault("http_port", config.DefaultHTTPPort)
 	viper.SetDefault("http_address", config.DefaultHTTPAddress)
 	viper.SetDefault("os_prefix", "janus-")
@@ -151,6 +159,7 @@ func setConfig() {
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
 	configuration.WorkingDirectory = viper.GetString("working_directory")
+	configuration.PluginsDirectory = viper.GetString("plugins_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")
 	configuration.HTTPPort = viper.GetInt("http_port")
 	configuration.HTTPAddress = viper.GetString("http_address")
@@ -169,6 +178,7 @@ func getConfig() config.Configuration {
 	configuration.ConsulDatacenter = viper.GetString("consul_datacenter")
 	configuration.ConsulToken = viper.GetString("consul_token")
 	configuration.ConsulPubMaxRoutines = viper.GetInt("consul_publisher_max_routines")
+	configuration.ServerGracefulShutdownTimeout = viper.GetDuration("server_graceful_shutdown_timeout")
 	configuration.OSDefaultSecurityGroups = make([]string, 0)
 	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {
 		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags

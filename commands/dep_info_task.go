@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -19,7 +20,7 @@ var infoTaskCmd = &cobra.Command{
 	Long:  `Display information about a given task specifying the deployment id and the task id.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 2 {
-			return fmt.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
+			return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
 		}
 		client, err := getClient()
 		if err != nil {
@@ -40,7 +41,7 @@ var infoTaskCmd = &cobra.Command{
 		if response.StatusCode != 200 {
 			// Try to get the reason
 			printErrors(response.Body)
-			errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+			errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
 		}
 		var task rest.Task
 		body, err := ioutil.ReadAll(response.Body)

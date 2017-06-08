@@ -1,53 +1,57 @@
 package openstack
 
 import (
-	"fmt"
 	"strconv"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"novaforge.bull.com/starlings-janus/janus/config"
 )
 
-func (g *osGenerator) generateNetwork(url, deploymentID string) (Network, error) {
-	nodeType, err := g.getStringFormConsul(url, "type")
+func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, url, deploymentID string) (Network, error) {
+	nodeType, err := g.getStringFormConsul(kv, url, "type")
 	if err != nil {
 		return Network{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Network" {
-		return Network{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return Network{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 
 	network := Network{}
 
-	if nodeName, err := g.getStringFormConsul(url, "properties/network_name"); err != nil {
+	if nodeName, err := g.getStringFormConsul(kv, url, "properties/network_name"); err != nil {
 		return Network{}, err
 	} else if nodeName != "" {
-		network.Name = g.cfg.ResourcesPrefix + nodeName
+		network.Name = cfg.ResourcesPrefix + nodeName
 	}
 
-	network.Region = g.cfg.OSRegion
+	network.Region = cfg.OSRegion
 
 	return network, nil
 
 }
 
-func (g *osGenerator) generateSubnet(url, deploymentID, nodeName string) (Subnet, error) {
-	nodeType, err := g.getStringFormConsul(url, "type")
+func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, url, deploymentID, nodeName string) (Subnet, error) {
+	nodeType, err := g.getStringFormConsul(kv, url, "type")
 	if err != nil {
 		return Subnet{}, err
 	}
 	if nodeType != "janus.nodes.openstack.Network" {
-		return Subnet{}, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return Subnet{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 
 	subnet := Subnet{}
 
-	netName, err := g.getStringFormConsul(url, "properties/network_name")
+	netName, err := g.getStringFormConsul(kv, url, "properties/network_name")
 	if err != nil {
 		return Subnet{}, err
 	} else if netName != "" {
-		subnet.Name = g.cfg.ResourcesPrefix + netName + "_subnet"
+		subnet.Name = cfg.ResourcesPrefix + netName + "_subnet"
 	} else {
-		subnet.Name = g.cfg.ResourcesPrefix + nodeName + "_subnet"
+		subnet.Name = cfg.ResourcesPrefix + nodeName + "_subnet"
 	}
-	ipVersion, err := g.getStringFormConsul(url, "properties/ip_version")
+	ipVersion, err := g.getStringFormConsul(kv, url, "properties/ip_version")
 	if err != nil {
 		return Subnet{}, err
 	} else if ipVersion != "" {
@@ -58,7 +62,7 @@ func (g *osGenerator) generateSubnet(url, deploymentID, nodeName string) (Subnet
 	} else {
 		subnet.IPVersion = 4
 	}
-	nodeID, err := g.getStringFormConsul(url, "properties/network_id")
+	nodeID, err := g.getStringFormConsul(kv, url, "properties/network_id")
 	if err != nil {
 		return Subnet{}, err
 	} else if nodeID != "" {
@@ -66,29 +70,29 @@ func (g *osGenerator) generateSubnet(url, deploymentID, nodeName string) (Subnet
 	} else {
 		subnet.NetworkID = "${openstack_networking_network_v2." + nodeName + ".id}"
 	}
-	if nodeCIDR, err := g.getStringFormConsul(url, "properties/cidr"); err != nil {
+	if nodeCIDR, err := g.getStringFormConsul(kv, url, "properties/cidr"); err != nil {
 		return Subnet{}, err
 	} else if nodeCIDR != "" {
 		subnet.CIDR = nodeCIDR
 	}
-	if gatewayIP, err := g.getStringFormConsul(url, "properties/gateway_ip"); err != nil {
+	if gatewayIP, err := g.getStringFormConsul(kv, url, "properties/gateway_ip"); err != nil {
 		return Subnet{}, err
 	} else if gatewayIP != "" {
 		subnet.GatewayIP = gatewayIP
 	}
-	if startIP, err := g.getStringFormConsul(url, "properties/start_ip"); err != nil {
+	if startIP, err := g.getStringFormConsul(kv, url, "properties/start_ip"); err != nil {
 		return Subnet{}, err
 	} else if startIP != "" {
-		endIP, err := g.getStringFormConsul(url, "properties/end_ip")
+		endIP, err := g.getStringFormConsul(kv, url, "properties/end_ip")
 		if err != nil {
 			return Subnet{}, err
 		}
 		if endIP == "" {
-			return Subnet{}, fmt.Errorf("A start_ip and a end_ip need to be provided")
+			return Subnet{}, errors.Errorf("A start_ip and a end_ip need to be provided")
 		}
 		subnet.AllocationPools = &AllocationPool{Start: startIP, End: endIP}
 	}
-	if dhcp, err := g.getStringFormConsul(url, "properties/dhcp_enabled"); err != nil {
+	if dhcp, err := g.getStringFormConsul(kv, url, "properties/dhcp_enabled"); err != nil {
 		return Subnet{}, err
 	} else if dhcp != "" {
 		subnet.EnableDHCP, err = strconv.ParseBool(dhcp)
@@ -99,7 +103,7 @@ func (g *osGenerator) generateSubnet(url, deploymentID, nodeName string) (Subnet
 		subnet.EnableDHCP = true
 	}
 
-	subnet.Region = g.cfg.OSRegion
+	subnet.Region = cfg.OSRegion
 
 	return subnet, nil
 }

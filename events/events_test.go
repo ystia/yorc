@@ -1,7 +1,6 @@
 package events
 
 import (
-	"errors"
 	"path"
 	"reflect"
 	"strings"
@@ -12,8 +11,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 

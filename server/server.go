@@ -1,12 +1,16 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"sync"
+
+	"time"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -16,23 +20,10 @@ import (
 
 // RunServer starts the Janus server
 func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
-	consulDC := configuration.ConsulDatacenter
-	consulToken := configuration.ConsulToken
-
-	consulCustomConfig := api.DefaultConfig()
-	if configuration.ConsulAddress != "" {
-		consulCustomConfig.Address = configuration.ConsulAddress
-	}
-	if consulDC != "" {
-		consulCustomConfig.Datacenter = fmt.Sprintf("%s", consulDC)
-	}
-	if consulToken != "" {
-		consulCustomConfig.Token = fmt.Sprintf("%s", consulToken)
-	}
-	client, err := api.NewClient(consulCustomConfig)
+	var wg sync.WaitGroup
+	client, err := configuration.GetConsulClient()
 	if err != nil {
-		log.Printf("Can't connect to Consul")
-		return err
+		return errors.Wrap(err, "Can't connect to Consul")
 	}
 
 	maxConsulPubRoutines := configuration.ConsulPubMaxRoutines
@@ -42,14 +33,25 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
-	dispatcher := workflow.NewDispatcher(configuration.WorkersNumber, shutdownCh, client, configuration)
+	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
 	go dispatcher.Run()
-	httpServer, err := rest.NewServer(configuration, client, shutdownCh)
+	var httpServer *rest.Server
+	pm := newPluginManager()
+	defer pm.cleanup()
+	err = pm.loadPlugins(configuration)
 	if err != nil {
 		close(shutdownCh)
-		return err
+		goto WAIT
+	}
+
+	httpServer, err = rest.NewServer(configuration, client, shutdownCh)
+	if err != nil {
+		close(shutdownCh)
+		goto WAIT
 	}
 	defer httpServer.Shutdown()
+
+WAIT:
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {
@@ -70,7 +72,23 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 			if !shutdownChClosed {
 				close(shutdownCh)
 			}
-			return nil
+			gracefulTimeout := configuration.ServerGracefulShutdownTimeout
+			if gracefulTimeout == 0 {
+				gracefulTimeout = config.DefaultServerGracefulShutdownTimeout
+			}
+			log.Printf("Waiting at least %v for a graceful server shutdown. Send another termination signal to exit immediately.", gracefulTimeout)
+			gracefulCh := make(chan struct{})
+			go func() {
+				wg.Wait()
+				close(gracefulCh)
+			}()
+			select {
+			// Wait for another signal, a timeout or a notification that the graceful shutdown is done
+			case <-signalCh:
+			case <-gracefulCh:
+			case <-time.After(gracefulTimeout):
+			}
+			return err
 		}
 	}
 }

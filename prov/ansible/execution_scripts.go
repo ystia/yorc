@@ -95,14 +95,12 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 			return err
 		}
 		if err := wrapTemplate.Execute(&buffer, e); err != nil {
-			log.Print("Failed to Generate wrapper template")
 			events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate wrapper template")
-			return err
+			return errors.Wrap(err, "Failed to Generate wrapper template")
 		}
 		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
-			log.Print("Failed to write playbook file")
 			events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
-			return err
+			return errors.Wrap(err, "Failed to write playbook file")
 		}
 	}
 	buffer.Reset()
@@ -111,21 +109,19 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		return errors.Wrap(err, "Failed to generate ansible playbook")
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
-		log.Print("Failed to Generate ansible playbook template")
 		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate ansible playbook template")
-		return err
+		return errors.Wrap(err, "Failed to Generate ansible playbook template")
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
-		log.Print("Failed to write playbook file")
 		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
-		return err
+		return errors.Wrap(err, "Failed to write playbook file")
 	}
 
 	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
 		return err
 	}
-	log.Printf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, scriptPath)
+	log.Debugf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, scriptPath)
 	events.LogEngineMessage(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
 	var cmd *executil.Cmd
 	var wrapperPath string

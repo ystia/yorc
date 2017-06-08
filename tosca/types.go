@@ -43,3 +43,16 @@ type CapabilityType struct {
 	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
 	ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow"`
 }
+
+// An ArtifactType is the representation of a TOSCA Artifact Type
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_ARTIFACT_TYPE
+// for more details
+type ArtifactType struct {
+	DerivedFrom string                        `yaml:"derived_from,omitempty"`
+	Version     string                        `yaml:"version,omitempty"`
+	Description string                        `yaml:"description,omitempty"`
+	MimeType    string                        `yaml:"mime_type,omitempty"`
+	FileExt     []string                      `yaml:"file_ext,omitempty"`
+	Properties  map[string]PropertyDefinition `yaml:"properties,omitempty"`
+}

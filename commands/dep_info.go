@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"github.com/fatih/color"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
@@ -32,7 +33,7 @@ func init() {
 It prints the deployment status and the status of all the nodes contained in this deployment.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
+				return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
 			client, err := getClient()
 			if err != nil {
@@ -54,7 +55,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 			if response.StatusCode != 200 {
 				// Try to get the reason
 				printErrors(response.Body)
-				errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+				errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
 			}
 			var dep rest.Deployment
 			body, err := ioutil.ReadAll(response.Body)

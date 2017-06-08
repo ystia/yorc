@@ -1,6 +1,10 @@
 package events
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+)
 
 // InfraLogPrefix Consul KV prefix for infrastructure logs
 const InfraLogPrefix = "infrastructure"
@@ -62,9 +66,10 @@ var _StatusUpdateTypeNameToValue_map = map[string]StatusUpdateType{
 	_StatusUpdateType_name[39:47]: 4,
 }
 
+// StatusUpdateTypeString returns a StatusUpdateType given its string representation
 func StatusUpdateTypeString(s string) (StatusUpdateType, error) {
 	if val, ok := _StatusUpdateTypeNameToValue_map[s]; ok {
 		return val, nil
 	}
-	return 0, fmt.Errorf("%s does not belong to StatusUpdateType values", s)
+	return 0, errors.Errorf("%s does not belong to StatusUpdateType values", s)
 }

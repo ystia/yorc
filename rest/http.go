@@ -65,7 +65,7 @@ func (s *Server) Shutdown() {
 		log.Printf("Shutting down http server")
 		err := s.listener.Close()
 		if err != nil {
-			log.Print(err)
+			log.Print(errors.Wrap(err, "Failed to close server listener"))
 		}
 	}
 }
@@ -132,6 +132,10 @@ func (s *Server) registerHandlers() {
 	s.router.Post("/deployments/:id/workflows/:workflowName", commonHandlers.ThenFunc(s.newWorkflowHandler))
 	s.router.Get("/deployments/:id/workflows/:workflowName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getWorkflowHandler))
 	s.router.Get("/deployments/:id/workflows", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listWorkflowsHandler))
+
+	s.router.Get("/registry/delegates", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDelegatesHandler))
+	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryImplementationsHandler))
+	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDefinitionsHandler))
 }
 
 func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {

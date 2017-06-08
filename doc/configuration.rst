@@ -29,6 +29,10 @@ Command-line options
 
   * ``--consul_publisher_max_routines``: Maximum number of parallelism used to store key/values in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value (500) will be used.
 
+.. _option_shut_timeout_cmd:
+
+  * ``--graceful_shutdown_timeout``: Timeout to wait for a graceful shutdown of the Janus server. After this delay the server immediately exits. The default is ``5m``.
+
 .. _option_http_addr_cmd:
 
   * ``--http_address``: Restrict the listening interface for the Janus HTTP REST API. By default Janus listens on all available interfaces
@@ -80,6 +84,10 @@ Command-line options
 .. _option_os_secgroups_cmd:
 
   * ``--os_default_security_groups``: Default security groups to be used when creating a Compute instance. It could be a comma-separated list of security group names or this option may be specified several times.
+
+.. _option_pluginsdir_cmd:
+
+  * ``--plugins_directory``: The name of the plugins directory of the Janus server. The default is to use a directory named *plugins* in the current directory.
 
 .. _option_workers_cmd:
 
@@ -144,6 +152,10 @@ Bellow is an example of configuration file with TLS enable.
 
   * ``consul_publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
+.. _option_shut_timeout_cfg:
+
+  * ``server_graceful_shutdown_timeout``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
+
 .. _option_http_addr_cfg:
 
   * ``http_address``: Equivalent to :ref:`--http_address <option_http_addr_cmd>` command-line flag.
@@ -196,6 +208,10 @@ Bellow is an example of configuration file with TLS enable.
 
   * ``os_default_security_groups``: Equivalent to :ref:`--os_default_security_groups <option_os_secgroups_cmd>` command-line flag.
 
+.. _option_plugindir_cfg:
+
+  * ``plugins_directory``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+
 .. _option_workers_cfg:
 
   * ``workers_number``: Equivalent to :ref:`--workers_number <option_workers_cmd>` command-line flag.
@@ -223,6 +239,10 @@ Environment variables
 .. _option_pub_routines_env:
 
   * ``JANUS_CONSUL_PUBLISHER_MAX_ROUTINES``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
+
+.. _option_shut_timeout_env:
+
+  * ``JANUS_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
 
 .. _option_http_addr_env:
 
@@ -275,6 +295,10 @@ Environment variables
 .. _option_os_secgroups_env:
 
   * ``JANUS_OS_DEFAULT_SECURITY_GROUPS``: Equivalent to :ref:`--os_default_security_groups <option_os_secgroups_cmd>` command-line flag.
+
+.. _option_plugindir_env:
+
+  * ``JANUS_PLUGIN_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
 
 .. _option_workers_env:
 

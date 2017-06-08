@@ -22,6 +22,15 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	deploymentID := params.ByName("id")
 	workflowName := params.ByName("workflowName")
 
+	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), deploymentID)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
+
 	workflows, err := deployments.GetWorkflows(s.consulClient.KV(), deploymentID)
 	if err != nil {
 		log.Panic(err)
@@ -59,6 +68,16 @@ func (s *Server) listWorkflowsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	deploymentID := params.ByName("id")
+
+	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), deploymentID)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
+
 	workflows, err := deployments.GetWorkflows(s.consulClient.KV(), deploymentID)
 	if err != nil {
 		log.Panic(err)
@@ -78,6 +97,16 @@ func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	deploymentID := params.ByName("id")
 	workflowName := params.ByName("workflowName")
 	kv := s.consulClient.KV()
+
+	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), deploymentID)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
+
 	workflows, err := deployments.GetWorkflows(kv, deploymentID)
 	if err != nil {
 		log.Panic(err)
