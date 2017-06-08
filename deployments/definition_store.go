@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
@@ -31,6 +32,8 @@ type ctxConsulStoreKey struct{}
 
 // Internal variable used to uniquely identify the ConsulStore in a context
 var consulStoreKey ctxConsulStoreKey
+
+var reg = registry.GetRegistry()
 
 // StoreDeploymentDefinition takes a defPath and parse it as a tosca.Topology then it store it in consul under
 // consulutil.DeploymentKVPrefix/deploymentID
@@ -54,6 +57,11 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentID str
 	if err != nil {
 		return errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath)
 	}
+	err = registerImplementationTypes(ctx, kv, deploymentID)
+	if err != nil {
+		return err
+	}
+
 	return enhanceNodes(ctx, kv, deploymentID)
 }
 
@@ -91,6 +99,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	storeTypes(ctx, topology, topologyPrefix, importPath)
 	storeRelationshipTypes(ctx, topology, topologyPrefix, importPath)
 	storeCapabilityTypes(ctx, topology, topologyPrefix)
+	storeArtifactTypes(ctx, topology, topologyPrefix)
 	storeWorkflows(ctx, topology, deploymentID)
 	return nil
 }
@@ -119,11 +128,11 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, to
 				importValue = strings.Trim(importValue, "<>")
 				var defBytes []byte
 				var err error
-				if defBytes, err = tosca.Asset(importValue); err != nil {
-					return fmt.Errorf("Failed to import internal definition %s: %v", importValue, err)
+				if defBytes, err = reg.GetToscaDefinition(importValue); err != nil {
+					return errors.Errorf("Failed to import internal definition %s: %v", importValue, err)
 				}
 				if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 				errGroup.Go(func() error {
 					return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importName), "", rootDefPath)
@@ -133,16 +142,16 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, to
 
 				definition, err := os.Open(uploadFile)
 				if err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 
 				defBytes, err := ioutil.ReadAll(definition)
 				if err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 
 				if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
-					return fmt.Errorf("Failed to parse internal definition %s: %v", importValue, err)
+					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
 				}
 
 				errGroup.Go(func() error {
@@ -539,6 +548,26 @@ func storeCapabilityTypes(ctx context.Context, topology tosca.Topology, topology
 	}
 }
 
+// storeTypes stores topology types
+func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	typesPrefix := path.Join(topologyPrefix, "types")
+	for artTypeName, artType := range topology.ArtifactTypes {
+		artTypePrefix := path.Join(typesPrefix, artTypeName)
+		consulStore.StoreConsulKeyAsString(artTypePrefix+"/name", artTypeName)
+		consulStore.StoreConsulKeyAsString(artTypePrefix+"/derived_from", artType.DerivedFrom)
+		consulStore.StoreConsulKeyAsString(artTypePrefix+"/description", artType.Description)
+		consulStore.StoreConsulKeyAsString(artTypePrefix+"/version", artType.Version)
+		consulStore.StoreConsulKeyAsString(artTypePrefix+"/mime_type", artType.MimeType)
+		consulStore.StoreConsulKeyAsString(artTypePrefix+"/file_ext", strings.Join(artType.FileExt, ","))
+		propertiesPrefix := artTypePrefix + "/properties"
+		for propName, propDefinition := range artType.Properties {
+			propPrefix := propertiesPrefix + "/" + propName
+			storePropertyDefinition(ctx, propPrefix, propName, propDefinition)
+		}
+	}
+}
+
 // storeWorkflows stores topology workflows
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
@@ -594,6 +623,43 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		}
 
 	}
+	return nil
+}
+
+func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID string) error {
+	// We use synchronous communication with consul here to allow to check for duplicates
+	types, err := GetTypes(kv, deploymentID)
+	if err != nil {
+		return err
+	}
+	for _, t := range types {
+		isImpl, err := IsTypeDerivedFrom(kv, deploymentID, t, "tosca.artifacts.Implementation")
+		if err != nil {
+			return err
+		}
+		if isImpl {
+			extensions, err := GetArtifactTypeExtensions(kv, deploymentID, t)
+			if err != nil {
+				return err
+			}
+			for _, ext := range extensions {
+				ext = strings.ToLower(ext)
+				check, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+				if err != nil {
+					return err
+				}
+				if check != "" {
+					return errors.Errorf("Duplicate implementation artifact file extension %q found in artifact %q and %q", ext, check, t)
+				}
+				extPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, ext)
+				_, err = kv.Put(&api.KVPair{Key: extPath, Value: []byte(t)}, nil)
+				if err != nil {
+					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

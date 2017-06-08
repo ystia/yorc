@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 
 	"github.com/fatih/color"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
@@ -37,7 +38,7 @@ var listCmd = &cobra.Command{
 		if response.StatusCode != 200 {
 			// Try to get the reason
 			printErrors(response.Body)
-			errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+			errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
 		}
 		var deps rest.DeploymentsCollection
 		body, err := ioutil.ReadAll(response.Body)

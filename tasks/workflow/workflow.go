@@ -14,8 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/ansible"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -201,21 +200,44 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	if runnable, err := s.isRunnable(); err != nil {
 		return err
 	} else if !runnable {
-		log.Printf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
+		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
 		events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus("done")
 		s.notifyNext()
 		return nil
 	}
 
-	log.Printf("Processing step %q", s.Name)
+	log.Debugf("Processing step %q", s.Name)
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			provisioner := terraform.NewExecutor()
+			nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
+			if err != nil {
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				s.setStatus(tosca.NodeStateError.String())
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					return err
+				}
+			}
+			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
+			if err != nil {
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				s.setStatus(tosca.NodeStateError.String())
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					return err
+				}
+			}
 			delegateOp := activity.ActivityValue()
-			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
+			if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
@@ -229,8 +251,38 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfSetStateActivity:
 			setNodeStatus(kv, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
-			exec := ansible.NewExecutor()
-			err := exec.ExecOperation(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
+			op, err := getOperation(kv, s.t.TargetID, s.Node, activity.ActivityValue())
+			if err != nil {
+				if deployments.IsOperationNotImplemented(err) {
+					// Operation not implemented just skip it
+					log.Debugf("Voluntary bypassing error: %s.", err.Error())
+					continue
+				}
+
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					s.setStatus(tosca.NodeStateError.String())
+					return err
+				}
+			}
+
+			exec, err := getOperationExecutor(kv, deploymentID, op.ImplementationArtifact)
+			if err != nil {
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					s.setStatus(tosca.NodeStateError.String())
+					return err
+				}
+			}
+			err = exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)

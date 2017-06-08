@@ -14,35 +14,25 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/slurm"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 type defaultExecutor struct {
+	generator commons.Generator
 }
 
 // NewExecutor returns an Executor
-func NewExecutor() prov.DelegateExecutor {
-	return &defaultExecutor{}
+func NewExecutor(generator commons.Generator) prov.DelegateExecutor {
+	return &defaultExecutor{generator}
 }
 
-func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+	consulClient, err := cfg.GetConsulClient()
 	if err != nil {
 		return err
 	}
-	var generator commons.Generator
-	switch {
-	case strings.HasPrefix(nodeType, "janus.nodes.openstack."):
-		generator = openstack.NewGenerator(kv, cfg)
-	case strings.HasPrefix(nodeType, "janus.nodes.slurm."):
-		generator = slurm.NewGenerator(kv, cfg)
-	default:
-		return errors.Errorf("Unsupported node type '%s' for node '%s'", nodeType, nodeName)
-	}
-
+	kv := consulClient.KV()
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -51,23 +41,23 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, kv *api.KV, cfg conf
 	op := strings.ToLower(delegateOperation)
 	switch {
 	case op == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, generator)
+		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances)
 	case op == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, generator)
+		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, generator commons.Generator) error {
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
 			return err
 		}
 	}
-	infraGenerated, err := generator.GenerateTerraformInfraForNode(deploymentID, nodeName)
+	infraGenerated, err := e.generator.GenerateTerraformInfraForNode(cfg, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -85,14 +75,14 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	return nil
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, generator commons.Generator) error {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {
 			return err
 		}
 	}
-	infraGenerated, err := generator.GenerateTerraformInfraForNode(deploymentID, nodeName)
+	infraGenerated, err := e.generator.GenerateTerraformInfraForNode(cfg, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -168,6 +158,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	if err != nil {
 		return err
 	}
+	// TODO  consider making this generic: references to OpenStack should not be found here.
 	if nodeType == "janus.nodes.openstack.BlockStorage" {
 		var deletable string
 		var found bool
@@ -177,7 +168,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 		}
 		if !found || strings.ToLower(deletable) != "true" {
 			// False by default
-			log.Printf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
+			log.Debugf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
 			return nil
 		}
 	}

@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -10,6 +11,22 @@ import (
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
+
+// IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
+func IsOperationNotImplemented(err error) bool {
+	_, ok := err.(operationNotImplemented)
+	return ok
+}
+
+type operationNotImplemented struct {
+	msg string
+}
+
+func (oni operationNotImplemented) Error() string {
+	return oni.msg
+}
+
+const implementationArtifactsExtensionsPath = "implementation_artifacts_extensions"
 
 // GetOperationPathAndPrimaryImplementationForNodeType traverses the type hierarchy to find an operation matching the given operationName.
 //
@@ -172,4 +189,55 @@ func getOperationOutputForRequirements(kv *api.KV, deploymentID, nodeName, insta
 		}
 	}
 	return "", nil
+}
+
+// GetImplementationArtifactForExtension returns the implementation artifact type for a given extension.
+//
+// If the extension is unknown then an empty string is returned
+func GetImplementationArtifactForExtension(kv *api.KV, deploymentID, extension string) (string, error) {
+	extension = strings.ToLower(extension)
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, extension), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil {
+		return "", nil
+	}
+	return string(kvp.Value), nil
+}
+
+// GetImplementationArtifactForOperation returns the implementation artifact type for a given operation.
+// operationName, isRelationshipOp and requirementIndex are typically the result of the DecodeOperation function that
+// should generally call prior to call this function.
+func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, operationName string, isRelationshipOp bool, requirementIndex string) (string, error) {
+	var nodeOrRelType string
+	var err error
+	if isRelationshipOp {
+		nodeOrRelType, err = GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	} else {
+		nodeOrRelType, err = GetNodeType(kv, deploymentID, nodeName)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	// TODO keep in mind that with Alien we may have a an implementation artifact directly in the operation. This part is currently under development in the Kubernetes branch
+	// and we should take this into account when it will be merged.
+	_, primary, err := GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, nodeOrRelType, operationName)
+	if err != nil {
+		return "", err
+	}
+	if primary == "" {
+		return "", operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", operationName, nodeOrRelType, deploymentID)}
+	}
+	primarySlice := strings.Split(primary, ".")
+	ext := primarySlice[len(primarySlice)-1]
+	artImpl, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+	if err != nil {
+		return "", err
+	}
+	if artImpl == "" {
+		return "", errors.Errorf("Failed to resolve implementation artifact for type %q, operation %q, implementation %q and extension %q", nodeOrRelType, operationName, primary, ext)
+	}
+	return artImpl, nil
 }

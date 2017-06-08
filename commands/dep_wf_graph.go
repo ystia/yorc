@@ -43,7 +43,7 @@ func init() {
 			if response.StatusCode != http.StatusOK {
 				// Try to get the reason
 				printErrors(response.Body)
-				errExit(fmt.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+				errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
 			}
 
 			var wf rest.Workflow

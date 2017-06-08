@@ -1,11 +1,12 @@
 package rest
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
@@ -27,7 +28,7 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 		log.Panic(err)
 	}
 	if ttid != id {
-		writeError(w, r, newBadRequestError(fmt.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
+		writeError(w, r, newBadRequestError(errors.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
 		return false
 	}
 	return true
@@ -47,7 +48,7 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
 		log.Panic(err)
 	} else if taskStatus != tasks.RUNNING && taskStatus != tasks.INITIAL {
-		writeError(w, r, newBadRequestError(fmt.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
+		writeError(w, r, newBadRequestError(errors.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
 		return
 	}
 

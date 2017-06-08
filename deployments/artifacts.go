@@ -3,6 +3,8 @@ package deployments
 import (
 	"path"
 
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -77,4 +79,17 @@ func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsP
 		artifacts[artifactName] = string(kvp.Value)
 	}
 	return nil
+}
+
+// GetArtifactTypeExtensions returns the extensions defined in this artifact type.
+// If the artifact doesn't define any extension then a nil slice is returned
+func GetArtifactTypeExtensions(kv *api.KV, deploymentID, artifactType string) ([]string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", artifactType, "file_ext"), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return nil, nil
+	}
+	return strings.Split(string(kvp.Value), ","), nil
 }

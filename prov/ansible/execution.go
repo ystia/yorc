@@ -24,6 +24,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -97,7 +98,7 @@ type executionCommon struct {
 	deploymentID             string
 	taskID                   string
 	NodeName                 string
-	Operation                string
+	operation                prov.Operation
 	NodeType                 string
 	Description              string
 	OperationRemotePath      string
@@ -115,24 +116,21 @@ type executionCommon struct {
 	Context                  map[string]string
 	Outputs                  map[string]string
 	HaveOutput               bool
-	isRelationshipOperation  bool
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
 	IsCustomCommand          bool
 	relationshipType         string
-	relationshipTargetName   string
-	requirementIndex         string
 	ansibleRunner            ansibleRunner
 	sourceNodeInstances      []string
 	targetNodeInstances      []string
 }
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, operation string) (execution, error) {
+func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		cfg:            cfg,
 		deploymentID:   deploymentID,
 		NodeName:       nodeName,
-		Operation:      operation,
+		operation:      operation,
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*EnvInput, 0),
 		taskID:         taskID,
@@ -141,18 +139,30 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
+	isBash, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, implementationArtifactBash)
+	if err != nil {
+		return nil, err
+	}
+	isPython, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, implementationArtifactPython)
+	if err != nil {
+		return nil, err
+	}
+	isAnsible, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, implementationArtifactAnsible)
+	if err != nil {
+		return nil, err
+	}
 	// TODO: should use implementation artifacts (tosca.artifacts.Implementation.Bash, tosca.artifacts.Implementation.Python, tosca.artifacts.Implementation.Ansible...) in some way
 	var exec execution
-	if strings.HasSuffix(execCommon.BasePrimary, ".sh") || strings.HasSuffix(execCommon.BasePrimary, ".py") {
+	if isBash || isPython {
 		execScript := &executionScript{executionCommon: execCommon}
 		execCommon.ansibleRunner = execScript
 		exec = execScript
-	} else if strings.HasSuffix(execCommon.BasePrimary, ".yml") || strings.HasSuffix(execCommon.BasePrimary, ".yaml") {
+	} else if isAnsible {
 		execAnsible := &executionAnsible{executionCommon: execCommon}
 		execCommon.ansibleRunner = execAnsible
 		exec = execAnsible
 	} else {
-		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %q, primary implementation: %q", nodeName, operation, execCommon.Primary)
+		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %q, primary implementation: %q", nodeName, operation.Name, execCommon.Primary)
 	}
 
 	return exec, exec.resolveExecution()
@@ -166,37 +176,33 @@ func (e *executionCommon) resolveOperation() error {
 		return err
 	}
 	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType)
-	e.isRelationshipOperation, e.Operation, e.requirementIndex, e.relationshipTargetName, err = deployments.DecodeOperation(e.kv, e.deploymentID, e.NodeName, e.Operation)
-	if err != nil {
-		return err
-	}
-	if e.isRelationshipOperation {
-		e.relationshipType, err = deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.requirementIndex)
+	if e.operation.RelOp.IsRelationshipOperation {
+		e.relationshipType, err = deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.operation.RelOp.RequirementIndex)
 		if err != nil {
 			return err
 		}
 
-		e.isRelationshipTargetNode = isTargetOperation(e.Operation)
+		e.isRelationshipTargetNode = isTargetOperation(e.operation.Name)
 
-		err = e.resolveIsPerInstanceOperation(e.Operation)
+		err = e.resolveIsPerInstanceOperation(e.operation.Name)
 		if err != nil {
 			return err
 		}
 
-	} else if strings.Contains(e.Operation, "custom") {
+	} else if strings.Contains(e.operation.Name, "custom") {
 		e.IsCustomCommand = true
 	}
 
 	operationNodeType := e.NodeType
-	if e.isRelationshipOperation {
+	if e.operation.RelOp.IsRelationshipOperation {
 		operationNodeType = e.relationshipType
 	}
-	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.deploymentID, operationNodeType, e.Operation)
+	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.deploymentID, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
 	if e.OperationPath == "" || e.Primary == "" {
-		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.Operation, e.NodeType, e.deploymentID)}
+		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.operation.Name, e.NodeType, e.deploymentID)}
 	}
 	e.Primary = strings.TrimSpace(e.Primary)
 	log.Debugf("Operation Path: %q, primary implementation: %q", e.OperationPath, e.Primary)
@@ -224,8 +230,8 @@ func (e *executionCommon) resolveOperation() error {
 
 func (e *executionCommon) resolveInstances() error {
 	var err error
-	if e.isRelationshipOperation {
-		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.relationshipTargetName)
+	if e.operation.RelOp.IsRelationshipOperation {
+		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
 		if err != nil {
 			return err
 		}
@@ -237,10 +243,10 @@ func (e *executionCommon) resolveInstances() error {
 func (e *executionCommon) resolveArtifacts() error {
 	log.Debugf("Resolving artifacts")
 	var err error
-	if e.isRelationshipOperation {
+	if e.operation.RelOp.IsRelationshipOperation {
 		// First get linked node artifacts
 		if e.isRelationshipTargetNode {
-			e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.deploymentID, e.relationshipTargetName)
+			e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.deploymentID, e.operation.RelOp.TargetNodeName)
 			if err != nil {
 				return err
 			}
@@ -327,13 +333,13 @@ func (e *executionCommon) resolveInputs() error {
 		var inputValue string
 		for i, instanceID := range instancesIds {
 			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
-			if e.isRelationshipOperation && targetContext {
-				envI.InstanceName = getInstanceName(e.relationshipTargetName, instanceID)
+			if e.operation.RelOp.IsRelationshipOperation && targetContext {
+				envI.InstanceName = getInstanceName(e.operation.RelOp.TargetNodeName, instanceID)
 			} else {
 				envI.InstanceName = getInstanceName(e.NodeName, instanceID)
 			}
-			if e.isRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.relationshipTargetName, e.requirementIndex, instanceID)
+			if e.operation.RelOp.IsRelationshipOperation {
+				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.operation.RelOp.TargetNodeName, e.operation.RelOp.RequirementIndex, instanceID)
 			} else if isPropDef {
 				inputValue, err = tasks.GetTaskInput(e.kv, e.taskID, inputName)
 			} else {
@@ -374,7 +380,7 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 		if found && ipAddress != "" {
 			var instanceName string
 			if e.isRelationshipTargetNode {
-				instanceName = getInstanceName(e.relationshipTargetName, instance)
+				instanceName = getInstanceName(e.operation.RelOp.TargetNodeName, instance)
 			} else {
 				instanceName = getInstanceName(e.NodeName, instance)
 			}
@@ -437,7 +443,7 @@ func (e *executionCommon) resolveContext() error {
 	execContext := make(map[string]string)
 
 	newNode := sanitizeForShell(e.NodeName)
-	if !e.isRelationshipOperation {
+	if !e.operation.RelOp.IsRelationshipOperation {
 		execContext["NODE"] = newNode
 	}
 	var instances []string
@@ -452,7 +458,7 @@ func (e *executionCommon) resolveContext() error {
 		instanceName := getInstanceName(e.NodeName, instances[i])
 		names[i] = instanceName
 	}
-	if !e.isRelationshipOperation {
+	if !e.operation.RelOp.IsRelationshipOperation {
 		e.VarInputsNames = append(e.VarInputsNames, "INSTANCE")
 		execContext["INSTANCES"] = strings.Join(names, ",")
 		if host, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, e.NodeName); err != nil {
@@ -467,7 +473,7 @@ func (e *executionCommon) resolveContext() error {
 		} else if host != "" {
 			execContext["SOURCE_HOST"] = host
 		}
-		if host, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, e.relationshipTargetName); err != nil {
+		if host, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, e.operation.RelOp.TargetNodeName); err != nil {
 			return err
 		} else if host != "" {
 			execContext["TARGET_HOST"] = host
@@ -484,11 +490,11 @@ func (e *executionCommon) resolveContext() error {
 			sourceNames[i] = getInstanceName(e.NodeName, e.sourceNodeInstances[i])
 		}
 		execContext["SOURCE_INSTANCES"] = strings.Join(sourceNames, ",")
-		execContext["TARGET_NODE"] = sanitizeForShell(e.relationshipTargetName)
+		execContext["TARGET_NODE"] = sanitizeForShell(e.operation.RelOp.TargetNodeName)
 
 		targetNames := make([]string, len(e.targetNodeInstances))
 		for i := range e.targetNodeInstances {
-			targetNames[i] = getInstanceName(e.relationshipTargetName, e.targetNodeInstances[i])
+			targetNames[i] = getInstanceName(e.operation.RelOp.TargetNodeName, e.targetNodeInstances[i])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
@@ -542,7 +548,7 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 
 			targetContext := va.Expression.IsTargetContext()
 			sourceContext := va.Expression.IsSourceContext()
-			if (targetContext || sourceContext) && !e.isRelationshipOperation {
+			if (targetContext || sourceContext) && !e.operation.RelOp.IsRelationshipOperation {
 				return errors.Errorf("Can't resolve an operation output in SOURCE or TARGET context without a relationship operation: %q", va.String())
 			}
 
@@ -558,11 +564,11 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 				//We decide to add an in to differentiate if we export many time the same output
 				b := uint32(time.Now().Nanosecond())
 				if targetContext {
-					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.relationshipTargetName, instanceID, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
+					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.operation.RelOp.TargetNodeName, instanceID, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
 				} else {
 					//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
-					if va.Expression.Children()[0].Value == "SELF" && e.isRelationshipOperation {
-						relationshipType, err := deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.requirementIndex)
+					if va.Expression.Children()[0].Value == "SELF" && e.operation.RelOp.IsRelationshipOperation {
+						relationshipType, err := deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.operation.RelOp.RequirementIndex)
 						if err != nil {
 							return err
 						}
@@ -614,7 +620,7 @@ func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) er
 }
 
 func (e *executionCommon) resolveExecution() error {
-	log.Printf("Preparing execution of operation %q on node %q for deployment %q", e.Operation, e.NodeName, e.deploymentID)
+	log.Debugf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
 	ovPath, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "overlay"))
 	if err != nil {
 		return err
@@ -628,7 +634,7 @@ func (e *executionCommon) resolveExecution() error {
 		return err
 	}
 	if e.isRelationshipTargetNode {
-		err = e.resolveHosts(e.relationshipTargetName)
+		err = e.resolveHosts(e.operation.RelOp.TargetNodeName)
 	} else {
 		err = e.resolveHosts(e.NodeName)
 	}
@@ -648,7 +654,7 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 		var nodeName string
 		var instances []string
 		if !e.isRelationshipTargetNode {
-			nodeName = e.relationshipTargetName
+			nodeName = e.operation.RelOp.TargetNodeName
 			instances = e.targetNodeInstances
 		} else {
 			nodeName = e.NodeName
@@ -657,7 +663,7 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 
 		for _, instanceID := range instances {
 			instanceName := getInstanceName(nodeName, instanceID)
-			log.Debugf("Executing operation %q, on node %q, with current instance %q", e.Operation, e.NodeName, instanceName)
+			log.Debugf("Executing operation %q, on node %q, with current instance %q", e.operation.Name, e.NodeName, instanceName)
 			err := e.executeWithCurrentInstance(ctx, retry, instanceName)
 			if err != nil {
 				return err
@@ -670,27 +676,25 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 }
 
 func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
-	events.LogEngineMessage(e.kv, e.deploymentID, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.Operation)
+	events.LogEngineMessage(e.kv, e.deploymentID, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.operation.Name)
 	var ansibleRecipePath string
-	if e.isRelationshipOperation {
-		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.Operation, currentInstance)
+	if e.operation.RelOp.IsRelationshipOperation {
+		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.Name, currentInstance)
 	} else {
-		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.Operation, currentInstance)
+		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.operation.Name, currentInstance)
 	}
 	ansibleRecipePath, err := filepath.Abs(ansibleRecipePath)
 	if err != nil {
 		return err
 	}
 	if err = os.RemoveAll(ansibleRecipePath); err != nil {
-		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.Operation)
-		log.Print(err)
+		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
 		log.Debugf("%+v", err)
 		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err = os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
-		log.Printf("%+v", err)
 		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
@@ -737,7 +741,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 						goto NEXT
 					}
 				}
-				if e.isRelationshipOperation {
+				if e.operation.RelOp.IsRelationshipOperation {
 					var hostedOn bool
 					hostedOn, err = deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn")
 					if err != nil {
@@ -770,26 +774,25 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		}
 		if perInstanceInputsBuffer.Len() > 0 {
 			if err = ioutil.WriteFile(filepath.Join(ansibleHostVarsPath, host.host+".yml"), perInstanceInputsBuffer.Bytes(), 0664); err != nil {
-				log.Printf("Failed to write vars for host %q file: %v", host, err)
-				return err
+				return errors.Wrapf(err, "Failed to write vars for host %q file: %v", host, err)
 			}
 		}
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
-		log.Print("Failed to write hosts file")
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write hosts file")
+		err = errors.Wrap(err, "Failed to write hosts file")
+		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)), 0664); err != nil {
-		log.Print("Failed to write ansible.cfg file")
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write ansible.cfg file")
+		err = errors.Wrap(err, "Failed to write ansible.cfg file")
+		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
-	if e.isRelationshipOperation {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.Operation)
+	if e.operation.RelOp.IsRelationshipOperation {
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.Operation)
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.operation.Name)
 	}
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
@@ -833,8 +836,8 @@ func getInstanceName(nodeName, instanceID string) string {
 }
 
 func (e *executionCommon) checkAnsibleRetriableError(err error) error {
-	events.LogEngineError(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.Operation, e.NodeName))
-	log.Print(err)
+	events.LogEngineError(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName))
+	log.Debug(err)
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The program has exited with an exit code != 0
 

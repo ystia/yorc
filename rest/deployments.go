@@ -162,6 +162,15 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 
+	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
+
 	var taskType tasks.TaskType
 	if _, ok := r.URL.Query()["purge"]; ok {
 		taskType = tasks.Purge

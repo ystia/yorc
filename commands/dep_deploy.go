@@ -28,7 +28,7 @@ func init() {
 	If <csar_path> point to a single file it should be TOSCA YAML description.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return fmt.Errorf("Expecting a path to a file or directory (got %d parameters)", len(args))
+				return errors.Errorf("Expecting a path to a file or directory (got %d parameters)", len(args))
 			}
 			client, err := getClient()
 			if err != nil {
@@ -115,7 +115,7 @@ func submitCSAR(csarZip []byte, client *janusClient, deploymentID string) (strin
 	if r.StatusCode != 201 {
 		// Try to get the reason
 		printErrors(r.Body)
-		return "", fmt.Errorf("POST failed: Expecting HTTP Status code 201 got %d, reason %q", r.StatusCode, r.Status)
+		return "", errors.Errorf("POST failed: Expecting HTTP Status code 201 got %d, reason %q", r.StatusCode, r.Status)
 	}
 	if location := r.Header.Get("Location"); location != "" {
 		return location, nil

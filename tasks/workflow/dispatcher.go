@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"sync"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -20,19 +22,20 @@ type Dispatcher struct {
 	WorkerPool chan chan *task
 	maxWorkers int
 	cfg        config.Configuration
+	wg         *sync.WaitGroup
 }
 
 // NewDispatcher create a new Dispatcher with a given number of workers
-func NewDispatcher(maxWorkers int, shutdownCh chan struct{}, client *api.Client, cfg config.Configuration) *Dispatcher {
-	pool := make(chan chan *task, maxWorkers)
-	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: maxWorkers, cfg: cfg}
+func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
+	pool := make(chan chan *task, cfg.WorkersNumber)
+	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
 }
 
 // Run creates workers and waits for new tasks
 func (d *Dispatcher) Run() {
 
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
+		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg, d.wg)
 		worker.Start()
 	}
 	log.Printf("%d worker started", d.maxWorkers)
@@ -54,7 +57,9 @@ func (d *Dispatcher) Run() {
 		log.Debugf("Long pooling task list")
 		tasksKeys, rMeta, err := kv.Keys(consulutil.TasksPrefix+"/", "/", q)
 		if err != nil {
-			log.Printf("Error getting tasks list: %+v", err)
+			err = errors.Wrap(err, "Error getting tasks list")
+			log.Print(err)
+			log.Debugf("%+v", err)
 			continue
 		}
 		if waitIndex == rMeta.LastIndex {
@@ -84,7 +89,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			if status != tasks.INITIAL && status != tasks.RUNNING {
-				log.Printf("Skipping task with status %q", status)
+				log.Debugf("Skipping task with status %q", status)
 				continue
 			}
 
@@ -121,7 +126,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			if status != tasks.INITIAL && status != tasks.RUNNING {
-				log.Printf("Skipping task with status %q", status)
+				log.Debugf("Skipping task with status %q", status)
 				lock.Unlock()
 				lock.Destroy()
 				continue

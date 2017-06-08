@@ -5,7 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
-  - normative-types: <normative-types.yml>
+  - normative-types: <janus-types.yml>
 
 node_types:
   janus.tests.nodes.GetOPOutputs:

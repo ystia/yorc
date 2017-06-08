@@ -46,7 +46,7 @@ func init() {
 			if response.StatusCode != http.StatusAccepted && response.StatusCode != http.StatusCreated {
 				// Try to get the reason
 				printErrors(response.Body)
-				errExit(fmt.Errorf("Expecting HTTP Status code 201 or 202 got %d, reason %q", response.StatusCode, response.Status))
+				errExit(errors.Errorf("Expecting HTTP Status code 201 or 202 got %d, reason %q", response.StatusCode, response.Status))
 			}
 
 			fmt.Println("New task ", path.Base(response.Header.Get("Location")), " created to execute ", workflowName)

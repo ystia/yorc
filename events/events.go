@@ -227,6 +227,6 @@ func logInConsul(kv *api.KV, deploymentID, logType string, message []byte) {
 	}
 	err := consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "logs", logType+"__"+time.Now().Format(time.RFC3339Nano)), message)
 	if err != nil {
-		log.Printf("Failed to publish log in consul for deployment %q: %+v", deploymentID, err)
+		log.Printf("Failed to publish log in consul for deployment %q: %+v\nOriginal message: %s", deploymentID, err, message)
 	}
 }
