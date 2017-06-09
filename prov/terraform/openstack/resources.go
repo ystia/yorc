@@ -16,6 +16,7 @@ type ComputeInstance struct {
 
 	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
 
+	// Deprecated use ComputeVolumeAttach instead
 	Volumes []Volume `json:"volume,omitempty"`
 }
 
@@ -33,7 +34,7 @@ type ComputeNetwork struct {
 	FixedIPV4     string `json:"fixed_ip_v4,omitempty"`
 	AccessNetwork bool   `json:"access_network,omitempty"`
 
-	// Deprecated
+	// Deprecated use ComputeFloatingIPAssociate instead
 	FloatingIP string `json:"floating_ip,omitempty"`
 }
 
@@ -78,10 +79,19 @@ type AllocationPool struct {
 }
 
 // A ComputeFloatingIPAssociate associates a floating IP to an instance.
-// This can be used instead of the floating_ip options in openstack_compute_instance_v2.
+// This should be used instead of the floating_ip options in openstack_compute_instance_v2 now deprecated.
 type ComputeFloatingIPAssociate struct {
 	Region     string `json:"region"`
 	FloatingIP string `json:"floating_ip"`
 	InstanceID string `json:"instance_id"`
 	FixedIP    string `json:"fixed_ip,omitempty"`
+}
+
+// A ComputeVolumeAttach attaches a volume to an instance.
+// This should be used instead of the floating_ip options in openstack_compute_instance_v2 now deprecated.
+type ComputeVolumeAttach struct {
+	Region     string `json:"region"`
+	VolumeID   string `json:"volume_id"`
+	InstanceID string `json:"instance_id"`
+	Device     string `json:"device,omitempty"`
 }

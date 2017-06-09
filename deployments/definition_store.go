@@ -878,7 +878,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 					return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q, failed to parse device property", nodeName)
 				}
 			}
-			req.RelationshipProps["location"] = va
+			req.RelationshipProps["device"] = va
 
 			newReqID, err := GetNbRequirementsForNode(kv, deploymentID, computeNodeName)
 			if err != nil {

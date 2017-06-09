@@ -33,8 +33,8 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 	if nodeName, err = g.getStringFormConsul(kv, url, "name"); err != nil {
 		return err
 	}
-
-	instancesKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
+	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+	instancesKey := path.Join(instancesPrefix, nodeName)
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 	image, err := g.getStringFormConsul(kv, url, "properties/image")
@@ -125,22 +125,22 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", url)
 	}
 
+	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", instance.Name)} // Use access ip here
+	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+
 	// TODO deal with multi-instances
 	storageKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
 	}
 	for _, storagePrefix := range storageKeys {
-		if instance.Volumes == nil {
-			instance.Volumes = make([]Volume, 0)
-		}
 		var volumeNodeName string
 		if volumeNodeName, err = g.getStringFormConsul(kv, storagePrefix, "node"); err != nil {
 			return err
 		} else if volumeNodeName != "" {
 			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 			var device string
-			if device, err = g.getStringFormConsul(kv, storagePrefix, "properties/location"); err != nil {
+			if device, err = g.getStringFormConsul(kv, storagePrefix, "properties/device"); err != nil {
 				return err
 			}
 			if device != "" {
@@ -179,9 +179,13 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 				// TODO add a cancellation signal
 				volumeID = <-resultChan
 			}
-
-			vol := Volume{VolumeID: volumeID, Device: device}
-			instance.Volumes = append(instance.Volumes, vol)
+			volumeAttach := ComputeVolumeAttach{
+				Region:     region,
+				VolumeID:   volumeID,
+				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
+				Device:     device,
+			}
+			addResource(infrastructure, "openstack_compute_volume_attach_v2", "Vol"+volumeNodeName+"to"+instance.Name, &volumeAttach)
 		}
 	}
 	// Do this in order to be sure that ansible will be able to log on the instance
@@ -189,10 +193,6 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	instance.Provisioners = make(map[string]interface{})
 	instance.Provisioners["remote-exec"] = re
-
-	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", instance.Name)} // Use access ip here
-
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 
 	networkKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
@@ -228,7 +228,11 @@ func (g *osGenerator) generateOSInstance(kv *api.KV, cfg config.Configuration, u
 				}
 			}()
 			floatingIP = <-resultChan
-			floatingIPAssociate := ComputeFloatingIPAssociate{FloatingIP: floatingIP, InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name)}
+			floatingIPAssociate := ComputeFloatingIPAssociate{
+				Region:     region,
+				FloatingIP: floatingIP,
+				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
+			}
 			addResource(infrastructure, "openstack_compute_floatingip_associate_v2", "FIP"+instance.Name, &floatingIPAssociate)
 			consulKeyFloatingIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: floatingIP}
 			//In order to be backward compatible to components developed for Alien (only the above is standard)
