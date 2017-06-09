@@ -20,7 +20,8 @@ func (d deploymentNotFound) Error() string {
 
 // IsDeploymentNotFoundError checks if an error is a deployment not found error
 func IsDeploymentNotFoundError(err error) bool {
-	_, ok := err.(deploymentNotFound)
+	cause := errors.Cause(err)
+	_, ok := cause.(deploymentNotFound)
 	return ok
 }
 

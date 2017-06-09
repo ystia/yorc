@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/registry"
@@ -635,6 +636,11 @@ func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID s
 	for _, t := range types {
 		isImpl, err := IsTypeDerivedFrom(kv, deploymentID, t, "tosca.artifacts.Implementation")
 		if err != nil {
+			if IsTypeMissingError(err) {
+				// Bypassing this error it may happen in case of an used type let's trust Alien
+				events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("[WARNING] %s", err))
+				continue
+			}
 			return err
 		}
 		if isImpl {

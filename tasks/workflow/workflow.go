@@ -235,17 +235,18 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				} else {
 					return err
 				}
-			}
-			delegateOp := activity.ActivityValue()
-			if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
-				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-				s.setStatus(tosca.NodeStateError.String())
-				if bypassErrors {
-					ignoredErrsChan <- err
-					haveErr = true
-				} else {
-					return err
+			} else {
+				delegateOp := activity.ActivityValue()
+				if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+					s.setStatus(tosca.NodeStateError.String())
+					if bypassErrors {
+						ignoredErrsChan <- err
+						haveErr = true
+					} else {
+						return err
+					}
 				}
 			}
 		case actType == wfSetStateActivity:
@@ -281,17 +282,18 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					s.setStatus(tosca.NodeStateError.String())
 					return err
 				}
-			}
-			err = exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
-			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
-				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-				if bypassErrors {
-					ignoredErrsChan <- err
-					haveErr = true
-				} else {
-					s.setStatus(tosca.NodeStateError.String())
-					return err
+			} else {
+				err = exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
+				if err != nil {
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+					if bypassErrors {
+						ignoredErrsChan <- err
+						haveErr = true
+					} else {
+						s.setStatus(tosca.NodeStateError.String())
+						return err
+					}
 				}
 			}
 		}
