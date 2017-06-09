@@ -31,8 +31,10 @@ type ComputeNetwork struct {
 	Name          string `json:"name,omitempty"`
 	Port          string `json:"port,omitempty"`
 	FixedIPV4     string `json:"fixed_ip_v4,omitempty"`
-	FloatingIP    string `json:"floating_ip,omitempty"`
 	AccessNetwork bool   `json:"access_network,omitempty"`
+
+	// Deprecated
+	FloatingIP string `json:"floating_ip,omitempty"`
 }
 
 // A BlockStorageVolume represent an OpenStack volume (BlockStorage)
@@ -73,4 +75,13 @@ type Subnet struct {
 type AllocationPool struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
+}
+
+// A ComputeFloatingIPAssociate associates a floating IP to an instance.
+// This can be used instead of the floating_ip options in openstack_compute_instance_v2.
+type ComputeFloatingIPAssociate struct {
+	Region     string `json:"region"`
+	FloatingIP string `json:"floating_ip"`
+	InstanceID string `json:"instance_id"`
+	FixedIP    string `json:"fixed_ip,omitempty"`
 }

@@ -108,33 +108,10 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 				// Do not generate something for this node instance (will be deleted if exists)
 				continue
 			}
-			var compute ComputeInstance
-			compute, err = g.generateOSInstance(kv, cfg, nodeKey, deploymentID, instanceName)
+			err = g.generateOSInstance(kv, cfg, nodeKey, deploymentID, instanceName, &infrastructure)
 			if err != nil {
 				return false, err
 			}
-			addResource(&infrastructure, "openstack_compute_instance_v2", compute.Name, &compute)
-			consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", compute.Name)}                    // Use access ip here
-			consulKeyAttrib := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)} // Use latest provisioned network for private access
-			consulKeyFixedIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", compute.Name, len(compute.Networks)-1)}
-			var consulKeys commons.ConsulKeys
-			if compute.Networks[0].FloatingIP != "" {
-				consulKeyFloatingIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
-				//In order to be backward compatible to components developed for Alien (only the above is standard)
-				consulKeyFloatingIPBak := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.0.floating_ip}", compute.Name)}
-				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP, consulKeyFloatingIP, consulKeyFloatingIPBak}}
-
-			} else {
-				consulKeys = commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey, consulKeyAttrib, consulKeyFixedIP}}
-			}
-
-			for i := range compute.Networks {
-				consulKetNetName := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_name"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.name}", compute.Name, i)}
-				consulKetNetID := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "network_id"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.uuid}", compute.Name, i)}
-				consulKetNetAddresses := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "attributes/networks", strconv.Itoa(i), "addresses"), Value: fmt.Sprintf("[ ${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4} ]", compute.Name, i)}
-				consulKeys.Keys = append(consulKeys.Keys, consulKetNetName, consulKetNetID, consulKetNetAddresses)
-			}
-			addResource(&infrastructure, "consul_keys", compute.Name, &consulKeys)
 		}
 
 	case "janus.nodes.openstack.BlockStorage":
