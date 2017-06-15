@@ -1,5 +1,5 @@
 janus_version: 1.0.0-M2-SNAPSHOT
 consul_version: 0.8.1
-terraform_version: 0.9.6
+terraform_version: 0.9.8
 ansible_version: 2.1.4.0
 
