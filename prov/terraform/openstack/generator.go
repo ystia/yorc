@@ -1,6 +1,7 @@
 package openstack
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -55,11 +56,18 @@ func addResource(infrastructure *commons.Infrastructure, resourceType, resourceN
 	}
 }
 
-func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, deploymentID, nodeName string) (bool, error) {
+func addOutput(infrastructure *commons.Infrastructure, outputName string, output *commons.Output) {
+	if infrastructure.Output == nil {
+		infrastructure.Output = make(map[string]*commons.Output)
+	}
+	infrastructure.Output[outputName] = output
+}
+
+func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string) (bool, map[string]string, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	cClient, err := cfg.GetConsulClient()
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	kv := cClient.KV()
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
@@ -88,42 +96,43 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 	log.Debugf("inspecting node %s", nodeKey)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
+	outputs := make(map[string]string)
 	var instances []string
 	switch nodeType {
 	case "janus.nodes.openstack.Compute":
 		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 
 		for _, instanceName := range instances {
 			var instanceState tosca.NodeState
 			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
 				// Do not generate something for this node instance (will be deleted if exists)
 				continue
 			}
-			err = g.generateOSInstance(kv, cfg, nodeKey, deploymentID, instanceName, &infrastructure)
+			err = g.generateOSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 		}
 
 	case "janus.nodes.openstack.BlockStorage":
 		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 
 		var bsIds []string
 		var volumeID string
 		if volumeID, err = g.getStringFormConsul(kv, nodeKey, "properties/volume_id"); err != nil {
-			return false, err
+			return false, nil, err
 		} else if volumeID != "" {
 			log.Debugf("Reusing existing volume with id %q for node %q", volumeID, nodeName)
 			bsIds = strings.Split(volumeID, ",")
@@ -133,7 +142,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 			var instanceState tosca.NodeState
 			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
 				// Do not generate something for this node instance (will be deleted if exists)
@@ -142,7 +151,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 			var bsVolume BlockStorageVolume
 			bsVolume, err = g.generateOSBSVolume(kv, cfg, nodeKey, instanceName)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 
 			if len(bsIds)-1 < instNb {
@@ -162,14 +171,14 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 	case "janus.nodes.openstack.FloatingIP":
 		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 
 		for _, instanceName := range instances {
 			var instanceState tosca.NodeState
 			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
 				// Do not generate something for this node instance (will be deleted if exists)
@@ -179,7 +188,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 			ip, err = g.generateFloatingIP(kv, nodeKey, instanceName)
 
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 
 			var consulKey commons.ConsulKey
@@ -193,15 +202,15 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 				var instName int
 				instName, err = strconv.Atoi(instanceName)
 				if err != nil {
-					return false, err
+					return false, nil, err
 				}
 				if (len(ips) - 1) < instName {
 					var networkName string
 					networkName, err = g.getStringFormConsul(kv, nodeKey, "properties/floating_network_name")
 					if err != nil {
-						return false, err
+						return false, nil, err
 					} else if networkName == "" {
-						return false, errors.Errorf("You need to provide enough IP address or a Pool to generate missing IP address")
+						return false, nil, errors.Errorf("You need to provide enough IP address or a Pool to generate missing IP address")
 					}
 
 					floatingIP := FloatingIP{Pool: networkName}
@@ -212,7 +221,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 					// TODO we should change this. instance name should not be considered as an int
 					instName, err = strconv.Atoi(instanceName)
 					if err != nil {
-						return false, err
+						return false, nil, err
 					}
 					consulKey = commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/floating_ip_address"), Value: ips[instName]}
 				}
@@ -226,22 +235,22 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 		var networkID string
 		networkID, err = g.getStringFormConsul(kv, nodeKey, "properties/network_id")
 		if err != nil {
-			return false, err
+			return false, nil, err
 		} else if networkID != "" {
 			log.Debugf("Reusing existing volume with id %q for node %q", networkID, nodeName)
-			return false, nil
+			return false, nil, nil
 		}
 		var network Network
 		network, err = g.generateNetwork(kv, cfg, nodeKey, deploymentID)
 
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		var subnet Subnet
 		subnet, err = g.generateSubnet(kv, cfg, nodeKey, deploymentID, nodeName)
 
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 
 		addResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
@@ -251,22 +260,22 @@ func (g *osGenerator) GenerateTerraformInfraForNode(cfg config.Configuration, de
 		addResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 	default:
-		return false, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
+		return false, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
+		return false, nil, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
 	}
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", fmt.Sprint(deploymentID), "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
-		return false, errors.Wrapf(err, "Failed to create infrastructure working directory %q", infraPath)
+		return false, nil, errors.Wrapf(err, "Failed to create infrastructure working directory %q", infraPath)
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
-		return false, errors.Wrapf(err, "Failed to write file %q", filepath.Join(infraPath, "infra.tf.json"))
+		return false, nil, errors.Wrapf(err, "Failed to write file %q", filepath.Join(infraPath, "infra.tf.json"))
 	}
 
 	log.Debugf("Infrastructure generated for deployment with id %s", deploymentID)
-	return true, nil
+	return true, outputs, nil
 }

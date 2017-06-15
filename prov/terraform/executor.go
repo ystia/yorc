@@ -10,6 +10,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
@@ -57,12 +58,12 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 			return err
 		}
 	}
-	infraGenerated, err := e.generator.GenerateTerraformInfraForNode(cfg, deploymentID, nodeName)
+	infraGenerated, outputs, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	if infraGenerated {
-		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
+		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs); err != nil {
 			return err
 		}
 	}
@@ -82,12 +83,12 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 			return err
 		}
 	}
-	infraGenerated, err := e.generator.GenerateTerraformInfraForNode(cfg, deploymentID, nodeName)
+	infraGenerated, outputs, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	if infraGenerated {
-		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
+		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs); err != nil {
 			return err
 		}
 	}
@@ -124,7 +125,26 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 
 }
 
-func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infraPath string, outputs map[string]string) error {
+	// This could be optimized by generating a json output for all outputs and then look at it for given outputs
+	for outPath, outName := range outputs {
+		cmd := executil.Command(ctx, "terraform", "output", outName)
+		cmd.Dir = infraPath
+		result, err := cmd.Output()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
+		}
+
+		_, err = kv.Put(&api.KVPair{Key: outPath, Value: result}, nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+	}
+
+	return nil
+}
+
+func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string) error {
 
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
@@ -145,15 +165,15 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	out.Run(quit)
 	errbuf.Run(quit)
 
-	if err := cmd.Start(); err != nil {
+	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "Failed to apply the infrastructure changes via terraform")
 	}
 
-	return errors.Wrap(cmd.Wait(), "Failed to apply the infrastructure changes via terraform")
+	return e.retrieveOutputs(ctx, kv, infraPath, outputs)
 
 }
 
-func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -172,5 +192,5 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 			return nil
 		}
 	}
-	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName)
+	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs)
 }

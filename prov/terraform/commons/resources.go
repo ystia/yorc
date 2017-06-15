@@ -7,7 +7,7 @@ type Infrastructure struct {
 	Variable  map[string]interface{} `json:"variable,omitempty"`
 	Provider  map[string]interface{} `json:"provider,omitempty"`
 	Resource  map[string]interface{} `json:"resource,omitempty"`
-	Output    map[string]interface{} `json:"output,omitempty"`
+	Output    map[string]*Output     `json:"output,omitempty"`
 }
 
 // The ConsulKeys can be used as 'resource' to writes or 'data' to read sets of individual values into Consul.
@@ -53,4 +53,12 @@ type Connection struct {
 	Port       string `json:"port,omitempty"`
 	Timeout    string `json:"timeout,omitempty"` // defaults to "5m"
 	PrivateKey string `json:"private_key,omitempty"`
+}
+
+// An Output allows to define a terraform output value
+type Output struct {
+	// Value is the value of the output. This can be a string, list, or map.
+	// This usually includes an interpolation since outputs that are static aren't usually useful.
+	Value     interface{} `json:"value"`
+	Sensitive bool        `json:"sensitive,omitempty"`
 }
