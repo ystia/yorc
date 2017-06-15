@@ -46,3 +46,14 @@ func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) err
 	_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName), nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
+
+// GetInstanceAttribute retrieves the given attribute for a node instance
+//
+// This function only look at the given node level. It doesn't inspect the node type hierarchy to find a default value.
+func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), nil)
+	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return string(kvp.Value), err
+}

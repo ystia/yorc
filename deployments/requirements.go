@@ -37,6 +37,12 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 	return reqKeys, nil
 }
 
+// GetRequirementIndexFromRequirementKey returns the corresponding requirement index from a given requirement key
+// (typically returned by GetRequirementsKeysByNameForNode)
+func GetRequirementIndexFromRequirementKey(requirementKey string) string {
+	return path.Base(requirementKey)
+}
+
 // GetRequirementsIndexes returns the list of requirements indexes for a given node
 func GetRequirementsIndexes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
@@ -66,6 +72,17 @@ func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, e
 func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"), nil)
 	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it futhermore it can refer to a relationship_template_name instead of a relationship_type_name
+	if err != nil || kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return string(kvp.Value), nil
+}
+
+// GetCapabilityForRequirement returns the capability associated with a given requirementIndex for the given nodeName.
+//
+// If there is no capability defined for this requirement then an empty string is returned.
+func GetCapabilityForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "capability"), nil)
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
