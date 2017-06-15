@@ -285,16 +285,17 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			resultChan := make(chan string, 1)
 			go func() {
 				for {
-					_, nIDs, _ := deployments.GetNodeAttributes(kv, deploymentID, networkNodeName, "network_id")
-					if nIDs[instanceName] != "" {
-						resultChan <- nIDs[instanceName]
-						return
+					found, nIDs, _ := deployments.GetNodeAttributes(kv, deploymentID, networkNodeName, "network_id")
+					if found {
+						if nIDs[instanceName] != "" {
+							resultChan <- nIDs[instanceName]
+							return
+						}
+						for _, nID := range nIDs {
+							resultChan <- nID
+							return
+						}
 					}
-					for _, nID := range nIDs {
-						resultChan <- nID
-						return
-					}
-
 					select {
 					case <-time.After(1 * time.Second):
 					case <-ctx.Done():
