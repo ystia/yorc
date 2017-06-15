@@ -289,11 +289,10 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 					if nIDs[instanceName] != "" {
 						resultChan <- nIDs[instanceName]
 						return
-					} else {
-						for _, nID := range nIDs {
-							resultChan <- nID
-							return
-						}
+					}
+					for _, nID := range nIDs {
+						resultChan <- nID
+						return
 					}
 
 					select {
