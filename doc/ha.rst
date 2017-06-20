@@ -67,7 +67,7 @@ You should create a Consul service description for each Janus server and store i
 
 
 * Replace {JANUS_ID} with an unique ID for each Janus instance (e.g. "server1" and "server2").
-* Replace {PUBLIC_JANUS_IP} with current Janus IP used by Alien4Cloud to contact Janus.
+* Replace {PUBLIC_JANUS_IP} with the IP of the current Janus server's host.
 
 When running Janus you should use the :ref:`--working_directory <option_workdir_cmd>` command line flag 
 (or equivalent configuration options or environment variable) to specify a working directory on the 
@@ -86,7 +86,7 @@ Install and run Consul agent in client mode.
 
 `Configure Consul DNS forwarding <https://www.consul.io/docs/guides/forwarding.html>`_ in order to be able to resolve `janus.service.consul` DNS domain name.
 
-In the Janus plugin for Alien4Cloud configuration use `http://janus.service.starlings:8800` as Janus URL instead of using a IP address.
+In the Janus plugin for Alien4Cloud configuration use `http://janus.service.consul:8800` as Janus URL instead of using a IP address.
 This DNS name will be resolved by Consul (using a round-robin algorithm) to available Janus servers.
 
 If a Janus server becomes unavailable, then Consul will detect it by using the service check and will stop to resolve the DNS requests to this Janus instance, allowing seamless failover.
