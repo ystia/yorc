@@ -4,7 +4,7 @@ Run Janus in High Availability (HA) mode
 High level view of a typical HA installation
 --------------------------------------------
 
-The bellow figure illustrate how a typical Janus setup for enabling High Availability looks like.
+The bellow figure illustrates how a typical Janus setup for enabling High Availability looks like.
 
 .. image:: _static/img/Janus_HA.png
    :align: center 
@@ -19,7 +19,7 @@ This setup is composed by the following main components:
   * A cluster of Janus servers each one collocated with a Consul agent and connected to the distributed filesystem
   * A Alien4Cloud with the Janus plugin collocated with a Consul agent
 
-The next section describes how to setup those components.
+The next sections describes how to setup those components.
 
 Janus HA setup
 --------------
@@ -39,9 +39,9 @@ One important thing to note is that you will need 3 or 5 Consul servers to ensur
 Janus servers
 ~~~~~~~~~~~~~
 
-Each Janus server should be installed on is own host with a local Consul agent and a partition mounted on the Distributed File System.
-Consul should run on agent mode (by opposition to the server mode) here is how to run a Consul in agent mode
-and connect it to a running Consul server cluster.
+Each Janus server should be installed on its own host with a local Consul agent and a partition mounted on the Distributed File System.
+The Consul agent should run in client mode (by opposition to the server mode).
+Here is how to run a Consul agent in client mode and connect it to a running Consul server cluster.
 
 .. code-block:: bash
 
@@ -78,7 +78,7 @@ Alien4Cloud
 
 Please refer to the dedicated Janus plugin for Alien4Cloud documentation for its typical installation and configuration.
 
-Install and run Consul in agent mode.
+Install and run Consul agent in client mode.
 
 .. code-block:: bash
 
@@ -89,6 +89,6 @@ Install and run Consul in agent mode.
 In the Janus plugin for Alien4Cloud configuration use `http://janus.service.starlings:8800` as Janus URL instead of using a IP address.
 This DNS name will be resolved by Consul (using a round-robin algorithm) to available Janus servers.
 
-If a Janus server become unavailable then Consul will detect it by using the service check and will stop to resolve the DNS request to this Janus instance, allowing seamless failover.
+If a Janus server becomes unavailable, then Consul will detect it by using the service check and will stop to resolve the DNS requests to this Janus instance, allowing seamless failover.
 
 
