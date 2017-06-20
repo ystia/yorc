@@ -47,7 +47,7 @@ Here is how to run a Consul agent in client mode and connect it to a running Con
 
     consul agent -config-dir ./consul-conf -data-dir ./consul-data -retry-join <ConsulServer1IP> -retry-join <ConsulServer2IP> -retry-join <ConsulServer3IP>
 
-You should create a Consul service description for each Janus server and store it as a JSON file in the `consul-conf` directory
+You should create a Consul service description for each Janus server and store it as a JSON file in the ``consul-conf`` directory
 
 .. code-block:: json
 
@@ -84,9 +84,9 @@ Install and run Consul agent in client mode.
 
     consul agent -config-dir ./consul-conf -data-dir ./consul-data -retry-join <ConsulServer1IP> -retry-join <ConsulServer2IP> -retry-join <ConsulServer3IP> -recursor <ConsulServer1IP> -recursor <ConsulServer2IP> -recursor <ConsulServer3IP>
 
-`Configure Consul DNS forwarding <https://www.consul.io/docs/guides/forwarding.html>`_ in order to be able to resolve `janus.service.consul` DNS domain name.
+`Configure Consul DNS forwarding <https://www.consul.io/docs/guides/forwarding.html>`_ in order to be able to resolve ``janus.service.consul`` DNS domain name.
 
-In the Janus plugin for Alien4Cloud configuration use `http://janus.service.consul:8800` as Janus URL instead of using a IP address.
+In the Janus plugin for Alien4Cloud configuration use ``http://janus.service.consul:8800`` as Janus URL instead of using a IP address.
 This DNS name will be resolved by Consul (using a round-robin algorithm) to available Janus servers.
 
 If a Janus server becomes unavailable, then Consul will detect it by using the service check and will stop to resolve the DNS requests to this Janus instance, allowing seamless failover.
