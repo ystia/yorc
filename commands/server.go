@@ -77,6 +77,12 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("consul_address", "", "", "Address of the HTTP interface for Consul (format: <host>:<port>)")
 	serverCmd.PersistentFlags().StringP("consul_token", "t", "", "The token by default")
 	serverCmd.PersistentFlags().StringP("consul_datacenter", "d", "", "The datacenter of Consul node")
+	serverCmd.PersistentFlags().String("consul_key_file", "", "The key file to use for talking to Consul over TLS")
+	serverCmd.PersistentFlags().String("consul_cert_file", "", "The cert file to use for talking to Consul over TLS")
+	serverCmd.PersistentFlags().String("consul_ca_cert", "", "CA cert to use for talking to Consul over TLS")
+	serverCmd.PersistentFlags().String("consul_ca_path", "", "Path to a directory of CA certs to use for talking to Consul over TLS")
+	serverCmd.PersistentFlags().Bool("consul_ssl", false, "Whether or not to use HTTPS")
+	serverCmd.PersistentFlags().Bool("consul_ssl_verify", true, "Whether or not to disable certificate checking")
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
 
@@ -95,6 +101,12 @@ func setConfig() {
 	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
 	viper.BindPFlag("consul_token", serverCmd.PersistentFlags().Lookup("consul_token"))
 	viper.BindPFlag("consul_datacenter", serverCmd.PersistentFlags().Lookup("consul_datacenter"))
+	viper.BindPFlag("consul_key_file", serverCmd.PersistentFlags().Lookup("consul_key_file"))
+	viper.BindPFlag("consul_cert_file", serverCmd.PersistentFlags().Lookup("consul_cert_file"))
+	viper.BindPFlag("consul_ca_cert", serverCmd.PersistentFlags().Lookup("consul_ca_cert"))
+	viper.BindPFlag("consul_ca_path", serverCmd.PersistentFlags().Lookup("consul_ca_path"))
+	viper.BindPFlag("consul_ssl", serverCmd.PersistentFlags().Lookup("consul_ssl"))
+	viper.BindPFlag("consul_ssl_verify", serverCmd.PersistentFlags().Lookup("consul_ssl_verify"))
 
 	viper.BindPFlag("consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("consul_publisher_max_routines"))
 
@@ -133,6 +145,12 @@ func setConfig() {
 	viper.BindEnv("os_default_security_groups")
 	viper.BindEnv("consul_publisher_max_routines")
 	viper.BindEnv("consul_address")
+	viper.BindEnv("consul_key_file")
+	viper.BindEnv("consul_cert_file")
+	viper.BindEnv("consul_ca_cert")
+	viper.BindEnv("consul_ca_path")
+	viper.BindEnv("consul_ssl")
+	viper.BindEnv("consul_ssl_verify")
 
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
@@ -178,6 +196,12 @@ func getConfig() config.Configuration {
 	configuration.ConsulDatacenter = viper.GetString("consul_datacenter")
 	configuration.ConsulToken = viper.GetString("consul_token")
 	configuration.ConsulPubMaxRoutines = viper.GetInt("consul_publisher_max_routines")
+	configuration.ConsulKey = viper.GetString("consul_key_file")
+	configuration.ConsulCert = viper.GetString("consul_cert_file")
+	configuration.ConsulCA = viper.GetString("consul_ca_cert")
+	configuration.ConsulCAPath = viper.GetString("consul_ca_path")
+	configuration.ConsulSSL = viper.GetBool("consul_ssl")
+	configuration.ConsulSSLVerify = viper.GetBool("consul_ssl_verify")
 	configuration.ServerGracefulShutdownTimeout = viper.GetDuration("server_graceful_shutdown_timeout")
 	configuration.OSDefaultSecurityGroups = make([]string, 0)
 	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {

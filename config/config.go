@@ -48,5 +48,11 @@ type Configuration struct {
 	ConsulToken                   string        `json:"consul_token,omitempty"`
 	ConsulDatacenter              string        `json:"consul_datacenter,omitempty"`
 	ConsulAddress                 string        `json:"consul_address,omitempty"`
+	ConsulKey                     string        `json:"consul_key_file,omitempty"`
+	ConsulCert                    string        `json:"consul_cert_file,omitempty"`
+	ConsulCA                      string        `json:"consul_ca_cert,omitempty"`
+	ConsulCAPath                  string        `json:"consul_ca_path,omitempty"`
+	ConsulSSL                     bool          `json:"consul_ssl,omitempty"`
+	ConsulSSLVerify               bool          `json:"consul_ssl_verify,omitempty"`
 	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
 }
