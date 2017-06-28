@@ -31,8 +31,10 @@ const (
 const (
 	// JanusDeploymentIDPattern is the allowed pattern for Janus deployments IDs
 	JanusDeploymentIDPattern string = "^[-_0-9a-zA-Z]+$"
+
+	// Disable this for now as it doesn't have a concrete impact for now
 	// JanusDeploymentIDMaxLength is the maximum allowed length for Janus deployments IDs
-	JanusDeploymentIDMaxLength int = 36
+	//JanusDeploymentIDMaxLength int = 36
 )
 
 // An AtomLink is defined in the Atom specification (https://tools.ietf.org/html/rfc4287#section-4.2.7) it allows to reference REST endpoints
