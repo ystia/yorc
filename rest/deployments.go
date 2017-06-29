@@ -61,10 +61,11 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should respect the following format: %q", JanusDeploymentIDPattern)))
 			return
 		}
-		if len(id) > JanusDeploymentIDMaxLength {
-			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", JanusDeploymentIDMaxLength, len(id))))
-			return
-		}
+		// Do not impose a max id length as it doesn't have a concrete impact for now
+		// if len(id) > JanusDeploymentIDMaxLength {
+		// 	writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", JanusDeploymentIDMaxLength, len(id))))
+		// 	return
+		// }
 		dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
 		if err != nil {
 			log.Panicf("%v", err)
