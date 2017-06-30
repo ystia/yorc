@@ -24,8 +24,7 @@ func (p ValueAssignment) String() string {
 	if p.Expression == nil {
 		return ""
 	}
-
-	return strings.Trim(p.Expression.String(), "\"")
+	return p.Expression.String()
 }
 
 func parseExprNode(value interface{}, t *TreeNode) error {
@@ -170,14 +169,13 @@ func (t *TreeNode) IsSourceContext() bool {
 
 func (t *TreeNode) String() string {
 	buf := &bytes.Buffer{}
-	shouldQuote := strings.ContainsAny(t.Value, ":[],")
-	if shouldQuote {
-		buf.WriteString("\"")
+
+	s := t.Value
+	if shouldQuoteYamlString(s) {
+		// Quote String if it contains YAML special chars
+		s = strconv.Quote(s)
 	}
-	buf.WriteString(t.Value)
-	if shouldQuote {
-		buf.WriteString("\"")
-	}
+	buf.WriteString(s)
 	if t.IsLiteral() {
 		return buf.String()
 	}
@@ -230,4 +228,16 @@ func (r *Range) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	return nil
+}
+
+func shouldQuoteYamlString(s string) bool {
+	return strings.ContainsAny(s, ":[],\"{}#") ||
+		strings.HasPrefix(strings.TrimSpace(s), "- ") ||
+		strings.HasPrefix(strings.TrimSpace(s), "*") ||
+		strings.HasPrefix(strings.TrimSpace(s), "?") ||
+		strings.HasPrefix(strings.TrimSpace(s), "|") ||
+		strings.HasPrefix(strings.TrimSpace(s), "!") ||
+		strings.HasPrefix(strings.TrimSpace(s), "%") ||
+		strings.HasPrefix(strings.TrimSpace(s), "@") ||
+		strings.HasPrefix(strings.TrimSpace(s), "&")
 }

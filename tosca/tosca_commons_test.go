@@ -84,11 +84,22 @@ func valueAssignmentGetInput(t *testing.T) {
 
 func valueAssignmentSlurmResult(t *testing.T) {
 	t.Parallel()
-	data := `"Final Results: Minibatch[1-11]: errs = 0.550%"`
+	data := `"Final Results: \"Minibatch[1-11]\": errs = 0.550%"`
 	va := ValueAssignment{}
 
 	err := yaml.Unmarshal([]byte(data), &va)
 	require.Nil(t, err)
 	require.NotNil(t, va.Expression)
-	require.Equal(t, "Final Results: Minibatch[1-11]: errs = 0.550%", va.String())
+	require.Equal(t, `"Final Results: \"Minibatch[1-11]\": errs = 0.550%"`, va.String())
+}
+
+func TestValueAssignmentStringWithQuote(t *testing.T) {
+	t.Parallel()
+	data := `{ concat: ["Hello:", "\"World\"", "!", "!" ] }`
+	va := ValueAssignment{}
+
+	err := yaml.Unmarshal([]byte(data), &va)
+	require.Nil(t, err)
+
+	require.Equal(t, `concat: ["Hello:", "\"World\"", "!", "!"]`, va.String())
 }
