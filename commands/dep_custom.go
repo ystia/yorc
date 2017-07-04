@@ -64,12 +64,8 @@ func init() {
 			if err != nil {
 				errExit(err)
 			}
-			if response.StatusCode != http.StatusAccepted {
-				// Try to get the reason
-				printErrors(response.Body)
-				errExit(errors.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
-			}
 
+			handleHttpStatusCode(response, http.StatusAccepted)
 			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
 			return nil
 		},

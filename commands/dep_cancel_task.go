@@ -3,6 +3,7 @@ package commands
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"net/http"
 )
 
 func init() {
@@ -34,12 +35,7 @@ var cancelTaskCmd = &cobra.Command{
 		if err != nil {
 			errExit(err)
 		}
-		if response.StatusCode != 202 {
-			// Try to get the reason
-			printErrors(response.Body)
-			errExit(errors.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
-		}
-
+		handleHttpStatusCode(response, http.StatusAccepted)
 		return nil
 	},
 }

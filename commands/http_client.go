@@ -84,15 +84,24 @@ func getClient() (*janusClient, error) {
 
 }
 
-func handleHttpStatusCode(response *http.Response) {
-	if response.StatusCode != http.StatusOK {
+func isExpected(got int, expected []int) bool {
+	for _, code := range expected {
+		if got == code {
+			return true
+		}
+	}
+	return false
+}
+
+func handleHttpStatusCode(response *http.Response, expectedStatusCodes ...int) {
+	if !isExpected(response.StatusCode, expectedStatusCodes) {
 		printErrors(response.Body)
 		switch response.StatusCode {
 		case http.StatusNoContent:
 			// This case is not an error so the exit code is OK
 			okExit("No content found")
 		default:
-			errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+			errExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))
 		}
 	}
 

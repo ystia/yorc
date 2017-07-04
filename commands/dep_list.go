@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -34,7 +35,7 @@ var listCmd = &cobra.Command{
 		if err != nil {
 			errExit(err)
 		}
-		handleHttpStatusCode(response)
+		handleHttpStatusCode(response, http.StatusOK)
 		var deps rest.DeploymentsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {

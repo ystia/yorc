@@ -37,11 +37,7 @@ func init() {
 			if err != nil {
 				errExit(err)
 			}
-			if response.StatusCode != http.StatusOK {
-				// Try to get the reason
-				printErrors(response.Body)
-				errExit(errors.Errorf("Expecting HTTP Status code 201 or 202 got %d, reason %q", response.StatusCode, response.Status))
-			}
+			handleHttpStatusCode(response, http.StatusOK)
 
 			var wfs rest.WorkflowsCollection
 			body, err := ioutil.ReadAll(response.Body)
