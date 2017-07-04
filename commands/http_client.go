@@ -106,3 +106,19 @@ func handleHttpStatusCode(response *http.Response, expectedStatusCodes ...int) {
 	}
 
 }
+
+func handleHttpStatusCodeForStreaming(response *http.Response, index uint64, expectedStatusCodes ...int) {
+	if !isExpected(response.StatusCode, expectedStatusCodes) {
+		printErrors(response.Body)
+		switch response.StatusCode {
+		case http.StatusNotFound:
+			// An index can possibly be removed during streaming : don't exit on error in this case
+			okExit(errors.Errorf("Index %d not found, the last index must have been reached previously", index))
+		case http.StatusNoContent:
+			// This case is not an error so the exit code is OK
+			okExit("No content found")
+		default:
+			errExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))
+		}
+	}
+}

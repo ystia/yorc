@@ -81,7 +81,8 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 		if err != nil {
 			errExit(err)
 		}
-		handleHttpStatusCode(response, http.StatusOK)
+
+		handleHttpStatusCodeForStreaming(response, lastIdx, http.StatusOK)
 		var logs rest.LogsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
