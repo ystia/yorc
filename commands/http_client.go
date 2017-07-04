@@ -83,3 +83,17 @@ func getClient() (*janusClient, error) {
 	}, nil
 
 }
+
+func handleHttpStatusCode(response *http.Response) {
+	if response.StatusCode != http.StatusOK {
+		printErrors(response.Body)
+		switch response.StatusCode {
+		case http.StatusNoContent:
+			// This case is not an error so the exit code is OK
+			okExit("No content found")
+		default:
+			errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
+		}
+	}
+
+}

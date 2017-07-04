@@ -87,6 +87,11 @@ func errExit(msg interface{}) {
 	os.Exit(1)
 }
 
+func okExit(msg interface{}) {
+	fmt.Println(msg)
+	os.Exit(0)
+}
+
 func printErrors(body io.Reader) {
 	printRestErrors(getRestErrors(body))
 }
@@ -113,7 +118,7 @@ func getJSONEntityFromAtomGetRequest(client *janusClient, atomLink rest.AtomLink
 		// Try to get the reason
 		errs := getRestErrors(response.Body)
 		err = cmdRestError{errs: errs}
-		return errors.Wrapf(err, "Expecting HTTP Status code 2xx got %d, reason %q: ", response.StatusCode, response.Status)
+		return errors.Wrapf(err, "Expecting HTTP Status code 200 got %d, reason %q: ", response.StatusCode, response.Status)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
