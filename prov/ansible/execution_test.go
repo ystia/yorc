@@ -254,18 +254,18 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 
     - shell: "{{ ansible_env.HOME}}/tmp/create.sh"
       environment:
-        NodeA_0_A1: /var/www
-        NodeA_1_A1: /var/www
-        NodeA_2_A1: /var/www
-        NodeA_0_A2: 10.10.10.1
-        NodeA_1_A2: 10.10.10.2
-        NodeA_2_A2: 10.10.10.3
+        NodeA_0_A1: "/var/www"
+        NodeA_1_A1: "/var/www"
+        NodeA_2_A1: "/var/www"
+        NodeA_0_A2: "10.10.10.1"
+        NodeA_1_A2: "10.10.10.2"
+        NodeA_2_A2: "10.10.10.3"
         NodeA_0_A3: ""
         NodeA_1_A3: ""
         NodeA_2_A3: ""
-        HOST: Compute
-        INSTANCES: NodeA_0,NodeA_1,NodeA_2
-        NODE: NodeA
+        HOST: "Compute"
+        INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
+        NODE: "NodeA"
         A1: "{{A1}}"
         A2: "{{A2}}"
         A3: "{{A3}}"
@@ -462,18 +462,18 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 
     - shell: "{{ ansible_env.HOME}}/tmp/pre_configure_source.sh"
       environment:
-        NodeA_0_A1: /var/www
-        NodeA_1_A1: /var/www
-        NodeA_2_A1: /var/www
-        NodeB_0_A2: 10.10.10.10
-        NodeB_1_A2: 10.10.10.11
-        SOURCE_HOST: ComputeA
-        SOURCE_INSTANCES: NodeA_0,NodeA_1,NodeA_2
-        SOURCE_NODE: NodeA
-        TARGET_HOST: ComputeB
-        TARGET_INSTANCE: NodeB_0
-        TARGET_INSTANCES: NodeB_0,NodeB_1
-        TARGET_NODE: NodeB
+        NodeA_0_A1: "/var/www"
+        NodeA_1_A1: "/var/www"
+        NodeA_2_A1: "/var/www"
+        NodeB_0_A2: "10.10.10.10"
+        NodeB_1_A2: "10.10.10.11"
+        SOURCE_HOST: "ComputeA"
+        SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
+        SOURCE_NODE: "NodeA"
+        TARGET_HOST: "ComputeB"
+        TARGET_INSTANCE: "NodeB_0"
+        TARGET_INSTANCES: "NodeB_0,NodeB_1"
+        TARGET_NODE: "NodeB"
         A1: "{{A1}}"
         A2: "{{A2}}"
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
@@ -674,17 +674,17 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 
     - shell: "{{ ansible_env.HOME}}/tmp/add_source.sh"
       environment:
-        NodeA_0_A1: /var/www
-        NodeA_1_A1: /var/www
-        NodeA_2_A1: /var/www
-        NodeB_0_A2: 10.10.10.10
-        NodeB_1_A2: 10.10.10.11
-        SOURCE_HOST: ComputeA
-        SOURCE_INSTANCES: NodeA_0,NodeA_1,NodeA_2
-        SOURCE_NODE: NodeA
-        TARGET_HOST: ComputeB
-        TARGET_INSTANCES: NodeB_0,NodeB_1
-        TARGET_NODE: NodeB
+        NodeA_0_A1: "/var/www"
+        NodeA_1_A1: "/var/www"
+        NodeA_2_A1: "/var/www"
+        NodeB_0_A2: "10.10.10.10"
+        NodeB_1_A2: "10.10.10.11"
+        SOURCE_HOST: "ComputeA"
+        SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
+        SOURCE_NODE: "NodeA"
+        TARGET_HOST: "ComputeB"
+        TARGET_INSTANCES: "NodeB_0,NodeB_1"
+        TARGET_NODE: "NodeB"
         A1: "{{A1}}"
         A2: "{{A2}}"
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
