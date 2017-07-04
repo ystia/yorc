@@ -14,4 +14,5 @@ Janus |release| Documentation
    configuration
    run
    cli
+   secured
 
