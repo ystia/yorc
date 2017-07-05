@@ -49,4 +49,12 @@ type Configuration struct {
 	ConsulDatacenter              string        `json:"consul_datacenter,omitempty"`
 	ConsulAddress                 string        `json:"consul_address,omitempty"`
 	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
+	Telemetry                     Telemetry     `json:"telemetry,omitempty"`
+}
+
+// Configuration for the telemetry service
+type Telemetry struct {
+	StatsdAddress   string `json:"statsd_address,omitempty"`
+	StatsiteAddress string `json:"statsite_address,omitempty"`
+	ServiceName     string `json:"service_name,omitempty"`
 }

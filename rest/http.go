@@ -109,7 +109,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 }
 
 func (s *Server) registerHandlers() {
-	commonHandlers := alice.New(loggingHandler, recoverHandler)
+	commonHandlers := alice.New(telemetryHandler, loggingHandler, recoverHandler)
 	s.router.Post("/deployments", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
 	s.router.Put("/deployments/:id", commonHandlers.Append(contentTypeHandler("application/zip")).ThenFunc(s.newDeploymentHandler))
 	s.router.Delete("/deployments/:id", commonHandlers.ThenFunc(s.deleteDeploymentHandler))

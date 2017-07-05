@@ -40,9 +40,9 @@ func initConfig() {
 	}
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		log.Debugln("Using config file:", viper.ConfigFileUsed())
+		log.Println("Using config file:", viper.ConfigFileUsed())
 	} else {
-		log.Debugln("Config not found... ")
+		log.Println("Can't use config file:", err)
 	}
 }
 
@@ -184,5 +184,9 @@ func getConfig() config.Configuration {
 		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags
 		configuration.OSDefaultSecurityGroups = append(configuration.OSDefaultSecurityGroups, strings.Split(secgFlag, ",")...)
 	}
+
+	configuration.Telemetry.StatsdAddress = viper.GetString("telemetry.statsd_address")
+	configuration.Telemetry.StatsiteAddress = viper.GetString("telemetry.statsite_address")
+	configuration.Telemetry.ServiceName = viper.GetString("telemetry.service_name")
 	return configuration
 }
