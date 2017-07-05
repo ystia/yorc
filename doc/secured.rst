@@ -4,7 +4,7 @@ Run Janus in Secured mode
 To run Janus in secured mode, the following issues have to be addressed:
 
 * Setup a secured Consul cluster
-* Setap a secured OpenStack cloud
+* Setup a secured OpenStack cloud
 * Setup a secured Janus server and configure it to use a secured Consul client and the secured OpenStack
 * Setup Alien4Cloud security and configure it to use the secured Janus server
 
@@ -23,9 +23,9 @@ You might already have one, otherwise, create it using OpenSSL commands below:
 
 Generate certificates signed by your CA
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You need to generate certificates for all the software component instances to be secured (Consul, Janus, Alien4Cloud).
+You need to generate certificates for all the software component to be secured (Consul, Janus, Alien4Cloud).
 
-Use the commands below for each component :
+Use the commands below for each component instance (where <FIP> represents host's IP address):
 
 .. parsed-literal::
 
@@ -33,18 +33,20 @@ Use the commands below for each component :
     openssl req -new -sha256 -key comp.key  -subj "/C=FR/O=Atos/CN=127.0.0.1" -reqexts SAN -config <(cat /etc/pki/tls/openssl.cnf <(printf "[SAN]\nsubjectAltName=IP:127.0.0.1,IP:<FIP>,DNS:localhost")) -out comp.csr
     openssl x509 -req -in comp.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out comp.pem -days 2048 -extensions SAN -extfile <(cat /etc/pki/tls/openssl.cnf <(printf "[SAN]\nsubjectAltName=IP:127.0.0.1,IP:<FIP>,DNS:localhost"))
 
+In the sections below, the ``comp.key`` and ``comp.pem`` files are used to define the different components' configration.
+
 Secured Consul cluster Setup
 ----------------------------
-Create a consul.key and consul.pem for all the Consul agents within the Consul cluster you setup:
+Create a ``consul.key`` and ``consul.pem`` for all the Consul agents within the Consul cluster you setup:
 
- * the servers (in general you need 3 servers for HA),
- * and the clients (you need one client on each host where a Janus server is running).
+ * the server (you may need 3 servers for HA),
+ * and the client (you need one client on each host where a Janus server is running).
 
 Use the above commands and replace <FIP> by the host's IP address.
 
 Check Consul documentation for detailes about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_ and `network trafic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
 
-You may find below a tipical configuration file for a consul server:
+You may find below a typical configuration file for a consul server:
 
 .. code-block:: json
 
@@ -62,7 +64,7 @@ You may find below a tipical configuration file for a consul server:
       "key_file": "{PATH_TO_CONSUL_SERVER_KEY}",
       "cert_file": "{PATH_TO_CONSUL_SERVER_PEM}",
       "ca_file": "{PATH_TO_CA_PEM}",
-      "verify_incoming_rpc": true,
+      "verify_incoming": true,
       "verify_outgoing": true
     }
 
@@ -88,6 +90,7 @@ And below, one for a consul client.
       "verify_outgoing": true
     }
 
+
 You can also consult this `Blog <http://russellsimpkins.blogspot.fr/2015/10/consul-adding-tls-using-self-signed.html>`_. You may found unsefull information about how to install CA cerificate in the OS, in case you get errors about trusting the signing authority.
 
 Secured OpenStack 
@@ -96,9 +99,9 @@ TODO
 
 Secured Janus Setup
 -------------------
-Create a janus-server.key and janus-server.pem using the above commands and replace <FIP> by the host's IP address.
+Create a ``janus-server.key`` and ``janus-server.pem`` using the above commands and replace <FIP> by the host's IP address.
 
-Bellow is an example of configuration file with TLS enabled and using a secured Consul client.
+Bellow is an example of configuration file with TLS enabled and using the collocated and secured Consul client.
 
 .. code-block:: JSON
 

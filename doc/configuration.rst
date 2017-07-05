@@ -25,6 +25,30 @@ Command-line options
 
   * ``--consul_datacenter``: Specify the Consul's datacenter to use. Consul default (dc1) is used by default.
 
+.. _option_consul_key_cmd:
+
+  * ``--consul_key_file``: Specify the Consul client's key to use when commuicating over TLS.
+
+.. _option_consul_cert_cmd:
+
+  * ``--consul_cert_file``: Specify the Consul client's certificate to use when commuicating over TLS.
+
+.. _option_consul_ca_cert_cmd:
+
+  * ``--consul_ca_cert``: Specify the CA used to sign Consul certificates.
+
+.. _option_consul_ca_path_cmd:
+
+  * ``--consul_ca_path``: Specify the path to the CA used to sign Consul certificates
+
+.. _option_consul_ssl_cmd:
+
+  * ``--consul_ssl``: If set to true, enable SSL (false by default).
+
+.. _option_consul_ssl_verify_cmd:
+
+  * ``--consul_ssl_verify``: If set to false, disable Consul certificate checking (true by default is ssl enabled).
+
 .. _option_pub_routines_cmd:
 
   * ``--consul_publisher_max_routines``: Maximum number of parallelism used to store key/values in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value (500) will be used.
@@ -148,6 +172,31 @@ Bellow is an example of configuration file with TLS enable.
 
   * ``consul_datacenter``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
 
+.. _option_consul_key_cfg:
+
+  * ``consul_key_file``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
+
+.. _option_consul_cert_cfg:
+
+  * ``consul_cert_file``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_cert_cfg:
+
+  * ``consul_ca_cert``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_path_cfg:
+
+  * ``consul_ca_path``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
+
+.. _option_consul_ssl_cfg:
+
+  * ``consul_ssl``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
+
+.. _option_consul_ssl_verify_cfg:
+
+  * ``consul_ssl_verify``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
+
+
 .. _option_pub_routines_cfg:
 
   * ``consul_publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
@@ -235,6 +284,30 @@ Environment variables
 .. _option_consul_dc_env:
 
   * ``JANUS_CONSUL_DATACENTER``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
+
+.. _option_consul_key_file_env:
+
+  * ``JANUS_CONSUL_KEY_FILE``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
+
+.. _option_consul_cert_file_env:
+
+  * ``JANUS_CONSUL_CERT_FILE``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_cert_env:
+
+  * ``JANUS_CONSUL_CA_CERT``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_path_env:
+
+  * ``JANUS_CONSUL_CA_PATH``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
+
+.. _option_consul_ssl_env:
+
+  * ``JANUS_CONSUL_SSL``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
+
+.. _option_consul_ssl_verify_env:
+
+  * ``JANUS_CONSUL_SSL_VERIFY``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
 
 .. _option_pub_routines_env:
 
