@@ -55,7 +55,7 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 		if err != nil {
 			errExit(err)
 		}
-		handleHttpStatusCode(response, http.StatusOK)
+		handleHTTPStatusCode(response, http.StatusOK)
 		idxHd := response.Header.Get(rest.JanusIndexHeader)
 		if idxHd != "" {
 			lastIdx, err = strconv.ParseUint(idxHd, 10, 64)
@@ -82,7 +82,7 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 			errExit(err)
 		}
 
-		handleHttpStatusCodeForStreaming(response, lastIdx, http.StatusOK)
+		handleHTTPStatusCodeForStreaming(response, deploymentID, http.StatusOK)
 		var logs rest.LogsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {

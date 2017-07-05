@@ -43,7 +43,7 @@ func init() {
 			if err != nil {
 				errExit(err)
 			}
-			handleHttpStatusCode(response, http.StatusAccepted, http.StatusCreated)
+			handleHTTPStatusCode(response, http.StatusAccepted, http.StatusCreated)
 
 			fmt.Println("New task ", path.Base(response.Header.Get("Location")), " created to execute ", workflowName)
 			if shouldStreamLogs && !shouldStreamEvents {

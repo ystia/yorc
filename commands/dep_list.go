@@ -35,7 +35,7 @@ var listCmd = &cobra.Command{
 		if err != nil {
 			errExit(err)
 		}
-		handleHttpStatusCode(response, http.StatusOK)
+		handleHTTPStatusCode(response, http.StatusOK)
 		var deps rest.DeploymentsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {

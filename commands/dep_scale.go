@@ -85,7 +85,7 @@ func postScalingRequest(client *janusClient, deploymentID, nodeName string, inst
 	if response.StatusCode == http.StatusNotFound {
 		errExit(errors.New("Deployment or Node not found"))
 	} else {
-		handleHttpStatusCode(response, http.StatusAccepted)
+		handleHTTPStatusCode(response, http.StatusAccepted)
 	}
 	location := response.Header.Get("Location")
 	if location == "" {

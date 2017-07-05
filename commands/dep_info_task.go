@@ -39,7 +39,7 @@ var infoTaskCmd = &cobra.Command{
 		if err != nil {
 			errExit(err)
 		}
-		handleHttpStatusCode(response, http.StatusOK)
+		handleHTTPStatusCode(response, http.StatusOK)
 		var task rest.Task
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {

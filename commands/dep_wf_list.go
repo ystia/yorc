@@ -37,7 +37,7 @@ func init() {
 			if err != nil {
 				errExit(err)
 			}
-			handleHttpStatusCode(response, http.StatusOK)
+			handleHTTPStatusCode(response, http.StatusOK)
 
 			var wfs rest.WorkflowsCollection
 			body, err := ioutil.ReadAll(response.Body)
