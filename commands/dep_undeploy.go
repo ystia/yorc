@@ -17,7 +17,7 @@ func init() {
 		Long:  `Undeploy an application specifying the deployment ID.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return fmt.Errorf("Expecting a deployment id (got %d parameters)", len(args))
+				return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
 			client, err := getClient()
 			if err != nil {
@@ -42,7 +42,7 @@ func init() {
 			if response.StatusCode != 202 {
 				// Try to get the reason
 				printErrors(response.Body)
-				errExit(fmt.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
+				errExit(errors.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
 			}
 
 			fmt.Println("Undeployment submitted. In progress...")

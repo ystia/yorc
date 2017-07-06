@@ -2,7 +2,6 @@ package tosca
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,7 +55,7 @@ func parseExprNode(value interface{}, t *TreeNode) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("Unexpected type for expression element %T", v)
+		return errors.Errorf("Unexpected type for expression element %T", v)
 	}
 	return nil
 }
@@ -64,19 +63,19 @@ func parseExprNode(value interface{}, t *TreeNode) error {
 func parseExpression(e map[interface{}]interface{}) (*TreeNode, error) {
 	log.Debugf("parsing %+v", e)
 	if len(e) != 1 {
-		return nil, fmt.Errorf("Expecting only one element in expression found %d", len(e))
+		return nil, errors.Errorf("Expecting only one element in expression found %d", len(e))
 	}
 	for key, value := range e {
 		keyS, ok := key.(string)
 		if !ok {
-			return nil, fmt.Errorf("Expecting a string for key element '%+v'", key)
+			return nil, errors.Errorf("Expecting a string for key element '%+v'", key)
 		}
 		log.Debugf("Found expression node with name '%s' and value '%+v' (type '%T')", keyS, value, value)
 		t := newTreeNode(keyS)
 		err := parseExprNode(value, t)
 		return t, err
 	}
-	return nil, fmt.Errorf("Missing element in expression %s", e)
+	return nil, errors.Errorf("Missing element in expression %s", e)
 }
 
 // UnmarshalYAML unmarshals a yaml into a ValueAssignment
@@ -137,7 +136,7 @@ func (t *TreeNode) Parent() *TreeNode {
 // SetParent sets the parent tree of a TreeNode
 func (t *TreeNode) SetParent(parent *TreeNode) error {
 	if t.parent != nil {
-		return fmt.Errorf("node %s already have a parent", t)
+		return errors.Errorf("node %s already have a parent", t)
 	}
 	t.parent = parent
 	return nil
@@ -159,6 +158,14 @@ func (t *TreeNode) IsTargetContext() bool {
 		return false
 	}
 	return t.children[0].Value == "TARGET"
+}
+
+// IsSourceContext retruns true if the value of the first child of this TreeNode is "SOURCE"
+func (t *TreeNode) IsSourceContext() bool {
+	if t.IsLiteral() {
+		return false
+	}
+	return t.children[0].Value == "SOURCE"
 }
 
 func (t *TreeNode) String() string {
@@ -205,17 +212,17 @@ func (r *Range) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	if len(v) != 2 {
-		return fmt.Errorf("Invalid range definition expected %d elements, actually found %d", 2, len(v))
+		return errors.Errorf("Invalid range definition expected %d elements, actually found %d", 2, len(v))
 	}
 
 	bound, err := strconv.ParseUint(v[0], 10, 0)
 	if err != nil {
-		return fmt.Errorf("Expecting a unsigned integer as lower bound of the range")
+		return errors.Errorf("Expecting a unsigned integer as lower bound of the range")
 	}
 	r.LowerBound = bound
 	if bound, err := strconv.ParseUint(v[1], 10, 0); err != nil {
 		if strings.ToUpper(v[1]) != "UNBOUNDED" {
-			return fmt.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range")
+			return errors.Errorf("Expecting a unsigned integer or the 'UNBOUNDED' keyword as upper bound of the range")
 		}
 		r.UpperBound = UNBOUNDED
 	} else {

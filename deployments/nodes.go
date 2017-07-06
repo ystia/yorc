@@ -417,6 +417,14 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, prope
 	return getTypeDefaultAttributeOrProperty(kv, deploymentID, parentType, propertyName, isProperty)
 }
 
+// SetNodeInstanceAttribute sets an attribute value to a node instance
+func SetNodeInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName, attributeValue string) error {
+	keyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
+	kvp := &api.KVPair{Key: keyPath, Value: []byte(attributeValue)}
+	_, err := kv.Put(kvp, nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 // GetNodes returns the names of the different nodes for a given deployment.
 func GetNodes(kv *api.KV, deploymentID string) ([]string, error) {
 	names := make([]string, 0)
@@ -668,9 +676,19 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 			} else {
 				nodesMap[stackNode] = id
 			}
+			addOrRemoveInstanceFromTargetRelationship(kv, deploymentID, stackNode, id, true)
 		}
 	}
-
+	// Wait for instances to be created
+	err = errGroup.Wait()
+	if err != nil {
+		return nil, err
+	}
+	// Then create relationship instances
+	_, errGroup, consulStore = consulutil.WithContext(ctx)
+	for node := range nodesMap {
+		createRelationshipInstances(consulStore, kv, deploymentID, node)
+	}
 	return nodesMap, errors.Wrapf(errGroup.Wait(), "Failed to create instances for node %q", nodeName)
 
 }

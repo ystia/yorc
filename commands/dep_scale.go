@@ -20,7 +20,7 @@ func init() {
 	var instancesDelta int32
 	var scaleCmd = &cobra.Command{
 		Use:   "scale <id>",
-		Short: "Scale a given node.",
+		Short: "Scale a node",
 		Long:  `Scale a given node of a deployment <id> by adding or removing the specified number of instances.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {

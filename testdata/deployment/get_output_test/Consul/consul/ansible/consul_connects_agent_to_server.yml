@@ -1,0 +1,32 @@
+#
+# Starlings
+# Copyright (C) 2015-2016 Bull S.A.S. - All rights reserved
+#
+- name: Connects consul agent to consul server
+  hosts: all
+  strategy: free
+  vars:
+    consul_servers: []
+  tasks:
+    - name: set agent flag
+      file:
+        dest: "{{INSTALL_DIR}}/work/.agentmode"
+        state: touch
+
+    - name: compute consul servers
+      set_fact: 
+        consul_servers: "{{ consul_servers }} + [ '{{ hostvars[inventory_hostname][item +'_SERVER_IP'] }}' ]"
+      with_items: "{{TARGET_INSTANCES.split(',')}}"
+
+    - name: Install servers config for consul
+      template: 
+        src: files/2_connects_to_servers.json.j2
+        dest: "{{INSTALL_DIR}}/config/2_connects_to_servers.json"
+    
+    - name: echo servers list
+      debug: msg="Consul Agent configured to connects to server on [{{ consul_servers | join(', ') }}]"
+
+    - name: Set DUMMY_VAR
+      set_fact:
+        DUMMY_VAR: "MoiAussiJeSuisUnTest"
+      

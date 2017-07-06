@@ -7,7 +7,7 @@ Janus is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simp
 
 ## How to build Janus
 
-Go 1.7.0+ is required. The easiest way to install it to use follow [the official guide](https://golang.org/doc/install)
+Go 1.8.3+ is required. The easiest way to install it to use follow [the official guide](https://golang.org/doc/install)
 
 Here is how to install and setup the Janus project:
 

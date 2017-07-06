@@ -14,10 +14,32 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/structs"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 )
+
+func getOperation(kv *api.KV, deploymentID, nodeName, operationName string) (prov.Operation, error) {
+	isRelationshipOp, operationRealName, requirementIndex, targetNodeName, err := deployments.DecodeOperation(kv, deploymentID, nodeName, operationName)
+	if err != nil {
+		return prov.Operation{}, err
+	}
+	implArt, err := deployments.GetImplementationArtifactForOperation(kv, deploymentID, nodeName, operationRealName, isRelationshipOp, requirementIndex)
+	if err != nil {
+		return prov.Operation{}, err
+	}
+	op := prov.Operation{
+		Name: operationRealName,
+		ImplementationArtifact: implArt,
+		RelOp: prov.RelationshipOperation{
+			IsRelationshipOperation: isRelationshipOp,
+			RequirementIndex:        requirementIndex,
+			TargetNodeName:          targetNodeName,
+		},
+	}
+	return op, nil
+}
 
 // From now only WorkingDirectory is necessary for those tests
 func GetConfig() config.Configuration {
@@ -40,7 +62,7 @@ func templatesTest(t *testing.T) {
 	t.Parallel()
 	ec := &executionCommon{
 		NodeName:            "Welcome",
-		Operation:           "tosca.interfaces.node.lifecycle.standard.start",
+		operation:           prov.Operation{Name: "tosca.interfaces.node.lifecycle.standard.start"},
 		Artifacts:           map[string]string{"scripts": "my_scripts"},
 		OverlayPath:         "/some/local/path",
 		VarInputsNames:      []string{"INSTANCE", "PORT"},
@@ -69,7 +91,10 @@ func templatesTest(t *testing.T) {
 func testExecutionOnNode(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -84,7 +109,10 @@ func testExecutionOnNode(t *testing.T) {
 	nodeTypeName := "janus.types.A"
 	operation := "tosca.interfaces.node.lifecycle.standard.create"
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"):         []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.artifacts.Implementation.Bash/name"): []byte("tosca.artifacts.Implementation.Bash"),
+
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "name"):                                                        []byte(nodeTypeName),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):                   []byte("A1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):             []byte("get_property: [SELF, document_root]"),
@@ -132,17 +160,18 @@ func testExecutionOnNode(t *testing.T) {
 }
 
 func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, nodeTypeName, operation string) {
+	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
-		deploymentID:            deploymentID,
-		NodeName:                nodeName,
-		rawOperation:            operation,
-		OperationPath:           path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create"),
-		isRelationshipOperation: false,
-		isPerInstanceOperation:  false,
-		VarInputsNames:          make([]string, 0),
-		EnvInputs:               make([]*structs.EnvInput, 0)}
+		deploymentID:           deploymentID,
+		NodeName:               nodeName,
+		operation:              op,
+		OperationPath:          path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create"),
+		isPerInstanceOperation: false,
+		VarInputsNames:         make([]string, 0),
+		EnvInputs:              make([]*EnvInput, 0)}
 
-	err := execution.resolveOperation()
+	err = execution.resolveOperation()
 	require.Nil(t, err)
 
 	err = execution.resolveInputs()
@@ -244,7 +273,9 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 
 
 `
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, operation)
+	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	require.Nil(t, err)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -269,7 +300,10 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 func testExecutionOnRelationshipSource(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -289,7 +323,10 @@ func testExecutionOnRelationshipSource(t *testing.T) {
 		"tosca.interfaces.node.lifecycle.Configure.pre_configure_source/connect/" + nodeBName,
 	}
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"):         []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.artifacts.Implementation.Bash/name"): []byte("tosca.artifacts.Implementation.Bash"),
+
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                                  []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                                       []byte(relationshipTypeName),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):                   []byte("A1"),
@@ -357,24 +394,22 @@ func testExecutionOnRelationshipSource(t *testing.T) {
 }
 
 func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName string) {
-
+	op, err := getOperation(kv, deploymentID, nodeAName, operation)
+	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
-		deploymentID:            deploymentID,
-		NodeName:                nodeAName,
-		rawOperation:            operation,
-		OperationPath:           path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source"),
-		isRelationshipOperation: true,
-		isPerInstanceOperation:  false,
-		requirementIndex:        "1",
-		relationshipType:        relationshipTypeName,
-		relationshipTargetName:  nodeBName,
-		VarInputsNames:          make([]string, 0),
-		EnvInputs:               make([]*structs.EnvInput, 0),
-		sourceNodeInstances:     []string{"0", "1", "2"},
-		targetNodeInstances:     []string{"0", "1"},
+		deploymentID:           deploymentID,
+		NodeName:               nodeAName,
+		operation:              op,
+		OperationPath:          path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source"),
+		isPerInstanceOperation: false,
+		relationshipType:       relationshipTypeName,
+		VarInputsNames:         make([]string, 0),
+		EnvInputs:              make([]*EnvInput, 0),
+		sourceNodeInstances:    []string{"0", "1", "2"},
+		targetNodeInstances:    []string{"0", "1"},
 	}
 
-	err := execution.resolveInputs()
+	err = execution.resolveInputs()
 	require.Nil(t, err, "%+v", err)
 	require.Len(t, execution.EnvInputs, 5)
 	instanceNames := make(map[string]struct{})
@@ -445,7 +480,9 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 
 
 `
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, operation)
+	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	require.Nil(t, err)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -470,7 +507,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 func testExecutionOnRelationshipTarget(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1 := testutil.NewTestServer(t)
+	srv1, err := testutil.NewTestServer()
+	if err != nil {
+		t.Fatalf("Failed to create consul server: %v", err)
+	}
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
@@ -490,7 +530,10 @@ func testExecutionOnRelationshipTarget(t *testing.T) {
 		"tosca.interfaces.node.lifecycle.Configure.add_source/connect/" + nodeBName,
 	}
 
-	srv1.PopulateKV(map[string][]byte{
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/implementation_artifacts_extensions/sh"):         []byte("tosca.artifacts.Implementation.Bash"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.artifacts.Implementation.Bash/name"): []byte("tosca.artifacts.Implementation.Bash"),
+
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                        []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                             []byte(relationshipTypeName),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):                   []byte("A1"),
@@ -559,21 +602,20 @@ func testExecutionOnRelationshipTarget(t *testing.T) {
 	}
 }
 func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName string) {
+	op, err := getOperation(kv, deploymentID, nodeAName, operation)
+	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:             deploymentID,
 		NodeName:                 nodeAName,
-		rawOperation:             operation,
+		operation:                op,
 		OperationPath:            path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source"),
-		isRelationshipOperation:  true,
 		isRelationshipTargetNode: true,
 		isPerInstanceOperation:   false,
-		requirementIndex:         "1",
 		relationshipType:         relationshipTypeName,
-		relationshipTargetName:   nodeBName,
 		VarInputsNames:           make([]string, 0),
-		EnvInputs:                make([]*structs.EnvInput, 0)}
+		EnvInputs:                make([]*EnvInput, 0)}
 
-	err := execution.resolveOperation()
+	err = execution.resolveOperation()
 	require.Nil(t, err)
 
 	err = execution.resolveInputs()
@@ -617,8 +659,10 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 }
 
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, operation)
+	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	require.Nil(t, err)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	require.Nil(t, err)
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
@@ -648,7 +692,6 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 
 
 `
-	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemotePath = "tmp"

@@ -44,7 +44,7 @@ type consulStore struct {
 //	err := errGroup.Wait()
 func WithContext(ctx context.Context) (context.Context, *errgroup.Group, ConsulStore) {
 	if ctx == nil {
-		log.Panic(errors.New("Context can't be nil."))
+		log.Panic(errors.New("Context can't be nil"))
 	}
 	errGroup, errCtx := errgroup.WithContext(ctx)
 	errCtx = context.WithValue(errCtx, errGroupKey, errGroup)

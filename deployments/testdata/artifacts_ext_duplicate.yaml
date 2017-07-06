@@ -1,0 +1,13 @@
+tosca_definitions_version: alien_dsl_1_3_0
+description: Alien4Cloud generated service template
+template_name: Test2
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - normative-types: <janus-types.yml>
+
+artifact_types:
+  duplicating_bash:
+    derived_from: tosca.artifacts.Implementation
+    file_ext: [ sh ]

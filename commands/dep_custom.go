@@ -10,6 +10,7 @@ import (
 
 	"novaforge.bull.com/starlings-janus/janus/rest"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -20,17 +21,17 @@ func init() {
 	var inputs []string
 	var customCmd = &cobra.Command{
 		Use:   "custom <id>",
-		Short: "Use a custom command",
+		Short: "Execute a custom command",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return fmt.Errorf("Expecting an id (got %d parameters)", len(args))
+				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
 			client, err := getClient()
 			if err != nil {
 				errExit(err)
 			}
 			if len(jsonParam) == 0 && len(nodeName) == 0 {
-				return fmt.Errorf("You need to provide a JSON or complete the arguments")
+				return errors.Errorf("You need to provide a JSON or complete the arguments")
 			}
 
 			if len(jsonParam) == 0 && len(nodeName) != 0 && len(customCName) != 0 {
@@ -66,7 +67,7 @@ func init() {
 			if response.StatusCode != http.StatusAccepted {
 				// Try to get the reason
 				printErrors(response.Body)
-				errExit(fmt.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
+				errExit(errors.Errorf("Expecting HTTP Status code 202 got %d, reason %q", response.StatusCode, response.Status))
 			}
 
 			fmt.Println("Command submitted. path :", response.Header.Get("Location"))

@@ -28,12 +28,11 @@ In this case you should use a `PUT` method. There is some constraints on submitt
 
 #### Result
 
-In both submission ways, a successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the
-deployment URI.
+In both submission ways, a successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the task URI handling the deployment process.
 
 ```
 HTTP/1.1 201 Created
-Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0
+Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/b4144668-5ec8-41c0-8215-842661520147
 Content-Length: 0
 ```
 
@@ -41,8 +40,6 @@ This endpoint produces no content except in case of error.
 
 A critical note is that the deployment is proceeded asynchronously and a success only guarantees that the deployment is successfully
 **submitted**.
-
-Actually, this endpoint implicitly call a [submit new deploy task](#submit-new-task).
 
 ### List deployments <a name="list-deps"></a>
 
@@ -66,19 +63,21 @@ Content-Type: application/json
 
 ### Undeploy  an active deployment <a name="undeploy"></a>
 
-Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus 
-database at the end of the undeployment. 
+Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus database at the end of the undeployment. A successful call to this endpoint results in a HTTP status code 202 with a 'Location' header relative to the base URI indicating the task URI handling the undeployment process.
 
 `DELETE /deployments/<deployment_id>[?purge]`
 
 ```
 HTTP/1.1 202 Accepted
+Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/b4144668-5ec8-41c0-8215-842661520147
 Content-Length: 0
 ```
 
 This endpoint produces no content except in case of error.
 
-Actually, this endpoint implicitly call a [submit new undeploy (or purge) task](#submit-new-task).
+A critical note is that the undeployment is proceeded asynchronously and a success only guarantees that the undeployment task is successfully
+**submitted**.
+
 
 ### Get the deployment information <a name="dep-info"></a>
 
@@ -301,15 +300,15 @@ X-Janus-Index: 1812
 ```json
 {
   "events": [
-    {"timestamp":"2016-08-16T14:49:25.90310537+02:00","node":"Network","status":"started"},
-    {"timestamp":"2016-08-16T14:50:20.712776954+02:00","node":"Compute","status":"started"},
-    {"timestamp":"2016-08-16T14:50:20.713890682+02:00","node":"Welcome","status":"initial"},
-    {"timestamp":"2016-08-16T14:50:20.7149454+02:00","node":"Welcome","status":"creating"},
-    {"timestamp":"2016-08-16T14:50:20.715875775+02:00","node":"Welcome","status":"created"},
-    {"timestamp":"2016-08-16T14:50:20.716840754+02:00","node":"Welcome","status":"configuring"},
-    {"timestamp":"2016-08-16T14:50:33.355114629+02:00","node":"Welcome","status":"configured"},
-    {"timestamp":"2016-08-16T14:50:33.3562717+02:00","node":"Welcome","status":"starting"},
-    {"timestamp":"2016-08-16T14:50:54.550463885+02:00","node":"Welcome","status":"started"}
+    {"timestamp":"2016-08-16T14:49:25.90310537+02:00","node":"Network","instance":"0","status":"started"},
+    {"timestamp":"2016-08-16T14:50:20.712776954+02:00","node":"Compute","instance":"0","status":"started"},
+    {"timestamp":"2016-08-16T14:50:20.713890682+02:00","node":"Welcome","instance":"0","status":"initial"},
+    {"timestamp":"2016-08-16T14:50:20.7149454+02:00","node":"Welcome","instance":"0","status":"creating"},
+    {"timestamp":"2016-08-16T14:50:20.715875775+02:00","node":"Welcome","instance":"0","status":"created"},
+    {"timestamp":"2016-08-16T14:50:20.716840754+02:00","node":"Welcome","instance":"0","status":"configuring"},
+    {"timestamp":"2016-08-16T14:50:33.355114629+02:00","node":"Welcome","instance":"0","status":"configured"},
+    {"timestamp":"2016-08-16T14:50:33.3562717+02:00","node":"Welcome","instance":"0","status":"starting"},
+    {"timestamp":"2016-08-16T14:50:54.550463885+02:00","node":"Welcome","instance":"0","status":"started"}
   ],
   "last_index":1812
 }
@@ -461,28 +460,6 @@ HTTP/1.1 202 OK
 Content-Length: 0
 ```
 
-### Submit a new task <a name="submit-new-task"></a>
-
-Submit a new task for a given deployment.  
-'Content-Type' header should be set to 'application/json'.
-Request should contains a valid task type (DEPLOY or UNDEPLOY or PURGE)
-
-`POST    /deployments/<deployment_id>/tasks`
-
-Request body:
-```json
-{
-  "type": "DEPLOY"
-}
-```
-
-**Response**
-```
-HTTP/1.1 202 OK
-Content-Length: 0
-```
-
-
 ### Execute a custom command <a name="custom-cmd-exec"></a>
 Submit a custom command for a given deployment.  
 'Content-Type' header should be set to 'application/json'.
@@ -597,3 +574,80 @@ Content-Type: application/json
   }
 }
 ```
+
+
+## Registry
+
+### Get TOSCA Definitions <a name="registry-definitions"></a>
+
+Retrieves the list of the embedded TOSCA definitions and there origins. The origin parameter cloud be `builtin` for Janus builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/definitions`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+  "definitions": [
+    {"name": "my-custom-types.yml", "origin": "my-custom-plugin"},
+    {"name": "normative-types.yml", "origin": "builtin"},
+    {"name": "janus-types.yml", "origin": "builtin"},
+    {"name": "janus-openstack-types.yml", "origin": "builtin"}
+  ]
+}
+```
+
+### Get Delegates Executors <a name="registry-delegates"></a>
+
+Retrieves the list of delegates executors and there origins. The origin parameter cloud be `builtin` for Janus builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/delegates`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+  "delegates": [
+    {"node_type": "janus\\.nodes\\.myCustomTypes\\..*", "origin": "my-custom-plugin"},
+    {"node_type": "janus\\.nodes\\.openstack\\..*", "origin": "builtin"}
+  ]
+}
+```
+
+### Get Implementations Executors <a name="registry-implementations"></a>
+
+Retrieves the list of implementations executors and there origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/implementations`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+  "implementations": [
+    {"implementation_artifact": "tosca.artifacts.Implementation.MyImplementation", "origin": "my-custom-plugin"},
+    {"implementation_artifact": "tosca.artifacts.Implementation.Bash", "origin": "builtin"},
+    {"implementation_artifact": "tosca.artifacts.Implementation.Python", "origin": "builtin"},
+    {"implementation_artifact": "tosca.artifacts.Implementation.Ansible", "origin": "builtin"}
+  ]
+}
+```
+

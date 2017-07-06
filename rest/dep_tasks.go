@@ -1,13 +1,12 @@
 package rest
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
@@ -29,7 +28,7 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 		log.Panic(err)
 	}
 	if ttid != id {
-		writeError(w, r, newBadRequestError(fmt.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
+		writeError(w, r, newBadRequestError(errors.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
 		return false
 	}
 	return true
@@ -49,7 +48,7 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
 		log.Panic(err)
 	} else if taskStatus != tasks.RUNNING && taskStatus != tasks.INITIAL {
-		writeError(w, r, newBadRequestError(fmt.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
+		writeError(w, r, newBadRequestError(errors.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
 		return
 	}
 
@@ -84,38 +83,4 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	task.Type = taskType.String()
 	encodeJSONResponse(w, r, task)
-}
-
-func (s *Server) newTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
-	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
-
-	var tr TaskRequest
-	if body, err := ioutil.ReadAll(r.Body); err != nil {
-		log.Panic(err)
-	} else {
-		if err = json.Unmarshal(body, &tr); err != nil {
-			writeError(w, r, newBadRequestError(fmt.Errorf("Can't unmarshal task request %v", err)))
-			return
-		}
-	}
-
-	taskType, err := tasks.TaskTypeForName(tr.Type)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	taskID, err := s.tasksCollector.RegisterTask(id, taskType)
-	if err != nil {
-		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			writeError(w, r, newBadRequestError(err))
-			return
-		}
-		log.Panic(err)
-	}
-
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", id, taskID))
-	w.WriteHeader(http.StatusCreated)
 }

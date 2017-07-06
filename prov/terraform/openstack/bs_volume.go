@@ -1,35 +1,38 @@
 package openstack
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/dustin/go-humanize"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/mathutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func (g *osGenerator) generateOSBSVolume(url, instanceName string) (BlockStorageVolume, error) {
+func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, url, instanceName string) (BlockStorageVolume, error) {
 	volume := BlockStorageVolume{}
 	var nodeType string
 	var err error
-	if nodeType, err = g.getStringFormConsul(url, "type"); err != nil {
+	if nodeType, err = g.getStringFormConsul(kv, url, "type"); err != nil {
 		return volume, err
 	}
 	if nodeType != "janus.nodes.openstack.BlockStorage" {
-		return volume, fmt.Errorf("Unsupported node type for %s: %s", url, nodeType)
+		return volume, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	var nodeName string
-	if nodeName, err = g.getStringFormConsul(url, "name"); err != nil {
+	if nodeName, err = g.getStringFormConsul(kv, url, "name"); err != nil {
 		return volume, err
 	}
-	volume.Name = g.cfg.ResourcesPrefix + nodeName + "-" + instanceName
-	size, err := g.getStringFormConsul(url, "properties/size")
+	volume.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
+	size, err := g.getStringFormConsul(kv, url, "properties/size")
 	if err != nil {
 		return volume, err
 	}
 	if size == "" {
-		return volume, fmt.Errorf("Missing mandatory property 'size' for %s", url)
+		return volume, errors.Errorf("Missing mandatory property 'size' for %s", url)
 	}
 	// Default size unit is MB
 	log.Debugf("Size form consul is %q", size)
@@ -38,7 +41,7 @@ func (g *osGenerator) generateOSBSVolume(url, instanceName string) (BlockStorage
 		var bsize uint64
 		bsize, err = humanize.ParseBytes(size)
 		if err != nil {
-			return volume, fmt.Errorf("Can't convert size to bytes value: %v", err)
+			return volume, errors.Errorf("Can't convert size to bytes value: %v", err)
 		}
 		// OpenStack needs the size in GB so we round it up.
 		gSize := float64(bsize) / humanize.GByte
@@ -56,15 +59,15 @@ func (g *osGenerator) generateOSBSVolume(url, instanceName string) (BlockStorage
 		volume.Size = int(gSize)
 	}
 
-	region, err := g.getStringFormConsul(url, "properties/region")
+	region, err := g.getStringFormConsul(kv, url, "properties/region")
 	if err != nil {
 		return volume, err
 	} else if region != "" {
 		volume.Region = region
 	} else {
-		volume.Region = g.cfg.OSRegion
+		volume.Region = cfg.OSRegion
 	}
-	az, err := g.getStringFormConsul(url, "properties/availability_zone")
+	az, err := g.getStringFormConsul(kv, url, "properties/availability_zone")
 	if err != nil {
 		return volume, err
 	}

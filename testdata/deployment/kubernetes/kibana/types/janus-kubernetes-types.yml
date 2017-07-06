@@ -23,6 +23,41 @@ node_types:
             repository: docker
             type: tosca.artifacts.Deployment.Image.Container.Kubernetes
 
+  janus.nodes.Docker.MongoDB:
+    derived_from: janus.nodes.DockerContainer
+    capabilities:
+      mongo_db:
+        type: alien.capabilities.endpoint.docker.Mongo
+    interfaces:
+      Standard:
+        start:
+          implementation:
+            file: mongo
+            repository: docker
+            type: tosca.artifacts.Deployment.Image.Container.Kubernetes
+
+  janus.nodes.Docker.Wordpress:
+    derived_from: janus.nodes.DockerContainer
+    requirements:
+      - mongo_db:
+          capability: tosca.capabilities.Endpoint.Database
+          relationship: tosca.relationships.ConnectsTo
+          occurrences: [1, 1]
+    capabilities:
+      nodecellar_app:
+        type: alien.capabilities.endpoint.docker.Nodecellar
+    interfaces:
+      Standard:
+        start:
+          inputs:
+            ENV_MONGO_HOST: { get_property: [REQ_TARGET, mongo_db, ip_address] }
+            ENV_MONGO_PORT: { get_property: [REQ_TARGET, mongo_db, port] }
+            ENV_NODECELLAR_PORT: 3000
+          implementation:
+            file: afraisse/nodecellar:exp
+            repository: docker
+            type: tosca.artifacts.Deployment.Image.Container.Kubernetes
+
   janus.nodes.Docker.Kibana:
     derived_from: janus.nodes.DockerContainer
     properties:
@@ -47,3 +82,29 @@ node_types:
             file: elasticsearch
             repository: docker
             type: tosca.artifacts.Deployment.Image.Container.Kubernetes
+
+
+capability_types:
+  alien.capabilities.endpoint.docker.Mongo:
+   derived_from: tosca.capabilities.Endpoint.Database
+      description: >
+        Capability to connect to a Docker-supported Mongo database through bridge networking.
+      properties:
+        docker_bridge_port_mapping:
+          type: integer
+          description: Port used to bridge to the container's endpoint.
+          default: 0
+        port:
+          type: integer
+          default: 27017
+
+    alien.capabilities.endpoint.docker.Nodecellar:
+      derived_from: alien.capabilities.endpoint.Docker
+      properties:
+        docker_bridge_port_mapping:
+          type: integer
+          description: Port used to bridge to the container's endpoint.
+          default: 0
+        port:
+          type: integer
+          default: 3000

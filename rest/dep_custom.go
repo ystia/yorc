@@ -23,6 +23,15 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
 
+	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Panic(err)

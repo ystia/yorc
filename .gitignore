@@ -21,6 +21,7 @@ work
 build/consul
 /doc/_build/*
 /dist
+/plugin/testdata/plugin-sample/plugin-sample
 
 # Generated sources
 /tosca/assets.go

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -60,39 +61,37 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 	defer close(stopLockChan)
 	leaderCh, err := taskLockCreate.Lock(stopLockChan)
 	if err != nil {
-		log.Printf("Failed to acquire create lock for task with id %q (target id %q): %+v", taskID, targetID, err)
+		log.Debugf("Failed to acquire create lock for task with id %q (target id %q): %+v", taskID, targetID, err)
 		return nil, nil, taskID, err
 	}
 	if leaderCh == nil {
-		log.Printf("Failed to acquire create lock for task with id %q (target id %q).", taskID, targetID)
-		return nil, nil, taskID, fmt.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskID, targetID)
+		log.Debugf("Failed to acquire create lock for task with id %q (target id %q).", taskID, targetID)
+		return nil, nil, taskID, errors.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskID, targetID)
 	}
 
 	key := &api.KVPair{Key: taskPrefix + "/targetId", Value: []byte(targetID)}
 	if _, err := kv.Put(key, nil); err != nil {
-		log.Print(err)
-		return nil, nil, taskID, err
+		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(strconv.Itoa(int(INITIAL)))}
 	if _, err := kv.Put(key, nil); err != nil {
-		log.Print(err)
-		return nil, nil, taskID, err
+		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	key = &api.KVPair{Key: taskPrefix + "/type", Value: []byte(strconv.Itoa(int(taskType)))}
 	if _, err := kv.Put(key, nil); err != nil {
-		log.Print(err)
-		return nil, nil, taskID, err
+		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	if data != nil {
 		for keyM, valM := range data {
 			key = &api.KVPair{Key: path.Join(taskPrefix, keyM), Value: []byte(valM)}
 			if _, err := kv.Put(key, nil); err != nil {
-				log.Print(err)
-				return nil, nil, taskID, err
+				return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
 		}
 	}
+
+	EmitTaskEvent(kv, targetID, taskID, taskType, INITIAL.String())
 
 	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {
 		log.Debugf("Unlocking newly created task with id %q (target id %q)", taskId, targetId)

@@ -179,8 +179,8 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				return "", errors.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if len(result) > 1 {
-				log.Printf("Deployment %q, node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", r.deploymentID, nodeName, expression, len(result))
-				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("Node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", nodeName, expression, len(result)))
+				log.Printf("Deployment %q, node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", r.deploymentID, nodeName, expression, len(result))
+				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("Node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", nodeName, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
@@ -213,6 +213,54 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			return "", err
 		}
 		return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
+	case "get_operation_output":
+		if len(params) != 4 {
+			return "", errors.Errorf("get_operation_output only support four parameters exactly")
+		}
+		switch params[0] {
+		case funcKeywordSELF:
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, nodeName, instanceName, params[1], params[2], params[3])
+			if err != nil {
+				return "", err
+			}
+			if output == "" {
+				// Workaround to be backward compatible lets look at relationships
+				output, err = getOperationOutputForRequirements(r.kv, r.deploymentID, nodeName, instanceName, params[1], params[2], params[3])
+				if err != nil || output == "" {
+					return "", err
+				}
+			}
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(output), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceName)
+		case funcKeywordHOST:
+			hostNode, err := GetHostedOnNode(r.kv, r.deploymentID, nodeName)
+			if err != nil {
+				return "", err
+			} else if hostNode == "" {
+				// Try to resolve on current node
+				hostNode = nodeName
+			}
+
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, hostNode, instanceName, params[1], params[2], params[3])
+			if err != nil || output == "" {
+				return "", err
+			}
+
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(output), resultExpr)
+
+			if err != nil {
+				return "", err
+			}
+			return r.ResolveExpressionForNode(resultExpr.Expression, hostNode, instanceName)
+		case funcKeywordSOURCE, funcKeywordTARGET:
+			return "", errors.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", params[0])
+
+		}
 	}
 	return "", errors.Errorf("Can't resolve expression %q", expression.Value)
 }
@@ -406,8 +454,8 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", errors.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if len(result) > 1 {
-				log.Printf("Deployment %q, SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", r.deploymentID, sourceNode, targetNode, requirementIndex, expression, len(result))
-				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredicable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
+				log.Printf("Deployment %q, SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", r.deploymentID, sourceNode, targetNode, requirementIndex, expression, len(result))
+				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
@@ -440,6 +488,53 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 			return "", err
 		}
 		return r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
+	case "get_operation_output":
+		if len(params) != 4 {
+			return "", errors.Errorf("get_operation_output on requirement or capability or in nested property is not yet supported")
+		}
+		switch params[0] {
+		case funcKeywordSELF:
+			result, err := GetOperationOutputForRelationship(r.kv, r.deploymentID, sourceNode, instanceName, requirementIndex, params[1], params[2], params[3])
+			if err != nil || result == "" {
+				return "", err
+			}
+
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(result), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			resultVar, err := r.ResolveExpressionForRelationship(resultExpr.Expression, sourceNode, targetNode, requirementIndex, instanceName)
+			return resultVar, err
+		case funcKeywordHOST:
+			return "", errors.Errorf("Keyword %q not supported for a relationship expression", params[0])
+		case funcKeywordSOURCE:
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, sourceNode, instanceName, params[1], params[2], params[3])
+			if err != nil || output == "" {
+				return "", err
+			}
+
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(output), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
+			return res, err
+		case funcKeywordTARGET:
+			output, err := GetOperationOutputForNode(r.kv, r.deploymentID, targetNode, instanceName, params[1], params[2], params[3])
+			if err != nil || output == "" {
+				return "", err
+			}
+
+			resultExpr := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal([]byte(output), resultExpr)
+			if err != nil {
+				return "", err
+			}
+			res, err := r.ResolveExpressionForNode(resultExpr.Expression, sourceNode, instanceName)
+			return res, err
+		}
 	}
 	return "", errors.Errorf("Can't resolve expression %q", expression.Value)
 }

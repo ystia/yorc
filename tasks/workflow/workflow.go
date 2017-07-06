@@ -14,8 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/helper"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -157,7 +156,7 @@ func (s *step) isRunnable() (bool, error) {
 	return true, nil
 }
 
-func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, nodeName, status string) error {
+func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) error {
 	instancesIDs, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -175,7 +174,6 @@ func setNodeStatus(kv *api.KV, eventPub events.Publisher, taskID, deploymentID, 
 
 func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool) error {
 	haveErr := false
-	eventPub := events.NewPublisher(kv, deploymentID)
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
 		log.Debugf("Step %q waiting for %d previous steps", s.Name, len(s.Previous)-i)
@@ -202,22 +200,21 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	if runnable, err := s.isRunnable(); err != nil {
 		return err
 	} else if !runnable {
-		log.Printf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
+		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
 		events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus("done")
 		s.notifyNext()
 		return nil
 	}
 
-	log.Printf("Processing step %q", s.Name)
+	log.Debugf("Processing step %q", s.Name)
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			provisioner := terraform.NewExecutor()
-			delegateOp := activity.ActivityValue()
-			if err := provisioner.ExecDelegate(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+			nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
+			if err != nil {
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
 				if bypassErrors {
@@ -227,13 +224,43 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					return err
 				}
 			}
-		case actType == wfSetStateActivity:
-			setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
-		case actType == wfCallOpActivity:
-			exec := helper.GetOperationExecutor(kv, deploymentID, s.Node)
-			err := exec.ExecOperation(ctx, kv, cfg, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
+			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
 			if err != nil {
-				setNodeStatus(kv, eventPub, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				s.setStatus(tosca.NodeStateError.String())
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					return err
+				}
+			} else {
+				delegateOp := activity.ActivityValue()
+				if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+					s.setStatus(tosca.NodeStateError.String())
+					if bypassErrors {
+						ignoredErrsChan <- err
+						haveErr = true
+					} else {
+						return err
+					}
+				}
+			}
+		case actType == wfSetStateActivity:
+			setNodeStatus(kv, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
+		case actType == wfCallOpActivity:
+			op, err := getOperation(kv, s.t.TargetID, s.Node, activity.ActivityValue())
+			if err != nil {
+				if deployments.IsOperationNotImplemented(err) {
+					// Operation not implemented just skip it
+					log.Debugf("Voluntary bypassing error: %s.", err.Error())
+					continue
+				}
+
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if bypassErrors {
 					ignoredErrsChan <- err
@@ -241,6 +268,32 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				} else {
 					s.setStatus(tosca.NodeStateError.String())
 					return err
+				}
+			}
+
+			exec, err := getOperationExecutor(kv, deploymentID, op.ImplementationArtifact)
+			if err != nil {
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					s.setStatus(tosca.NodeStateError.String())
+					return err
+				}
+			} else {
+				err = exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
+				if err != nil {
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+					if bypassErrors {
+						ignoredErrsChan <- err
+						haveErr = true
+					} else {
+						s.setStatus(tosca.NodeStateError.String())
+						return err
+					}
 				}
 			}
 		}
@@ -268,7 +321,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, err
 	}
 	if kvPair == nil {
-		return nil, fmt.Errorf("Missing node attribute for step %s", stepName)
+		return nil, errors.Errorf("Missing node attribute for step %s", stepName)
 	}
 	s.Node = string(kvPair.Value)
 
@@ -277,7 +330,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, err
 	}
 	if len(kvPairs) == 0 {
-		return nil, fmt.Errorf("Activity missing for step %s, this is not allowed.", stepName)
+		return nil, errors.Errorf("Activity missing for step %s, this is not allowed", stepName)
 	}
 	s.Activities = make([]activity, 0)
 	for _, actKV := range kvPairs {
@@ -290,7 +343,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		case key == wfCallOpActivity:
 			s.Activities = append(s.Activities, callOperationActivity{operation: string(actKV.Value)})
 		default:
-			return nil, fmt.Errorf("Unsupported activity type: %s", key)
+			return nil, errors.Errorf("Unsupported activity type: %s", key)
 		}
 	}
 	s.NotifyChan = make(chan struct{})

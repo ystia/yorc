@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"fmt"
 	"path"
 	"strconv"
 
@@ -10,8 +9,31 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
+
+// TaskTypeForName converts a textual representation of a task into a TaskType
+func TaskTypeForName(taskType string) (TaskType, error) {
+	switch strings.ToLower(taskType) {
+	case "deploy":
+		return Deploy, nil
+	case "undeploy":
+		return UnDeploy, nil
+	case "purge":
+		return Purge, nil
+	case "custom":
+		return CustomCommand, nil
+	case "scale-up":
+		return ScaleUp, nil
+	case "scale-down":
+		return ScaleDown, nil
+	case "customworkflow":
+		return CustomWorkflow, nil
+	default:
+		return Deploy, errors.Errorf("Unsupported task type %q", taskType)
+	}
+}
 
 // GetTasksIdsForTarget returns IDs of tasks related to a given targetID
 func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
@@ -119,7 +141,7 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 				return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
 			if kvp == nil || len(kvp.Value) == 0 {
-				return false, "", "", fmt.Errorf("Missing status for task with id %q", taskID)
+				return false, "", "", errors.Errorf("Missing status for task with id %q", taskID)
 			}
 			statusInt, err := strconv.Atoi(string(kvp.Value))
 			if err != nil {
@@ -187,4 +209,17 @@ func IsTaskRelatedNode(kv *api.KV, taskID, nodeName string) (bool, error) {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return kvp != nil, nil
+}
+
+// EmitTaskEvent emits a task event based on task type
+func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (eventID string, err error) {
+	switch taskType {
+	case CustomCommand:
+		eventID, err = events.CustomCommandStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+	case CustomWorkflow:
+		eventID, err = events.WorkflowStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+	case ScaleDown, ScaleUp:
+		eventID, err = events.ScalingStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+	}
+	return
 }

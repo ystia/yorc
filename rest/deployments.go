@@ -61,10 +61,11 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should respect the following format: %q", JanusDeploymentIDPattern)))
 			return
 		}
-		if len(id) > JanusDeploymentIDMaxLength {
-			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", JanusDeploymentIDMaxLength, len(id))))
-			return
-		}
+		// Do not impose a max id length as it doesn't have a concrete impact for now
+		// if len(id) > JanusDeploymentIDMaxLength {
+		// 	writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", JanusDeploymentIDMaxLength, len(id))))
+		// 	return
+		// }
 		dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
 		if err != nil {
 			log.Panicf("%v", err)
@@ -143,8 +144,8 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("ERROR: %+v", err)
 		log.Panic(err)
 	}
-
-	if _, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy); err != nil {
+	taskID, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy)
+	if err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
 			writeError(w, r, newBadRequestError(err))
 			return
@@ -152,7 +153,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 
-	w.Header().Set("Location", fmt.Sprintf("/deployments/%s", uid))
+	w.Header().Set("Location", fmt.Sprintf("/deployments/%s/tasks/%s", uid, taskID))
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -161,6 +162,15 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	id := params.ByName("id")
+
+	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	if !dExits {
+		writeError(w, r, errNotFound)
+		return
+	}
 
 	var taskType tasks.TaskType
 	if _, ok := r.URL.Query()["purge"]; ok {

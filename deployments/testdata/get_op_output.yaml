@@ -1,0 +1,89 @@
+tosca_definitions_version: alien_dsl_1_3_0
+description: Alien4Cloud generated service template
+template_name: Test2
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - normative-types: <janus-types.yml>
+
+node_types:
+  janus.tests.nodes.GetOPOutputs:
+    derived_from: tosca.nodes.Root
+    attributes:
+      partition_name: { get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] } # this is a hack to specifies that the attribute is filled from a relationship.
+    requirements:
+      - partition: 
+          capability: tosca.capabilities.Node
+          relationship: janus.tests.relationships.GetOPOutputsRel
+          occurrences: [ 1, 1]
+    interfaces:
+      Standard:
+        configure: scripts/config.sh
+        start:
+          inputs:
+            FROM_OUTPUT: { get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }
+          implementation: scripts/start.sh
+
+relationship_types:
+  janus.tests.relationships.GetOPOutputsRel:
+    derived_from: tosca.relationships.DependsOn
+    attributes:
+      partition_name: { get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }
+    interfaces:
+      Configure:
+        pre_configure_source: scripts/fdisk.sh
+        post_configure_source:
+          inputs:
+            PARTITION_NAME: { get_attribute: [SELF, partition_name ] }
+          implementation: scripts/mkfs.sh
+
+
+topology_template:
+  node_templates:
+    Compute:
+      type: tosca.nodes.Compute
+      capabilities:
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+    GetOPOutputsNode:
+      type: janus.tests.nodes.GetOPOutputs
+      requirements:
+        - partition:
+            node: BS
+            capability: tosca.capabilities.Node
+            relationship: janus.tests.relationships.GetOPOutputsRel
+    GetOPOutputsNodeFirstReq:
+      type: janus.tests.nodes.GetOPOutputs
+      requirements:
+        - partition:
+            node: BS
+            capability: tosca.capabilities.Node
+            relationship: janus.tests.relationships.GetOPOutputsRel
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    GetOPOutputsNodeSecondReq:
+      type: janus.tests.nodes.GetOPOutputs
+      requirements:
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - partition:
+            node: BS
+            capability: tosca.capabilities.Node
+            relationship: janus.tests.relationships.GetOPOutputsRel
+    BS:
+      type: tosca.nodes.Root
+

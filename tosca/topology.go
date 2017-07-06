@@ -15,6 +15,7 @@ type Topology struct {
 	Repositories map[string]Repository `yaml:"repositories,omitempty"`
 
 	// TODO Data Types
+	ArtifactTypes     map[string]ArtifactType     `yaml:"artifact_types,omitempty"`
 	NodeTypes         map[string]NodeType         `yaml:"node_types,omitempty"`
 	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty"`
 	RelationshipTypes map[string]RelationshipType `yaml:"relationship_types,omitempty"`

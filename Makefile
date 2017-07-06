@@ -1,15 +1,18 @@
-GOTOOLS = golang.org/x/tools/cmd/stringer github.com/tools/godep github.com/jteeuwen/go-bindata/...
+GOTOOLS = golang.org/x/tools/cmd/stringer github.com/kardianos/govendor github.com/jteeuwen/go-bindata/...
 
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 
 VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
+VERSION=$(shell grep "janus_version" versions.yaml | awk '{print $$2}')
+COMMIT_HASH=$(shell git rev-parse HEAD)
+
 buildnformat: build format
 
 build: test
 	@echo "--> Running go build"
-	@CGO_ENABLED=0 go build
+	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags '-X novaforge.bull.com/starlings-janus/janus/commands.version=v$(VERSION) -X novaforge.bull.com/starlings-janus/janus/commands.gitCommit=$(COMMIT_HASH)'
 
 generate: checks
 	@go generate $(PACKAGES)
@@ -22,7 +25,7 @@ dist: build
 	@echo "--> Creating an archive"
 	@tar czvf janus.tgz janus && echo "TODO: clean this part after CI update" &&  cp janus janus.tgz dist/
 	@cd doc && make html latexpdf && cd _build && cp -r html latex/Janus.pdf ../../dist
-	@cd ./dist && zip -r janus-server-documentation.zip html Janus.pdf && zip janus-server-distrib.zip janus janus-server-documentation.zip
+	@cd ./dist && zip -r janus-server-$(VERSION)-documentation.zip html Janus.pdf && zip janus-server-$(VERSION)-distrib.zip janus janus-server-$(VERSION)-documentation.zip
 
 test: generate
 ifndef SKIP_TESTS

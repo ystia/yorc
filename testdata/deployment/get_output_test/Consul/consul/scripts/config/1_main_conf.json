@@ -1,0 +1,6 @@
+{
+  "domain": "starlings",
+  "data_dir": "#INSTALL_DIR#/work",
+  "client_addr": "0.0.0.0",
+  "advertise_addr": "#IP#"
+}
