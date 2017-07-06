@@ -49,4 +49,5 @@ type Configuration struct {
 	ConsulDatacenter              string        `json:"consul_datacenter,omitempty"`
 	ConsulAddress                 string        `json:"consul_address,omitempty"`
 	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
+	KubemasterIp                  string        `json:"kube_ip,omitpempty"`
 }

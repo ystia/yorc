@@ -183,7 +183,7 @@ func getConfig() config.Configuration {
 	configuration.ConsulPubMaxRoutines = viper.GetInt("consul_publisher_max_routines")
 	configuration.ServerGracefulShutdownTimeout = viper.GetDuration("server_graceful_shutdown_timeout")
 	configuration.OSDefaultSecurityGroups = make([]string, 0)
-	configuration.KubeMasterIp = viper.GetString("kube_master_ip")
+	configuration.KubemasterIp = viper.GetString("kube_master_ip")
 	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {
 		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags
 		configuration.OSDefaultSecurityGroups = append(configuration.OSDefaultSecurityGroups, strings.Split(secgFlag, ",")...)
