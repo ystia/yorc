@@ -4,14 +4,15 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"path"
@@ -37,7 +38,7 @@ type executionCommon struct {
 	deploymentID        string
 	taskID              string
 	NodeName            string
-	Operation           string
+	Operation           prov.Operation
 	NodeType            string
 	Description         string
 	OperationRemotePath string
@@ -51,7 +52,7 @@ type executionCommon struct {
 	OverlayPath         string
 }
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, operation string) (execution, error) {
+func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		cfg:            cfg,
 		deploymentID:   deploymentID,
@@ -75,7 +76,7 @@ func (e *executionCommon) resolveOperation() error {
 	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType)
 	operationNodeType := e.NodeType
 
-	e.OperationPath = deployments.GetOperationPath(e.deploymentID, operationNodeType, e.Operation)
+	e.OperationPath = deployments.GetOperationPath(e.deploymentID, operationNodeType, e.Operation.Name)
 	if err != nil {
 		return err
 	}
@@ -84,10 +85,10 @@ func (e *executionCommon) resolveOperation() error {
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
-	switch e.Operation {
+	switch e.Operation.Name {
 	case "tosca.interfaces.node.lifecycle.standard.delete",
 		"tosca.interfaces.node.lifecycle.standard.configure":
-		log.Printf("Voluntary bypassing operation %s", e.Operation)
+		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
 	case "tosca.interfaces.node.lifecycle.standard.start":
 		err = e.deployPod(ctx)
@@ -98,7 +99,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	case "tosca.interfaces.node.lifecycle.standard.stop":
 		return e.uninstallNode(ctx)
 	default:
-		return errors.Errorf("Unsupported operation %q", e.Operation)
+		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
 
 }
@@ -129,10 +130,10 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 		return err
 	}
 
-	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation)
+	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation.Name)
 	inputs := e.parseEnvInputs()
 
-	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation, e.NodeType, inputs)
+	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, inputs)
 	if err != nil {
 		return err
 	}

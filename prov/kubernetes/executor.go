@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"k8s.io/client-go/kubernetes"
@@ -22,13 +21,20 @@ func NewExecutor() prov.OperationExecutor {
 	return &defaultExecutor{}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, operation string) error {
-	exec, err := newExecution(kv, cfg, taskID, deploymentID, nodeName, operation)
+func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+	consulClient, err := conf.GetConsulClient()
+	if err != nil {
+		return err
+	}
+	kv := consulClient.KV()
+	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
 
-	err = e.initClientSet(cfg)
+	clientset, err := initClientSet(conf)
+	e.clientset = clientset
+
 	if err != nil {
 		return err
 	}
@@ -38,17 +44,16 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, kv *api.KV, cfg con
 	return exec.execute(new_ctx)
 }
 
-func (e *defaultExecutor) initClientSet(cfg config.Configuration) error {
+func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 	var clientset *kubernetes.Clientset
-	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubeMasterIp, "")
+	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIp, "")
 	if err != nil {
-		return errors.Wrap(err, "Failed to build kubernetes config")
+		return nil, errors.Wrap(err, "Failed to build kubernetes config")
 	}
 	clientset, err = kubernetes.NewForConfig(conf)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create kubernetes clientset from config")
+		return nil, errors.Wrap(err, "Failed to create kubernetes clientset from config")
 	}
 
-	e.clientset = clientset
-	return nil
+	return clientset, nil
 }
