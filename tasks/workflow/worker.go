@@ -15,6 +15,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"time"
+
+	"github.com/armon/go-metrics"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -110,6 +113,10 @@ func (w worker) handleTask(t *task) {
 	defer t.releaseLock()
 	defer cancelFunc()
 	w.monitorTaskForCancellation(ctx, cancelFunc, t)
+	defer func(t *task, start time.Time) {
+		metrics.IncrCounter([]string{"task", t.TaskType.String(), t.Status().String()}, 1)
+		metrics.MeasureSince([]string{"task", t.TaskType.String()}, start)
+	}(t, time.Now())
 	switch t.TaskType {
 	case tasks.Deploy:
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_IN_PROGRESS)
@@ -200,6 +207,12 @@ func (w worker) handleTask(t *task) {
 
 		nodeName := nodes[0]
 		commandName := string(commandNameKv.Value)
+		nodeType, err := deployments.GetNodeType(w.consulClient.KV(), t.TargetID, nodeName)
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command node type: %+v", t.TargetID, t.ID, err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
 		op, err := getOperation(kv, t.TargetID, nodeName, "custom."+commandName)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
@@ -221,7 +234,11 @@ func (w worker) handleTask(t *task) {
 			t.WithStatus(tasks.FAILED)
 			return
 		}
-		if err := exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, op); err != nil {
+		err = func() error {
+			defer metrics.MeasureSince([]string{"executor", "operation", nodeType, op.Name}, time.Now())
+			return exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, op)
+		}()
+		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			err = setNodeStatus(t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
 			if err != nil {

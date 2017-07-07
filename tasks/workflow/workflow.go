@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -208,22 +209,22 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	}
 
 	log.Debugf("Processing step %q", s.Name)
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
+	if err != nil {
+		setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+		log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+		s.setStatus(tosca.NodeStateError.String())
+		if bypassErrors {
+			ignoredErrsChan <- err
+			haveErr = true
+		} else {
+			return err
+		}
+	}
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
-			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
-				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-				s.setStatus(tosca.NodeStateError.String())
-				if bypassErrors {
-					ignoredErrsChan <- err
-					haveErr = true
-				} else {
-					return err
-				}
-			}
 			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
@@ -237,7 +238,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				}
 			} else {
 				delegateOp := activity.ActivityValue()
-				if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
+				err := func() error {
+					defer metrics.MeasureSince([]string{"executor", "delegate", nodeType, delegateOp}, time.Now())
+					return provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
+				}()
+
+				if err != nil {
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					s.setStatus(tosca.NodeStateError.String())
@@ -283,7 +289,11 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					return err
 				}
 			} else {
-				err = exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
+
+				err = func() error {
+					defer metrics.MeasureSince([]string{"executor", "operation", nodeType, op.Name}, time.Now())
+					return exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
+				}()
 				if err != nil {
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
