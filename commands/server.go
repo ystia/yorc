@@ -80,6 +80,9 @@ func setConfig() {
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
 
+	serverCmd.PersistentFlags().Bool("ansible_use_openssh", false, "Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts")
+	serverCmd.PersistentFlags().Bool("ansible_debug", false, "Prints massive debug information from Ansible")
+
 	//Bind Flags for OpenStack
 	viper.BindPFlag("os_auth_url", serverCmd.PersistentFlags().Lookup("os_auth_url"))
 	viper.BindPFlag("os_tenant_id", serverCmd.PersistentFlags().Lookup("os_tenant_id"))
@@ -110,6 +113,9 @@ func setConfig() {
 	viper.BindPFlag("cert_file", serverCmd.PersistentFlags().Lookup("cert_file"))
 	viper.BindPFlag("key_file", serverCmd.PersistentFlags().Lookup("key_file"))
 
+	viper.BindPFlag("ansible_use_openssh", serverCmd.PersistentFlags().Lookup("ansible_use_openssh"))
+	viper.BindPFlag("ansible_debug", serverCmd.PersistentFlags().Lookup("ansible_debug"))
+
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
 	viper.AutomaticEnv()        // read in environment variables that match
@@ -134,6 +140,9 @@ func setConfig() {
 	viper.BindEnv("consul_publisher_max_routines")
 	viper.BindEnv("consul_address")
 
+	viper.BindEnv("ansible_use_openssh")
+	viper.BindEnv("ansible_debug")
+
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("server_graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout)
@@ -149,6 +158,9 @@ func setConfig() {
 	viper.SetDefault("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines)
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 
+	viper.SetDefault("ansible_use_openssh", false)
+	viper.SetDefault("ansible_debug", false)
+
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
 	viper.AddConfigPath("/etc/janus/")  // adding home directory as first search path
@@ -158,6 +170,8 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
+	configuration.AnsibleDebugExec = viper.GetBool("ansible_use_openssh")
+	configuration.AnsibleDebugExec = viper.GetBool("ansible_debug")
 	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.PluginsDirectory = viper.GetString("plugins_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")

@@ -114,6 +114,14 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
+	if e.cfg.AnsibleDebugExec {
+		cmd.Args = append(cmd.Args, "-vvvvv")
+	}
+	if e.cfg.AnsibleUseOpenSSH {
+		cmd.Args = append(cmd.Args, "-c", "ssh")
+	} else {
+		cmd.Args = append(cmd.Args, "-c", "paramiko")
+	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer
 	errbuf := events.NewBufferedLogEventWriter(e.kv, e.deploymentID, events.SoftwareLogPrefix)

@@ -34,6 +34,9 @@ host_key_checking=False
 timeout=600
 stdout_callback = json
 retry_files_save_path = #PLAY_PATH#
+
+[ssh_connection]
+retries=5
 `
 
 type ansibleRetriableError struct {
