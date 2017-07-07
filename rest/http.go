@@ -10,6 +10,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -136,6 +138,10 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/registry/delegates", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDelegatesHandler))
 	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryImplementationsHandler))
 	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDefinitionsHandler))
+
+	if s.config.Telemetry.PrometheusEndpoint {
+		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
+	}
 }
 
 func encodeJSONResponse(w http.ResponseWriter, r *http.Request, resp interface{}) {

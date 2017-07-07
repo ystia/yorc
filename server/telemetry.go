@@ -4,6 +4,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics/prometheus"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -35,6 +36,15 @@ func setupTelemetry(cfg config.Configuration) error {
 			return errors.Wrap(err, "Failed to create Statsite telemetry service")
 		}
 		sinks = append(sinks, statsitedSink)
+	}
+
+	if cfg.Telemetry.PrometheusEndpoint {
+		log.Debug("Setting up a Prometheus telemetry service")
+		prometheusSink, err := prometheus.NewPrometheusSink()
+		if err != nil {
+			return errors.Wrap(err, "Failed to create Prometheus telemetry service")
+		}
+		sinks = append(sinks, prometheusSink)
 	}
 
 	if len(sinks) > 0 {

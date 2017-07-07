@@ -15,6 +15,7 @@
         "os_private_network_name": "private_starlings",
         "os_public_network_name": "not_supported",
         "telemetry":{
-                "statsd_address": "127.0.0.1:8125"
+                "statsd_address": "127.0.0.1:8125",
+                "expose_prometheus_endpoint": true
         }
 }

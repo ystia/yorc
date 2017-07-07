@@ -202,5 +202,6 @@ func getConfig() config.Configuration {
 	configuration.Telemetry.StatsdAddress = viper.GetString("telemetry.statsd_address")
 	configuration.Telemetry.StatsiteAddress = viper.GetString("telemetry.statsite_address")
 	configuration.Telemetry.ServiceName = viper.GetString("telemetry.service_name")
+	configuration.Telemetry.PrometheusEndpoint = viper.GetBool("telemetry.expose_prometheus_endpoint")
 	return configuration
 }
