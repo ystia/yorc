@@ -95,28 +95,28 @@ func isExpected(got int, expected []int) bool {
 
 func handleHTTPStatusCode(response *http.Response, expectedStatusCodes ...int) {
 	if !isExpected(response.StatusCode, expectedStatusCodes) {
-		printErrors(response.Body)
 		switch response.StatusCode {
 		case http.StatusNoContent:
 			// This case is not an error so the exit code is OK
 			okExit("No content found")
 		default:
+			printErrors(response.Body)
 			errExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))
 		}
 	}
 
 }
 
-func handleHTTPStatusCodeForStreaming(response *http.Response, resourceId string, expectedStatusCodes ...int) {
+func handleHTTPStatusCodeForStreaming(response *http.Response, resourceID string, expectedStatusCodes ...int) {
 	if !isExpected(response.StatusCode, expectedStatusCodes) {
-		printErrors(response.Body)
 		switch response.StatusCode {
 		case http.StatusNotFound:
-			okExit(errors.Errorf("The resource id [%s] has been deleted since the beginning of the streaming request", resourceId))
+			okExit(errors.Errorf("The resource id [%s] has been deleted since the beginning of the streaming request", resourceID))
 		case http.StatusNoContent:
 			// This case is not an error so the exit code is OK
 			okExit("No content found")
 		default:
+			printErrors(response.Body)
 			errExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))
 		}
 	}
