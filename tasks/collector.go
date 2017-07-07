@@ -5,6 +5,8 @@ import (
 	"path"
 	"strconv"
 
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -81,7 +83,14 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 	if _, err := kv.Put(key, nil); err != nil {
 		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-
+	dateBin, err := time.Now().MarshalBinary()
+	if err != nil {
+		return nil, nil, taskID, errors.Wrap(err, "Failed to generate task creation date")
+	}
+	key = &api.KVPair{Key: taskPrefix + "/creationDate", Value: dateBin}
+	if _, err := kv.Put(key, nil); err != nil {
+		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
 	if data != nil {
 		for keyM, valM := range data {
 			key = &api.KVPair{Key: path.Join(taskPrefix, keyM), Value: []byte(valM)}

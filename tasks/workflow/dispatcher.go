@@ -159,7 +159,21 @@ func (d *Dispatcher) Run() {
 				log.Printf("Failed to get task type for key %s: %+v", taskKey, err)
 				continue
 			}
-
+			kvPairContent, _, err = kv.Get(taskKey+"creationDate", nil)
+			if err != nil {
+				log.Printf("Failed to get task creationDate for key %s: %+v", taskKey, err)
+				continue
+			}
+			if kvPairContent == nil {
+				log.Printf("Failed to get task creationDate for key %s: nil value", taskKey)
+				continue
+			}
+			creationDate := time.Time{}
+			err = creationDate.UnmarshalBinary(kvPairContent.Value)
+			if err != nil {
+				log.Printf("Failed to get task creationDate for key %s: %+v", taskKey, err)
+				continue
+			}
 			keyPath := strings.Split(taskKey, "/")
 			log.Debugf("%+q", keyPath)
 			var taskID string
@@ -171,7 +185,15 @@ func (d *Dispatcher) Run() {
 			}
 
 			log.Printf("Processing task %q linked to deployment %q", taskID, targetID)
-			t := &task{ID: taskID, status: status, TargetID: targetID, taskLock: lock, kv: kv, TaskType: tasks.TaskType(taskType)}
+			t := &task{
+				ID:           taskID,
+				status:       status,
+				TargetID:     targetID,
+				taskLock:     lock,
+				kv:           kv,
+				creationDate: creationDate,
+				TaskType:     tasks.TaskType(taskType),
+			}
 			log.Debugf("New task created %+v: pushing it to a work channel", t)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle

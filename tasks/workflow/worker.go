@@ -106,6 +106,9 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 }
 
 func (w worker) handleTask(t *task) {
+	if t.Status() == tasks.INITIAL {
+		metrics.MeasureSince([]string{"task", "wait"}, t.creationDate)
+	}
 	t.WithStatus(tasks.RUNNING)
 	kv := w.consulClient.KV()
 	bgCtx := context.Background()
