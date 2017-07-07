@@ -9,6 +9,15 @@ If an option is specified several times using flags, environment and config file
 
 Command-line options
 --------------------
+
+.. _option_ansible_ssh_cmd:
+
+  * ``--ansible_use_openssh``: Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts. OpenSSH have several optimization like reusing connections that should improve preformance but may lead to issues on older systems. 
+
+.. _option_ansible_debug_cmd:
+
+  * ``--ansible_debug``: Prints massive debug information from Ansible especially about connections
+
 .. _option_config_cmd:
 
   * ``--config`` or ``-c``: Specify an alternative configuration file. By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory.
@@ -135,6 +144,13 @@ Bellow is an example of configuration file with TLS enable.
         "cert_file": "/etc/pki/tls/certs/janus.crt"
     }
 
+.. _option_ansible_ssh_cfg:
+
+  * ``ansible_use_openssh``: Equivalent to :ref:`--consul_address <option_ansible_ssh_cmd>` command-line flag.
+
+.. _option_ansible_debug_cfg:
+
+  * ``ansible_debug``: Equivalent to :ref:`--consul_address <option_ansible_debug_cmd>` command-line flag.
 
 .. _option_consul_addr_cfg:
 
@@ -223,6 +239,14 @@ Bellow is an example of configuration file with TLS enable.
 
 Environment variables
 ---------------------
+
+.. _option_ansible_ssh_env:
+
+  * ``JANUS_ANSIBLE_USE_OPENSSH``: Equivalent to :ref:`--consul_address <option_ansible_ssh_cmd>` command-line flag.
+
+.. _option_ansible_debug_env:
+
+  * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--consul_address <option_ansible_debug_cmd>` command-line flag.
 
 .. _option_consul_addr_env:
 

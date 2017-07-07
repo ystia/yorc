@@ -17,9 +17,10 @@ import (
 
 func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, error) {
 	// Workaround https://github.com/ansible/ansible/issues/17122
+	log.Debugf("Ansible result: %s", output)
 	b := output.Bytes()
-	if i := bytes.Index(b, []byte("{")); i >= 0 {
-		b = b[i:]
+	if i := bytes.Index(b, []byte("\"plays\":")); i >= 0 {
+		b = append([]byte("{\n"), b[i:]...)
 	} else {
 		return nil, errors.New("Not a valid JSON output")
 	}

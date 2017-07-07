@@ -127,12 +127,20 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
 		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
+	}
+	if e.cfg.AnsibleDebugExec {
+		cmd.Args = append(cmd.Args, "-vvvvv")
+	}
+	if e.cfg.AnsibleUseOpenSSH {
+		cmd.Args = append(cmd.Args, "-c", "ssh")
+	} else {
+		cmd.Args = append(cmd.Args, "-c", "paramiko")
 	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer
@@ -143,6 +151,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	errCloseCh := make(chan bool)
 	defer close(errCloseCh)
 	errbuf.Run(errCloseCh)
+
 	defer func(buffer *bytes.Buffer) {
 		if err := e.logAnsibleOutputInConsul(buffer); err != nil {
 			log.Printf("Failed to publish Ansible log %v", err)
