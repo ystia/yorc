@@ -136,7 +136,7 @@ if [[ -z "${prerelease}" ]]; then
     if [[ "True" == "$(python -c "import semantic_version; print  semantic_version.Version('${version}') > semantic_version.Version('${masterTag}')" )" ]]; then
         # We should merge the tag to master as it is our highest release
         git checkout master
-        git merge --no-ff "v${version}" -m "merging latest tag v${version} into master"
+        git merge --no-ff "v${version}" -X theirs -m "merging latest tag v${version} into master"
     fi
 fi
 
