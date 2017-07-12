@@ -239,7 +239,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			} else {
 				delegateOp := activity.ActivityValue()
 				err := func() error {
-					defer metrics.MeasureSince([]string{"executor", "delegate", nodeType, delegateOp}, time.Now())
+					defer metrics.MeasureSince([]string{"executor", "delegate", strings.Replace(nodeType, ".", "-", -1), strings.Replace(delegateOp, ".", "-", -1)}, time.Now())
 					return provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
 				}()
 
@@ -291,7 +291,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			} else {
 
 				err = func() error {
-					defer metrics.MeasureSince([]string{"executor", "operation", nodeType, op.Name}, time.Now())
+					defer metrics.MeasureSince([]string{"executor", "operation", strings.Replace(nodeType, ".", "-", -1), strings.Replace(op.Name, ".", "-", -1)}, time.Now())
 					return exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
 				}()
 				if err != nil {

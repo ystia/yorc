@@ -238,7 +238,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		err = func() error {
-			defer metrics.MeasureSince([]string{"executor", "operation", nodeType, op.Name}, time.Now())
+			defer metrics.MeasureSince([]string{"executor", "operation", strings.Replace(nodeType, ".", "-", -1), strings.Replace(op.Name, ".", "-", -1)}, time.Now())
 			return exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, op)
 		}()
 		if err != nil {
