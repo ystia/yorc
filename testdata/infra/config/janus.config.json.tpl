@@ -10,6 +10,7 @@
     "os_prefix": "${prefix}",
     "os_default_security_groups": ["default", "${secgrp}"],
     "telemetry": {
-        "statsd_address": "${statsd_ip}:8125"
+        "statsd_address": "${statsd_ip}:8125",
+        "expose_prometheus_endpoint": true
     }
 }

@@ -56,6 +56,14 @@ data "template_file" "janus-monitoring-docker-config" {
   }
 }
 
+data "template_file" "prometheus-config" {
+  template = "${file("../config/prometheus.yml.tpl")}"
+
+  vars {
+    janus_targets = "${join(", ", formatlist("'%s:8800'", openstack_compute_instance_v2.janus-server.*.network.0.fixed_ip_v4))}"
+  }
+}
+
 resource "null_resource" "janus-montoring-provisioning-config-docker" {
   depends_on = ["null_resource.janus-montoring-provisioning-install-docker"]
   count      = "${var.http_proxy != "" ? 1 : 0 }"
@@ -81,7 +89,7 @@ resource "null_resource" "janus-montoring-provisioning-config-docker" {
   }
 }
 
-resource "null_resource" "janus-montoring-provisioning-start-monitoring" {
+resource "null_resource" "janus-montoring-provisioning-start-monitoring-statsd-grafana" {
   depends_on = ["null_resource.janus-montoring-provisioning-config-docker"]
 
   connection {
@@ -103,7 +111,29 @@ resource "null_resource" "janus-montoring-provisioning-start-monitoring" {
       "sleep 30",
       "set -x",
       "curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/datasources -H 'Content-type: application/json' -X POST -d '{\"Name\":\"graphite\",\"Type\":\"graphite\",\"IsDefault\":true,\"Url\":\"http://localhost:8000\",\"Access\":\"proxy\",\"BasicAuth\":false}'",
+      "curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/datasources -H 'Content-type: application/json' -X POST -d '{\"Name\":\"prometheus\",\"Type\":\"prometheus\",\"IsDefault\":false,\"Url\":\"http://${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}:9090\",\"Access\":\"proxy\",\"BasicAuth\":false}'",
       "for g in $$(find /tmp/grafana_dashboards -type f -name '*.json'); do curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/dashboards/db -H 'Content-type: application/json' -X POST -d @$${g}; done",
+    ]
+  }
+}
+resource "null_resource" "janus-montoring-provisioning-start-monitoring-prometheus" {
+  depends_on = ["null_resource.janus-montoring-provisioning-config-docker"]
+
+  connection {
+    user        = "${var.ssh_manager_user}"
+    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    private_key = "${file("${var.ssh_key_file}")}"
+  }
+
+  provisioner "file" {
+    content     = "${data.template_file.prometheus-config.rendered}"
+    destination = "/home/${var.ssh_manager_user}/prometheus.yml"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      # | cat is a workaround the lack of --quiet option for docker cli as it is not a tty docker will reduce outputs
+      "docker run -d -p 9090:9090 -v /home/${var.ssh_manager_user}/prometheus.yml:/etc/prometheus/prometheus.yml --name prometheus prom/prometheus | cat",
     ]
   }
 }
