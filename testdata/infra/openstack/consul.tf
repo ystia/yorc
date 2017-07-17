@@ -6,7 +6,7 @@ data "template_file" "consul-server-config" {
   vars {
     ip_address     = "${element(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4, count.index)}"
     server_number  = "${var.consul_server_instances}"
-    consul_servers = "${jsonencode(join(",", openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4))}"
+    consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
     statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
   }
 }
@@ -14,7 +14,7 @@ data "template_file" "consul-server-config" {
 resource "openstack_compute_instance_v2" "consul-server" {
   count           = "${var.consul_server_instances}"
   region          = "${var.region}"
-  name            = "${var.prefix}consul-server"
+  name            = "${var.prefix}consul-server-${count.index}"
   image_id        = "${var.janus_compute_image_id}"
   flavor_id       = "${var.janus_compute_flavor_id}"
   key_pair        = "${openstack_compute_keypair_v2.janus.name}"

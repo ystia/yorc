@@ -1,7 +1,7 @@
 [Unit]
 Description=Alien4Cloud
-After=network-online.target firewalld.service
-Wants=network-online.target
+After=consul.service network-online.target firewalld.service
+Wants=consul.service  network-online.target
 
 [Service]
 ExecStart=/home/${user}/alien4cloud/alien4cloud.sh

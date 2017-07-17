@@ -71,7 +71,7 @@
             },
             "yaxes": [
               {
-                "format": "short",
+                "format": "ms",
                 "label": null,
                 "logBase": 1,
                 "max": null,
@@ -84,323 +84,324 @@
                 "logBase": 1,
                 "max": null,
                 "min": null,
-                "show": true
+                "show": false
               }
             ]
           },
           {
-            "title": "HTTP Request duration avg",
-            "error": false,
-            "span": 6,
+            "aliasColors": {},
+            "bars": false,
+            "datasource": null,
             "editable": true,
-            "type": "graph",
-            "isNew": true,
+            "error": false,
+            "fill": 1,
+            "grid": {
+              "threshold1": null,
+              "threshold1Color": "rgba(216, 200, 27, 0.27)",
+              "threshold2": null,
+              "threshold2Color": "rgba(234, 112, 112, 0.22)"
+            },
             "id": 5,
+            "isNew": true,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
             "targets": [
               {
-                "target": "averageSeries(stats.timers.janus.http.*.*.mean)",
-                "refId": "A"
+                "refId": "A",
+                "target": "averageSeries(stats.timers.janus.http.*.*.mean)"
               }
             ],
-            "datasource": null,
-            "renderer": "flot",
-            "yaxes": [
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              },
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              }
-            ],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "HTTP Request duration avg",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
             "xaxis": {
               "show": true
             },
-            "grid": {
-              "threshold1": null,
-              "threshold2": null,
-              "threshold1Color": "rgba(216, 200, 27, 0.27)",
-              "threshold2Color": "rgba(234, 112, 112, 0.22)"
-            },
-            "lines": true,
-            "fill": 1,
-            "linewidth": 2,
-            "points": false,
-            "pointradius": 5,
-            "bars": false,
-            "stack": false,
-            "percentage": false,
-            "legend": {
-              "show": true,
-              "values": false,
-              "min": false,
-              "max": false,
-              "current": false,
-              "total": false,
-              "avg": false
-            },
-            "nullPointMode": "connected",
-            "steppedLine": false,
-            "tooltip": {
-              "value_type": "cumulative",
-              "shared": true,
-              "msResolution": false
-            },
-            "timeFrom": null,
-            "timeShift": null,
-            "aliasColors": {},
-            "seriesOverrides": [],
-            "links": []
+            "yaxes": [
+              {
+                "format": "ms",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
+              }
+            ]
           }
         ],
-        "title": "HTTP",
-        "showTitle": true
+        "showTitle": true,
+        "title": "HTTP"
       },
       {
-        "title": "Tasks",
-        "height": "250px",
-        "editable": true,
         "collapse": false,
+        "editable": true,
+        "height": "250px",
         "panels": [
           {
-            "title": "Janus Tasks Wait Time Avg",
-            "error": false,
-            "span": 6,
+            "aliasColors": {},
+            "bars": false,
+            "datasource": null,
             "editable": true,
-            "type": "graph",
-            "isNew": true,
+            "error": false,
+            "fill": 1,
+            "grid": {
+              "threshold1": null,
+              "threshold1Color": "rgba(216, 200, 27, 0.27)",
+              "threshold2": null,
+              "threshold2Color": "rgba(234, 112, 112, 0.22)"
+            },
             "id": 6,
+            "isNew": true,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false,
+              "alignAsTable": false
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
             "targets": [
               {
-                "target": "stats.timers.janus.task.wait.mean",
-                "refId": "A"
+                "refId": "A",
+                "target": "stats.timers.janus.task.wait.mean"
               }
             ],
-            "datasource": null,
-            "renderer": "flot",
-            "yaxes": [
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              },
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              }
-            ],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Janus Tasks Wait Time Avg",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
             "xaxis": {
               "show": true
             },
-            "grid": {
-              "threshold1": null,
-              "threshold2": null,
-              "threshold1Color": "rgba(216, 200, 27, 0.27)",
-              "threshold2Color": "rgba(234, 112, 112, 0.22)"
-            },
-            "lines": true,
-            "fill": 1,
-            "linewidth": 2,
-            "points": false,
-            "pointradius": 5,
-            "bars": false,
-            "stack": false,
-            "percentage": false,
-            "legend": {
-              "show": true,
-              "values": false,
-              "min": false,
-              "max": false,
-              "current": false,
-              "total": false,
-              "avg": false
-            },
-            "nullPointMode": "connected",
-            "steppedLine": false,
-            "tooltip": {
-              "value_type": "cumulative",
-              "shared": true,
-              "msResolution": false
-            },
-            "timeFrom": null,
-            "timeShift": null,
-            "aliasColors": {},
-            "seriesOverrides": [],
-            "links": []
+            "yaxes": [
+              {
+                "format": "ms",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "ms",
+                "label": "",
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
+              }
+            ]
           }
         ],
-        "showTitle": true
+        "showTitle": true,
+        "title": "Tasks"
       },
       {
-        "title": "Executors",
-        "height": "250px",
-        "editable": true,
         "collapse": false,
+        "editable": true,
+        "height": "250px",
         "panels": [
           {
-            "title": "Delegate Executor Duration Avg",
-            "error": false,
-            "span": 6,
+            "aliasColors": {},
+            "bars": false,
+            "datasource": null,
             "editable": true,
-            "type": "graph",
-            "isNew": true,
+            "error": false,
+            "fill": 1,
+            "grid": {
+              "threshold1": null,
+              "threshold1Color": "rgba(216, 200, 27, 0.27)",
+              "threshold2": null,
+              "threshold2Color": "rgba(234, 112, 112, 0.22)"
+            },
             "id": 7,
+            "isNew": true,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
             "targets": [
               {
-                "target": "averageSeries(stats.timers.janus.executor.delegate.*.*.mean)",
-                "refId": "A"
+                "refId": "A",
+                "target": "averageSeries(stats.timers.janus.executor.delegate.*.*.*.mean)"
               }
             ],
-            "datasource": null,
-            "renderer": "flot",
-            "yaxes": [
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              },
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              }
-            ],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Delegate Executor Duration Avg",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
             "xaxis": {
               "show": true
             },
-            "grid": {
-              "threshold1": null,
-              "threshold2": null,
-              "threshold1Color": "rgba(216, 200, 27, 0.27)",
-              "threshold2Color": "rgba(234, 112, 112, 0.22)"
-            },
-            "lines": true,
-            "fill": 1,
-            "linewidth": 2,
-            "points": false,
-            "pointradius": 5,
-            "bars": false,
-            "stack": false,
-            "percentage": false,
-            "legend": {
-              "show": true,
-              "values": false,
-              "min": false,
-              "max": false,
-              "current": false,
-              "total": false,
-              "avg": false
-            },
-            "nullPointMode": "connected",
-            "steppedLine": false,
-            "tooltip": {
-              "value_type": "cumulative",
-              "shared": true,
-              "msResolution": false
-            },
-            "timeFrom": null,
-            "timeShift": null,
-            "aliasColors": {},
-            "seriesOverrides": [],
-            "links": []
+            "yaxes": [
+              {
+                "format": "ms",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
+              }
+            ]
           },
           {
-            "title": "Operation Executor Duration Avg",
-            "error": false,
-            "span": 6,
+            "aliasColors": {},
+            "bars": false,
+            "datasource": null,
             "editable": true,
-            "type": "graph",
-            "isNew": true,
+            "error": false,
+            "fill": 1,
+            "grid": {
+              "threshold1": null,
+              "threshold1Color": "rgba(216, 200, 27, 0.27)",
+              "threshold2": null,
+              "threshold2Color": "rgba(234, 112, 112, 0.22)"
+            },
             "id": 8,
+            "isNew": true,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
             "targets": [
               {
-                "target": "averageSeries(stats.timers.janus.executor.operation.*.*.mean)",
-                "refId": "A"
+                "refId": "A",
+                "target": "averageSeries(stats.timers.janus.executor.operation.*.*.*.mean)"
               }
             ],
-            "datasource": null,
-            "renderer": "flot",
-            "yaxes": [
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              },
-              {
-                "label": null,
-                "show": true,
-                "logBase": 1,
-                "min": null,
-                "max": null,
-                "format": "short"
-              }
-            ],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Operation Executor Duration Avg",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
             "xaxis": {
               "show": true
             },
-            "grid": {
-              "threshold1": null,
-              "threshold2": null,
-              "threshold1Color": "rgba(216, 200, 27, 0.27)",
-              "threshold2Color": "rgba(234, 112, 112, 0.22)"
-            },
-            "lines": true,
-            "fill": 1,
-            "linewidth": 2,
-            "points": false,
-            "pointradius": 5,
-            "bars": false,
-            "stack": false,
-            "percentage": false,
-            "legend": {
-              "show": true,
-              "values": false,
-              "min": false,
-              "max": false,
-              "current": false,
-              "total": false,
-              "avg": false
-            },
-            "nullPointMode": "connected",
-            "steppedLine": false,
-            "tooltip": {
-              "value_type": "cumulative",
-              "shared": true,
-              "msResolution": false
-            },
-            "timeFrom": null,
-            "timeShift": null,
-            "aliasColors": {},
-            "seriesOverrides": [],
-            "links": []
+            "yaxes": [
+              {
+                "format": "ms",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
+              }
+            ]
           }
         ],
-        "showTitle": true
+        "showTitle": true,
+        "title": "Executors"
       },
       {
         "collapse": false,
@@ -476,7 +477,7 @@
                 "logBase": 1,
                 "max": null,
                 "min": null,
-                "show": true
+                "show": false
               }
             ]
           },
@@ -536,7 +537,7 @@
             },
             "yaxes": [
               {
-                "format": "short",
+                "format": "ns",
                 "label": null,
                 "logBase": 1,
                 "max": null,
@@ -609,7 +610,7 @@
             },
             "yaxes": [
               {
-                "format": "short",
+                "format": "bytes",
                 "label": null,
                 "logBase": 1,
                 "max": null,
@@ -622,13 +623,13 @@
                 "logBase": 1,
                 "max": null,
                 "min": null,
-                "show": true
+                "show": false
               }
             ]
           }
         ],
-        "title": "Go Runtime",
-        "showTitle": true
+        "showTitle": true,
+        "title": "Go Runtime"
       }
     ],
     "time": {
@@ -668,7 +669,7 @@
     },
     "refresh": "5s",
     "schemaVersion": 12,
-    "version": 1,
+    "version": 4,
     "links": []
   }
 }

@@ -3,7 +3,7 @@
       "client_addr": "0.0.0.0",
       "data_dir": "/var/consul",
       "server": false,
-      "retry_join": [${consul_servers}],
+      "retry_join": ${consul_servers},
       "telemetry": {
             "statsd_address": "${statsd_ip}:8125"
       }

@@ -35,6 +35,16 @@ data "template_file" "alien-server-service" {
   }
 }
 
+data "template_file" "consul-agent-4alien-config" {
+  template = "${file("../config/consul-agent.config.json.tpl")}"
+
+  vars {
+    ip_address     = "${openstack_compute_instance_v2.alien-server.network.0.fixed_ip_v4}"
+    consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
+    statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+  }
+}
+
 resource "null_resource" "alien-server-provisioning" {
   connection {
     user        = "${var.ssh_manager_user}"
@@ -47,17 +57,37 @@ resource "null_resource" "alien-server-provisioning" {
     destination = "/tmp/alien.service"
   }
 
+  provisioner "file" {
+    content     = "${data.template_file.consul-agent-4alien-config.rendered}"
+    destination = "/tmp/consul-agent.config.json"
+  }
+
+  provisioner "file" {
+    source      = "../config/consul.service"
+    destination = "/tmp/consul.service"
+  }
+
+  provisioner "remote-exec" {
+    script = "../scripts/install_dnsmasq.sh"
+  }
+
   provisioner "remote-exec" {
     inline = [
-      "sudo yum install -q -y wget java-1.8.0-openjdk",
+      "sudo mkdir -p /etc/consul.d",
+      "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
+      "sudo chown root:root /etc/consul.d/*",
+      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
+      "sudo chown root:root /etc/systemd/system/consul.service",
+      "sudo yum install -q -y wget java-1.8.0-openjdk zip unzip",
+      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
       "wget -q -O alien4cloud.tgz \"${var.alien_download_url}\"",
       "mkdir -p ~/alien4cloud",
       "tar xzvf alien4cloud.tgz --strip-components 1 -C ~/alien4cloud",
       "sudo mv /tmp/alien.service /etc/systemd/system/alien.service",
       "sudo chown root:root /etc/systemd/system/alien.service",
       "sudo systemctl daemon-reload",
-      "sudo systemctl enable alien.service",
-      "sudo systemctl start alien.service",
+      "sudo systemctl enable consul.service alien.service",
+      "sudo systemctl start consul.service alien.service",
     ]
   }
 }

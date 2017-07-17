@@ -27,7 +27,6 @@ data "template_file" "janus-server-config" {
 }
 
 data "template_file" "janus-server-service" {
-  count    = "${var.janus_instances}"
   template = "${file("../config/janus.service.tpl")}"
 
   vars {
@@ -35,7 +34,17 @@ data "template_file" "janus-server-service" {
   }
 }
 
+data "template_file" "janus-autofs" {
+  template = "${file("../config/janus-autofs.tpl")}"
+
+  vars {
+    user          = "${var.ssh_manager_user}"
+    nfs_server_ip = "${openstack_compute_instance_v2.nfs-server.network.0.fixed_ip_v4}"
+  }
+}
+
 data "template_file" "janus-consul-checks" {
+  count    = "${var.janus_instances}"
   template = "${file("../config/janus-consul-check.json.tpl")}"
 
   vars {
@@ -50,7 +59,7 @@ data "template_file" "consul-agent-config" {
 
   vars {
     ip_address     = "${element(openstack_compute_instance_v2.janus-server.*.network.0.fixed_ip_v4, count.index)}"
-    consul_servers = "${jsonencode(join(",", openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4))}"
+    consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
     statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
   }
 }
@@ -58,7 +67,7 @@ data "template_file" "consul-agent-config" {
 resource "openstack_compute_instance_v2" "janus-server" {
   count           = "${var.janus_instances}"
   region          = "${var.region}"
-  name            = "${var.prefix}janus-server"
+  name            = "${var.prefix}janus-server-${count.index}"
   image_id        = "${var.janus_compute_image_id}"
   flavor_id       = "${var.janus_compute_flavor_id}"
   key_pair        = "${openstack_compute_keypair_v2.janus.name}"
@@ -107,6 +116,11 @@ resource "null_resource" "janus-server-provisioning" {
   }
 
   provisioner "file" {
+    content     = "${data.template_file.janus-autofs.rendered}"
+    destination = "/tmp/auto.janus"
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.consul-agent-config.*.rendered[count.index]}"
     destination = "/tmp/consul-agent.config.json"
   }
@@ -124,25 +138,28 @@ resource "null_resource" "janus-server-provisioning" {
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p /etc/consul.d",
+      "mkdir -p ~/work",
       "sudo mv /tmp/janus-consul-check.json /etc/consul.d/",
       "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
       "sudo chown root:root /etc/consul.d/*",
       "chmod 400 ${var.ssh_key_file}",
-      "sudo mv /tmp/janus /usr/local/bin",
-      "sudo chmod +x /usr/local/bin/janus",
-      "sudo chown root:root /usr/local/bin/janus",
+      "sudo mv /tmp/janus /usr/local/bin && sudo chmod +x /usr/local/bin/janus && sudo chown root:root /usr/local/bin/janus",
       "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
       "sudo chown root:root /etc/systemd/system/consul.service",
       "sudo mv /tmp/janus.service /etc/systemd/system/janus.service",
       "sudo chown root:root /etc/systemd/system/janus.service",
-      "sudo yum install -q -y unzip zip python2-pip wget",
+      "sudo yum install -q -y unzip zip python2-pip wget nfs-utils autofs",
       "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
       "cd /tmp && wget -q https://releases.hashicorp.com/terraform/0.9.11/terraform_0.9.11_linux_amd64.zip && sudo unzip /tmp/terraform_0.9.11_linux_amd64.zip -d /usr/local/bin",
       "sudo -H pip install -q pip --upgrade",
       "sudo -H pip install -q ansible==2.3.1.0",
       "mv /tmp/config.janus.json ~/config.janus.json",
+      "echo -e '/-    /etc/auto.direct\n' | sudo tee /etc/auto.master > /dev/null",
+      "cat /tmp/auto.janus | sudo tee /etc/auto.direct > /dev/null",
       "sudo systemctl daemon-reload",
-      "sudo systemctl enable consul.service janus.service",
+      "sudo systemctl enable consul.service janus.service autofs.service",
+      "sudo systemctl restart autofs.service",
+      "sudo chown ${var.ssh_manager_user}:${var.ssh_manager_user} ~/work",
       "sudo systemctl start consul.service janus.service",
     ]
   }

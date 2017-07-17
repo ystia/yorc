@@ -4,7 +4,7 @@
       "data_dir": "/var/consul",
       "server": true,
       "bootstrap_expect": ${server_number},
-      "retry_join": [${consul_servers}],
+      "retry_join": ${consul_servers},
       "telemetry": {
             "statsd_address": "${statsd_ip}:8125"
       }

@@ -1,8 +1,8 @@
 {
       "service": {
         "name": "janus",
-        "tags": ["server", "${janus_id}"],
-        "address": "{janus_ip}",
+        "tags": ["${janus_id}"],
+        "address": "${janus_ip}",
         "port": 8800,
         "check": {
           "name": "TCP check on port 8800",

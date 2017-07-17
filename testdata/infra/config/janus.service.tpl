@@ -1,7 +1,7 @@
 [Unit]
 Description=Janus Server
-After=consul.service
-Wants=consul.service
+After=consul.service autofs.service
+Wants=consul.service autofs.service
 
 [Service]
 ExecStart=/usr/local/bin/janus server
