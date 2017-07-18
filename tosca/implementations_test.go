@@ -51,7 +51,7 @@ func implementationArtifact(t *testing.T) {
 implementation:
     file: nginx
     repository: docker
-    type: tosca.artifacts.Deployment.Image.Container.Kubernetes`
+    type: tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes`
 	implem := implementationTestType{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &implem)

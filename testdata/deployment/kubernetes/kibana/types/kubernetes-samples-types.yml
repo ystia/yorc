@@ -26,7 +26,7 @@ node_types:
           implementation:
             file: kibana
             repository: docker
-            type: tosca.artifacts.Deployment.Image.Container.Kubernetes
+            type: tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes
 
   janus.nodes.Docker.ElastichSearch:
     derived_from: janus.nodes.DockerContainer
@@ -36,4 +36,4 @@ node_types:
           implementation:
             file: elasticsearch
             repository: docker
-            type: tosca.artifacts.Deployment.Image.Container.Kubernetes
+            type: tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes

@@ -3,7 +3,7 @@ package kubernetes
 import "novaforge.bull.com/starlings-janus/janus/registry"
 
 const (
-	ImplementationKubernetes = "tosca.artifacts.Deployment.Image.Container.Kubernetes"
+	ImplementationKubernetes = "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes"
 )
 
 func init() {

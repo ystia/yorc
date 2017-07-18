@@ -12,7 +12,7 @@ func GetOperationExecutor(kv *api.KV, deploymentID, nodeName string) prov.Operat
 	nType, _ := deployments.GetNodeType(kv, deploymentID, nodeName)
 	otype, _ := deployments.GetOperationImplementationType(kv, deploymentID, nType, "tosca.interfaces.node.lifecycle.standard.start")
 
-	if otype == "tosca.artifacts.Deployment.Image.Container.Kubernetes" {
+	if otype == "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes" {
 		return kubernetes.NewExecutor()
 	}
 
