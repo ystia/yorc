@@ -1,0 +1,39 @@
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+
+template_name: kubernetes-samples-types
+template_author: Janus
+template_version: 1.0.0-SNAPSHOT
+
+imports:
+  - janus-kubernetes-types: <janus-kubernetes-types.yml>
+
+repositories:
+  docker:
+    url: https://hub.docker.com/
+    type: docker
+
+node_types:
+  janus.nodes.Docker.Kibana:
+    derived_from: janus.nodes.DockerContainer
+    properties:
+      elastic_url:
+        type: string
+    interfaces:
+      Standard:
+        start:
+          inputs:
+            ELASTICSEARCH_URL: { get_property: [ SELF, elastic_url ] }
+          implementation:
+            file: kibana
+            repository: docker
+            type: tosca.artifacts.Deployment.Image.Container.Kubernetes
+
+  janus.nodes.Docker.ElastichSearch:
+    derived_from: janus.nodes.DockerContainer
+    interfaces:
+      Standard:
+        start:
+          implementation:
+            file: elasticsearch
+            repository: docker
+            type: tosca.artifacts.Deployment.Image.Container.Kubernetes

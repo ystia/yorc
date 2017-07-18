@@ -5,7 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
-  - janus-kubernetes-types: types/janus-kubernetes-types.yml
+  - kubernetes-samples-types: types/kubernetes-samples-types.yml
 
 
 topology_template:
@@ -13,7 +13,7 @@ topology_template:
     Kibana:
       type: janus.nodes.Docker.Kibana
       properties:
-        docker_options: "-e ELASTICSEARCH_URL=http://ber-janus-elastichsearch:9200"
+        docker_options: "-e ELASTICSEARCH_URL=http://ber-janus-elasticsearch:9200"
     ElastichSearch:
       type: janus.nodes.Docker.ElastichSearch
       properties:
