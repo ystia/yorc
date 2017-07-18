@@ -304,7 +304,14 @@ func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, o
 		return "", err
 	}
 	if primary == "" {
-		return "", operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", operationName, nodeOrRelType, deploymentID)}
+		implType, err := GetOperationImplementationType(kv, deploymentID, nodeOrRelType, operationName)
+		if err != nil {
+			return "", operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", operationName, nodeOrRelType, deploymentID)}
+		}
+
+		if implType == "tosca.artifacts.Deployment.Image.Container.Kubernetes" {
+			return implType, nil
+		}
 	}
 	primarySlice := strings.Split(primary, ".")
 	ext := primarySlice[len(primarySlice)-1]
