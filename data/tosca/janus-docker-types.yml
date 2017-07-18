@@ -1,0 +1,90 @@
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+
+template_name: janus-docker-types
+template_author: Janus
+template_version: 1.0.0
+
+imports:
+  - normative: <normative-types.yml>
+
+artifact_types:
+  tosca.artifacts.Deployment.Image.Container.Docker:
+    description: Docker Container Image
+    derived_from: tosca.artifacts.Deployment.Image
+
+node_types:
+  janus.nodes.DockerContainer:
+    derived_from: tosca.nodes.Container.Application
+    description: >
+      The TOSCA Container Application Docker node represents an application running in a Docker container.
+      Properties defined in the node will be interpreted as the entrypoint's arguments.
+    properties:
+      cpu_share:
+        type: integer
+        required: false
+        description: >
+          Container CPU shares (relative weight). Example: "512"
+      mem_share:
+        type: string
+        required: false
+        description: >
+          Shared memory with the Docker container. Example: "512M"
+      docker_options:
+        type: string
+        required: false
+        description: >
+          Arbitrary command-line options for the docker run command.
+      docker_ports:
+        type: string
+        required: false
+        description: >
+          List of ports to expose. Example : "8080:80 2100:21"
+      docker_run_cmd:
+        type: string
+        required: false
+        description: >
+          Docker run command. Will override the Dockerfile CMD statement.
+    capabilities:
+      attach: janus.capabilities.DockerVolumeAttachment
+    requirements:
+      - host:
+          capability: janus.capabilities.Container.Docker
+          relationship: tosca.relationships.HostedOn
+          occurrences: [0, 1]
+
+  janus.nodes.DockerVolume:
+    derived_from: tosca.nodes.Root
+    properties:
+      container_path:
+        type: string
+        required: true
+        description: Specifies where the volume is mounted inside the container.
+    capabilities:
+      depends:
+        type: janus.capabilities.DockerVolume
+    requirements:
+      - filesystem_endpoint:
+          capability: janus.capabilities.DockerVolumeAttachment
+          relationship: janus.relationships.MountDockerVolume
+          occurrences: [1,1]
+
+
+capability_types:
+  janus.capabilities.Container.Docker:
+    derived_from: tosca.capabilities.Container
+    description: >
+      The capacity to host and run Docker containers.
+
+  janus.capabilities.DockerVolumeAttachment:
+    derived_from: tosca.capabilities.Attachment
+    description: >
+      Capability to mount a Docker volume
+
+  janus.capabilities.DockerVolume:
+    description: >
+      Capability to connects to a Docker volume
+
+relationship_types:
+  janus.relationships.MountDockerVolume:
+    derived_from: tosca.relationships.AttachTo
+    valid_target_types: [ janus.capabilities.DockerVolumeAttachment ]
