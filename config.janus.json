@@ -13,5 +13,6 @@
         "os_region": "RegionOne",
         "os_prefix": "JANUS-",
         "os_private_network_name": "private_starlings",
-        "os_public_network_name": "not_supported"
+        "os_public_network_name": "not_supported",
+        "kube_master_ip": "10.197.138.154:8001"
 }

@@ -6,6 +6,8 @@ import (
 	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 	// Registering ansible operation executor in the registry
 	_ "novaforge.bull.com/starlings-janus/janus/prov/ansible"
+	// Registering kubernetes operation executor in the registry
+	_ "novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
 	// Registering builtin Tosca definition files
 	_ "novaforge.bull.com/starlings-janus/janus/tosca"
 )
