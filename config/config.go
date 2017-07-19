@@ -27,6 +27,8 @@ const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
+	AnsibleUseOpenSSH             bool
+	AnsibleDebugExec              bool
 	PluginsDirectory              string        `json:"plugins_directory,omitempty"`
 	WorkingDirectory              string        `json:"working_directory,omitempty"`
 	WorkersNumber                 int           `json:"workers_number,omitempty"`

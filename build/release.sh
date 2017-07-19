@@ -136,7 +136,11 @@ if [[ -z "${prerelease}" ]]; then
     if [[ "True" == "$(python -c "import semantic_version; print  semantic_version.Version('${version}') > semantic_version.Version('${masterTag}')" )" ]]; then
         # We should merge the tag to master as it is our highest release
         git checkout master
-        git merge --no-ff "v${version}" -m "merging latest tag v${version} into master"
+        git merge --no-ff "v${version}" -X theirs -m "merging latest tag v${version} into master" || {
+                git merge --abort || true
+                git reset --hard "v${version}"
+        }
+
     fi
 fi
 
@@ -147,7 +151,7 @@ fi
 echo "Building version v${version}"
 git checkout "v${version}"
 make tools || { exit 2; }
-make dist || { exit 2; }
+SKIP_TESTS=1 make dist || { exit 2; }
 
 # Push changes
 if [ "${dryRun}" = false ] ; then

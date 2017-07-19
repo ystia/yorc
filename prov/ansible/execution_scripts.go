@@ -46,14 +46,14 @@ const shellAnsiblePlaybook = `
     [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/%s/wrapper.sh\"" $.OperationRemotePath]]][[[end]]]
       environment:
         [[[ range $key, $envInput := .EnvInputs -]]]
-        [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %s" $envInput.InstanceName $envInput.Name $envInput.Value]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
-        [[[end]]][[[else]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s: %s" $envInput.Name $envInput.Value]]][[[else]]]
+        [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %q" $envInput.InstanceName $envInput.Name $envInput.Value]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
+        [[[end]]][[[else]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s: %q" $envInput.Name $envInput.Value]]][[[else]]]
         [[[printf  "%s: \"\"" $envInput.Name]]]
         [[[end]]][[[end]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]
         [[[printf "%s: \"{{ ansible_env.HOME}}/%s/%s\"" $artName $.OperationRemotePath $art]]]
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
-        [[[printf "%s: %s" $contextK $contextV]]]
+        [[[printf "%s: %q" $contextK $contextV]]]
         [[[end]]][[[ range $hostVarIndex, $hostVarValue := .VarInputsNames -]]]
         [[[printf "%s: \"{{%s}}\"" $hostVarValue $hostVarValue]]]
         [[[end]]]
@@ -127,12 +127,20 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	var wrapperPath string
 	if e.HaveOutput {
 		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = executil.Command(ctx, "ansible-playbook", "-v", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	} else {
 		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
 	}
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
+	}
+	if e.cfg.AnsibleDebugExec {
+		cmd.Args = append(cmd.Args, "-vvvvv")
+	}
+	if e.cfg.AnsibleUseOpenSSH {
+		cmd.Args = append(cmd.Args, "-c", "ssh")
+	} else {
+		cmd.Args = append(cmd.Args, "-c", "paramiko")
 	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer
@@ -143,6 +151,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	errCloseCh := make(chan bool)
 	defer close(errCloseCh)
 	errbuf.Run(errCloseCh)
+
 	defer func(buffer *bytes.Buffer) {
 		if err := e.logAnsibleOutputInConsul(buffer); err != nil {
 			log.Printf("Failed to publish Ansible log %v", err)
