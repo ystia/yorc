@@ -150,7 +150,7 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 			return errors.Wrap(err, "Failed to create service")
 		}
 		for _, val := range serv.Spec.Ports {
-			log.Printf("%s : %s: %d:%d mapped to %d",serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
+			log.Printf("%s : %s: %d:%d mapped to %d", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
 		}
 	}
 
@@ -182,12 +182,12 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 			reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
 			if reason != latestReason {
 				latestReason = reason
-				log.Printf(pod.Name + " : "+string(pod.Status.Phase) + "->" + reason)
-				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : " + pod.Name + " : "+string(pod.Status.Phase)+" -> "+reason)
+				log.Printf(pod.Name + " : " + string(pod.Status.Phase) + "->" + reason)
+				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" -> "+reason)
 			}
 		} else {
-			log.Printf(pod.Name + " : "+string(pod.Status.Phase))
-			events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : " + pod.Name + " : " + string(pod.Status.Phase))
+			log.Printf(pod.Name + " : " + string(pod.Status.Phase))
+			events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase))
 		}
 
 		time.Sleep(2 * time.Second)
