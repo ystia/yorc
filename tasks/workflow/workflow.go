@@ -14,6 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -239,11 +240,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			} else {
 				delegateOp := activity.ActivityValue()
 				err := func() error {
-					defer metrics.MeasureSince([]string{"executor", "delegate", deploymentID, strings.Replace(nodeType, ".", "-", -1), strings.Replace(delegateOp, ".", "-", -1)}, time.Now())
+					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
 					return provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
 				}()
 
 				if err != nil {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					s.setStatus(tosca.NodeStateError.String())
@@ -253,6 +255,8 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					} else {
 						return err
 					}
+				} else {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
 				}
 			}
 		case actType == wfSetStateActivity:
@@ -291,10 +295,11 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			} else {
 
 				err = func() error {
-					defer metrics.MeasureSince([]string{"executor", "operation", deploymentID, strings.Replace(nodeType, ".", "-", -1), strings.Replace(op.Name, ".", "-", -1)}, time.Now())
+					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
 					return exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
 				}()
 				if err != nil {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					if bypassErrors {
@@ -304,6 +309,8 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 						s.setStatus(tosca.NodeStateError.String())
 						return err
 					}
+				} else {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
 				}
 			}
 		}

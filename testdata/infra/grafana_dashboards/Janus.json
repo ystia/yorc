@@ -71,7 +71,7 @@
             },
             "yaxes": [
               {
-                "format": "ms",
+                "format": "none",
                 "label": null,
                 "logBase": 1,
                 "max": null,
@@ -176,6 +176,260 @@
             "datasource": null,
             "editable": true,
             "error": false,
+            "fill": 3,
+            "grid": {
+              "threshold1": null,
+              "threshold1Color": "rgba(216, 200, 27, 0.27)",
+              "threshold2": null,
+              "threshold2Color": "rgba(234, 112, 112, 0.22)"
+            },
+            "id": 11,
+            "isNew": true,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+              {}
+            ],
+            "span": 9,
+            "stack": true,
+            "steppedLine": false,
+            "targets": [
+              {
+                "refId": "A",
+                "target": "stats.gauges.janus.*.workers.free"
+              }
+            ],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Free Workers",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "show": true
+            },
+            "yaxes": [
+              {
+                "format": "none",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
+              }
+            ]
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": false,
+            "colors": [
+              "rgba(245, 54, 54, 0.9)",
+              "rgba(237, 129, 40, 0.89)",
+              "rgba(50, 172, 45, 0.97)"
+            ],
+            "datasource": null,
+            "decimals": 0,
+            "editable": true,
+            "error": false,
+            "format": "none",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": false,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "id": 9,
+            "interval": null,
+            "isNew": true,
+            "links": [],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "span": 3,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": false
+            },
+            "targets": [
+              {
+                "refId": "A",
+                "target": "sumSeries(stats.gauges.janus.*.workers.free)"
+              }
+            ],
+            "thresholds": "",
+            "timeFrom": "30s",
+            "timeShift": null,
+            "title": "Currently Free Workers",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "N/A",
+                "value": "null"
+              }
+            ],
+            "valueName": "avg"
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": false,
+            "colors": [
+              "rgba(245, 54, 54, 0.9)",
+              "rgba(237, 129, 40, 0.89)",
+              "rgba(50, 172, 45, 0.97)"
+            ],
+            "datasource": null,
+            "editable": true,
+            "error": false,
+            "format": "ms",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": false,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "id": 10,
+            "interval": null,
+            "isNew": true,
+            "links": [],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "span": 3,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": false
+            },
+            "targets": [
+              {
+                "refId": "A",
+                "target": "stats.timers.janus.tasks.maxBlockTimeMs.upper"
+              }
+            ],
+            "thresholds": "",
+            "timeFrom": "30s",
+            "timeShift": null,
+            "title": "Current Max Task Block Time",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "N/A",
+                "value": "null"
+              }
+            ],
+            "valueName": "avg"
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": false,
+            "colors": [
+              "rgba(245, 54, 54, 0.9)",
+              "rgba(237, 129, 40, 0.89)",
+              "rgba(50, 172, 45, 0.97)"
+            ],
+            "datasource": null,
+            "decimals": 0,
+            "editable": true,
+            "error": false,
+            "format": "none",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": false,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "id": 12,
+            "interval": null,
+            "isNew": true,
+            "links": [],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "span": 3,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": false
+            },
+            "targets": [
+              {
+                "refId": "A",
+                "target": "sumSeries(stats.gauges.janus.*.tasks.nbWaiting)",
+                "textEditor": true
+              }
+            ],
+            "thresholds": "",
+            "timeFrom": "30s",
+            "title": "Nb waiting tasks",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "N/A",
+                "value": "null"
+              }
+            ],
+            "valueName": "avg"
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "datasource": null,
+            "editable": true,
+            "error": false,
             "fill": 1,
             "grid": {
               "threshold1": null,
@@ -186,14 +440,14 @@
             "id": 6,
             "isNew": true,
             "legend": {
+              "alignAsTable": false,
               "avg": false,
               "current": false,
               "max": false,
               "min": false,
               "show": true,
               "total": false,
-              "values": false,
-              "alignAsTable": false
+              "values": false
             },
             "lines": true,
             "linewidth": 2,
@@ -210,7 +464,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "stats.timers.janus.task.wait.mean"
+                "target": "stats.timers.janus.tasks.wait.mean"
               }
             ],
             "timeFrom": null,
@@ -398,6 +652,134 @@
                 "show": false
               }
             ]
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": false,
+            "colors": [
+              "rgba(245, 54, 54, 0.9)",
+              "rgba(237, 129, 40, 0.89)",
+              "rgba(50, 172, 45, 0.97)"
+            ],
+            "datasource": null,
+            "editable": true,
+            "error": false,
+            "format": "percent",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": true,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "id": 14,
+            "interval": null,
+            "isNew": true,
+            "links": [],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "span": 4,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": false
+            },
+            "targets": [
+              {
+                "refId": "A",
+                "target": "asPercent(sumSeries(stats.counters.janus.executor.delegate.*.*.*.failures.count), #B)",
+                "textEditor": true
+              },
+              {
+                "hide": true,
+                "refId": "B",
+                "target": "sumSeries(stats.counters.janus.executor.delegate.*.*.*.*.count)"
+              }
+            ],
+            "thresholds": "",
+            "title": "Delegate Executor Errors",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "0%",
+                "value": "null"
+              }
+            ],
+            "valueName": "avg"
+          },
+          {
+            "cacheTimeout": null,
+            "colorBackground": false,
+            "colorValue": false,
+            "colors": [
+              "rgba(245, 54, 54, 0.9)",
+              "rgba(237, 129, 40, 0.89)",
+              "rgba(50, 172, 45, 0.97)"
+            ],
+            "datasource": null,
+            "editable": true,
+            "error": false,
+            "format": "percent",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": true,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "id": 13,
+            "interval": null,
+            "isNew": true,
+            "links": [],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "span": 4,
+            "sparkline": {
+              "fillColor": "rgba(31, 118, 189, 0.18)",
+              "full": false,
+              "lineColor": "rgb(31, 120, 193)",
+              "show": false
+            },
+            "targets": [
+              {
+                "refId": "A",
+                "target": "asPercent(sumSeries(stats.counters.janus.executor.operation.*.*.*.failures.count), #B)",
+                "textEditor": true
+              },
+              {
+                "hide": true,
+                "refId": "B",
+                "target": "sumSeries(stats.counters.janus.executor.operation.*.*.*.*.count)"
+              }
+            ],
+            "thresholds": "",
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Operation Executor Errors",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "0%",
+                "value": "null"
+              }
+            ],
+            "valueName": "avg"
           }
         ],
         "showTitle": true,
@@ -633,7 +1015,7 @@
       }
     ],
     "time": {
-      "from": "now-30m",
+      "from": "now-15m",
       "to": "now"
     },
     "timepicker": {
@@ -669,7 +1051,7 @@
     },
     "refresh": "5s",
     "schemaVersion": 12,
-    "version": 4,
+    "version": 8,
     "links": []
   }
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -86,10 +87,10 @@ func telemetryHandler(next http.Handler) http.Handler {
 		} else {
 			endpointPath = r.URL.Path[1:]
 		}
-		defer metrics.MeasureSince([]string{"http", r.Method, endpointPath}, time.Now())
+		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"http", r.Method, endpointPath}), time.Now())
 		writer := &statusRecorderResponseWriter{ResponseWriter: w}
 		next.ServeHTTP(writer, r)
-		metrics.IncrCounter([]string{"http", fmt.Sprint(writer.status), r.Method, endpointPath}, 1)
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"http", fmt.Sprint(writer.status), r.Method, endpointPath}), 1)
 	}
 
 	return http.HandlerFunc(fn)
