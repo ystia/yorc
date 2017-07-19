@@ -41,6 +41,10 @@ type Configuration struct {
 	OSUserName                    string        `json:"os_user_name,omitempty"`
 	OSPassword                    string        `json:"os_password,omitempty"`
 	OSRegion                      string        `json:"os_region,omitempty"`
+	OSInsecure                    string        `json:"os_insecure,omitempty"`
+	OSCACert                      string        `json:"os_cacert_file,omitempty"`
+	OSCert                        string        `json:"os_cert,omitempty"`
+	OSKey                         string        `json:"os_key,omitempty"`
 	ResourcesPrefix               string        `json:"os_prefix,omitempty"`
 	OSPrivateNetworkName          string        `json:"os_private_network_name,omitempty"`
 	OSPublicNetworkName           string        `json:"os_public_network_name,omitempty"`

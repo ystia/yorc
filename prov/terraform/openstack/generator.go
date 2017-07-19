@@ -96,6 +96,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	if cfg.ConsulCert != "" {
 		consulCert = cfg.ConsulCert
 	}
+
 	log.Debugf("Generating infrastructure for deployment with node %s", nodeName)
 	log.Debugf(">>> In GenerateTerraformInfraForNode use consulAddress %s", consulAddress)
 	log.Debugf(">>> In GenerateTerraformInfraForNode use consulScheme %s", consulScheme)
@@ -121,6 +122,10 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			"tenant_name": cfg.OSTenantName,
 			"password":    cfg.OSPassword,
 			"auth_url":    cfg.OSAuthURL,
+			"insecure":    cfg.OSInsecure,
+			"cacert_file": cfg.OSCACert,
+			"cert":        cfg.OSCert,
+			"key":         cfg.OSKey,
 		},
 		"consul": map[string]interface{}{
 			"address":   consulAddress,
