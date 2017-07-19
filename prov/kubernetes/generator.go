@@ -193,7 +193,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 			},
 			ObjectMeta: metadata,
 			Spec: v1.ServiceSpec{
-				//Type:     v1.ServiceTypeNodePort,
+				Type:     v1.ServiceTypeNodePort,
 				Selector: map[string]string{"nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
 				Ports:    servicePorts,
 			},

@@ -85,7 +85,7 @@ func (e *executionCommon) resolveOperation() error {
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
-	switch e.Operation.Name {
+	switch strings.ToLower(e.Operation.Name) {
 	case "tosca.interfaces.node.lifecycle.standard.delete",
 		"tosca.interfaces.node.lifecycle.standard.configure":
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
@@ -145,9 +145,12 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 	}
 
 	if service.Name != "" {
-		_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
+		serv, err := (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create service")
+		}
+		for _, val := range serv.Spec.Ports {
+			log.Printf("%s : %s: %d:%d mapped to %d",serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
 		}
 	}
 
@@ -179,12 +182,12 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 			reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
 			if reason != latestReason {
 				latestReason = reason
-				log.Printf(string(pod.Status.Phase) + "->" + reason)
-				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+string(pod.Status.Phase)+" -> "+reason)
+				log.Printf(pod.Name + " : "+string(pod.Status.Phase) + "->" + reason)
+				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : " + pod.Name + " : "+string(pod.Status.Phase)+" -> "+reason)
 			}
 		} else {
-			log.Printf(string(pod.Status.Phase))
-			events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+string(pod.Status.Phase))
+			log.Printf(pod.Name + " : "+string(pod.Status.Phase))
+			events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : " + pod.Name + " : " + string(pod.Status.Phase))
 		}
 
 		time.Sleep(2 * time.Second)

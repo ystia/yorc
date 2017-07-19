@@ -305,11 +305,20 @@ func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, o
 	}
 	if primary == "" {
 		implType, err := GetOperationImplementationType(kv, deploymentID, nodeOrRelType, operationName)
+
 		if err != nil {
+			res, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "isContainer"), nil)
+			if err != nil {
+				return "", err
+			}
+			if res != nil && string(res.Value) == "true" {
+				return "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes", nil
+			}
 			return "", operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", operationName, nodeOrRelType, deploymentID)}
 		}
 
-		if implType == "tosca.artifacts.Deployment.Image.Container.Kubernetes" {
+		if implType == "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes" {
+			consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "isContainer"), "true")
 			return implType, nil
 		}
 	}
