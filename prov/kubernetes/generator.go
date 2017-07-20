@@ -13,6 +13,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/api/extensions/v1beta1"
 	"strconv"
 	"strings"
 )
@@ -111,10 +112,25 @@ func GeneratePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
 
-func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1.Pod, v1.Service, error) {
+
+func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar) v1.Container {
+	return v1.Container{
+		Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
+		Image:           dockerImage,
+		ImagePullPolicy: v1.PullAlways,
+		Command:         strings.Fields(dockerRunCmd),
+		Resources: v1.ResourceRequirements{
+			Requests: requests,
+			Limits:   limits,
+		},
+		Env: inputs,
+	}
+}
+
+func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1beta1.Deployment, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
-		return v1.Pod{}, v1.Service{}, err
+		return v1beta1.Deployment{}, v1.Service{}, err
 	}
 
 	_, cpuShareStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "cpu_share")
@@ -127,12 +143,12 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 
 	limits, err := generateLimitsRessources(cpuLimitStr, memLimitStr)
 	if err != nil {
-		return v1.Pod{}, v1.Service{}, err
+		return v1beta1.Deployment{}, v1.Service{}, err
 	}
 
 	requests, err := generateRequestRessources(cpuShareStr, memShareStr)
 	if err != nil {
-		return v1.Pod{}, v1.Service{}, err
+		return v1beta1.Deployment{}, v1.Service{}, err
 	}
 
 	metadata := metav1.ObjectMeta{
@@ -140,28 +156,32 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
 	}
 
-	pod := v1.Pod{
+	var replicas int32 = 1
+
+	container := k8s.generateContainer(nodeName, imgName, imagePullPolicy, dockerRunCmd, requests, limits, inputs)
+
+	deployment := v1beta1.Deployment{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
-			APIVersion: "v1",
+			Kind:       "Deployment",
+			APIVersion: "extensions/v1beta1",
 		},
 		ObjectMeta: metadata,
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
-				{
-					Name:            strings.ToLower(GeneratePodName(k8s.cfg.ResourcesPrefix + nodeName)),
-					Image:           imgName,
-					ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
-					Command:         strings.Fields(dockerRunCmd),
-					Resources: v1.ResourceRequirements{
-						Requests: requests,
-						Limits:   limits,
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: metadata.Labels,
+			},
+			Template:v1.PodTemplateSpec{
+				ObjectMeta: metadata,
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						container,
 					},
-					Env: inputs,
 				},
 			},
 		},
 	}
+
 	service := v1.Service{}
 
 	if dockerPorts != "" {
@@ -200,5 +220,5 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 		}
 	}
 
-	return pod, service, nil
+	return deployment, service, nil
 }
