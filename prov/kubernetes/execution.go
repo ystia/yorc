@@ -125,7 +125,7 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 	}
 
 	namespace = strings.ToLower(namespace)
-	err = generator.CreateNamespaceIfMissing(e.deploymentID, namespace, (clientset.(*kubernetes.Clientset)))
+	err = generator.CreateNamespaceIfMissing(e.deploymentID, namespace, clientset.(*kubernetes.Clientset))
 	if err != nil {
 		return err
 	}
