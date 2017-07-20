@@ -17,13 +17,13 @@ import (
 	"strings"
 )
 
-// A Generator is used to generate the Kubernetes objects for a given TOSCA node
+// A K8sGenerator is used to generate the Kubernetes objects for a given TOSCA node
 type K8sGenerator struct {
 	kv  *api.KV
 	cfg config.Configuration
 }
 
-// Create a K8sGenerator
+// NewGenerator create a K8sGenerator
 func NewGenerator(kv *api.KV, cfg config.Configuration) *K8sGenerator {
 	return &K8sGenerator{kv: kv, cfg: cfg}
 }
@@ -92,7 +92,7 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 }
 
-// Create Namespace If Missing
+// CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
 func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentID, namespaceName string, client *kubernetes.Clientset) error {
 	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
 	if err != nil {
@@ -110,12 +110,12 @@ func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentID, namespaceName st
 	return nil
 }
 
-// Generate Pod Name : replace '_' by '-'
+// GeneratePodName by replaceing '_' by '-'
 func GeneratePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
 
-// Generate Kubernetes Pod and Service to deploy based of given Node
+// GeneratePod generate Kubernetes Pod and Service to deploy based of given Node
 func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1.Pod, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
