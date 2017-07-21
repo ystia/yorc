@@ -11,9 +11,9 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/api/extensions/v1beta1"
 	"strconv"
 	"strings"
 )
@@ -112,7 +112,6 @@ func GeneratePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
 
-
 func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar) v1.Container {
 	return v1.Container{
 		Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
@@ -171,7 +170,7 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 			Selector: &metav1.LabelSelector{
 				MatchLabels: metadata.Labels,
 			},
-			Template:v1.PodTemplateSpec{
+			Template: v1.PodTemplateSpec{
 				ObjectMeta: metadata,
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

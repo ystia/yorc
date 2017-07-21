@@ -12,7 +12,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/kubernetesutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"vbom.ml/util/sortorder"
@@ -710,4 +713,22 @@ func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return kvp != nil && len(kvp.Value) > 0, nil
+}
+
+func GetPod(namespace, podName string) (*v1.Pod, error) {
+	pod, err := (kubernetesutil.GetClientSet()).CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return pod, nil
+}
+
+func GetService(namespace, serviceName string) (*v1.Service, error) {
+	service, err := (kubernetesutil.GetClientSet()).CoreV1().Services(namespace).Get(serviceName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return service, nil
 }
