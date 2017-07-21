@@ -166,13 +166,18 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 	}
 
 	deploymentReady := false
+	var available int32 = -1
 
 	for !deploymentReady {
 		deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed fetch deployment")
 		}
-		log.Printf("Deployment %s : %d pod available of %d", e.NodeName, deployment.Status.AvailableReplicas, *deployment.Spec.Replicas)
+		if available != deployment.Status.AvailableReplicas {
+			available = deployment.Status.AvailableReplicas
+			log.Printf("Deployment %s : %d pod available of %d", e.NodeName, available, *deployment.Spec.Replicas)
+		}
+
 		if deployment.Status.AvailableReplicas == *deployment.Spec.Replicas {
 			deploymentReady = true
 		} else {
