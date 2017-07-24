@@ -92,6 +92,15 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 }
 
+func (k8s *K8sGenerator) CreateNewSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) (*v1.Secret, error) {
+	mySecret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{ Name:name },
+		StringData:data,
+	}
+
+	return client.CoreV1().Secrets(namespace).Create(&mySecret)
+}
+
 // CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
 func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentID, namespaceName string, client *kubernetes.Clientset) error {
 	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
@@ -116,7 +125,7 @@ func GeneratePodName(nodeName string) string {
 }
 
 // GeneratePod generate Kubernetes Pod and Service to deploy based of given Node
-func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1.Pod, v1.Service, error) {
+func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType, repoName string, inputs []v1.EnvVar) (v1.Pod, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
 		return v1.Pod{}, v1.Service{}, err
@@ -145,6 +154,12 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
 	}
 
+	var pullRepo []v1.LocalObjectReference
+
+	if repoName != "" {
+		pullRepo = append(pullRepo, v1.LocalObjectReference{Name:repoName})
+	}
+
 	pod := v1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -165,6 +180,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 					Env: inputs,
 				},
 			},
+			ImagePullSecrets: pullRepo,
 		},
 	}
 	service := v1.Service{}

@@ -50,6 +50,7 @@ type executionCommon struct {
 	NodeTypePath        string
 	Artifacts           map[string]string
 	OverlayPath         string
+	SecretRepoName		string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
@@ -85,6 +86,7 @@ func (e *executionCommon) resolveOperation() error {
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
+	ctx = context.WithValue(ctx,"generator", NewGenerator(e.kv, e.cfg))
 	switch strings.ToLower(e.Operation.Name) {
 	case "tosca.interfaces.node.lifecycle.standard.delete",
 		"tosca.interfaces.node.lifecycle.standard.configure":
@@ -115,9 +117,47 @@ func (e *executionCommon) parseEnvInputs() []v1.EnvVar {
 	return data
 }
 
+func (e *executionCommon) checkRepository(ctx context.Context) error {
+	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
+	generator := ctx.Value("generator").(*K8sGenerator)
+
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+
+	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.NodeType, e.Operation.Name)
+	if err != nil {
+		return err
+	}
+
+	repoUrl, err := deployments.GetRepositoryUrlFromName(e.kv, e.deploymentID, repoName)
+	if repoUrl == deployments.DockerHubURL {
+		return nil
+	}
+	//Generate a new secret
+	var data map[string]string
+
+	data["docker-server"] = repoUrl
+
+	if token_type, _ := deployments.GetRepositoryTokenTypeFromName(e.kv, e.deploymentID, repoName); token_type == "password" {
+		token, user, err := deployments.GetRepositoryTokenUserFromName(e.kv, e.deploymentID, repoName)
+		if err != nil {
+			return err
+		}
+		data["docker-username"] = user
+		data["docker-password"] = token
+	}
+	_, err = generator.CreateNewSecret(clientset, namespace, repoName, data)
+	e.SecretRepoName = repoName
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (e *executionCommon) deployPod(ctx context.Context) error {
 	clientset := ctx.Value("clientset")
-	generator := NewGenerator(e.kv, e.cfg)
+	generator := ctx.Value("generator").(*K8sGenerator)
 
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
@@ -133,7 +173,7 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation.Name)
 	inputs := e.parseEnvInputs()
 
-	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, inputs)
+	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType,  e.SecretRepoName, inputs)
 	if err != nil {
 		return err
 	}
