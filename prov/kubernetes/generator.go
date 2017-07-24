@@ -94,8 +94,8 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 func (k8s *K8sGenerator) CreateNewSecret(client *kubernetes.Clientset, namespace, name string, data map[string]string) (*v1.Secret, error) {
 	mySecret := v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{ Name:name },
-		StringData:data,
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		StringData: data,
 	}
 
 	return client.CoreV1().Secrets(namespace).Create(&mySecret)
@@ -157,7 +157,7 @@ func (k8s *K8sGenerator) GeneratePod(deploymentID, nodeName, operation, nodeType
 	var pullRepo []v1.LocalObjectReference
 
 	if repoName != "" {
-		pullRepo = append(pullRepo, v1.LocalObjectReference{Name:repoName})
+		pullRepo = append(pullRepo, v1.LocalObjectReference{Name: repoName})
 	}
 
 	pod := v1.Pod{

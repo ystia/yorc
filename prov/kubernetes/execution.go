@@ -50,7 +50,7 @@ type executionCommon struct {
 	NodeTypePath        string
 	Artifacts           map[string]string
 	OverlayPath         string
-	SecretRepoName		string
+	SecretRepoName      string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
@@ -86,7 +86,7 @@ func (e *executionCommon) resolveOperation() error {
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
-	ctx = context.WithValue(ctx,"generator", NewGenerator(e.kv, e.cfg))
+	ctx = context.WithValue(ctx, "generator", NewGenerator(e.kv, e.cfg))
 	switch strings.ToLower(e.Operation.Name) {
 	case "tosca.interfaces.node.lifecycle.standard.delete",
 		"tosca.interfaces.node.lifecycle.standard.configure":
@@ -173,7 +173,7 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation.Name)
 	inputs := e.parseEnvInputs()
 
-	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType,  e.SecretRepoName, inputs)
+	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, e.SecretRepoName, inputs)
 	if err != nil {
 		return err
 	}
