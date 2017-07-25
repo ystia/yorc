@@ -17,6 +17,7 @@ import (
 	"path"
 	"strings"
 	"time"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/events"
 )
 
@@ -37,6 +38,7 @@ type executionCommon struct {
 	cfg                 config.Configuration
 	deploymentID        string
 	taskID              string
+	taskType			tasks.TaskType
 	NodeName            string
 	Operation           prov.Operation
 	NodeType            string
@@ -53,6 +55,11 @@ type executionCommon struct {
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+	taskType, err := tasks.GetTaskType(kv, taskID)
+	if err != nil {
+		return nil, err
+	}
+
 	execCommon := &executionCommon{kv: kv,
 		cfg:            cfg,
 		deploymentID:   deploymentID,
@@ -61,6 +68,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*structs.EnvInput, 0),
 		taskID:         taskID,
+		taskType:		taskType,
 	}
 
 	return execCommon, execCommon.resolveOperation()
@@ -91,13 +99,24 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
 	case "tosca.interfaces.node.lifecycle.standard.start":
-		err = e.deployNode(ctx)
+		if e.taskType == tasks.ScaleUp {
+			log.Println("##### Scale up node !")
+			err = e.scaleNode(ctx, tasks.ScaleUp)
+		} else {
+			log.Println("##### Deploy node !")
+			err = e.deployNode(ctx)
+		}
 		if err != nil {
 			return err
 		}
 		return e.checkNode(ctx)
 	case "tosca.interfaces.node.lifecycle.standard.stop":
-		return e.uninstallNode(ctx)
+		if e.taskType == tasks.ScaleDown {
+			log.Println("##### Scale down node !")
+			return e.scaleNode(ctx, tasks.ScaleDown)
+		} else {
+			return e.uninstallNode(ctx)
+		}
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
@@ -113,6 +132,33 @@ func (e *executionCommon) parseEnvInputs() []v1.EnvVar {
 	}
 
 	return data
+}
+
+func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskType) error {
+	clientset := ctx.Value("clientset")
+
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return err
+	}
+	namespace = strings.ToLower(namespace)
+
+	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+
+	replica := *deployment.Spec.Replicas
+	if scaleType == tasks.ScaleUp {
+		replica = replica + 1
+	} else if scaleType == tasks.ScaleDown {
+		replica = replica - 1
+	}
+
+	deployment.Spec.Replicas = &replica
+	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
+	if err != nil {
+		return errors.Wrap(err, "Failed to scale deployment")
+	}
+
+	return nil
 }
 
 func (e *executionCommon) deployNode(ctx context.Context) error {
@@ -220,7 +266,6 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 		return err
 	}
 
-	pod := v1.Pod{}
 	status := v1.PodUnknown
 	latestReason := ""
 
@@ -241,36 +286,49 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" -> "+reason)
 			}
 		} else {
-			log.Printf(pod.Name + " : " + string(pod.Status.Phase))
-			events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase))
-		}
-
-		time.Sleep(2 * time.Second)
-	}
-
-	ready := true
-	cond := v1.PodCondition{}
-	for _, condition := range pod.Status.Conditions {
-		if condition.Status == v1.ConditionFalse {
-			ready = false
-			cond = condition
-		}
-	}
-
-	if !ready {
-		reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
-		message := pod.Status.ContainerStatuses[0].State.Waiting.Message
-
-		if reason == "RunContainerError" {
-			logs, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
-			if err != nil {
-				return errors.Wrap(err, "Failed to fetch pod logs")
+			ready := true
+			cond := v1.PodCondition{}
+			for _, condition := range pod.Status.Conditions {
+				if condition.Status == v1.ConditionFalse {
+					ready = false
+					cond = condition
+				}
 			}
-			podLogs := string(logs)
-			return errors.Errorf("Pod failed to start reason : %s --- Message : %s --- Pod logs : %s", reason, message, podLogs)
+
+			if !ready {
+				state := ""
+				reason := ""
+				message := "running"
+
+				if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+					state = "waiting"
+					reason = pod.Status.ContainerStatuses[0].State.Waiting.Reason
+					message = pod.Status.ContainerStatuses[0].State.Waiting.Message
+				} else if pod.Status.ContainerStatuses[0].State.Terminated != nil {
+					state = "terminated"
+					reason = pod.Status.ContainerStatuses[0].State.Terminated.Reason
+					message = pod.Status.ContainerStatuses[0].State.Terminated.Message
+				}
+
+				log.Printf(pod.Name + " : " + string(pod.Status.Phase))
+				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" ("+state+")")
+
+				if reason == "RunContainerError" {
+					logs, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
+					if err != nil {
+						return errors.Wrap(err, "Failed to fetch pod logs")
+					}
+					podLogs := string(logs)
+					log.Printf("Pod failed to start reason : %s --- Message : %s --- Pod logs : %s", reason, message, podLogs)
+				}
+
+				log.Printf("Pod failed to start reason : %s --- Message : %s -- condition : %s", reason, message, cond.Message)
+			}
 		}
 
-		return errors.Errorf("Pod failed to start reason : %s --- Message : %s -- condition : %s", reason, message, cond.Message)
+		if status != v1.PodRunning {
+			time.Sleep(2 * time.Second)
+		}
 	}
 
 	return nil
