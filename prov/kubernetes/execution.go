@@ -127,25 +127,26 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	repoUrl, err := deployments.GetRepositoryUrlFromName(e.kv, e.deploymentID, repoName)
 	if repoUrl == deployments.DockerHubURL {
 		return nil
 	}
-	//Generate a new secret
-	var data map[string]string
 
-	data["docker-server"] = repoUrl
+	//Generate a new secret
+	data := make(map[string][]byte)
+	var byteD []byte
 
 	if token_type, _ := deployments.GetRepositoryTokenTypeFromName(e.kv, e.deploymentID, repoName); token_type == "password" {
 		token, user, err := deployments.GetRepositoryTokenUserFromName(e.kv, e.deploymentID, repoName)
 		if err != nil {
 			return err
 		}
-		data["docker-username"] = user
-		data["docker-password"] = token
+		byteD = []byte(`{"` + repoUrl + `":{"username":"` + user + `","password":"` + token + `","email":"test@test.test"}}`)
 	}
-	_, err = generator.CreateNewSecret(clientset, namespace, repoName, data)
+
+	data[".dockercfg"] = byteD
+	repoName = strings.ToLower(repoName)
+	_, err = generator.CreateNewRepoSecret(clientset, namespace, repoName, data)
 	e.SecretRepoName = repoName
 
 	if err != nil {
@@ -166,6 +167,11 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 
 	namespace = strings.ToLower(namespace)
 	err = generator.CreateNamespaceIfMissing(e.deploymentID, namespace, clientset.(*kubernetes.Clientset))
+	if err != nil {
+		return err
+	}
+
+	err = e.checkRepository(ctx)
 	if err != nil {
 		return err
 	}
