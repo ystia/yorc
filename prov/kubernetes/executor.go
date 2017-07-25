@@ -46,7 +46,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 	var clientset *kubernetes.Clientset
-	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIp, "")
+	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIP, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build kubernetes config")
 	}
