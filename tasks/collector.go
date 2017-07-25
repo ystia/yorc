@@ -27,7 +27,9 @@ func NewCollector(consulClient *api.Client) *Collector {
 // The task id is returned.
 func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, data map[string]string) (string, error) {
 	destroy, lock, taskID, err := c.registerTaskWithoutDestroyLock(targetID, taskType, data)
-	defer destroy(lock, taskID, targetID)
+	if destroy != nil {
+		defer destroy(lock, taskID, targetID)
+	}
 	if err != nil {
 		return "", err
 	}
