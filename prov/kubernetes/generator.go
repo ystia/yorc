@@ -117,7 +117,8 @@ func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 	return v1.Container{
 		Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
 		Image:           dockerImage,
-		ImagePullPolicy: v1.PullAlways,
+		//ImagePullPolicy: v1.PullIfNotPresent,
+		ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 		Command:         strings.Fields(dockerRunCmd),
 		Resources: v1.ResourceRequirements{
 			Requests: requests,
@@ -127,7 +128,7 @@ func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 	}
 }
 
-func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar) (v1beta1.Deployment, v1.Service, error) {
+func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
@@ -156,8 +157,6 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
 	}
 
-	var replicas int32 = 1
-
 	container := k8s.generateContainer(nodeName, imgName, imagePullPolicy, dockerRunCmd, requests, limits, inputs)
 
 	deployment := v1beta1.Deployment{
@@ -167,7 +166,7 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 		},
 		ObjectMeta: metadata,
 		Spec: v1beta1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: &nbInstances,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: metadata.Labels,
 			},

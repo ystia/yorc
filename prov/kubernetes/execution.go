@@ -14,10 +14,10 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/prov/structs"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"path"
 	"strings"
 	"time"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/events"
 )
 
@@ -38,7 +38,7 @@ type executionCommon struct {
 	cfg                 config.Configuration
 	deploymentID        string
 	taskID              string
-	taskType			tasks.TaskType
+	taskType            tasks.TaskType
 	NodeName            string
 	Operation           prov.Operation
 	NodeType            string
@@ -68,7 +68,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*structs.EnvInput, 0),
 		taskID:         taskID,
-		taskType:		taskType,
+		taskType:       taskType,
 	}
 
 	return execCommon, execCommon.resolveOperation()
@@ -93,6 +93,8 @@ func (e *executionCommon) resolveOperation() error {
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
+	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+	nbInstances := int32(len(instances))
 	switch strings.ToLower(e.Operation.Name) {
 	case "tosca.interfaces.node.lifecycle.standard.delete",
 		"tosca.interfaces.node.lifecycle.standard.configure":
@@ -101,10 +103,10 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	case "tosca.interfaces.node.lifecycle.standard.start":
 		if e.taskType == tasks.ScaleUp {
 			log.Println("##### Scale up node !")
-			err = e.scaleNode(ctx, tasks.ScaleUp)
+			err = e.scaleNode(ctx, tasks.ScaleUp, nbInstances)
 		} else {
 			log.Println("##### Deploy node !")
-			err = e.deployNode(ctx)
+			err = e.deployNode(ctx, nbInstances)
 		}
 		if err != nil {
 			return err
@@ -113,7 +115,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	case "tosca.interfaces.node.lifecycle.standard.stop":
 		if e.taskType == tasks.ScaleDown {
 			log.Println("##### Scale down node !")
-			return e.scaleNode(ctx, tasks.ScaleDown)
+			return e.scaleNode(ctx, tasks.ScaleDown, nbInstances)
 		} else {
 			return e.uninstallNode(ctx)
 		}
@@ -134,7 +136,7 @@ func (e *executionCommon) parseEnvInputs() []v1.EnvVar {
 	return data
 }
 
-func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskType) error {
+func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskType, nbInstances int32) error {
 	clientset := ctx.Value("clientset")
 
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
@@ -147,9 +149,9 @@ func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskTyp
 
 	replica := *deployment.Spec.Replicas
 	if scaleType == tasks.ScaleUp {
-		replica = replica + 1
+		replica = replica + nbInstances
 	} else if scaleType == tasks.ScaleDown {
-		replica = replica - 1
+		replica = replica - nbInstances
 	}
 
 	deployment.Spec.Replicas = &replica
@@ -161,7 +163,7 @@ func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskTyp
 	return nil
 }
 
-func (e *executionCommon) deployNode(ctx context.Context) error {
+func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) error {
 	clientset := ctx.Value("clientset")
 	generator := NewGenerator(e.kv, e.cfg)
 
@@ -179,7 +181,7 @@ func (e *executionCommon) deployNode(ctx context.Context) error {
 	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation.Name)
 	inputs := e.parseEnvInputs()
 
-	deployment, service, err := generator.GenerateDeployment(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, inputs)
+	deployment, service, err := generator.GenerateDeployment(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, inputs, nbInstances)
 	if err != nil {
 		return err
 	}
