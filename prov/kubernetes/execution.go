@@ -127,7 +127,7 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	repoUrl, err := deployments.GetRepositoryUrlFromName(e.kv, e.deploymentID, repoName)
+	repoUrl, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
 	if repoUrl == deployments.DockerHubURL {
 		return nil
 	}
@@ -136,7 +136,7 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	data := make(map[string][]byte)
 	var byteD []byte
 
-	if token_type, _ := deployments.GetRepositoryTokenTypeFromName(e.kv, e.deploymentID, repoName); token_type == "password" {
+	if tokenType, _ := deployments.GetRepositoryTokenTypeFromName(e.kv, e.deploymentID, repoName); tokenType == "password" {
 		token, user, err := deployments.GetRepositoryTokenUserFromName(e.kv, e.deploymentID, repoName)
 		if err != nil {
 			return err

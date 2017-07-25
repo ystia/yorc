@@ -9,10 +9,11 @@ import (
 	"path"
 )
 
+//Official URL for the docker hub
 const DockerHubURL string = "https://hub.docker.com/"
 
 //This function allow you to retrieve the url of a repo from is name
-func GetRepositoryUrlFromName(kv *api.KV, deploymentID, repoName string) (url string, err error) {
+func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (url string, err error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "url"), nil)
 	if err != nil {
@@ -29,6 +30,7 @@ func GetRepositoryUrlFromName(kv *api.KV, deploymentID, repoName string) (url st
 	return
 }
 
+//This function get the token_type of credential for a given repoName
 func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (token_type string, err error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "token_type"), nil)
@@ -46,6 +48,7 @@ func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (
 	return
 }
 
+//This function get the credentials (user/token) for a given repoName
 func GetRepositoryTokenUserFromName(kv *api.KV, deploymentID, repoName string) (token string, user string, err error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "token"), nil)

@@ -52,6 +52,7 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 	return GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
 }
 
+//This function return the path for a given operation
 func GetOperationPath(deploymentID, nodeType, operationName string) string {
 	var op string
 	if idx := strings.Index(operationName, "configure."); idx >= 0 {
@@ -88,6 +89,7 @@ func GetOperationImplementationType(kv *api.KV, deploymentID, nodeType, operatio
 	return string(kvp.Value), nil
 }
 
+//This function allow to get the file of an implementation for a given operation.
 func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
 	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/file"), nil)
@@ -102,6 +104,7 @@ func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operatio
 	return string(kvp.Value), nil
 }
 
+//This function allow to get the repository of an implementation by the operationName
 func GetOperationImplementationRepository(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
 	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/repository"), nil)
