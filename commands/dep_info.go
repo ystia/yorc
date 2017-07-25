@@ -53,7 +53,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 			if err != nil {
 				errExit(err)
 			}
-			handleHTTPStatusCode(response, http.StatusOK)
+			handleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
 			var dep rest.Deployment
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {

@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"io/ioutil"
 
+	"fmt"
 	"github.com/goware/urlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -93,28 +94,15 @@ func isExpected(got int, expected []int) bool {
 	return false
 }
 
-func handleHTTPStatusCode(response *http.Response, expectedStatusCodes ...int) {
+func handleHTTPStatusCode(response *http.Response, resourceID string, resourceType string, expectedStatusCodes ...int) {
 	if !isExpected(response.StatusCode, expectedStatusCodes) {
 		switch response.StatusCode {
-		case http.StatusNoContent:
-			// This case is not an error so the exit code is OK
-			okExit("No content found")
-		default:
-			printErrors(response.Body)
-			errExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))
-		}
-	}
-
-}
-
-func handleHTTPStatusCodeForStreaming(response *http.Response, resourceID string, expectedStatusCodes ...int) {
-	if !isExpected(response.StatusCode, expectedStatusCodes) {
-		switch response.StatusCode {
+		// This case is not an error so the exit code is OK
 		case http.StatusNotFound:
-			okExit(errors.Errorf("The resource id [%s] has been deleted since the beginning of the streaming request", resourceID))
+			okExit(fmt.Sprintf("The %s with the following id [%s] is no more available", resourceType, resourceID))
 		case http.StatusNoContent:
-			// This case is not an error so the exit code is OK
-			okExit("No content found")
+			// same point as above
+			okExit(fmt.Sprintf("No %s available", resourceType))
 		default:
 			printErrors(response.Body)
 			errExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))

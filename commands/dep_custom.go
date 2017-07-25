@@ -65,7 +65,7 @@ func init() {
 				errExit(err)
 			}
 
-			handleHTTPStatusCode(response, http.StatusAccepted)
+			handleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
 			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
 			return nil
 		},

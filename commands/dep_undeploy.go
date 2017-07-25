@@ -40,7 +40,7 @@ func init() {
 			if err != nil {
 				errExit(err)
 			}
-			handleHTTPStatusCode(response, http.StatusAccepted)
+			handleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
 
 			fmt.Println("Undeployment submitted. In progress...")
 			if shouldStreamLogs && !shouldStreamEvents {

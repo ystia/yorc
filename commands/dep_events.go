@@ -53,7 +53,7 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		if err != nil {
 			errExit(err)
 		}
-		handleHTTPStatusCodeForStreaming(response, deploymentID, http.StatusOK)
+		handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		idxHd := response.Header.Get(rest.JanusIndexHeader)
 		if idxHd != "" {
 			lastIdx, err = strconv.ParseUint(idxHd, 10, 64)
@@ -77,13 +77,7 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 			errExit(err)
 		}
 
-		// An index can possibly be removed during streaming
-		if response.StatusCode == http.StatusNotFound {
-			errExit(errors.Errorf("Index %d not found, the last index must have been reached previously", lastIdx))
-		} else {
-			handleHTTPStatusCode(response, http.StatusOK)
-		}
-
+		handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		var evts rest.EventsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {

@@ -35,7 +35,8 @@ var cancelTaskCmd = &cobra.Command{
 		if err != nil {
 			errExit(err)
 		}
-		handleHTTPStatusCode(response, http.StatusAccepted)
+		ids := args[0] + "/" + args[1]
+		handleHTTPStatusCode(response, ids, "deployment/task", http.StatusAccepted)
 		return nil
 	},
 }

@@ -38,7 +38,8 @@ func init() {
 			if err != nil {
 				errExit(err)
 			}
-			handleHTTPStatusCode(response, http.StatusOK)
+			ids := args[0] + "/" + workflowName
+			handleHTTPStatusCode(response, ids, "deployment/workflow", http.StatusOK)
 
 			var wf rest.Workflow
 			body, err := ioutil.ReadAll(response.Body)

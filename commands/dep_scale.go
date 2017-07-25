@@ -82,11 +82,8 @@ func postScalingRequest(client *janusClient, deploymentID, nodeName string, inst
 		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
 	}
 
-	if response.StatusCode == http.StatusNotFound {
-		errExit(errors.New("Deployment or Node not found"))
-	} else {
-		handleHTTPStatusCode(response, http.StatusAccepted)
-	}
+	ids := deploymentID + "/" + nodeName
+	handleHTTPStatusCode(response, ids, "deployment/node", http.StatusAccepted)
 	location := response.Header.Get("Location")
 	if location == "" {
 		return "", errors.New("No \"Location\" header returned in Janus response")
