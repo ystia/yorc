@@ -65,9 +65,9 @@ type Repository struct {
 }
 
 type Credential struct {
-	Protocol  string            `yaml:"protocol:omitempty"`
 	TokenType string            `yaml:"token_type"`
 	Token     string            `yaml:"token"`
-	Keys      map[string]string `yaml:"keys:omitempty"`
-	Username  string            `yaml:"user:omitempty"`
+	User      string            `yaml:"user,omitempty"`
+	Protocol  string            `yaml:"protocol,omitempty"`
+	Keys      map[string]string `yaml:"keys,omitempty"`
 }
