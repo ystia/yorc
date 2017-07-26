@@ -185,7 +185,7 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 
 	if dockerPorts != "" {
 		servicePorts := []v1.ServicePort{}
-		portMaps := strings.Split(dockerPorts, " ")
+		portMaps := strings.Split(strings.Replace(dockerPorts, "\"", "", -1), " ")
 
 		for i, portMap := range portMaps {
 			ports := strings.Split(portMap, ":")
