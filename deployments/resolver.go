@@ -18,6 +18,7 @@ const funcKeywordSELF string = "SELF"
 const funcKeywordHOST string = "HOST"
 const funcKeywordSOURCE string = "SOURCE"
 const funcKeywordTARGET string = "TARGET"
+const funcKeywordREQTARGET string = "REQ_TARGET"
 
 // Resolver is used to resolve TOSCA functions
 type Resolver struct {
@@ -55,6 +56,36 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			return "", errors.Errorf("get_property on requirement or capability or in nested property is not yet supported")
 		}
 		switch params[0] {
+		case funcKeywordREQTARGET:
+			if params[2] == "ip_address" || params[2] == "port" {
+				//TODO Handle this case with asking directly Kubernetes via client-go
+
+			}
+			reqArr, err := GetRequirementsIndexes(r.kv, r.deploymentID, nodeName)
+			if err != nil {
+				return "", err
+			}
+
+			for _, req := range reqArr {
+				target, err := GetTargetNodeForRequirement(r.kv, r.deploymentID, nodeName, req)
+				if err != nil {
+					return "", err
+				}
+				if params[1] == target {
+					found, result, err := GetNodeProperty(r.kv, r.deploymentID, target, params[2])
+					if err != nil {
+						return "", err
+					}
+					if !found {
+						log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentID, nodeName, expression.String())
+						return "", errors.Errorf("Can't resolve expression %q", expression.String())
+					}
+					if result == "" {
+						return result, nil
+					}
+				}
+			}
+
 		case funcKeywordSELF:
 			found, result, err := GetNodeProperty(r.kv, r.deploymentID, nodeName, params[1])
 			if err != nil {
@@ -284,12 +315,15 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 		}
 		params = append(params, exp)
 	}
-
 	switch expression.Value {
 	case "get_property":
 		if len(params) != 2 {
 			return "", errors.Errorf("get_property on requirement or capability or in nested property is not yet supported")
 		}
+
+		//Special case, dirty stuff need to be changed
+		//Get the treeNode from the sources, if is REQ_TARGET type -> Get value from the the target dans fill the result in source node
+
 		switch params[0] {
 		case funcKeywordSELF:
 			found, result, err := GetRelationshipPropertyFromRequirement(r.kv, r.deploymentID, sourceNode, requirementIndex, params[1])

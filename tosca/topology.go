@@ -12,6 +12,8 @@ type Topology struct {
 
 	Imports []ImportMap `yaml:"imports,omitempty"`
 
+	Repositories map[string]Repository `yaml:"repositories,omitempty"`
+
 	// TODO Data Types
 	ArtifactTypes     map[string]ArtifactType     `yaml:"artifact_types,omitempty"`
 	NodeTypes         map[string]NodeType         `yaml:"node_types,omitempty"`
@@ -50,4 +52,13 @@ type NodeTemplate struct {
 	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
 	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
 	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
+}
+
+//A Repository is representation of TOSCA Repository
+//
+//See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/csprd01/TOSCA-Simple-Profile-YAML-v1.0-csprd01.html#_Toc430015673 for more details
+type Repository struct {
+	URL         string `yaml:"url,omitempty"`
+	Type        string `yaml:"type,omitempty"`
+	Description string `yaml:"descritpion,omitempty"`
 }
