@@ -13,6 +13,7 @@ import (
 	"strconv"
 )
 
+// InputsResolver used to resolve inputs for kubernetes support
 func InputsResolver(kv *api.KV, operationPath, deploymentID, nodeName, taskID, operation string) ([]*structs.EnvInput, []string, error) {
 
 	resolver := deployments.NewResolver(kv, deploymentID)

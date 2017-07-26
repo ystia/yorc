@@ -124,7 +124,7 @@ func storeRepositories(ctx context.Context, topology tosca.Topology, topologyPre
 	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
 	for repositoryName, repo := range topology.Repositories {
 		repoPrefix := path.Join(repositoriesPrefix, repositoryName)
-		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "url"), repo.Url)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "url"), repo.URL)
 		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "type"), repo.Type)
 		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "description"), repo.Description)
 	}

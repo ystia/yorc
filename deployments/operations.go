@@ -73,7 +73,7 @@ func GetOperationPath(deploymentID, nodeType, operationName string) string {
 
 }
 
-//This function allows you when the implementation of an operation is an artifact to retrive the type of this artifact
+// GetOperationImplementationType allows you when the implementation of an operation is an artifact to retrieve the type of this artifact
 func GetOperationImplementationType(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
 	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/type"), nil)
@@ -88,6 +88,7 @@ func GetOperationImplementationType(kv *api.KV, deploymentID, nodeType, operatio
 	return string(kvp.Value), nil
 }
 
+// GetOperationImplementationFile allows you when the implementation of an operation is an artifact to retrieve the file of this artifact
 func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
 	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/file"), nil)
@@ -102,6 +103,7 @@ func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operatio
 	return string(kvp.Value), nil
 }
 
+// GetOperationImplementationRepository allows you when the implementation of an operation is an artifact to retrieve the repository of this artifact
 func GetOperationImplementationRepository(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
 	operationPath := GetOperationPath(deploymentID, nodeType, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/repository"), nil)
@@ -134,32 +136,6 @@ func IsRelationshipOperationOnTargetNode(operationName string) bool {
 		return true
 	}
 	return false
-}
-
-func GetImplementationDependencies(kv *api.KV, operationPath string) ([]string, error) {
-	kvPair, _, err := kv.Get(operationPath+"/implementation/dependencies", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if kvPair != nil {
-		return strings.Split(string(kvPair.Value), ","), nil
-	}
-
-	return make([]string, 0), nil
-
-}
-
-func GetOperationDescripton(kv *api.KV, operationPath string) (string, error) {
-	kvPair, _, err := kv.Get(operationPath+"/description", nil)
-	if err != nil {
-		return "", errors.Wrap(err, "Consul query failed: ")
-	}
-	if kvPair != nil && len(kvPair.Value) > 0 {
-		return string(kvPair.Value), nil
-	}
-
-	return "", errors.Errorf("Fail to get the operation %s  description", operationPath)
 }
 
 // DecodeOperation takes a given operationName that should be formated as <fully_qualified_operation_name> or <fully_qualified_relationship_operation_name>/<requirementIndex> or <fully_qualified_relationship_operation_name>/<requirementName>/<targetNodeName>
