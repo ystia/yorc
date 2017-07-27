@@ -54,7 +54,7 @@ func (d *Dispatcher) Run() {
 		default:
 		}
 		q := &api.QueryOptions{WaitIndex: waitIndex}
-		log.Debugf("Long pooling task list")
+		log.Debugf("Long polling task list")
 		tasksKeys, rMeta, err := kv.Keys(consulutil.TasksPrefix+"/", "/", q)
 		if err != nil {
 			err = errors.Wrap(err, "Error getting tasks list")
