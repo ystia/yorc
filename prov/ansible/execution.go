@@ -104,6 +104,7 @@ type executionCommon struct {
 	operation                prov.Operation
 	NodeType                 string
 	Description              string
+	OperationRemoteBaseDir   string
 	OperationRemotePath      string
 	EnvInputs                []*EnvInput
 	VarInputsNames           []string
@@ -129,15 +130,17 @@ type executionCommon struct {
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	execCommon := &executionCommon{kv: kv,
-		cfg:            cfg,
-		deploymentID:   deploymentID,
-		NodeName:       nodeName,
-		operation:      operation,
-		VarInputsNames: make([]string, 0),
-		EnvInputs:      make([]*EnvInput, 0),
-		taskID:         taskID,
-		Outputs:        make(map[string]string),
+		cfg:                    cfg,
+		deploymentID:           deploymentID,
+		NodeName:               nodeName,
+		OperationRemoteBaseDir: ".janus_" + timestamp,
+		operation:              operation,
+		VarInputsNames:         make([]string, 0),
+		EnvInputs:              make([]*EnvInput, 0),
+		taskID:                 taskID,
+		Outputs:                make(map[string]string),
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -793,9 +796,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.operation.Name)
+		e.OperationRemotePath = fmt.Sprintf("%s/%s/%s/%s", e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.operation.Name)
+		e.OperationRemotePath = fmt.Sprintf("%s/%s/%s", e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
