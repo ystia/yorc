@@ -99,7 +99,7 @@ func handleHTTPStatusCode(response *http.Response, resourceID string, resourceTy
 		switch response.StatusCode {
 		// This case is not an error so the exit code is OK
 		case http.StatusNotFound:
-			okExit(fmt.Sprintf("The %s with the following id [%s] is no more available", resourceType, resourceID))
+			okExit(fmt.Sprintf("The %s with the following id [%s] is not available", resourceType, resourceID))
 		case http.StatusNoContent:
 			// same point as above
 			okExit(fmt.Sprintf("No %s available", resourceType))
