@@ -11,9 +11,9 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/api/extensions/v1beta1"
 	"strconv"
 	"strings"
 )
@@ -126,11 +126,10 @@ func GeneratePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
 
-
 func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar) v1.Container {
 	return v1.Container{
-		Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
-		Image:           dockerImage,
+		Name:  strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
+		Image: dockerImage,
 		//ImagePullPolicy: v1.PullIfNotPresent,
 		ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 		Command:         strings.Fields(dockerRunCmd),
@@ -143,7 +142,7 @@ func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 }
 
 // GenerateDeployment generate Kubernetes Pod and Service to deploy based of given Node
-func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
+func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType, repoName string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
@@ -191,7 +190,7 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 			Selector: &metav1.LabelSelector{
 				MatchLabels: metadata.Labels,
 			},
-			Template:v1.PodTemplateSpec{
+			Template: v1.PodTemplateSpec{
 				ObjectMeta: metadata,
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
