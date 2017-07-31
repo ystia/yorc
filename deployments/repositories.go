@@ -12,7 +12,7 @@ import (
 //Official URL for the docker hub
 const DockerHubURL string = "https://hub.docker.com/"
 
-//This function allow you to retrieve the url of a repo from is name
+// GetRepositoryUrlFromName allow you to retrieve the url of a repo from is name
 func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (url string, err error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "url"), nil)

@@ -11,15 +11,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/prov/structs"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"path"
 	"strings"
 	"time"
+	"novaforge.bull.com/starlings-janus/janus/events"
 )
 
 // An EnvInput represent a TOSCA operation input
@@ -46,6 +47,7 @@ type executionCommon struct {
 	cfg                 config.Configuration
 	deploymentID        string
 	taskID              string
+	taskType            tasks.TaskType
 	NodeName            string
 	Operation           prov.Operation
 	NodeType            string
@@ -63,6 +65,11 @@ type executionCommon struct {
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+	taskType, err := tasks.GetTaskType(kv, taskID)
+	if err != nil {
+		return nil, err
+	}
+
 	execCommon := &executionCommon{kv: kv,
 		cfg:            cfg,
 		deploymentID:   deploymentID,
@@ -71,6 +78,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		VarInputsNames: make([]string, 0),
 		EnvInputs:      make([]*structs.EnvInput, 0),
 		taskID:         taskID,
+		taskType:       taskType,
 	}
 
 	return execCommon, execCommon.resolveOperation()
@@ -96,19 +104,32 @@ func (e *executionCommon) resolveOperation() error {
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
 	ctx = context.WithValue(ctx, "generator", NewGenerator(e.kv, e.cfg))
+	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+	nbInstances := int32(len(instances))
 	switch strings.ToLower(e.Operation.Name) {
 	case "tosca.interfaces.node.lifecycle.standard.delete",
 		"tosca.interfaces.node.lifecycle.standard.configure":
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
 	case "tosca.interfaces.node.lifecycle.standard.start":
-		err = e.deployPod(ctx)
+		if e.taskType == tasks.ScaleUp {
+			log.Println("##### Scale up node !")
+			err = e.scaleNode(ctx, tasks.ScaleUp, nbInstances)
+		} else {
+			log.Println("##### Deploy node !")
+			err = e.deployNode(ctx, nbInstances)
+		}
 		if err != nil {
 			return err
 		}
 		return e.checkNode(ctx)
 	case "tosca.interfaces.node.lifecycle.standard.stop":
-		return e.uninstallNode(ctx)
+		if e.taskType == tasks.ScaleDown {
+			log.Println("##### Scale down node !")
+			return e.scaleNode(ctx, tasks.ScaleDown, nbInstances)
+		} else {
+			return e.uninstallNode(ctx)
+		}
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
@@ -174,7 +195,34 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionCommon) deployPod(ctx context.Context) error {
+func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskType, nbInstances int32) error {
+	clientset := ctx.Value("clientset")
+
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return err
+	}
+	namespace = strings.ToLower(namespace)
+
+	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+
+	replica := *deployment.Spec.Replicas
+	if scaleType == tasks.ScaleUp {
+		replica = replica + nbInstances
+	} else if scaleType == tasks.ScaleDown {
+		replica = replica - nbInstances
+	}
+
+	deployment.Spec.Replicas = &replica
+	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
+	if err != nil {
+		return errors.Wrap(err, "Failed to scale deployment")
+	}
+
+	return nil
+}
+
+func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) error {
 	clientset := ctx.Value("clientset")
 	generator := ctx.Value("generator").(*K8sGenerator)
 
@@ -197,15 +245,15 @@ func (e *executionCommon) deployPod(ctx context.Context) error {
 	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation.Name)
 	inputs := e.parseEnvInputs()
 
-	pod, service, err := generator.GeneratePod(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, e.SecretRepoName, inputs)
+	deployment, service, err := generator.GenerateDeployment(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, inputs, nbInstances)
 	if err != nil {
 		return err
 	}
 
-	_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Pods(namespace).Create(&pod)
+	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Create(&deployment)
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to create pod")
+		return errors.Wrap(err, "Failed to create deployment")
 	}
 
 	if service.Name != "" {
@@ -229,12 +277,66 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 		return err
 	}
 
-	pod := &v1.Pod{}
+	deploymentReady := false
+	var available int32 = -1
+
+	for !deploymentReady {
+		deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed fetch deployment")
+		}
+		if available != deployment.Status.AvailableReplicas {
+			available = deployment.Status.AvailableReplicas
+			log.Printf("Deployment %s : %d pod available of %d", e.NodeName, available, *deployment.Spec.Replicas)
+		}
+
+		if deployment.Status.AvailableReplicas == *deployment.Spec.Replicas {
+			deploymentReady = true
+		} else {
+			selector := ""
+			for key, val := range deployment.Spec.Selector.MatchLabels {
+				if selector != "" {
+					selector += ","
+				}
+				selector += key + "=" + val
+			}
+			//log.Printf("selector: %s", selector)
+			pods, _ := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(namespace).List(
+				metav1.ListOptions{
+					LabelSelector: selector,
+				})
+
+			// We should always have only 1 pod (as the Replica is set to 1)
+			for _, podItem := range pods.Items {
+
+				//log.Printf("Check pod %s", podItem.Name)
+				err := e.checkPod(ctx, podItem.Name)
+				if err != nil {
+					return err
+				}
+
+			}
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	return nil
+}
+
+func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
+	clientset := ctx.Value("clientset")
+
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return err
+	}
+
 	status := v1.PodUnknown
 	latestReason := ""
 
-	for status != v1.PodRunning && latestReason != "ErrImagePull" {
-		pod, err = (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).Get(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), metav1.GetOptions{})
+	for status != v1.PodRunning && latestReason != "ErrImagePull" && latestReason != "InvalidImageName" {
+		pod, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).Get(podName, metav1.GetOptions{})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch pod")
@@ -250,34 +352,49 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" -> "+reason)
 			}
 		} else {
-			log.Printf(pod.Name + " : " + string(pod.Status.Phase))
-			events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase))
-		}
-
-		time.Sleep(2 * time.Second)
-	}
-
-	ready := true
-	for _, condition := range pod.Status.Conditions {
-		if condition.Status == v1.ConditionFalse {
-			ready = false
-		}
-	}
-
-	if !ready {
-		reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
-		message := pod.Status.ContainerStatuses[0].State.Waiting.Message
-
-		if reason == "RunContainerError" {
-			logs, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
-			if err != nil {
-				return errors.Wrap(err, "Failed to fetch pod logs")
+			ready := true
+			cond := v1.PodCondition{}
+			for _, condition := range pod.Status.Conditions {
+				if condition.Status == v1.ConditionFalse {
+					ready = false
+					cond = condition
+				}
 			}
-			podLogs := string(logs)
-			return errors.Errorf("Pod failed to start reason : %s --- Message : %s --- Pod logs : %s", reason, message, podLogs)
+
+			if !ready {
+				state := ""
+				reason := ""
+				message := "running"
+
+				if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+					state = "waiting"
+					reason = pod.Status.ContainerStatuses[0].State.Waiting.Reason
+					message = pod.Status.ContainerStatuses[0].State.Waiting.Message
+				} else if pod.Status.ContainerStatuses[0].State.Terminated != nil {
+					state = "terminated"
+					reason = pod.Status.ContainerStatuses[0].State.Terminated.Reason
+					message = pod.Status.ContainerStatuses[0].State.Terminated.Message
+				}
+
+				log.Printf(pod.Name + " : " + string(pod.Status.Phase))
+				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" ("+state+")")
+
+				if reason == "RunContainerError" {
+					logs, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
+					if err != nil {
+						return errors.Wrap(err, "Failed to fetch pod logs")
+					}
+					podLogs := string(logs)
+					log.Printf("Pod failed to start reason : %s --- Message : %s --- Pod logs : %s", reason, message, podLogs)
+				}
+
+				log.Printf("Pod failed to start reason : %s --- Message : %s -- condition : %s", reason, message, cond.Message)
+			}
 		}
 
-		return errors.Errorf("Pod failed to start reason : %s --- Message : %s", reason, message)
+		if status != v1.PodRunning {
+			time.Sleep(2 * time.Second)
+		}
 	}
 
 	return nil
@@ -290,10 +407,15 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix + e.NodeName), metav1.GetOptions{})
 
-	err = (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
+	replica := int32(0)
+	deployment.Spec.Replicas = &replica
+	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
+
+	err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix + e.NodeName), &metav1.DeleteOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete pod")
+		return errors.Wrap(err, "Failed to delete deployment")
 	}
 
 	err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(strings.ToLower(namespace)).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})

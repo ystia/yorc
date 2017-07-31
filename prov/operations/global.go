@@ -13,19 +13,19 @@ func GetInstanceName(nodeName, instanceID string) string {
 
 // IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
 func IsOperationNotImplemented(err error) bool {
-	_, ok := err.(OperationNotImplemented)
+	_, ok := err.(operationNotImplemented)
 	return ok
 }
 
-type OperationNotImplemented struct {
+type operationNotImplemented struct {
 	Msg string
 }
 
-func (oni OperationNotImplemented) Error() string {
+func (oni operationNotImplemented) Error() string {
 	return oni.Msg
 }
 
-// resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
+// ResolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
 //	add_target, remove_target, add_source, target_changed
 // And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
 func ResolveIsPerInstanceOperation(operationName, deploymentID, relationshipType string, kv *api.KV) (bool, error) {
@@ -40,7 +40,7 @@ func ResolveIsPerInstanceOperation(operationName, deploymentID, relationshipType
 	return false, nil
 }
 
-// isTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
+// IsTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
 //	pre_configure_target, post_configure_target, add_source
 func IsTargetOperation(operationName string) bool {
 	op := strings.ToLower(operationName)
