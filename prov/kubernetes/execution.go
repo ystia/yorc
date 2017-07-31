@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
@@ -30,6 +32,13 @@ type execution interface {
 
 type executionScript struct {
 	*executionCommon
+}
+
+type DockerConfigEntry struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email,omitempty"`
+	Auth     string `json:"auth"`
 }
 
 type executionCommon struct {
@@ -133,20 +142,29 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	}
 
 	//Generate a new secret
-	data := make(map[string][]byte)
 	var byteD []byte
+	var dockercfgAuth DockerConfigEntry
 
 	if tokenType, _ := deployments.GetRepositoryTokenTypeFromName(e.kv, e.deploymentID, repoName); tokenType == "password" {
 		token, user, err := deployments.GetRepositoryTokenUserFromName(e.kv, e.deploymentID, repoName)
 		if err != nil {
 			return err
 		}
-		byteD = []byte(`{"` + repoUrl + `":{"username":"` + user + `","password":"` + token + `","email":"test@test.test"}}`)
+		dockercfgAuth.Username = user
+		dockercfgAuth.Password = token
+		dockercfgAuth.Auth = base64.StdEncoding.EncodeToString([]byte(user + ":" + token))
+		dockercfgAuth.Email = "test@test.com"
 	}
 
-	data[".dockercfg"] = byteD
+	dockerCfg := map[string]DockerConfigEntry{repoUrl: dockercfgAuth}
+
 	repoName = strings.ToLower(repoName)
-	_, err = generator.CreateNewRepoSecret(clientset, namespace, repoName, data)
+	byteD, err = json.Marshal(dockerCfg)
+	if err != nil {
+		return err
+	}
+
+	_, err = generator.CreateNewRepoSecret(clientset, namespace, repoName, byteD)
 	e.SecretRepoName = repoName
 
 	if err != nil {

@@ -92,14 +92,14 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 }
 
-func (k8s *K8sGenerator) CreateNewRepoSecret(client *kubernetes.Clientset, namespace, name string, data map[string][]byte) (*v1.Secret, error) {
-	mySecret := v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data:       data,
-		Type:       v1.SecretTypeDockercfg,
-	}
+func (k8s *K8sGenerator) CreateNewRepoSecret(client *kubernetes.Clientset, namespace, name string, data []byte) (*v1.Secret, error) {
+	mySecret := &v1.Secret{}
+	mySecret.Name = name
+	mySecret.Type = v1.SecretTypeDockercfg
+	mySecret.Data = map[string][]byte{}
+	mySecret.Data[v1.DockerConfigKey] = data
 
-	return client.CoreV1().Secrets(strings.ToLower(namespace)).Create(&mySecret)
+	return client.CoreV1().Secrets(strings.ToLower(namespace)).Create(mySecret)
 }
 
 // CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
