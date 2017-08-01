@@ -98,7 +98,7 @@ func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operatio
 	}
 
 	if kvp == nil {
-		return "", errors.Errorf("Operation type not found for %q", operationName)
+		return "", errors.Errorf("Implementation File not found for %q", operationName)
 	}
 
 	return string(kvp.Value), nil

@@ -17,6 +17,7 @@ import (
 func TestGenerator(t *testing.T) {
 	t.Run("kubernetes", func(t *testing.T) {
 		t.Run("newGenerator", createSecretRepoTest)
+		t.Run("newGeneratorDeployment", generateDeploymentTest)
 	})
 }
 
@@ -52,6 +53,7 @@ func generateDeploymentTest(t *testing.T) {
 	defer srv1.Stop()
 
 	consulConfig := api.DefaultConfig()
+	consulConfig.Address = srv1.HTTPAddr
 
 	client, err := api.NewClient(consulConfig)
 	require.Nil(t, err)
@@ -66,7 +68,7 @@ func generateDeploymentTest(t *testing.T) {
 	operation := "tosca.interfaces.node.lifecycle.standard.start"
 
 	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/file"): []byte("test"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/start/implementation/file"): []byte("test"),
 	})
 
 	_, _, err = myGenerator.GenerateDeployment(deploymentID, nodeName, operation, nodeTypeName, "test", nil, 1)
