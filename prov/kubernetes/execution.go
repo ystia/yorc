@@ -185,7 +185,9 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 		return err
 	}
 
-	_, err = generator.CreateNewRepoSecret(clientset, namespace, repoName, byteD)
+	mysecret := generator.GenerateNewRepoSecret(clientset, repoName, byteD)
+	_, err = clientset.CoreV1().Secrets(strings.ToLower(namespace)).Create(mysecret)
+
 	e.SecretRepoName = repoName
 
 	if err != nil {
