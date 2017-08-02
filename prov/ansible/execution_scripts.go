@@ -60,8 +60,10 @@ const shellAnsiblePlaybook = `
     [[[if .HaveOutput]]]
     [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
     [[[end]]]
+    [[[if not .KeepOperationRemotePath]]]
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemoteBaseDir]]]" state=absent
     - file: path="{{ ansible_env.HOME}}/.ansible" state=absent
+    [[[end]]]
 `
 
 type executionScript struct {

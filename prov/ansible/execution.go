@@ -106,6 +106,7 @@ type executionCommon struct {
 	Description              string
 	OperationRemoteBaseDir   string
 	OperationRemotePath      string
+	KeepOperationRemotePath  bool
 	EnvInputs                []*EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -132,15 +133,17 @@ type executionCommon struct {
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	execCommon := &executionCommon{kv: kv,
-		cfg:                    cfg,
-		deploymentID:           deploymentID,
-		NodeName:               nodeName,
-		OperationRemoteBaseDir: ".janus_" + timestamp,
-		operation:              operation,
-		VarInputsNames:         make([]string, 0),
-		EnvInputs:              make([]*EnvInput, 0),
-		taskID:                 taskID,
-		Outputs:                make(map[string]string),
+		cfg:                     cfg,
+		deploymentID:            deploymentID,
+		NodeName:                nodeName,
+		OperationRemoteBaseDir:  ".janus_" + timestamp,
+		//KeepOperationRemotePath property is required to be public when resolving templates.
+		KeepOperationRemotePath: cfg.KeepOperationRemotePath,
+		operation:               operation,
+		VarInputsNames:          make([]string, 0),
+		EnvInputs:               make([]*EnvInput, 0),
+		taskID:                  taskID,
+		Outputs:                 make(map[string]string),
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
