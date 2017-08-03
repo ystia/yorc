@@ -7,6 +7,13 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	//"github.com/stretchr/testify/assert"
+	//"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	//"context"
+	//"novaforge.bull.com/starlings-janus/janus/config"
+	//"path"
+	//"time"
+	//"novaforge.bull.com/starlings-janus/janus/deployments"
 )
 
 func TestGroupedTaskParallel(t *testing.T) {
@@ -15,6 +22,7 @@ func TestGroupedTaskParallel(t *testing.T) {
 		t.Run("Test_generateOSBSVolumeSizeConvertError", readStepFromConsulFailing)
 		t.Run("Test_generateOSBSVolumeMissingSize", readStepWithNext)
 		t.Run("Test_generateOSBSVolumeCheckOptionalValues", testReadWorkFlowFromConsul)
+		//t.Run("runTest", runTest)
 	})
 }
 
@@ -177,3 +185,40 @@ func testReadWorkFlowFromConsul(t *testing.T) {
 	require.Len(t, steps, 5)
 
 }
+
+//Can working but need to change some core function (readStep) to give a taskId if no one is provided
+//func runTest(t *testing.T) {
+//	t.Parallel()
+//	srv1, err := testutil.NewTestServer()
+//	log.SetDebug(true)
+//	require.Nil(t, err)
+//	defer srv1.Stop()
+//
+//	consulConfig := api.DefaultConfig()
+//	consulConfig.Address = srv1.HTTPAddr
+//
+//	client, err := api.NewClient(consulConfig)
+//	require.Nil(t, err)
+//
+//	kv := client.KV()
+//	consulutil.InitConsulPublisher(config.DefaultConsulPubMaxRoutines, kv)
+//	deploymentID := "testOsInstance"
+//
+//	err = deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/dep.yaml")
+//	assert.Nil(t, err)
+//
+//	steps, err := readWorkFlowFromConsul(kv, path.Join(consulutil.DeploymentKVPrefix, deploymentID, path.Join("workflows", "install")))
+//	require.Nil(t, err)
+//
+//	shutdown := make(chan struct{})
+//	go killChannel(shutdown)
+//	for _, step := range steps {
+//		err = step.run(context.Background(), deploymentID,kv,make(chan error),shutdown, config.Configuration{} , true)
+//		assert.NotNil(t, err)
+//	}
+//}
+//
+//func killChannel(shut chan struct{}) {
+//	time.Sleep(5 * time.Second)
+//	shut <- struct{}{}
+//}
