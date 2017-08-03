@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
@@ -18,7 +19,6 @@ import (
 	"path"
 	"strings"
 	"time"
-	"novaforge.bull.com/starlings-janus/janus/events"
 )
 
 // An EnvInput represent a TOSCA operation input
@@ -194,6 +194,7 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 
 	if service.Name != "" {
 		serv, err := (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
+		consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", "nodes", e.NodeName, "serviceName"), service.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create service")
 		}
@@ -201,6 +202,9 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 			log.Printf("%s : %s: %d:%d mapped to %d", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
 		}
 	}
+
+	//TODO Handle the fact when can have more than one pod by container (scaling)
+	consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", "nodes", e.NodeName, "namespace"), namespace)
 
 	return nil
 }
@@ -336,7 +340,6 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 	return nil
 }
 
-
 func (e *executionCommon) uninstallNode(ctx context.Context) error {
 	clientset := ctx.Value("clientset")
 
@@ -344,13 +347,13 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix + e.NodeName), metav1.GetOptions{})
+	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
 	replica := int32(0)
 	deployment.Spec.Replicas = &replica
 	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
 
-	err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix + e.NodeName), &metav1.DeleteOptions{})
+	err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete deployment")
 	}

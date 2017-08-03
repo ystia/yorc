@@ -1,15 +1,13 @@
 package kubernetes
 
 import (
-	"github.com/pkg/errors"
-
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 
 	"context"
+	"novaforge.bull.com/starlings-janus/janus/helper/kubernetesutil"
 )
 
 type defaultExecutor struct {
@@ -32,8 +30,12 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	clientset, err := initClientSet(conf)
-	e.clientset = clientset
+	err = kubernetesutil.InitClientSet(conf)
+	if err != nil {
+		return err
+	}
+
+	e.clientset = kubernetesutil.GetClientSet()
 
 	if err != nil {
 		return err
@@ -42,18 +44,4 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	new_ctx := context.WithValue(ctx, "clientset", e.clientset)
 
 	return exec.execute(new_ctx)
-}
-
-func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
-	var clientset *kubernetes.Clientset
-	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIP, "")
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to build kubernetes config")
-	}
-	clientset, err = kubernetes.NewForConfig(conf)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kubernetes clientset from config")
-	}
-
-	return clientset, nil
 }
