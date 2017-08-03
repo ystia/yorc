@@ -10,7 +10,7 @@ import (
 var clientset *kubernetes.Clientset
 
 func InitClientSet(cfg config.Configuration) error {
-	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIp, "")
+	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIP, "")
 	if err != nil {
 		return errors.Wrap(err, "Failed to build kubernetes config")
 	}

@@ -118,8 +118,8 @@ func GeneratePodName(nodeName string) string {
 
 func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar) v1.Container {
 	return v1.Container{
-		Name:            strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
-		Image:           dockerImage,
+		Name:  strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
+		Image: dockerImage,
 		//ImagePullPolicy: v1.PullIfNotPresent,
 		ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 		Command:         strings.Fields(dockerRunCmd),
