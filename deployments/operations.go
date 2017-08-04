@@ -52,7 +52,7 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 	return GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
 }
 
-//This function return the path for a given operation
+//GetOperationPath function return the path for a given operation
 func GetOperationPath(deploymentID, nodeType, operationName string) string {
 	var op string
 	if idx := strings.Index(operationName, "configure."); idx >= 0 {
