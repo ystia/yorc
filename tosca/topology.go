@@ -64,6 +64,7 @@ type Repository struct {
 	Credit      Credential `yaml:"credential,omitempty"`
 }
 
+// A Credential is a representation of TOSCA Credential
 type Credential struct {
 	TokenType string            `yaml:"token_type"`
 	Token     string            `yaml:"token"`
