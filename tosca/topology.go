@@ -58,7 +58,17 @@ type NodeTemplate struct {
 //
 //See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/csprd01/TOSCA-Simple-Profile-YAML-v1.0-csprd01.html#_Toc430015673 for more details
 type Repository struct {
-	URL         string `yaml:"url,omitempty"`
-	Type        string `yaml:"type,omitempty"`
-	Description string `yaml:"descritpion,omitempty"`
+	URL         string     `yaml:"url,omitempty"`
+	Type        string     `yaml:"type,omitempty"`
+	Description string     `yaml:"description,omitempty"`
+	Credit      Credential `yaml:"credential,omitempty"`
+}
+
+// A Credential is a representation of TOSCA Credential
+type Credential struct {
+	TokenType string            `yaml:"token_type"`
+	Token     string            `yaml:"token"`
+	User      string            `yaml:"user,omitempty"`
+	Protocol  string            `yaml:"protocol,omitempty"`
+	Keys      map[string]string `yaml:"keys,omitempty"`
 }

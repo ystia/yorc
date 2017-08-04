@@ -127,6 +127,12 @@ func storeRepositories(ctx context.Context, topology tosca.Topology, topologyPre
 		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "url"), repo.URL)
 		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "type"), repo.Type)
 		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "description"), repo.Description)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "user"), repo.Credit.User)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "token"), repo.Credit.Token)
+		if repo.Credit.TokenType == "" {
+			repo.Credit.TokenType = "password"
+		}
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "token_type"), repo.Credit.TokenType)
 	}
 
 	return nil

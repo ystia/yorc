@@ -93,6 +93,17 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 
 }
 
+//GenerateNewRepoSecret generate a new struct for secret docker repo and fill it
+func (k8s *K8sGenerator) CreateNewRepoSecret(client *kubernetes.Clientset, namespace, name string, data []byte) (*v1.Secret, error) {
+	mySecret := &v1.Secret{}
+	mySecret.Name = name
+	mySecret.Type = v1.SecretTypeDockercfg
+	mySecret.Data = map[string][]byte{}
+	mySecret.Data[v1.DockerConfigKey] = data
+
+	return client.CoreV1().Secrets(strings.ToLower(namespace)).Create(mySecret)
+}
+
 // CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
 func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentID, namespaceName string, client *kubernetes.Clientset) error {
 	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
@@ -132,7 +143,7 @@ func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 }
 
 // GenerateDeployment generate Kubernetes Pod and Service to deploy based of given Node
-func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
+func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType, repoName string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
@@ -163,6 +174,12 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 
 	container := k8s.generateContainer(nodeName, imgName, imagePullPolicy, dockerRunCmd, requests, limits, inputs)
 
+	var pullRepo []v1.LocalObjectReference
+
+	if repoName != "" {
+		pullRepo = append(pullRepo, v1.LocalObjectReference{Name: repoName})
+	}
+
 	deployment := v1beta1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -179,7 +196,7 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						container,
-					},
+					}, ImagePullSecrets: pullRepo,
 				},
 			},
 		},

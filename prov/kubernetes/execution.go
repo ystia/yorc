@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
@@ -33,6 +35,13 @@ type executionScript struct {
 	*executionCommon
 }
 
+type dockerConfigEntry struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email,omitempty"`
+	Auth     string `json:"auth"`
+}
+
 type executionCommon struct {
 	kv                  *api.KV
 	cfg                 config.Configuration
@@ -52,6 +61,7 @@ type executionCommon struct {
 	NodeTypePath        string
 	Artifacts           map[string]string
 	OverlayPath         string
+	SecretRepoName      string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
@@ -93,6 +103,7 @@ func (e *executionCommon) resolveOperation() error {
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
+	ctx = context.WithValue(ctx, "generator", NewGenerator(e.kv, e.cfg))
 	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	nbInstances := int32(len(instances))
 	switch strings.ToLower(e.Operation.Name) {
@@ -116,9 +127,8 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		if e.taskType == tasks.ScaleDown {
 			log.Println("##### Scale down node !")
 			return e.scaleNode(ctx, tasks.ScaleDown, nbInstances)
-		} else {
-			return e.uninstallNode(ctx)
 		}
+		return e.uninstallNode(ctx)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
@@ -134,6 +144,54 @@ func (e *executionCommon) parseEnvInputs() []v1.EnvVar {
 	}
 
 	return data
+}
+
+func (e *executionCommon) checkRepository(ctx context.Context) error {
+	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
+	generator := ctx.Value("generator").(*K8sGenerator)
+
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+
+	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.NodeType, e.Operation.Name)
+	if err != nil {
+		return err
+	}
+	repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
+	if repoURL == deployments.DockerHubURL {
+		return nil
+	}
+
+	//Generate a new secret
+	var byteD []byte
+	var dockercfgAuth dockerConfigEntry
+
+	if tokenType, _ := deployments.GetRepositoryTokenTypeFromName(e.kv, e.deploymentID, repoName); tokenType == "password" {
+		token, user, err := deployments.GetRepositoryTokenUserFromName(e.kv, e.deploymentID, repoName)
+		if err != nil {
+			return err
+		}
+		dockercfgAuth.Username = user
+		dockercfgAuth.Password = token
+		dockercfgAuth.Auth = base64.StdEncoding.EncodeToString([]byte(user + ":" + token))
+		dockercfgAuth.Email = "test@test.com"
+	}
+
+	dockerCfg := map[string]dockerConfigEntry{repoURL: dockercfgAuth}
+
+	repoName = strings.ToLower(repoName)
+	byteD, err = json.Marshal(dockerCfg)
+	if err != nil {
+		return err
+	}
+
+	_, err = generator.CreateNewRepoSecret(clientset, namespace, repoName, byteD)
+	e.SecretRepoName = repoName
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskType, nbInstances int32) error {
@@ -165,7 +223,7 @@ func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskTyp
 
 func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) error {
 	clientset := ctx.Value("clientset")
-	generator := NewGenerator(e.kv, e.cfg)
+	generator := ctx.Value("generator").(*K8sGenerator)
 
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
@@ -178,10 +236,15 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 		return err
 	}
 
+	err = e.checkRepository(ctx)
+	if err != nil {
+		return err
+	}
+
 	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation.Name)
 	inputs := e.parseEnvInputs()
 
-	deployment, service, err := generator.GenerateDeployment(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, inputs, nbInstances)
+	deployment, service, err := generator.GenerateDeployment(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, e.SecretRepoName, inputs, nbInstances)
 	if err != nil {
 		return err
 	}
