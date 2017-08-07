@@ -101,6 +101,35 @@ func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 	return string(kvp.Value), nil
 }
 
+// GetTargetNodeForRequirementByName returns the target node associated with a given requirementName for the given nodeName.
+//
+// If there is no node defined for this requirement then an empty string is returned.
+func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requirementName string) (string, error) {
+	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements")
+	kvp, _, err := kv.Keys(reqPath+"/", "/", nil)
+	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it futhermore it can refer to a node_template_name instead of a node_type_name
+	if err != nil || kvp == nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	for _, req := range kvp {
+		reqKv, _, err := kv.Get(req+"/name", nil)
+		if err != nil || kv == nil {
+			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+
+		if string(reqKv.Value) == requirementName {
+			nodeName, _, err := kv.Get(req+"/node", nil)
+			if err != nil || nodeName == nil {
+				return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+			return string(nodeName.Value), nil
+		}
+
+	}
+	return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 // GetRequirementByNameAndTargetForNode returns path to requirement which names matches the given requirementName and node matches the given targetName.
 //
 // The returned string may be empty if there is no matching requirements.

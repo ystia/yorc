@@ -94,6 +94,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	if err := storeImports(ctx, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
 		return err
 	}
+	storeRepositories(ctx, topology, topologyPrefix)
 	storeInputs(ctx, topology, topologyPrefix)
 	storeOutputs(ctx, topology, topologyPrefix)
 	storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
@@ -115,6 +116,26 @@ func storeTopologyTopLevelKeyNames(ctx context.Context, topology tosca.Topology,
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/name", topology.Name)
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/version", topology.Version)
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/author", topology.Author)
+}
+
+//storeRepositories store repositories
+func storeRepositories(ctx context.Context, topology tosca.Topology, topologyPrefix string) error {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	repositoriesPrefix := path.Join(topologyPrefix, "repositories")
+	for repositoryName, repo := range topology.Repositories {
+		repoPrefix := path.Join(repositoriesPrefix, repositoryName)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "url"), repo.URL)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "type"), repo.Type)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "description"), repo.Description)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "user"), repo.Credit.User)
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "token"), repo.Credit.Token)
+		if repo.Credit.TokenType == "" {
+			repo.Credit.TokenType = "password"
+		}
+		consulStore.StoreConsulKeyAsString(path.Join(repoPrefix, "credentials", "token_type"), repo.Credit.TokenType)
+	}
+
+	return nil
 }
 
 // storeImports parses and store imports.
@@ -381,8 +402,17 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_value_assignment", strconv.FormatBool(isValueAssignement))
 					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_property_definition", strconv.FormatBool(isPropertyDefinition))
 				}
-				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
-				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+				if intDef.Implementation.Artifact != (tosca.ArtifactDefinition{}) {
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/file", intDef.Implementation.Artifact.File)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/type", intDef.Implementation.Artifact.Type)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/repository", intDef.Implementation.Artifact.Repository)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/description", intDef.Implementation.Artifact.Description)
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/deploy_path", intDef.Implementation.Artifact.DeployPath)
+
+				} else {
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+				}
 			}
 		}
 

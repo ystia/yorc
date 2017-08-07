@@ -4,25 +4,31 @@ package tosca
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_OPERATION_DEF for more details
 type Implementation struct {
-	Primary      string   `yaml:"primary"`
-	Dependencies []string `yaml:"dependencies,omitempty"`
+	Primary      string             `yaml:"primary"`
+	Dependencies []string           `yaml:"dependencies,omitempty"`
+	Artifact     ArtifactDefinition `yaml:",inline"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an Implementation
 func (i *Implementation) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var err error
 	var s string
-	if err := unmarshal(&s); err == nil {
+	if err = unmarshal(&s); err == nil {
 		i.Primary = s
 		return nil
 	}
+
 	var str struct {
-		Primary      string   `yaml:"primary"`
-		Dependencies []string `yaml:"dependencies,omitempty"`
+		Primary      string             `yaml:"primary,omitempty"`
+		Dependencies []string           `yaml:"dependencies,omitempty"`
+		Artifact     ArtifactDefinition `yaml:",inline"`
 	}
-	if err := unmarshal(&str); err != nil {
-		return err
+	if err = unmarshal(&str); err == nil {
+		i.Primary = str.Primary
+		i.Dependencies = str.Dependencies
+		i.Artifact = str.Artifact
+		return nil
 	}
-	i.Primary = str.Primary
-	i.Dependencies = str.Dependencies
-	return nil
+
+	return err
 }
