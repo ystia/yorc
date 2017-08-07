@@ -203,5 +203,7 @@ func getConfig() config.Configuration {
 	configuration.Telemetry.StatsiteAddress = viper.GetString("telemetry.statsite_address")
 	configuration.Telemetry.ServiceName = viper.GetString("telemetry.service_name")
 	configuration.Telemetry.PrometheusEndpoint = viper.GetBool("telemetry.expose_prometheus_endpoint")
+	configuration.Telemetry.DisableHostName = viper.GetBool("telemetry.disable_hostname")
+	configuration.Telemetry.DisableGoRuntimeMetrics = viper.GetBool("telemetry.disable_go_runtime_metrics")
 	return configuration
 }

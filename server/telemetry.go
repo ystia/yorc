@@ -18,8 +18,11 @@ func setupTelemetry(cfg config.Configuration) error {
 		serviceName = "janus"
 	}
 	metricsConf := metrics.DefaultConfig(serviceName)
-	var sinks metrics.FanoutSink
 
+	metricsConf.EnableHostname = !cfg.Telemetry.DisableHostName
+	metricsConf.EnableRuntimeMetrics = !cfg.Telemetry.DisableGoRuntimeMetrics
+
+	var sinks metrics.FanoutSink
 	if cfg.Telemetry.StatsdAddress != "" {
 		log.Debugf("Setting up a statsd telemetry service on %q", cfg.Telemetry.StatsdAddress)
 		statsdSink, err := metrics.NewStatsdSink(cfg.Telemetry.StatsdAddress)

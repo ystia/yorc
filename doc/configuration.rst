@@ -270,6 +270,14 @@ Bellow is an example of configuration file with telemetry metrics forwarded to a
 
   * ``service_name``: Metrics keys prefix, defaults to ``janus``.
 
+.. _option_telemetry_disHostName_cfg:
+
+  * ``disable_hostname``: Specifies if gauge values should not be prefixed with the local hostname. Defaults to ``false``.
+
+.. _option_telemetry_disRuntimeMetrics_cfg:
+
+  * ``disable_go_runtime_metrics``: Specifies Go runtime metrics (goroutines, memory, ...) should not be published. Defaults to ``false``.
+
 .. _option_telemetry_statsd_cfg:
 
   * ``statsd_address``: Specify the address (in form <address>:<port>) of a statsd server to forward metrics data to. 

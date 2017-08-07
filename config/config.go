@@ -56,8 +56,10 @@ type Configuration struct {
 
 // Configuration for the telemetry service
 type Telemetry struct {
-	StatsdAddress      string `json:"statsd_address,omitempty"`
-	StatsiteAddress    string `json:"statsite_address,omitempty"`
-	PrometheusEndpoint bool
-	ServiceName        string `json:"service_name,omitempty"`
+	StatsdAddress           string `json:"statsd_address,omitempty"`
+	StatsiteAddress         string `json:"statsite_address,omitempty"`
+	PrometheusEndpoint      bool
+	ServiceName             string `json:"service_name,omitempty"`
+	DisableHostName         bool
+	DisableGoRuntimeMetrics bool
 }
