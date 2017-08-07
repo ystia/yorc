@@ -282,7 +282,6 @@ func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, o
 	}
 	if primary == "" {
 		implType, err := GetOperationImplementationType(kv, deploymentID, nodeOrRelType, operationName)
-
 		if err != nil {
 			res, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "isContainer"), nil)
 			if err != nil {

@@ -35,7 +35,7 @@ type executionScript struct {
 	*executionCommon
 }
 
-type DockerConfigEntry struct {
+type dockerConfigEntry struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Email    string `json:"email,omitempty"`
@@ -127,9 +127,8 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		if e.taskType == tasks.ScaleDown {
 			log.Println("##### Scale down node !")
 			return e.scaleNode(ctx, tasks.ScaleDown, nbInstances)
-		} else {
-			return e.uninstallNode(ctx)
 		}
+		return e.uninstallNode(ctx)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
@@ -157,14 +156,14 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	repoUrl, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
-	if repoUrl == deployments.DockerHubURL {
+	repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
+	if repoURL == deployments.DockerHubURL {
 		return nil
 	}
 
 	//Generate a new secret
 	var byteD []byte
-	var dockercfgAuth DockerConfigEntry
+	var dockercfgAuth dockerConfigEntry
 
 	if tokenType, _ := deployments.GetRepositoryTokenTypeFromName(e.kv, e.deploymentID, repoName); tokenType == "password" {
 		token, user, err := deployments.GetRepositoryTokenUserFromName(e.kv, e.deploymentID, repoName)
@@ -177,7 +176,7 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 		dockercfgAuth.Email = "test@test.com"
 	}
 
-	dockerCfg := map[string]DockerConfigEntry{repoUrl: dockercfgAuth}
+	dockerCfg := map[string]dockerConfigEntry{repoURL: dockercfgAuth}
 
 	repoName = strings.ToLower(repoName)
 	byteD, err = json.Marshal(dockerCfg)
@@ -260,6 +259,7 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 
 	if service.Name != "" {
 		serv, err := (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
+		consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", "nodes", e.NodeName, "serviceName"), service.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create service")
 		}
@@ -267,6 +267,9 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 			log.Printf("%s : %s: %d:%d mapped to %d", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
 		}
 	}
+
+	//TODO Handle the fact when can have more than one pod by container (scaling)
+	consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", "nodes", e.NodeName, "namespace"), namespace)
 
 	return nil
 }
