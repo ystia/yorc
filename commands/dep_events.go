@@ -10,6 +10,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -52,11 +53,7 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		if err != nil {
 			errExit(err)
 		}
-		if response.StatusCode != 200 {
-			// Try to get the reason
-			printErrors(response.Body)
-			errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
-		}
+		handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		idxHd := response.Header.Get(rest.JanusIndexHeader)
 		if idxHd != "" {
 			lastIdx, err = strconv.ParseUint(idxHd, 10, 64)
@@ -79,11 +76,8 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		if err != nil {
 			errExit(err)
 		}
-		if response.StatusCode != 200 {
-			// Try to get the reason
-			printErrors(response.Body)
-			errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
-		}
+
+		handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		var evts rest.EventsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
