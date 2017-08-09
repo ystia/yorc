@@ -242,6 +242,10 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 }
 
 func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
+	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	require.Nil(t, err)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	require.Nil(t, err)
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
@@ -271,12 +275,10 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         A3: "{{A3}}"
         INSTANCE: "{{INSTANCE}}"
 
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
+
 
 `
-	op, err := getOperation(kv, deploymentID, nodeName, operation)
-	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
-	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemotePath = "tmp"
@@ -450,6 +452,10 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 }
 
 func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
+	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	require.Nil(t, err)
+	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	require.Nil(t, err)
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
@@ -478,12 +484,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         A2: "{{A2}}"
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
 
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
+
 
 `
-	op, err := getOperation(kv, deploymentID, nodeName, operation)
-	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
-	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemotePath = "tmp"
@@ -689,6 +693,8 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         A2: "{{A2}}"
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
         TARGET_INSTANCE: "{{TARGET_INSTANCE}}"
+
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
 `
