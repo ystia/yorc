@@ -87,6 +87,11 @@ func errExit(msg interface{}) {
 	os.Exit(1)
 }
 
+func okExit(msg interface{}) {
+	fmt.Println(msg)
+	os.Exit(0)
+}
+
 func printErrors(body io.Reader) {
 	printRestErrors(getRestErrors(body))
 }

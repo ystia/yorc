@@ -11,6 +11,8 @@ import (
 	"crypto/x509"
 	"io/ioutil"
 
+	"fmt"
+
 	"github.com/goware/urlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -82,4 +84,32 @@ func getClient() (*janusClient, error) {
 		Client:  &http.Client{},
 	}, nil
 
+}
+
+func isExpected(got int, expected []int) bool {
+	for _, code := range expected {
+		if got == code {
+			return true
+		}
+	}
+	return false
+}
+
+func handleHTTPStatusCode(response *http.Response, resourceID string, resourceType string, expectedStatusCodes ...int) {
+	if len(expectedStatusCodes) == 0 {
+		panic("expected status code parameter is required")
+	}
+	if !isExpected(response.StatusCode, expectedStatusCodes) {
+		switch response.StatusCode {
+		// This case is not an error so the exit code is OK
+		case http.StatusNotFound:
+			okExit(fmt.Sprintf("The %s with the following id %q doesn't exist", resourceType, resourceID))
+		case http.StatusNoContent:
+			// same point as above
+			okExit(fmt.Sprintf("No %s", resourceType))
+		default:
+			printErrors(response.Body)
+			errExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))
+		}
+	}
 }

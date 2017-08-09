@@ -29,6 +29,13 @@ const ansiblePlaybook = `
     [[[printf "- template: src=\"outputs.csv.j2\" dest=\"{{ ansible_env.HOME}}/%s/out.csv\"" $.OperationRemotePath]]]
     [[[printf "- fetch: src=\"{{ ansible_env.HOME}}/%s/out.csv\" dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
 [[[end]]]
+[[[if not .KeepOperationRemotePath]]]
+- name: Cleanup temp directories
+  hosts: all
+  strategy: free
+  tasks:
+    - file: path="{{ ansible_env.HOME}}/[[[.OperationRemoteBaseDir]]]" state=absent
+[[[end]]]
 `
 
 type executionAnsible struct {
