@@ -276,7 +276,6 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         INSTANCE: "{{INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
-     - file: path="{{ ansible_env.HOME}}/.ansible" state=absent
 
 
 `
@@ -486,7 +485,6 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
-     - file: path="{{ ansible_env.HOME}}/.ansible" state=absent
 
 
 `
@@ -697,7 +695,6 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         TARGET_INSTANCE: "{{TARGET_INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
-     - file: path="{{ ansible_env.HOME}}/.ansible" state=absent
 
 
 `
