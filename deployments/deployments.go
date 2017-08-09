@@ -63,6 +63,18 @@ func GetDeploymentStatus(kv *api.KV, deploymentID string) (DeploymentStatus, err
 	return DeploymentStatusFromString(string(kvp.Value), true)
 }
 
+//GetDeploymentTemplateName only return the name of the template used during the deployment
+func GetDeploymentTemplateName(kv *api.KV, deploymentID string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "name"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", deploymentNotFound{deploymentID: deploymentID}
+	}
+	return string(kvp.Value), nil
+}
+
 // DoesDeploymentExists checks if a given deploymentId refer to an existing deployment
 func DoesDeploymentExists(kv *api.KV, deploymentID string) (bool, error) {
 	if _, err := GetDeploymentStatus(kv, deploymentID); err != nil {

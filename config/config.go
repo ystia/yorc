@@ -25,8 +25,13 @@ const DefaultPluginDir = "plugins"
 // DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Janus server before exiting
 const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 
+//DefaultKeepOperationRemotePath is set to true by default in order to remove path created to store operation artifacts on nodes.
+const DefaultKeepOperationRemotePath = false
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
+	AnsibleUseOpenSSH             bool
+	AnsibleDebugExec              bool
 	PluginsDirectory              string        `json:"plugins_directory,omitempty"`
 	WorkingDirectory              string        `json:"working_directory,omitempty"`
 	WorkersNumber                 int           `json:"workers_number,omitempty"`
@@ -45,6 +50,7 @@ type Configuration struct {
 	OSCACert                      string        `json:"os_cacert_file,omitempty"`
 	OSCert                        string        `json:"os_cert,omitempty"`
 	OSKey                         string        `json:"os_key,omitempty"`
+	KeepOperationRemotePath       bool          `json:"keep_operation_remote_path,omitempty"`
 	ResourcesPrefix               string        `json:"os_prefix,omitempty"`
 	OSPrivateNetworkName          string        `json:"os_private_network_name,omitempty"`
 	OSPublicNetworkName           string        `json:"os_public_network_name,omitempty"`
@@ -59,4 +65,5 @@ type Configuration struct {
 	ConsulSSL                     bool          `json:"consul_ssl,omitempty"`
 	ConsulSSLVerify               bool          `json:"consul_ssl_verify,omitempty"`
 	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
+	KubemasterIP                  string        `json:"kube_ip,omitpempty"`
 }

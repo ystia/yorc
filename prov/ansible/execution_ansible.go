@@ -29,6 +29,13 @@ const ansiblePlaybook = `
     [[[printf "- template: src=\"outputs.csv.j2\" dest=\"{{ ansible_env.HOME}}/%s/out.csv\"" $.OperationRemotePath]]]
     [[[printf "- fetch: src=\"{{ ansible_env.HOME}}/%s/out.csv\" dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
 [[[end]]]
+[[[if not .KeepOperationRemotePath]]]
+- name: Cleanup temp directories
+  hosts: all
+  strategy: free
+  tasks:
+    - file: path="{{ ansible_env.HOME}}/[[[.OperationRemoteBaseDir]]]" state=absent
+[[[end]]]
 `
 
 type executionAnsible struct {
@@ -113,6 +120,14 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
+	}
+	if e.cfg.AnsibleDebugExec {
+		cmd.Args = append(cmd.Args, "-vvvvv")
+	}
+	if e.cfg.AnsibleUseOpenSSH {
+		cmd.Args = append(cmd.Args, "-c", "ssh")
+	} else {
+		cmd.Args = append(cmd.Args, "-c", "paramiko")
 	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer

@@ -16,6 +16,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -52,11 +53,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 			if err != nil {
 				errExit(err)
 			}
-			if response.StatusCode != 200 {
-				// Try to get the reason
-				printErrors(response.Body)
-				errExit(errors.Errorf("Expecting HTTP Status code 200 got %d, reason %q", response.StatusCode, response.Status))
-			}
+			handleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
 			var dep rest.Deployment
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {

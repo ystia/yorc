@@ -1,0 +1,67 @@
+tosca_definitions_version: alien_dsl_1_3_0
+
+template_name: janus-kubernetes-types-2
+template_author: Janus
+template_version: 1.0.0-SNAPSHOT
+
+imports:
+  - janus-kubernetes-types: <janus-kubernetes-types.yml>
+
+
+repositories:
+  myRepo:
+    url: http://custom.repo.com
+    type: docker
+    credential:
+      token_type: password
+      user: opjsdpojds
+      protocol: test
+      token: test
+
+
+node_types:
+  janus.nodes.Docker.MongoDB:
+    derived_from: janus.nodes.DockerContainer
+    capabilities:
+      mongo_db:
+        type: alien.capabilities.endpoint.docker.Mongo
+    interfaces:
+      Standard:
+        start:
+          implementation:
+            file: mongo:lastest
+            repository: myRepo
+            type: tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes
+
+  janus.nodes.Docker.Wordpress:
+    derived_from: janus.nodes.DockerContainer
+    requirements:
+      - mongo_db:
+          capability: tosca.capabilities.Endpoint.Database
+          relationship: tosca.relationships.ConnectsTo
+          occurrences: [1, 1]
+    interfaces:
+      Standard:
+        start:
+          inputs:
+            ENV_MONGO_HOST: { get_property: [REQ_TARGET, mongo_db, ip_address] }
+            ENV_MONGO_PORT: { get_property: [REQ_TARGET, mongo_db, port] }
+            ENV_NODECELLAR_PORT: 3000
+          implementation:
+            file: consul
+            repository: myRepo
+            type: tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes
+
+capability_types:
+  alien.capabilities.endpoint.docker.Mongo:
+    derived_from: tosca.capabilities.Endpoint.Database
+    description: >
+      Capability to connect to a Docker-supported Mongo database through bridge networking.
+    properties:
+      docker_bridge_port_mapping:
+        type: integer
+        description: Port used to bridge to the container's endpoint.
+        default: 0
+      port:
+        type: integer
+        default: 27017

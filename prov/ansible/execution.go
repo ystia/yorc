@@ -34,6 +34,9 @@ host_key_checking=False
 timeout=600
 stdout_callback = json
 retry_files_save_path = #PLAY_PATH#
+
+[ssh_connection]
+retries=5
 `
 
 type ansibleRetriableError struct {
@@ -101,7 +104,9 @@ type executionCommon struct {
 	operation                prov.Operation
 	NodeType                 string
 	Description              string
+	OperationRemoteBaseDir   string
 	OperationRemotePath      string
+	KeepOperationRemotePath  bool
 	EnvInputs                []*EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -126,15 +131,19 @@ type executionCommon struct {
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	execCommon := &executionCommon{kv: kv,
-		cfg:            cfg,
-		deploymentID:   deploymentID,
-		NodeName:       nodeName,
-		operation:      operation,
-		VarInputsNames: make([]string, 0),
-		EnvInputs:      make([]*EnvInput, 0),
-		taskID:         taskID,
-		Outputs:        make(map[string]string),
+		cfg:                     cfg,
+		deploymentID:            deploymentID,
+		NodeName:                nodeName,
+		OperationRemoteBaseDir:  ".janus_" + timestamp,
+		//KeepOperationRemotePath property is required to be public when resolving templates.
+		KeepOperationRemotePath: cfg.KeepOperationRemotePath,
+		operation:               operation,
+		VarInputsNames:          make([]string, 0),
+		EnvInputs:               make([]*EnvInput, 0),
+		taskID:                  taskID,
+		Outputs:                 make(map[string]string),
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -713,31 +722,31 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		var perInstanceInputsBuffer bytes.Buffer
 		for _, varInput := range e.VarInputsNames {
 			if varInput == "INSTANCE" {
-				perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: \"%s\"\n", instanceName))
+				perInstanceInputsBuffer.WriteString(fmt.Sprintf("INSTANCE: %q\n", instanceName))
 			} else if varInput == "SOURCE_INSTANCE" {
 				if !e.isPerInstanceOperation {
-					perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %q\n", instanceName))
 				} else {
 					if e.isRelationshipTargetNode {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", currentInstance))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %q\n", currentInstance))
 					} else {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: \"%s\"\n", instanceName))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("SOURCE_INSTANCE: %q\n", instanceName))
 					}
 				}
 			} else if varInput == "TARGET_INSTANCE" {
 				if !e.isPerInstanceOperation {
-					perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
+					perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %q\n", instanceName))
 				} else {
 					if e.isRelationshipTargetNode {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", instanceName))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %q\n", instanceName))
 					} else {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: \"%s\"\n", currentInstance))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("TARGET_INSTANCE: %q\n", currentInstance))
 					}
 				}
 			} else {
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput && (envInput.InstanceName == instanceName || e.isPerInstanceOperation && envInput.InstanceName == currentInstance) {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %q\n", varInput, envInput.Value))
 						goto NEXT
 					}
 				}
@@ -754,7 +763,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 							instanceID := instanceName[instanceIDIdx:]
 							for _, envInput := range e.EnvInputs {
 								if envInput.Name == varInput && strings.HasSuffix(envInput.InstanceName, instanceID) {
-									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
+									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %q\n", varInput, envInput.Value))
 									goto NEXT
 								}
 							}
@@ -764,7 +773,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				// Not found with the combination inputName/instanceName let's use the first that matches the input name
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: \"%s\"\n", varInput, envInput.Value))
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %q\n", varInput, envInput.Value))
 						goto NEXT
 					}
 				}
@@ -790,9 +799,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.operation.Name)
+		e.OperationRemotePath = fmt.Sprintf("%s/%s/%s/%s", e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.operation.Name)
+		e.OperationRemotePath = fmt.Sprintf("%s/%s/%s", e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {

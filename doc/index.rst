@@ -15,4 +15,5 @@ Janus |release| Documentation
    run
    cli
    secured
+   ha
 
