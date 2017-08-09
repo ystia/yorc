@@ -62,7 +62,6 @@ const shellAnsiblePlaybook = `
     [[[end]]]
     [[[if not .KeepOperationRemotePath]]]
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemoteBaseDir]]]" state=absent
-    - file: path="{{ ansible_env.HOME}}/.ansible" state=absent
     [[[end]]]
 `
 
