@@ -116,7 +116,7 @@ Configuration files are JSON-formatted as a single JSON object containing the fo
 By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory. 
 The :ref:`--config <option_config_cmd>` command line flag allows to specify an alternative configuration file.
 
-Bellow is an example of configuration file.
+Below is an example of configuration file.
 
 .. code-block:: JSON
     
@@ -131,7 +131,7 @@ Bellow is an example of configuration file.
     }
 
 
-Bellow is an example of configuration file with TLS enable.
+Below is an example of configuration file with TLS enable.
 
 .. code-block:: JSON
     
@@ -248,7 +248,7 @@ Telemetry configuration can only be done via the configuration file.
 By default telemetry data are only stored in memory.
 See :ref:`janus_telemetry_section` for more information about telemetry.
 
-Bellow is an example of configuration file with telemetry metrics forwarded to a ``Statsd`` instance and with a ``Prometheus`` HTTP endpoint exposed.
+Below is an example of configuration file with telemetry metrics forwarded to a ``Statsd`` instance and with a ``Prometheus`` HTTP endpoint exposed.
 
 .. code-block:: JSON
     
@@ -265,6 +265,8 @@ Bellow is an example of configuration file with telemetry metrics forwarded to a
             "expose_prometheus_endpoint": true  
         }
     }
+
+All available configuration options for telemetry are:
 
 .. _option_telemetry_srvname_cfg:
 

@@ -119,7 +119,7 @@ There is two types of executors in Janus "delegates executors" and "operations e
 TOSCA nodes (like an Openstack compute for instance) while Operations executors handle implementations of an lifecycle operations provided as part of the TOSCA node
 definition (like a shell script or an ansible playbook).
 
-In the bellow table <ExecType> is the executor type, <DepID> the deployment ID, <NodeType> the fully qualified TOSCA node type where dots where replaced by
+In the below table <ExecType> is the executor type, <DepID> the deployment ID, <NodeType> the fully qualified TOSCA node type where dots where replaced by
 dashes and <OpName> the TOSCA operation name where dots where replaced by dashes.
 
 +----------------------------------------------------------------------+-------------------------------------------------+---------------------+-------------+
