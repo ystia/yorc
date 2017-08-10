@@ -20,6 +20,10 @@ import (
 
 // RunServer starts the Janus server
 func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
+	err := setupTelemetry(configuration)
+	if err != nil {
+		return err
+	}
 	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()
 	if err != nil {

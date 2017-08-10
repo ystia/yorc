@@ -23,5 +23,9 @@ build/consul
 /dist
 /plugin/testdata/plugin-sample/plugin-sample
 
+# Terraform infra
+/testdata/infra/janus
+/testdata/infra/openstack/terraform.tfstate*
+
 # Generated sources
 /tosca/assets.go

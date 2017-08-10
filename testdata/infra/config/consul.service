@@ -1,0 +1,18 @@
+[Unit]
+Description=Consul
+After=network-online.target firewalld.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/usr/local/bin/consul leave
+
+# restart the consul process if it exits prematurely
+Restart=on-failure
+StartLimitBurst=3
+StartLimitInterval=60s
+
+[Install]
+WantedBy=multi-user.target
+

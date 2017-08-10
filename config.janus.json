@@ -14,5 +14,9 @@
         "os_prefix": "JANUS-",
         "os_private_network_name": "private_starlings",
         "os_public_network_name": "not_supported",
-        "kube_master_ip": "10.197.138.154:8001"
+        "kube_master_ip": "10.197.138.154:8001",
+        "telemetry":{
+                "statsd_address": "127.0.0.1:8125",
+                "expose_prometheus_endpoint": true
+        }
 }

@@ -6,6 +6,8 @@ import (
 
 	"strings"
 
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -102,6 +104,23 @@ func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
 		return "", errors.Errorf("Missing targetId for task with id %q", taskID)
 	}
 	return string(kvp.Value), nil
+}
+
+// GetTaskCreationDate retrieves the creationDate of a task
+func GetTaskCreationDate(kv *api.KV, taskID string) (time.Time, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "creationDate"), nil)
+	creationDate := time.Time{}
+	if err != nil {
+		return creationDate, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return creationDate, errors.Errorf("Missing creationDate for task with id %q", taskID)
+	}
+	err = creationDate.UnmarshalBinary(kvp.Value)
+	if err != nil {
+		return creationDate, errors.Wrapf(err, "Failed to get task creationDate for task with id %q", taskID)
+	}
+	return creationDate, nil
 }
 
 // TaskExists checks if a task with the given taskID exists
