@@ -7,12 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -208,22 +210,22 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	}
 
 	log.Debugf("Processing step %q", s.Name)
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
+	if err != nil {
+		setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+		log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+		s.setStatus(tosca.NodeStateError.String())
+		if bypassErrors {
+			ignoredErrsChan <- err
+			haveErr = true
+		} else {
+			return err
+		}
+	}
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
 		switch {
 		case actType == wfDelegateActivity:
-			nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
-			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
-				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-				s.setStatus(tosca.NodeStateError.String())
-				if bypassErrors {
-					ignoredErrsChan <- err
-					haveErr = true
-				} else {
-					return err
-				}
-			}
 			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
@@ -237,7 +239,13 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				}
 			} else {
 				delegateOp := activity.ActivityValue()
-				if err := provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp); err != nil {
+				err := func() error {
+					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
+					return provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
+				}()
+
+				if err != nil {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					s.setStatus(tosca.NodeStateError.String())
@@ -247,6 +255,8 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					} else {
 						return err
 					}
+				} else {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
 				}
 			}
 		case actType == wfSetStateActivity:
@@ -283,8 +293,13 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					return err
 				}
 			} else {
-				err = exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
+
+				err = func() error {
+					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
+					return exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
+				}()
 				if err != nil {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					if bypassErrors {
@@ -294,6 +309,8 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 						s.setStatus(tosca.NodeStateError.String())
 						return err
 					}
+				} else {
+					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
 				}
 			}
 		}

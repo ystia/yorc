@@ -16,4 +16,5 @@ Janus |release| Documentation
    cli
    secured
    ha
+   telemetry
 

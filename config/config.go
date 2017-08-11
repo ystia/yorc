@@ -66,4 +66,15 @@ type Configuration struct {
 	ConsulSSLVerify               bool          `json:"consul_ssl_verify,omitempty"`
 	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
 	KubemasterIP                  string        `json:"kube_ip,omitpempty"`
+	Telemetry                     Telemetry     `json:"telemetry,omitempty"`
+}
+
+// Telemetry holds the configuration for the telemetry service
+type Telemetry struct {
+	StatsdAddress           string `json:"statsd_address,omitempty"`
+	StatsiteAddress         string `json:"statsite_address,omitempty"`
+	PrometheusEndpoint      bool
+	ServiceName             string `json:"service_name,omitempty"`
+	DisableHostName         bool
+	DisableGoRuntimeMetrics bool
 }

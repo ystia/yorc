@@ -15,10 +15,14 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"time"
+
+	"github.com/armon/go-metrics"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -103,6 +107,9 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 }
 
 func (w worker) handleTask(t *task) {
+	if t.Status() == tasks.INITIAL {
+		metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
+	}
 	t.WithStatus(tasks.RUNNING)
 	kv := w.consulClient.KV()
 	bgCtx := context.Background()
@@ -110,6 +117,10 @@ func (w worker) handleTask(t *task) {
 	defer t.releaseLock()
 	defer cancelFunc()
 	w.monitorTaskForCancellation(ctx, cancelFunc, t)
+	defer func(t *task, start time.Time) {
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"task", t.TargetID, t.TaskType.String(), t.Status().String()}), 1)
+		metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"task", t.TargetID, t.TaskType.String()}), start)
+	}(t, time.Now())
 	switch t.TaskType {
 	case tasks.Deploy:
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_IN_PROGRESS)
@@ -200,6 +211,12 @@ func (w worker) handleTask(t *task) {
 
 		nodeName := nodes[0]
 		commandName := string(commandNameKv.Value)
+		nodeType, err := deployments.GetNodeType(w.consulClient.KV(), t.TargetID, nodeName)
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command node type: %+v", t.TargetID, t.ID, err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
 		op, err := getOperation(kv, t.TargetID, nodeName, "custom."+commandName)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
@@ -221,7 +238,12 @@ func (w worker) handleTask(t *task) {
 			t.WithStatus(tasks.FAILED)
 			return
 		}
-		if err := exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, op); err != nil {
+		err = func() error {
+			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name}), time.Now())
+			return exec.ExecOperation(ctx, w.cfg, t.ID, t.TargetID, nodeName, op)
+		}()
+		if err != nil {
+			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "failures"}), 1)
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			err = setNodeStatus(t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
 			if err != nil {
@@ -230,6 +252,7 @@ func (w worker) handleTask(t *task) {
 			t.WithStatus(tasks.FAILED)
 			return
 		}
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
 	case tasks.ScaleUp:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
@@ -334,7 +357,6 @@ func (w worker) Start() {
 		for {
 			// register the current worker into the worker queue.
 			w.workerPool <- w.TaskChannel
-
 			select {
 			case task := <-w.TaskChannel:
 				// we have received a work request.

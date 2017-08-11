@@ -2,11 +2,15 @@ package workflow
 
 import (
 	"strconv"
-	"strings"
 	"time"
 
 	"sync"
 
+	"math"
+
+	"path"
+
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -28,7 +32,64 @@ type Dispatcher struct {
 // NewDispatcher create a new Dispatcher with a given number of workers
 func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
 	pool := make(chan chan *task, cfg.WorkersNumber)
-	return &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
+	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
+	dispatcher.emitTasksMetrics()
+	return dispatcher
+}
+
+func getNbAndMaxTasksWaitTimeMs(kv *api.KV) (float32, float64, error) {
+	now := time.Now()
+	var max float64
+	var nb float32
+	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
+	if err != nil {
+		return nb, max, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, taskKey := range tasksKeys {
+		taskID := path.Base(taskKey)
+		status, err := tasks.GetTaskStatus(kv, taskID)
+		if err != nil {
+			return nb, max, err
+		}
+		if status == tasks.INITIAL {
+			nb++
+			createDate, err := tasks.GetTaskCreationDate(kv, path.Base(taskKey))
+			if err != nil {
+				return nb, max, err
+			}
+			max = math.Max(max, float64(now.Sub(createDate)/time.Millisecond))
+		}
+	}
+	return nb, max, nil
+}
+
+func (d *Dispatcher) emitTasksMetrics() {
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+		kv := d.client.KV()
+		lastWarn := time.Now().Add(-6 * time.Minute)
+		for {
+			select {
+			case <-time.After(time.Second):
+				metrics.SetGauge([]string{"workers", "free"}, float32(len(d.WorkerPool)))
+				nb, maxWait, err := getNbAndMaxTasksWaitTimeMs(kv)
+				if err != nil {
+					now := time.Now()
+					if now.Sub(lastWarn) > 5*time.Minute {
+						// Do not print each time
+						lastWarn = now
+						log.Printf("Warning: Failed to get Max Blocked duration for tasks: %v", err)
+					}
+					continue
+				}
+				metrics.AddSample([]string{"tasks", "maxBlockTimeMs"}, float32(maxWait))
+				metrics.SetGauge([]string{"tasks", "nbWaiting"}, nb)
+			case <-d.shutdownCh:
+				return
+			}
+		}
+	}()
 }
 
 // Run creates workers and waits for new tasks
@@ -70,6 +131,7 @@ func (d *Dispatcher) Run() {
 		waitIndex = rMeta.LastIndex
 		log.Debugf("Got response new wait index is %d", waitIndex)
 		for _, taskKey := range tasksKeys {
+			taskID := path.Base(taskKey)
 			log.Debugf("Check if createLock exists for task %s", taskKey)
 			for {
 				if createLock, _, _ := kv.Get(taskKey+".createLock", nil); createLock != nil {
@@ -80,7 +142,7 @@ func (d *Dispatcher) Run() {
 					break
 				}
 			}
-			status, err := checkTaskStatus(kv, taskKey)
+			status, err := tasks.GetTaskStatus(kv, taskID)
 
 			if err != nil {
 				log.Print(err)
@@ -115,7 +177,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			status, err = checkTaskStatus(kv, taskKey)
+			status, err = tasks.GetTaskStatus(kv, taskID)
 
 			if err != nil {
 				log.Print(err)
@@ -159,19 +221,32 @@ func (d *Dispatcher) Run() {
 				log.Printf("Failed to get task type for key %s: %+v", taskKey, err)
 				continue
 			}
-
-			keyPath := strings.Split(taskKey, "/")
-			log.Debugf("%+q", keyPath)
-			var taskID string
-			for i := len(keyPath) - 1; i >= 0; i-- {
-				if keyPath[i] != "" {
-					taskID = keyPath[i]
-					break
-				}
+			kvPairContent, _, err = kv.Get(taskKey+"creationDate", nil)
+			if err != nil {
+				log.Printf("Failed to get task creationDate for key %s: %+v", taskKey, err)
+				continue
+			}
+			if kvPairContent == nil {
+				log.Printf("Failed to get task creationDate for key %s: nil value", taskKey)
+				continue
+			}
+			creationDate := time.Time{}
+			err = creationDate.UnmarshalBinary(kvPairContent.Value)
+			if err != nil {
+				log.Printf("Failed to get task creationDate for key %s: %+v", taskKey, err)
+				continue
 			}
 
 			log.Printf("Processing task %q linked to deployment %q", taskID, targetID)
-			t := &task{ID: taskID, status: status, TargetID: targetID, taskLock: lock, kv: kv, TaskType: tasks.TaskType(taskType)}
+			t := &task{
+				ID:           taskID,
+				status:       status,
+				TargetID:     targetID,
+				taskLock:     lock,
+				kv:           kv,
+				creationDate: creationDate,
+				TaskType:     tasks.TaskType(taskType),
+			}
 			log.Debugf("New task created %+v: pushing it to a work channel", t)
 			// try to obtain a worker task channel that is available.
 			// this will block until a worker is idle
@@ -197,22 +272,5 @@ func (d *Dispatcher) Run() {
 
 		}
 	}
-
-}
-
-func checkTaskStatus(kv *api.KV, taskKey string) (tasks.TaskStatus, error) {
-	kvPairContent, _, err := kv.Get(taskKey+"status", nil)
-	if err != nil {
-		return tasks.FAILED, errors.Wrapf(err, "Failed to get status for key %s: %+v", taskKey, err)
-	}
-	if kvPairContent == nil {
-		return tasks.FAILED, errors.Errorf("Failed to get status for key %s: nil value", taskKey)
-	}
-
-	statusInt, err := strconv.Atoi(string(kvPairContent.Value))
-	if err != nil {
-		return tasks.FAILED, errors.Wrapf(err, "Failed to get status for key %s", taskKey)
-	}
-	return tasks.TaskStatus(statusInt), nil
 
 }

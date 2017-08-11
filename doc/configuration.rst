@@ -130,6 +130,9 @@ Command-line options
 
   * ``--working_directory`` or ``-w``: Specify an alternative working directory for Janus. The default is to use a directory named *work* in the current directory.
 
+
+.. _janus_config_file_section:
+
 Configuration files
 -------------------
 
@@ -137,7 +140,7 @@ Configuration files are JSON-formatted as a single JSON object containing the fo
 By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory. 
 The :ref:`--config <option_config_cmd>` command line flag allows to specify an alternative configuration file.
 
-Bellow is an example of configuration file.
+Below is an example of configuration file.
 
 .. code-block:: JSON
     
@@ -152,7 +155,7 @@ Bellow is an example of configuration file.
     }
 
 
-Bellow is an example of configuration file with TLS enable.
+Below is an example of configuration file with TLS enable.
 
 .. code-block:: JSON
     
@@ -284,7 +287,60 @@ Bellow is an example of configuration file with TLS enable.
 .. _option_workdir_cfg: 
 
   * ``working_directory``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
- 
+
+.. _janus_config_file_telemetry_section:
+
+Telemetry configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Telemetry configuration can only be done via the configuration file.
+By default telemetry data are only stored in memory.
+See :ref:`janus_telemetry_section` for more information about telemetry.
+
+Below is an example of configuration file with telemetry metrics forwarded to a ``Statsd`` instance and with a ``Prometheus`` HTTP endpoint exposed.
+
+.. code-block:: JSON
+    
+    {
+        "os_auth_url": "http://your-openstack:5000/v2.0",
+        "os_tenant_name": "your-tenant",
+        "os_user_name": "os-user",
+        "os_password": "os-password",
+        "os_prefix": "janus1-",
+        "os_private_network_name": "default-private-network",
+        "os_default_security_groups": ["default"],
+        "telemetry": {
+            "statsd_address": "127.0.0.1:8125",
+            "expose_prometheus_endpoint": true  
+        }
+    }
+
+All available configuration options for telemetry are:
+
+.. _option_telemetry_srvname_cfg:
+
+  * ``service_name``: Metrics keys prefix, defaults to ``janus``.
+
+.. _option_telemetry_disHostName_cfg:
+
+  * ``disable_hostname``: Specifies if gauge values should not be prefixed with the local hostname. Defaults to ``false``.
+
+.. _option_telemetry_disRuntimeMetrics_cfg:
+
+  * ``disable_go_runtime_metrics``: Specifies Go runtime metrics (goroutines, memory, ...) should not be published. Defaults to ``false``.
+
+.. _option_telemetry_statsd_cfg:
+
+  * ``statsd_address``: Specify the address (in form <address>:<port>) of a statsd server to forward metrics data to. 
+
+
+.. _option_telemetry_statsite_cfg:
+
+  * ``statsite_address``: Specify the address (in form <address>:<port>) of a statsite server to forward metrics data to.
+
+.. _option_telemetry_prom_cfg:
+
+  * ``expose_prometheus_endpoint``: Specify if an HTTP Prometheus endpoint should be exposed allowing Prometheus to scrape metrics.
 
 Environment variables
 ---------------------
