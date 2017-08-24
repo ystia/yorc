@@ -56,4 +56,7 @@ type Configuration struct {
 	ConsulAddress                 string        `json:"consul_address,omitempty"`
 	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
 	KubemasterIP                  string        `json:"kube_ip,omitpempty"`
+	KubemasterCertFile            string        `json:"kube_cert_file,omitpempty"`
+	KubemasterKeyFile             string        `json:"kube_key_file,omitpempty"`
+	KubemasterCAFile              string        `json:"kube_ca_file,omitpempty"`
 }

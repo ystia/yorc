@@ -11,6 +11,11 @@ var clientset *kubernetes.Clientset
 
 func InitClientSet(cfg config.Configuration) error {
 	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIP, "")
+	//conf.TLSClientConfig.CAFile = cfg.KubemasterCAFile
+	conf.TLSClientConfig.CertFile = cfg.KubemasterCertFile
+	conf.TLSClientConfig.KeyFile = cfg.KubemasterKeyFile
+	conf.TLSClientConfig.Insecure = true
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to build kubernetes config")
 	}

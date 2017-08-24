@@ -203,6 +203,9 @@ func getConfig() config.Configuration {
 	configuration.KeepOperationRemotePath = viper.GetBool("keep_operation_remote_path")
 	configuration.OSDefaultSecurityGroups = make([]string, 0)
 	configuration.KubemasterIP = viper.GetString("kube_master_ip")
+	configuration.KubemasterCertFile = viper.GetString("kube_cert_file")
+	configuration.KubemasterKeyFile = viper.GetString("kube_key_file")
+	configuration.KubemasterCAFile = viper.GetString("kube_ca_file")
 	for _, secgFlag := range viper.GetStringSlice("os_default_security_groups") {
 		// Don't know why but Cobra gives a slice with only one element containing coma separated input flags
 		configuration.OSDefaultSecurityGroups = append(configuration.OSDefaultSecurityGroups, strings.Split(secgFlag, ",")...)
