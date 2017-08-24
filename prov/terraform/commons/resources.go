@@ -17,6 +17,12 @@ type ConsulKeys struct {
 	Keys       []ConsulKey `json:"key"`
 }
 
+// A Resource is the base type for terraform resources
+type Resource struct {
+	Connection   *Connection              `json:"connection,omitempty"`
+	Provisioners []map[string]interface{} `json:"provisioner,omitempty"`
+}
+
 // A ConsulKey can be used in a ConsulKeys 'resource' to writes or a ConsulKeys 'data' to read an individual Key/Value pair into Consul
 type ConsulKey struct {
 	Path string `json:"path"`
@@ -38,10 +44,10 @@ type ConsulKey struct {
 //
 // The remote-exec provisioner supports both ssh and winrm type connections.
 type RemoteExec struct {
-	Connection Connection `json:"connection,omitempty"`
-	Inline     []string   `json:"inline,omitempty"`
-	Script     string     `json:"script,omitempty"`
-	Scripts    []string   `json:"scripts,omitempty"`
+	Connection *Connection `json:"connection,omitempty"`
+	Inline     []string    `json:"inline,omitempty"`
+	Script     string      `json:"script,omitempty"`
+	Scripts    []string    `json:"scripts,omitempty"`
 }
 
 // A Connection allows to overwrite the way Terraform connects to a resource

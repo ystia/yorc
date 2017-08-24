@@ -310,7 +310,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	if err != nil {
 		return false, nil, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
 	}
-	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", fmt.Sprint(deploymentID), "infra", nodeName)
+	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		return false, nil, errors.Wrapf(err, "Failed to create infrastructure working directory %q", infraPath)
 	}

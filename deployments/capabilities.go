@@ -134,6 +134,11 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	return GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, attributeName)
 }
 
+// SetInstanceCapabilityAttribute sets a capability attribute for a given node instance
+func SetInstanceCapabilityAttribute(deploymentID, nodeName, instanceName, capabilityName, attributeName, value string) error {
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName), value)
+}
+
 // GetNodeCapabilityType retrieves the type of a node template capability identified by its name
 //
 // This is a shorthand for GetNodeTypeCapabilityType

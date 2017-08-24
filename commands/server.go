@@ -77,6 +77,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().String("os_cacert_file", "", "Specify a custom CA certificate when communicating over SSL. You can specify either a path to the file or the contents of the certificate")
 	serverCmd.PersistentFlags().String("os_cert", "", "Specify client certificate file for SSL client authentication. You can specify either a path to the file or the contents of the certificate")
 	serverCmd.PersistentFlags().String("os_key", "", "Specify client private key file for SSL client authentication. You can specify either a path to the file or the contents of the key")
+	serverCmd.PersistentFlags().Bool("os_provisioning_over_fip", false, "This allows to perform the provisioning of a Compute over the associated floating IP if it exists. This is useful when Janus is not deployed on the same private network than the provisioned Compute.")
 
 	//Flags definition for Consul
 	serverCmd.PersistentFlags().StringP("consul_address", "", "", "Address of the HTTP interface for Consul (format: <host>:<port>)")
@@ -112,6 +113,7 @@ func setConfig() {
 	viper.BindPFlag("os_cacert_file", serverCmd.PersistentFlags().Lookup("os_cacert_file"))
 	viper.BindPFlag("os_cert", serverCmd.PersistentFlags().Lookup("os_cert"))
 	viper.BindPFlag("os_key", serverCmd.PersistentFlags().Lookup("os_key"))
+	viper.BindPFlag("os_provisioning_over_fip", serverCmd.PersistentFlags().Lookup("os_provisioning_over_fip"))
 
 	//Bind flags for Consul
 	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
@@ -167,6 +169,7 @@ func setConfig() {
 	viper.BindEnv("os_cacert_file", "OS_CACERT")
 	viper.BindEnv("os_cert", "OS_CERT")
 	viper.BindEnv("os_key", "OS_KEY")
+	viper.BindEnv("os_provisioning_over_fip")
 	viper.BindEnv("consul_publisher_max_routines")
 	viper.BindEnv("consul_address")
 	viper.BindEnv("consul_key_file")
@@ -227,6 +230,7 @@ func getConfig() config.Configuration {
 	configuration.OSCACert = viper.GetString("os_cacert_file")
 	configuration.OSCert = viper.GetString("os_cert")
 	configuration.OSKey = viper.GetString("os_key")
+	configuration.OSAllowProvisioningOverFIP = viper.GetBool("os_provisioning_over_fip")
 	configuration.ResourcesPrefix = viper.GetString("os_prefix")
 	configuration.OSPrivateNetworkName = viper.GetString("os_private_network_name")
 	configuration.OSPublicNetworkName = viper.GetString("os_public_network_name")

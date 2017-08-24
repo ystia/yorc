@@ -114,6 +114,10 @@ Command-line options
 
   * ``--os_private_network_name``: Specify the name of private network to use as primary adminstration network between Janus and Compute instances. It should be a private network accessible by this instance of Janus.
 
+.. _option_os_provisioning_over_fip_cmd:
+
+  * ``--os_provisioning_over_fip``: This allows to perform the provisioning of a Compute over the associated floating IP if it exists. This is useful when Janus is not deployed on the same private network than the provisioned Compute. Defaults to ``false``.
+
 .. _option_os_secgroups_cmd:
 
   * ``--os_default_security_groups``: Default security groups to be used when creating a Compute instance. It could be a comma-separated list of security group names or this option may be specified several times.
@@ -271,6 +275,10 @@ Below is an example of configuration file with TLS enable.
 .. _option_os_privatenet_cfg:
 
   * ``os_private_network_name``: Equivalent to :ref:`--os_private_network_name <option_os_privatenet_cmd>` command-line flag.
+
+.. _option_os_provisioning_over_fip_cfg:
+
+  * ``os_provisioning_over_fip``: Equivalent to :ref:`--os_provisioning_over_fip <option_os_provisioning_over_fip_cmd>` command-line flag.
 
 .. _option_os_secgroups_cfg:
 
@@ -444,6 +452,10 @@ Environment variables
 .. _option_os_privatenet_env:
 
   * ``JANUS_OS_PRIVATE_NETWORK_NAME``: Equivalent to :ref:`--os_private_network_name <option_os_privatenet_cmd>` command-line flag.
+
+.. _option_os_provisioning_over_fip_env:
+
+  * ``JANUS_OS_PROVISIONING_OVER_FIP``: Equivalent to :ref:`--os_provisioning_over_fip <option_os_provisioning_over_fip_cmd>` command-line flag.
 
 .. _option_os_secgroups_env:
 

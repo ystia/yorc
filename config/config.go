@@ -50,23 +50,24 @@ type Configuration struct {
 	OSCACert                      string        `json:"os_cacert_file,omitempty"`
 	OSCert                        string        `json:"os_cert,omitempty"`
 	OSKey                         string        `json:"os_key,omitempty"`
-	KeepOperationRemotePath       bool          `json:"keep_operation_remote_path,omitempty"`
-	ResourcesPrefix               string        `json:"os_prefix,omitempty"`
-	OSPrivateNetworkName          string        `json:"os_private_network_name,omitempty"`
-	OSPublicNetworkName           string        `json:"os_public_network_name,omitempty"`
-	OSDefaultSecurityGroups       []string      `json:"os_default_security_groups,omitempty"`
-	ConsulToken                   string        `json:"consul_token,omitempty"`
-	ConsulDatacenter              string        `json:"consul_datacenter,omitempty"`
-	ConsulAddress                 string        `json:"consul_address,omitempty"`
-	ConsulKey                     string        `json:"consul_key_file,omitempty"`
-	ConsulCert                    string        `json:"consul_cert_file,omitempty"`
-	ConsulCA                      string        `json:"consul_ca_cert,omitempty"`
-	ConsulCAPath                  string        `json:"consul_ca_path,omitempty"`
-	ConsulSSL                     bool          `json:"consul_ssl,omitempty"`
-	ConsulSSLVerify               bool          `json:"consul_ssl_verify,omitempty"`
-	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
-	KubemasterIP                  string        `json:"kube_ip,omitpempty"`
-	Telemetry                     Telemetry     `json:"telemetry,omitempty"`
+	OSAllowProvisioningOverFIP    bool
+	KeepOperationRemotePath       bool      `json:"keep_operation_remote_path,omitempty"`
+	ResourcesPrefix               string    `json:"os_prefix,omitempty"`
+	OSPrivateNetworkName          string    `json:"os_private_network_name,omitempty"`
+	OSPublicNetworkName           string    `json:"os_public_network_name,omitempty"`
+	OSDefaultSecurityGroups       []string  `json:"os_default_security_groups,omitempty"`
+	ConsulToken                   string    `json:"consul_token,omitempty"`
+	ConsulDatacenter              string    `json:"consul_datacenter,omitempty"`
+	ConsulAddress                 string    `json:"consul_address,omitempty"`
+	ConsulKey                     string    `json:"consul_key_file,omitempty"`
+	ConsulCert                    string    `json:"consul_cert_file,omitempty"`
+	ConsulCA                      string    `json:"consul_ca_cert,omitempty"`
+	ConsulCAPath                  string    `json:"consul_ca_path,omitempty"`
+	ConsulSSL                     bool      `json:"consul_ssl,omitempty"`
+	ConsulSSLVerify               bool      `json:"consul_ssl_verify,omitempty"`
+	ConsulPubMaxRoutines          int       `json:"rest_consul_publisher_max_routines,omitempty"`
+	KubemasterIP                  string    `json:"kube_ip,omitpempty"`
+	Telemetry                     Telemetry `json:"telemetry,omitempty"`
 }
 
 // Telemetry holds the configuration for the telemetry service
