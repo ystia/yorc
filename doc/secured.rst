@@ -33,7 +33,7 @@ Use the commands below for each component instance (where <FIP> represents host'
     openssl req -new -sha256 -key comp.key  -subj "/C=FR/O=Atos/CN=127.0.0.1" -reqexts SAN -config <(cat /etc/pki/tls/openssl.cnf <(printf "[SAN]\nsubjectAltName=IP:127.0.0.1,IP:<FIP>,DNS:localhost")) -out comp.csr
     openssl x509 -req -in comp.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out comp.pem -days 2048 -extensions SAN -extfile <(cat /etc/pki/tls/openssl.cnf <(printf "[SAN]\nsubjectAltName=IP:127.0.0.1,IP:<FIP>,DNS:localhost"))
 
-In the sections below, the ``comp.key`` and ``comp.pem`` files are used to define the different components' configration.
+In the sections below, the ``comp.key`` and ``comp.pem`` files are used to define the different components' configuration.
 
 Secured Consul cluster Setup
 ----------------------------
@@ -44,7 +44,7 @@ Create a ``consul.key`` and ``consul.pem`` for all the Consul agents within the 
 
 Use the above commands and replace <FIP> by the host's IP address.
 
-Check Consul documentation for detailes about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_ and `network trafic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
+Check Consul documentation for details about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_ and `network traffic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
 
 You may find below a typical configuration file for a consul server:
 
@@ -78,7 +78,7 @@ And below, one for a consul client.
       "client_addr": "0.0.0.0",
       "advertise_addr": "{FIP}",
       "ui": true,
-      "retry_join": [ {SERVER_FIP} ],
+      "retry_join": [ "{SERVER_FIP}" ],
       "encrypt": "{ENCRYPT_KEY}",
       "ports": {
         "https": 8080
@@ -91,11 +91,15 @@ And below, one for a consul client.
     }
 
 
-You can also consult this `Blog <http://russellsimpkins.blogspot.fr/2015/10/consul-adding-tls-using-self-signed.html>`_. You may found unsefull information about how to install CA cerificate in the OS, in case you get errors about trusting the signing authority.
+You can also consult this `Blog <http://russellsimpkins.blogspot.fr/2015/10/consul-adding-tls-using-self-signed.html>`_. You may found useful information about how to install CA certificate in the OS, in case you get errors about trusting the signing authority.
 
 Secured OpenStack 
 -----------------
-TODO
+
+Configuring OpenStack to run in SSL mode is out of the scope of this document. Please refer to the OpenStack documentation to do so.
+
+However, there are several configuration parameters in Janus that allow to interact with an OpenStack using SSL. Please refer to 
+:ref:`the OpenStack configuration section <option_infra_os>` for more information.
 
 Secured Janus Setup
 -------------------
@@ -106,30 +110,30 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
 .. code-block:: JSON
 
     {
-        "os_auth_url": "https://your-openstack:{OPENSTACK_PORT}/v2.0",
-        "os_tenant_name": "your-tenant",
-        "os_user_name": "os-user",
-        "os_password": "os-password",
-        "os_prefix": "janus1-",
-        "os_private_network_name": "default-private-network",
-        "os_default_security_groups": ["default"],
-        "key_file": "{PATH_TO_JANUS_SERVER_KEY}",
-        "cert_file": "{PATH_TO_JANUS_SERVER_PEM}",
         "consul_ssl": "true",
         "consul_ca_cert": "{PATH_TO_CA_PEM}",
         "consul_key_file": "{PATH_TO_CONSUL_CLIENT_KEY}",
         "consul_cert_file": "{PATH_TO_CONSUL_CLIENT_PEM}",
-        "consul_address": "127.0.0.1:8080"
+        "consul_address": "127.0.0.1:8080",
+        "resources_prefix": "janus1-",
+        "key_file": "{PATH_TO_JANUS_SERVER_KEY}",
+        "cert_file": "{PATH_TO_JANUS_SERVER_PEM}",
+        "infrastructures" : {
+            "openstack": {
+                "auth_url": "https://your-openstack:{OPENSTACK_PORT}/v2.0",
+                "tenant_name": "your-tenant",
+                "user_name": "os-user",
+                "password": "os-password",
+                "private_network_name": "default-private-network",
+                "default_security_groups": ["default"]
+            }
+        }
     }
 
-As for Consul, you may need to install CA cerificate in the OS, in case you get errors about trusting the signing authority.
+As for Consul, you may need to install CA certificate in the OS, in case you get errors about trusting the signing authority.
 
 Setup Alien4Cloud security
 --------------------------
-TODO -See the corresponding Chapter in Alien4Cloud plugin documentation
 
-
-
-
-
+See the corresponding Chapter in Alien4Cloud plugin documentation
 

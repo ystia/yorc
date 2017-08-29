@@ -407,6 +407,8 @@ automatically supported and recognized. The default order of precedence apply he
 Builtin infrastructures configuration
 -------------------------------------
 
+.. _option_infra_os: 
+
 OpenStack
 ~~~~~~~~~
 
@@ -449,6 +451,8 @@ OpenStack infrastructure key name is ``openstack`` in lower case.
 |                                   | the contents of the key                                                                                             |           |                                                    |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 
+
+.. _option_infra_kubernetes: 
 
 Kubernetes
 ~~~~~~~~~~
