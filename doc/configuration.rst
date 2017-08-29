@@ -149,11 +149,11 @@ Below is an example of configuration file with TLS enable.
 
 .. _option_ansible_ssh_cfg:
 
-  * ``ansible_use_openssh``: Equivalent to :ref:`--consul_address <option_ansible_ssh_cmd>` command-line flag.
+  * ``ansible_use_openssh``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
 
 .. _option_ansible_debug_cfg:
 
-  * ``ansible_debug``: Equivalent to :ref:`--consul_address <option_ansible_debug_cmd>` command-line flag.
+  * ``ansible_debug``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
 
 .. _option_consul_addr_cfg:
 
@@ -298,11 +298,11 @@ Environment variables
 
 .. _option_ansible_ssh_env:
 
-  * ``JANUS_ANSIBLE_USE_OPENSSH``: Equivalent to :ref:`--consul_address <option_ansible_ssh_cmd>` command-line flag.
+  * ``JANUS_ANSIBLE_USE_OPENSSH``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
 
 .. _option_ansible_debug_env:
 
-  * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--consul_address <option_ansible_debug_cmd>` command-line flag.
+  * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
 
 .. _option_consul_addr_env:
 
