@@ -10,9 +10,6 @@ import (
 
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	//"novaforge.bull.com/starlings-janus/janus/deployments"
-	//"github.com/stretchr/testify/require"
-	//"context"
 )
 
 // NewTestConsulInstance allows to :
@@ -37,10 +34,6 @@ func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 }
 
 // Create a deploymentID from the test name value
-func BuildDeploymentID(t *testing.T, kv *api.KV) string {
-	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
-	//yamlName := "testdata/" + deploymentID + ".yaml"
-	//err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, yamlName)
-	//require.Nil(t, err, "Failed to parse "+yamlName+" definition")
-	return deploymentID
+func BuildDeploymentID(t *testing.T) string {
+	return strings.Replace(t.Name(), "/", "_", -1)
 }

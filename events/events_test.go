@@ -20,7 +20,7 @@ import (
 
 func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 
 	var testData = []struct {
 		node     string
@@ -60,7 +60,7 @@ func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 	// Do not run this test in // as it cause some concurrency issue
 	// t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	sub := NewSubscriber(kv, deploymentID)
 
 	nodeName := "node1"
@@ -87,7 +87,7 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 
 func testConsulPubSubNewEventsTimeout(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	sub := NewSubscriber(kv, deploymentID)
 
 	timeout := 25 * time.Millisecond
@@ -102,7 +102,7 @@ func testConsulPubSubNewEventsTimeout(t *testing.T, kv *api.KV) {
 
 func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	sub := NewSubscriber(kv, deploymentID)
 
 	var testData = []struct {
@@ -159,7 +159,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 
 func testConsulPubSubNewNodeEvents(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 
 	nodeName := "node1"
 	instance := "0"
@@ -172,7 +172,7 @@ func testConsulPubSubNewNodeEvents(t *testing.T, kv *api.KV) {
 
 func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
 		kv     *api.KV
 		status string
@@ -215,7 +215,7 @@ func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 
 func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
 		kv     *api.KV
 		taskID string
@@ -262,7 +262,7 @@ func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 
 func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
 		kv     *api.KV
 		taskID string
@@ -309,7 +309,7 @@ func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 
 func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	type args struct {
 		kv     *api.KV
 		taskID string
@@ -396,7 +396,7 @@ func Test_consulPubSub_StatusEvents(t *testing.T) {
 
 func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	ids := make([]string, 5)
 	id, err := InstanceStatusChange(kv, deploymentID, "node1", "1", "started")
 	require.Nil(t, err)
@@ -459,7 +459,7 @@ func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
 func testconsulGetLogs(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	myErr := errors.New("MyError")
-	deploymentID := testutil.BuildDeploymentID(t, kv)
+	deploymentID := testutil.BuildDeploymentID(t)
 	prevIndex, err := GetLogsEventsIndex(kv, deploymentID)
 	require.Nil(t, err)
 	LogEngineError(kv, deploymentID, myErr)
