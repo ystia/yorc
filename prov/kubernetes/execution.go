@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
@@ -18,9 +22,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"path"
-	"strings"
-	"time"
 )
 
 // An EnvInput represent a TOSCA operation input

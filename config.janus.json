@@ -5,18 +5,25 @@
         "server_graceful_shutdown_timeout": "5m",
         "http_port": 8800,
         "http_address": "0.0.0.0",
-        "os_auth_url": "http://10.197.132.150:5000/v2.0",
-        "os_tenant_id": "1f219ffcff2342e189ef47c0e9689dfb",
-        "os_tenant_name": "starlings",
-        "os_user_name": "starlingsuser",
-        "os_password": "starlingsuser",
-        "os_region": "RegionOne",
-        "os_prefix": "JANUS-",
-        "os_private_network_name": "private_starlings",
-        "os_public_network_name": "not_supported",
-        "kube_master_ip": "10.197.138.154:8001",
+        "prefix": "JANUS-",
         "telemetry":{
                 "statsd_address": "127.0.0.1:8125",
                 "expose_prometheus_endpoint": true
+        },
+        "infrastructures":{
+          "openstack": {
+                "auth_url": "http://10.197.132.150:5000/v2.0",
+                "tenant_id": "1f219ffcff2342e189ef47c0e9689dfb",
+                "tenant_name": "starlings",
+                "user_name": "starlingsuser",
+                "password": "starlingsuser",
+                "region": "RegionOne",
+                "private_network_name": "private_starlings",
+                "public_network_name": "not_supported",
+                "os_default_security_groups": ["default", "lax"]
+          },
+          "kubernetes": {
+                "master_ip": "10.197.138.154:8001"
+          }      
         }
 }

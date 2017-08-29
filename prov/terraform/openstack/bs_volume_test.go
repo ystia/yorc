@@ -37,7 +37,11 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "RegionOne",
+			}}}
 	g := osGenerator{}
 
 	var testData = []struct {
@@ -86,7 +90,11 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "RegionOne",
+			}}}
 	g := osGenerator{}
 
 	var testData = []struct {
@@ -127,7 +135,11 @@ func generateOSBSVolumeMissingSize(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "RegionOne",
+			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
@@ -186,7 +198,11 @@ func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "RegionOne",
+			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")

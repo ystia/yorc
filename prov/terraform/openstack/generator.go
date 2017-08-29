@@ -118,14 +118,14 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"openstack": map[string]interface{}{
-			"user_name":   cfg.OSUserName,
-			"tenant_name": cfg.OSTenantName,
-			"password":    cfg.OSPassword,
-			"auth_url":    cfg.OSAuthURL,
-			"insecure":    cfg.OSInsecure,
-			"cacert_file": cfg.OSCACert,
-			"cert":        cfg.OSCert,
-			"key":         cfg.OSKey,
+			"user_name":   cfg.Infrastructures[infrastructureName].GetString("user_name"),
+			"tenant_name": cfg.Infrastructures[infrastructureName].GetString("tenant_name"),
+			"password":    cfg.Infrastructures[infrastructureName].GetString("password"),
+			"auth_url":    cfg.Infrastructures[infrastructureName].GetString("auth_url"),
+			"insecure":    cfg.Infrastructures[infrastructureName].GetString("insecure"),
+			"cacert_file": cfg.Infrastructures[infrastructureName].GetString("cacert_file"),
+			"cert":        cfg.Infrastructures[infrastructureName].GetString("cert"),
+			"key":         cfg.Infrastructures[infrastructureName].GetString("key"),
 		},
 		"consul": map[string]interface{}{
 			"address":   consulAddress,

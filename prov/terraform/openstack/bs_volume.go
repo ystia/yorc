@@ -65,7 +65,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, u
 	} else if region != "" {
 		volume.Region = region
 	} else {
-		volume.Region = cfg.OSRegion
+		volume.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 	az, err := g.getStringFormConsul(kv, url, "properties/availability_zone")
 	if err != nil {

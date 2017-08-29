@@ -67,7 +67,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	} else if region != "" {
 		instance.Region = region
 	} else {
-		instance.Region = cfg.OSRegion
+		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
 	_, keyPair, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "key_pair")
@@ -77,7 +77,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	// TODO if empty use a default one or fail ?
 	instance.KeyPair = keyPair
 
-	instance.SecurityGroups = cfg.OSDefaultSecurityGroups
+	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
 	_, secGroups, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
@@ -99,11 +99,15 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	if err != nil {
 		return err
 	}
+	defaultPrivateNetName := cfg.Infrastructures[infrastructureName].GetString("private_network_name")
 	if networkName != "" {
-		// TODO Deal with networks aliases (PUBLIC/PRIVATE)
+		// TODO Deal with networks aliases (PUBLIC)
 		var networkSlice []ComputeNetwork
 		if strings.EqualFold(networkName, "private") {
-			networkSlice = append(networkSlice, ComputeNetwork{Name: cfg.OSPrivateNetworkName, AccessNetwork: true})
+			if defaultPrivateNetName == "" {
+				return errors.Errorf(`You should either specify a default private network name using the "private_network_name" configuration parameter for the "openstack" infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`, nodeName)
+			}
+			networkSlice = append(networkSlice, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
 		} else if strings.EqualFold(networkName, "public") {
 			//TODO
 			return errors.Errorf("Public Network aliases currently not supported")
@@ -113,7 +117,10 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		instance.Networks = networkSlice
 	} else {
 		// Use a default
-		instance.Networks = append(instance.Networks, ComputeNetwork{Name: cfg.OSPrivateNetworkName, AccessNetwork: true})
+		if defaultPrivateNetName == "" {
+			return errors.Errorf(`You should either specify a default private network name using the "private_network_name" configuration parameter for the "openstack" infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`, nodeName)
+		}
+		instance.Networks = append(instance.Networks, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
 	}
 
 	var user string
@@ -125,7 +132,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 
-	// TODO deal with multi-instances
 	storageKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
@@ -158,7 +164,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				}
 			}
 			log.Debugf("Looking for volume_id")
-			// TODO consider the use of a method in the deployments package
 			_, volumeID, err := deployments.GetNodeProperty(kv, deploymentID, volumeNodeName, "volume_id")
 			if err != nil {
 				return err
@@ -169,9 +174,9 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				go func() {
 					for {
 						// ignore errors and retry
-						volumeID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
-						if volumeID != "" {
-							resultChan <- volumeID
+						volID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
+						if volID != "" {
+							resultChan <- volID
 							return
 						}
 						select {
@@ -325,7 +330,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	// TODO private key should not be hard-coded
 	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	var accessIP string
-	if fipAssociateName != "" && cfg.OSAllowProvisioningOverFIP {
+	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
 		// Use Floating IP for provisioning
 		accessIP = "${openstack_compute_floatingip_associate_v2." + fipAssociateName + ".floating_ip}"
 	} else {

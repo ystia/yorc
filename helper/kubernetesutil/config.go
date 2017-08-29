@@ -10,7 +10,11 @@ import (
 var clientset *kubernetes.Clientset
 
 func InitClientSet(cfg config.Configuration) error {
-	conf, err := clientcmd.BuildConfigFromFlags(cfg.KubemasterIP, "")
+	kubMasterIP := cfg.Infrastructures["kubernetes"].GetString("kube_ip")
+	if kubMasterIP == "" {
+		return errors.New(`Missing or invalid mandatory parameter kube_ip in the "kubernetes" infrastructure configuration`)
+	}
+	conf, err := clientcmd.BuildConfigFromFlags(kubMasterIP, "")
 	if err != nil {
 		return errors.Wrap(err, "Failed to build kubernetes config")
 	}

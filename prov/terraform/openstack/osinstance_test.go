@@ -61,7 +61,12 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
-	cfg := config.Configuration{OSRegion: "RegionTwo"}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region":               "RegionTwo",
+				"private_network_name": "test",
+			}}}
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -109,7 +114,12 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
 	})
-	cfg := config.Configuration{OSAllowProvisioningOverFIP: true}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"provisioning_over_fip_allowed": true,
+				"private_network_name":          "test",
+			}}}
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -159,7 +169,12 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	srv.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
 	})
-	cfg := config.Configuration{OSAllowProvisioningOverFIP: false}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"provisioning_over_fip_allowed": false,
+				"private_network_name":          "test",
+			}}}
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 
