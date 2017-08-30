@@ -53,7 +53,6 @@ func serverInitInfraExtraFlags() {
 				serverCmd.PersistentFlags().String(flagName, "", "")
 				viper.SetDefault(viperName, "")
 			}
-			log.Printf("ViperName %q", viperName)
 			viper.BindPFlag(viperName, serverCmd.PersistentFlags().Lookup(flagName))
 			serverExtraInfraParams = append(serverExtraInfraParams, viperName)
 		}
@@ -237,7 +236,6 @@ func getConfig() config.Configuration {
 		addServerExtraInfraParams(&configuration, infraParam)
 	}
 
-	log.Debugf("%+v", configuration.Infrastructures)
 	configuration.Telemetry.StatsdAddress = viper.GetString("telemetry.statsd_address")
 	configuration.Telemetry.StatsiteAddress = viper.GetString("telemetry.statsite_address")
 	configuration.Telemetry.ServiceName = viper.GetString("telemetry.service_name")
@@ -249,7 +247,6 @@ func getConfig() config.Configuration {
 }
 
 func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
-	log.Debugf("Adding extra param %q", infraParam)
 	if cfg.Infrastructures == nil {
 		cfg.Infrastructures = make(map[string]config.InfrastructureConfig)
 	}
@@ -257,7 +254,6 @@ func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
 	value := viper.Get(infraParam)
 	params, ok := cfg.Infrastructures[paramParts[1]]
 	if !ok {
-		log.Debugf("Creating config for infra %q", paramParts[1])
 		params = make(config.InfrastructureConfig)
 		cfg.Infrastructures[paramParts[1]] = params
 	}
