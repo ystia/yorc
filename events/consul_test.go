@@ -7,12 +7,12 @@ import (
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulPackageTests(t *testing.T) {
+func TestRunConsulEventsPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
 
-	t.Run("groupEvent", func(t *testing.T) {
+	t.Run("groupEvents", func(t *testing.T) {
 		t.Run("TestConsulPubSubStatusChange", func(t *testing.T) {
 			testConsulPubSubStatusChange(t, kv)
 		})
