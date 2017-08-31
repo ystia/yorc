@@ -22,10 +22,8 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testReadWorkFlowFromConsul", func(t *testing.T) {
 			testReadWorkFlowFromConsul(t, srv, kv)
 		})
-	})
-
-	// Run this test after previous to avoid failing them
-	t.Run("testReadStepFromConsulFailing", func(t *testing.T) {
-		testReadStepFromConsulFailing(t, srv, kv)
+		t.Run("testReadStepFromConsulFailing", func(t *testing.T) {
+			testReadStepFromConsulFailing(t, srv, kv)
+		})
 	})
 }
