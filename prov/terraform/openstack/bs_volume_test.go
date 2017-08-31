@@ -9,35 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"path"
 )
 
-func TestGroupedVolumeParallel(t *testing.T) {
-	t.Run("groupVolume", func(t *testing.T) {
-		t.Run("generateOSBSVolumeSizeConvert", generateOSBSVolumeSizeConvert)
-		t.Run("Test_generateOSBSVolumeSizeConvertError", generateOSBSVolumeSizeConvertError)
-		t.Run("Test_generateOSBSVolumeMissingSize", generateOSBSVolumeMissingSize)
-		t.Run("generateOSBSVolumeWrongType", generateOSBSVolumeWrongType)
-		t.Run("Test_generateOSBSVolumeCheckOptionalValues", generateOSBSVolumeCheckOptionalValues)
-	})
-}
-
-func generateOSBSVolumeSizeConvert(t *testing.T) {
+func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	indexSuffix := path.Base(t.Name())
+	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
 	g := osGenerator{}
 
 	var testData = []struct {
@@ -45,15 +25,15 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 		inputSize    string
 		expectedSize int
 	}{
-		{"node/volume1", "1", 1},
-		{"node/volume10000000", "100", 1},
-		{"node/volume10000000", "1500 M", 2},
-		{"node/volume1GB", "1GB", 1},
-		{"node/volume1GBS", "1      GB", 1},
-		{"node/volume1GiB", "1 GiB", 2},
-		{"node/volume2GIB", "2 GIB", 3},
-		{"node/volume1TB", "1 tb", 1000},
-		{"node/volume1TiB", "1 TiB", 1100},
+		{"node_" + indexSuffix + "/volume1", "1", 1},
+		{"node_" + indexSuffix + "/volume10000000", "100", 1},
+		{"node_" + indexSuffix + "/volume10000000", "1500 M", 2},
+		{"node_" + indexSuffix + "/volume1GB", "1GB", 1},
+		{"node_" + indexSuffix + "/volume1GBS", "1      GB", 1},
+		{"node_" + indexSuffix + "/volume1GiB", "1 GiB", 2},
+		{"node_" + indexSuffix + "/volume2GIB", "2 GIB", 3},
+		{"node_" + indexSuffix + "/volume1TB", "1 tb", 1000},
+		{"node_" + indexSuffix + "/volume1TiB", "1 TiB", 1100},
 	}
 	for i, tt := range testData {
 		t.Log("Registering Key")
@@ -67,36 +47,26 @@ func generateOSBSVolumeSizeConvert(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedSize, bsv.Size)
 		// Default region
-		assert.Equal(t, "RegionOne", bsv.Region)
+		assert.Equal(t, "Region_"+indexSuffix, bsv.Region)
 	}
 }
-func generateOSBSVolumeSizeConvertError(t *testing.T) {
+
+func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	indexSuffix := path.Base(t.Name())
+	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
 	g := osGenerator{}
 
 	var testData = []struct {
 		volURL    string
 		inputSize string
 	}{
-		{"node/volume1", "1 bar"},
-		{"node/volume2", "100 BAZ"},
-		{"node/volume3", "M 1500"},
-		{"node/volume4", "GB"},
+		{"node_" + indexSuffix + "/volume1", "1 bar"},
+		{"node_" + indexSuffix + "/volume2", "100 BAZ"},
+		{"node_" + indexSuffix + "/volume3", "M 1500"},
+		{"node_" + indexSuffix + "/volume4", "GB"},
 	}
 	for i, tt := range testData {
 		t.Log("Registering Key")
@@ -111,94 +81,62 @@ func generateOSBSVolumeSizeConvertError(t *testing.T) {
 	}
 }
 
-func generateOSBSVolumeMissingSize(t *testing.T) {
+func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	indexSuffix := path.Base(t.Name())
+	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	data["vol/type"] = []byte("janus.nodes.openstack.BlockStorage")
+	data["vol_"+indexSuffix+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume(kv, cfg, "vol", "0")
+	_, err := g.generateOSBSVolume(kv, cfg, "vol_"+indexSuffix, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Missing mandatory property 'size'")
 }
-func generateOSBSVolumeWrongType(t *testing.T) {
+
+func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	cfg := config.Configuration{}
+	indexSuffix := path.Base(t.Name())
+	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	data["vol/type"] = []byte("someorchestrator.nodes.openstack.BlockStorage")
+	data["vol_"+indexSuffix+"/type"] = []byte("someorchestrator.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
-	_, err = g.generateOSBSVolume(kv, cfg, "vol", "0")
+	_, err := g.generateOSBSVolume(kv, cfg, "vol_"+indexSuffix, "0")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Unsupported node type for")
 }
 
-func generateOSBSVolumeCheckOptionalValues(t *testing.T) {
+func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	cfg := config.Configuration{OSRegion: "RegionOne"}
+	indexSuffix := path.Base(t.Name())
+	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	data["vol/type"] = []byte("janus.nodes.openstack.BlockStorage")
-	data["vol/properties/size"] = []byte("1 GB")
-	data["vol/properties/availability_zone"] = []byte("az1")
-	data["vol/properties/region"] = []byte("Region2")
+	data["vol_"+indexSuffix+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+	data["vol_"+indexSuffix+"/properties/size"] = []byte("1 GB")
+	data["vol_"+indexSuffix+"/properties/availability_zone"] = []byte("az1")
+	data["vol_"+indexSuffix+"/properties/region"] = []byte("Region2")
 
 	srv1.PopulateKV(t, data)
-	bsv, err := g.generateOSBSVolume(kv, cfg, "vol", "0")
+	bsv, err := g.generateOSBSVolume(kv, cfg, "vol_"+indexSuffix, "0")
 	assert.Nil(t, err)
 	assert.Equal(t, "az1", bsv.AvailabilityZone)
 	assert.Equal(t, "Region2", bsv.Region)

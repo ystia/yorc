@@ -5,33 +5,15 @@ import (
 	"testing"
 
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
 
 	"path"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
 )
 
-func TestTasks(t *testing.T) {
-	t.Parallel()
-	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
-
-	srv1.PopulateKV(t, map[string][]byte{
+func populateKV(t *testing.T, srv *testutil.TestServer) {
+	srv.PopulateKV(t, map[string][]byte{
 		consulutil.TasksPrefix + "/t1/targetId":        []byte("id1"),
 		consulutil.TasksPrefix + "/t1/status":          []byte("0"),
 		consulutil.TasksPrefix + "/t1/type":            []byte("0"),
@@ -67,43 +49,6 @@ func TestTasks(t *testing.T) {
 
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/0/id": []byte("0"),
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/1/id": []byte("1"),
-	})
-
-	t.Run("tasks", func(t *testing.T) {
-		t.Run("GetTasksIdsForTarget", func(t *testing.T) {
-			testGetTasksIdsForTarget(t, kv)
-		})
-		t.Run("GetTaskStatus", func(t *testing.T) {
-			testGetTaskStatus(t, kv)
-		})
-		t.Run("GetTaskType", func(t *testing.T) {
-			testGetTaskType(t, kv)
-		})
-		t.Run("GetTaskTarget", func(t *testing.T) {
-			testGetTaskTarget(t, kv)
-		})
-		t.Run("TaskExists", func(t *testing.T) {
-			testTaskExists(t, kv)
-		})
-		t.Run("CancelTask", func(t *testing.T) {
-			testCancelTask(t, kv)
-		})
-		t.Run("TargetHasLivingTasks", func(t *testing.T) {
-			testTargetHasLivingTasks(t, kv)
-		})
-		t.Run("GetTaskInput", func(t *testing.T) {
-			testGetTaskInput(t, kv)
-		})
-		t.Run("GetInstances", func(t *testing.T) {
-			testGetInstances(t, kv)
-		})
-		t.Run("GetTaskRelatedNodes", func(t *testing.T) {
-			testGetTaskRelatedNodes(t, kv)
-		})
-		t.Run("testIsTaskRelatedNode", func(t *testing.T) {
-			testIsTaskRelatedNode(t, kv)
-		})
-
 	})
 }
 

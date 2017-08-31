@@ -9,25 +9,11 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/require"
 )
 
-func TestCapabilities(t *testing.T) {
+func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
 
 	srv1.PopulateKV(t, map[string][]byte{
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.1/derived_from": []byte("janus.type.2"),
@@ -88,20 +74,20 @@ func TestCapabilities(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/cap1/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address": []byte("0.0.0.0"),
 	})
 
-	t.Run("deployments/capabilities", func(t *testing.T) {
-		t.Run("HasScalableCapability", func(t *testing.T) {
+	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {
+		t.Run("TestHasScalableCapability", func(t *testing.T) {
 			testHasScalableCapability(t, kv)
 		})
-		t.Run("GetCapabilitiesOfType", func(t *testing.T) {
+		t.Run("TestGetCapabilitiesOfType", func(t *testing.T) {
 			testGetCapabilitiesOfType(t, kv)
 		})
-		t.Run("GetNodeCapabilityType", func(t *testing.T) {
+		t.Run("TestGetNodeCapabilityType", func(t *testing.T) {
 			testGetNodeCapabilityType(t, kv)
 		})
-		t.Run("GetCapabilityProperty", func(t *testing.T) {
+		t.Run("TestGetCapabilityProperty", func(t *testing.T) {
 			testGetCapabilityProperty(t, kv)
 		})
-		t.Run("GetInstanceCapabilityAttribute", func(t *testing.T) {
+		t.Run("TestGetInstanceCapabilityAttribute", func(t *testing.T) {
 			testGetInstanceCapabilityAttribute(t, kv)
 		})
 

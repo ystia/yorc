@@ -12,22 +12,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func TestDeploymentNodes(t *testing.T) {
+func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
 
 	srv1.PopulateKV(t, map[string][]byte{
 		// Test testIsNodeTypeDerivedFrom
@@ -184,32 +171,32 @@ func TestDeploymentNodes(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/testGetNodeInstancesIds/topology/instances/Node2/za3/attributes/id":   []byte("Node1-3"),
 	})
 
-	t.Run("deployment/nodes", func(t *testing.T) {
-		t.Run("IsNodeTypeDerivedFrom", func(t *testing.T) {
+	t.Run("groupDeploymentsNodes", func(t *testing.T) {
+		t.Run("TestIsNodeTypeDerivedFrom", func(t *testing.T) {
 			testIsNodeTypeDerivedFrom(t, kv)
 		})
-		t.Run("GetDefaultNbInstancesForNode", func(t *testing.T) {
+		t.Run("TestGetDefaultNbInstancesForNode", func(t *testing.T) {
 			testGetDefaultNbInstancesForNode(t, kv)
 		})
-		t.Run("testGetMaxNbInstancesForNode", func(t *testing.T) {
+		t.Run("TestGetMaxNbInstancesForNode", func(t *testing.T) {
 			testGetMaxNbInstancesForNode(t, kv)
 		})
-		t.Run("testGetMinNbInstancesForNode", func(t *testing.T) {
+		t.Run("TesttestGetMinNbInstancesForNode", func(t *testing.T) {
 			testGetMinNbInstancesForNode(t, kv)
 		})
-		t.Run("GetNodeProperty", func(t *testing.T) {
+		t.Run("TestGetNodeProperty", func(t *testing.T) {
 			testGetNodeProperty(t, kv)
 		})
-		t.Run("GetNodeAttributes", func(t *testing.T) {
+		t.Run("TestGetNodeAttributes", func(t *testing.T) {
 			testGetNodeAttributes(t, kv)
 		})
-		t.Run("GetNodeAttributesNames", func(t *testing.T) {
+		t.Run("TestGetNodeAttributesNames", func(t *testing.T) {
 			testGetNodeAttributesNames(t, kv)
 		})
-		t.Run("GetNodeInstancesIds", func(t *testing.T) {
+		t.Run("TestGetNodeInstancesIds", func(t *testing.T) {
 			testGetNodeInstancesIds(t, kv)
 		})
-		t.Run("GetTypeAttributesNames", func(t *testing.T) {
+		t.Run("TestGetTypeAttributesNames", func(t *testing.T) {
 			testGetTypeAttributesNames(t, kv)
 		})
 	})

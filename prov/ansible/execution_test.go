@@ -18,6 +18,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	janus_testutil "novaforge.bull.com/starlings-janus/janus/testutil"
 )
 
 func getOperation(kv *api.KV, deploymentID, nodeName, operationName string) (prov.Operation, error) {
@@ -49,16 +50,7 @@ func GetConfig() config.Configuration {
 	return config
 }
 
-func TestAnsibleParallel(t *testing.T) {
-	t.Run("ansible", func(t *testing.T) {
-		t.Run("templatesTest", templatesTest)
-		t.Run("testExecutionOnNode", testExecutionOnNode)
-		t.Run("testExecutionOnRelationshipSource", testExecutionOnRelationshipSource)
-		t.Run("testExecutionOnRelationshipTarget", testExecutionOnRelationshipTarget)
-	})
-}
-
-func templatesTest(t *testing.T) {
+func TestTemplates(t *testing.T) {
 	t.Parallel()
 	ec := &executionCommon{
 		NodeName:            "Welcome",
@@ -88,23 +80,10 @@ func templatesTest(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func testExecutionOnNode(t *testing.T) {
+func testExecutionOnNode(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
-	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
-	deploymentID := "d1"
+	deploymentID := janus_testutil.BuildDeploymentID(t)
 	nodeName := "NodeA"
 	nodeTypeName := "janus.types.A"
 	operation := "tosca.interfaces.node.lifecycle.standard.create"
@@ -299,23 +278,11 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
 }
 
-func testExecutionOnRelationshipSource(t *testing.T) {
+func testExecutionOnRelationshipSource(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
-	deploymentID := "d1"
+	deploymentID := janus_testutil.BuildDeploymentID(t)
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
@@ -508,23 +475,11 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
 }
 
-func testExecutionOnRelationshipTarget(t *testing.T) {
+func testExecutionOnRelationshipTarget(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
-	deploymentID := "d1"
+	deploymentID := janus_testutil.BuildDeploymentID(t)
 	nodeAName := "NodeA"
 	relationshipTypeName := "janus.types.Rel"
 	nodeBName := "NodeB"
