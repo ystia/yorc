@@ -10,22 +10,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func TestRequirements(t *testing.T) {
+func testRequirements(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
 
 	srv1.PopulateKV(t, map[string][]byte{
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/type":                []byte("tosca.nodes.Compute"),
@@ -44,14 +31,14 @@ func TestRequirements(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/Compute1/requirements/5/node": []byte("TNode4"),
 	})
 
-	t.Run("deployment/requirements", func(t *testing.T) {
-		t.Run("GetRequirementsKeysByNameForNode", func(t *testing.T) {
+	t.Run("groupDeploymentsRequirements", func(t *testing.T) {
+		t.Run("TestGetRequirementsKeysByNameForNode", func(t *testing.T) {
 			testGetRequirementsKeysByNameForNode(t, kv)
 		})
-		t.Run("GetRequirementByNameAndTargetForNode", func(t *testing.T) {
+		t.Run("TestGetRequirementByNameAndTargetForNode", func(t *testing.T) {
 			testGetRequirementByNameAndTargetForNode(t, kv)
 		})
-		t.Run("GetNbRequirementsForNode", func(t *testing.T) {
+		t.Run("TestGetNbRequirementsForNode", func(t *testing.T) {
 			testGetNbRequirementsForNode(t, kv)
 		})
 	})

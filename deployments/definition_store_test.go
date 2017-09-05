@@ -7,31 +7,15 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
-func TestDefinitionStore(t *testing.T) {
-	//log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	require.Nil(t, err)
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
-	consulutil.InitConsulPublisher(config.DefaultConsulPubMaxRoutines, kv)
-	t.Run("deployments/definition_store", func(t *testing.T) {
-		t.Run("implementationArtifacts", func(t *testing.T) {
+func testDefinitionStore(t *testing.T, kv *api.KV) {
+	t.Run("groupDeploymentsDefinitionStore", func(t *testing.T) {
+		t.Run("TestImplementationArtifacts", func(t *testing.T) {
 			testImplementationArtifacts(t, kv)
 		})
-		t.Run("implementationArtifactsDuplicates", func(t *testing.T) {
+		t.Run("TestImplementationArtifactsDuplicates", func(t *testing.T) {
 			testImplementationArtifactsDuplicates(t, kv)
 		})
 	})

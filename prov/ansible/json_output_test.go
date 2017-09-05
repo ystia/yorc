@@ -9,12 +9,12 @@ import (
 	"path"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/testutil"
 )
 
-func TestLogAnsibleOutputInConsul(t *testing.T) {
+func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	data := `
 {
     "plays": [
@@ -240,28 +240,13 @@ func TestLogAnsibleOutputInConsul(t *testing.T) {
 
 `
 
-	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-	kv := client.KV()
-
-	consulutil.InitConsulPublisher(50, kv)
-
-	ec := &executionCommon{kv: kv, deploymentID: "d1", NodeName: "node"}
+	deploymentID := testutil.BuildDeploymentID(t)
+	ec := &executionCommon{kv: kv, deploymentID: deploymentID, NodeName: "node"}
 	ea := &executionAnsible{executionCommon: ec}
 	var buf bytes.Buffer
 	buf.WriteString(data)
-	err = ea.logAnsibleOutputInConsul(&buf)
+	err := ea.logAnsibleOutputInConsul(&buf)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 
