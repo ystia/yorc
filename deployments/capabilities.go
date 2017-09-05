@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"path"
 
 	"github.com/hashicorp/consul/api"
@@ -137,6 +138,24 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 // SetInstanceCapabilityAttribute sets a capability attribute for a given node instance
 func SetInstanceCapabilityAttribute(deploymentID, nodeName, instanceName, capabilityName, attributeName, value string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName), value)
+}
+
+// SetCapabilityAttributeForAllInstances sets the same capability attribute value to all instances of a given node.
+//
+// It does the same thing than iterating over instances ids and calling SetInstanceCapabilityAttribute but use
+// a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
+func SetCapabilityAttributeForAllInstances(kv *api.KV, deploymentID, nodeName, capabilityName, attributeName, attributeValue string) error {
+	ids, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	for _, instanceName := range ids {
+		store.StoreConsulKeyAsString(
+			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName),
+			attributeValue)
+	}
+	return errGrp.Wait()
 }
 
 // GetNodeCapabilityType retrieves the type of a node template capability identified by its name
