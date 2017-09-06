@@ -40,5 +40,5 @@ variable "http_proxy" {
 }
 
 variable "alien_download_url" {
-  default = "http://fastconnect.org/maven/service/local/artifact/maven/redirect?r=opensource&g=alien4cloud&a=alien4cloud-dist&v=1.3.4&p=tar.gz&c=dist"
+  default = "http://fastconnect.org/maven/service/local/artifact/maven/redirect?r=opensource&g=alien4cloud&a=alien4cloud-dist&v=1.4.1&p=tar.gz&c=dist"
 }
