@@ -1,16 +1,32 @@
 {
         "working_directory": "work",
-        "workers_number": "3",
-        "os_auth_url": "http://10.197.135.201:5000/v2.0",
-        "os_tenant_name": "starlings",
-        "os_user_name": "starlings",
-        "os_password": "Star16.gs",
-        "os_region": "RegionOne",
-        "os_private_network_name": "private-test",
-        "os_prefix": "ber-",
-        "os_default_security_groups": ["default", "openbar"],
-        "kube_master_ip": "https://10.197.138.117:6443",
-        "kube_cert_file": "/home/bertrand/pki/client.crt",
-        "kube_key_file": "/home/bertrand/pki/client.key",
-        "kube_ca_file": "/home/bertrand/pki/ca.crt"
+        "plugins_directory": "plugins",
+        "workers_number": 3,
+        "server_graceful_shutdown_timeout": "5m",
+        "http_port": 8800,
+        "http_address": "0.0.0.0",
+        "prefix": "JANUS-",
+        "telemetry":{
+                "statsd_address": "127.0.0.1:8125",
+                "expose_prometheus_endpoint": true
+        },
+        "infrastructures":{
+          "openstack": {
+                "auth_url": "http://10.197.132.150:5000/v2.0",
+                "tenant_id": "1f219ffcff2342e189ef47c0e9689dfb",
+                "tenant_name": "starlings",
+                "user_name": "starlingsuser",
+                "password": "starlingsuser",
+                "region": "RegionOne",
+                "private_network_name": "private_starlings",
+                "public_network_name": "not_supported",
+                "os_default_security_groups": ["default", "lax"]
+          },
+          "kubernetes": {
+                "master_url": "https://10.197.138.117:6443",
+                "cert_file": "/etc/pki/janus/k8s-client.crt",
+                "key_file": "/etc/pki/janus/k8s-client.key",
+                "ca_file": "/etc/pki/janus/k8s-ca.crt"
+          }      
+        }
 }

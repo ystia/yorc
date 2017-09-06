@@ -1,9 +1,12 @@
 package rest
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/armon/go-metrics"
+	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -63,4 +66,32 @@ func contentTypeHandler(cType string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(fn)
 	}
 	return m
+}
+
+type statusRecorderResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusRecorderResponseWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func telemetryHandler(next http.Handler) http.Handler {
+
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		var endpointPath string
+		if len(r.URL.Path) <= 1 {
+			endpointPath = "-"
+		} else {
+			endpointPath = r.URL.Path[1:]
+		}
+		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"http", r.Method, endpointPath}), time.Now())
+		writer := &statusRecorderResponseWriter{ResponseWriter: w}
+		next.ServeHTTP(writer, r)
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"http", fmt.Sprint(writer.status), r.Method, endpointPath}), 1)
+	}
+
+	return http.HandlerFunc(fn)
 }

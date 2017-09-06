@@ -4,6 +4,8 @@ import (
 	"path"
 	"strconv"
 
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -11,12 +13,13 @@ import (
 )
 
 type task struct {
-	ID       string
-	TargetID string
-	status   tasks.TaskStatus
-	TaskType tasks.TaskType
-	taskLock *api.Lock
-	kv       *api.KV
+	ID           string
+	TargetID     string
+	status       tasks.TaskStatus
+	TaskType     tasks.TaskType
+	creationDate time.Time
+	taskLock     *api.Lock
+	kv           *api.KV
 }
 
 func (t *task) releaseLock() {

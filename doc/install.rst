@@ -8,7 +8,7 @@ In order to provision softwares on virtual machines that do not necessary have a
 in your OpenStack tenant. Alien4Cloud and the Alien4Cloud Janus Plugin (see their dedicated documentation to know how to install them) may be collocated
 on the same VM or resides in a different VM.
 
-Virtual Machines created by Janus should be connected to the same private network as the Janus VM (the :ref:`--os_private_network_name <option_os_privatenet_cmd>`
+Virtual Machines created by Janus should be connected to the same private network as the Janus VM (the :ref:`--infrastructure_openstack_private_network_name <option_infra_os>`
 configuration flag allows to do it automatically). In order to provision Floating IPs, this private network should be connected to the public network 
 of the tenant through a router.
 

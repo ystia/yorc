@@ -7,8 +7,8 @@ Janus has various configuration options that could be specified either by comman
 
 If an option is specified several times using flags, environment and config file, command-line flag will have the precedence then the environment variable and finally the value defined in the configuration file. 
 
-Command-line options
---------------------
+Globals Command-line options
+----------------------------
 
 .. _option_ansible_ssh_cmd:
 
@@ -34,6 +34,30 @@ Command-line options
 
   * ``--consul_datacenter``: Specify the Consul's datacenter to use. Consul default (dc1) is used by default.
 
+.. _option_consul_key_cmd:
+
+  * ``--consul_key_file``: Specify the Consul client's key to use when commuicating over TLS.
+
+.. _option_consul_cert_cmd:
+
+  * ``--consul_cert_file``: Specify the Consul client's certificate to use when commuicating over TLS.
+
+.. _option_consul_ca_cert_cmd:
+
+  * ``--consul_ca_cert``: Specify the CA used to sign Consul certificates.
+
+.. _option_consul_ca_path_cmd:
+
+  * ``--consul_ca_path``: Specify the path to the CA used to sign Consul certificates
+
+.. _option_consul_ssl_cmd:
+
+  * ``--consul_ssl``: If set to true, enable SSL (false by default).
+
+.. _option_consul_ssl_verify_cmd:
+
+  * ``--consul_ssl_verify``: If set to false, disable Consul certificate checking (true by default is ssl enabled).
+
 .. _option_pub_routines_cmd:
 
   * ``--consul_publisher_max_routines``: Maximum number of parallelism used to store key/values in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value (500) will be used.
@@ -58,45 +82,13 @@ Command-line options
 
   * ``--cert_file``: File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Janus HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.
 
-.. _option_os_authurl_cmd:
-
-  * ``--os_auth_url``: Specify the authentication url for OpenStack (should be the Keystone endpoint ie: http://your-openstack:5000/v2.0). There is no default for this option.
-
-.. _option_os_tenantid_cmd:
-
-  * ``--os_tenant_id``: Specify the OpenStack tenant id to use. Either this or ``--os_tenant_name`` should be provided. There is no default for this option.
-
-.. _option_os_tenantname_cmd:
-
-  * ``--os_tenant_name``: Specify the OpenStack tenant name to use. Either this or ``--os_tenant_id`` should be provided. There is no default for this option.
-
-.. _option_os_username_cmd:
-
-  * ``--os_user_name``: Specify the OpenStack user name to use. There is no default for this option.
-
-.. _option_os_password_cmd:
-
-  * ``--os_password``: Specify the OpenStack password to use. There is no default for this option.
-
-.. _option_os_region_cmd:
-
-  * ``--os_region``: Specify the OpenStack region to use. Defaults to ``RegionOne``.
-
-.. _option_os_prefix_cmd:
-
-  * ``--os_prefix``: Specify a prefix that will be used for names when creating resources such as Compute instances or volumes. Defaults to ``janus-``.
-
-.. _option_os_privatenet_cmd:
-
-  * ``--os_private_network_name``: Specify the name of private network to use as primary adminstration network between Janus and Compute instances. It should be a private network accessible by this instance of Janus.
-
-.. _option_os_secgroups_cmd:
-
-  * ``--os_default_security_groups``: Default security groups to be used when creating a Compute instance. It could be a comma-separated list of security group names or this option may be specified several times.
-
 .. _option_pluginsdir_cmd:
 
   * ``--plugins_directory``: The name of the plugins directory of the Janus server. The default is to use a directory named *plugins* in the current directory.
+
+.. _option_resources_prefix_cmd:
+
+  * ``--resources_prefix``: Specify a prefix that will be used for names when creating resources such as Compute instances or volumes. Defaults to ``janus-``.
 
 .. _option_workers_cmd:
 
@@ -106,6 +98,9 @@ Command-line options
 
   * ``--working_directory`` or ``-w``: Specify an alternative working directory for Janus. The default is to use a directory named *work* in the current directory.
 
+
+.. _janus_config_file_section:
+
 Configuration files
 -------------------
 
@@ -113,44 +108,52 @@ Configuration files are JSON-formatted as a single JSON object containing the fo
 By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory. 
 The :ref:`--config <option_config_cmd>` command line flag allows to specify an alternative configuration file.
 
-Bellow is an example of configuration file.
+Below is an example of configuration file.
 
 .. code-block:: JSON
     
     {
-        "os_auth_url": "http://your-openstack:5000/v2.0",
-        "os_tenant_name": "your-tenant",
-        "os_user_name": "os-user",
-        "os_password": "os-password",
-        "os_prefix": "janus1-",
-        "os_private_network_name": "default-private-network",
-        "os_default_security_groups": ["default"]
+      "resources_prefix": "janus1-",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      }
     }
 
 
-Bellow is an example of configuration file with TLS enable.
+Below is an example of configuration file with TLS enable.
 
 .. code-block:: JSON
     
     {
-        "os_auth_url": "http://your-openstack:5000/v2.0",
-        "os_tenant_name": "your-tenant",
-        "os_user_name": "os-user",
-        "os_password": "os-password",
-        "os_prefix": "janus1-",
-        "os_private_network_name": "default-private-network",
-        "os_default_security_groups": ["default"],
-        "key_file": "/etc/pki/tls/private/janus.key",
-        "cert_file": "/etc/pki/tls/certs/janus.crt"
+      "resources_prefix": "janus1-",
+      "key_file": "/etc/pki/tls/private/janus.key",
+      "cert_file": "/etc/pki/tls/certs/janus.crt",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      }
     }
 
 .. _option_ansible_ssh_cfg:
 
-  * ``ansible_use_openssh``: Equivalent to :ref:`--consul_address <option_ansible_ssh_cmd>` command-line flag.
+  * ``ansible_use_openssh``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
 
 .. _option_ansible_debug_cfg:
 
-  * ``ansible_debug``: Equivalent to :ref:`--consul_address <option_ansible_debug_cmd>` command-line flag.
+  * ``ansible_debug``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
 
 .. _option_consul_addr_cfg:
 
@@ -163,6 +166,31 @@ Bellow is an example of configuration file with TLS enable.
 .. _option_consul_dc_cfg:
 
   * ``consul_datacenter``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
+
+.. _option_consul_key_cfg:
+
+  * ``consul_key_file``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
+
+.. _option_consul_cert_cfg:
+
+  * ``consul_cert_file``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_cert_cfg:
+
+  * ``consul_ca_cert``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_path_cfg:
+
+  * ``consul_ca_path``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
+
+.. _option_consul_ssl_cfg:
+
+  * ``consul_ssl``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
+
+.. _option_consul_ssl_verify_cfg:
+
+  * ``consul_ssl_verify``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
+
 
 .. _option_pub_routines_cfg:
 
@@ -188,45 +216,13 @@ Bellow is an example of configuration file with TLS enable.
 
   * ``cert_file``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
 
-.. _option_os_authurl_cfg:
-
-  * ``os_auth_url``: Equivalent to :ref:`--os_auth_url <option_os_authurl_cmd>` command-line flag.
-
-.. _option_os_tenantid_cfg:
-
-  * ``os_tenant_id``: Equivalent to :ref:`--os_tenant_id <option_os_tenantid_cmd>` command-line flag.
-
-.. _option_os_tenantname_cfg:
-
-  * ``os_tenant_name``: Equivalent to :ref:`--os_tenant_name <option_os_tenantname_cmd>` command-line flag.
-
-.. _option_os_username_cfg:
-
-  * ``os_user_name``: Equivalent to :ref:`--os_user_name <option_os_username_cmd>` command-line flag.
-
-.. _option_os_password_cfg:
-
-  * ``os_password``: Equivalent to :ref:`--os_password <option_os_password_cmd>` command-line flag.
-
-.. _option_os_region_cfg:
-
-  * ``os_region``: Equivalent to :ref:`--os_region <option_os_region_cmd>` command-line flag.
-
-.. _option_os_prefix_cfg:
-
-  * ``os_prefix``: Equivalent to :ref:`--os_prefix <option_os_prefix_cmd>` command-line flag.
-
-.. _option_os_privatenet_cfg:
-
-  * ``os_private_network_name``: Equivalent to :ref:`--os_private_network_name <option_os_privatenet_cmd>` command-line flag.
-
-.. _option_os_secgroups_cfg:
-
-  * ``os_default_security_groups``: Equivalent to :ref:`--os_default_security_groups <option_os_secgroups_cmd>` command-line flag.
-
 .. _option_plugindir_cfg:
 
   * ``plugins_directory``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+
+.. _option_resources_prefix_cfg:
+
+  * ``resources_prefix``: Equivalent to :ref:`--resources_prefix <option_resources_prefix_cmd>` command-line flag.
 
 .. _option_workers_cfg:
 
@@ -235,18 +231,75 @@ Bellow is an example of configuration file with TLS enable.
 .. _option_workdir_cfg: 
 
   * ``working_directory``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
- 
+
+.. _janus_config_file_telemetry_section:
+
+Telemetry configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Telemetry configuration can only be done via the configuration file.
+By default telemetry data are only stored in memory.
+See :ref:`janus_telemetry_section` for more information about telemetry.
+
+Below is an example of configuration file with telemetry metrics forwarded to a ``Statsd`` instance and with a ``Prometheus`` HTTP endpoint exposed.
+
+.. code-block:: JSON
+    
+    {
+      "resources_prefix": "janus1-",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      },
+      "telemetry": {
+        "statsd_address": "127.0.0.1:8125",
+        "expose_prometheus_endpoint": true  
+      }
+    }
+
+All available configuration options for telemetry are:
+
+.. _option_telemetry_srvname_cfg:
+
+  * ``service_name``: Metrics keys prefix, defaults to ``janus``.
+
+.. _option_telemetry_disHostName_cfg:
+
+  * ``disable_hostname``: Specifies if gauge values should not be prefixed with the local hostname. Defaults to ``false``.
+
+.. _option_telemetry_disRuntimeMetrics_cfg:
+
+  * ``disable_go_runtime_metrics``: Specifies Go runtime metrics (goroutines, memory, ...) should not be published. Defaults to ``false``.
+
+.. _option_telemetry_statsd_cfg:
+
+  * ``statsd_address``: Specify the address (in form <address>:<port>) of a statsd server to forward metrics data to. 
+
+
+.. _option_telemetry_statsite_cfg:
+
+  * ``statsite_address``: Specify the address (in form <address>:<port>) of a statsite server to forward metrics data to.
+
+.. _option_telemetry_prom_cfg:
+
+  * ``expose_prometheus_endpoint``: Specify if an HTTP Prometheus endpoint should be exposed allowing Prometheus to scrape metrics.
 
 Environment variables
 ---------------------
 
 .. _option_ansible_ssh_env:
 
-  * ``JANUS_ANSIBLE_USE_OPENSSH``: Equivalent to :ref:`--consul_address <option_ansible_ssh_cmd>` command-line flag.
+  * ``JANUS_ANSIBLE_USE_OPENSSH``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
 
 .. _option_ansible_debug_env:
 
-  * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--consul_address <option_ansible_debug_cmd>` command-line flag.
+  * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
 
 .. _option_consul_addr_env:
 
@@ -259,6 +312,30 @@ Environment variables
 .. _option_consul_dc_env:
 
   * ``JANUS_CONSUL_DATACENTER``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
+
+.. _option_consul_key_file_env:
+
+  * ``JANUS_CONSUL_KEY_FILE``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
+
+.. _option_consul_cert_file_env:
+
+  * ``JANUS_CONSUL_CERT_FILE``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_cert_env:
+
+  * ``JANUS_CONSUL_CA_CERT``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_path_env:
+
+  * ``JANUS_CONSUL_CA_PATH``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
+
+.. _option_consul_ssl_env:
+
+  * ``JANUS_CONSUL_SSL``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
+
+.. _option_consul_ssl_verify_env:
+
+  * ``JANUS_CONSUL_SSL_VERIFY``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
 
 .. _option_pub_routines_env:
 
@@ -284,45 +361,13 @@ Environment variables
 
   * ``JANUS_CERT_FILE``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
 
-.. _option_os_authurl_env:
-
-  * ``OS_AUTH_URL``: Equivalent to :ref:`--os_auth_url <option_os_authurl_cmd>` command-line flag.
-
-.. _option_os_tenantid_env:
-
-  * ``OS_TENANT_ID``: Equivalent to :ref:`--os_tenant_id <option_os_tenantid_cmd>` command-line flag.
-
-.. _option_os_tenantname_env:
-
-  * ``OS_TENANT_NAME``: Equivalent to :ref:`--os_tenant_name <option_os_tenantname_cmd>` command-line flag.
-
-.. _option_os_username_env:
-
-  * ``OS_USER_NAME``: Equivalent to :ref:`--os_user_name <option_os_username_cmd>` command-line flag.
-
-.. _option_os_password_env:
-
-  * ``OS_PASSWORD``: Equivalent to :ref:`--os_password <option_os_password_cmd>` command-line flag.
-
-.. _option_os_region_env:
-
-  * ``OS_REGION``: Equivalent to :ref:`--os_region <option_os_region_cmd>` command-line flag.
-
-.. _option_os_prefix_env:
-
-  * ``JANUS_OS_PREFIX``: Equivalent to :ref:`--os_prefix <option_os_prefix_cmd>` command-line flag.
-
-.. _option_os_privatenet_env:
-
-  * ``JANUS_OS_PRIVATE_NETWORK_NAME``: Equivalent to :ref:`--os_private_network_name <option_os_privatenet_cmd>` command-line flag.
-
-.. _option_os_secgroups_env:
-
-  * ``JANUS_OS_DEFAULT_SECURITY_GROUPS``: Equivalent to :ref:`--os_default_security_groups <option_os_secgroups_cmd>` command-line flag.
-
 .. _option_plugindir_env:
 
   * ``JANUS_PLUGIN_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+
+.. _option_resources_prefix_env:
+
+  * ``JANUS_RESOURCES_PREFIX``: Equivalent to :ref:`--resources_prefix <option_resources_prefix_cmd>` command-line flag.
 
 .. _option_workers_env:
 
@@ -336,3 +381,96 @@ Environment variables
 
   * ``JANUS_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Janus.
  
+
+Infrastructures configuration
+-----------------------------
+
+Due to the plugable nature of infrastructures support in Janus their configuration differ from other configurable options.
+An infrastructure configuration option could be specified by either a its configuration placeholder in the configuration file, a command line flag
+or an environment variable.
+
+The general principle is for a configurable option ``option_1`` for infrastructure ``infra1`` it should be specified in the configuration file as following:
+
+.. code-block:: JSON
+    
+    {
+      "infrastructures": {
+        "infra1": {
+          "option_1": "value"
+        }
+      }
+    }
+  
+Similarly a command line flag with the name ``--infrastructure_infra1_option_1`` and an environment variable with the name ``JANUS_INFRA_INFRA1_OPTION_1`` will be
+automatically supported and recognized. The default order of precedence apply here.
+
+Builtin infrastructures configuration
+-------------------------------------
+
+.. _option_infra_os: 
+
+OpenStack
+~~~~~~~~~
+
+OpenStack infrastructure key name is ``openstack`` in lower case.
+
++===================================+=====================================================================================================================+===========+====================================================+===============+
+|            Option Name            |                                                     Description                                                     | Data Type |                      Required                      |    Default    |
+|                                   |                                                                                                                     |           |                                                    |               |
++===================================+=====================================================================================================================+===========+====================================================+===============+
+| ``auth_url``                      | Specify the authentication url for OpenStack (should be the Keystone endpoint ie: http://your-openstack:5000/v2.0). | string    | yes                                                |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``tenant_id``                     | Specify the OpenStack tenant id to use.                                                                             | string    | Either this or ``tenant_name`` should be provided. |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``tenant_name``                     | Specify the OpenStack tenant name to use.                                                                           | string    | Either this or ``tenant_id`` should be provided.   |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``user_name``                     | Specify the OpenStack user name to use.                                                                             | string    | yes                                                |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``password``                      | Specify the OpenStack password to use.                                                                              | string    | yes                                                |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``region``                        | Specify the OpenStack region to use                                                                                 | string    | no                                                 | ``RegionOne`` |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``private_network_name``          | Specify the name of private network to use as primary adminstration network between Janus and Compute               | string    | Required to use the ``PRIVATE`` keyword for TOSCA  |               |
+|                                   | instances. It should be a private network accessible by this instance of Janus.                                     |           | admin networks                                     |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``provisioning_over_fip_allowed`` | This allows to perform the provisioning of a Compute over the associated floating IP if it exists. This is useful   | boolean   | no                                                 | ``false``.    |
+|                                   | when Janus is not deployed on the same private network than the provisioned Compute.                                |           |                                                    |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``default_security_groups``       | Default security groups to be used when creating a Compute instance. It should be a comma-separated list of         | list of   | no                                                 |               |
+|                                   | security group names                                                                                                | strings   |                                                    |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``insecure``                      | Trust self-signed SSL certificates                                                                                  | boolean   | no                                                 | false         |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``cacert_file``                   | Specify a custom CA certificate when communicating over SSL. You can specify either a path to the file or the       | string    | no                                                 |               |
+|                                   | contents of the certificate                                                                                         |           |                                                    |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``cert``                          | Specify client certificate file for SSL client authentication. You can specify either a path to the file or         | string    | no                                                 |               |
+|                                   | the contents of the certificate                                                                                     |           |                                                    |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+| ``key``                           | Specify client private key file for SSL client authentication. You can specify either a path to the file or         | string    | no                                                 |               |
+|                                   | the contents of the key                                                                                             |           |                                                    |               |
++-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
+
+
+.. _option_infra_kubernetes: 
+
+Kubernetes
+~~~~~~~~~~
+
+Kubernetes infrastructure key name is ``kubernetes`` in lower case.
+
++================+=================================================================================+===========+==========+=========+
+| Option Name    | Description                                                                     | Data Type | Required | Default |
+|                |                                                                                 |           |          |         |
++================+=================================================================================+===========+==========+=========+
+| ``master_url`` | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | yes      |         |
++----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``ca_file``    | Path to a trusted root certificates for server                                  | string    | no       |         |
++----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``cert_file``  | Path to the TLS client certificate used for authentication                      | string    | no       |         |
++----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``key_file``   | Path to the TLS client key used for authentication                              | string    | no       |         |
++----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``insecure``   | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
++----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+

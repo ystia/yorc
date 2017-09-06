@@ -10,22 +10,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-func TestArtifacts(t *testing.T) {
+func testArtifacts(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
 
 	srv1.PopulateKV(t, map[string][]byte{
 
@@ -60,11 +47,11 @@ func TestArtifacts(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/t1/topology/nodes/NodeB/type": []byte("root"),
 	})
 
-	t.Run("deployment/artifacts", func(t *testing.T) {
-		t.Run("GetArtifactsForType", func(t *testing.T) {
+	t.Run("groupDeploymentArtifacts", func(t *testing.T) {
+		t.Run("TestGetArtifactsForType", func(t *testing.T) {
 			testGetArtifactsForType(t, kv)
 		})
-		t.Run("GetArtifactsForNode", func(t *testing.T) {
+		t.Run("TestGetArtifactsForNode", func(t *testing.T) {
 			testGetArtifactsForNode(t, kv)
 		})
 	})

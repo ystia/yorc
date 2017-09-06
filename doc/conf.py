@@ -312,3 +312,7 @@ if os.path.exists('../versions.yaml'):
 # print rst_epilog
 # print release
 # print version
+
+html_theme_options = {
+    'page_width':  '95%',
+}

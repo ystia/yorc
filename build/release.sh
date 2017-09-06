@@ -64,7 +64,7 @@ if [[ -e versions.yaml ]]; then
     # Check that current version is lower than the release version
     currentVersion=$(grep  "${componentVersionName}:" versions.yaml | head -1 | sed -e 's/^[^:]\+:\s*\(.*\)\s*$/\1/')
     # Change -SNAPSHOT into -0 for comparaison as a snapshot is never revelant
-    checkVers=$(echo ${currentVersion} | sed -e "s/-SNAPSHOT//")
+    checkVers=$(echo ${currentVersion} | sed -e "s/-SNAPSHOT/-0/")
     if [[ "True" != "$(python -c "import semantic_version; print  semantic_version.Version('${version}') >= semantic_version.Version('${checkVers}')" )" ]]; then
         echo "Can't release version ${version} on top of branch ${branch} as its current version is ${currentVersion}" >&2
         exit 1

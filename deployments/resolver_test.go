@@ -9,33 +9,20 @@ import (
 	"path"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/testutil"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
-func TestResovler(t *testing.T) {
+func testResolver(t *testing.T, kv *api.KV) {
 	log.SetDebug(true)
-	srv1, err := testutil.NewTestServer()
-	require.Nil(t, err)
-	defer srv1.Stop()
 
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	require.Nil(t, err)
-
-	kv := client.KV()
-	consulutil.InitConsulPublisher(config.DefaultConsulPubMaxRoutines, kv)
-
-	t.Run("deployments/resolver/operation_outputs", func(t *testing.T) {
+	t.Run("deployments/resolver/testGetOperationOutput", func(t *testing.T) {
 		testGetOperationOutput(t, kv)
 	})
-	t.Run("deployments/resolver/operation_outputs_real", func(t *testing.T) {
+	t.Run("deployments/resolver/testGetOperationOutputReal", func(t *testing.T) {
 		testGetOperationOutputReal(t, kv)
 	})
 }
@@ -51,7 +38,7 @@ func generateToscaExpressionFromString(t *testing.T, valueAssignment string) *to
 
 func testGetOperationOutput(t *testing.T, kv *api.KV) {
 	// t.Parallel()
-	deploymentID := "testGetOperationOutput"
+	deploymentID := testutil.BuildDeploymentID(t)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
 
@@ -89,7 +76,7 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 
 func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
 	// t.Parallel()
-	deploymentID := "testGetOperationOutputReal"
+	deploymentID := testutil.BuildDeploymentID(t)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output_real.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output_real.yaml definition: %+v", err)
 
