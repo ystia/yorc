@@ -27,11 +27,16 @@ resource "openstack_compute_floatingip_associate_v2" "janus-monitoring-fip" {
   instance_id = "${openstack_compute_instance_v2.janus-monitoring-server.id}"
 }
 
-resource "null_resource" "janus-montoring-provisioning-install-docker" {
+resource "null_resource" "janus-monitoring-provisioning-install-docker" {
   connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
+  }
+
+  provisioner "file" {
+    source      = "../config/docker-daemon.json"
+    destination = "/tmp/docker-daemon.json"
   }
 
   provisioner "remote-exec" {
@@ -42,6 +47,8 @@ resource "null_resource" "janus-montoring-provisioning-install-docker" {
       "sudo yum install -q -y device-mapper-persistent-data lvm2",
       "sudo yum install -q -y docker-ce",
       "sudo systemctl start docker",
+      "sudo chown root:root /tmp/docker-daemon.json && sudo mv /tmp/docker-daemon.json /etc/docker/daemon.json",
+      "sudo systemctl restart docker",
       "sudo usermod -aG docker ${var.ssh_manager_user}",
     ]
   }
@@ -64,8 +71,8 @@ data "template_file" "prometheus-config" {
   }
 }
 
-resource "null_resource" "janus-montoring-provisioning-config-docker" {
-  depends_on = ["null_resource.janus-montoring-provisioning-install-docker"]
+resource "null_resource" "janus-monitoring-provisioning-config-docker" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-install-docker"]
   count      = "${var.http_proxy != "" ? 1 : 0 }"
 
   connection {
@@ -89,8 +96,8 @@ resource "null_resource" "janus-montoring-provisioning-config-docker" {
   }
 }
 
-resource "null_resource" "janus-montoring-provisioning-start-monitoring-statsd-grafana" {
-  depends_on = ["null_resource.janus-montoring-provisioning-config-docker"]
+resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-grafana" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
 
   connection {
     user        = "${var.ssh_manager_user}"
@@ -116,8 +123,8 @@ resource "null_resource" "janus-montoring-provisioning-start-monitoring-statsd-g
     ]
   }
 }
-resource "null_resource" "janus-montoring-provisioning-start-monitoring-prometheus" {
-  depends_on = ["null_resource.janus-montoring-provisioning-config-docker"]
+resource "null_resource" "janus-monitoring-provisioning-start-monitoring-prometheus" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
 
   connection {
     user        = "${var.ssh_manager_user}"
