@@ -658,9 +658,9 @@
             "colorBackground": false,
             "colorValue": false,
             "colors": [
-              "rgba(245, 54, 54, 0.9)",
+              "rgba(50, 172, 45, 0.97)",
               "rgba(237, 129, 40, 0.89)",
-              "rgba(50, 172, 45, 0.97)"
+              "rgba(245, 54, 54, 0.9)"
             ],
             "datasource": null,
             "editable": true,
@@ -694,16 +694,16 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "asPercent(sumSeries(stats.counters.janus.executor.delegate.*.*.*.failures.count), #B)",
+                "target": "asPercent(integral(transformNull(sumSeries(stats.counters.janus.executor.delegate.*.*.*.failures.count), 0)), #B)",
                 "textEditor": true
               },
               {
                 "hide": true,
                 "refId": "B",
-                "target": "sumSeries(stats.counters.janus.executor.delegate.*.*.*.*.count)"
+                "target": "integral(transformNull(sumSeries(stats.counters.janus.executor.delegate.*.*.*.*.count), 0))"
               }
             ],
-            "thresholds": "",
+            "thresholds": "25,50",
             "title": "Delegate Executor Errors",
             "type": "singlestat",
             "valueFontSize": "80%",
@@ -714,16 +714,16 @@
                 "value": "null"
               }
             ],
-            "valueName": "avg"
+            "valueName": "current"
           },
           {
             "cacheTimeout": null,
             "colorBackground": false,
             "colorValue": false,
             "colors": [
-              "rgba(245, 54, 54, 0.9)",
+              "rgba(50, 172, 45, 0.97)",
               "rgba(237, 129, 40, 0.89)",
-              "rgba(50, 172, 45, 0.97)"
+              "rgba(245, 54, 54, 0.9)"
             ],
             "datasource": null,
             "editable": true,
@@ -757,16 +757,16 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "asPercent(sumSeries(stats.counters.janus.executor.operation.*.*.*.failures.count), #B)",
+                "target": "asPercent(integral(transformNull(sumSeries(stats.counters.janus.executor.operation.*.*.*.failures.count), 0)), #B)",
                 "textEditor": true
               },
               {
                 "hide": true,
                 "refId": "B",
-                "target": "sumSeries(stats.counters.janus.executor.operation.*.*.*.*.count)"
+                "target": "integral(transformNull(sumSeries(stats.counters.janus.executor.operation.*.*.*.*.count), 0))"
               }
             ],
-            "thresholds": "",
+            "thresholds": "25,50",
             "timeFrom": null,
             "timeShift": null,
             "title": "Operation Executor Errors",
@@ -779,7 +779,7 @@
                 "value": "null"
               }
             ],
-            "valueName": "avg"
+            "valueName": "current"
           }
         ],
         "showTitle": true,
