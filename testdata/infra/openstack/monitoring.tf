@@ -46,9 +46,9 @@ resource "null_resource" "janus-monitoring-provisioning-install-docker" {
       "sudo yum makecache fast -q",
       "sudo yum install -q -y device-mapper-persistent-data lvm2",
       "sudo yum install -q -y docker-ce",
-      "sudo systemctl start docker",
+      "sudo mkdir -p /etc/docker/",
       "sudo chown root:root /tmp/docker-daemon.json && sudo mv /tmp/docker-daemon.json /etc/docker/daemon.json",
-      "sudo systemctl restart docker",
+      "sudo systemctl start docker",
       "sudo usermod -aG docker ${var.ssh_manager_user}",
     ]
   }
