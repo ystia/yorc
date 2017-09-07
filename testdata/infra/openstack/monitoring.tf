@@ -27,7 +27,53 @@ resource "openstack_compute_floatingip_associate_v2" "janus-monitoring-fip" {
   instance_id = "${openstack_compute_instance_v2.janus-monitoring-server.id}"
 }
 
+data "template_file" "janus-monitoring-consul-agent-config" {
+  template = "${file("../config/consul-agent.config.json.tpl")}"
+
+  vars {
+    ip_address     = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
+    statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    consul_ui      = "true"
+  }
+}
+
+resource "null_resource" "janus-monitoring-provisioning-install-consul" {
+  connection {
+    user        = "${var.ssh_manager_user}"
+    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    private_key = "${file("${var.ssh_key_file}")}"
+  }
+
+  provisioner "file" {
+    content     = "${data.template_file.janus-monitoring-consul-agent-config.rendered}"
+    destination = "/tmp/consul-agent.config.json"
+  }
+
+  provisioner "file" {
+    source      = "../config/consul.service"
+    destination = "/tmp/consul.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkdir -p /etc/consul.d",
+      "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
+      "sudo chown root:root /etc/consul.d/*",
+      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
+      "sudo chown root:root /etc/systemd/system/consul.service",
+      "sudo yum install -q -y wget zip unzip",
+      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
+      "sudo systemctl daemon-reload",
+      "sudo systemctl enable consul.service",
+      "sudo systemctl start consul.service",
+    ]
+  }
+}
+
 resource "null_resource" "janus-monitoring-provisioning-install-docker" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-install-consul"]
+
   connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
