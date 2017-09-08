@@ -1,1 +1,4 @@
-{ "storage-driver": "devicemapper" }
+{
+ "storage-driver": "devicemapper",
+ "storage-opts": ["dm.basesize=30G"]
+}
