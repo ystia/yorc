@@ -157,6 +157,12 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	secret, err := clientset.CoreV1().Secrets(strings.ToLower(namespace)).Get(repoName, metav1.GetOptions{})
+	if err == nil && secret.Name == repoName {
+		return nil
+	}
+
 	repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
 	if repoURL == deployments.DockerHubURL {
 		return nil
@@ -423,22 +429,49 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
-	replica := int32(0)
-	deployment.Spec.Replicas = &replica
-	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
+	if deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{}); err == nil {
+		replica := int32(0)
+		deployment.Spec.Replicas = &replica
+		_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
 
-	err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete deployment")
+		err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete deployment")
+		}
+		log.Printf("Deployment deleted")
 	}
 
-	err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(strings.ToLower(namespace)).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete service")
+	if _, err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(strings.ToLower(namespace)).Get(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), metav1.GetOptions{}); err == nil {
+		err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(strings.ToLower(namespace)).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete service")
+		}
+		log.Printf("Service deleted")
 	}
 
+	if _, err = (clientset.(*kubernetes.Clientset)).CoreV1().Secrets(strings.ToLower(namespace)).Get(e.SecretRepoName, metav1.GetOptions{}); err == nil {
+		err = (clientset.(*kubernetes.Clientset)).CoreV1().Secrets(strings.ToLower(namespace)).Delete(e.SecretRepoName, &metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete secret")
+		}
+		log.Printf("Secret deleted")
+
+	}
+
+	if err = (clientset.(*kubernetes.Clientset)).CoreV1().Namespaces().Delete(strings.ToLower(namespace), &metav1.DeleteOptions{}); err != nil {
+		return errors.Wrap(err, "Failed to delete namespace")
+	}
+
+	_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Namespaces().Get(strings.ToLower(namespace), metav1.GetOptions{})
+
+	log.Printf("Waiting for namespace to be fully deleted")
+	for err == nil {
+		time.Sleep(2 * time.Second)
+		_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Namespaces().Get(strings.ToLower(namespace), metav1.GetOptions{})
+	}
+
+	log.Printf("Namespace deleted !")
 	return nil
 }
 
