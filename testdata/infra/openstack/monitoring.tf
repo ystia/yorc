@@ -94,6 +94,7 @@ resource "null_resource" "janus-monitoring-provisioning-install-docker" {
       "sudo yum install -q -y docker-ce",
       "sudo mkdir -p /etc/docker/",
       "sudo chown root:root /tmp/docker-daemon.json && sudo mv /tmp/docker-daemon.json /etc/docker/daemon.json",
+      "sudo systemctl enable docker",
       "sudo systemctl start docker",
       "sudo usermod -aG docker ${var.ssh_manager_user}",
     ]
@@ -159,7 +160,7 @@ resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-
   provisioner "remote-exec" {
     inline = [
       # | cat is a workaround the lack of --quiet option for docker cli as it is not a tty docker will reduce outputs
-      "docker run -d -p 80:80 -p 8125:8125/udp -p 8126:8126 --name kamon-grafana-dashboard kamon/grafana_graphite | cat",
+      "docker run --restart unless-stopped -d -p 80:80 -p 8125:8125/udp -p 8126:8126 --name kamon-grafana-dashboard kamon/grafana_graphite | cat",
 
       "sleep 30",
       "set -x",
@@ -186,7 +187,7 @@ resource "null_resource" "janus-monitoring-provisioning-start-monitoring-prometh
   provisioner "remote-exec" {
     inline = [
       # | cat is a workaround the lack of --quiet option for docker cli as it is not a tty docker will reduce outputs
-      "docker run -d -p 9090:9090 -v /home/${var.ssh_manager_user}/prometheus.yml:/etc/prometheus/prometheus.yml --name prometheus prom/prometheus | cat",
+      "docker run --restart unless-stopped -d -p 9090:9090 -v /home/${var.ssh_manager_user}/prometheus.yml:/etc/prometheus/prometheus.yml --name prometheus prom/prometheus | cat",
     ]
   }
 }
