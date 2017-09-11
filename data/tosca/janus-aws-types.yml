@@ -1,0 +1,83 @@
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+
+template_name: janus-aws-types
+template_author: Janus
+template_version: 1.0.0
+
+imports:
+  - janus: <janus-types.yml>
+
+data_types:
+  janus.data.aws.AwsConfig:
+    derived_from: tosca.datatypes.Root
+    properties:
+        aws_access_key_id:
+          type: string
+          required: false
+          description: >
+            AWS access key id of the aws account to bootstrap this instance.
+            Note that the property is optional as it may be configured globally on janus config If not, this property is required.
+        aws_secret_access_key:
+          type: string
+          required: false
+          description: >
+            AWS secret access key of the aws account to bootstrap this instance.
+            Note that the property is optional as it may be configured globally on janus config. If not, this property is required.
+        ec2_region_name:
+          type: string
+          required: false
+          description: >
+            The AWS region on which to connect.
+            Note that the property is optional as it may be configured globally on janus config. If not, this property is required.
+
+  janus.data.aws.InstanceParameters:
+    derived_from: tosca.datatypes.Root
+    properties:
+      key_name:
+        type: string
+        required: false
+      security_groups:
+        type: list
+        required: false
+        entry_schema:
+          type: string
+      security_group_ids:
+        type: list
+        required: false
+        entry_schema:
+          type: string
+      placement:
+        type: string
+        required: false
+        description: AWS Availability zone on which to create the instance.
+
+node_types:
+  janus.nodes.aws.Compute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      image_id:
+        type: string
+        description: The AMI (Amazon Machine Image) ID.
+        required: true
+      instance_type:
+        type: string
+        description: The AWS type representing Amazon flavor. It's a combination of CPU, memory, storage, and networking capacity (By instance t2.micro)
+        required: true
+      name:
+        type: string
+        description: The instance name
+        required: false
+      aws_config:
+        type: janus.data.aws.AwsConfig
+        description: The AWS config related to the instance
+        required: false
+      parameters:
+        type: janus.data.aws.InstanceParameters
+        description: main parameters for AWS instance
+        required: false
+      extra_parameters:
+        type: map
+        description: "key-value server configuration as described in http://boto.readthedocs.org/en/latest/ref/ec2.html#module-boto.ec2.instance"
+        required: false
+        entry_schema:
+          type: string
