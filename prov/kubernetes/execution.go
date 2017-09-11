@@ -476,5 +476,5 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 }
 
 func getNamespace(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	return deployments.GetDeploymentTemplateName(kv, deploymentID)
+	return strings.ToLower(deploymentID), nil
 }
