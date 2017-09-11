@@ -23,10 +23,6 @@ node_types:
         type: string
         description: The instance name
         required: false
-      aws_config:
-        type: janus.data.aws.AwsConfig
-        description: The AWS config related to the instance
-        required: false
       key_name:
         type: string
         required: false
