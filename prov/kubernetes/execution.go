@@ -152,6 +152,9 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	generator := ctx.Value("generator").(*K8sGenerator)
 
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return err
+	}
 
 	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.NodeType, e.Operation.Name)
 	if err != nil {
@@ -202,9 +205,8 @@ func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskTyp
 	if err != nil {
 		return err
 	}
-	namespace = strings.ToLower(namespace)
 
-	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
 	replica := *deployment.Spec.Replicas
 	if scaleType == tasks.ScaleUp {
@@ -214,7 +216,7 @@ func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskTyp
 	}
 
 	deployment.Spec.Replicas = &replica
-	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
+	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 	if err != nil {
 		return errors.Wrap(err, "Failed to scale deployment")
 	}
@@ -231,7 +233,6 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 		return err
 	}
 
-	namespace = strings.ToLower(namespace)
 	err = generator.CreateNamespaceIfMissing(e.deploymentID, namespace, clientset.(*kubernetes.Clientset))
 	if err != nil {
 		return err
@@ -297,7 +298,7 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 	var available int32 = -1
 
 	for !deploymentReady {
-		deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+		deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed fetch deployment")
 		}
@@ -352,7 +353,7 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 	latestReason := ""
 
 	for status != v1.PodRunning && latestReason != "ErrImagePull" && latestReason != "InvalidImageName" {
-		pod, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).Get(podName, metav1.GetOptions{})
+		pod, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch pod")
@@ -396,7 +397,7 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" ("+state+")")
 
 				if reason == "RunContainerError" {
-					logs, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(strings.ToLower(namespace)).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
+					logs, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(namespace).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
 					if err != nil {
 						return errors.Wrap(err, "Failed to fetch pod logs")
 					}
@@ -423,18 +424,18 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
 	replica := int32(0)
 	deployment.Spec.Replicas = &replica
-	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Update(deployment)
+	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 
-	err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(strings.ToLower(namespace)).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
+	err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete deployment")
 	}
 
-	err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(strings.ToLower(namespace)).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
+	err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete service")
 	}
@@ -443,5 +444,5 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 }
 
 func getNamespace(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	return deployments.GetDeploymentTemplateName(kv, deploymentID)
+	return strings.ToLower(deploymentID), nil
 }
