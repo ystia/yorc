@@ -67,7 +67,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	} else if region != "" {
 		instance.Region = region
 	} else {
-		instance.Region = cfg.OSRegion
+		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
 	_, keyPair, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "key_pair")
@@ -77,7 +77,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	// TODO if empty use a default one or fail ?
 	instance.KeyPair = keyPair
 
-	instance.SecurityGroups = cfg.OSDefaultSecurityGroups
+	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
 	_, secGroups, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
@@ -99,11 +99,15 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	if err != nil {
 		return err
 	}
+	defaultPrivateNetName := cfg.Infrastructures[infrastructureName].GetString("private_network_name")
 	if networkName != "" {
-		// TODO Deal with networks aliases (PUBLIC/PRIVATE)
+		// TODO Deal with networks aliases (PUBLIC)
 		var networkSlice []ComputeNetwork
 		if strings.EqualFold(networkName, "private") {
-			networkSlice = append(networkSlice, ComputeNetwork{Name: cfg.OSPrivateNetworkName, AccessNetwork: true})
+			if defaultPrivateNetName == "" {
+				return errors.Errorf(`You should either specify a default private network name using the "private_network_name" configuration parameter for the "openstack" infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`, nodeName)
+			}
+			networkSlice = append(networkSlice, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
 		} else if strings.EqualFold(networkName, "public") {
 			//TODO
 			return errors.Errorf("Public Network aliases currently not supported")
@@ -113,7 +117,10 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		instance.Networks = networkSlice
 	} else {
 		// Use a default
-		instance.Networks = append(instance.Networks, ComputeNetwork{Name: cfg.OSPrivateNetworkName, AccessNetwork: true})
+		if defaultPrivateNetName == "" {
+			return errors.Errorf(`You should either specify a default private network name using the "private_network_name" configuration parameter for the "openstack" infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`, nodeName)
+		}
+		instance.Networks = append(instance.Networks, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
 	}
 
 	var user string
@@ -123,10 +130,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
 
-	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.access_ip_v4}", instance.Name)} // Use access ip here
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 
-	// TODO deal with multi-instances
 	storageKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
@@ -159,7 +164,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				}
 			}
 			log.Debugf("Looking for volume_id")
-			// TODO consider the use of a method in the deployments package
 			_, volumeID, err := deployments.GetNodeProperty(kv, deploymentID, volumeNodeName, "volume_id")
 			if err != nil {
 				return err
@@ -170,9 +174,9 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				go func() {
 					for {
 						// ignore errors and retry
-						volumeID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
-						if volumeID != "" {
-							resultChan <- volumeID
+						volID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
+						if volID != "" {
+							resultChan <- volID
 							return
 						}
 						select {
@@ -214,16 +218,12 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, relationship, instanceName, "attributes/device")] = key1
 		}
 	}
-	// Do this in order to be sure that ansible will be able to log on the instance
-	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
-	instance.Provisioners = make(map[string]interface{})
-	instance.Provisioners["remote-exec"] = re
 
 	networkKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return err
 	}
+	var fipAssociateName string
 	for _, networkReqPrefix := range networkKeys {
 		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(networkReqPrefix)
 
@@ -274,7 +274,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				FloatingIP: floatingIP,
 				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
 			}
-			addResource(infrastructure, "openstack_compute_floatingip_associate_v2", "FIP"+instance.Name, &floatingIPAssociate)
+			fipAssociateName = "FIP" + instance.Name
+			addResource(infrastructure, "openstack_compute_floatingip_associate_v2", fipAssociateName, &floatingIPAssociate)
 			consulKeyFloatingIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: floatingIP}
 			// In order to be backward compatible to components developed for Alien (only the above is standard)
 			consulKeyFloatingIPBak := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: floatingIP}
@@ -323,6 +324,26 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	}
 
 	addResource(infrastructure, "openstack_compute_instance_v2", instance.Name, &instance)
+
+	nullResource := commons.Resource{}
+	// Do this in order to be sure that ansible will be able to log on the instance
+	// TODO private key should not be hard-coded
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
+	var accessIP string
+	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
+		// Use Floating IP for provisioning
+		accessIP = "${openstack_compute_floatingip_associate_v2." + fipAssociateName + ".floating_ip}"
+	} else {
+		accessIP = "${openstack_compute_instance_v2." + instance.Name + ".network.0.fixed_ip_v4}"
+	}
+	re.Connection.Host = accessIP
+	consulKeys.Keys = append(consulKeys.Keys, commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: accessIP}) // Use access ip here
+	nullResource.Provisioners = make([]map[string]interface{}, 0)
+	provMap := make(map[string]interface{})
+	provMap["remote-exec"] = re
+	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
+
+	addResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
 	consulKeyAttrib := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)} // Use latest provisioned network for private access
 	consulKeyFixedIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)}

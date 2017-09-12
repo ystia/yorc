@@ -44,8 +44,8 @@ node_types:
       Standard:
         start:
           inputs:
-            ENV_MONGO_HOST: { get_property: [REQ_TARGET, mongo_db, ip_address] }
-            ENV_MONGO_PORT: { get_property: [REQ_TARGET, mongo_db, port] }
+            ENV_MONGO_HOST: { get_attribute: [REQ_TARGET, mongo_db, ip_address] }
+            ENV_MONGO_PORT: { get_attribute: [REQ_TARGET, mongo_db, docker_ports] }
             ENV_NODECELLAR_PORT: 3000
           implementation:
             file: consul

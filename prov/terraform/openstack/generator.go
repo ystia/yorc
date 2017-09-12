@@ -76,11 +76,41 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 	infrastructure := commons.Infrastructure{}
 
+	consulAddress := "127.0.0.1:8500"
+	if cfg.ConsulAddress != "" {
+		consulAddress = cfg.ConsulAddress
+	}
+	consulScheme := "http"
+	if cfg.ConsulSSL {
+		consulScheme = "https"
+	}
+	consulCA := ""
+	if cfg.ConsulCA != "" {
+		consulCA = cfg.ConsulCA
+	}
+	consulKey := ""
+	if cfg.ConsulKey != "" {
+		consulKey = cfg.ConsulKey
+	}
+	consulCert := ""
+	if cfg.ConsulCert != "" {
+		consulCert = cfg.ConsulCert
+	}
+
+	log.Debugf("Generating infrastructure for deployment with node %s", nodeName)
+	log.Debugf(">>> In GenerateTerraformInfraForNode use consulAddress %s", consulAddress)
+	log.Debugf(">>> In GenerateTerraformInfraForNode use consulScheme %s", consulScheme)
+	log.Debugf(">>> In GenerateTerraformInfraForNode use consulCA %s", consulCA)
+	log.Debugf(">>> In GenerateTerraformInfraForNode use consulKey %s", consulKey)
+	log.Debugf(">>> In GenerateTerraformInfraForNode use consulCert %s", consulCert)
+
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	infrastructure.Terraform = map[string]interface{}{
 		"backend": map[string]interface{}{
 			"consul": map[string]interface{}{
-				"path": terraformStateKey,
+				"path":    terraformStateKey,
+				"address": consulAddress,
+				"scheme":  consulScheme,
 			},
 		},
 	}
@@ -88,10 +118,23 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"openstack": map[string]interface{}{
-			"user_name":   cfg.OSUserName,
-			"tenant_name": cfg.OSTenantName,
-			"password":    cfg.OSPassword,
-			"auth_url":    cfg.OSAuthURL}}
+			"user_name":   cfg.Infrastructures[infrastructureName].GetString("user_name"),
+			"tenant_name": cfg.Infrastructures[infrastructureName].GetString("tenant_name"),
+			"password":    cfg.Infrastructures[infrastructureName].GetString("password"),
+			"auth_url":    cfg.Infrastructures[infrastructureName].GetString("auth_url"),
+			"insecure":    cfg.Infrastructures[infrastructureName].GetString("insecure"),
+			"cacert_file": cfg.Infrastructures[infrastructureName].GetString("cacert_file"),
+			"cert":        cfg.Infrastructures[infrastructureName].GetString("cert"),
+			"key":         cfg.Infrastructures[infrastructureName].GetString("key"),
+		},
+		"consul": map[string]interface{}{
+			"address":   consulAddress,
+			"scheme":    consulScheme,
+			"ca_file":   consulCA,
+			"cert_file": consulCert,
+			"key_file":  consulKey,
+		},
+	}
 
 	log.Debugf("inspecting node %s", nodeKey)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
@@ -267,7 +310,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	if err != nil {
 		return false, nil, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
 	}
-	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", fmt.Sprint(deploymentID), "infra", nodeName)
+	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	if err = os.MkdirAll(infraPath, 0775); err != nil {
 		return false, nil, errors.Wrapf(err, "Failed to create infrastructure working directory %q", infraPath)
 	}

@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
@@ -18,9 +22,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"path"
-	"strings"
-	"time"
 )
 
 // An EnvInput represent a TOSCA operation input
@@ -257,17 +258,29 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 
 	if service.Name != "" {
 		serv, err := (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&service)
-		consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", "nodes", e.NodeName, "serviceName"), service.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create service")
 		}
 		for _, val := range serv.Spec.Ports {
 			log.Printf("%s : %s: %d:%d mapped to %d", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
 		}
-	}
 
-	//TODO Handle the fact when can have more than one pod by container (scaling)
-	consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", "nodes", e.NodeName, "namespace"), namespace)
+		// Legacy
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "ip_address", service.Name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create service")
+		}
+
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_name", service.Name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create service")
+		}
+		// TODO check that it is a good idea to use it as endpoint ip_address
+		err = deployments.SetCapabilityAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "endpoint", "ip_address", service.Name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create service")
+		}
+	}
 
 	return nil
 }
@@ -430,12 +443,5 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 }
 
 func getNamespace(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	found, namespace, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "namespace")
-	if err != nil {
-		return "", err
-	}
-	if !found || namespace == "" {
-		return deployments.GetDeploymentTemplateName(kv, deploymentID)
-	}
-	return namespace, nil
+	return deployments.GetDeploymentTemplateName(kv, deploymentID)
 }

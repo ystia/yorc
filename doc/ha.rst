@@ -8,7 +8,7 @@ The bellow figure illustrates how a typical Janus setup for enabling High Availa
 
 .. image:: _static/img/Janus_HA.png
    :align: center 
-   :alt: Typical Janus HA steup
+   :alt: Typical Janus HA setup
    :scale: 75%
 
 

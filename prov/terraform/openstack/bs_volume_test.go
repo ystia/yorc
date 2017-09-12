@@ -4,12 +4,13 @@ import (
 	"strconv"
 	"testing"
 
+	"path"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"path"
 )
 
 func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -17,7 +18,11 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 	log.SetDebug(true)
 
 	indexSuffix := path.Base(t.Name())
-	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "Region_" + indexSuffix,
+			}}}
 	g := osGenerator{}
 
 	var testData = []struct {
@@ -56,7 +61,11 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 	log.SetDebug(true)
 
 	indexSuffix := path.Base(t.Name())
-	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "Region_" + indexSuffix,
+			}}}
 	g := osGenerator{}
 
 	var testData = []struct {
@@ -86,7 +95,11 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, 
 	log.SetDebug(true)
 
 	indexSuffix := path.Base(t.Name())
-	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "Region_" + indexSuffix,
+			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
@@ -105,7 +118,11 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv
 	log.SetDebug(true)
 
 	indexSuffix := path.Base(t.Name())
-	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "Region_" + indexSuffix,
+			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")
@@ -124,7 +141,11 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	log.SetDebug(true)
 
 	indexSuffix := path.Base(t.Name())
-	cfg := config.Configuration{OSRegion: "Region_" + indexSuffix}
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: config.InfrastructureConfig{
+				"region": "Region_" + indexSuffix,
+			}}}
 	g := osGenerator{}
 
 	t.Log("Registering Key")

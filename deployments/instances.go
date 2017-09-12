@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"path"
 
 	"github.com/hashicorp/consul/api"
@@ -56,4 +57,32 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return string(kvp.Value), err
+}
+
+// SetInstanceAttribute sets an instance attribute
+func SetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName, attributeValue string) error {
+	kvp := &api.KVPair{
+		Key:   path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
+		Value: []byte(attributeValue),
+	}
+	_, err := kv.Put(kvp, nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+// SetAttributeForAllInstances sets the same attribute value to all instances of a given node.
+//
+// It does the same thing than iterating over instances ids and calling SetInstanceAttribute but use
+// a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
+func SetAttributeForAllInstances(kv *api.KV, deploymentID, nodeName, attributeName, attributeValue string) error {
+	ids, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	for _, instanceName := range ids {
+		store.StoreConsulKeyAsString(
+			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
+			attributeValue)
+	}
+	return errGrp.Wait()
 }
