@@ -22,6 +22,8 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"fmt"
+	"net/url"
 )
 
 // An EnvInput represent a TOSCA operation input
@@ -268,23 +270,37 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 			return errors.Wrap(err, "Failed to create service")
 		}
 		for _, val := range serv.Spec.Ports {
-			log.Printf("%s : %s: %d:%d mapped to %d", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
+			kubConf := e.cfg.Infrastructures["kubernetes"]
+			kubMasterIP := kubConf.GetString("master_url")
+			u, err := url.Parse(kubMasterIP)
+			h := strings.Split(u.Host, ":")
+			str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+
+			log.Printf("%s : %s: %d:%d mapped to %s", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
+
+			s := fmt.Sprintf("%d ==> %s", val.Port, str)
+
+			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
+			if err != nil {
+				return errors.Wrap(err, "Failed to set attribute")
+			}
+
 		}
 
 		// Legacy
 		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "ip_address", service.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create service")
+			return errors.Wrap(err, "Failed to set attribute")
 		}
 
 		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_name", service.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create service")
+			return errors.Wrap(err, "Failed to set attribute")
 		}
 		// TODO check that it is a good idea to use it as endpoint ip_address
 		err = deployments.SetCapabilityAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "endpoint", "ip_address", service.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create service")
+			return errors.Wrap(err, "Failed to set xapability attribute")
 		}
 	}
 
