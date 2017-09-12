@@ -8,11 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"net/url"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -22,8 +24,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"fmt"
-	"net/url"
 )
 
 // An EnvInput represent a TOSCA operation input
@@ -269,22 +269,21 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 		if err != nil {
 			return errors.Wrap(err, "Failed to create service")
 		}
+		var s string
 		for _, val := range serv.Spec.Ports {
 			kubConf := e.cfg.Infrastructures["kubernetes"]
 			kubMasterIP := kubConf.GetString("master_url")
-			u, err := url.Parse(kubMasterIP)
+			u, _ := url.Parse(kubMasterIP)
 			h := strings.Split(u.Host, ":")
 			str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
 
 			log.Printf("%s : %s: %d:%d mapped to %s", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
 
-			s := fmt.Sprintf("%d ==> %s", val.Port, str)
-
-			err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
-			if err != nil {
-				return errors.Wrap(err, "Failed to set attribute")
-			}
-
+			s = fmt.Sprintf("%s %d ==> %s \n", s, val.Port, str)
+		}
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
+		if err != nil {
+			return errors.Wrap(err, "Failed to set attribute")
 		}
 
 		// Legacy
