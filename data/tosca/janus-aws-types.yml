@@ -25,7 +25,12 @@ node_types:
         required: false
       key_name:
         type: string
-        required: false
+        required: true
+      user:
+        type: string
+        description: >
+          The user name used to connect to the Compute and provision it.
+        required: true
       security_groups:
         type: list
         required: false
