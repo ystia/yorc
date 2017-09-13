@@ -7,13 +7,18 @@ import (
 	"strings"
 	"time"
 
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+<<<<<<< HEAD
 
+=======
+	"net/url"
+>>>>>>> d21034a5f3e0cadf3ae6bf98bd4fe0770c64605f
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -141,6 +146,12 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(repoName, metav1.GetOptions{})
+	if err == nil && secret.Name == repoName {
+		return nil
+	}
+
 	repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
 	if repoURL == deployments.DockerHubURL {
 		return nil
@@ -246,24 +257,37 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 		if err != nil {
 			return errors.Wrap(err, "Failed to create service")
 		}
+		var s string
 		for _, val := range serv.Spec.Ports {
-			log.Printf("%s : %s: %d:%d mapped to %d", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, val.NodePort)
+			kubConf := e.cfg.Infrastructures["kubernetes"]
+			kubMasterIP := kubConf.GetString("master_url")
+			u, _ := url.Parse(kubMasterIP)
+			h := strings.Split(u.Host, ":")
+			str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+
+			log.Printf("%s : %s: %d:%d mapped to %s", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
+
+			s = fmt.Sprintf("%s %d ==> %s \n", s, val.Port, str)
+		}
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
+		if err != nil {
+			return errors.Wrap(err, "Failed to set attribute")
 		}
 
 		// Legacy
 		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "ip_address", service.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create service")
+			return errors.Wrap(err, "Failed to set attribute")
 		}
 
 		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_name", service.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create service")
+			return errors.Wrap(err, "Failed to set attribute")
 		}
 		// TODO check that it is a good idea to use it as endpoint ip_address
 		err = deployments.SetCapabilityAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "endpoint", "ip_address", service.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create service")
+			return errors.Wrap(err, "Failed to set xapability attribute")
 		}
 	}
 
@@ -408,22 +432,49 @@ func (e *executionCommon) uninstallNode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
-	replica := int32(0)
-	deployment.Spec.Replicas = &replica
-	_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Update(deployment)
+	if deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{}); err == nil {
+		replica := int32(0)
+		deployment.Spec.Replicas = &replica
+		_, err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 
-	err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete deployment")
+		err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete deployment")
+		}
+		log.Printf("Deployment deleted")
 	}
 
-	err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete service")
+	if _, err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Get(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), metav1.GetOptions{}); err == nil {
+		err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Delete(strings.ToLower(GeneratePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete service")
+		}
+		log.Printf("Service deleted")
 	}
 
+	if _, err = (clientset.(*kubernetes.Clientset)).CoreV1().Secrets(namespace).Get(e.SecretRepoName, metav1.GetOptions{}); err == nil {
+		err = (clientset.(*kubernetes.Clientset)).CoreV1().Secrets(namespace).Delete(e.SecretRepoName, &metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete secret")
+		}
+		log.Printf("Secret deleted")
+
+	}
+
+	if err = (clientset.(*kubernetes.Clientset)).CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{}); err != nil {
+		return errors.Wrap(err, "Failed to delete namespace")
+	}
+
+	_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+
+	log.Printf("Waiting for namespace to be fully deleted")
+	for err == nil {
+		time.Sleep(2 * time.Second)
+		_, err = (clientset.(*kubernetes.Clientset)).CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	}
+
+	log.Printf("Namespace deleted !")
 	return nil
 }
 

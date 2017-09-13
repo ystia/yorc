@@ -13,66 +13,31 @@ topology_template:
     Kibana:
       type: janus.nodes.Docker.Kibana
       properties:
-        docker_options: "-e ELASTICSEARCH_URL=http://ber-janus-elasticsearch:9200"
-    ElastichSearch:
-      type: janus.nodes.Docker.ElastichSearch
+        docker_ports: 5601
+      requirements:
+        - elastic:
+            node: ElasticSearch
+            capability: janus.capabilities.endpoint.docker.Elastic
+            relationship: tosca.relationships.ConnectsTo
+    ElasticSearch:
+      type: janus.nodes.Docker.ElasticSearch
       properties:
-        docker_ports: "9200 9300"
+        docker_ports: 9200
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        elastic:
+          properties:
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
   workflows:
     install:
       steps:
-        ElastichSearch_initial:
-          node: ElastichSearch
-          activity:
-            set_state: initial
-          on-success:
-            - ElastichSearch_creating
-        ElastichSearch_creating:
-          node: ElastichSearch
-          activity:
-            set_state: creating
-          on-success:
-            - ElastichSearch_created
-        ElastichSearch_created:
-          node: ElastichSearch
-          activity:
-            set_state: created
-          on-success:
-            - ElastichSearch_configuring
-        ElastichSearch_configuring:
-          node: ElastichSearch
-          activity:
-            set_state: configuring
-          on-success:
-            - configure_ElastichSearch
-        configure_ElastichSearch:
-          node: ElastichSearch
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
-          on-success:
-            - ElastichSearch_configured
-        ElastichSearch_configured:
-          node: ElastichSearch
-          activity:
-            set_state: configured
-          on-success:
-            - ElastichSearch_starting
-        ElastichSearch_starting:
-          node: ElastichSearch
-          activity:
-            set_state: starting
-          on-success:
-            - start_ElastichSearch
-        start_ElastichSearch:
-          node: ElastichSearch
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
-          on-success:
-            - ElastichSearch_started
-        ElastichSearch_started:
-          node: ElastichSearch
-          activity:
-            set_state: started
         Kibana_initial:
           node: Kibana
           activity:
@@ -91,6 +56,7 @@ topology_template:
             set_state: created
           on-success:
             - Kibana_configuring
+            - ElasticSearch_configuring
         Kibana_configuring:
           node: Kibana
           activity:
@@ -125,42 +91,62 @@ topology_template:
           node: Kibana
           activity:
             set_state: started
+        ElasticSearch_initial:
+          node: ElasticSearch
+          activity:
+            set_state: initial
+          on-success:
+            - ElasticSearch_creating
+        ElasticSearch_creating:
+          node: ElasticSearch
+          activity:
+            set_state: creating
+          on-success:
+            - ElasticSearch_created
+        ElasticSearch_created:
+          node: ElasticSearch
+          activity:
+            set_state: created
+          on-success:
+            - ElasticSearch_configuring
+        ElasticSearch_configuring:
+          node: ElasticSearch
+          activity:
+            set_state: configuring
+          on-success:
+            - configure_ElasticSearch
+        configure_ElasticSearch:
+          node: ElasticSearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          on-success:
+            - ElasticSearch_configured
+        ElasticSearch_configured:
+          node: ElasticSearch
+          activity:
+            set_state: configured
+          on-success:
+            - ElasticSearch_starting
+        ElasticSearch_starting:
+          node: ElasticSearch
+          activity:
+            set_state: starting
+          on-success:
+            - start_ElasticSearch
+        start_ElasticSearch:
+          node: ElasticSearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - ElasticSearch_started
+        ElasticSearch_started:
+          node: ElasticSearch
+          activity:
+            set_state: started
+          on-success:
+            - Kibana_configuring
     uninstall:
       steps:
-        ElastichSearch_stopping:
-          node: ElastichSearch
-          activity:
-            set_state: stopping
-          on-success:
-            - stop_ElastichSearch
-        stop_ElastichSearch:
-          node: ElastichSearch
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
-          on-success:
-            - ElastichSearch_stopped
-        ElastichSearch_stopped:
-          node: ElastichSearch
-          activity:
-            set_state: stopped
-          on-success:
-            - ElastichSearch_deleting
-        ElastichSearch_deleting:
-          node: ElastichSearch
-          activity:
-            set_state: deleting
-          on-success:
-            - delete_ElastichSearch
-        delete_ElastichSearch:
-          node: ElastichSearch
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
-          on-success:
-            - ElastichSearch_deleted
-        ElastichSearch_deleted:
-          node: ElastichSearch
-          activity:
-            set_state: deleted
         Kibana_stopping:
           node: Kibana
           activity:
@@ -178,6 +164,7 @@ topology_template:
           activity:
             set_state: stopped
           on-success:
+            - ElasticSearch_stopping
             - Kibana_deleting
         Kibana_deleting:
           node: Kibana
@@ -195,4 +182,107 @@ topology_template:
           node: Kibana
           activity:
             set_state: deleted
-
+        ElasticSearch_stopping:
+          node: ElasticSearch
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_ElasticSearch
+        stop_ElasticSearch:
+          node: ElasticSearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - ElasticSearch_stopped
+        ElasticSearch_stopped:
+          node: ElasticSearch
+          activity:
+            set_state: stopped
+          on-success:
+            - ElasticSearch_deleting
+        ElasticSearch_deleting:
+          node: ElasticSearch
+          activity:
+            set_state: deleting
+          on-success:
+            - delete_ElasticSearch
+        delete_ElasticSearch:
+          node: ElasticSearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          on-success:
+            - ElasticSearch_deleted
+        ElasticSearch_deleted:
+          node: ElasticSearch
+          activity:
+            set_state: deleted
+    start:
+      steps:
+        Kibana_starting:
+          node: Kibana
+          activity:
+            set_state: starting
+          on-success:
+            - start_Kibana
+        start_Kibana:
+          node: Kibana
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - Kibana_started
+        Kibana_started:
+          node: Kibana
+          activity:
+            set_state: started
+        ElasticSearch_starting:
+          node: ElasticSearch
+          activity:
+            set_state: starting
+          on-success:
+            - start_ElasticSearch
+        start_ElasticSearch:
+          node: ElasticSearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          on-success:
+            - ElasticSearch_started
+        ElasticSearch_started:
+          node: ElasticSearch
+          activity:
+            set_state: started
+          on-success:
+            - Kibana_starting
+    stop:
+      steps:
+        Kibana_stopping:
+          node: Kibana
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_Kibana
+        stop_Kibana:
+          node: Kibana
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - Kibana_stopped
+        Kibana_stopped:
+          node: Kibana
+          activity:
+            set_state: stopped
+        ElasticSearch_stopping:
+          node: ElasticSearch
+          activity:
+            set_state: stopping
+          on-success:
+            - stop_ElasticSearch
+        stop_ElasticSearch:
+          node: ElasticSearch
+          activity:
+            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          on-success:
+            - ElasticSearch_stopped
+        ElasticSearch_stopped:
+          node: ElasticSearch
+          activity:
+            set_state: stopped
