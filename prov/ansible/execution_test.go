@@ -13,34 +13,14 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	janus_testutil "novaforge.bull.com/starlings-janus/janus/testutil"
 )
-
-func getOperation(kv *api.KV, deploymentID, nodeName, operationName string) (prov.Operation, error) {
-	isRelationshipOp, operationRealName, requirementIndex, targetNodeName, err := deployments.DecodeOperation(kv, deploymentID, nodeName, operationName)
-	if err != nil {
-		return prov.Operation{}, err
-	}
-	implArt, err := deployments.GetImplementationArtifactForOperation(kv, deploymentID, nodeName, operationRealName, isRelationshipOp, requirementIndex)
-	if err != nil {
-		return prov.Operation{}, err
-	}
-	op := prov.Operation{
-		Name: operationRealName,
-		ImplementationArtifact: implArt,
-		RelOp: prov.RelationshipOperation{
-			IsRelationshipOperation: isRelationshipOp,
-			RequirementIndex:        requirementIndex,
-			TargetNodeName:          targetNodeName,
-		},
-	}
-	return op, nil
-}
 
 // From now only WorkingDirectory is necessary for those tests
 func GetConfig() config.Configuration {
@@ -93,6 +73,7 @@ func testExecutionOnNode(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/tosca.artifacts.Implementation.Bash/name"): []byte("tosca.artifacts.Implementation.Bash"),
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "name"):                                                        []byte(nodeTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/name"):                             []byte("create"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/name"):                   []byte("A1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/expression"):             []byte("get_property: [SELF, document_root]"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/name"):                   []byte("A3"),
@@ -139,7 +120,7 @@ func testExecutionOnNode(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 }
 
 func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, nodeTypeName, operation string) {
-	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:           deploymentID,
@@ -148,7 +129,7 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 		OperationPath:          path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create"),
 		isPerInstanceOperation: false,
 		VarInputsNames:         make([]string, 0),
-		EnvInputs:              make([]*EnvInput, 0)}
+		EnvInputs:              make([]*operations.EnvInput, 0)}
 
 	err = execution.resolveOperation()
 	require.Nil(t, err)
@@ -221,7 +202,7 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 }
 
 func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
 	require.Nil(t, err)
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
@@ -298,6 +279,7 @@ func testExecutionOnRelationshipSource(t *testing.T, srv1 *testutil.TestServer, 
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                                  []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                                       []byte(relationshipTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/name"):                             []byte("pre_configure_source"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/name"):                   []byte("A1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/expression"):             []byte("get_property: [SOURCE, document_root]"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/name"):                   []byte("A2"),
@@ -363,7 +345,7 @@ func testExecutionOnRelationshipSource(t *testing.T, srv1 *testutil.TestServer, 
 }
 
 func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName string) {
-	op, err := getOperation(kv, deploymentID, nodeAName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation)
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:           deploymentID,
@@ -373,7 +355,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 		isPerInstanceOperation: false,
 		relationshipType:       relationshipTypeName,
 		VarInputsNames:         make([]string, 0),
-		EnvInputs:              make([]*EnvInput, 0),
+		EnvInputs:              make([]*operations.EnvInput, 0),
 		sourceNodeInstances:    []string{"0", "1", "2"},
 		targetNodeInstances:    []string{"0", "1"},
 	}
@@ -419,7 +401,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 }
 
 func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
 	require.Nil(t, err)
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
@@ -495,6 +477,7 @@ func testExecutionOnRelationshipTarget(t *testing.T, srv1 *testutil.TestServer, 
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.types.A/name"):                                                                        []byte("janus.types.A"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "name"):                                                             []byte(relationshipTypeName),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/name"):                             []byte("add_source"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/name"):                   []byte("A1"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/expression"):             []byte("get_property: [SOURCE, document_root]"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/name"):                   []byte("A2"),
@@ -561,7 +544,7 @@ func testExecutionOnRelationshipTarget(t *testing.T, srv1 *testutil.TestServer, 
 	}
 }
 func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName string) {
-	op, err := getOperation(kv, deploymentID, nodeAName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation)
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:             deploymentID,
@@ -572,7 +555,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 		isPerInstanceOperation:   false,
 		relationshipType:         relationshipTypeName,
 		VarInputsNames:           make([]string, 0),
-		EnvInputs:                make([]*EnvInput, 0)}
+		EnvInputs:                make([]*operations.EnvInput, 0)}
 
 	err = execution.resolveOperation()
 	require.Nil(t, err)
@@ -618,7 +601,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 }
 
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := getOperation(kv, deploymentID, nodeName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
 	require.Nil(t, err)
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)

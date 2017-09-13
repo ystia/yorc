@@ -16,6 +16,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -262,7 +263,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfSetStateActivity:
 			setNodeStatus(kv, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
 		case actType == wfCallOpActivity:
-			op, err := getOperation(kv, s.t.TargetID, s.Node, activity.ActivityValue())
+			op, err := operations.GetOperation(kv, s.t.TargetID, s.Node, activity.ActivityValue())
 			if err != nil {
 				if deployments.IsOperationNotImplemented(err) {
 					// Operation not implemented just skip it

@@ -10,21 +10,24 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"strconv"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"gopkg.in/yaml.v2"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -107,7 +110,7 @@ type executionCommon struct {
 	OperationRemoteBaseDir   string
 	OperationRemotePath      string
 	KeepOperationRemotePath  bool
-	EnvInputs                []*EnvInput
+	EnvInputs                []*operations.EnvInput
 	VarInputsNames           []string
 	Primary                  string
 	BasePrimary              string
@@ -141,7 +144,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		KeepOperationRemotePath: cfg.KeepOperationRemotePath,
 		operation:               operation,
 		VarInputsNames:          make([]string, 0),
-		EnvInputs:               make([]*EnvInput, 0),
+		EnvInputs:               make([]*operations.EnvInput, 0),
 		taskID:                  taskID,
 		Outputs:                 make(map[string]string),
 	}
@@ -284,91 +287,6 @@ func (e *executionCommon) resolveArtifacts() error {
 	return nil
 }
 
-func (e *executionCommon) resolveInputs() error {
-	log.Debug("resolving inputs")
-	resolver := deployments.NewResolver(e.kv, e.deploymentID)
-
-	var inputKeys []string
-	var err error
-
-	inputKeys, _, err = e.kv.Keys(e.OperationPath+"/inputs/", "/", nil)
-
-	if err != nil {
-		return err
-	}
-	for _, input := range inputKeys {
-		kvPair, _, err := e.kv.Get(input+"/name", nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvPair == nil {
-			return errors.Errorf("%s/name missing", input)
-		}
-		inputName := string(kvPair.Value)
-
-		kvPair, _, err = e.kv.Get(input+"/is_property_definition", nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		isPropDef, err := strconv.ParseBool(string(kvPair.Value))
-		if err != nil {
-			return err
-		}
-
-		va := tosca.ValueAssignment{}
-		var targetContext bool
-		if !isPropDef {
-			kvPair, _, err = e.kv.Get(input+"/expression", nil)
-			if err != nil {
-				return err
-			}
-			if kvPair == nil {
-				return errors.Errorf("%s/expression missing", input)
-			}
-
-			err = yaml.Unmarshal(kvPair.Value, &va)
-			if err != nil {
-				return errors.Wrap(err, "Failed to resolve operation inputs, unable to unmarshal yaml expression: ")
-			}
-			targetContext = va.Expression.IsTargetContext()
-		}
-
-		var instancesIds []string
-		if targetContext {
-			instancesIds = e.targetNodeInstances
-		} else {
-			instancesIds = e.sourceNodeInstances
-		}
-		var inputValue string
-		for i, instanceID := range instancesIds {
-			envI := &EnvInput{Name: inputName, IsTargetScoped: targetContext}
-			if e.operation.RelOp.IsRelationshipOperation && targetContext {
-				envI.InstanceName = getInstanceName(e.operation.RelOp.TargetNodeName, instanceID)
-			} else {
-				envI.InstanceName = getInstanceName(e.NodeName, instanceID)
-			}
-			if e.operation.RelOp.IsRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, e.NodeName, e.operation.RelOp.TargetNodeName, e.operation.RelOp.RequirementIndex, instanceID)
-			} else if isPropDef {
-				inputValue, err = tasks.GetTaskInput(e.kv, e.taskID, inputName)
-			} else {
-				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, e.NodeName, instanceID)
-			}
-			if err != nil {
-				return err
-			}
-			envI.Value = inputValue
-			e.EnvInputs = append(e.EnvInputs, envI)
-			if i == 0 {
-				e.VarInputsNames = append(e.VarInputsNames, sanitizeForShell(inputName))
-			}
-		}
-	}
-
-	log.Debugf("Resolved env inputs: %s", e.EnvInputs)
-	return nil
-}
-
 func (e *executionCommon) resolveHosts(nodeName string) error {
 	log.Debugf("Resolving hosts for node %q", nodeName)
 
@@ -389,9 +307,9 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 		if found && ipAddress != "" {
 			var instanceName string
 			if e.isRelationshipTargetNode {
-				instanceName = getInstanceName(e.operation.RelOp.TargetNodeName, instance)
+				instanceName = operations.GetInstanceName(e.operation.RelOp.TargetNodeName, instance)
 			} else {
-				instanceName = getInstanceName(e.NodeName, instance)
+				instanceName = operations.GetInstanceName(e.NodeName, instance)
 			}
 
 			hostConn := hostConnection{host: ipAddress, instanceID: instance}
@@ -429,29 +347,10 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 	return nil
 }
 
-func sanitizeForShell(str string) string {
-	return strings.Map(func(r rune) rune {
-		// Replace hyphen by underscore
-		if r == '-' {
-			return '_'
-		}
-		// Keep underscores
-		if r == '_' {
-			return r
-		}
-		// Drop any other non-alphanum rune
-		if r < '0' || r > 'z' || r > '9' && r < 'A' || r > 'Z' && r < 'a' {
-			return rune(-1)
-		}
-		return r
-
-	}, str)
-}
-
 func (e *executionCommon) resolveContext() error {
 	execContext := make(map[string]string)
 
-	newNode := sanitizeForShell(e.NodeName)
+	newNode := provutil.SanitizeForShell(e.NodeName)
 	if !e.operation.RelOp.IsRelationshipOperation {
 		execContext["NODE"] = newNode
 	}
@@ -464,7 +363,7 @@ func (e *executionCommon) resolveContext() error {
 
 	names := make([]string, len(instances))
 	for i := range instances {
-		instanceName := getInstanceName(e.NodeName, instances[i])
+		instanceName := operations.GetInstanceName(e.NodeName, instances[i])
 		names[i] = instanceName
 	}
 	if !e.operation.RelOp.IsRelationshipOperation {
@@ -496,14 +395,14 @@ func (e *executionCommon) resolveContext() error {
 
 		sourceNames := make([]string, len(e.sourceNodeInstances))
 		for i := range e.sourceNodeInstances {
-			sourceNames[i] = getInstanceName(e.NodeName, e.sourceNodeInstances[i])
+			sourceNames[i] = operations.GetInstanceName(e.NodeName, e.sourceNodeInstances[i])
 		}
 		execContext["SOURCE_INSTANCES"] = strings.Join(sourceNames, ",")
-		execContext["TARGET_NODE"] = sanitizeForShell(e.operation.RelOp.TargetNodeName)
+		execContext["TARGET_NODE"] = provutil.SanitizeForShell(e.operation.RelOp.TargetNodeName)
 
 		targetNames := make([]string, len(e.targetNodeInstances))
 		for i := range e.targetNodeInstances {
-			targetNames[i] = getInstanceName(e.operation.RelOp.TargetNodeName, e.targetNodeInstances[i])
+			targetNames[i] = operations.GetInstanceName(e.operation.RelOp.TargetNodeName, e.targetNodeInstances[i])
 		}
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
@@ -628,6 +527,12 @@ func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) er
 	return nil
 }
 
+func (e *executionCommon) resolveInputs() error {
+	var err error
+	e.EnvInputs, e.VarInputsNames, err = operations.ResolveInputsWithInstances(e.kv, e.deploymentID, e.NodeName, e.taskID, e.operation, e.sourceNodeInstances, e.targetNodeInstances)
+	return err
+}
+
 func (e *executionCommon) resolveExecution() error {
 	log.Debugf("Preparing execution of operation %q on node %q for deployment %q", e.operation.Name, e.NodeName, e.deploymentID)
 	ovPath, err := filepath.Abs(filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "overlay"))
@@ -671,7 +576,7 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 		}
 
 		for _, instanceID := range instances {
-			instanceName := getInstanceName(nodeName, instanceID)
+			instanceName := operations.GetInstanceName(nodeName, instanceID)
 			log.Debugf("Executing operation %q, on node %q, with current instance %q", e.operation.Name, e.NodeName, instanceName)
 			err := e.executeWithCurrentInstance(ctx, retry, instanceName)
 			if err != nil {
@@ -838,10 +743,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 	return nil
 
-}
-
-func getInstanceName(nodeName, instanceID string) string {
-	return sanitizeForShell(nodeName + "_" + instanceID)
 }
 
 func (e *executionCommon) checkAnsibleRetriableError(err error) error {

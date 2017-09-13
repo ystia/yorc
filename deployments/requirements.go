@@ -119,11 +119,11 @@ func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requi
 		}
 
 		if string(reqKv.Value) == requirementName {
-			nodeName, _, err := kv.Get(req+"/node", nil)
-			if err != nil || nodeName == nil {
+			nodeNameKvp, _, err := kv.Get(req+"/node", nil)
+			if err != nil || nodeNameKvp == nil {
 				return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
-			return string(nodeName.Value), nil
+			return string(nodeNameKvp.Value), nil
 		}
 
 	}

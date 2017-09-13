@@ -4,23 +4,22 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"path"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/prov/structs"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
@@ -44,25 +43,19 @@ type dockerConfigEntry struct {
 }
 
 type executionCommon struct {
-	kv                  *api.KV
-	cfg                 config.Configuration
-	deploymentID        string
-	taskID              string
-	taskType            tasks.TaskType
-	NodeName            string
-	Operation           prov.Operation
-	NodeType            string
-	Description         string
-	OperationRemotePath string
-	OperationPath       string
-	EnvInputs           []*structs.EnvInput
-	VarInputsNames      []string
-	Repositories        map[string]string
-	NodePath            string
-	NodeTypePath        string
-	Artifacts           map[string]string
-	OverlayPath         string
-	SecretRepoName      string
+	kv             *api.KV
+	cfg            config.Configuration
+	deploymentID   string
+	taskID         string
+	taskType       tasks.TaskType
+	NodeName       string
+	Operation      prov.Operation
+	NodeType       string
+	Description    string
+	EnvInputs      []*operations.EnvInput
+	VarInputsNames []string
+	Repositories   map[string]string
+	SecretRepoName string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
@@ -77,7 +70,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		NodeName:       nodeName,
 		Operation:      operation,
 		VarInputsNames: make([]string, 0),
-		EnvInputs:      make([]*structs.EnvInput, 0),
+		EnvInputs:      make([]*operations.EnvInput, 0),
 		taskID:         taskID,
 		taskType:       taskType,
 	}
@@ -86,21 +79,9 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 }
 
 func (e *executionCommon) resolveOperation() error {
-	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
 	var err error
 	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
-	if err != nil {
-		return err
-	}
-	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType)
-	operationNodeType := e.NodeType
-
-	e.OperationPath = deployments.GetOperationPath(e.deploymentID, operationNodeType, e.Operation.Name)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
@@ -243,7 +224,10 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 		return err
 	}
 
-	e.EnvInputs, e.VarInputsNames, err = operations.InputsResolver(e.kv, e.OperationPath, e.deploymentID, e.NodeName, e.taskID, e.Operation.Name)
+	e.EnvInputs, e.VarInputsNames, err = operations.ResolveInputs(e.kv, e.deploymentID, e.NodeName, e.taskID, e.Operation)
+	if err != nil {
+		return err
+	}
 	inputs := e.parseEnvInputs()
 
 	deployment, service, err := generator.GenerateDeployment(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, e.SecretRepoName, inputs, nbInstances)

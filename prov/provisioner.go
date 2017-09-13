@@ -19,6 +19,8 @@ type DelegateExecutor interface {
 type Operation struct {
 	// The operation name
 	Name string
+	// Name of the type implementing this operation
+	ImplementedInType string
 	// Artifact type of the operation implementation
 	ImplementationArtifact string
 	// Additional information for relationship operation
