@@ -35,6 +35,14 @@ data "template_file" "alien-server-service" {
   }
 }
 
+data "template_file" "alien-consul-checks" {
+  template = "${file("../config/alien-consul-check.json.tpl")}"
+
+  vars {
+    ip_address = "${openstack_compute_instance_v2.alien-server.network.0.fixed_ip_v4}"
+  }
+}
+
 data "template_file" "consul-agent-4alien-config" {
   template = "${file("../config/consul-agent.config.json.tpl")}"
 
@@ -42,6 +50,7 @@ data "template_file" "consul-agent-4alien-config" {
     ip_address     = "${openstack_compute_instance_v2.alien-server.network.0.fixed_ip_v4}"
     consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
     statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    consul_ui      = "false"
   }
 }
 
@@ -63,6 +72,11 @@ resource "null_resource" "alien-server-provisioning" {
   }
 
   provisioner "file" {
+    content     = "${data.template_file.alien-consul-checks.rendered}"
+    destination = "/tmp/alien-consul-check.json"
+  }
+
+  provisioner "file" {
     source      = "../config/consul.service"
     destination = "/tmp/consul.service"
   }
@@ -75,6 +89,7 @@ resource "null_resource" "alien-server-provisioning" {
     inline = [
       "sudo mkdir -p /etc/consul.d",
       "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
+      "sudo mv /tmp/alien-consul-check.json /etc/consul.d/",
       "sudo chown root:root /etc/consul.d/*",
       "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
       "sudo chown root:root /etc/systemd/system/consul.service",

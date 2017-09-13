@@ -27,11 +27,62 @@ resource "openstack_compute_floatingip_associate_v2" "janus-monitoring-fip" {
   instance_id = "${openstack_compute_instance_v2.janus-monitoring-server.id}"
 }
 
-resource "null_resource" "janus-montoring-provisioning-install-docker" {
+data "template_file" "janus-monitoring-consul-agent-config" {
+  template = "${file("../config/consul-agent.config.json.tpl")}"
+
+  vars {
+    ip_address     = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
+    statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    consul_ui      = "true"
+  }
+}
+
+resource "null_resource" "janus-monitoring-provisioning-install-consul" {
   connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
+  }
+
+  provisioner "file" {
+    content     = "${data.template_file.janus-monitoring-consul-agent-config.rendered}"
+    destination = "/tmp/consul-agent.config.json"
+  }
+
+  provisioner "file" {
+    source      = "../config/consul.service"
+    destination = "/tmp/consul.service"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkdir -p /etc/consul.d",
+      "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
+      "sudo chown root:root /etc/consul.d/*",
+      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
+      "sudo chown root:root /etc/systemd/system/consul.service",
+      "sudo yum install -q -y wget zip unzip",
+      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
+      "sudo systemctl daemon-reload",
+      "sudo systemctl enable consul.service",
+      "sudo systemctl start consul.service",
+    ]
+  }
+}
+
+resource "null_resource" "janus-monitoring-provisioning-install-docker" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-install-consul"]
+
+  connection {
+    user        = "${var.ssh_manager_user}"
+    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    private_key = "${file("${var.ssh_key_file}")}"
+  }
+
+  provisioner "file" {
+    source      = "../config/docker-daemon.json"
+    destination = "/tmp/docker-daemon.json"
   }
 
   provisioner "remote-exec" {
@@ -41,6 +92,9 @@ resource "null_resource" "janus-montoring-provisioning-install-docker" {
       "sudo yum makecache fast -q",
       "sudo yum install -q -y device-mapper-persistent-data lvm2",
       "sudo yum install -q -y docker-ce",
+      "sudo mkdir -p /etc/docker/",
+      "sudo chown root:root /tmp/docker-daemon.json && sudo mv /tmp/docker-daemon.json /etc/docker/daemon.json",
+      "sudo systemctl enable docker",
       "sudo systemctl start docker",
       "sudo usermod -aG docker ${var.ssh_manager_user}",
     ]
@@ -64,8 +118,8 @@ data "template_file" "prometheus-config" {
   }
 }
 
-resource "null_resource" "janus-montoring-provisioning-config-docker" {
-  depends_on = ["null_resource.janus-montoring-provisioning-install-docker"]
+resource "null_resource" "janus-monitoring-provisioning-config-docker" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-install-docker"]
   count      = "${var.http_proxy != "" ? 1 : 0 }"
 
   connection {
@@ -89,8 +143,8 @@ resource "null_resource" "janus-montoring-provisioning-config-docker" {
   }
 }
 
-resource "null_resource" "janus-montoring-provisioning-start-monitoring-statsd-grafana" {
-  depends_on = ["null_resource.janus-montoring-provisioning-config-docker"]
+resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-grafana" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
 
   connection {
     user        = "${var.ssh_manager_user}"
@@ -106,7 +160,7 @@ resource "null_resource" "janus-montoring-provisioning-start-monitoring-statsd-g
   provisioner "remote-exec" {
     inline = [
       # | cat is a workaround the lack of --quiet option for docker cli as it is not a tty docker will reduce outputs
-      "docker run -d -p 80:80 -p 8125:8125/udp -p 8126:8126 --name kamon-grafana-dashboard kamon/grafana_graphite | cat",
+      "docker run --restart unless-stopped -d -p 80:80 -p 8125:8125/udp -p 8126:8126 --name kamon-grafana-dashboard kamon/grafana_graphite | cat",
 
       "sleep 30",
       "set -x",
@@ -116,8 +170,8 @@ resource "null_resource" "janus-montoring-provisioning-start-monitoring-statsd-g
     ]
   }
 }
-resource "null_resource" "janus-montoring-provisioning-start-monitoring-prometheus" {
-  depends_on = ["null_resource.janus-montoring-provisioning-config-docker"]
+resource "null_resource" "janus-monitoring-provisioning-start-monitoring-prometheus" {
+  depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
 
   connection {
     user        = "${var.ssh_manager_user}"
@@ -133,7 +187,7 @@ resource "null_resource" "janus-montoring-provisioning-start-monitoring-promethe
   provisioner "remote-exec" {
     inline = [
       # | cat is a workaround the lack of --quiet option for docker cli as it is not a tty docker will reduce outputs
-      "docker run -d -p 9090:9090 -v /home/${var.ssh_manager_user}/prometheus.yml:/etc/prometheus/prometheus.yml --name prometheus prom/prometheus | cat",
+      "docker run --restart unless-stopped -d -p 9090:9090 -v /home/${var.ssh_manager_user}/prometheus.yml:/etc/prometheus/prometheus.yml --name prometheus prom/prometheus | cat",
     ]
   }
 }

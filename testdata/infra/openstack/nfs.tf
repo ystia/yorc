@@ -13,6 +13,14 @@ resource "openstack_compute_instance_v2" "nfs-server" {
   }
 }
 
+data "template_file" "nfs-consul-checks" {
+  template = "${file("../config/nfs-consul-check.json.tpl")}"
+
+  vars {
+    ip_address = "${openstack_compute_instance_v2.nfs-server.network.0.fixed_ip_v4}"
+  }
+}
+
 data "template_file" "nfs-consul-agent-config" {
   template = "${file("../config/consul-agent.config.json.tpl")}"
 
@@ -20,6 +28,7 @@ data "template_file" "nfs-consul-agent-config" {
     ip_address     = "${openstack_compute_instance_v2.nfs-server.network.0.fixed_ip_v4}"
     consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
     statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    consul_ui      = "false"
   }
 }
 
@@ -52,6 +61,11 @@ resource "null_resource" "nfs-server-provisioning" {
   }
 
   provisioner "file" {
+    content     = "${data.template_file.nfs-consul-checks.rendered}"
+    destination = "/tmp/nfs-consul-check.json"
+  }
+
+  provisioner "file" {
     content     = "${data.template_file.nfs-exports.rendered}"
     destination = "/tmp/nfs-exports"
   }
@@ -62,8 +76,9 @@ resource "null_resource" "nfs-server-provisioning" {
       "sudo chown root:root /etc/systemd/system/consul.service",
       "sudo yum install -y -q zip unzip wget nfs-utils",
       "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
-      "sudo mkdir /etc/consul.d",
-      "sudo mv /tmp/consul-agent.config.json /etc/consul.d/consul-agent.config.json",
+      "sudo mkdir -p /etc/consul.d",
+      "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
+      "sudo mv /tmp/nfs-consul-check.json /etc/consul.d/",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable consul.service nfs-server.service",
       "sudo systemctl start consul.service nfs-server.service",
