@@ -57,6 +57,7 @@ type Configuration struct {
 	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
 	KubemasterIP                  string        `json:"kube_ip,omitpempty"`
 	Telemetry                     Telemetry     `json:"telemetry,omitempty"`
+	Aws                           Aws           `json:"aws,omitempty"`
 }
 
 // Telemetry holds the configuration for the telemetry service
@@ -67,4 +68,11 @@ type Telemetry struct {
 	ServiceName             string `json:"service_name,omitempty"`
 	DisableHostName         bool
 	DisableGoRuntimeMetrics bool
+}
+
+// Aws allows to provide AWS configuration
+type Aws struct {
+	AccessKey string `json:"access_key,omitempty"`
+	SecretKey string `json:"secret_key,omitempty"`
+	Region    string `json:"region,omitempty"`
 }

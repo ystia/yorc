@@ -149,6 +149,10 @@ func setConfig() {
 	viper.BindEnv("ansible_use_openssh")
 	viper.BindEnv("ansible_debug")
 
+	// Env var AWS Secrets configuration
+	viper.BindEnv("aws_access_key", "AWS_ACCESS_KEY_ID")
+	viper.BindEnv("aws_secret_key", "AWS_SECRET_ACCESS_KEY")
+
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("server_graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout)
@@ -214,5 +218,10 @@ func getConfig() config.Configuration {
 	configuration.Telemetry.PrometheusEndpoint = viper.GetBool("telemetry.expose_prometheus_endpoint")
 	configuration.Telemetry.DisableHostName = viper.GetBool("telemetry.disable_hostname")
 	configuration.Telemetry.DisableGoRuntimeMetrics = viper.GetBool("telemetry.disable_go_runtime_metrics")
+
+	// AWS Config
+	configuration.Aws.AccessKey = viper.GetString("aws_access_key")
+	configuration.Aws.SecretKey = viper.GetString("aws_secret_key")
+	configuration.Aws.Region = viper.GetString("aws.region")
 	return configuration
 }

@@ -18,5 +18,8 @@
         "telemetry":{
                 "statsd_address": "127.0.0.1:8125",
                 "expose_prometheus_endpoint": true
+        },
+        "aws":{
+                "region": "us-east-2"
         }
 }
