@@ -32,40 +32,18 @@ node_types:
           The user name used to connect to the Compute and provision it.
         required: true
       security_groups:
-        type: list
+        type: string
+        description: >
+          Coma separated list of security groups to add to the Compute
         required: false
-        entry_schema:
-          type: string
-      security_group_ids:
-        type: list
-        required: false
-        entry_schema:
-          type: string
       placement:
         type: string
         required: false
         description: AWS Availability zone on which to create the instance.
-      aws_access_key_id:
-        type: string
-        required: false
-        description: >
-          AWS access key id of the aws account to bootstrap this instance.
-          Note that the property is optional as it may be configured globally on janus config If not, this property is required.
-      aws_secret_access_key:
-        type: string
-        required: false
-        description: >
-          AWS secret access key of the aws account to bootstrap this instance.
-          Note that the property is optional as it may be configured globally on janus config. If not, this property is required.
-      ec2_region_name:
-        type: string
-        required: false
-        description: >
-          The AWS region on which to connect.
-          Note that the property is optional as it may be configured globally on janus config. If not, this property is required.
-      extra_parameters:
-        type: map
-        description: "key-value server configuration as described in http://boto.readthedocs.org/en/latest/ref/ec2.html#module-boto.ec2.instance"
-        required: false
-        entry_schema:
-          type: string
+# Not yet supported !
+#      extra_parameters:
+#        type: map
+#        description: "key-value server configuration as described in http://boto.readthedocs.org/en/latest/ref/ec2.html#module-boto.ec2.instance"
+#        required: false
+#        entry_schema:
+#          type: string
