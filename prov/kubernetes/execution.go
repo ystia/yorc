@@ -4,21 +4,19 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
 	"strings"
 	"time"
 
 	"fmt"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-<<<<<<< HEAD
 
-=======
-	"net/url"
->>>>>>> d21034a5f3e0cadf3ae6bf98bd4fe0770c64605f
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
