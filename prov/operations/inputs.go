@@ -10,10 +10,10 @@ import (
 
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
+	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"novaforge.bull.com/starlings/dlaas/api/log"
 )
 
 // An EnvInput represent a TOSCA operation input
