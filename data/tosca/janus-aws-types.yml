@@ -19,10 +19,6 @@ node_types:
         type: string
         description: The AWS type representing Amazon flavor. It's a combination of CPU, memory, storage, and networking capacity (By instance t2.micro)
         required: true
-      name:
-        type: string
-        description: The instance name
-        required: false
       key_name:
         type: string
         required: true
@@ -35,15 +31,8 @@ node_types:
         type: string
         description: >
           Coma separated list of security groups to add to the Compute
-        required: false
+        required: true
       placement:
         type: string
         required: false
         description: AWS Availability zone on which to create the instance.
-# Not yet supported !
-#      extra_parameters:
-#        type: map
-#        description: "key-value server configuration as described in http://boto.readthedocs.org/en/latest/ref/ec2.html#module-boto.ec2.instance"
-#        required: false
-#        entry_schema:
-#          type: string

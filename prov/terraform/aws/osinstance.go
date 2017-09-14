@@ -29,39 +29,47 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 	instance.Tags.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	_, image, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "image_id")
-	if err != nil {
+	// image_id is mandatory
+	var image string
+	if _, image, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "image_id"); err != nil {
 		return err
+	} else if image == "" {
+		return errors.Errorf("Missing mandatory parameter 'image_id' node type for %s", nodeName)
 	}
 	instance.ImageID = image
-	_, instanceType, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "instance_type")
-	if err != nil {
+
+	// instance_type is mandatory
+	var instanceType string
+	if _, instanceType, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "instance_type"); err != nil {
 		return err
+	} else if instanceType == "" {
+		return errors.Errorf("Missing mandatory parameter 'instance_type' node type for %s", nodeName)
 	}
 	instance.InstanceType = instanceType
-	_, keyName, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "key_name")
-	if err != nil {
+
+	// key_name is mandatory
+	var keyName string
+	if _, keyName, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "key_name"); err != nil {
 		return err
+	} else if keyName == "" {
+		return errors.Errorf("Missing mandatory parameter 'key_name' node type for %s", nodeName)
 	}
 	instance.KeyName = keyName
 
-	_, secGroups, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "security_groups")
-	if err != nil {
+	// security_groups needs to contain a least one occurrence
+	var secGroups string
+	if _, secGroups, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "security_groups"); err != nil {
 		return err
-	} else if secGroups != "" {
+	} else if secGroups == "" {
+		return errors.Errorf("Missing mandatory parameter 'security_groups' node type for %s", nodeName)
+	} else {
 		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups), ",") {
 			secGroup = strings.TrimSpace(secGroup)
 			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
 		}
 	}
 
-	if instance.ImageID == "" {
-		return errors.Errorf("Missing mandatory parameter 'image_id' node type for %s", nodeName)
-	}
-	if instance.InstanceType == "" {
-		return errors.Errorf("Missing mandatory parameter 'instance_type' node type for %s", nodeName)
-	}
-
+	// user is mandatory
 	var user string
 	if _, user, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "user"); err != nil {
 		return err
@@ -73,13 +81,18 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: publicIp} // Use Public ip here
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 
+	addResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
+
+	nullResource := commons.Resource{}
 	// Do this in order to be sure that ansible will be able to log on the instance
 	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
-	instance.Provisioners = make(map[string]interface{})
-	instance.Provisioners["remote-exec"] = re
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: publicIp, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
+	nullResource.Provisioners = make([]map[string]interface{}, 0)
+	provMap := make(map[string]interface{})
+	provMap["remote-exec"] = re
+	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
 
-	addResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
+	addResource(infrastructure, "null_resource", instance.Tags.Name+"-ConnectionCheck", &nullResource)
 
 	// Default TOSCA Attributes
 	consulKeyIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: publicIp}

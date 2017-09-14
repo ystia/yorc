@@ -7,47 +7,13 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 )
-
-func TestOSInstanceGeneration(t *testing.T) {
-	t.Parallel()
-	log.SetDebug(false)
-	srv1, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
-		c.LogLevel = "err"
-	})
-	if err != nil {
-		t.Fatalf("Failed to create consul server: %v", err)
-	}
-	defer srv1.Stop()
-
-	consulConfig := api.DefaultConfig()
-	consulConfig.Address = srv1.HTTPAddr
-
-	client, err := api.NewClient(consulConfig)
-	assert.Nil(t, err)
-
-	kv := client.KV()
-	consulutil.InitConsulPublisher(config.DefaultConsulPubMaxRoutines, kv)
-	t.Run("group", func(t *testing.T) {
-		t.Run("simpleOSInstance", func(t *testing.T) {
-			testSimpleOSInstance(t, kv, srv1)
-		})
-		t.Run("fipOSInstance", func(t *testing.T) {
-			testFipOSInstance(t, kv, srv1)
-		})
-		t.Run("fipOSInstanceNotAllowed", func(t *testing.T) {
-			testFipOSInstanceNotAllowed(t, kv, srv1)
-		})
-	})
-}
 
 func loadTestYaml(t *testing.T, kv *api.KV) string {
 	deploymentID := path.Base(t.Name())
@@ -57,13 +23,13 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 	return deploymentID
 }
 
-func testSimpleOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
+func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+			infrastructureName: {
 				"region":               "RegionTwo",
 				"private_network_name": "test",
 			}}}
@@ -116,7 +82,7 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	})
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+			infrastructureName: {
 				"provisioning_over_fip_allowed": true,
 				"private_network_name":          "test",
 			}}}
@@ -171,7 +137,7 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	})
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+			infrastructureName: {
 				"provisioning_over_fip_allowed": false,
 				"private_network_name":          "test",
 			}}}

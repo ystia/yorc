@@ -13,6 +13,15 @@ func TestRunConsulOpenstackPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupOpenstack", func(t *testing.T) {
+		t.Run("simpleOSInstance", func(t *testing.T) {
+			testSimpleOSInstance(t, kv)
+		})
+		t.Run("fipOSInstance", func(t *testing.T) {
+			testFipOSInstance(t, kv, srv)
+		})
+		t.Run("fipOSInstanceNotAllowed", func(t *testing.T) {
+			testFipOSInstanceNotAllowed(t, kv, srv)
+		})
 		t.Run("TestGenerateOSBSVolumeSizeConvert", func(t *testing.T) {
 			testGenerateOSBSVolumeSizeConvert(t, srv, kv)
 		})
