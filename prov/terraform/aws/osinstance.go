@@ -45,7 +45,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	}
 	instance.KeyName = keyName
 
-	instance.SecurityGroups = cfg.OSDefaultSecurityGroups
 	_, secGroups, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
@@ -70,20 +69,26 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
 
-	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: fmt.Sprintf("${aws_instance.%s.public_ip}", instance.Tags.Name)} // Use Public ip here
+	var publicIp string = fmt.Sprintf("${aws_instance.%s.public_ip}", instance.Tags.Name)
+	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: publicIp} // Use Public ip here
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 
 	// Do this in order to be sure that ansible will be able to log on the instance
 	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	instance.Provisioners = make(map[string]interface{})
 	instance.Provisioners["remote-exec"] = re
 
 	addResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
 
-	consulKeyPubAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/public_address"), Value: fmt.Sprintf("${aws_instance.%s.public_ip}", instance.Tags.Name)}
-	consulKeyDNS := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_dns"), Value: fmt.Sprintf("${aws_instance.%s.public_dns}", instance.Tags.Name)}
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyPubAddr, consulKeyDNS)
+	// Default TOSCA Attributes
+	consulKeyIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: publicIp}
+	consulKeyPublicAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: publicIp}
+	consulKeyPrivateAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${aws_instance.%s.private_ip}", instance.Tags.Name)}
+
+	// Specific DNS attribute
+	consulKeyPublicDNS := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_dns"), Value: fmt.Sprintf("${aws_instance.%s.public_dns}", instance.Tags.Name)}
+	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, consulKeyPrivateAddr, consulKeyPublicAddr, consulKeyPublicDNS)
 
 	addResource(infrastructure, "consul_keys", instance.Tags.Name, &consulKeys)
 

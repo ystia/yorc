@@ -1,5 +1,12 @@
 package openstack
 
+import (
+	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+)
+
+const defaultOSRegion = "RegionOne"
+const infrastructureName = "openstack"
+
 // A ComputeInstance represent an OpenStack compute
 type ComputeInstance struct {
 	Region           string           `json:"region"`
@@ -14,7 +21,7 @@ type ComputeInstance struct {
 	Networks         []ComputeNetwork `json:"network,omitempty"`
 	KeyPair          string           `json:"key_pair,omitempty"`
 
-	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
+	commons.Resource
 
 	// Deprecated use ComputeVolumeAttach instead
 	Volumes []Volume `json:"volume,omitempty"`

@@ -19,6 +19,8 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
+const infrastructureName = "aws"
+
 type osGenerator struct {
 }
 
@@ -73,6 +75,27 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 	infrastructure := commons.Infrastructure{}
 
+	consulAddress := "127.0.0.1:8500"
+	if cfg.ConsulAddress != "" {
+		consulAddress = cfg.ConsulAddress
+	}
+	consulScheme := "http"
+	if cfg.ConsulSSL {
+		consulScheme = "https"
+	}
+	consulCA := ""
+	if cfg.ConsulCA != "" {
+		consulCA = cfg.ConsulCA
+	}
+	consulKey := ""
+	if cfg.ConsulKey != "" {
+		consulKey = cfg.ConsulKey
+	}
+	consulCert := ""
+	if cfg.ConsulCert != "" {
+		consulCert = cfg.ConsulCert
+	}
+
 	// Remote Configuration for Terraform State to store it in the Consul KV store
 	infrastructure.Terraform = map[string]interface{}{
 		"backend": map[string]interface{}{
@@ -85,10 +108,18 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"aws": map[string]interface{}{
-			"access_key": cfg.Aws.AccessKey,
-			"secret_key": cfg.Aws.SecretKey,
-			"region":     cfg.Aws.Region,
-		}}
+			"access_key": cfg.Infrastructures[infrastructureName].GetString("access_key"),
+			"secret_key": cfg.Infrastructures[infrastructureName].GetString("secret_key"),
+			"region":     cfg.Infrastructures[infrastructureName].GetString("region"),
+		},
+		"consul": map[string]interface{}{
+			"address":   consulAddress,
+			"scheme":    consulScheme,
+			"ca_file":   consulCA,
+			"cert_file": consulCert,
+			"key_file":  consulKey,
+		},
+	}
 
 	log.Debugf("inspecting node %s", nodeKey)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)

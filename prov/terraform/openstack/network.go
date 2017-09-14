@@ -9,12 +9,14 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 )
 
+const openstackNetworkType = "janus.nodes.openstack.Network"
+
 func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, url, deploymentID string) (Network, error) {
 	nodeType, err := g.getStringFormConsul(kv, url, "type")
 	if err != nil {
 		return Network{}, err
 	}
-	if nodeType != "janus.nodes.openstack.Network" {
+	if nodeType != openstackNetworkType {
 		return Network{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 
@@ -26,7 +28,7 @@ func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, url,
 		network.Name = cfg.ResourcesPrefix + nodeName
 	}
 
-	network.Region = cfg.OSRegion
+	network.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 
 	return network, nil
 
@@ -37,7 +39,7 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, url, 
 	if err != nil {
 		return Subnet{}, err
 	}
-	if nodeType != "janus.nodes.openstack.Network" {
+	if nodeType != openstackNetworkType {
 		return Subnet{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 
@@ -103,7 +105,7 @@ func (g *osGenerator) generateSubnet(kv *api.KV, cfg config.Configuration, url, 
 		subnet.EnableDHCP = true
 	}
 
-	subnet.Region = cfg.OSRegion
+	subnet.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 
 	return subnet, nil
 }

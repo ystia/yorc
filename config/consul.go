@@ -18,6 +18,24 @@ func (cfg Configuration) GetConsulClient() (*api.Client, error) {
 	if cfg.ConsulToken != "" {
 		consulCustomConfig.Token = cfg.ConsulToken
 	}
+	if cfg.ConsulSSL {
+		consulCustomConfig.Scheme = "https"
+	}
+	if cfg.ConsulKey != "" {
+		consulCustomConfig.TLSConfig.KeyFile = cfg.ConsulKey
+	}
+	if cfg.ConsulCert != "" {
+		consulCustomConfig.TLSConfig.CertFile = cfg.ConsulCert
+	}
+	if cfg.ConsulCA != "" {
+		consulCustomConfig.TLSConfig.CAFile = cfg.ConsulCA
+	}
+	if cfg.ConsulCAPath != "" {
+		consulCustomConfig.TLSConfig.CAPath = cfg.ConsulCAPath
+	}
+	if !cfg.ConsulSSLVerify {
+		consulCustomConfig.TLSConfig.InsecureSkipVerify = true
+	}
 	client, err := api.NewClient(consulCustomConfig)
 	return client, errors.Wrapf(err, "Failed to connect to consul %q", cfg.ConsulAddress)
 }

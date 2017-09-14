@@ -61,6 +61,7 @@ data "template_file" "consul-agent-config" {
     ip_address     = "${element(openstack_compute_instance_v2.janus-server.*.network.0.fixed_ip_v4, count.index)}"
     consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
     statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    consul_ui      = "false"
   }
 }
 

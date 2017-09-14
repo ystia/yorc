@@ -12,10 +12,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/kubernetesutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"vbom.ml/util/sortorder"
@@ -268,6 +265,15 @@ func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (b
 	}
 	// Not found anywhere
 	return false, "", nil
+}
+
+func SetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName, propertyValue string) error {
+	kvp := &api.KVPair{
+		Key:   path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "properties", propertyName),
+		Value: []byte(propertyValue),
+	}
+	_, err := kv.Put(kvp, nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
 // GetNodeAttributes retrieves the values for a given attribute in a given node.
@@ -713,22 +719,4 @@ func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return kvp != nil && len(kvp.Value) > 0, nil
-}
-
-func GetPod(namespace, podName string) (*v1.Pod, error) {
-	pod, err := (kubernetesutil.GetClientSet()).CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	return pod, nil
-}
-
-func GetService(namespace, serviceName string) (*v1.Service, error) {
-	service, err := (kubernetesutil.GetClientSet()).CoreV1().Services(namespace).Get(serviceName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	return service, nil
 }

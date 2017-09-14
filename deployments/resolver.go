@@ -12,7 +12,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"strconv"
 )
 
 const funcKeywordSELF string = "SELF"
@@ -53,7 +52,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 
 	switch expression.Value {
 	case "get_property":
-		if params[0] != "REQ_TARGET" && len(params) != 2 {
+		if params[0] != funcKeywordREQTARGET && len(params) != 2 {
 			return "", errors.Errorf("get_property on requirement or capability or in nested property is not yet supported")
 		}
 
@@ -75,30 +74,6 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				}
 
 				if target == targetNodeReq {
-					if params[2] == "ip_address" || params[2] == "port" {
-						//TODO Handle this case with asking directly Kubernetes via client-go
-						namespace, _, _ := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology", "nodes", target, "namespace"), nil)
-						serviceName, _, _ := r.kv.Get(path.Join(consulutil.DeploymentKVPrefix, r.deploymentID, "topology", "nodes", target, "serviceName"), nil)
-						if namespace == nil || serviceName == nil {
-							return "", errors.Errorf("Missing field namespace or/and serviceName")
-						}
-
-						serviceNode, err := GetService(string(namespace.Value), string(serviceName.Value))
-						if err != nil {
-							return "", err
-						}
-
-						if params[2] == "ip_address" {
-							return serviceNode.Name, nil
-						} else {
-							var arrPort []string
-							for _, port := range serviceNode.Spec.Ports {
-								arrPort = append(arrPort, strconv.Itoa(int(port.Port)))
-							}
-							return strings.Join(arrPort, ","), nil
-						}
-					}
-
 					found, result, err := GetNodeProperty(r.kv, r.deploymentID, target, params[2])
 					if err != nil {
 						return "", err
@@ -177,10 +152,50 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 			return r.ResolveExpressionForNode(resultExpr.Expression, params[0], instanceName)
 		}
 	case "get_attribute":
-		if len(params) != 2 {
+		if params[0] != funcKeywordREQTARGET && len(params) != 2 {
 			return "", errors.Errorf("get_attribute on requirement or capability or in nested property is not yet supported")
 		}
 		switch params[0] {
+		case funcKeywordREQTARGET:
+			targetNodeReq, err := GetTargetNodeForRequirementByName(r.kv, r.deploymentID, nodeName, params[1])
+			if err != nil {
+				return "", err
+			}
+			reqArr, err := GetRequirementsIndexes(r.kv, r.deploymentID, nodeName)
+			if err != nil {
+				return "", err
+			}
+
+			for _, req := range reqArr {
+				target, err := GetTargetNodeForRequirement(r.kv, r.deploymentID, nodeName, req)
+				if err != nil {
+					return "", err
+				}
+
+				if target == targetNodeReq {
+					found, result, err := GetNodeAttributes(r.kv, r.deploymentID, target, params[2])
+					if err != nil {
+						return "", err
+					}
+					if !found {
+						log.Debugf("Deployment %q, node %q, can't resolve expression %q", r.deploymentID, nodeName, expression.String())
+						return "", errors.Errorf("Can't resolve expression %q", expression.String())
+					}
+					// TODO we don't know which target instance to use...
+					// Let use the first one
+					for targetInstanceName, val := range result {
+						if val == "" {
+							return "", nil
+						}
+						resultExpr := &tosca.ValueAssignment{}
+						err = yaml.Unmarshal([]byte(val), resultExpr)
+						if err != nil {
+							return "", err
+						}
+						return r.ResolveExpressionForNode(resultExpr.Expression, target, targetInstanceName)
+					}
+				}
+			}
 		case funcKeywordSELF:
 			found, result, err := GetNodeAttributes(r.kv, r.deploymentID, nodeName, params[1])
 			if err != nil {
