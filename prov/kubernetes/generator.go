@@ -1,32 +1,32 @@
 package kubernetes
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-
-	"github.com/hashicorp/consul/api"
-
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/pkg/errors"
-	"k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
+
+	"novaforge.bull.com/starlings-janus/janus/config"
+	"novaforge.bull.com/starlings-janus/janus/deployments"
 )
 
-// A K8sGenerator is used to generate the Kubernetes objects for a given TOSCA node
-type K8sGenerator struct {
+// A k8sGenerator is used to generate the Kubernetes objects for a given TOSCA node
+type k8sGenerator struct {
 	kv  *api.KV
 	cfg config.Configuration
 }
 
-// NewGenerator create a K8sGenerator
-func NewGenerator(kv *api.KV, cfg config.Configuration) *K8sGenerator {
-	return &K8sGenerator{kv: kv, cfg: cfg}
+// newGenerator create a K8sGenerator
+func newGenerator(kv *api.KV, cfg config.Configuration) *k8sGenerator {
+	return &k8sGenerator{kv: kv, cfg: cfg}
 }
 
 func generateLimitsRessources(cpuLimitStr, memLimitStr string) (v1.ResourceList, error) {
@@ -94,7 +94,7 @@ func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList
 }
 
 //GenerateNewRepoSecret generate a new struct for secret docker repo and fill it
-func (k8s *K8sGenerator) CreateNewRepoSecret(client *kubernetes.Clientset, namespace, name string, data []byte) (*v1.Secret, error) {
+func (k8s *k8sGenerator) createNewRepoSecret(client *kubernetes.Clientset, namespace, name string, data []byte) (*v1.Secret, error) {
 	mySecret := &v1.Secret{}
 	mySecret.Name = name
 	mySecret.Type = v1.SecretTypeDockercfg
@@ -105,7 +105,7 @@ func (k8s *K8sGenerator) CreateNewRepoSecret(client *kubernetes.Clientset, names
 }
 
 // CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
-func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentID, namespaceName string, client *kubernetes.Clientset) error {
+func (k8s *k8sGenerator) createNamespaceIfMissing(deploymentID, namespaceName string, client *kubernetes.Clientset) error {
 	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -122,12 +122,12 @@ func (k8s *K8sGenerator) CreateNamespaceIfMissing(deploymentID, namespaceName st
 	return nil
 }
 
-// GeneratePodName by replaceing '_' by '-'
-func GeneratePodName(nodeName string) string {
+// generatePodName by replaceing '_' by '-'
+func generatePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
 
-func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar) v1.Container {
+func (k8s *k8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar) v1.Container {
 	return v1.Container{
 		Name:  strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
 		Image: dockerImage,
@@ -142,8 +142,8 @@ func (k8s *K8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 	}
 }
 
-// GenerateDeployment generate Kubernetes Pod and Service to deploy based of given Node
-func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, nodeType, repoName string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
+// generateDeployment generate Kubernetes Pod and Service to deploy based of given Node
+func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, nodeType, repoName string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
@@ -168,8 +168,8 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 	}
 
 	metadata := metav1.ObjectMeta{
-		Name:   strings.ToLower(GeneratePodName(k8s.cfg.ResourcesPrefix + nodeName)),
-		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
+		Name:   strings.ToLower(generatePodName(k8s.cfg.ResourcesPrefix + nodeName)),
+		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + generatePodName(nodeName)},
 	}
 
 	container := k8s.generateContainer(nodeName, imgName, imagePullPolicy, dockerRunCmd, requests, limits, inputs)
@@ -234,7 +234,7 @@ func (k8s *K8sGenerator) GenerateDeployment(deploymentID, nodeName, operation, n
 			ObjectMeta: metadata,
 			Spec: v1.ServiceSpec{
 				Type:     v1.ServiceTypeNodePort,
-				Selector: map[string]string{"nodeId": deploymentID + "-" + GeneratePodName(nodeName)},
+				Selector: map[string]string{"nodeId": deploymentID + "-" + generatePodName(nodeName)},
 				Ports:    servicePorts,
 			},
 		}

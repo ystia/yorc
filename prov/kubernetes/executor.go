@@ -15,11 +15,6 @@ type defaultExecutor struct {
 	clientset *kubernetes.Clientset
 }
 
-// NewExecutor returns an Executor
-func NewExecutor() prov.OperationExecutor {
-	return &defaultExecutor{}
-}
-
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {
