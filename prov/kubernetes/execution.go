@@ -5,8 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/url"
+	"path"
 	"strings"
 	"time"
+
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 
 	"fmt"
 
@@ -285,10 +288,34 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 		// TODO check that it is a good idea to use it as endpoint ip_address
 		err = deployments.SetCapabilityAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "endpoint", "ip_address", service.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to set xapability attribute")
+			return errors.Wrap(err, "Failed to set capability attribute")
 		}
 	}
 
+	// TODO this is very bad but we need to add a hook in order to undeploy our pods we the tosca node stops
+	// It will be better if we have a Kubernetes node type with a default stop implementation that will be inhereted by
+	// sub components.
+	// So let's add an implementation of the stop operation in the node type
+	return e.setUnDeployHook()
+}
+
+func (e *executionCommon) setUnDeployHook() error {
+	_, err := deployments.GetNodeTypeImplementingAnOperation(e.kv, e.deploymentID, e.NodeName, "tosca.interfaces.node.lifecycle.standard.stop")
+	if err != nil {
+		if !deployments.IsOperationNotImplemented(err) {
+			return err
+		}
+		// Set an implementation type
+		// TODO this works as long as Alien still add workflow steps for those operations even if there is no real operation defined
+		// As this sounds like a hack we do not create a method in the deployments package to do it
+		_, errGrp, store := consulutil.WithContext(context.Background())
+		opPath := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType, "interfaces/standard/stop")
+		store.StoreConsulKeyAsString(path.Join(opPath, "name"), "stop")
+		store.StoreConsulKeyAsString(path.Join(opPath, "implementation/type"), "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes")
+		store.StoreConsulKeyAsString(path.Join(opPath, "implementation/description"), "Auto-generated operation")
+		return errGrp.Wait()
+	}
+	// There is already a custom stop operation defined in the type hierarchy let's use it
 	return nil
 }
 
