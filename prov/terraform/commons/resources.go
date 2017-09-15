@@ -69,6 +69,7 @@ type Output struct {
 	Sensitive bool        `json:"sensitive,omitempty"`
 }
 
+// AddResource allows to add a Resource to a defined Infrastructure
 func AddResource(infrastructure *Infrastructure, resourceType, resourceName string, resource interface{}) {
 	if len(infrastructure.Resource) != 0 {
 		if infrastructure.Resource[resourceType] != nil && len(infrastructure.Resource[resourceType].(map[string]interface{})) != 0 {
@@ -89,6 +90,7 @@ func AddResource(infrastructure *Infrastructure, resourceType, resourceName stri
 	}
 }
 
+// AddOutput allows to add an Output to a defined Infrastructure
 func AddOutput(infrastructure *Infrastructure, outputName string, output *Output) {
 	if infrastructure.Output == nil {
 		infrastructure.Output = make(map[string]*Output)

@@ -77,8 +77,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
 
-	var publicIp string = fmt.Sprintf("${aws_instance.%s.public_ip}", instance.Tags.Name)
-	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: publicIp} // Use Public ip here
+	publicIP := fmt.Sprintf("${aws_instance.%s.public_ip}", instance.Tags.Name)
+	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: publicIP} // Use Public ip here
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
@@ -86,7 +86,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	nullResource := commons.Resource{}
 	// Do this in order to be sure that ansible will be able to log on the instance
 	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: publicIp, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: publicIP, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re
@@ -95,8 +95,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	commons.AddResource(infrastructure, "null_resource", instance.Tags.Name+"-ConnectionCheck", &nullResource)
 
 	// Default TOSCA Attributes
-	consulKeyIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: publicIp}
-	consulKeyPublicAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: publicIp}
+	consulKeyIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: publicIP}
+	consulKeyPublicAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: publicIP}
 	consulKeyPrivateAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${aws_instance.%s.private_ip}", instance.Tags.Name)}
 
 	// Specific DNS attribute
