@@ -81,7 +81,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	consulKey := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: publicIp} // Use Public ip here
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 
-	addResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
+	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
 
 	nullResource := commons.Resource{}
 	// Do this in order to be sure that ansible will be able to log on the instance
@@ -92,7 +92,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	provMap["remote-exec"] = re
 	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
 
-	addResource(infrastructure, "null_resource", instance.Tags.Name+"-ConnectionCheck", &nullResource)
+	commons.AddResource(infrastructure, "null_resource", instance.Tags.Name+"-ConnectionCheck", &nullResource)
 
 	// Default TOSCA Attributes
 	consulKeyIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: publicIp}
@@ -103,7 +103,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	consulKeyPublicDNS := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_dns"), Value: fmt.Sprintf("${aws_instance.%s.public_dns}", instance.Tags.Name)}
 	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, consulKeyPrivateAddr, consulKeyPublicAddr, consulKeyPublicDNS)
 
-	addResource(infrastructure, "consul_keys", instance.Tags.Name, &consulKeys)
+	commons.AddResource(infrastructure, "consul_keys", instance.Tags.Name, &consulKeys)
 
 	return nil
 }

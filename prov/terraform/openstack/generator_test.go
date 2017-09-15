@@ -24,7 +24,7 @@ func Test_addOutput(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addOutput(tt.args.infrastructure, tt.args.outputName, tt.args.output)
+			commons.AddOutput(tt.args.infrastructure, tt.args.outputName, tt.args.output)
 			res, err := json.Marshal(tt.args.infrastructure)
 			require.Nil(t, err)
 			require.Equal(t, tt.jsonResult, string(res))

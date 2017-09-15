@@ -36,3 +36,7 @@ node_types:
         type: string
         required: false
         description: AWS Availability zone on which to create the instance.
+    attributes:
+      public_dns:
+        type: string
+        description: The public DNS name assigned to the instance.

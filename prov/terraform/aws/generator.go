@@ -9,7 +9,6 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -22,45 +21,6 @@ import (
 const infrastructureName = "aws"
 
 type osGenerator struct {
-}
-
-func (g *osGenerator) getStringFormConsul(kv *api.KV, baseURL, property string) (string, error) {
-	getResult, _, err := kv.Get(baseURL+"/"+property, nil)
-	if err != nil {
-		return "", errors.Errorf("Can't get property %s for node %s: %v", property, baseURL, err)
-	}
-	if getResult == nil {
-		log.Debugf("Can't get property %s for node %s (not found)", property, baseURL)
-		return "", nil
-	}
-	return string(getResult.Value), nil
-}
-
-func addResource(infrastructure *commons.Infrastructure, resourceType, resourceName string, resource interface{}) {
-	if len(infrastructure.Resource) != 0 {
-		if infrastructure.Resource[resourceType] != nil && len(infrastructure.Resource[resourceType].(map[string]interface{})) != 0 {
-			resourcesMap := infrastructure.Resource[resourceType].(map[string]interface{})
-			resourcesMap[resourceName] = resource
-		} else {
-			resourcesMap := make(map[string]interface{})
-			resourcesMap[resourceName] = resource
-			infrastructure.Resource[resourceType] = resourcesMap
-		}
-
-	} else {
-		resourcesMap := make(map[string]interface{})
-		infrastructure.Resource = resourcesMap
-		resourcesMap = make(map[string]interface{})
-		resourcesMap[resourceName] = resource
-		infrastructure.Resource[resourceType] = resourcesMap
-	}
-}
-
-func addOutput(infrastructure *commons.Infrastructure, outputName string, output *commons.Output) {
-	if infrastructure.Output == nil {
-		infrastructure.Output = make(map[string]*commons.Output)
-	}
-	infrastructure.Output[outputName] = output
 }
 
 func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string) (bool, map[string]string, error) {

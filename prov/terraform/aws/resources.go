@@ -11,6 +11,7 @@ type ComputeInstance struct {
 	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
 }
 
+// Tags represent a mapping of tags assigned to the Instance.
 type Tags struct {
 	Name string `json:"Name,omitempty"`
 }
