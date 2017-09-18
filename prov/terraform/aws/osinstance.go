@@ -97,11 +97,13 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	// Default TOSCA Attributes
 	consulKeyIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: publicIP}
 	consulKeyPublicAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: publicIP}
+	// For backward compatibility...
+	consulKeyPublicIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: publicIP}
 	consulKeyPrivateAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${aws_instance.%s.private_ip}", instance.Tags.Name)}
 
 	// Specific DNS attribute
 	consulKeyPublicDNS := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_dns"), Value: fmt.Sprintf("${aws_instance.%s.public_dns}", instance.Tags.Name)}
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, consulKeyPrivateAddr, consulKeyPublicAddr, consulKeyPublicDNS)
+	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, consulKeyPrivateAddr, consulKeyPublicAddr, consulKeyPublicIPAddr, consulKeyPublicDNS)
 
 	commons.AddResource(infrastructure, "consul_keys", instance.Tags.Name, &consulKeys)
 
