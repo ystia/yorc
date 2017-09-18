@@ -68,3 +68,32 @@ type Output struct {
 	Value     interface{} `json:"value"`
 	Sensitive bool        `json:"sensitive,omitempty"`
 }
+
+// AddResource allows to add a Resource to a defined Infrastructure
+func AddResource(infrastructure *Infrastructure, resourceType, resourceName string, resource interface{}) {
+	if len(infrastructure.Resource) != 0 {
+		if infrastructure.Resource[resourceType] != nil && len(infrastructure.Resource[resourceType].(map[string]interface{})) != 0 {
+			resourcesMap := infrastructure.Resource[resourceType].(map[string]interface{})
+			resourcesMap[resourceName] = resource
+		} else {
+			resourcesMap := make(map[string]interface{})
+			resourcesMap[resourceName] = resource
+			infrastructure.Resource[resourceType] = resourcesMap
+		}
+
+	} else {
+		resourcesMap := make(map[string]interface{})
+		infrastructure.Resource = resourcesMap
+		resourcesMap = make(map[string]interface{})
+		resourcesMap[resourceName] = resource
+		infrastructure.Resource[resourceType] = resourcesMap
+	}
+}
+
+// AddOutput allows to add an Output to a defined Infrastructure
+func AddOutput(infrastructure *Infrastructure, outputName string, output *Output) {
+	if infrastructure.Output == nil {
+		infrastructure.Output = make(map[string]*Output)
+	}
+	infrastructure.Output[outputName] = output
+}

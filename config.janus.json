@@ -7,8 +7,8 @@
         "http_address": "0.0.0.0",
         "prefix": "JANUS-",
         "telemetry":{
-                "statsd_address": "127.0.0.1:8125",
-                "expose_prometheus_endpoint": true
+                  "statsd_address": "127.0.0.1:8125",
+                  "expose_prometheus_endpoint": true
         },
         "infrastructures":{
           "openstack": {
@@ -24,6 +24,9 @@
           },
           "kubernetes": {
                 "master_ip": "10.197.138.154:8001"
-          }      
+          },
+          "aws":{
+            "region": "us-east-2"
+          }
         }
 }

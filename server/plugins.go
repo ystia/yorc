@@ -2,6 +2,8 @@ package server
 
 // Initialization imports
 import (
+	// Registering AWS delegate executor in the registry
+	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/aws"
 	// Registering openstack delegate executor in the registry
 	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
 	// Registering ansible operation executor in the registry
