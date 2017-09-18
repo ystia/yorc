@@ -20,10 +20,10 @@ import (
 
 const infrastructureName = "aws"
 
-type osGenerator struct {
+type awsGenerator struct {
 }
 
-func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string) (bool, map[string]string, error) {
+func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string) (bool, map[string]string, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	cClient, err := cfg.GetConsulClient()
 	if err != nil {
@@ -105,7 +105,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 				// Do not generate something for this node instance (will be deleted if exists)
 				continue
 			}
-			err = g.generateOSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
+			err = g.generateAWSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, err
 			}

@@ -13,11 +13,11 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupAWS", func(t *testing.T) {
-		t.Run("simpleOSInstance", func(t *testing.T) {
-			testSimpleOSInstance(t, kv)
+		t.Run("simpleAWSInstance", func(t *testing.T) {
+			testSimpleAWSInstance(t, kv)
 		})
-		t.Run("simpleOSInstanceFailed", func(t *testing.T) {
-			testSimpleOSInstanceFailed(t, kv)
+		t.Run("simpleAWSInstanceFailed", func(t *testing.T) {
+			testSimpleAWSInstanceFailed(t, kv)
 		})
 	})
 }

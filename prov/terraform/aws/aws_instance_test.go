@@ -21,7 +21,7 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 	return deploymentID
 }
 
-func testSimpleOSInstanceFailed(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
@@ -32,14 +32,14 @@ func testSimpleOSInstanceFailed(t *testing.T, kv *api.KV) {
 				"access_key": "test",
 				"secret_key": "test",
 			}}}
-	g := osGenerator{}
+	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
 	require.Error(t, err, "Expecting missing mandatory parameter 'instance_type' error")
 }
 
-func testSimpleOSInstance(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstance(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 
@@ -50,10 +50,10 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 				"access_key": "test",
 				"secret_key": "test",
 			}}}
-	g := osGenerator{}
+	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
-	err := g.generateOSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
