@@ -1,0 +1,49 @@
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+
+template_name: janus-aws-types
+template_author: Janus
+template_version: 1.0.0
+
+imports:
+  - janus: <janus-types.yml>
+
+node_types:
+  janus.nodes.aws.Compute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      image_id:
+        type: string
+        description: The AMI (Amazon Machine Image) ID.
+        required: true
+      instance_type:
+        type: string
+        description: The AWS type representing Amazon flavor. It's a combination of CPU, memory, storage, and networking capacity (By instance t2.micro)
+        required: true
+      name:
+        type: string
+        description: The instance name
+        required: false
+      key_name:
+        type: string
+        required: true
+      user:
+        type: string
+        description: >
+          The user name used to connect to the Compute and provision it.
+        required: true
+      security_groups:
+        type: string
+        description: >
+          Coma separated list of security groups to add to the Compute
+        required: false
+      placement:
+        type: string
+        required: false
+        description: AWS Availability zone on which to create the instance.
+# Not yet supported !
+#      extra_parameters:
+#        type: map
+#        description: "key-value server configuration as described in http://boto.readthedocs.org/en/latest/ref/ec2.html#module-boto.ec2.instance"
+#        required: false
+#        entry_schema:
+#          type: string
