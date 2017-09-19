@@ -48,3 +48,8 @@ node_types:
 
   janus.nodes.aws.PublicNetwork:
     derived_from: tosca.nodes.Network
+    properties:
+      elastic_ip:
+        type: string
+        description: A specific Elastic IP to use.
+        required: false

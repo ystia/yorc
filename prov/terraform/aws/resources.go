@@ -25,5 +25,5 @@ type ElasticIP struct {
 type ElasticIPAssociation struct {
 	InstanceID   string `json:"instance_id,omitempty"`
 	AllocationID string `json:"allocation_id,omitempty"`
-	PublicIP     string `json:"public_id,omitempty"`
+	PublicIP     string `json:"public_ip,omitempty"`
 }

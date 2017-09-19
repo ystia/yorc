@@ -41,3 +41,4 @@ topology_template:
       type: janus.nodes.aws.PublicNetwork
       properties:
         ip_version: 4
+        elastic_ip: "10.10.10.10"

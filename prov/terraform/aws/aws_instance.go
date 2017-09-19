@@ -117,8 +117,19 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 			continue
 		}
 
+		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return err
+		}
+
+		// Check if existing elastic ip is provided with the network
+		_, providedEIP, err := deployments.GetNodeProperty(kv, deploymentID, networkNodeName, "elastic_ip")
+		if err != nil {
+			return err
+		}
+
 		// Add the EIP Association
-		eipAssociationName = associateEIP(infrastructure, &instance)
+		eipAssociationName = associateEIP(infrastructure, &instance, providedEIP)
 	}
 
 	// Define the public IP according to the EIP association if one exists
@@ -152,16 +163,24 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	return nil
 }
 
-func associateEIP(infrastructure *commons.Infrastructure, instance *ComputeInstance) string {
-	// Add the EIP
-	log.Printf("Adding ElasticIP for instance name:%s", instance.Tags.Name)
-	elasticIPName := "EIP-" + instance.Tags.Name
-	elasticIP := ElasticIP{}
-	commons.AddResource(infrastructure, "aws_eip", elasticIPName, &elasticIP)
-
+func associateEIP(infrastructure *commons.Infrastructure, instance *ComputeInstance, providedEIP string) string {
 	// Add the association EIP/Instance
+	eipAssociation := ElasticIPAssociation{InstanceID: fmt.Sprintf("${aws_instance.%s.id}", instance.Tags.Name)}
 	log.Printf("Adding ElasticIP association for instance name:%s", instance.Tags.Name)
-	eipAssociation := ElasticIPAssociation{InstanceID: fmt.Sprintf("${aws_instance.%s.id}", instance.Tags.Name), AllocationID: fmt.Sprintf("${aws_eip.%s.id}", elasticIPName)}
+	if providedEIP != "" {
+		// Use existing EIP
+		log.Printf("The following Elastic IP has been provided:%s", providedEIP)
+		eipAssociation.PublicIP = providedEIP
+	} else {
+		// Add the EIP
+		log.Printf("Adding ElasticIP for instance name:%s", instance.Tags.Name)
+		elasticIPName := "EIP-" + instance.Tags.Name
+		elasticIP := ElasticIP{}
+		commons.AddResource(infrastructure, "aws_eip", elasticIPName, &elasticIP)
+
+		eipAssociation.AllocationID = fmt.Sprintf("${aws_eip.%s.id}", elasticIPName)
+	}
+
 	eipAssociationName := "EIPAssoc-" + instance.Tags.Name
 	commons.AddResource(infrastructure, "aws_eip_association", eipAssociationName, &eipAssociation)
 	return eipAssociationName
