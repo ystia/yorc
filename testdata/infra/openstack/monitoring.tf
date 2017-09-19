@@ -56,14 +56,13 @@ resource "null_resource" "janus-monitoring-provisioning-install-consul" {
   }
 
   provisioner "remote-exec" {
+    script = "../scripts/install_consul.sh"
+  }
+
+  provisioner "remote-exec" {
     inline = [
-      "sudo mkdir -p /etc/consul.d",
       "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
       "sudo chown root:root /etc/consul.d/*",
-      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
-      "sudo chown root:root /etc/systemd/system/consul.service",
-      "sudo yum install -q -y wget zip unzip",
-      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable consul.service",
       "sudo systemctl start consul.service",
@@ -162,7 +161,7 @@ resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-
       # | cat is a workaround the lack of --quiet option for docker cli as it is not a tty docker will reduce outputs
       "docker run --restart unless-stopped -d -p 80:80 -p 8125:8125/udp -p 8126:8126 --name kamon-grafana-dashboard kamon/grafana_graphite | cat",
 
-      "sleep 30",
+      "while [[ \"$(curl --noproxy 127.0.0.1 -s -I http://admin:admin@127.0.0.1/ | head -n 1|cut -d' ' -f2)\" != \"200\" ]]; do echo 'Waiting for Grafana to finish to startup' && sleep 5; done",
       "set -x",
       "curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/datasources -H 'Content-type: application/json' -X POST -d '{\"Name\":\"graphite\",\"Type\":\"graphite\",\"IsDefault\":true,\"Url\":\"http://localhost:8000\",\"Access\":\"proxy\",\"BasicAuth\":false}'",
       "curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/datasources -H 'Content-type: application/json' -X POST -d '{\"Name\":\"prometheus\",\"Type\":\"prometheus\",\"IsDefault\":false,\"Url\":\"http://${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}:9090\",\"Access\":\"proxy\",\"BasicAuth\":false}'",
