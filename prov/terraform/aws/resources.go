@@ -15,3 +15,15 @@ type ComputeInstance struct {
 type Tags struct {
 	Name string `json:"Name,omitempty"`
 }
+
+// ElasticIP represents the AWS Elastic IP resource
+type ElasticIP struct {
+}
+
+// ElasticIPAssociation represents the ElasticIP/ComputeInstance association
+// A way to associate/disassociate Elastic IPs from AWS instances
+type ElasticIPAssociation struct {
+	InstanceID   string `json:"instance_id,omitempty"`
+	AllocationID string `json:"allocation_id,omitempty"`
+	PublicIP     string `json:"public_id,omitempty"`
+}

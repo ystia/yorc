@@ -7,6 +7,11 @@ template_version: 1.0.0
 imports:
   - janus: <janus-types.yml>
 
+capability_types:
+  # NOTE: Alien specific
+  janus.capabilities.aws.EIPConnectivity:
+    derived_from: tosca.capabilities.Connectivity
+
 node_types:
   janus.nodes.aws.Compute:
     derived_from: tosca.nodes.Compute
@@ -40,3 +45,6 @@ node_types:
       public_dns:
         type: string
         description: The public DNS name assigned to the instance.
+
+  janus.nodes.aws.PublicNetwork:
+    derived_from: tosca.nodes.Network
