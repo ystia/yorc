@@ -137,20 +137,20 @@ resource "null_resource" "janus-server-provisioning" {
   }
 
   provisioner "remote-exec" {
+    script = "../scripts/install_consul.sh"
+  }
+
+  provisioner "remote-exec" {
     inline = [
-      "sudo mkdir -p /etc/consul.d",
-      "mkdir -p ~/work",
       "sudo mv /tmp/janus-consul-check.json /etc/consul.d/",
       "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
       "sudo chown root:root /etc/consul.d/*",
+      "mkdir -p ~/work",
       "chmod 400 ${var.ssh_key_file}",
       "sudo mv /tmp/janus /usr/local/bin && sudo chmod +x /usr/local/bin/janus && sudo chown root:root /usr/local/bin/janus",
-      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
-      "sudo chown root:root /etc/systemd/system/consul.service",
       "sudo mv /tmp/janus.service /etc/systemd/system/janus.service",
       "sudo chown root:root /etc/systemd/system/janus.service",
-      "sudo yum install -q -y unzip zip python2-pip wget nfs-utils autofs",
-      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
+      "sudo yum install -q -y python2-pip nfs-utils autofs",
       "cd /tmp && wget -q https://releases.hashicorp.com/terraform/0.9.11/terraform_0.9.11_linux_amd64.zip && sudo unzip /tmp/terraform_0.9.11_linux_amd64.zip -d /usr/local/bin",
       "sudo -H pip install -q pip --upgrade",
       "sudo -H pip install -q ansible==2.3.1.0",
