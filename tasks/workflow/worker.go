@@ -24,6 +24,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -217,7 +218,7 @@ func (w worker) handleTask(t *task) {
 			t.WithStatus(tasks.FAILED)
 			return
 		}
-		op, err := getOperation(kv, t.TargetID, nodeName, "custom."+commandName)
+		op, err := operations.GetOperation(kv, t.TargetID, nodeName, "custom."+commandName)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			err = setNodeStatus(t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())

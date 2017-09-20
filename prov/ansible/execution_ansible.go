@@ -19,6 +19,13 @@ import (
 )
 
 const ansiblePlaybook = `
+- name: Upload artifacts
+  hosts: all
+  strategy: free
+  tasks:
+[[[ range $artName, $art := .Artifacts ]]]    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
+    [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
+[[[end]]]
 - include: [[[.PlaybookPath]]]
 [[[if .HaveOutput]]]
 - name: Retrieving Operation outputs
@@ -66,6 +73,15 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		buffer.WriteString(envInput.Value)
 		buffer.WriteString("\"\n")
 	}
+
+	for artName, art := range e.Artifacts {
+		buffer.WriteString(artName)
+		buffer.WriteString(": \"{{ansible_env.HOME}}/")
+		buffer.WriteString(e.OperationRemotePath)
+		buffer.WriteString("/")
+		buffer.WriteString(art)
+		buffer.WriteString("\"\n")
+	}
 	for contextKey, contextValue := range e.Context {
 		buffer.WriteString(contextKey)
 		buffer.WriteString(": \"")
@@ -99,8 +115,13 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 
 	buffer.Reset()
-	tmpl := template.New("execTemplate")
-	tmpl = tmpl.Delims("[[[", "]]]")
+	funcMap := template.FuncMap{
+		// The name "path" is what the function will be called in the template text.
+		"path": filepath.Dir,
+		"abs":  filepath.Abs,
+		"cut":  cutAfterLastUnderscore,
+	}
+	tmpl := template.New("execTemplate").Delims("[[[", "]]]").Funcs(funcMap)
 	tmpl, err = tmpl.Parse(ansiblePlaybook)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate ansible playbook")

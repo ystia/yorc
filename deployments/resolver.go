@@ -85,6 +85,18 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 					if result == "" {
 						return result, nil
 					}
+					resultExpr := &tosca.ValueAssignment{}
+					err = yaml.Unmarshal([]byte(result), resultExpr)
+					if err != nil {
+						return "", err
+					}
+					// TODO we don't know which target instance to use...
+					// Let use the first one
+					targetInstances, err := GetNodeInstancesIds(r.kv, r.deploymentID, target)
+					if err != nil {
+						return "", err
+					}
+					return r.ResolveExpressionForNode(resultExpr.Expression, target, targetInstances[0])
 				}
 			}
 

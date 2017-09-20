@@ -7,27 +7,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/registry"
 )
 
-func getOperation(kv *api.KV, deploymentID, nodeName, operationName string) (prov.Operation, error) {
-	isRelationshipOp, operationRealName, requirementIndex, targetNodeName, err := deployments.DecodeOperation(kv, deploymentID, nodeName, operationName)
-	if err != nil {
-		return prov.Operation{}, err
-	}
-	implArt, err := deployments.GetImplementationArtifactForOperation(kv, deploymentID, nodeName, operationRealName, isRelationshipOp, requirementIndex)
-	if err != nil {
-		return prov.Operation{}, err
-	}
-	op := prov.Operation{
-		Name: operationRealName,
-		ImplementationArtifact: implArt,
-		RelOp: prov.RelationshipOperation{
-			IsRelationshipOperation: isRelationshipOp,
-			RequirementIndex:        requirementIndex,
-			TargetNodeName:          targetNodeName,
-		},
-	}
-	return op, nil
-}
-
 func getOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.OperationExecutor, error) {
 	reg := registry.GetRegistry()
 
