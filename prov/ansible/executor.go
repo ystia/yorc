@@ -43,10 +43,10 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 			return err
 		}
 		if i < reties {
-			log.Printf("Deployment: %q, Node: %q, Operation: %q: Caught a retriable error from Ansible: '%s'. Let's retry in few seconds (%d/%d)", deploymentID, nodeName, operation, err, i+1, reties)
+			log.Printf("Deployment: %q, Node: %q, Operation: %s: Caught a retriable error from Ansible: '%s'. Let's retry in few seconds (%d/%d)", deploymentID, nodeName, operation, err, i+1, reties)
 			time.Sleep(time.Duration(e.r.Int63n(10)) * time.Second)
 		} else {
-			log.Printf("Deployment: %q, Node: %q, Operation: %q: Giving up retries for Ansible error: '%s' (%d/%d)", deploymentID, nodeName, operation, err, i+1, reties)
+			log.Printf("Deployment: %q, Node: %q, Operation: %s: Giving up retries for Ansible error: '%s' (%d/%d)", deploymentID, nodeName, operation, err, i+1, reties)
 		}
 	}
 
