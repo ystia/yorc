@@ -11,6 +11,7 @@ func TestGroupedAssetsParallel(t *testing.T) {
 	t.Run("groupAssets", func(t *testing.T) {
 		t.Run("TestAssetNormativeParsing", assetNormativeParsing)
 		t.Run("TestAssetJanusOpenStackParsing", assetJanusOpenStackParsing)
+		t.Run("TestAssetJanusAwsParsing", assetJanusAwsParsing)
 	})
 }
 
@@ -34,4 +35,15 @@ func assetJanusOpenStackParsing(t *testing.T) {
 
 	err = yaml.Unmarshal(data, &topo)
 	assert.Nil(t, err, "Can't parse janus openstack types")
+}
+
+func assetJanusAwsParsing(t *testing.T) {
+	t.Parallel()
+	data, err := Asset("janus-aws-types.yml")
+	assert.Nil(t, err, "Can't load janus aws types")
+	assert.NotNil(t, data, "Can't load janus aws types")
+	var topo Topology
+
+	err = yaml.Unmarshal(data, &topo)
+	assert.Nil(t, err, "Can't parse janus aws types")
 }

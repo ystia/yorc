@@ -202,7 +202,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				Device:     device,
 			}
 			attachName := "Vol" + volumeNodeName + "to" + instance.Name
-			addResource(infrastructure, "openstack_compute_volume_attach_v2", attachName, &volumeAttach)
+			commons.AddResource(infrastructure, "openstack_compute_volume_attach_v2", attachName, &volumeAttach)
 			// retrieve the actual used device as depending on the hypervisor it may not be the one we provided, and if there was no devices provided
 			// then we can get it back
 
@@ -212,7 +212,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			// relVolDevConsulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, relationship, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)}
 			// consulKeys.Keys = append(consulKeys.Keys, volumeDevConsulKey, relDevConsulKey, relVolDevConsulKey)
 			key1 := attachName + "ActualDevkey"
-			addOutput(infrastructure, key1, &commons.Output{Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)})
+			commons.AddOutput(infrastructure, key1, &commons.Output{Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)})
 			outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = key1
 			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, relationship, instanceName, "attributes/device")] = key1
 			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, relationship, instanceName, "attributes/device")] = key1
@@ -275,7 +275,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
 			}
 			fipAssociateName = "FIP" + instance.Name
-			addResource(infrastructure, "openstack_compute_floatingip_associate_v2", fipAssociateName, &floatingIPAssociate)
+			commons.AddResource(infrastructure, "openstack_compute_floatingip_associate_v2", fipAssociateName, &floatingIPAssociate)
 			consulKeyFloatingIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: floatingIP}
 			// In order to be backward compatible to components developed for Alien (only the above is standard)
 			consulKeyFloatingIPBak := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: floatingIP}
@@ -323,7 +323,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		}
 	}
 
-	addResource(infrastructure, "openstack_compute_instance_v2", instance.Name, &instance)
+	commons.AddResource(infrastructure, "openstack_compute_instance_v2", instance.Name, &instance)
 
 	nullResource := commons.Resource{}
 	// Do this in order to be sure that ansible will be able to log on the instance
@@ -343,13 +343,13 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	provMap["remote-exec"] = re
 	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
 
-	addResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
+	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
 	consulKeyAttrib := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)} // Use latest provisioned network for private access
 	consulKeyFixedIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)}
 	consulKeys.Keys = append(consulKeys.Keys, consulKeyAttrib, consulKeyFixedIP)
 
-	addResource(infrastructure, "consul_keys", instance.Name, &consulKeys)
+	commons.AddResource(infrastructure, "consul_keys", instance.Name, &consulKeys)
 
 	return nil
 }
