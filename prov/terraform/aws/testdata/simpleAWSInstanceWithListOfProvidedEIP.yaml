@@ -20,7 +20,7 @@ topology_template:
         key_name: "janus-keypair"
         user: centos
         security_groups: "janus-securityGroup"
-        elastic_ips: "10.10.10.10"
+        elastic_ips: "10.10.10.10, 11.11.11.11, 12.12.12.12, 13.13.13.13"
       requirements:
         - network:
             node: EIPNetwork
@@ -30,8 +30,8 @@ topology_template:
         scalable:
           properties:
             min_instances: 1
-            max_instances: 1
-            default_instances: 1
+            max_instances: 10
+            default_instances: 4
         endpoint:
           properties:
             secure: true

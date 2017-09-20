@@ -25,5 +25,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleAWSInstanceWithProvidedEIP", func(t *testing.T) {
 			testSimpleAWSInstanceWithProvidedEIP(t, kv)
 		})
+		t.Run("simpleAWSInstanceWithListOfProvidedEIP", func(t *testing.T) {
+			testSimpleAWSInstanceWithListOfProvidedEIP(t, kv)
+		})
+
 	})
 }

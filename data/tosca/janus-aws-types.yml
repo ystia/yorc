@@ -41,6 +41,10 @@ node_types:
         type: string
         required: false
         description: AWS Availability zone on which to create the instance.
+      elastic_ips:
+        type: string
+        description: Coma separated list of Elastic IPs to use.
+        required: false
     attributes:
       public_dns:
         type: string
@@ -48,8 +52,3 @@ node_types:
 
   janus.nodes.aws.PublicNetwork:
     derived_from: tosca.nodes.Network
-    properties:
-      elastic_ip:
-        type: string
-        description: A specific Elastic IP to use.
-        required: false

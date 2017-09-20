@@ -7,6 +7,7 @@ type ComputeInstance struct {
 	SecurityGroups []string `json:"security_groups,omitempty"`
 	KeyName        string   `json:"key_name,omitempty"`
 	Tags           Tags     `json:"tags,omitempty"`
+	ElasticIps     []string `json:"-"`
 
 	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
 }
