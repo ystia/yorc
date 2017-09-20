@@ -193,7 +193,53 @@ func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV) {
 		case 3:
 			require.Equal(t, "13.13.13.13", assoc.PublicIP)
 		}
-
 	}
+}
 
+func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: {
+				"region":     "us-east-2",
+				"access_key": "test",
+				"secret_key": "test",
+			}}}
+	g := awsGenerator{}
+	infrastructure := commons.Infrastructure{}
+
+	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "ComputeAWS")
+	require.Nil(t, err)
+	require.Equal(t, uint32(5), nb)
+
+	for i := 0; i < int(nb); i++ {
+		istr := strconv.Itoa(i)
+		err = g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string))
+		require.Nil(t, err)
+		// EIP is only created for the last instance (only 4 EIPs are provided for 5 default instances
+		if i < 4 {
+			require.NotContains(t, infrastructure.Resource, "aws_eip")
+		} else {
+			require.Contains(t, infrastructure.Resource, "aws_eip")
+		}
+		require.Contains(t, infrastructure.Resource, "aws_eip_association")
+		require.Len(t, infrastructure.Resource["aws_eip_association"], 1+i)
+		eipAssoc := infrastructure.Resource["aws_eip_association"].(map[string]interface{})
+		require.Contains(t, eipAssoc, "EIPAssoc-ComputeAWS-"+istr)
+		assoc, ok := eipAssoc["EIPAssoc-ComputeAWS-"+istr].(*ElasticIPAssociation)
+		require.True(t, ok, "EIPAssoc-ComputeAWS-"+istr+" is not an ElasticIPAssociation")
+		require.Equal(t, "${aws_instance.ComputeAWS-"+istr+".id}", assoc.InstanceID)
+		switch i {
+		case 0:
+			require.Equal(t, "10.10.10.10", assoc.PublicIP)
+		case 1:
+			require.Equal(t, "11.11.11.11", assoc.PublicIP)
+		case 2:
+			require.Equal(t, "12.12.12.12", assoc.PublicIP)
+		case 3:
+			require.Equal(t, "13.13.13.13", assoc.PublicIP)
+		}
+	}
 }

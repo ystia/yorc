@@ -7,11 +7,6 @@ template_version: 1.0.0
 imports:
   - janus: <janus-types.yml>
 
-capability_types:
-  # NOTE: Alien specific
-  janus.capabilities.aws.EIPConnectivity:
-    derived_from: tosca.capabilities.Connectivity
-
 node_types:
   janus.nodes.aws.Compute:
     derived_from: tosca.nodes.Compute

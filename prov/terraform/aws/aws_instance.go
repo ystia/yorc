@@ -175,9 +175,13 @@ func isElasticIPPRequired(kv *api.KV, deploymentID, nodeName string) (bool, erro
 		if err != nil {
 			return false, err
 		}
+		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return false, err
+		}
 
 		if capability != "" {
-			is, err := deployments.IsTypeDerivedFrom(kv, deploymentID, capability, "tosca.capabilities.Connectivity")
+			is, err := deployments.IsNodeDerivedFrom(kv, deploymentID, networkNodeName, "janus.nodes.aws.PublicNetwork")
 			if err != nil {
 				return false, err
 			} else if is {
