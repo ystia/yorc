@@ -207,6 +207,9 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
+
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
@@ -235,13 +238,11 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         A3: "{{A3}}"
         INSTANCE: "{{INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
 
 
 `
 
-	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -406,6 +407,9 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
+
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
@@ -433,13 +437,11 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         A2: "{{A2}}"
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
 
 
 `
 
-	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
@@ -605,6 +607,9 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	require.Nil(t, err)
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
+	// This is bad.... Hopefully it will be temporary
+	execution.(*executionScript).OperationRemotePath = "tmp"
+
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
@@ -632,13 +637,11 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
         TARGET_INSTANCE: "{{TARGET_INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
 
 
 `
 
-	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
 		"path": filepath.Dir,
