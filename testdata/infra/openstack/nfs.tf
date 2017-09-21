@@ -71,14 +71,15 @@ resource "null_resource" "nfs-server-provisioning" {
   }
 
   provisioner "remote-exec" {
+    script = "../scripts/install_consul.sh"
+  }
+
+  provisioner "remote-exec" {
     inline = [
-      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
-      "sudo chown root:root /etc/systemd/system/consul.service",
-      "sudo yum install -y -q zip unzip wget nfs-utils",
-      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
-      "sudo mkdir -p /etc/consul.d",
       "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
       "sudo mv /tmp/nfs-consul-check.json /etc/consul.d/",
+      "sudo chown root:root /etc/consul.d/*",
+      "sudo yum install -y -q nfs-utils",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable consul.service nfs-server.service",
       "sudo systemctl start consul.service nfs-server.service",

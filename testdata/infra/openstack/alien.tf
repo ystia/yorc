@@ -82,19 +82,19 @@ resource "null_resource" "alien-server-provisioning" {
   }
 
   provisioner "remote-exec" {
+    script = "../scripts/install_consul.sh"
+  }
+
+  provisioner "remote-exec" {
     script = "../scripts/install_dnsmasq.sh"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo mkdir -p /etc/consul.d",
       "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
       "sudo mv /tmp/alien-consul-check.json /etc/consul.d/",
       "sudo chown root:root /etc/consul.d/*",
-      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
-      "sudo chown root:root /etc/systemd/system/consul.service",
-      "sudo yum install -q -y wget java-1.8.0-openjdk zip unzip",
-      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
+      "sudo yum install -q -y java-1.8.0-openjdk",
       "wget -q -O alien4cloud.tgz \"${var.alien_download_url}\"",
       "mkdir -p ~/alien4cloud",
       "tar xzvf alien4cloud.tgz --strip-components 1 -C ~/alien4cloud",

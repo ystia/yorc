@@ -51,13 +51,13 @@ resource "null_resource" "consul-server-provisioning" {
   }
 
   provisioner "remote-exec" {
+    script = "../scripts/install_consul.sh"
+  }
+
+  provisioner "remote-exec" {
     inline = [
-      "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
-      "sudo chown root:root /etc/systemd/system/consul.service",
-      "sudo yum install -y -q zip unzip wget",
-      "cd /tmp && wget -q https://releases.hashicorp.com/consul/0.8.1/consul_0.8.1_linux_amd64.zip && sudo unzip /tmp/consul_0.8.1_linux_amd64.zip -d /usr/local/bin",
-      "sudo mkdir /etc/consul.d",
       "sudo mv /tmp/consul-server.config.json /etc/consul.d/consul-server.config.json",
+      "sudo chown root:root /etc/consul.d/*",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable consul.service",
       "sudo systemctl start consul.service",
