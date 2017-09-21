@@ -110,6 +110,9 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 				return false, nil, err
 			}
 		}
+
+	case "janus.nodes.aws.PublicNetwork":
+		// Nothing to do
 	default:
 		return false, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 	}

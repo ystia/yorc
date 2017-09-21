@@ -1,0 +1,44 @@
+tosca_definitions_version: alien_dsl_1_4_0
+
+metadata:
+  template_name: ComputeEIP-Environment
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - path: <janus-aws-types.yml>
+
+topology_template:
+  node_templates:
+    ComputeAWS:
+      type: janus.nodes.aws.Compute
+      properties:
+        image_id: "ami-16dffe73"
+        instance_type: "t2.micro"
+        key_name: "janus-keypair"
+        user: centos
+        security_groups: "janus-securityGroup"
+        elastic_ips: "10.10.10.10, 11.11.11.11, 12.12.12.12, 13.13.13.13"
+      requirements:
+        - network:
+            node: EIPNetwork
+            capability: tosca.capabilities.Connectivity
+            relationship: tosca.relationships.Network
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 10
+            default_instances: 4
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+    EIPNetwork:
+      type: janus.nodes.aws.PublicNetwork
+      properties:
+        ip_version: 4
