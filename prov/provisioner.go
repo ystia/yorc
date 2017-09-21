@@ -2,6 +2,7 @@ package prov
 
 import (
 	"context"
+	"fmt"
 
 	"novaforge.bull.com/starlings-janus/janus/config"
 )
@@ -27,6 +28,16 @@ type Operation struct {
 	RelOp RelationshipOperation
 }
 
+// String implements the fmt.Stringer interface
+func (o Operation) String() string {
+	s := fmt.Sprintf("{ Name: %q, Implemented in type: %q, Implementation Artifact: %q", o.Name, o.ImplementedInType, o.ImplementationArtifact)
+	if o.RelOp.IsRelationshipOperation {
+		s += ", " + o.RelOp.String()
+	}
+	s += " }"
+	return s
+}
+
 // RelationshipOperation provides additional information for relationship operation
 type RelationshipOperation struct {
 	// If this is set to true then other struct fields could be considered.
@@ -35,6 +46,11 @@ type RelationshipOperation struct {
 	RequirementIndex string
 	// Name of the target node of the relationship
 	TargetNodeName string
+}
+
+// String implements the fmt.Stringer interface
+func (ro RelationshipOperation) String() string {
+	return fmt.Sprintf("Relationship target node node: %q (Requirement index %q)", ro.TargetNodeName, ro.RequirementIndex)
 }
 
 // OperationExecutor is the interface that wraps the ExecOperation method

@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -107,7 +106,6 @@ type executionCommon struct {
 	operation                prov.Operation
 	NodeType                 string
 	Description              string
-	OperationRemoteBaseDir   string
 	OperationRemotePath      string
 	KeepOperationRemotePath  bool
 	EnvInputs                []*operations.EnvInput
@@ -134,12 +132,10 @@ type executionCommon struct {
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	execCommon := &executionCommon{kv: kv,
-		cfg:                    cfg,
-		deploymentID:           deploymentID,
-		NodeName:               nodeName,
-		OperationRemoteBaseDir: ".janus_" + timestamp,
+		cfg:          cfg,
+		deploymentID: deploymentID,
+		NodeName:     nodeName,
 		//KeepOperationRemotePath property is required to be public when resolving templates.
 		KeepOperationRemotePath: cfg.KeepOperationRemotePath,
 		operation:               operation,
@@ -174,7 +170,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		execCommon.ansibleRunner = execAnsible
 		exec = execAnsible
 	} else {
-		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %q, primary implementation: %q", nodeName, operation.Name, execCommon.Primary)
+		return nil, errors.Errorf("Unsupported artifact implementation for node: %q, operation: %s, primary implementation: %q", nodeName, operation.Name, execCommon.Primary)
 	}
 
 	return exec, exec.resolveExecution()
@@ -704,9 +700,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.OperationRemotePath = fmt.Sprintf("%s/%s/%s/%s", e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
-		e.OperationRemotePath = fmt.Sprintf("%s/%s/%s", e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
+		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.operation.Name)
 	}
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
