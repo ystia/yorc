@@ -86,6 +86,8 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV) {
 	require.True(t, ok)
 	require.Equal(t, "centos", rex.Connection.User)
 	require.Equal(t, `${file("~/.ssh/janus.pem")}`, rex.Connection.PrivateKey)
+
+	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }
 
 func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV) {

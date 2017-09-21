@@ -106,7 +106,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 
 	// If any Elastic IP is provided without any network requirement, EIP is anyway associated to the compute instance
 	// Check existing network requirement otherwise
-	var isElasticIP = len(instance.ElasticIps) == 0
+	var isElasticIP = len(instance.ElasticIps) > 0
 	if !isElasticIP {
 		isElasticIP, err = isElasticIPPRequired(kv, deploymentID, nodeName)
 		if err != nil {
