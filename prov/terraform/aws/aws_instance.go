@@ -30,6 +30,9 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 
 	instance.Tags.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
+	// Delete root device volume on compute termination
+	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: true}
+
 	// image_id is mandatory
 	var image string
 	if _, image, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "image_id"); err != nil {

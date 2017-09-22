@@ -2,14 +2,20 @@ package aws
 
 // A ComputeInstance represent an AWS compute
 type ComputeInstance struct {
-	ImageID        string   `json:"ami,omitempty"`
-	InstanceType   string   `json:"instance_type,omitempty"`
-	SecurityGroups []string `json:"security_groups,omitempty"`
-	KeyName        string   `json:"key_name,omitempty"`
-	Tags           Tags     `json:"tags,omitempty"`
-	ElasticIps     []string `json:"-"`
+	ImageID         string      `json:"ami,omitempty"`
+	InstanceType    string      `json:"instance_type,omitempty"`
+	SecurityGroups  []string    `json:"security_groups,omitempty"`
+	KeyName         string      `json:"key_name,omitempty"`
+	Tags            Tags        `json:"tags,omitempty"`
+	ElasticIps      []string    `json:"-"`
+	RootBlockDevice BlockDevice `json:"root_block_device,omitempty"`
 
 	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
+}
+
+// A BlockDevice represents an AWS device block volume
+type BlockDevice struct {
+	DeleteOnTermination bool `json:"delete_on_termination,omitempty"`
 }
 
 // Tags represent a mapping of tags assigned to the Instance.
