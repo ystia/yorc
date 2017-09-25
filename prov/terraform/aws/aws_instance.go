@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"net"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -84,14 +85,17 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	if _, eips, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "elastic_ips"); err != nil {
 		return err
 	} else if eips != "" {
-		for _, eips := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(eips), ",") {
-			eips = strings.TrimSpace(eips)
-			instance.ElasticIps = append(instance.ElasticIps, eips)
+		for _, eip := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(eips), ",") {
+			eip = strings.TrimSpace(eip)
+			if net.ParseIP(eip) == nil {
+				return errors.Errorf("Malformed provided Elastic IP: %s", eip)
+			}
+			instance.ElasticIps = append(instance.ElasticIps, eip)
 		}
 	}
 
 	// Check if the root block device must be deleted on termination
-	var deleteVolumeOnTermination bool = true // Default is deleting root block device on compute termination
+	deleteVolumeOnTermination := true // Default is deleting root block device on compute termination
 	if _, s, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "delete_volume_on_termination"); err != nil {
 		return err
 	} else if s != "" {

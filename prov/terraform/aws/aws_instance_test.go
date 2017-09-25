@@ -22,17 +22,9 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 	return deploymentID
 }
 
-func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -40,17 +32,9 @@ func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV) {
 	require.Error(t, err, "Expecting missing mandatory parameter 'instance_type' error")
 }
 
-func testSimpleAWSInstance(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -91,17 +75,9 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV) {
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }
 
-func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -118,17 +94,9 @@ func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.
 	require.Equal(t, false, compute.RootBlockDevice.DeleteOnTermination)
 }
 
-func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -153,17 +121,9 @@ func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV) {
 
 }
 
-func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -183,17 +143,9 @@ func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV) {
 
 }
 
-func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -226,17 +178,19 @@ func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV) {
 	}
 }
 
-func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV) {
+func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
+	g := awsGenerator{}
+	infrastructure := commons.Infrastructure{}
 
-	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
-				"region":     "us-east-2",
-				"access_key": "test",
-				"secret_key": "test",
-			}}}
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	require.Error(t, err, "An error was expected due to malformed provided Elastic IP: %s", "12.12.oups.12")
+}
+
+func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 
