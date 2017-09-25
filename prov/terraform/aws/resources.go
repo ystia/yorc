@@ -16,7 +16,7 @@ type ComputeInstance struct {
 
 // A BlockDevice represents an AWS device block volume
 type BlockDevice struct {
-	DeleteOnTermination bool `json:"delete_on_termination,omitempty"`
+	DeleteOnTermination bool `json:"delete_on_termination"`
 }
 
 // Tags represent a mapping of tags assigned to the Instance.
