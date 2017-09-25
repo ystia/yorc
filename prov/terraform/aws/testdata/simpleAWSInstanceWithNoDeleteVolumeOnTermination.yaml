@@ -1,0 +1,35 @@
+tosca_definitions_version: alien_dsl_1_4_0
+
+metadata:
+  template_name: AWS_Compute-0_2_0
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - path: <janus-aws-types.yml>
+topology_template:
+  node_templates:
+    ComputeAWS:
+      type: janus.nodes.aws.Compute
+      properties:
+        image_id: "ami-16dffe73"
+        instance_type: "t2.micro"
+        key_name: "janus-keypair"
+        user: centos
+        security_groups: "janus-securityGroup"
+        delete_volume_on_termination: false
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+

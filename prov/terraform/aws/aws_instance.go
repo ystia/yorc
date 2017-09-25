@@ -14,6 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"strconv"
 )
 
 func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
@@ -29,9 +30,6 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instancesKey := path.Join(instancesPrefix, nodeName)
 
 	instance.Tags.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
-
-	// Delete root device volume on compute termination
-	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: true}
 
 	// image_id is mandatory
 	var image string
@@ -91,6 +89,18 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 			instance.ElasticIps = append(instance.ElasticIps, eips)
 		}
 	}
+
+	// Check if the root block device must be deleted on termination
+	var deleteVolumeOnTermination bool = true // Default is deleting root block device on compute termination
+	if _, s, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "delete_volume_on_termination"); err != nil {
+		return err
+	} else if s != "" {
+		deleteVolumeOnTermination, err = strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+	}
+	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: deleteVolumeOnTermination}
 
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)

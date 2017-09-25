@@ -40,6 +40,12 @@ node_types:
         type: string
         description: Coma separated list of Elastic IPs to use.
         required: false
+      delete_volume_on_termination:
+        type: string
+        description: >
+          Whether the volume should be destroyed on instance termination (Default: true).
+        required: false
+        default: true
     attributes:
       public_dns:
         type: string

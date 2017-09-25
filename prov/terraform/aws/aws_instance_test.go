@@ -68,6 +68,7 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV) {
 	require.Equal(t, "ami-16dffe73", compute.ImageID)
 	require.Equal(t, "t2.micro", compute.InstanceType)
 	require.Equal(t, "ComputeAWS-0", compute.Tags.Name)
+	require.Equal(t, true, compute.RootBlockDevice.DeleteOnTermination)
 	require.Len(t, compute.SecurityGroups, 1)
 	require.Contains(t, compute.SecurityGroups, "janus-securityGroup")
 
@@ -88,6 +89,33 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV) {
 	require.Equal(t, `${file("~/.ssh/janus.pem")}`, rex.Connection.PrivateKey)
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
+}
+
+func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.InfrastructureConfig{
+			infrastructureName: {
+				"region":     "us-east-2",
+				"access_key": "test",
+				"secret_key": "test",
+			}}}
+	g := awsGenerator{}
+	infrastructure := commons.Infrastructure{}
+
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	require.Nil(t, err)
+
+	require.Len(t, infrastructure.Resource["aws_instance"], 1)
+	instancesMap := infrastructure.Resource["aws_instance"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "ComputeAWS-0")
+
+	compute, ok := instancesMap["ComputeAWS-0"].(*ComputeInstance)
+	require.True(t, ok, "ComputeAWS-0 is not a ComputeInstance")
+	require.Equal(t, false, compute.RootBlockDevice.DeleteOnTermination)
 }
 
 func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV) {
