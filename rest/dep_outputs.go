@@ -40,12 +40,12 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 
 	var output Output
 	if len(expression.Value) > 0 {
-		va := tosca.ValueAssignment{}
-		err = yaml.Unmarshal(expression.Value, &va)
+		va := &tosca.ValueAssignment{}
+		err = yaml.Unmarshal(expression.Value, va)
 		if err != nil {
 			log.Panicf("Unable to unmarshal value expression: %v", err)
 		}
-		result, err := deployments.NewResolver(kv, id).ResolveExpressionForNode(va.Expression, "", "")
+		result, err := deployments.NewResolver(kv, id).ResolveValueAssignmentForNode(va, "", "")
 		if err != nil {
 
 			if status == deployments.DEPLOYMENT_IN_PROGRESS {

@@ -68,7 +68,7 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 			return nil, nil, err
 		}
 
-		va := tosca.ValueAssignment{}
+		va := &tosca.ValueAssignment{}
 		var targetContext bool
 		if !isPropDef {
 			expr, err := deployments.GetOperationInputExpression(kv, deploymentID, operation.ImplementedInType, operation.Name, input)
@@ -98,11 +98,11 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 				envI.InstanceName = GetInstanceName(nodeName, instanceID)
 			}
 			if operation.RelOp.IsRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, nodeName, operation.RelOp.TargetNodeName, operation.RelOp.RequirementIndex, instanceID)
+				inputValue, err = resolver.ResolveValueAssignmentForRelationship(va, nodeName, operation.RelOp.TargetNodeName, operation.RelOp.RequirementIndex, instanceID)
 			} else if isPropDef {
 				inputValue, err = tasks.GetTaskInput(kv, taskID, input)
 			} else {
-				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, nodeName, instanceID)
+				inputValue, err = resolver.ResolveValueAssignmentForNode(va, nodeName, instanceID)
 			}
 			if err != nil {
 				return nil, nil, err

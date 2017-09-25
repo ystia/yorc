@@ -27,13 +27,13 @@ func testResolver(t *testing.T, kv *api.KV) {
 	})
 }
 
-func generateToscaExpressionFromString(t *testing.T, valueAssignment string) *tosca.TreeNode {
-	va := tosca.ValueAssignment{}
+func generateToscaValueAssignmentFromString(t *testing.T, valueAssignment string) *tosca.ValueAssignment {
+	va := &tosca.ValueAssignment{}
 
-	err := yaml.Unmarshal([]byte(valueAssignment), &va)
+	err := yaml.Unmarshal([]byte(valueAssignment), va)
 	require.Nil(t, err)
 	require.NotNil(t, va.Expression)
-	return va.Expression
+	return va
 }
 
 func testGetOperationOutput(t *testing.T, kv *api.KV) {
@@ -46,29 +46,29 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 	r := NewResolver(kv, deploymentID)
 
-	result, err := r.ResolveExpressionForNode(generateToscaExpressionFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`), "GetOPOutputsNode", "0")
+	result, err := r.ResolveValueAssignmentForNode(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`), "GetOPOutputsNode", "0")
 	require.Nil(t, err)
 	require.Equal(t, "MY_RESULT", result)
 
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNode/janus.tests.relationships.GetOPOutputsRel/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part1")}, nil)
 	require.Nil(t, err)
-	result, err = r.ResolveExpressionForRelationship(generateToscaExpressionFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`), "GetOPOutputsNode", "BS", "0", "0")
+	result, err = r.ResolveValueAssignmentForRelationship(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`), "GetOPOutputsNode", "BS", "0", "0")
 	require.Nil(t, err, "%+v", err)
 	require.Equal(t, "part1", result)
 
-	result, err = r.ResolveExpressionForNode(generateToscaExpressionFromString(t, `{ get_attribute: [ SELF, partition_name ] }`), "GetOPOutputsNode", "0")
+	result, err = r.ResolveValueAssignmentForNode(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`), "GetOPOutputsNode", "0")
 	require.Nil(t, err, "%+v", err)
 	require.Equal(t, "part1", result)
 
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeFirstReq/janus.tests.relationships.GetOPOutputsRel/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part2")}, nil)
 	require.Nil(t, err)
-	result, err = r.ResolveExpressionForNode(generateToscaExpressionFromString(t, `{ get_attribute: [ SELF, partition_name ] }`), "GetOPOutputsNodeFirstReq", "0")
+	result, err = r.ResolveValueAssignmentForNode(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`), "GetOPOutputsNodeFirstReq", "0")
 	require.Nil(t, err, "%+v", err)
 	require.Equal(t, "part2", result)
 
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeSecondReq/janus.tests.relationships.GetOPOutputsRel/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part3")}, nil)
 	require.Nil(t, err)
-	result, err = r.ResolveExpressionForNode(generateToscaExpressionFromString(t, `{ get_attribute: [ SELF, partition_name ] }`), "GetOPOutputsNodeSecondReq", "0")
+	result, err = r.ResolveValueAssignmentForNode(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`), "GetOPOutputsNodeSecondReq", "0")
 	require.Nil(t, err, "%+v", err)
 	require.Equal(t, "part3", result)
 
@@ -85,7 +85,7 @@ func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/starlings.relationships.DependsOnDockerVolume/0/outputs/configure/post_configure_target/HOST_PATH"), Value: []byte("/mypath")}, nil)
 	require.Nil(t, err)
 
-	result, err := r.ResolveExpressionForNode(generateToscaExpressionFromString(t, `{ get_attribute: [ SELF, host_path ] }`), "PublisherFromDockerVolume", "0")
+	result, err := r.ResolveValueAssignmentForNode(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`), "PublisherFromDockerVolume", "0")
 	require.Nil(t, err)
 	require.Equal(t, "/mypath", result)
 

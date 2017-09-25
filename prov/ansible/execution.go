@@ -315,12 +315,12 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 				return err
 			}
 			if found && user != "" {
-				va := tosca.ValueAssignment{}
-				err = yaml.Unmarshal([]byte(user), &va)
+				va := &tosca.ValueAssignment{}
+				err = yaml.Unmarshal([]byte(user), va)
 				if err != nil {
 					return errors.Wrapf(err, "Unable to resolve username to connect to host %q, unmarshaling yaml failed: ", nodeName)
 				}
-				hostConn.user, err = deployments.NewResolver(e.kv, e.deploymentID).ResolveExpressionForNode(va.Expression, nodeName, instance)
+				hostConn.user, err = deployments.NewResolver(e.kv, e.deploymentID).ResolveValueAssignmentForNode(va, nodeName, instance)
 				if err != nil {
 					return err
 				}

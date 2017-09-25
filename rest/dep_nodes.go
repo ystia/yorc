@@ -136,7 +136,7 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 			log.Panic(err)
 		}
 		resolver := deployments.NewResolver(kv, id)
-		instanceAttribute, err = resolver.ResolveExpressionForNode(resultExpr.Expression, nodeName, instanceID)
+		instanceAttribute, err = resolver.ResolveValueAssignmentForNode(resultExpr, nodeName, instanceID)
 		if err != nil {
 			log.Panic(err)
 		}

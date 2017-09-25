@@ -154,12 +154,12 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			}
 			if device != "" {
 				resolver := deployments.NewResolver(kv, deploymentID)
-				expr := tosca.ValueAssignment{}
-				if err = yaml.Unmarshal([]byte(device), &expr); err != nil {
+				expr := &tosca.ValueAssignment{}
+				if err = yaml.Unmarshal([]byte(device), expr); err != nil {
 					return err
 				}
 				// TODO check if instanceName is correct in all cases maybe we should check if we are in target context
-				if device, err = resolver.ResolveExpressionForRelationship(expr.Expression, nodeName, volumeNodeName, path.Base(storagePrefix), instanceName); err != nil {
+				if device, err = resolver.ResolveValueAssignmentForRelationship(expr, nodeName, volumeNodeName, path.Base(storagePrefix), instanceName); err != nil {
 					return err
 				}
 			}
