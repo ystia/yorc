@@ -106,6 +106,13 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	}
 	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: deleteVolumeOnTermination}
 
+	// Placement : optional property to select availability zone of the compute instance
+	var placement string
+	if _, placement, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "placement"); err != nil {
+		return err
+	}
+	instance.Placement = placement
+
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
 

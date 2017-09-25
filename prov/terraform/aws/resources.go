@@ -4,6 +4,7 @@ package aws
 type ComputeInstance struct {
 	ImageID         string      `json:"ami,omitempty"`
 	InstanceType    string      `json:"instance_type,omitempty"`
+	Placement       string      `json:"availability_zone,omitempty"`
 	SecurityGroups  []string    `json:"security_groups,omitempty"`
 	KeyName         string      `json:"key_name,omitempty"`
 	Tags            Tags        `json:"tags,omitempty"`

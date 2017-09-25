@@ -52,6 +52,7 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	require.Equal(t, "ami-16dffe73", compute.ImageID)
 	require.Equal(t, "t2.micro", compute.InstanceType)
 	require.Equal(t, "ComputeAWS-0", compute.Tags.Name)
+	require.Equal(t, "us-east-2a", compute.Placement)
 	require.Equal(t, true, compute.RootBlockDevice.DeleteOnTermination)
 	require.Len(t, compute.SecurityGroups, 1)
 	require.Contains(t, compute.SecurityGroups, "janus-securityGroup")
