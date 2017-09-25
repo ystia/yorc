@@ -32,10 +32,14 @@ node_types:
         description: >
           Coma separated list of security groups to add to the Compute
         required: true
-      placement:
+      availability_zone:
         type: string
         required: false
         description: AWS Availability zone on which to create the instance.
+      placement_group:
+        type: string
+        required: false
+        description: AWS Placement Group on which to add the instance.
       elastic_ips:
         type: string
         description: Coma separated list of Elastic IPs to use.
@@ -43,7 +47,7 @@ node_types:
       delete_volume_on_termination:
         type: string
         description: >
-          Whether the volume should be destroyed on instance termination (Default: true).
+          Whether the root device volume should be destroyed on instance termination (Default: true).
         required: false
         default: true
     attributes:

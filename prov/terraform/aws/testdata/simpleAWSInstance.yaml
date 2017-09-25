@@ -19,7 +19,8 @@ topology_template:
         key_name: "janus-keypair"
         user: centos
         security_groups: "janus-securityGroup"
-        placement: "us-east-2a"
+        availability_zone: "us-east-2c"
+        placement_group: "myPlacement"
       capabilities:
         scalable:
           properties:

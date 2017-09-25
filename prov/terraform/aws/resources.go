@@ -2,14 +2,15 @@ package aws
 
 // A ComputeInstance represent an AWS compute
 type ComputeInstance struct {
-	ImageID         string      `json:"ami,omitempty"`
-	InstanceType    string      `json:"instance_type,omitempty"`
-	Placement       string      `json:"availability_zone,omitempty"`
-	SecurityGroups  []string    `json:"security_groups,omitempty"`
-	KeyName         string      `json:"key_name,omitempty"`
-	Tags            Tags        `json:"tags,omitempty"`
-	ElasticIps      []string    `json:"-"`
-	RootBlockDevice BlockDevice `json:"root_block_device,omitempty"`
+	ImageID          string      `json:"ami,omitempty"`
+	InstanceType     string      `json:"instance_type,omitempty"`
+	AvailabilityZone string      `json:"availability_zone,omitempty"`
+	PlacementGroup   string      `json:"placement_group,omitempty"`
+	SecurityGroups   []string    `json:"security_groups,omitempty"`
+	KeyName          string      `json:"key_name,omitempty"`
+	Tags             Tags        `json:"tags,omitempty"`
+	ElasticIps       []string    `json:"-"`
+	RootBlockDevice  BlockDevice `json:"root_block_device,omitempty"`
 
 	Provisioners map[string]interface{} `json:"provisioner,omitempty"`
 }
