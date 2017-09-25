@@ -88,7 +88,7 @@ Globals Command-line options
 
 .. _option_pluginsdir_cmd:
 
-  * ``--plugins_directory``: The name of the plugins directory of the Janus server. The default is to use a directory named *plugins* in the current directory.
+  * ``--plugins_directory``: The name of the plugins directory of the Janus server. The default is to use a directory named *plugins* in the current directory.
 
 .. _option_resources_prefix_cmd:
 
@@ -100,7 +100,7 @@ Globals Command-line options
 
 .. _option_workdir_cmd: 
 
-  * ``--working_directory`` or ``-w``: Specify an alternative working directory for Janus. The default is to use a directory named *work* in the current directory.
+  * ``--working_directory`` or ``-w``: Specify an alternative working directory for Janus. The default is to use a directory named *work* in the current directory.
 
 
 .. _janus_config_file_section:
