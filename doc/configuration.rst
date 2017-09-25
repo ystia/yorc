@@ -434,6 +434,11 @@ OpenStack
 
 OpenStack infrastructure key name is ``openstack`` in lower case.
 
+.. 
+   MAG - According to:
+   https://github.com/sphinx-doc/sphinx/issues/3043
+   http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
+.. tabularcolumns:: |p{0.35\textwidth}|p{0.30\textwidth}|p{0.05\textwidth}|p{0.15\textwidth}|p{0.10\textwidth}|
 
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 |            Option Name            |                                                     Description                                                     | Data Type |                      Required                      |    Default    |
@@ -479,6 +484,12 @@ Kubernetes
 ~~~~~~~~~~
 
 Kubernetes infrastructure key name is ``kubernetes`` in lower case.
+
+.. 
+   MAG - According to:
+   https://github.com/sphinx-doc/sphinx/issues/3043
+   http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
+.. tabularcolumns:: |l|L|L|L|L|
 
 +----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
 |  Option Name   |                                   Description                                   | Data Type | Required | Default |

@@ -41,6 +41,11 @@ Metric Types
 
 Go Runtime metrics
 ~~~~~~~~~~~~~~~~~~
+.. 
+   MAG - According to:
+   https://github.com/sphinx-doc/sphinx/issues/3043
+   http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
+.. tabularcolumns:: |p{0.20\textwidth}|p{0.55\textwidth}|p{0.10\textwidth}|p{0.05\textwidth}|
 
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | Metric Name                         | Description                                                                                      | Unit              | Metric Type |
