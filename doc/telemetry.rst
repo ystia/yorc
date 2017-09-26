@@ -31,9 +31,9 @@ Metric Types
 +---------+---------------------------------------------------------------------------------------------------------------------+-----------+
 | Type    | Description                                                                                                         | Quantiles |
 +=========+=====================================================================================================================+===========+
-| Gauge   | Gauge types report an absolute number at the end of the aggregation interval                                        | false     |
+| Gauge   | Gauge types report an absolute number at the end of the aggregation interval.                                       | false     |
 +---------+---------------------------------------------------------------------------------------------------------------------+-----------+
-| Counter | Counts are incremented and flushed at the end of the aggregation interval and then are reset to zero                | true      |
+| Counter | Counts are incremented and flushed at the end of the aggregation interval and then are reset to zero.               | true      |
 +---------+---------------------------------------------------------------------------------------------------------------------+-----------+
 | Timer   | Timers measure the time to complete a task and will include quantiles, means, standard deviation, etc per interval. | true      |
 +---------+---------------------------------------------------------------------------------------------------------------------+-----------+
@@ -41,27 +41,32 @@ Metric Types
 
 Go Runtime metrics
 ~~~~~~~~~~~~~~~~~~
+.. 
+   MAG - According to:
+   https://github.com/sphinx-doc/sphinx/issues/3043
+   http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
+.. tabularcolumns:: |p{0.20\textwidth}|p{0.55\textwidth}|p{0.10\textwidth}|p{0.05\textwidth}|
 
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | Metric Name                         | Description                                                                                      | Unit              | Metric Type |
 |                                     |                                                                                                  |                   |             |
 +=====================================+==================================================================================================+===================+=============+
-| ``janus.runtime.num_goroutines``    | This tracks the number of running goroutines and is a general load pressure                      | Number            | gauge       |
+| ``janus.runtime.num_goroutines``    | This tracks the number of running goroutines and is a general load pressure                      | number            | gauge       |
 |                                     | indicator. This may burst from time to time but should return to a steady                        | of                |             |
 |                                     | state value.                                                                                     | goroutines        |             |
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
-| ``janus.runtime.alloc_bytes``       | This measures the number of bytes allocated by the Janus process. This may                       | Bytes             | gauge       |
+| ``janus.runtime.alloc_bytes``       | This measures the number of bytes allocated by the Janus process. This may                       | bytes             | gauge       |
 |                                     | burst from time to time but should return to a steady state value.                               |                   |             |
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``janus.runtime.heap_objects``      | This measures the number of objects allocated on the heap and is a general memory                |                   |             |
-|                                     | pressure indicator. This may burst from time to time but should return to a steady state value   | number of objects | gauge       |
+|                                     | pressure indicator. This may burst from time to time but should return to a steady state value.  | number of objects | gauge       |
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``janus.runtime.sys``               | Sys is the total bytes of memory obtained from the OS.Sys measures the virtual address space     |                   |             |
-|                                     | reserved by the Go runtime for the  heap, stacks, and other                                      | Bytes             | gauge       |
+|                                     | reserved by the Go runtime for the  heap, stacks, and other                                      | bytes             | gauge       |
 |                                     | internal data structures. It's likely that not all of the virtual address space is backed        |                   |             |
 |                                     | by physical memory at any given moment, though in general it all was at some point.              |                   |             |
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
-| ``janus.runtime.malloc_count``      | Mallocs is the cumulative count of heap objects allocated. The number of live objects is         | Number of Mallocs | gauge       |
+| ``janus.runtime.malloc_count``      | Mallocs is the cumulative count of heap objects allocated. The number of live objects is         | number of Mallocs | gauge       |
 |                                     | Mallocs - Frees.                                                                                 |                   |             |
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``janus.runtime.free_count``        | Frees is the cumulative count of heap objects freed.                                             | number of frees   | gauge       |
@@ -72,7 +77,7 @@ Go Runtime metrics
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``janus.runtime.total_gc_runs``     | Gc runs is the number of completed GC cycles.                                                    | number of cycles  | gauge       |
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
-| ``janus.runtime.gc_pause_ns``       | Latest GC run stop-the-world pause duration                                                      | nanoseconds       | timer       |
+| ``janus.runtime.gc_pause_ns``       | Latest GC run stop-the-world pause duration.                                                     | nanoseconds       | timer       |
 +-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 
 Janus REST API metrics
@@ -92,24 +97,24 @@ Janus REST API metrics
 Janus Workers & Tasks metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+---------------------------------------+-------------------------------------------------------------------------+-----------------+-------------+
-| Metric Name                           | Description                                                             | Unit            | Metric Type |
-|                                       |                                                                         |                 |             |
-+=======================================+=========================================================================+=================+=============+
-| ``janus.workers.free``                | This tracks the number of free Janus workers                            | number of free  | gauge       |
-|                                       |                                                                         | workers         |             |
-+---------------------------------------+-------------------------------------------------------------------------+-----------------+-------------+
-| ``tasks.maxBlockTimeMs``              | This measures the highest duration since creation for all waiting tasks | milliseconds    | timer       |
-+---------------------------------------+-------------------------------------------------------------------------+-----------------+-------------+
-| ``tasks.nbWaiting``                   | This tracks the number of tasks waiting for being processed             | number of       | gauge       |
-|                                       |                                                                         | tasks           |             |
-+---------------------------------------+-------------------------------------------------------------------------+-----------------+-------------+
-| ``tasks.wait``                        | This measures the finally waited time for a task being processed        | milliseconds    | timer       |
-+---------------------------------------+-------------------------------------------------------------------------+-----------------+-------------+
-| ``task.<DepID>.<Type>.<FinalStatus>`` | This counts by deployment and task type the final status of a task.     | number of tasks | counter     |
-+---------------------------------------+-------------------------------------------------------------------------+-----------------+-------------+
-| ``task.<DepID>.<Type>``               | This measures the task processing duration                              | milliseconds    | timer       |
-+---------------------------------------+-------------------------------------------------------------------------+-----------------+-------------+
++---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
+| Metric Name                           | Description                                                              | Unit            | Metric Type |
+|                                       |                                                                          |                 |             |
++=======================================+==========================================================================+=================+=============+
+| ``janus.workers.free``                | This tracks the number of free Janus workers.                            | number of free  | gauge       |
+|                                       |                                                                          | workers         |             |
++---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
+| ``tasks.maxBlockTimeMs``              | This measures the highest duration since creation for all waiting tasks. | milliseconds    | timer       |
++---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
+| ``tasks.nbWaiting``                   | This tracks the number of tasks waiting for being processed.             | number of       | gauge       |
+|                                       |                                                                          | tasks           |             |
++---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
+| ``tasks.wait``                        | This measures the finally waited time for a task being processed.        | milliseconds    | timer       |
++---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
+| ``task.<DepID>.<Type>.<FinalStatus>`` | This counts by deployment and task type the final status of a task.      | number of tasks | counter     |
++---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
+| ``task.<DepID>.<Type>``               | This measures the task processing duration.                              | milliseconds    | timer       |
++---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
 
 
 Janus Executors metrics
@@ -122,15 +127,15 @@ definition (like a shell script or an ansible playbook).
 In the below table <ExecType> is the executor type, <DepID> the deployment ID, <NodeType> the fully qualified TOSCA node type where dots where replaced by
 dashes and <OpName> the TOSCA operation name where dots where replaced by dashes.
 
-+----------------------------------------------------------------------+-------------------------------------------------+---------------------+-------------+
-| Metric Name                                                          | Description                                     | Unit                | Metric Type |
-|                                                                      |                                                 |                     |             |
-+======================================================================+=================================================+=====================+=============+
-| ``janus.executors.<ExecType>.<DepID>.<NodeType>.<OpName>``           | This measures the duration of an execution      | milliseconds        | timer       |
-+----------------------------------------------------------------------+-------------------------------------------------+---------------------+-------------+
-| ``janus.executors.<ExecType>.<DepID>.<NodeType>.<OpName>.failures``  | This counts the number of failed executions     | number of failures  | counter     |
-+----------------------------------------------------------------------+-------------------------------------------------+---------------------+-------------+
-| ``janus.executors.<ExecType>.<DepID>.<NodeType>.<OpName>.successes`` | This counts the number of successful executions | number of successes | counter     |
-+----------------------------------------------------------------------+-------------------------------------------------+---------------------+-------------+
++---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
+| Metric Name                                                         | Description                                      | Unit                | Metric Type |
+|                                                                     |                                                  |                     |             |
++=====================================================================+==================================================+=====================+=============+
+| ``janus.executor.<ExecType>.<DepID>.<NodeType>.<OpName>``           | This measures the duration of an execution.      | milliseconds        | timer       |
++---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
+| ``janus.executor.<ExecType>.<DepID>.<NodeType>.<OpName>.failures``  | This counts the number of failed executions.     | number of failures  | counter     |
++---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
+| ``janus.executor.<ExecType>.<DepID>.<NodeType>.<OpName>.successes`` | This counts the number of successful executions. | number of successes | counter     |
++---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
  
 
