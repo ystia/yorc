@@ -45,7 +45,7 @@ node_types:
         description: Coma separated list of Elastic IPs to use.
         required: false
       delete_volume_on_termination:
-        type: string
+        type: boolean
         description: >
           Whether the root device volume should be destroyed on instance termination (Default: true).
         required: false
