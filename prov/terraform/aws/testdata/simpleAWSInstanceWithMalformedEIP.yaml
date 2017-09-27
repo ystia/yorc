@@ -1,7 +1,7 @@
 tosca_definitions_version: alien_dsl_1_4_0
 
 metadata:
-  template_name: AWS_Compute-0_2_0
+  template_name: ComputeEIP-Environment
   template_version: 0.1.0-SNAPSHOT
   template_author: ${template_author}
 
@@ -9,6 +9,7 @@ description: ""
 
 imports:
   - path: <janus-aws-types.yml>
+
 topology_template:
   node_templates:
     ComputeAWS:
@@ -19,8 +20,12 @@ topology_template:
         key_name: "janus-keypair"
         user: centos
         security_groups: "janus-securityGroup"
-        availability_zone: "us-east-2c"
-        placement_group: "myPlacement"
+        elastic_ips: "10.10.10.10, 11.11.11.11, 12.12.oups.12, 13.13.13.13"
+      requirements:
+        - network:
+            node: EIPNetwork
+            capability: tosca.capabilities.Connectivity
+            relationship: tosca.relationships.Network
       capabilities:
         scalable:
           properties:
@@ -33,4 +38,7 @@ topology_template:
             protocol: tcp
             network_name: PRIVATE
             initiator: source
-
+    EIPNetwork:
+      type: janus.nodes.aws.PublicNetwork
+      properties:
+        ip_version: 4
