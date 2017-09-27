@@ -450,6 +450,11 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 				return errors.Wrap(err, "Fail to parse operation output, check the following expression : ")
 			}
 
+			//Tosca grammar reminder: get_operation_output: <modelable_entity_name>, <interface_name>, <operation_name>, <output_variable_name>
+			if len(va.Expression.Children()) != 4 {
+				return errors.Errorf("The operation output doesn't have the expected number of children: %v", va.Expression.Children())
+			}
+
 			targetContext := va.Expression.IsTargetContext()
 			sourceContext := va.Expression.IsSourceContext()
 			if (targetContext || sourceContext) && !e.operation.RelOp.IsRelationshipOperation {
