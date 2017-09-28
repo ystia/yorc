@@ -4,7 +4,6 @@ package executil
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"syscall"
 
@@ -70,9 +69,11 @@ func (c *Cmd) Start() error {
 		case <-c.ctx.Done():
 			err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
 			if err != nil {
-				fmt.Print(err)
+				log.Fatal(err)
 			}
 		case <-c.waitDone:
+		default:
+			// use default to make sure the channel is non-blocking
 		}
 	}()
 	return c.Cmd.Start()
