@@ -70,7 +70,7 @@ func (c *Cmd) Start() error {
 			if c.Process != nil {
 				err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
 				if err != nil {
-					log.Fatal(err)
+					log.Print("[Error] " + err.Error())
 				}
 			}
 		case <-c.waitDone:
