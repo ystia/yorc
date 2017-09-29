@@ -67,13 +67,13 @@ func (c *Cmd) Start() error {
 	go func() {
 		select {
 		case <-c.ctx.Done():
-			err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
-			if err != nil {
-				log.Fatal(err)
+			if c.Process != nil {
+				err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
+				if err != nil {
+					log.Fatal(err)
+				}
 			}
 		case <-c.waitDone:
-		default:
-			// use default to make sure the channel is non-blocking
 		}
 	}()
 	return c.Cmd.Start()
