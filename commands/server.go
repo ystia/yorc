@@ -115,6 +115,7 @@ func setConfig() {
 
 	serverCmd.PersistentFlags().Bool("ansible_use_openssh", false, "Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts")
 	serverCmd.PersistentFlags().Bool("ansible_debug", false, "Prints massive debug information from Ansible")
+	serverCmd.PersistentFlags().Int("ansible_connection_retries", 5, "Number of retries in case of Ansible SSH connection failure")
 
 	//Bind flags for Consul
 	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
@@ -145,6 +146,7 @@ func setConfig() {
 
 	viper.BindPFlag("ansible_use_openssh", serverCmd.PersistentFlags().Lookup("ansible_use_openssh"))
 	viper.BindPFlag("ansible_debug", serverCmd.PersistentFlags().Lookup("ansible_debug"))
+	viper.BindPFlag("ansible_connection_retries", serverCmd.PersistentFlags().Lookup("ansible_connection_retries"))
 
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
@@ -170,6 +172,7 @@ func setConfig() {
 
 	viper.BindEnv("ansible_use_openssh")
 	viper.BindEnv("ansible_debug")
+	viper.BindEnv("ansible_connection_retries")
 
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
@@ -187,6 +190,7 @@ func setConfig() {
 
 	viper.SetDefault("ansible_use_openssh", false)
 	viper.SetDefault("ansible_debug", false)
+	viper.SetDefault("ansible_connection_retries", 5)
 
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
@@ -197,8 +201,9 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
-	configuration.AnsibleDebugExec = viper.GetBool("ansible_use_openssh")
+	configuration.AnsibleUseOpenSSH = viper.GetBool("ansible_use_openssh")
 	configuration.AnsibleDebugExec = viper.GetBool("ansible_debug")
+	configuration.AnsibleConnectionRetries = viper.GetInt("ansible_connection_retries")
 	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.PluginsDirectory = viper.GetString("plugins_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")

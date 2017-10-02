@@ -18,6 +18,10 @@ Globals Command-line options
 
   * ``--ansible_debug``: Prints massive debug information from Ansible especially about connections
 
+.. _option_ansible_connection_retries_cmd:
+
+  * ``--ansible_connection_retries``: Number of retries in case of Ansible SSH connection failure.
+
 .. _option_config_cmd:
 
   * ``--config`` or ``-c``: Specify an alternative configuration file. By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory.
@@ -158,6 +162,10 @@ Below is an example of configuration file with TLS enable.
 .. _option_ansible_debug_cfg:
 
   * ``ansible_debug``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
+
+.. _option_ansible_connection_retries_cfg:
+
+  * ``ansible_connection_retries``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
 
 .. _option_consul_addr_cfg:
 
@@ -308,6 +316,10 @@ Environment variables
 .. _option_ansible_debug_env:
 
   * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
+
+.. _option_ansible_connection_retries_env:
+
+  * ``JANUS_ANSIBLE_CONNECTION_RETRIES``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
 
 .. _option_consul_addr_env:
 

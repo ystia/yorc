@@ -33,12 +33,9 @@ import (
 
 const ansibleConfig = `[defaults]
 host_key_checking=False
-timeout=600
+timeout=30
 stdout_callback = json
 retry_files_save_path = #PLAY_PATH#
-
-[ssh_connection]
-retries=5
 `
 
 type ansibleRetriableError struct {
@@ -748,7 +745,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 func (e *executionCommon) checkAnsibleRetriableError(err error) error {
 	events.LogEngineError(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName))
-	log.Debug(err)
+	log.Debugf(err.Error())
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The program has exited with an exit code != 0
 
@@ -757,8 +754,9 @@ func (e *executionCommon) checkAnsibleRetriableError(err error) error {
 		// defined for both Unix and Windows and in both cases has
 		// an ExitStatus() method with the same signature.
 		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			// Retry exit statuses 2 and 3
-			if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
+			// Exit Code 4 is corresponding to unreachable host and is eligible for connection retries
+			// https://github.com/ansible/ansible/blob/devel/lib/ansible/executor/task_queue_manager.py
+			if status.ExitStatus() == 4 {
 				return ansibleRetriableError{root: err}
 			}
 		}

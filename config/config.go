@@ -35,6 +35,7 @@ const DefaultKeepOperationRemotePath = false
 type Configuration struct {
 	AnsibleUseOpenSSH             bool
 	AnsibleDebugExec              bool
+	AnsibleConnectionRetries      int
 	PluginsDirectory              string
 	WorkingDirectory              string
 	WorkersNumber                 int
