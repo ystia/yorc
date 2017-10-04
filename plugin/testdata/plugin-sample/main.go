@@ -8,6 +8,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/plugin"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	"encoding/gob"
 )
 
 type myDelegateExecutor struct{}
@@ -35,6 +36,9 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 }
 
 func main() {
+	// As we have type []interface{} in the config.Configuration structure, we need to register it before receiving config from RPC server
+	// The same registration needs has been done server side
+	gob.Register(make([]interface{}, 0))
 	def := []byte(`tosca_definitions_version: janus_tosca_simple_yaml_1_0
 
 template_name: janus-my-types
