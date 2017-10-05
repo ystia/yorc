@@ -3,7 +3,6 @@ package plugin
 import (
 	"net/rpc"
 
-	"encoding/gob"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -90,8 +89,6 @@ func (s *ConfigManagerServer) SetupConfig(args *ConfigManagerSetupConfigArgs, re
 // SetupConfig is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (c *ConfigManagerClient) SetupConfig(cfg config.Configuration) error {
-	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config to the plugin via RPC
-	gob.Register(make([]interface{}, 0))
 	var resp ConfigManagerSetupConfigResponse
 	args := ConfigManagerSetupConfigArgs{cfg}
 
