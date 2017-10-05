@@ -14,6 +14,9 @@ func NewClient(pluginPath string) *gplugin.Client {
 	if !log.IsDebug() {
 		stdlog.SetOutput(ioutil.Discard)
 	}
+	// Setup RPC communication
+	SetupPluginCommunication()
+
 	return gplugin.NewClient(&gplugin.ClientConfig{
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         getPlugins(nil),

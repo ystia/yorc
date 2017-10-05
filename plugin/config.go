@@ -91,6 +91,7 @@ func (s *ConfigManagerServer) SetupConfig(args *ConfigManagerSetupConfigArgs, re
 func (c *ConfigManagerClient) SetupConfig(cfg config.Configuration) error {
 	var resp ConfigManagerSetupConfigResponse
 	args := ConfigManagerSetupConfigArgs{cfg}
+
 	err := c.Client.Call("Plugin.SetupConfig", &args, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Failed call ConfigManager setup for plugin")
