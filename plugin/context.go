@@ -28,7 +28,7 @@ RETRY:
 		}
 	}
 	if dialFailed {
-		log.Printf("Plugin remote context cancellation dial finnally succeeded after failures. Things are back to normal.")
+		log.Printf("Plugin remote context cancellation dial finally succeeded after failures. Things are back to normal.")
 	}
 	client := rpc.NewClient(conn)
 	defer client.Close()

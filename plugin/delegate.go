@@ -31,7 +31,7 @@ func (p *DelegatePlugin) Server(b *plugin.MuxBroker) (interface{}, error) {
 	if p.F != nil {
 		des.Delegate = p.F()
 	} else if len(p.SupportedTypes) > 0 {
-		return nil, errors.New("If DelegateSupportedTypes is defined then you have to defined a DelegateFunc")
+		return nil, NewPluginErrorFromMessage("If DelegateSupportedTypes is defined then you have to defined a DelegateFunc")
 	}
 	return des, nil
 }
@@ -70,7 +70,7 @@ func (c *DelegateExecutorClient) ExecDelegate(ctx context.Context, conf config.C
 	if err != nil {
 		return err
 	}
-	return resp.Error
+	return toError(resp.Error)
 }
 
 // DelegateExecutorServer is public for use by reflexion and should be considered as private to this package.
@@ -95,21 +95,23 @@ type DelegateExecutorExecDelegateArgs struct {
 // DelegateExecutorExecDelegateResponse is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type DelegateExecutorExecDelegateResponse struct {
-	Error error
+	Error *PluginError
 }
 
 // ExecDelegate is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (s *DelegateExecutorServer) ExecDelegate(args *DelegateExecutorExecDelegateArgs, reply *DelegateExecutorExecDelegateResponse) error {
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
 	err := s.Delegate.ExecDelegate(ctx, args.Conf, args.TaskID, args.DeploymentID, args.NodeName, args.DelegateOperation)
-	*reply = DelegateExecutorExecDelegateResponse{
-		Error: err,
+
+	var resp DelegateExecutorExecDelegateResponse
+	if err != nil {
+		resp.Error = NewPluginError(err)
 	}
+	*reply = resp
 	return nil
 }
 
@@ -124,7 +126,7 @@ func (s *DelegateExecutorServer) GetSupportedTypes(_ interface{}, reply *Delegat
 // Please do not use it directly.
 type DelegateExecutorGetTypesResponse struct {
 	SupportedTypes []string
-	Error          error
+	Error          *PluginError
 }
 
 // GetSupportedTypes is public for use by reflexion and should be considered as private to this package.
@@ -135,5 +137,6 @@ func (c *DelegateExecutorClient) GetSupportedTypes() ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get supported types for delegate plugin")
 	}
-	return resp.SupportedTypes, resp.Error
+
+	return resp.SupportedTypes, toError(resp.Error)
 }
