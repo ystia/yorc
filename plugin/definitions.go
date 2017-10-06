@@ -56,7 +56,7 @@ func (s *DefinitionsServer) GetDefinitions(_ interface{}, reply *DelegateExecuto
 // Please do not use it directly.
 type DelegateExecutorGetDefinitionsResponse struct {
 	Definitions map[string][]byte
-	Error       *PluginError
+	Error       *RPCError
 }
 
 // GetDefinitions is public for use by reflexion and should be considered as private to this package.

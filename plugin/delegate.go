@@ -31,7 +31,7 @@ func (p *DelegatePlugin) Server(b *plugin.MuxBroker) (interface{}, error) {
 	if p.F != nil {
 		des.Delegate = p.F()
 	} else if len(p.SupportedTypes) > 0 {
-		return nil, NewPluginErrorFromMessage("If DelegateSupportedTypes is defined then you have to defined a DelegateFunc")
+		return nil, NewRPCErrorFromMessage("If DelegateSupportedTypes is defined then you have to defined a DelegateFunc")
 	}
 	return des, nil
 }
@@ -95,7 +95,7 @@ type DelegateExecutorExecDelegateArgs struct {
 // DelegateExecutorExecDelegateResponse is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type DelegateExecutorExecDelegateResponse struct {
-	Error *PluginError
+	Error *RPCError
 }
 
 // ExecDelegate is public for use by reflexion and should be considered as private to this package.
@@ -109,7 +109,7 @@ func (s *DelegateExecutorServer) ExecDelegate(args *DelegateExecutorExecDelegate
 
 	var resp DelegateExecutorExecDelegateResponse
 	if err != nil {
-		resp.Error = NewPluginError(err)
+		resp.Error = NewRPCError(err)
 	}
 	*reply = resp
 	return nil
@@ -126,7 +126,7 @@ func (s *DelegateExecutorServer) GetSupportedTypes(_ interface{}, reply *Delegat
 // Please do not use it directly.
 type DelegateExecutorGetTypesResponse struct {
 	SupportedTypes []string
-	Error          *PluginError
+	Error          *RPCError
 }
 
 // GetSupportedTypes is public for use by reflexion and should be considered as private to this package.

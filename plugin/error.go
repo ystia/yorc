@@ -5,42 +5,37 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PluginError is a wrapper dedicated to allow passing errors via RPC encoding
+// RPCError is a wrapper dedicated to allow passing errors via RPC encoding
 // It must be used for RPC server side in the response call method (ie plugin side actually)
-type PluginError struct {
+type RPCError struct {
 	Message string
 	Stack   string
 }
 
-// This allows PluginError to implement error
-func (pErr *PluginError) Error() string {
-	return fmt.Sprintf("Plugin error with message:%s and stack:%s", pErr.Message, pErr.Stack)
+// This allows RPCError to implement error
+func (pErr *RPCError) Error() string {
+	return fmt.Sprintf("RPC error with message:%s and stack:%s", pErr.Message, pErr.Stack)
 }
 
-// This allows to cast PluginError to error keeping all error details
-func toError(pErr *PluginError) error {
+// toError allows to cast RPCError to error keeping all error details
+func toError(pErr *RPCError) error {
 	if pErr != nil {
 		return errors.Wrap(errors.New(pErr.Message), pErr.Stack)
 	}
 	return nil
 }
 
-// This allows to instantiate a PluginError from an error builtin type
-func NewPluginError(err error) *PluginError {
-	return &PluginError{Message: err.Error(), Stack: getStackTrace(err)}
+// NewRPCError allows to instantiate a RPCError from an error builtin type
+func NewRPCError(err error) *RPCError {
+	return &RPCError{Message: err.Error(), Stack: getStackTrace(err)}
 }
 
-// This allows to instantiate a PluginError from a message and variadic arguments
-func NewPluginErrorFromMessage(m string, args ...interface{}) *PluginError {
-	return &PluginError{Message: fmt.Sprintf(m, args...)}
+// NewRPCErrorFromMessage allows to instantiate a RPCError from a message and variadic arguments
+func NewRPCErrorFromMessage(m string, args ...interface{}) *RPCError {
+	return &RPCError{Message: fmt.Sprintf(m, args...)}
 }
 
-// This allows to instantiate a PluginError from an initial error and an additional message
-func NewPluginErrorFromMessageAndCause(err error, m string) *PluginError {
-	return &PluginError{Message: m, Stack: getStackTrace(err)}
-}
-
-// Internal : allows to get the error extended format.
+// Internal : getStackTrace allows to get the error extended format.
 // Each Frame of the error's StackTrace will be printed in detail.
 func getStackTrace(err error) string {
 	var stack string
