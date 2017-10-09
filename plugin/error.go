@@ -16,16 +16,18 @@ type stackTracer interface {
 	StackTrace() errors.StackTrace
 }
 
-// This allows RPCError to implement error
+// This allows RPCError to implement error and display message plus stack
 func (pErr *RPCError) Error() string {
-	return fmt.Sprintf("RPC error with message:%s and stack:%s", pErr.Message, pErr.Stack)
+	return fmt.Sprintf("%s%s", pErr.Message, pErr.Stack)
 }
 
-// toError allows to cast RPCError to error keeping all error details
+// RPCError needs to be explicitly typed "nil" before casting to error
+// https://golang.org/doc/faq#nil_error
 func toError(pErr *RPCError) error {
 	if pErr != nil {
-		return errors.Wrap(errors.New(pErr.Message), pErr.Stack)
+		return pErr
 	}
+
 	return nil
 }
 
@@ -44,7 +46,7 @@ func NewRPCErrorFromMessage(m string, args ...interface{}) *RPCError {
 func getStackTrace(err error) string {
 	var stack string
 	if err, ok := err.(stackTracer); ok {
-		stack = fmt.Sprintf("%+v", err)
+		stack = fmt.Sprintf("%+v", err.StackTrace())
 	}
 	return stack
 }
