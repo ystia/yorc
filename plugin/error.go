@@ -12,6 +12,10 @@ type RPCError struct {
 	Stack   string
 }
 
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
 // This allows RPCError to implement error
 func (pErr *RPCError) Error() string {
 	return fmt.Sprintf("RPC error with message:%s and stack:%s", pErr.Message, pErr.Stack)
@@ -39,7 +43,7 @@ func NewRPCErrorFromMessage(m string, args ...interface{}) *RPCError {
 // Each Frame of the error's StackTrace will be printed in detail.
 func getStackTrace(err error) string {
 	var stack string
-	if err != nil {
+	if err, ok := err.(stackTracer); ok {
 		stack = fmt.Sprintf("%+v", err)
 	}
 	return stack
