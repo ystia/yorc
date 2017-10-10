@@ -74,15 +74,20 @@ type ConfigManagerSetupConfigArgs struct {
 // ConfigManagerSetupConfigResponse is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type ConfigManagerSetupConfigResponse struct {
-	Error error
+	Error *RPCError
 }
 
 // SetupConfig is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-func (s *ConfigManagerServer) SetupConfig(args *ConfigManagerSetupConfigArgs, resp *ConfigManagerSetupConfigResponse) error {
+func (s *ConfigManagerServer) SetupConfig(args *ConfigManagerSetupConfigArgs, reply *ConfigManagerSetupConfigResponse) error {
 
 	err := s.PluginConfigManager.SetupConfig(args.Cfg)
-	*resp = ConfigManagerSetupConfigResponse{err}
+
+	var resp ConfigManagerSetupConfigResponse
+	if err != nil {
+		resp.Error = NewRPCError(err)
+	}
+	*reply = resp
 	return nil
 }
 
@@ -96,5 +101,5 @@ func (c *ConfigManagerClient) SetupConfig(cfg config.Configuration) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed call ConfigManager setup for plugin")
 	}
-	return resp.Error
+	return toError(resp.Error)
 }

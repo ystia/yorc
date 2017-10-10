@@ -75,4 +75,5 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 func SetupPluginCommunication() {
 	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config from janus server to plugins
 	gob.Register(make([]interface{}, 0))
+	gob.RegisterName("RPCError", RPCError{})
 }
