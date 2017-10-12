@@ -13,9 +13,11 @@ import (
 )
 
 func init() {
-
 	RootCmd.AddCommand(serverCmd)
-	serverInitInfraExtraFlags()
+
+	// Get the CLI args
+	args := os.Args
+	serverInitInfraExtraFlags(args)
 	setConfig()
 	cobra.OnInitialize(initConfig)
 }
@@ -30,29 +32,45 @@ var serverCmd = &cobra.Command{
 	Long:         `Perform the server command`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-
 		configuration := getConfig()
+		log.Debugf("Configuration :%+v", configuration)
 		shutdownCh := make(chan struct{})
 		return server.RunServer(configuration, shutdownCh)
 	},
 }
 
-func serverInitInfraExtraFlags() {
+func serverInitInfraExtraFlags(args []string) {
 	serverExtraInfraParams = make([]string, 0)
-	args := os.Args
 	for i := range args {
 		if strings.HasPrefix(args[i], "--infrastructure_") {
-			flagParts := strings.Split(args[i], "=")
-			flagName := strings.TrimLeft(flagParts[0], "-")
-			viperName := strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
-			if len(flagParts) == 1 {
-				// Boolean flag
-				serverCmd.PersistentFlags().Bool(flagName, false, "")
-				viper.SetDefault(viperName, false)
+			var viperName, flagName string
+			if strings.ContainsRune(args[i], '=') {
+				// Handle the syntax --infrastructure_xxx_yyy = value
+				flagParts := strings.Split(args[i], "=")
+				flagName = strings.TrimLeft(flagParts[0], "-")
+				viperName = strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
+				if len(flagParts) == 1 {
+					// Boolean flag
+					serverCmd.PersistentFlags().Bool(flagName, false, "")
+					viper.SetDefault(viperName, false)
+				} else {
+					serverCmd.PersistentFlags().String(flagName, "", "")
+					viper.SetDefault(viperName, "")
+				}
 			} else {
-				serverCmd.PersistentFlags().String(flagName, "", "")
-				viper.SetDefault(viperName, "")
+				// Handle the syntax --infrastructure_xxx_yyy value
+				flagName = strings.TrimLeft(args[i], "-")
+				viperName = strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
+				if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
+					serverCmd.PersistentFlags().String(flagName, "", "")
+					viper.SetDefault(viperName, "")
+				} else {
+					// Boolean flag
+					serverCmd.PersistentFlags().Bool(flagName, false, "")
+					viper.SetDefault(viperName, false)
+				}
 			}
+			// Add viper flag
 			viper.BindPFlag(viperName, serverCmd.PersistentFlags().Lookup(flagName))
 			serverExtraInfraParams = append(serverExtraInfraParams, viperName)
 		}
