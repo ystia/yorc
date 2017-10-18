@@ -73,25 +73,42 @@ func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeNam
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
-func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, propertyName string) (bool, string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "properties", propertyName), nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		return true, string(kvp.Value), nil
+func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, propertyName string, nestedKeys ...string) (bool, string, error) {
+	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "properties", propertyName)
+	found, result, err := getValueAssignment(kv, deploymentID, capPropPath, nodeName, "", "", nestedKeys...)
+	if err != nil || found {
+		// If there is an error or property was found
+		return found, result, errors.Wrapf(err, "Failed to get property %q for capability %q on node %q", propertyName, capabilityName, nodeName)
 	}
 
-	// Look at capability type for default
+	// Not found let's look at capability type for default
 	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
 		return false, "", err
 	}
-	ok, value, err := GetTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName)
+	found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName, nestedKeys...)
 	if err != nil {
-		return false, "", nil
+		return false, "", err
 	}
-	return ok, value, nil
+	if found {
+		if !isFunction {
+			return true, result, nil
+		}
+		result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", "", result, nestedKeys...)
+		return true, result, err
+	}
+
+	// No default found in type hierarchy
+	// then traverse HostedOn relationships to find the value
+	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, "", err
+	}
+	if host != "" {
+		return GetCapabilityProperty(kv, deploymentID, host, capabilityName, propertyName, nestedKeys...)
+	}
+	// Not found anywhere
+	return false, "", nil
 }
 
 // GetInstanceCapabilityAttribute retrieves the value for a given attribute in a given node instance capability
@@ -99,23 +116,21 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 // It returns true if a value is found false otherwise as first return parameter.
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string) (bool, string, error) {
+func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, nestedKeys ...string) (bool, string, error) {
 	// First look at instance scoped attributes
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName), nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		return true, string(kvp.Value), nil
+	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
+	found, result, err := getValueAssignment(kv, deploymentID, capAttrPath, nodeName, instanceName, "", nestedKeys...)
+	if err != nil || found {
+		// If there is an error or attribute was found
+		return found, result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
 	}
 
 	// Then look at global node level
-	kvp, _, err = kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "attributes", attributeName), nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		return true, string(kvp.Value), nil
+	nodeCapPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "attributes", attributeName)
+	found, result, err = getValueAssignment(kv, deploymentID, nodeCapPath, nodeName, instanceName, "", nestedKeys...)
+	if err != nil || found {
+		// If there is an error or attribute was found
+		return found, result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
 	}
 
 	// Now look at capability type for default
@@ -123,21 +138,47 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	if err != nil {
 		return false, "", err
 	}
-	ok, value, err := GetTypeDefaultAttribute(kv, deploymentID, capabilityType, attributeName)
+	found, result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, capabilityType, attributeName, nestedKeys...)
 	if err != nil {
-		return false, "", nil
+		return false, "", err
 	}
-	if ok {
-		return true, value, nil
+	if found {
+		if !isFunction {
+			return true, result, nil
+		}
+		result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, "", result, nestedKeys...)
+		return true, result, err
+	}
+
+	// No default found in type hierarchy
+	// then traverse HostedOn relationships to find the value
+	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, "", err
+	}
+	if host != "" {
+		found, result, err = GetInstanceCapabilityAttribute(kv, deploymentID, host, instanceName, capabilityName, attributeName, nestedKeys...)
+		if err != nil || found {
+			// If there is an error or attribute was found
+			return found, result, err
+		}
 	}
 
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-	return GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, attributeName)
+	return GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
 }
 
 // SetInstanceCapabilityAttribute sets a capability attribute for a given node instance
 func SetInstanceCapabilityAttribute(deploymentID, nodeName, instanceName, capabilityName, attributeName, value string) error {
-	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName), value)
+	return SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instanceName, capabilityName, attributeName, value)
+}
+
+// SetInstanceCapabilityAttributeComplex sets an instance capability attribute that may be a literal or a complex data type
+func SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}) error {
+	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	storeComplexType(store, attrPath, attributeValue)
+	return errGrp.Wait()
 }
 
 // SetCapabilityAttributeForAllInstances sets the same capability attribute value to all instances of a given node.
@@ -145,15 +186,22 @@ func SetInstanceCapabilityAttribute(deploymentID, nodeName, instanceName, capabi
 // It does the same thing than iterating over instances ids and calling SetInstanceCapabilityAttribute but use
 // a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
 func SetCapabilityAttributeForAllInstances(kv *api.KV, deploymentID, nodeName, capabilityName, attributeName, attributeValue string) error {
+	return SetCapabilityAttributeComplexForAllInstances(kv, deploymentID, nodeName, capabilityName, attributeName, attributeValue)
+}
+
+// SetCapabilityAttributeComplexForAllInstances sets the same capability attribute value  that may be a literal or a complex data type to all instances of a given node.
+//
+// It does the same thing than iterating over instances ids and calling SetInstanceCapabilityAttributeComplex but use
+// a consulutil.ConsulStore to do it in parallel. We can expect better performances with a large number of instances
+func SetCapabilityAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, capabilityName, attributeName string, attributeValue interface{}) error {
 	ids, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
-		store.StoreConsulKeyAsString(
-			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName),
-			attributeValue)
+		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
+		storeComplexType(store, attrPath, attributeValue)
 	}
 	return errGrp.Wait()
 }

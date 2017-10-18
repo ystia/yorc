@@ -1,0 +1,223 @@
+tosca_definitions_version: alien_dsl_1_4_0
+description: Alien4Cloud generated service template
+template_name: ValueAssignment
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - tosca-normative-types: <normative-types.yml>
+
+node_types:
+  janus.tests.nodes.ValueAssignmentNode:
+    derived_from: tosca.nodes.Root
+    properties:
+      port:
+        type: string
+        required: true
+      literal:
+        type: integer
+      list:
+        type: list
+        entry_schema:
+          type: string
+      map:
+        type: map
+        entry_schema:
+          type: string
+      mapdef:
+        type: map
+        entry_schema:
+          type: string
+        default:
+          def1: "1"
+          def2: "2"
+      listdef:
+        type: list
+        entry_schema:
+          type: string
+        default:
+          - l1
+          - l2
+    attributes:
+      partition_name: { get_operation_output: [ SELF, Standard, configure, PARTITION_NAME ] }
+      concat_attr: { concat: [get_property: [SELF, port], concat: ["something", concat: [concat: ["hello", get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]], "!"]] ] }
+      listDef:
+        type: list
+        entry_schema:
+          type: integer
+        default: [1,2,3]
+      mapDef:
+        type: map
+        entry_schema:
+          type: scalar-unit.size
+        default: {"T1": "4 GiB", "T2": "1 TiB","T3": "3 GB"}
+      lit:
+        type: string
+      listAttr:
+        type: list
+        entry_schema:
+          type: integer
+      mapAttr:
+        type: map
+        entry_schema:
+          type: string
+    capabilities:
+      host: 
+        type: janus.tests.capabilities.ValueAssignmentContainer
+    requirements:
+      - host:
+          capability: janus.tests.capabilities.ValueAssignmentContainer
+          relationship: janus.tests.relationships.ValueAssignmentHostedOn
+    interfaces:
+      custom:
+        publish:
+          inputs:
+            HOST_PATH: { get_attribute: [ SELF, concat_attr ] }
+            nb_replicas:
+              type: integer
+              description: Number of replicas for indexes
+              required: true
+          implementation: scripts/publisher_publish.sh
+      Standard:
+        create: 
+          inputs:
+            litteral: "testLiteral"
+            list: ["l1", "l2"]
+            list_ex:
+              - "le1"
+              - "le2"
+            map: {"key1": "value1", "key2": "value2"}
+            map_ex:
+              keyex1: value1
+              "keyex2": "value2"
+          implementation: scripts/create.sh
+        configure: scripts/conf.sh
+capability_types:
+  janus.tests.capabilities.ValueAssignmentContainer:
+    derived_from: tosca.capabilities.Container
+    properties:
+      literal:
+        type: string
+      mapProp:
+        type: map
+      listProp:
+        type: list
+      literalDefault:
+        type: string
+        default: "capDefault"
+      mapPropDefault:
+        type: map
+        default: 
+          capProp1: capPropVal1
+          capProp2: capPropVal2
+      listPropDefault:
+        type: list
+        default:
+          - "capPropI1"
+          - "capPropI2"
+          - "capPropI3"
+    attributes:
+      literalAttr:
+        type: string
+      mapAttr:
+        type: map
+      listAttr:
+        type: list
+      literalDefault:
+        type: string
+        default: "capDefault"
+      mapAttrDefault:
+        type: map
+        default: 
+          capAttr1: capAttrVal1
+          capAttr2: capAttrVal2
+      listAttrDefault:
+        type: list
+        default:
+          - "capAttrI1"
+          - "capAttrI2"
+          - "capAttrI3"
+relationship_types:
+  janus.tests.relationships.ValueAssignmentHostedOn:
+    derived_from: tosca.relationships.HostedOn
+    properties:
+      literal:
+        type: string
+      mapProp:
+        type: map
+      listProp:
+        type: list
+      literalDefault:
+        type: string
+        default: "relDefault"
+      mapPropDefault:
+        type: map
+        default: 
+          relProp1: relPropVal1
+          relProp2: relPropVal2
+      listPropDefault:
+        type: list
+        default:
+          - "relPropI1"
+          - "relPropI2"
+          - "relPropI3"
+    attributes:
+      literalAttr:
+        type: string
+      mapAttr:
+        type: map
+      listAttr:
+        type: list
+      literalDefault:
+        type: string
+        default: "relDefault"
+      mapAttrDefault:
+        type: map
+        default: 
+          relAttr1: relAttrVal1
+          relAttr2: relAttrVal2
+      listAttrDefault:
+        type: list
+        default:
+          - "relAttrI1"
+          - "relAttrI2"
+          - "relAttrI3"
+
+topology_template:
+  node_templates:
+    VANode1:
+      type: janus.tests.nodes.ValueAssignmentNode
+      properties:
+        port: "80"
+        literal: 1
+        list: ["http://", "janus", ".io"]
+        map: {one: "1", "two": "2"}
+      capabilities:
+        host:
+          properties:
+            literal: "user cap literal"
+            mapProp: {"U1": "V1", "U2": "V2"}
+            listProp: ["UV1", "UV2", "UV3"]
+
+    VANode2:
+      type: janus.tests.nodes.ValueAssignmentNode
+      properties:
+        port: "80"
+        literal: 1
+        list: 
+          - "http://"
+          - "janus"
+          - ".io"
+        map: 
+          one: "1" 
+          two: "2"
+      requirements:
+        - host:
+            node: VANode1
+            capability: janus.tests.capabilities.ValueAssignmentContainer
+            relationship: 
+              type: janus.tests.relationships.ValueAssignmentHostedOn
+              properties:
+                literal: "user rel literal"
+                mapProp: {"U1": "V1", "U2": "V2"}
+                listProp: ["UV1", "UV2", "UV3"]

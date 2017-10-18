@@ -118,7 +118,7 @@ type RequirementAssignment struct {
 	Capability        string `yaml:"capability"`
 	Node              string `yaml:"node,omitempty"`
 	Relationship      string `yaml:"relationship,omitempty"`
-	RelationshipProps map[string]ValueAssignment
+	RelationshipProps map[string]*ValueAssignment
 	// NodeFilter
 }
 
@@ -126,8 +126,8 @@ type RequirementAssignment struct {
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_REQUIREMENT_ASSIGNMENT for more details
 type RequirementRelationship struct {
-	Type       string                     `yaml:"type"`
-	Properties map[string]ValueAssignment `yaml:"properties,omitempty"`
+	Type       string                      `yaml:"type"`
+	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an RequirementAssignment

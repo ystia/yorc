@@ -1,16 +1,16 @@
 package rest
 
 import (
+	"fmt"
 	"net/http"
 	"path"
 
-	yaml "gopkg.in/yaml.v2"
-
 	"github.com/julienschmidt/httprouter"
+
 	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"novaforge.bull.com/starlings-janus/janus/helper/collections"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,41 +106,26 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 	instanceID := params.ByName("instanceId")
 	attributeName := params.ByName("attributeName")
 	kv := s.consulClient.KV()
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, id, "topology/instances", nodeName, instanceID, "attributes/state"), nil)
-	if err != nil {
-		log.Panic(err)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		writeError(w, r, errNotFound)
-		return
-	}
-	found, result, err := deployments.GetNodeAttributes(kv, id, nodeName, attributeName)
+	// state should exists if instance exists
+	instances, err := deployments.GetNodeInstancesIds(kv, id, nodeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
 	}
-
+	if !collections.ContainsString(instances, instanceID) {
+		writeError(w, r, newContentNotFoundError(fmt.Sprintf("Instance %q for node %q", instanceID, nodeName)))
+		return
+	}
+	found, instanceAttribute, err := deployments.GetInstanceAttribute(kv, id, nodeName, instanceID, attributeName)
+	if err != nil {
+		writeError(w, r, newInternalServerError(err))
+		return
+	}
 	if !found {
-		writeError(w, r, errNotFound)
+		writeError(w, r, newContentNotFoundError(fmt.Sprintf("Attribute %q for node %q (instance %q)", attributeName, nodeName, instanceID)))
 		return
 	}
-	instanceAttribute, ok := result[instanceID]
-	if !ok {
-		writeError(w, r, errNotFound)
-		return
-	}
-	if instanceAttribute != "" {
-		resultExpr := &tosca.ValueAssignment{}
-		err = yaml.Unmarshal([]byte(instanceAttribute), resultExpr)
-		if err != nil {
-			log.Panic(err)
-		}
-		resolver := deployments.NewResolver(kv, id)
-		instanceAttribute, err = resolver.ResolveValueAssignmentForNode(resultExpr, nodeName, instanceID)
-		if err != nil {
-			log.Panic(err)
-		}
-	}
+
 	attribute := Attribute{Name: attributeName, Value: instanceAttribute}
 	encodeJSONResponse(w, r, attribute)
 }

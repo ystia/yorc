@@ -11,14 +11,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"gopkg.in/yaml.v2"
-
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
@@ -144,24 +141,9 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		} else if volumeNodeName != "" {
 			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 
-			relationship, err := deployments.GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
-			if err != nil {
-				return err
-			}
 			_, device, err := deployments.GetRelationshipPropertyFromRequirement(kv, deploymentID, nodeName, requirementIndex, "device")
 			if err != nil {
 				return err
-			}
-			if device != "" {
-				resolver := deployments.NewResolver(kv, deploymentID)
-				expr := &tosca.ValueAssignment{}
-				if err = yaml.Unmarshal([]byte(device), expr); err != nil {
-					return err
-				}
-				// TODO check if instanceName is correct in all cases maybe we should check if we are in target context
-				if device, err = resolver.ResolveValueAssignmentForRelationship(expr, nodeName, volumeNodeName, path.Base(storagePrefix), instanceName); err != nil {
-					return err
-				}
 			}
 			log.Debugf("Looking for volume_id")
 			_, volumeID, err := deployments.GetNodeProperty(kv, deploymentID, volumeNodeName, "volume_id")
@@ -174,8 +156,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				go func() {
 					for {
 						// ignore errors and retry
-						volID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
-						if volID != "" {
+						found, volID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
+						if found {
 							resultChan <- volID
 							return
 						}
@@ -208,14 +190,14 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 			// Bellow code lead to an issue in terraform (https://github.com/hashicorp/terraform/issues/15284) so as a workaround we use a output variable
 			// volumeDevConsulKey := commons.ConsulKey{Path: path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)} // to be backward compatible with Alien stuff
-			// relDevConsulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, relationship, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)}
-			// relVolDevConsulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, relationship, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)}
+			// relDevConsulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)}
+			// relVolDevConsulKey := commons.ConsulKey{Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"), Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)}
 			// consulKeys.Keys = append(consulKeys.Keys, volumeDevConsulKey, relDevConsulKey, relVolDevConsulKey)
 			key1 := attachName + "ActualDevkey"
 			commons.AddOutput(infrastructure, key1, &commons.Output{Value: fmt.Sprintf("${openstack_compute_volume_attach_v2.%s.device}", attachName)})
 			outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = key1
-			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, relationship, instanceName, "attributes/device")] = key1
-			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, relationship, instanceName, "attributes/device")] = key1
+			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = key1
+			outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = key1
 		}
 	}
 
@@ -286,16 +268,13 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			resultChan := make(chan string, 1)
 			go func() {
 				for {
-					found, nIDs, _ := deployments.GetNodeAttributes(kv, deploymentID, networkNodeName, "network_id")
+					found, nID, err := deployments.GetInstanceAttribute(kv, deploymentID, networkNodeName, instanceName, "network_id")
+					if err != nil {
+						log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
+					}
 					if found {
-						if nIDs[instanceName] != "" {
-							resultChan <- nIDs[instanceName]
-							return
-						}
-						for _, nID := range nIDs {
-							resultChan <- nID
-							return
-						}
+						resultChan <- nID
+						return
 					}
 					select {
 					case <-time.After(1 * time.Second):

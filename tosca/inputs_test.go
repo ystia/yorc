@@ -34,17 +34,19 @@ index:
 	require.Nil(t, i.PropDef)
 	require.NotNil(t, i.ValueAssign)
 
-	require.Equal(t, "get_property", i.ValueAssign.Expression.Value)
-	require.Equal(t, "SELF", i.ValueAssign.Expression.Children()[0].Value)
-	require.Equal(t, "component_version", i.ValueAssign.Expression.Children()[1].Value)
+	require.Equal(t, ValueAssignmentFunction, i.ValueAssign.Type)
+	require.EqualValues(t, "get_property", i.ValueAssign.GetFunction().Operator)
+	require.Equal(t, "SELF", i.ValueAssign.GetFunction().Operands[0].String())
+	require.Equal(t, "component_version", i.ValueAssign.GetFunction().Operands[1].String())
 
 	i = inputs["ip_address"]
 	require.Nil(t, i.PropDef)
 	require.NotNil(t, i.ValueAssign)
 
-	require.Equal(t, "get_attribute", i.ValueAssign.Expression.Value)
-	require.Equal(t, "SELF", i.ValueAssign.Expression.Children()[0].Value)
-	require.Equal(t, "ip_address", i.ValueAssign.Expression.Children()[1].Value)
+	require.Equal(t, ValueAssignmentFunction, i.ValueAssign.Type)
+	require.EqualValues(t, "get_attribute", i.ValueAssign.GetFunction().Operator)
+	require.Equal(t, "SELF", i.ValueAssign.GetFunction().Operands[0].String())
+	require.Equal(t, "ip_address", i.ValueAssign.GetFunction().Operands[1].String())
 
 	i = inputs["nb_replicas"]
 	require.Nil(t, i.ValueAssign)
