@@ -107,15 +107,28 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "init")
 	cmd.Dir = infraPath
-	errbuf := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
-	out := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
+	errbuf := events.NewBufferedLogEntryWriter()
+	out := events.NewBufferedLogEntryWriter()
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 
 	quit := make(chan bool)
 	defer close(quit)
-	out.Run(quit)
-	errbuf.Run(quit)
+
+	// Register log entry via error buffer
+	logOptFields := events.OptionalFields{
+		events.NodeID: nodeName,
+	}
+	errorLogEntry := events.WithOptionalFields(logOptFields).Add(events.ERROR, deploymentID)
+	if err := errorLogEntry.RunBufferedRegistration(errbuf, quit); err != nil {
+		return errors.Wrap(err, "Failed to store terraform log entry output")
+	}
+
+	// Register log entry via stdout buffer
+	outLogEntry := events.WithOptionalFields(logOptFields).Add(events.INFO, deploymentID)
+	if err := outLogEntry.RunBufferedRegistration(out, quit); err != nil {
+		return errors.Wrap(err, "Failed to store terraform log entry output")
+	}
 
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "Failed to setup Consul remote backend for terraform")
@@ -155,15 +168,28 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
-	errbuf := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
-	out := events.NewBufferedLogEventWriter(kv, deploymentID, events.InfraLogPrefix)
+	errbuf := events.NewBufferedLogEntryWriter()
+	out := events.NewBufferedLogEntryWriter()
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 
 	quit := make(chan bool)
 	defer close(quit)
-	out.Run(quit)
-	errbuf.Run(quit)
+
+	// Register log entry via error buffer
+	logOptFields := events.OptionalFields{
+		events.NodeID: nodeName,
+	}
+	errorLogEntry := events.WithOptionalFields(logOptFields).Add(events.ERROR, deploymentID)
+	if err := errorLogEntry.RunBufferedRegistration(errbuf, quit); err != nil {
+		return errors.Wrap(err, "Failed to store terraform log entry output")
+	}
+
+	// Register log entry via stdout buffer
+	outLogEntry := events.WithOptionalFields(logOptFields).Add(events.INFO, deploymentID)
+	if err := outLogEntry.RunBufferedRegistration(out, quit); err != nil {
+		return errors.Wrap(err, "Failed to store terraform log entry output")
+	}
 
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "Failed to apply the infrastructure changes via terraform")

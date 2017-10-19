@@ -152,13 +152,22 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 	cmd.Dir = ansibleRecipePath
 	var outbuf bytes.Buffer
-	errbuf := events.NewBufferedLogEventWriter(e.kv, e.deploymentID, events.SoftwareLogPrefix)
+	errbuf := events.NewBufferedLogEntryWriter()
 	cmd.Stdout = &outbuf
 	cmd.Stderr = errbuf
 
 	errCloseCh := make(chan bool)
 	defer close(errCloseCh)
-	errbuf.Run(errCloseCh)
+
+	// Register log entry via error buffer
+	logEntry := events.WithOptionalFields(events.OptionalFields{
+		events.NodeID:      e.NodeName,
+		events.OperationID: e.operation.Name,
+	}).Add(events.ERROR, e.deploymentID)
+	if err := logEntry.RunBufferedRegistration(errbuf, errCloseCh); err != nil {
+		return e.checkAnsibleRetriableError(err)
+	}
+
 	defer func(buffer *bytes.Buffer) {
 		if err := e.logAnsibleOutputInConsul(buffer); err != nil {
 			log.Printf("Failed to publish Ansible log %v", err)

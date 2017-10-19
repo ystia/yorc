@@ -3,15 +3,11 @@ package ansible
 import (
 	"bytes"
 	"fmt"
-	"path"
-	"time"
-
 	"strconv"
 
 	"github.com/antonholmquist/jason"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -123,6 +119,7 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve play name")
 		}
+		buf.WriteString("Ansible Playbook result:\n")
 		buf.WriteString("\nPlay [")
 		buf.WriteString(playName)
 		buf.WriteString("]")
@@ -232,6 +229,9 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		buf.WriteString(strconv.FormatInt(unreachable, 10))
 
 	}
-	key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", events.SoftwareLogPrefix+"__"+time.Now().Format(time.RFC3339Nano))
-	return consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, Ansible Playbook result:\n%s", e.NodeName, buf.String()))
+
+	// Register log entry
+	logEntry := events.WithOptionalFields(
+		events.OptionalFields{events.NodeID: e.NodeName}).Add(events.INFO, e.deploymentID)
+	return logEntry.Register(buf.Bytes())
 }
