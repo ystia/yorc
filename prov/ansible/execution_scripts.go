@@ -79,6 +79,13 @@ func cutAfterLastUnderscore(str string) string {
 }
 
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
+	// Fill log optional fields for log registration
+	logOptFields := events.OptionalFields{
+		events.NodeID:      e.NodeName,
+		events.OperationID: e.operation.Name,
+		events.InstanceID:  currentInstance,
+	}
+
 	var buffer bytes.Buffer
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
@@ -98,34 +105,40 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 			return err
 		}
 		if err := wrapTemplate.Execute(&buffer, e); err != nil {
-			events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate wrapper template")
-			return errors.Wrap(err, "Failed to Generate wrapper template")
+			err = errors.Wrap(err, "Failed to Generate wrapper template")
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+			return err
 		}
 		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
-			events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
-			return errors.Wrap(err, "Failed to write playbook file")
+			err = errors.Wrap(err, "Failed to write playbook file")
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+			return err
 		}
 	}
 	buffer.Reset()
 	tmpl, err := tmpl.Parse(shellAnsiblePlaybook)
 	if err != nil {
-		return errors.Wrap(err, "Failed to generate ansible playbook")
+		err = errors.Wrap(err, "Failed to Generate ansible playbook")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate ansible playbook template")
-		return errors.Wrap(err, "Failed to Generate ansible playbook template")
+		err = errors.Wrap(err, "Failed to Generate ansible playbook template")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
-		return errors.Wrap(err, "Failed to write playbook file")
+		err = errors.Wrap(err, "Failed to write playbook file")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
 	}
 
 	scriptPath, err := filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
 		return err
 	}
-	log.Debugf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, scriptPath)
-	events.LogEngineMessage(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
+
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
 	var cmd *executil.Cmd
 	var wrapperPath string
 	if e.HaveOutput {
@@ -155,13 +168,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	defer close(errCloseCh)
 
 	// Register log entry via error buffer
-	logEntry := events.WithOptionalFields(events.OptionalFields{
-		events.NodeID:      e.NodeName,
-		events.OperationID: e.operation.Name,
-	}).NewLogEntry(events.ERROR, e.deploymentID)
-	if err := logEntry.RunBufferedRegistration(errbuf, errCloseCh); err != nil {
-		return e.checkAnsibleRetriableError(err)
-	}
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
 	defer func(buffer *bytes.Buffer) {
 		if err := e.logAnsibleOutputInConsul(buffer); err != nil {

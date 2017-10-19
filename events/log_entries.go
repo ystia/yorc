@@ -2,8 +2,6 @@ package events
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
@@ -32,6 +30,11 @@ type OptionalFields map[FieldType]interface{}
 // FieldType is allowed/expected additional info types
 type FieldType int
 
+// This is used to retrieve timestamp
+var getTimestamp = func() string {
+	return time.Now().Format(time.RFC3339)
+}
+
 const (
 	// WorkFlowID is the field type representing the workflow ID in formatted log entry
 	WorkFlowID FieldType = iota
@@ -55,7 +58,9 @@ const (
 	TypeID
 )
 
-const storageMaxAllowedSize int = 512 * 1000
+// Max allowed storage size in Consul kv for value is Equal to 512 Kb
+// We approximate all data except the content value to be equal to 1Kb
+const contentMaxAllowedValueSize int = 511 * 1000
 
 // LogLevel represents the log level enumeration
 type LogLevel int
@@ -78,15 +83,11 @@ const (
 )
 
 // SimpleLogEntry allows to return a FormattedLogEntry instance with log level and deploymentID
-func SimpleLogEntry(level LogLevel, deploymentID string) (*FormattedLogEntry, error) {
-	if deploymentID == "" {
-		return nil, errors.New("the deploymentID parameter must be filled")
-	}
-
+func SimpleLogEntry(level LogLevel, deploymentID string) *FormattedLogEntry {
 	return &FormattedLogEntry{
 		level:        level,
 		deploymentID: deploymentID,
-	}, nil
+	}
 }
 
 // WithOptionalFields allows to return a FormattedLogEntry instance with additional fields
@@ -109,30 +110,33 @@ func (e FormattedLogEntryDraft) NewLogEntry(level LogLevel, deploymentID string)
 	}
 }
 
-// Register allows to register a formatted log entry with content
-func (e FormattedLogEntry) Register(content []byte) error {
+// Register allows to register a formatted log entry with byte array content
+func (e FormattedLogEntry) Register(content []byte) {
 	if len(content) == 0 {
-		return errors.New("the content parameter must be filled")
+		log.Panic("The content parameter must be filled")
 	}
 	if e.deploymentID == "" {
-		return errors.New("the deploymentID parameter must be filled")
+		log.Panic("The deploymentID parameter must be filled")
 	}
 	e.content = content
 	err := consulutil.StoreConsulKey(e.generateKey(), e.generateValue())
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed to register log in consul for entry [%+v]", e))
+		log.Panicf("Failed to register log in consul for entry:%+v due to error:%+v", e, err)
 	}
-	return nil
+}
+
+// RegisterAsString allows to register a formatted log entry with string content
+func (e FormattedLogEntry) RegisterAsString(content string) {
+	e.Register([]byte(content))
 }
 
 // RunBufferedRegistration allows to run a registration with a buffered writer
-func (e FormattedLogEntry) RunBufferedRegistration(buf BufferedLogEntryWriter, quit chan bool) error {
+func (e FormattedLogEntry) RunBufferedRegistration(buf BufferedLogEntryWriter, quit chan bool) {
 	if e.deploymentID == "" {
-		return errors.New("the deploymentID parameter must be filled")
+		log.Panic("The deploymentID parameter must be filled")
 	}
 
 	buf.run(quit, e)
-	return nil
 }
 
 func (e FormattedLogEntry) generateKey() string {
@@ -140,15 +144,19 @@ func (e FormattedLogEntry) generateKey() string {
 }
 
 func (e FormattedLogEntry) generateValue() []byte {
+	// Check content max allowed size
+	if len(e.content) > contentMaxAllowedValueSize {
+		log.Printf("The max allowed size has been reached: truncation will be done on log content from %d to %d bytes", len(e.content), contentMaxAllowedValueSize)
+		e.content = e.content[:contentMaxAllowedValueSize]
+	}
 	// For presentation purpose, the formatted log entry is cast to flat map
-	b, err := json.Marshal(e.toFlatMap())
+	flatMap := e.toFlatMap()
+	b, err := json.Marshal(flatMap)
 	if err != nil {
-		log.Printf("Failed to marshal entry [%+v]: due to error:%+v", e, err)
+		log.Panicf("Failed to marshal entry [%+v]: due to error:%+v", e, err)
 	}
-	if len(b) > storageMaxAllowedSize {
-		log.Printf("the max allowed size has been reached: truncation will be done to %d bytes", storageMaxAllowedSize)
-		return b[:storageMaxAllowedSize]
-	}
+	// log the entry in stdout/stderr
+	e.log(flatMap)
 	return b
 }
 
@@ -156,13 +164,33 @@ func (e FormattedLogEntry) toFlatMap() map[string]interface{} {
 	flatMap := make(map[string]interface{})
 
 	// NewLogEntry main attributes from FormattedLogEntry
-	flatMap["deploymentID"] = e.deploymentID
-	flatMap["level"] = e.level.String()
-	flatMap["content"] = string(e.content)
+	flatMap["DeploymentID"] = e.deploymentID
+	flatMap["Level"] = e.level.String()
+	flatMap["Content"] = string(e.content)
+
+	// Add Timestamp
+	flatMap["Timestamp"] = getTimestamp()
 
 	// NewLogEntry additional info
 	for k, v := range e.additionalInfo {
 		flatMap[k.String()] = v
 	}
 	return flatMap
+}
+
+// Log the entry in stdout/stderr with the following format :[Timestamp][Level][DeploymentID][WorkflowID][ExecutionID][NodeID][InstanceID][InterfaceID][OperationID][TypeID][Content]
+func (e FormattedLogEntry) log(flat map[string]interface{}) {
+	var str string
+	sliceOfKeys := []string{"Timestamp", "Level", "DeploymentID", WorkFlowID.String(), ExecutionID.String(), NodeID.String(), InstanceID.String(), InterfaceID.String(), OperationID.String(), TypeID.String(), "Content"}
+	for _, k := range sliceOfKeys {
+		if val, ok := flat[k].(string); ok {
+			str += "[" + val + "]"
+		}
+
+	}
+	if e.level == DEBUG {
+		log.Debugln(str)
+	} else {
+		log.Println(str)
+	}
 }

@@ -102,8 +102,15 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 }
 
 func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
+	// Fill log optional fields for log registration
+	logOptFields := events.OptionalFields{
+		events.NodeID:      nodeName,
+		events.WorkFlowID:  "TODO",
+		events.InterfaceID: "delegate",
+		events.OperationID: "TODO",
+	}
 
-	events.LogEngineMessage(kv, deploymentID, "Remote configuring the infrastructure")
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "init")
 	cmd.Dir = infraPath
@@ -115,27 +122,15 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	quit := make(chan bool)
 	defer close(quit)
 
-	// Register log entry via error buffer
-	logOptFields := events.OptionalFields{
-		events.NodeID: nodeName,
-	}
-	errorLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID)
-	if err := errorLogEntry.RunBufferedRegistration(errbuf, quit); err != nil {
-		return errors.Wrap(err, "Failed to store terraform log entry output")
-	}
-
-	// Register log entry via stdout buffer
-	outLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID)
-	if err := outLogEntry.RunBufferedRegistration(out, quit); err != nil {
-		return errors.Wrap(err, "Failed to store terraform log entry output")
-	}
+	// Register log entries via stderr/stdout buffers
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
 
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "Failed to setup Consul remote backend for terraform")
 	}
 
 	return errors.Wrap(cmd.Wait(), "Failed to setup Consul remote backend for terraform")
-
 }
 
 func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infraPath string, outputs map[string]string) error {
@@ -164,7 +159,12 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 		return err
 	}
 
-	events.LogEngineMessage(kv, deploymentID, "Applying the infrastructure")
+	// Register log entry via error buffer
+	logOptFields := events.OptionalFields{
+		events.NodeID: nodeName,
+	}
+
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Applying the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
@@ -176,20 +176,9 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	quit := make(chan bool)
 	defer close(quit)
 
-	// Register log entry via error buffer
-	logOptFields := events.OptionalFields{
-		events.NodeID: nodeName,
-	}
-	errorLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID)
-	if err := errorLogEntry.RunBufferedRegistration(errbuf, quit); err != nil {
-		return errors.Wrap(err, "Failed to store terraform log entry output")
-	}
-
-	// Register log entry via stdout buffer
-	outLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID)
-	if err := outLogEntry.RunBufferedRegistration(out, quit); err != nil {
-		return errors.Wrap(err, "Failed to store terraform log entry output")
-	}
+	// Register log entries via stderr/stdout buffers
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
 
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "Failed to apply the infrastructure changes via terraform")

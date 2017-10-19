@@ -52,15 +52,22 @@ type executionAnsible struct {
 
 func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
 	var err error
+	// Fill log optional fields for log registration
+	logOptFields := events.OptionalFields{
+		events.NodeID:      e.NodeName,
+		events.OperationID: e.operation.Name,
+	}
 	e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
 	ansibleGroupsVarsPath := filepath.Join(ansibleRecipePath, "group_vars")
 	if err = os.MkdirAll(ansibleGroupsVarsPath, 0775); err != nil {
-		events.LogEngineError(e.kv, e.deploymentID, err)
-		return errors.Wrap(err, "Failed to create group_vars directory: ")
+		err = errors.Wrap(err, "Failed to create group_vars directory: ")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
 	}
 	var buffer bytes.Buffer
 	for _, envInput := range e.EnvInputs {
@@ -94,7 +101,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleGroupsVarsPath, "all.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write global group vars file: ")
-		log.Debugf("%+v", err)
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -109,7 +116,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		}
 		if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "outputs.csv.j2"), buffer.Bytes(), 0664); err != nil {
 			err = errors.Wrap(err, "Failed to generate operation outputs file: ")
-			log.Debugf("%+v", err)
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 			return err
 		}
 	}
@@ -124,19 +131,22 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	tmpl := template.New("execTemplate").Delims("[[[", "]]]").Funcs(funcMap)
 	tmpl, err = tmpl.Parse(ansiblePlaybook)
 	if err != nil {
-		return errors.Wrap(err, "Failed to generate ansible playbook")
+		err = errors.Wrap(err, "Failed to generate ansible playbook")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to Generate ansible playbook template")
-		return errors.Wrap(err, "Failed to Generate ansible playbook template")
+		err = errors.Wrap(err, "Failed to Generate ansible playbook template")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
-		events.LogEngineMessage(e.kv, e.deploymentID, "Failed to write playbook file")
-		return errors.Wrap(err, "Failed to write playbook file")
+		err = errors.Wrap(err, "Failed to write playbook file")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
 	}
 
-	log.Debugf("Ansible recipe for deployment with id %q and node %q: executing %q on remote host(s)", e.deploymentID, e.NodeName, e.PlaybookPath)
-	events.LogEngineMessage(e.kv, e.deploymentID, fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml")
 
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
@@ -160,13 +170,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	defer close(errCloseCh)
 
 	// Register log entry via error buffer
-	logEntry := events.WithOptionalFields(events.OptionalFields{
-		events.NodeID:      e.NodeName,
-		events.OperationID: e.operation.Name,
-	}).NewLogEntry(events.ERROR, e.deploymentID)
-	if err := logEntry.RunBufferedRegistration(errbuf, errCloseCh); err != nil {
-		return e.checkAnsibleRetriableError(err)
-	}
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
 	defer func(buffer *bytes.Buffer) {
 		if err := e.logAnsibleOutputInConsul(buffer); err != nil {
