@@ -20,6 +20,12 @@ type FormattedLogEntry struct {
 	content        []byte
 }
 
+// FormattedLogEntryDraft is a partial FormattedLogEntry with only optional fields.
+// It has to be completed with level and deploymentID
+type FormattedLogEntryDraft struct {
+	additionalInfo OptionalFields
+}
+
 // OptionalFields are log's additional info
 type OptionalFields map[FieldType]interface{}
 
@@ -71,8 +77,8 @@ const (
 	ERROR
 )
 
-// NewLogEntry allows to return a FormattedLogEntry instance with log level and deploymentID
-func NewLogEntry(level LogLevel, deploymentID string) (*FormattedLogEntry, error) {
+// SimpleLogEntry allows to return a FormattedLogEntry instance with log level and deploymentID
+func SimpleLogEntry(level LogLevel, deploymentID string) (*FormattedLogEntry, error) {
 	if deploymentID == "" {
 		return nil, errors.New("the deploymentID parameter must be filled")
 	}
@@ -84,21 +90,23 @@ func NewLogEntry(level LogLevel, deploymentID string) (*FormattedLogEntry, error
 }
 
 // WithOptionalFields allows to return a FormattedLogEntry instance with additional fields
-func WithOptionalFields(fields OptionalFields) *FormattedLogEntry {
+func WithOptionalFields(fields OptionalFields) *FormattedLogEntryDraft {
 	info := make(OptionalFields, len(fields))
-	e := &FormattedLogEntry{additionalInfo: info}
+	fle := &FormattedLogEntryDraft{additionalInfo: info}
 	for k, v := range fields {
 		info[k] = v
 	}
 
-	return e
+	return fle
 }
 
-// Add allows to add main fields to a formatted log entry
-func (e FormattedLogEntry) Add(level LogLevel, deploymentID string) *FormattedLogEntry {
-	e.level = level
-	e.deploymentID = deploymentID
-	return &e
+// NewLogEntry allows to add main fields to a formatted log entry
+func (e FormattedLogEntryDraft) NewLogEntry(level LogLevel, deploymentID string) *FormattedLogEntry {
+	return &FormattedLogEntry{
+		level:          level,
+		deploymentID:   deploymentID,
+		additionalInfo: e.additionalInfo,
+	}
 }
 
 // Register allows to register a formatted log entry with content
@@ -147,12 +155,12 @@ func (e FormattedLogEntry) generateValue() []byte {
 func (e FormattedLogEntry) toFlatMap() map[string]interface{} {
 	flatMap := make(map[string]interface{})
 
-	// Add main attributes from FormattedLogEntry
+	// NewLogEntry main attributes from FormattedLogEntry
 	flatMap["deploymentID"] = e.deploymentID
 	flatMap["level"] = e.level.String()
 	flatMap["content"] = string(e.content)
 
-	// Add additional info
+	// NewLogEntry additional info
 	for k, v := range e.additionalInfo {
 		flatMap[k.String()] = v
 	}

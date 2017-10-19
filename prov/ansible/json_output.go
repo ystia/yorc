@@ -232,6 +232,6 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 
 	// Register log entry
 	logEntry := events.WithOptionalFields(
-		events.OptionalFields{events.NodeID: e.NodeName}).Add(events.INFO, e.deploymentID)
+		events.OptionalFields{events.NodeID: e.NodeName}).NewLogEntry(events.INFO, e.deploymentID)
 	return logEntry.Register(buf.Bytes())
 }

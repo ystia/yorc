@@ -158,7 +158,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	logEntry := events.WithOptionalFields(events.OptionalFields{
 		events.NodeID:      e.NodeName,
 		events.OperationID: e.operation.Name,
-	}).Add(events.ERROR, e.deploymentID)
+	}).NewLogEntry(events.ERROR, e.deploymentID)
 	if err := logEntry.RunBufferedRegistration(errbuf, errCloseCh); err != nil {
 		return e.checkAnsibleRetriableError(err)
 	}

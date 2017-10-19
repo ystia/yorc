@@ -119,13 +119,13 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	logOptFields := events.OptionalFields{
 		events.NodeID: nodeName,
 	}
-	errorLogEntry := events.WithOptionalFields(logOptFields).Add(events.ERROR, deploymentID)
+	errorLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID)
 	if err := errorLogEntry.RunBufferedRegistration(errbuf, quit); err != nil {
 		return errors.Wrap(err, "Failed to store terraform log entry output")
 	}
 
 	// Register log entry via stdout buffer
-	outLogEntry := events.WithOptionalFields(logOptFields).Add(events.INFO, deploymentID)
+	outLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID)
 	if err := outLogEntry.RunBufferedRegistration(out, quit); err != nil {
 		return errors.Wrap(err, "Failed to store terraform log entry output")
 	}
@@ -180,13 +180,13 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	logOptFields := events.OptionalFields{
 		events.NodeID: nodeName,
 	}
-	errorLogEntry := events.WithOptionalFields(logOptFields).Add(events.ERROR, deploymentID)
+	errorLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID)
 	if err := errorLogEntry.RunBufferedRegistration(errbuf, quit); err != nil {
 		return errors.Wrap(err, "Failed to store terraform log entry output")
 	}
 
 	// Register log entry via stdout buffer
-	outLogEntry := events.WithOptionalFields(logOptFields).Add(events.INFO, deploymentID)
+	outLogEntry := events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID)
 	if err := outLogEntry.RunBufferedRegistration(out, quit); err != nil {
 		return errors.Wrap(err, "Failed to store terraform log entry output")
 	}
