@@ -15,6 +15,7 @@ import (
 
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
+	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -53,9 +54,11 @@ type executionAnsible struct {
 func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
 	var err error
 	// Fill log optional fields for log registration
-	logOptFields := events.OptionalFields{
+	logOptFields := events.LogOptionalFields{
 		events.NodeID:      e.NodeName,
-		events.OperationID: e.operation.Name,
+		events.OperationID: stringutil.GetLastElement(e.operation.Name, "."),
+		events.InstanceID:  currentInstance,
+		events.InterfaceID: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
 	}
 	e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
@@ -173,13 +176,13 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
 	defer func(buffer *bytes.Buffer) {
-		if err := e.logAnsibleOutputInConsul(buffer); err != nil {
+		if err := e.logAnsibleOutputInConsul(buffer, logOptFields); err != nil {
 			log.Printf("Failed to publish Ansible log %v", err)
 			log.Debugf("%+v", err)
 		}
 	}(&outbuf)
 	if err := cmd.Run(); err != nil {
-		return e.checkAnsibleRetriableError(err)
+		return e.checkAnsibleRetriableError(err, logOptFields)
 	}
 
 	return nil

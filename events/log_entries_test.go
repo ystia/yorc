@@ -19,7 +19,7 @@ func TestGenerateValue(t *testing.T) {
 		return "FAKE"
 	}
 
-	value := WithOptionalFields(OptionalFields{
+	value := WithOptionalFields(LogOptionalFields{
 		WorkFlowID:  "my_workflowID",
 		OperationID: "my_operationID",
 	}).NewLogEntry(DEBUG, "my_deploymentID").generateValue()

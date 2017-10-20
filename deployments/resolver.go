@@ -264,7 +264,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				return "", errors.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if len(result) > 1 {
-				events.WithOptionalFields(events.OptionalFields{
+				events.WithOptionalFields(events.LogOptionalFields{
 					events.NodeID:     nodeName,
 					events.InstanceID: instanceName,
 				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", expression, len(result)))
@@ -544,7 +544,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", errors.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if len(result) > 1 {
-				events.WithOptionalFields(events.OptionalFields{
+				events.WithOptionalFields(events.LogOptionalFields{
 					events.NodeID:     sourceNode,
 					events.InstanceID: instanceName,
 				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", expression, len(result)))

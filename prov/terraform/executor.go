@@ -29,6 +29,13 @@ func NewExecutor(generator commons.Generator) prov.DelegateExecutor {
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+	// Fill log optional fields for log registration
+	logOptFields := events.LogOptionalFields{
+		events.NodeID:      nodeName,
+		events.WorkFlowID:  "TODO",
+		events.InterfaceID: "delegate",
+		events.OperationID: delegateOperation,
+	}
 	consulClient, err := cfg.GetConsulClient()
 	if err != nil {
 		return err
@@ -42,16 +49,16 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	op := strings.ToLower(delegateOperation)
 	switch {
 	case op == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances)
+		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields)
 	case op == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances)
+		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
@@ -63,7 +70,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 		return err
 	}
 	if infraGenerated {
-		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs); err != nil {
+		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, logOptFields); err != nil {
 			return err
 		}
 	}
@@ -76,7 +83,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	return nil
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {
@@ -88,7 +95,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		return err
 	}
 	if infraGenerated {
-		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs); err != nil {
+		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, logOptFields); err != nil {
 			return err
 		}
 	}
@@ -101,15 +108,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	return nil
 }
 
-func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) error {
-	// Fill log optional fields for log registration
-	logOptFields := events.OptionalFields{
-		events.NodeID:      nodeName,
-		events.WorkFlowID:  "TODO",
-		events.InterfaceID: "delegate",
-		events.OperationID: "TODO",
-	}
-
+func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "init")
@@ -152,16 +151,11 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	return nil
 }
 
-func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string) error {
+func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, logOptFields events.LogOptionalFields) error {
 
 	// Remote Configuration for Terraform State to store it in the Consul KV store
-	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName); err != nil {
+	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName, logOptFields); err != nil {
 		return err
-	}
-
-	// Register log entry via error buffer
-	logOptFields := events.OptionalFields{
-		events.NodeID: nodeName,
 	}
 
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Applying the infrastructure")
@@ -188,7 +182,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 
 }
 
-func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string) error {
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, logOptFields events.LogOptionalFields) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -207,5 +201,5 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 			return nil
 		}
 	}
-	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs)
+	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, logOptFields)
 }

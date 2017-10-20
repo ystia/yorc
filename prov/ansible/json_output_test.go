@@ -10,7 +10,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
 	"novaforge.bull.com/starlings-janus/janus/testutil"
 )
 
@@ -246,7 +248,14 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	ea := &executionAnsible{executionCommon: ec}
 	var buf bytes.Buffer
 	buf.WriteString(data)
-	err := ea.logAnsibleOutputInConsul(&buf)
+
+	// Fill log optional fields for log registration
+	logOptFields := events.LogOptionalFields{
+		events.NodeID:      ec.NodeName,
+		events.OperationID: stringutil.GetLastElement(ec.operation.Name, "."),
+		events.InterfaceID: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),
+	}
+	err := ea.logAnsibleOutputInConsul(&buf, logOptFields)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 

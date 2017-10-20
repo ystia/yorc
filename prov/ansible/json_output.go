@@ -32,7 +32,7 @@ func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, error) {
 	return v, nil
 }
 
-func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
+func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer, logOptionalFields events.LogOptionalFields) error {
 
 	v, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -78,20 +78,20 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("stderr"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
+					events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
 				}
 				//Check if a stdout field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("stdout"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
+					events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
 				}
 
 				//Check if a msg field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("msg"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
+					events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
 				}
 			}
 		}
@@ -101,7 +101,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 	return nil
 }
 
-func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error {
+func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer, logOptionalFields events.LogOptionalFields) error {
 
 	v, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -231,6 +231,6 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 	}
 
 	// Register log entry
-	events.WithOptionalFields(events.OptionalFields{events.NodeID: e.NodeName}).NewLogEntry(events.INFO, e.deploymentID).Register(buf.Bytes())
+	events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).Register(buf.Bytes())
 	return nil
 }

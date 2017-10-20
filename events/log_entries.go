@@ -14,18 +14,18 @@ import (
 type FormattedLogEntry struct {
 	level          LogLevel
 	deploymentID   string
-	additionalInfo OptionalFields
+	additionalInfo LogOptionalFields
 	content        []byte
 }
 
 // FormattedLogEntryDraft is a partial FormattedLogEntry with only optional fields.
 // It has to be completed with level and deploymentID
 type FormattedLogEntryDraft struct {
-	additionalInfo OptionalFields
+	additionalInfo LogOptionalFields
 }
 
-// OptionalFields are log's additional info
-type OptionalFields map[FieldType]interface{}
+// LogOptionalFields are log's additional info
+type LogOptionalFields map[FieldType]interface{}
 
 // FieldType is allowed/expected additional info types
 type FieldType int
@@ -91,8 +91,8 @@ func SimpleLogEntry(level LogLevel, deploymentID string) *FormattedLogEntry {
 }
 
 // WithOptionalFields allows to return a FormattedLogEntry instance with additional fields
-func WithOptionalFields(fields OptionalFields) *FormattedLogEntryDraft {
-	info := make(OptionalFields, len(fields))
+func WithOptionalFields(fields LogOptionalFields) *FormattedLogEntryDraft {
+	info := make(LogOptionalFields, len(fields))
 	fle := &FormattedLogEntryDraft{additionalInfo: info}
 	for k, v := range fields {
 		info[k] = v
@@ -121,7 +121,7 @@ func (e FormattedLogEntry) Register(content []byte) {
 	e.content = content
 	err := consulutil.StoreConsulKey(e.generateKey(), e.generateValue())
 	if err != nil {
-		log.Panicf("Failed to register log in consul for entry:%+v due to error:%+v", e, err)
+		log.Printf("Failed to register log in consul for entry:%+v due to error:%+v", e, err)
 	}
 }
 
@@ -153,7 +153,7 @@ func (e FormattedLogEntry) generateValue() []byte {
 	flatMap := e.toFlatMap()
 	b, err := json.Marshal(flatMap)
 	if err != nil {
-		log.Panicf("Failed to marshal entry [%+v]: due to error:%+v", e, err)
+		log.Printf("Failed to marshal entry [%+v]: due to error:%+v", e, err)
 	}
 	// log the entry in stdout/stderr
 	e.log(flatMap)
@@ -188,9 +188,6 @@ func (e FormattedLogEntry) log(flat map[string]interface{}) {
 		}
 
 	}
-	if e.level == DEBUG {
-		log.Debugln(str)
-	} else {
-		log.Println(str)
-	}
+	// Log are only displayed in DEBUG mode
+	log.Debugln(str)
 }
