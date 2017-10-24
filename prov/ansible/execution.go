@@ -408,8 +408,8 @@ func (e *executionCommon) resolveContext() error {
 
 	}
 
+	execContext["DEPLOYMENT_ID"] = e.deploymentID
 	e.Context = execContext
-
 	return nil
 }
 
