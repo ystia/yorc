@@ -267,7 +267,7 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				events.WithOptionalFields(events.LogOptionalFields{
 					events.NodeID:     nodeName,
 					events.InstanceID: instanceName,
-				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", expression, len(result)))
+				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("Deployment %q, node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", r.deploymentID, nodeName, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
@@ -547,7 +547,7 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				events.WithOptionalFields(events.LogOptionalFields{
 					events.NodeID:     sourceNode,
 					events.InstanceID: instanceName,
-				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", expression, len(result)))
+				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
