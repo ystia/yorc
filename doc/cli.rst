@@ -95,7 +95,8 @@ Flags:
 Get deployment logs
 ~~~~~~~~~~~~~~~~~~~
 
-Streams logs for a given deployment id
+Streams logs for a given deployment id.
+The log format is: [Timestamp][Level][DeploymentID][WorkflowID][ExecutionID][NodeID][InstanceID][InterfaceName][OperationName][TypeID]Content
 
 .. code-block:: bash
 
