@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -16,7 +17,7 @@ import (
 // A Subscriber is used to poll for new StatusChange and LogEntry events
 type Subscriber interface {
 	StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error)
-	LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]LogEntry, uint64, error)
+	LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error)
 }
 
 type consulPubSub struct {
@@ -151,27 +152,25 @@ func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([
 	return events, qm.LastIndex, nil
 }
 
-func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]LogEntry, uint64, error) {
+// LogsEvents allows to return logs from Consul KV storage
+func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	logs := make([]json.RawMessage, 0)
 
 	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "logs")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	logs := make([]LogEntry, 0)
 	if err != nil || qm == nil {
 		return logs, 0, err
 	}
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex || (filter != "all" && !strings.HasPrefix(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), filter)) {
+		if kvp.ModifyIndex <= waitIndex {
 			continue
 		}
 
-		index := strings.Index(kvp.Key, "__")
-		eventTimestamp := kvp.Key[index+2 : len(kvp.Key)]
-		logs = append(logs, LogEntry{Timestamp: eventTimestamp, Logs: string(kvp.Value)})
-
+		logs = append(logs, kvp.Value)
 	}
 
-	log.Debugf("Found %d events after filtering", len(logs))
+	log.Debugf("Found %d events after index", len(logs))
 	return logs, qm.LastIndex, nil
 }
 

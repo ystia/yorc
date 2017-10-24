@@ -82,10 +82,10 @@ func cutAfterLastUnderscore(str string) string {
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
 	// Fill log optional fields for log registration
 	logOptFields := events.LogOptionalFields{
-		events.NodeID:      e.NodeName,
-		events.OperationID: stringutil.GetLastElement(e.operation.Name, "."),
-		events.InstanceID:  currentInstance,
-		events.InterfaceID: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
+		events.NodeID:        e.NodeName,
+		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
+		events.InstanceID:    currentInstance,
+		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
 	}
 
 	var buffer bytes.Buffer

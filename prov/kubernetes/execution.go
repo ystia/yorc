@@ -377,10 +377,10 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 	// Fill log optional fields for log registration
 	logOptFields := events.LogOptionalFields{
-		events.NodeID:      e.NodeName,
-		events.WorkFlowID:  "TODO",
-		events.InterfaceID: "delegate",
-		events.OperationID: e.Operation.Name,
+		events.NodeID:        e.NodeName,
+		events.WorkFlowID:    "TODO",
+		events.InterfaceName: "delegate",
+		events.OperationName: e.Operation.Name,
 	}
 	clientset := ctx.Value("clientset")
 

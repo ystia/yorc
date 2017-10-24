@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"k8s.io/apimachinery/pkg/util/json"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/testutil"
 )
@@ -456,10 +457,8 @@ func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
 
 }
 
-//FIXME to be implemented next
 func testconsulGetLogs(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	t.Skip()
 	myErr := errors.New("MyError")
 	deploymentID := testutil.BuildDeploymentID(t)
 	prevIndex, err := GetLogsEventsIndex(kv, deploymentID)
@@ -485,13 +484,20 @@ func testconsulGetLogs(t *testing.T, kv *api.KV) {
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
 	sub := NewSubscriber(kv, deploymentID)
-	events, _, err := sub.LogsEvents("all", 0, 5*time.Minute)
+	logs, _, err := sub.LogsEvents(0, 5*time.Minute)
 	require.Nil(t, err)
-	require.Len(t, events, 4)
+	require.Len(t, logs, 4)
 
-	require.Equal(t, fmt.Sprintf("%v", myErr), events[0].Logs)
-	require.Equal(t, "message1", events[1].Logs)
-	require.Equal(t, "message2", events[2].Logs)
-	require.Equal(t, "message3", events[3].Logs)
+	require.Equal(t, fmt.Sprintf("%v", myErr), getLogContent(t, logs[0]))
+	require.Equal(t, "message1", getLogContent(t, logs[1]))
+	require.Equal(t, "message2", getLogContent(t, logs[2]))
+	require.Equal(t, "message3", getLogContent(t, logs[3]))
 
+}
+
+func getLogContent(t *testing.T, log []byte) string {
+	var data map[string]interface{}
+	err := json.Unmarshal(log, &data)
+	require.Nil(t, err)
+	return data["content"].(string)
 }

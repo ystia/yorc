@@ -31,10 +31,10 @@ func NewExecutor(generator commons.Generator) prov.DelegateExecutor {
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	// Fill log optional fields for log registration
 	logOptFields := events.LogOptionalFields{
-		events.NodeID:      nodeName,
-		events.WorkFlowID:  "TODO",
-		events.InterfaceID: "delegate",
-		events.OperationID: delegateOperation,
+		events.NodeID:        nodeName,
+		events.WorkFlowID:    "TODO",
+		events.InterfaceName: "delegate",
+		events.OperationName: delegateOperation,
 	}
 	consulClient, err := cfg.GetConsulClient()
 	if err != nil {

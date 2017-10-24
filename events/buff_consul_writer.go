@@ -9,8 +9,8 @@ import (
 
 // A BufferedLogEntryWriter is a Writer that buffers writes and flushes its buffer as an event log on a regular basis (every 5s)
 type BufferedLogEntryWriter interface {
-	run(quit chan bool, logEntry FormattedLogEntry)
-	flush(logEntry FormattedLogEntry) error
+	run(quit chan bool, logEntry LogEntry)
+	flush(logEntry LogEntry) error
 	io.Writer
 }
 
@@ -35,7 +35,7 @@ func (b *bufferedConsulWriter) Write(p []byte) (nn int, err error) {
 }
 
 // Internal : flush allows to flush buffer content into Consul
-func (b *bufferedConsulWriter) flush(logEntry FormattedLogEntry) error {
+func (b *bufferedConsulWriter) flush(logEntry LogEntry) error {
 	if len(b.buf) == 0 {
 		return nil
 	}
@@ -48,7 +48,7 @@ func (b *bufferedConsulWriter) flush(logEntry FormattedLogEntry) error {
 }
 
 // Internal : run allows to run buffering and allows flushing when done or after timeout
-func (b *bufferedConsulWriter) run(quit chan bool, logEntry FormattedLogEntry) {
+func (b *bufferedConsulWriter) run(quit chan bool, logEntry LogEntry) {
 	go func() {
 		for {
 			select {

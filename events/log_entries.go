@@ -8,19 +8,20 @@ import (
 	"time"
 )
 
-//go:generate stringer -type=FieldType,LogLevel -output=log_entries_string.go
+//go:generate stringer -type=LogLevel -output=log_level_string.go
 
-// FormattedLogEntry is the log entry representation
-type FormattedLogEntry struct {
+// LogEntry is the log entry representation
+type LogEntry struct {
 	level          LogLevel
 	deploymentID   string
 	additionalInfo LogOptionalFields
 	content        []byte
+	timestamp      time.Time
 }
 
-// FormattedLogEntryDraft is a partial FormattedLogEntry with only optional fields.
+// LogEntryDraft is a partial LogEntry with only optional fields.
 // It has to be completed with level and deploymentID
-type FormattedLogEntryDraft struct {
+type LogEntryDraft struct {
 	additionalInfo LogOptionalFields
 }
 
@@ -30,33 +31,49 @@ type LogOptionalFields map[FieldType]interface{}
 // FieldType is allowed/expected additional info types
 type FieldType int
 
-// This is used to retrieve timestamp
-var getTimestamp = func() string {
-	return time.Now().Format(time.RFC3339)
-}
-
 const (
-	// WorkFlowID is the field type representing the workflow ID in formatted log entry
+	// WorkFlowID is the field type representing the workflow ID in log entry
 	WorkFlowID FieldType = iota
 
-	// ExecutionID is the field type representing the execution ID in formatted log entry
+	// ExecutionID is the field type representing the execution ID in log entry
 	ExecutionID
 
-	// NodeID is the field type representing the node ID in formatted log entry
+	// NodeID is the field type representing the node ID in log entry
 	NodeID
 
-	// InstanceID is the field type representing the instance ID in formatted log entry
+	// InstanceID is the field type representing the instance ID in log entry
 	InstanceID
 
-	// InterfaceID is the field type representing the interface ID in formatted log entry
-	InterfaceID
+	// InterfaceName is the field type representing the interface ID in log entry
+	InterfaceName
 
-	// OperationID is the field type representing the operation ID in formatted log entry
-	OperationID
+	// OperationName is the field type representing the operation ID in log entry
+	OperationName
 
-	// TypeID is the field type representing the type ID in formatted log entry
+	// TypeID is the field type representing the type ID in log entry
 	TypeID
 )
+
+// String allows to stringify the field type enumeration in JSON standard
+func (ft FieldType) String() string {
+	switch ft {
+	case WorkFlowID:
+		return "workflowId"
+	case ExecutionID:
+		return "executionId"
+	case NodeID:
+		return "nodeId"
+	case InstanceID:
+		return "instanceId"
+	case InterfaceName:
+		return "interfaceName"
+	case OperationName:
+		return "operationName"
+	case TypeID:
+		return "type"
+	}
+	return ""
+}
 
 // Max allowed storage size in Consul kv for value is Equal to 512 Kb
 // We approximate all data except the content value to be equal to 1Kb
@@ -82,18 +99,18 @@ const (
 	ERROR
 )
 
-// SimpleLogEntry allows to return a FormattedLogEntry instance with log level and deploymentID
-func SimpleLogEntry(level LogLevel, deploymentID string) *FormattedLogEntry {
-	return &FormattedLogEntry{
+// SimpleLogEntry allows to return a LogEntry instance with log level and deploymentID
+func SimpleLogEntry(level LogLevel, deploymentID string) *LogEntry {
+	return &LogEntry{
 		level:        level,
 		deploymentID: deploymentID,
 	}
 }
 
-// WithOptionalFields allows to return a FormattedLogEntry instance with additional fields
-func WithOptionalFields(fields LogOptionalFields) *FormattedLogEntryDraft {
+// WithOptionalFields allows to return a LogEntry instance with additional fields
+func WithOptionalFields(fields LogOptionalFields) *LogEntryDraft {
 	info := make(LogOptionalFields, len(fields))
-	fle := &FormattedLogEntryDraft{additionalInfo: info}
+	fle := &LogEntryDraft{additionalInfo: info}
 	for k, v := range fields {
 		info[k] = v
 	}
@@ -101,17 +118,17 @@ func WithOptionalFields(fields LogOptionalFields) *FormattedLogEntryDraft {
 	return fle
 }
 
-// NewLogEntry allows to add main fields to a formatted log entry
-func (e FormattedLogEntryDraft) NewLogEntry(level LogLevel, deploymentID string) *FormattedLogEntry {
-	return &FormattedLogEntry{
+// NewLogEntry allows to build a log entry from a draft
+func (e LogEntryDraft) NewLogEntry(level LogLevel, deploymentID string) *LogEntry {
+	return &LogEntry{
 		level:          level,
 		deploymentID:   deploymentID,
 		additionalInfo: e.additionalInfo,
 	}
 }
 
-// Register allows to register a formatted log entry with byte array content
-func (e FormattedLogEntry) Register(content []byte) {
+// Register allows to register a log entry with byte array content
+func (e LogEntry) Register(content []byte) {
 	if len(content) == 0 {
 		log.Panic("The content parameter must be filled")
 	}
@@ -119,19 +136,29 @@ func (e FormattedLogEntry) Register(content []byte) {
 		log.Panic("The deploymentID parameter must be filled")
 	}
 	e.content = content
-	err := consulutil.StoreConsulKey(e.generateKey(), e.generateValue())
+
+	// Get the timestamp
+	e.timestamp = time.Now()
+
+	// Get the value to store and the flat log entry representation to log entry
+	val, flat := e.generateValue()
+	err := consulutil.StoreConsulKey(e.generateKey(), val)
 	if err != nil {
 		log.Printf("Failed to register log in consul for entry:%+v due to error:%+v", e, err)
 	}
+
+	// log the entry in stdout/stderr in DEBUG mode
+	// Log are only displayed in DEBUG mode
+	log.Debugln(FormatLog(flat))
 }
 
-// RegisterAsString allows to register a formatted log entry with string content
-func (e FormattedLogEntry) RegisterAsString(content string) {
+// RegisterAsString allows to register a log entry with string content
+func (e LogEntry) RegisterAsString(content string) {
 	e.Register([]byte(content))
 }
 
 // RunBufferedRegistration allows to run a registration with a buffered writer
-func (e FormattedLogEntry) RunBufferedRegistration(buf BufferedLogEntryWriter, quit chan bool) {
+func (e LogEntry) RunBufferedRegistration(buf BufferedLogEntryWriter, quit chan bool) {
 	if e.deploymentID == "" {
 		log.Panic("The deploymentID parameter must be filled")
 	}
@@ -139,37 +166,34 @@ func (e FormattedLogEntry) RunBufferedRegistration(buf BufferedLogEntryWriter, q
 	buf.run(quit, e)
 }
 
-func (e FormattedLogEntry) generateKey() string {
-	return path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", time.Now().Format(time.RFC3339Nano))
+func (e LogEntry) generateKey() string {
+	// time.RFC3339Nano is needed for ConsulKV key value precision
+	return path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", e.timestamp.Format(time.RFC3339Nano))
 }
 
-func (e FormattedLogEntry) generateValue() []byte {
+func (e LogEntry) generateValue() ([]byte, map[string]interface{}) {
 	// Check content max allowed size
 	if len(e.content) > contentMaxAllowedValueSize {
 		log.Printf("The max allowed size has been reached: truncation will be done on log content from %d to %d bytes", len(e.content), contentMaxAllowedValueSize)
 		e.content = e.content[:contentMaxAllowedValueSize]
 	}
-	// For presentation purpose, the formatted log entry is cast to flat map
-	flatMap := e.toFlatMap()
-	b, err := json.Marshal(flatMap)
+	// For presentation purpose, the log entry is cast to flat map
+	flat := e.toFlatMap()
+	b, err := json.Marshal(flat)
 	if err != nil {
 		log.Printf("Failed to marshal entry [%+v]: due to error:%+v", e, err)
 	}
-	// log the entry in stdout/stderr
-	e.log(flatMap)
-	return b
+	return b, flat
 }
 
-func (e FormattedLogEntry) toFlatMap() map[string]interface{} {
+func (e LogEntry) toFlatMap() map[string]interface{} {
 	flatMap := make(map[string]interface{})
 
-	// NewLogEntry main attributes from FormattedLogEntry
-	flatMap["DeploymentID"] = e.deploymentID
-	flatMap["Level"] = e.level.String()
-	flatMap["Content"] = string(e.content)
-
-	// Add Timestamp
-	flatMap["Timestamp"] = getTimestamp()
+	// NewLogEntry main attributes from LogEntry
+	flatMap["deploymentId"] = e.deploymentID
+	flatMap["level"] = e.level.String()
+	flatMap["content"] = string(e.content)
+	flatMap["timestamp"] = e.timestamp.Format(time.RFC3339)
 
 	// NewLogEntry additional info
 	for k, v := range e.additionalInfo {
@@ -178,16 +202,21 @@ func (e FormattedLogEntry) toFlatMap() map[string]interface{} {
 	return flatMap
 }
 
-// Log the entry in stdout/stderr with the following format :[Timestamp][Level][DeploymentID][WorkflowID][ExecutionID][NodeID][InstanceID][InterfaceID][OperationID][TypeID][Content]
-func (e FormattedLogEntry) log(flat map[string]interface{}) {
+// FormatLog allows to format the flat map log representation in the following format :[Timestamp][Level][DeploymentID][WorkflowID][ExecutionID][NodeID][InstanceID][InterfaceName][OperationName][TypeID]Content
+func FormatLog(flat map[string]interface{}) string {
 	var str string
-	sliceOfKeys := []string{"Timestamp", "Level", "DeploymentID", WorkFlowID.String(), ExecutionID.String(), NodeID.String(), InstanceID.String(), InterfaceID.String(), OperationID.String(), TypeID.String(), "Content"}
+	sliceOfKeys := []string{"timestamp", "level", "deploymentId", WorkFlowID.String(), ExecutionID.String(), NodeID.String(), InstanceID.String(), InterfaceName.String(), OperationName.String(), TypeID.String(), "content"}
 	for _, k := range sliceOfKeys {
 		if val, ok := flat[k].(string); ok {
-			str += "[" + val + "]"
+			if k != "content" {
+				str += "[" + val + "]"
+			} else {
+				str += val
+			}
+		} else {
+			str += "[]"
 		}
 
 	}
-	// Log are only displayed in DEBUG mode
-	log.Debugln(str)
+	return str
 }

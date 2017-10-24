@@ -1,6 +1,7 @@
 package events
 
 import (
+	"encoding/json"
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -8,43 +9,55 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/testutil"
 	"path"
 	"testing"
+	"time"
 )
 
 type mockTimeProvider struct{}
 
 func TestGenerateValue(t *testing.T) {
 	t.Parallel()
-	t.Skip()
-	getTimestamp = func() string {
-		return "FAKE"
-	}
+	logEntry := WithOptionalFields(LogOptionalFields{
+		WorkFlowID:    "my_workflowID",
+		OperationName: "my_operationID",
+	}).NewLogEntry(DEBUG, "my_deploymentID")
 
-	value := WithOptionalFields(LogOptionalFields{
-		WorkFlowID:  "my_workflowID",
-		OperationID: "my_operationID",
-	}).NewLogEntry(DEBUG, "my_deploymentID").generateValue()
-	require.Equal(t, "{\"Content\":\"\",\"DeploymentID\":\"my_deploymentID\",\"Level\":\"DEBUG\",\"OperationID\":\"my_operationID\",\"Timestamp\":\"FAKE\",\"WorkFlowID\":\"my_workflowID\"}", string(value))
+	logEntry.timestamp = time.Now()
+
+	value, _ := logEntry.generateValue()
+	require.Equal(t, "{\"content\":\"\",\"deploymentId\":\"my_deploymentID\",\"level\":\"DEBUG\",\"operationName\":\"my_operationID\",\"timestamp\":\"\",\"workflowId\":\"my_workflowID\"}", getLogEntryExceptTimestamp(t, string(value)))
+}
+
+func TestGenerateKey(t *testing.T) {
+	t.Parallel()
+	logEntry := WithOptionalFields(LogOptionalFields{
+		WorkFlowID:    "my_workflowID",
+		OperationName: "my_operationID",
+	}).NewLogEntry(DEBUG, "my_deploymentID")
+
+	logEntry.timestamp = time.Now()
+
+	value := logEntry.generateKey()
+	require.Equal(t, "_janus/deployments/my_deploymentID/logs/"+logEntry.timestamp.Format(time.RFC3339Nano), string(value))
 }
 
 func TestSimpleLogEntry(t *testing.T) {
 	t.Parallel()
 	logEntry := SimpleLogEntry(TRACE, "my_deploymentID")
-	require.Equal(t, &FormattedLogEntry{level: TRACE, deploymentID: "my_deploymentID"}, logEntry)
+	require.Equal(t, &LogEntry{level: TRACE, deploymentID: "my_deploymentID"}, logEntry)
 }
 
 func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
 	t.Parallel()
-	getTimestamp = func() string {
-		return "FAKE"
-	}
 	deploymentID := testutil.BuildDeploymentID(t)
 	tests := []struct {
 		name      string
-		args      *FormattedLogEntry
+		args      *LogEntry
 		wantErr   bool
 		wantValue string
 	}{
-		{name: "TestLevelDebug", args: &FormattedLogEntry{deploymentID: deploymentID, level: DEBUG, content: []byte("LOG ONE"), additionalInfo: nil}, wantErr: false, wantValue: "{\"Content\":\"LOG ONE\",\"DeploymentID\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"Level\":\"DEBUG\",\"Timestamp\":\"FAKE\"}"},
+		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: DEBUG, content: []byte("LOG ONE"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG ONE\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"DEBUG\",\"timestamp\":\"\"}"},
+		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: INFO, content: []byte("LOG TWO"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG TWO\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"INFO\",\"timestamp\":\"\"}"},
+		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: ERROR, content: []byte("LOG THREE"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG THREE\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"ERROR\",\"timestamp\":\"\"}"},
 	}
 
 	for _, tt := range tests {
@@ -60,6 +73,19 @@ func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
 
 	for index, kvp := range kvps {
 		tc := tests[index]
-		assert.Equal(t, tc.wantValue, string(kvp.Value))
+		assert.Equal(t, tc.wantValue, getLogEntryExceptTimestamp(t, string(kvp.Value)))
 	}
+}
+
+// Do not handle timestamp value in assertions
+func getLogEntryExceptTimestamp(t *testing.T, log string) string {
+	var data map[string]string
+	err := json.Unmarshal([]byte(log), &data)
+	require.Nil(t, err)
+
+	// Set timestamp/id to ""
+	data["timestamp"] = ""
+	b, err := json.Marshal(data)
+	require.Nil(t, err)
+	return string(b)
 }

@@ -3,9 +3,9 @@ package rest
 import (
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
+	"encoding/json"
 	"github.com/julienschmidt/httprouter"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
@@ -90,34 +90,18 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 			timeout = 10 * time.Minute
 		}
 	}
-	result := []string{"all"}
-	if filtr := values.Get("filter"); filtr != "" {
-		res := strings.Split(filtr, ",")
-		if len(res) != 1 {
-			result = res
-		} else if strings.Contains(filtr, events.EngineLogPrefix) ||
-			strings.Contains(filtr, events.InfraLogPrefix) ||
-			strings.Contains(filtr, events.SoftwareLogPrefix) {
-			result[0] = filtr
-		}
-	}
 
-	var logs []events.LogEntry
+	var logs []json.RawMessage
 	var lastIdx uint64
-
-	for _, data := range result {
-		tmp, idx, err := sub.LogsEvents(data, waitIndex, timeout)
-		if err != nil {
-			log.Panicf("Can't retrieve events: %v", err)
-		}
-		logs = append(logs, tmp...)
-		lastIdx = idx
+	logs, idx, err := sub.LogsEvents(waitIndex, timeout)
+	if err != nil {
+		log.Panicf("Can't retrieve events: %v", err)
 	}
+	lastIdx = idx
 
 	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
 	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
 	encodeJSONResponse(w, r, logCollection)
-
 }
 
 func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {

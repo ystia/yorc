@@ -251,9 +251,9 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 
 	// Fill log optional fields for log registration
 	logOptFields := events.LogOptionalFields{
-		events.NodeID:      ec.NodeName,
-		events.OperationID: stringutil.GetLastElement(ec.operation.Name, "."),
-		events.InterfaceID: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),
+		events.NodeID:        ec.NodeName,
+		events.OperationName: stringutil.GetLastElement(ec.operation.Name, "."),
+		events.InterfaceName: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),
 	}
 	err := ea.logAnsibleOutputInConsul(&buf, logOptFields)
 	t.Logf("%+v", err)
