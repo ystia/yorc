@@ -102,9 +102,6 @@ Streams logs for a given deployment id
      janus deployments logs <DeploymentId> [flags]
      
 Flags:
-  * ``-f``, ``--filter``: Allows to filters logs by type. Accepted filters are "engine" for Janus logs, "infrastructure" for infrastructure 
-    provisioning logs or "software" for software provisioning. This flag may appear several times and may contain a coma separated list of filters.
-    If not specified logs are not filtered.
   * ``-b``, ``--from-beginning``: Show logs from the beginning of a deployment
   * ``-n``, ``--no-stream``: Show logs then exit. Do not stream logs. It implies --from-beginning
 
