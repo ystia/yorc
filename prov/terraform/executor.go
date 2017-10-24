@@ -29,13 +29,6 @@ func NewExecutor(generator commons.Generator) prov.DelegateExecutor {
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-	// Fill log optional fields for log registration
-	logOptFields := events.LogOptionalFields{
-		events.NodeID:        nodeName,
-		events.WorkFlowID:    "TODO",
-		events.InterfaceName: "delegate",
-		events.OperationName: delegateOperation,
-	}
 	consulClient, err := cfg.GetConsulClient()
 	if err != nil {
 		return err
@@ -44,6 +37,15 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
+	}
+
+	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(kv, taskID, "workflowName")
+	logOptFields := events.LogOptionalFields{
+		events.NodeID:        nodeName,
+		events.WorkFlowID:    wfName,
+		events.InterfaceName: "delegate",
+		events.OperationName: delegateOperation,
 	}
 
 	op := strings.ToLower(delegateOperation)

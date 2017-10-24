@@ -13,6 +13,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/testutil"
 )
 
@@ -250,7 +251,9 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	buf.WriteString(data)
 
 	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(ec.kv, ec.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
+		events.WorkFlowID:    wfName,
 		events.NodeID:        ec.NodeName,
 		events.OperationName: stringutil.GetLastElement(ec.operation.Name, "."),
 		events.InterfaceName: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),

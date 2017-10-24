@@ -17,6 +17,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
 	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
 const outputCustomWrapper = `
@@ -81,7 +82,9 @@ func cutAfterLastUnderscore(str string) string {
 
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
 	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
+		events.WorkFlowID:    wfName,
 		events.NodeID:        e.NodeName,
 		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
 		events.InstanceID:    currentInstance,

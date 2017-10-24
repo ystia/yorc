@@ -590,7 +590,9 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 
 func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
 	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
+		events.WorkFlowID:    wfName,
 		events.NodeID:        e.NodeName,
 		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
 		events.InstanceID:    currentInstance,

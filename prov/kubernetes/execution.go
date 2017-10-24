@@ -376,9 +376,10 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 
 func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
 		events.NodeID:        e.NodeName,
-		events.WorkFlowID:    "TODO",
+		events.WorkFlowID:    wfName,
 		events.InterfaceName: "delegate",
 		events.OperationName: e.Operation.Name,
 	}

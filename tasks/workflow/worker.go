@@ -75,7 +75,7 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 		// ie in the other go routine and at this time step may have changed as we are in a for loop.
 		func(s *step) {
 			g.Go(func() error {
-				return s.run(ctx, deploymentID, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, bypassErrors)
+				return s.run(ctx, deploymentID, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, bypassErrors, workflowName)
 			})
 		}(s)
 	}
@@ -120,8 +120,9 @@ func (w worker) handleTask(t *task) {
 	kv := w.consulClient.KV()
 
 	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(kv, t.ID, "workflowName")
 	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID: "TODO", //tasks.GetTaskData(kv, t.ID, "workflowName"),
+		events.WorkFlowID: wfName,
 	}
 	bgCtx := context.Background()
 	ctx, cancelFunc := context.WithCancel(bgCtx)

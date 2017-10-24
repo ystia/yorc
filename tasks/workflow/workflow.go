@@ -175,10 +175,11 @@ func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) er
 	return nil
 }
 
-func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool) error {
+func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool, workflowName string) error {
 	// Fill log optional fields for log registration
 	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID: "TODO",
+		events.WorkFlowID: workflowName,
+		events.NodeID:     s.Node,
 	}
 	haveErr := false
 	for i := 0; i < len(s.Previous); i++ {
