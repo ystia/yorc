@@ -42,8 +42,8 @@ func TestGenerateKey(t *testing.T) {
 
 func TestSimpleLogEntry(t *testing.T) {
 	t.Parallel()
-	logEntry := SimpleLogEntry(TRACE, "my_deploymentID")
-	require.Equal(t, &LogEntry{level: TRACE, deploymentID: "my_deploymentID"}, logEntry)
+	logEntry := SimpleLogEntry(INFO, "my_deploymentID")
+	require.Equal(t, &LogEntry{level: INFO, deploymentID: "my_deploymentID"}, logEntry)
 }
 
 func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {

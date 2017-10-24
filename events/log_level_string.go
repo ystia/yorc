@@ -4,9 +4,9 @@ package events
 
 import "fmt"
 
-const _LogLevel_name = "INFODEBUGTRACEWARNERROR"
+const _LogLevel_name = "INFODEBUGWARNERROR"
 
-var _LogLevel_index = [...]uint8{0, 4, 9, 14, 18, 23}
+var _LogLevel_index = [...]uint8{0, 4, 9, 13, 18}
 
 func (i LogLevel) String() string {
 	if i < 0 || i >= LogLevel(len(_LogLevel_index)-1) {

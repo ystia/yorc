@@ -89,9 +89,6 @@ const (
 	// DEBUG is the debugging log level
 	DEBUG
 
-	// TRACE is the tracing log level
-	TRACE
-
 	// WARN is the warning log level
 	WARN
 
