@@ -6,19 +6,18 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
 func init() {
 	var fromBeginning bool
 	var noStream bool
-	var filters []string
 	var logCmd = &cobra.Command{
 		Use:     "logs <DeploymentId>",
 		Short:   "Stream logs for a deployment",
@@ -34,17 +33,16 @@ func init() {
 			}
 			colorize := !noColor
 
-			streamsLogs(client, args[0], colorize, fromBeginning, noStream, filters...)
+			streamsLogs(client, args[0], colorize, fromBeginning, noStream)
 			return nil
 		},
 	}
 	logCmd.PersistentFlags().BoolVarP(&fromBeginning, "from-beginning", "b", false, "Show logs from the beginning of a deployment")
 	logCmd.PersistentFlags().BoolVarP(&noStream, "no-stream", "n", false, "Show logs then exit. Do not stream logs. It implies --from-beginning")
-	logCmd.PersistentFlags().StringSliceVarP(&filters, "filter", "f", []string{}, "Allows to filters logs by type. Accepted filters are \"engine\" for Janus logs, \"infrastructure\" for infrastructure provisioning logs or \"software\" for software provisioning. This flag may appear several time and may contain a coma separated list of filters. If not specified logs are not filtered.")
 	deploymentsCmd.AddCommand(logCmd)
 }
 
-func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginning, stop bool, filters ...string) {
+func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}
@@ -68,9 +66,6 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 		}
 	}
 	var filtersParam string
-	if len(filters) > 0 {
-		filtersParam = fmt.Sprintf("&filter=%s", strings.Join(filters, ","))
-	}
 	for {
 		request, err := client.NewRequest("GET", fmt.Sprintf("/deployments/%s/logs?index=%d%s", deploymentID, lastIdx, filtersParam), nil)
 		if err != nil {
@@ -92,17 +87,26 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 		if err != nil {
 			errExit(err)
 		}
+
 		lastIdx = logs.LastIndex
 		for _, log := range logs.Logs {
 			if colorize {
-				fmt.Printf("%s: %s\n", color.CyanString("%s", log.Timestamp), log.Logs)
+				fmt.Printf("%s\n", color.CyanString("%s", format(log)))
 			} else {
-				fmt.Printf("%s: %s\n", log.Timestamp, log.Logs)
+				fmt.Printf("%s\n", format(log))
 			}
 		}
-
 		if stop {
 			return
 		}
 	}
+}
+
+func format(log json.RawMessage) string {
+	var data map[string]interface{}
+	err := json.Unmarshal(log, &data)
+	if err != nil {
+		errExit(err)
+	}
+	return events.FormatLog(data)
 }

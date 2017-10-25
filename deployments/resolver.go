@@ -264,8 +264,10 @@ func (r *Resolver) ResolveExpressionForNode(expression *tosca.TreeNode, nodeName
 				return "", errors.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if len(result) > 1 {
-				log.Printf("Deployment %q, node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", r.deploymentID, nodeName, expression, len(result))
-				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("Node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", nodeName, expression, len(result)))
+				events.WithOptionalFields(events.LogOptionalFields{
+					events.NodeID:     nodeName,
+					events.InstanceID: instanceName,
+				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("Deployment %q, node %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", r.deploymentID, nodeName, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
@@ -542,8 +544,10 @@ func (r *Resolver) ResolveExpressionForRelationship(expression *tosca.TreeNode, 
 				return "", errors.Errorf("Can't resolve expression %q", expression.String())
 			}
 			if len(result) > 1 {
-				log.Printf("Deployment %q, SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", r.deploymentID, sourceNode, targetNode, requirementIndex, expression, len(result))
-				events.LogEngineMessage(r.kv, r.deploymentID, fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
+				events.WithOptionalFields(events.LogOptionalFields{
+					events.NodeID:     sourceNode,
+					events.InstanceID: instanceName,
+				}).NewLogEntry(events.WARN, r.deploymentID).RegisterAsString(fmt.Sprintf("SourceNode %q, TargetNode %q, requirement index %q: Expression %q returned multiple (%d) values in a scalar context. A random one will be choose which may lead to unpredictable results.", sourceNode, targetNode, requirementIndex, expression, len(result)))
 			}
 			for modEntityInstance, modEntityResult := range result {
 				// Return during the first processing (cf warning above)
