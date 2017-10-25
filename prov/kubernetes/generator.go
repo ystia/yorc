@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -127,7 +128,16 @@ func generatePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
 
-func (k8s *k8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar) v1.Container {
+func genereateVolumeMount(volumeName string, readOnly bool, mountPath, subPath string) v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      volumeName,
+		ReadOnly:  readOnly,
+		MountPath: mountPath,
+		SubPath:   subPath,
+	}
+}
+
+func (k8s *k8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar, volumeMounts []v1.VolumeMount) v1.Container {
 	return v1.Container{
 		Name:  strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
 		Image: dockerImage,
@@ -138,8 +148,59 @@ func (k8s *k8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 			Requests: requests,
 			Limits:   limits,
 		},
-		Env: inputs,
+		VolumeMounts: volumeMounts,
+		Env:          inputs,
 	}
+}
+
+// TODO treat errors
+func (k8s *k8sGenerator) generateVolume(deploymentID, volumeNodeName string) (v1.Volume, error) {
+	var err error
+	_, vname, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "name")
+	volume := v1.Volume{
+		Name: vname,
+	}
+	_, vtype, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "volume_type")
+	volumeSource := v1.VolumeSource{}
+	switch vtype {
+	case "emptyDir":
+		emptyDirVolumeSource := k8s.generateEmptyDirVolumeSource(deploymentID, volumeNodeName)
+		volumeSource.EmptyDir = &emptyDirVolumeSource
+		volume.VolumeSource = volumeSource
+		err = nil
+	default:
+		err = errors.Errorf("Unsupported volume type %q", vtype)
+	}
+	return volume, err
+}
+
+func (k8s *k8sGenerator) generateEmptyDirVolumeSource(deploymentID, volumeNodeName string) v1.EmptyDirVolumeSource {
+	found, mediumVal, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "medium")
+	if !found {
+		mediumVal = ""
+	}
+	return v1.EmptyDirVolumeSource{
+		Medium: v1.StorageMedium(mediumVal),
+	}
+}
+
+// Get the names of the nodes corresponding to volumes mounted by the node 'nodeName'
+func getUsedVolumeNodesNames(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
+	useVolumeKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "use_volume")
+	if err != nil {
+		return nil, err
+	}
+	usedVolumeNodesNames := make([]string, 0)
+	for _, useVolumeReqPrefix := range useVolumeKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(useVolumeReqPrefix)
+		volumeNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		log.Printf("###################### Node %s has requirement use_volume satisfyed by node %s", nodeName, volumeNodeName)
+		if err != nil {
+			return nil, err
+		}
+		usedVolumeNodesNames = append(usedVolumeNodesNames, volumeNodeName)
+	}
+	return usedVolumeNodesNames, nil
 }
 
 // generateDeployment generate Kubernetes Pod and Service to deploy based of given Node
@@ -172,7 +233,65 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + generatePodName(nodeName)},
 	}
 
-	container := k8s.generateContainer(nodeName, imgName, imagePullPolicy, dockerRunCmd, requests, limits, inputs)
+	var usedVolumeNodesNames []string
+	var usedVolumes []v1.Volume
+	var volumeMounts []v1.VolumeMount
+
+	usedVolumeNodesNames, err = getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
+	if err != nil {
+		return v1beta1.Deployment{}, v1.Service{}, err
+	}
+	if len(usedVolumeNodesNames) == 0 {
+		usedVolumes = nil
+		volumeMounts = nil
+
+		log.Printf("###################### Node %s uses no volume", nodeName)
+	} else {
+		log.Printf("###################### Node %s uses %d volumes", nodeName, len(usedVolumeNodesNames))
+		//allNodeNames, err := deployments.GetNodes(k8s.kv, deploymentID)
+		allNodeNames, _ := deployments.GetNodes(k8s.kv, deploymentID)
+		// TODO treat err
+		// treat volume nodes
+		for _, aNodename := range allNodeNames {
+			for _, volumeNodeName := range usedVolumeNodesNames {
+				if 0 == strings.Compare(aNodename, volumeNodeName) {
+					_, volumeName, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "name")
+					log.Printf("###################### Found volume node %s containing volume %s used by node %s", volumeNodeName, volumeName, nodeName)
+
+					// Found a volume node mounted by the current node
+					// Generate the Kubernetes Volume object (instance of v1.Volume)
+					volume, _ := k8s.generateVolume(deploymentID, volumeNodeName)
+
+					// TODO treat error case
+					usedVolumes = append(usedVolumes, volume)
+
+					// Get the 'mount' capability of the volume
+					found, mountPath, _ := deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "mountPath")
+					if !found {
+						// TODO treat error case in which mountPath property of mount capability not set
+						// should never heapen as this is a required
+					}
+					found, subPath, _ := deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "subPath")
+					if !found {
+						// TODO treat error case in which subPath property of mount capability not set
+					}
+					// TODO Get readOnly bool property
+					readOnly := false
+
+					// Create a VolumeMount
+					volumeMount := v1.VolumeMount{
+						Name:      volumeName,
+						ReadOnly:  readOnly,
+						MountPath: mountPath,
+						SubPath:   subPath,
+					}
+					volumeMounts = append(volumeMounts, volumeMount)
+				}
+			}
+		}
+	}
+
+	container := k8s.generateContainer(nodeName, imgName, imagePullPolicy, dockerRunCmd, requests, limits, inputs, volumeMounts)
 
 	var pullRepo []v1.LocalObjectReference
 
@@ -194,9 +313,11 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metadata,
 				Spec: v1.PodSpec{
+					Volumes: usedVolumes,
 					Containers: []v1.Container{
 						container,
-					}, ImagePullSecrets: pullRepo,
+					},
+					ImagePullSecrets: pullRepo,
 				},
 			},
 		},
