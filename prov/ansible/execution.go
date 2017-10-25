@@ -103,6 +103,7 @@ type executionCommon struct {
 	operation                prov.Operation
 	NodeType                 string
 	Description              string
+	OperationRemoteBaseDir   string
 	OperationRemotePath      string
 	KeepOperationRemotePath  bool
 	EnvInputs                []*operations.EnvInput
@@ -701,10 +702,16 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		events.LogEngineError(e.kv, e.deploymentID, err)
 		return err
 	}
+	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
+	e.OperationRemoteBaseDir, err = ioutil.TempDir(".", ".janus_")
+	if err != nil {
+		err = errors.Wrapf(err, "Unable to create remote operation remote base directory for new execution on operation:%s and node:%s", e.operation.Name, e.NodeName)
+		return err
+	}
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.operation.Name)
+		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.operation.Name)
+		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
