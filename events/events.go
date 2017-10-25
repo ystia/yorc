@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -16,7 +17,7 @@ import (
 // A Subscriber is used to poll for new StatusChange and LogEntry events
 type Subscriber interface {
 	StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error)
-	LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]LogEntry, uint64, error)
+	LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error)
 }
 
 type consulPubSub struct {
@@ -37,7 +38,8 @@ func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status s
 	if err != nil {
 		return "", err
 	}
-	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
+	//TODO add log Optional fields
+	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
 	return id, nil
 }
 
@@ -49,7 +51,8 @@ func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, er
 	if err != nil {
 		return "", err
 	}
-	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for deployment %q changed to %q", deploymentID, status))
+	//TODO add log Optional fields
+	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for deployment %q changed to %q", deploymentID, status))
 	return id, nil
 }
 
@@ -61,7 +64,8 @@ func CustomCommandStatusChange(kv *api.KV, deploymentID, taskID, status string) 
 	if err != nil {
 		return "", err
 	}
-	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for custom-command %q changed to %q", taskID, status))
+	//TODO add log Optional fields
+	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for custom-command %q changed to %q", taskID, status))
 	return id, nil
 }
 
@@ -73,7 +77,8 @@ func ScalingStatusChange(kv *api.KV, deploymentID, taskID, status string) (strin
 	if err != nil {
 		return "", err
 	}
-	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for scaling task %q changed to %q", taskID, status))
+	//TODO add log Optional fields
+	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for scaling task %q changed to %q", taskID, status))
 	return id, nil
 }
 
@@ -85,7 +90,8 @@ func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (stri
 	if err != nil {
 		return "", err
 	}
-	LogEngineMessage(kv, deploymentID, fmt.Sprintf("Status for workflow task %q changed to %q", taskID, status))
+	//TODO add log Optional fields
+	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for workflow task %q changed to %q", taskID, status))
 	return id, nil
 }
 
@@ -146,27 +152,25 @@ func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([
 	return events, qm.LastIndex, nil
 }
 
-func (cp *consulPubSub) LogsEvents(filter string, waitIndex uint64, timeout time.Duration) ([]LogEntry, uint64, error) {
+// LogsEvents allows to return logs from Consul KV storage
+func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	logs := make([]json.RawMessage, 0)
 
 	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "logs")
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-	logs := make([]LogEntry, 0)
 	if err != nil || qm == nil {
 		return logs, 0, err
 	}
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 	for _, kvp := range kvps {
-		if kvp.ModifyIndex <= waitIndex || (filter != "all" && !strings.HasPrefix(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), filter)) {
+		if kvp.ModifyIndex <= waitIndex {
 			continue
 		}
 
-		index := strings.Index(kvp.Key, "__")
-		eventTimestamp := kvp.Key[index+2 : len(kvp.Key)]
-		logs = append(logs, LogEntry{Timestamp: eventTimestamp, Logs: string(kvp.Value)})
-
+		logs = append(logs, kvp.Value)
 	}
 
-	log.Debugf("Found %d events after filtering", len(logs))
+	log.Debugf("Found %d events after index", len(logs))
 	return logs, qm.LastIndex, nil
 }
 
@@ -192,41 +196,4 @@ func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
 		return 0, errors.New("Failed to retrieve last index for logs")
 	}
 	return qm.LastIndex, nil
-}
-
-// LogEngineMessage stores a engine log message
-func LogEngineMessage(kv *api.KV, deploymentID, message string) {
-	logInConsulAsString(kv, deploymentID, EngineLogPrefix, message)
-}
-
-// LogEngineError stores an engine error message.
-//
-// Basically it's a shortcut for:
-//	LogEngineMessage(kv, deploymentID, fmt.Sprintf("%v", err))
-func LogEngineError(kv *api.KV, deploymentID string, err error) {
-	LogEngineMessage(kv, deploymentID, fmt.Sprintf("%v", err))
-}
-
-// LogSoftwareMessage stores a software provisioning log message
-func LogSoftwareMessage(kv *api.KV, deploymentID, message string) {
-	logInConsulAsString(kv, deploymentID, SoftwareLogPrefix, message)
-}
-
-// LogInfrastructureMessage stores a infrastructure provisioning log message
-func LogInfrastructureMessage(kv *api.KV, deploymentID, message string) {
-	logInConsulAsString(kv, deploymentID, InfraLogPrefix, message)
-}
-
-func logInConsulAsString(kv *api.KV, deploymentID, logType, message string) {
-	logInConsul(kv, deploymentID, logType, []byte(message))
-}
-
-func logInConsul(kv *api.KV, deploymentID, logType string, message []byte) {
-	if kv == nil || deploymentID == "" {
-		log.Panic("Can't use LogInConsul function without KV or deployment ID")
-	}
-	err := consulutil.StoreConsulKey(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "logs", logType+"__"+time.Now().Format(time.RFC3339Nano)), message)
-	if err != nil {
-		log.Printf("Failed to publish log in consul for deployment %q: %+v\nOriginal message: %s", deploymentID, err, message)
-	}
 }

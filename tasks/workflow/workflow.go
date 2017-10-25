@@ -175,7 +175,12 @@ func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) er
 	return nil
 }
 
-func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool) error {
+func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool, workflowName string) error {
+	// Fill log optional fields for log registration
+	logOptFields := events.LogOptionalFields{
+		events.WorkFlowID: workflowName,
+		events.NodeID:     s.Node,
+	}
 	haveErr := false
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
@@ -204,7 +209,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		return err
 	} else if !runnable {
 		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
-		events.LogEngineMessage(kv, deploymentID, fmt.Sprintf("Skipping Step %q", s.Name))
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus("done")
 		s.notifyNext()
 		return nil

@@ -3,15 +3,11 @@ package ansible
 import (
 	"bytes"
 	"fmt"
-	"path"
-	"time"
-
 	"strconv"
 
 	"github.com/antonholmquist/jason"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
@@ -36,7 +32,7 @@ func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, error) {
 	return v, nil
 }
 
-func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
+func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer, logOptionalFields events.LogOptionalFields) error {
 
 	v, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -82,20 +78,20 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 				if std, err := obj.GetString("stderr"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
+					events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
 				}
 				//Check if a stdout field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("stdout"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
+					events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
 				}
 
 				//Check if a msg field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("msg"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.LogSoftwareMessage(e.kv, e.deploymentID, fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
+					events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
 				}
 			}
 		}
@@ -105,7 +101,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer) error {
 	return nil
 }
 
-func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error {
+func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer, logOptionalFields events.LogOptionalFields) error {
 
 	v, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -123,6 +119,7 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve play name")
 		}
+		buf.WriteString("Ansible Playbook result:\n")
 		buf.WriteString("\nPlay [")
 		buf.WriteString(playName)
 		buf.WriteString("]")
@@ -232,6 +229,8 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer) error 
 		buf.WriteString(strconv.FormatInt(unreachable, 10))
 
 	}
-	key := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", events.SoftwareLogPrefix+"__"+time.Now().Format(time.RFC3339Nano))
-	return consulutil.StoreConsulKeyAsString(key, fmt.Sprintf("node %q, Ansible Playbook result:\n%s", e.NodeName, buf.String()))
+
+	// Register log entry
+	events.WithOptionalFields(logOptionalFields).NewLogEntry(events.INFO, e.deploymentID).Register(buf.Bytes())
+	return nil
 }
