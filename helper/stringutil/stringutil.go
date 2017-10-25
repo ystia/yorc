@@ -1,6 +1,10 @@
 package stringutil
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+	"time"
+)
 
 // GetLastElement returns the last element of a "separator-separated" string
 func GetLastElement(str string, separator string) string {
@@ -20,4 +24,9 @@ func GetAllExceptLastElement(str string, separator string) string {
 		ret = str[:idx]
 	}
 	return ret
+}
+
+// UniqueTimestampedName generates a time-stamped name for temporary file or directory by instance
+func UniqueTimestampedName(prefix string, suffix string) string {
+	return prefix + strconv.FormatInt(time.Now().UnixNano(), 10) + suffix
 }

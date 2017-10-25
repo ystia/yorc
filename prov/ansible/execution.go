@@ -714,11 +714,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
-	e.OperationRemoteBaseDir, err = ioutil.TempDir(".", ".janus_")
-	if err != nil {
-		err = errors.Wrapf(err, "Unable to create remote operation remote base directory for new execution on operation:%s and node:%s", e.operation.Name, e.NodeName)
-		return err
-	}
+	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(".janus_", "")
 	if e.operation.RelOp.IsRelationshipOperation {
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
