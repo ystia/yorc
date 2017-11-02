@@ -395,12 +395,16 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 		status = pod.Status.Phase
 
 		if status == v1.PodPending && len(pod.Status.ContainerStatuses) > 0 {
-			reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
-			if reason != latestReason {
-				latestReason = reason
-				log.Printf(pod.Name + " : " + string(pod.Status.Phase) + "->" + reason)
-				events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" -> "+reason)
+			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+				reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
+				if reason != latestReason {
+					latestReason = reason
+					log.Printf(pod.Name + " : " + string(pod.Status.Phase) + "->" + reason)
+					events.LogEngineMessage(e.kv, e.deploymentID, "Pod status : "+pod.Name+" : "+string(pod.Status.Phase)+" -> "+reason)
+				}
+
 			}
+
 		} else {
 			ready := true
 			cond := v1.PodCondition{}
