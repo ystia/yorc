@@ -128,15 +128,6 @@ func generatePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
 
-func genereateVolumeMount(volumeName string, readOnly bool, mountPath, subPath string) v1.VolumeMount {
-	return v1.VolumeMount{
-		Name:      volumeName,
-		ReadOnly:  readOnly,
-		MountPath: mountPath,
-		SubPath:   subPath,
-	}
-}
-
 func (k8s *k8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolicy, dockerRunCmd string, requests, limits v1.ResourceList, inputs []v1.EnvVar, volumeMounts []v1.VolumeMount) v1.Container {
 	return v1.Container{
 		Name:  strings.ToLower(k8s.cfg.ResourcesPrefix + nodeName),
@@ -153,14 +144,30 @@ func (k8s *k8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 	}
 }
 
-// TODO treat errors
+// Generate all the Kubernetes Volumes used by a node
+func (k8s *k8sGenerator) genereateUsedVolumes(deploymentID, nodeName string) ([]v1.Volume, error) {
+	usedVoumeNodeNames, err := getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	err = nil
+	var usedVolumes []v1.Volume
+	for _, volumeNodeName := range usedVoumeNodeNames {
+		volume, err := k8s.generateVolume(deploymentID, volumeNodeName)
+		if err == nil {
+			usedVolumes = append(usedVolumes, volume)
+		}
+	}
+	return usedVolumes, err
+}
+
+// Generate the kubernetes Volume matched by a K8s Volume Node
 func (k8s *k8sGenerator) generateVolume(deploymentID, volumeNodeName string) (v1.Volume, error) {
-	var err error
-	_, vname, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "name")
+	_, vname, err := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "name")
+	_, vtype, err := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "volume_type")
 	volume := v1.Volume{
 		Name: vname,
 	}
-	_, vtype, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "volume_type")
 	volumeSource := v1.VolumeSource{}
 	switch vtype {
 	case "emptyDir":
@@ -174,9 +181,10 @@ func (k8s *k8sGenerator) generateVolume(deploymentID, volumeNodeName string) (v1
 	return volume, err
 }
 
+// Generate an emptyDir Kubernetes Volume
 func (k8s *k8sGenerator) generateEmptyDirVolumeSource(deploymentID, volumeNodeName string) v1.EmptyDirVolumeSource {
-	found, mediumVal, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "medium")
-	if !found {
+	found, mediumVal, err := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "medium")
+	if !found || (err != nil) {
 		mediumVal = ""
 	}
 	return v1.EmptyDirVolumeSource{
@@ -184,7 +192,77 @@ func (k8s *k8sGenerator) generateEmptyDirVolumeSource(deploymentID, volumeNodeNa
 	}
 }
 
-// Get the names of the nodes corresponding to volumes mounted by the node 'nodeName'
+// Generate a kubernetes VolumeMount corresponding to a used volume
+// Need properties of the 'mount' capability of the used volume node
+func (k8s *k8sGenerator) generateVolumeMount(deploymentID, volumeNodeName string) (v1.VolumeMount, error) {
+	var volumeName, mountPath, subPath string
+	readOnly := false
+	// create default structure to be returned in case of error
+	volumeMount := v1.VolumeMount{
+		Name:      volumeName,
+		ReadOnly:  readOnly,
+		MountPath: mountPath,
+		SubPath:   subPath,
+	}
+	found, volumeName, err := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "name")
+	if err != nil || !found {
+		if err == nil {
+			err = errors.Errorf("Volume node %q needs a name property", volumeNodeName)
+		}
+		return volumeMount, err
+	}
+	found, mountPath, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "mountPath")
+	if err != nil || !found {
+		if err == nil {
+			err = errors.Errorf("Volume node %q needs mount capability with mountPath property", volumeNodeName)
+		}
+		return volumeMount, err
+	}
+	found, subPath, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "subPath")
+	if err != nil || !found {
+		if err == nil {
+			subPath = ""
+		} else {
+			return volumeMount, err
+		}
+	}
+	found, _, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "readOnly")
+	if err != nil || !found {
+		if err == nil {
+			readOnly = false
+		} else {
+			return volumeMount, err
+		}
+	}
+	err = nil
+	return v1.VolumeMount{
+		Name:      volumeName,
+		ReadOnly:  readOnly,
+		MountPath: mountPath,
+		SubPath:   subPath,
+	}, err
+}
+
+// Generate the kubernetes VolumeMounts for a node
+func (k8s *k8sGenerator) generateVolumeMounts(deploymentID, nodeName string) ([]v1.VolumeMount, error) {
+	usedVoumeNodeNames, err := getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	var volumeMounts []v1.VolumeMount
+
+	for _, volumeNodeName := range usedVoumeNodeNames {
+		volumeMount, err := k8s.generateVolumeMount(deploymentID, volumeNodeName)
+		if err != nil {
+			return nil, err
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+	return volumeMounts, err
+}
+
+// Get the node names corresponding to volumes mounted by the node 'nodeName'
+// Used volumes are obtained based on the requirements named 'use_volume'
 func getUsedVolumeNodesNames(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
 	useVolumeKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "use_volume")
 	if err != nil {
@@ -194,7 +272,8 @@ func getUsedVolumeNodesNames(kv *api.KV, deploymentID, nodeName string) ([]strin
 	for _, useVolumeReqPrefix := range useVolumeKeys {
 		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(useVolumeReqPrefix)
 		volumeNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
-		log.Printf("###################### Node %s has requirement use_volume satisfyed by node %s", nodeName, volumeNodeName)
+
+		log.Printf("Node %s has requirement use_volume satisfyed by node %s", nodeName, volumeNodeName)
 		if err != nil {
 			return nil, err
 		}
@@ -203,17 +282,24 @@ func getUsedVolumeNodesNames(kv *api.KV, deploymentID, nodeName string) ([]strin
 	return usedVolumeNodesNames, nil
 }
 
-// generateDeployment generate Kubernetes Pod and Service to deploy based of given Node
+// GenerateDeployment generate Kubernetes Pod and Service to deploy based of given Node
 func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, nodeType, repoName string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
 	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
 	}
 
+	// TODO make these properties coherent with Tosca node type properties
+	// Currently only mem_limit and cpu_share are defined
 	_, cpuShareStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "cpu_share")
-	_, cpuLimitStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "cpu_limit")
-	_, memShareStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "mem_share")
+	// not implemented
+	//_, cpuLimitStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "cpu_limit")
+	cpuLimitStr := ""
+	// mem_share does not exist neither in docker nore in K8s
+	//_, memShareStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "mem_share")
+	memShareStr := ""
 	_, memLimitStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "mem_limit")
+
 	_, imagePullPolicy, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "imagePullPolicy")
 	_, dockerRunCmd, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "docker_run_cmd")
 	_, dockerPorts, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "docker_ports")
@@ -223,6 +309,8 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 		return v1beta1.Deployment{}, v1.Service{}, err
 	}
 
+	// mem_share does not exist neither in docker nore in K8s
+	// maybe should be replaced with mem_requests
 	requests, err := generateRequestRessources(cpuShareStr, memShareStr)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
@@ -233,62 +321,9 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 		Labels: map[string]string{"name": strings.ToLower(nodeName), "nodeId": deploymentID + "-" + generatePodName(nodeName)},
 	}
 
-	var usedVolumeNodesNames []string
-	var usedVolumes []v1.Volume
-	var volumeMounts []v1.VolumeMount
-
-	usedVolumeNodesNames, err = getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
+	volumeMounts, err := k8s.generateVolumeMounts(deploymentID, nodeName)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
-	}
-	if len(usedVolumeNodesNames) == 0 {
-		usedVolumes = nil
-		volumeMounts = nil
-
-		log.Printf("###################### Node %s uses no volume", nodeName)
-	} else {
-		log.Printf("###################### Node %s uses %d volumes", nodeName, len(usedVolumeNodesNames))
-		//allNodeNames, err := deployments.GetNodes(k8s.kv, deploymentID)
-		allNodeNames, _ := deployments.GetNodes(k8s.kv, deploymentID)
-		// TODO treat err
-		// treat volume nodes
-		for _, aNodename := range allNodeNames {
-			for _, volumeNodeName := range usedVolumeNodesNames {
-				if 0 == strings.Compare(aNodename, volumeNodeName) {
-					_, volumeName, _ := deployments.GetNodeProperty(k8s.kv, deploymentID, volumeNodeName, "name")
-					log.Printf("###################### Found volume node %s containing volume %s used by node %s", volumeNodeName, volumeName, nodeName)
-
-					// Found a volume node mounted by the current node
-					// Generate the Kubernetes Volume object (instance of v1.Volume)
-					volume, _ := k8s.generateVolume(deploymentID, volumeNodeName)
-
-					// TODO treat error case
-					usedVolumes = append(usedVolumes, volume)
-
-					// Get the 'mount' capability of the volume
-					found, mountPath, _ := deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "mountPath")
-					if !found {
-						// TODO treat error case in which mountPath property of mount capability not set
-						// should never heapen as this is a required
-					}
-					found, subPath, _ := deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "subPath")
-					if !found {
-						// TODO treat error case in which subPath property of mount capability not set
-					}
-					// TODO Get readOnly bool property
-					readOnly := false
-
-					// Create a VolumeMount
-					volumeMount := v1.VolumeMount{
-						Name:      volumeName,
-						ReadOnly:  readOnly,
-						MountPath: mountPath,
-						SubPath:   subPath,
-					}
-					volumeMounts = append(volumeMounts, volumeMount)
-				}
-			}
-		}
 	}
 
 	container := k8s.generateContainer(nodeName, imgName, imagePullPolicy, dockerRunCmd, requests, limits, inputs, volumeMounts)
@@ -297,6 +332,11 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 
 	if repoName != "" {
 		pullRepo = append(pullRepo, v1.LocalObjectReference{Name: repoName})
+	}
+
+	usedVolumes, err := k8s.genereateUsedVolumes(deploymentID, nodeName)
+	if err != nil {
+		return v1beta1.Deployment{}, v1.Service{}, err
 	}
 
 	deployment := v1beta1.Deployment{
