@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"errors"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/config"
@@ -35,6 +36,10 @@ func (m *mockDelegateExecutor) ExecDelegate(ctx context.Context, conf config.Con
 	if m.deploymentID == "TestCancel" {
 		<-m.ctx.Done()
 	}
+
+	if m.deploymentID == "TestFailure" {
+		return NewRPCError(errors.New("a failure occurred during plugin exec operation"))
+	}
 	return nil
 }
 
@@ -62,6 +67,25 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 	require.Equal(t, "TestDepID", mock.deploymentID)
 	require.Equal(t, "TestNodeName", mock.nodeName)
 	require.Equal(t, "TestDelegateOP", mock.delegateOperation)
+}
+
+func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
+	t.Parallel()
+	mock := new(mockDelegateExecutor)
+	client, _ := plugin.TestPluginRPCConn(t, map[string]plugin.Plugin{
+		DelegatePluginName: &DelegatePlugin{F: func() prov.DelegateExecutor {
+			return mock
+		}},
+	})
+	defer client.Close()
+
+	raw, err := client.Dispense(DelegatePluginName)
+	require.Nil(t, err)
+
+	delegate := raw.(prov.DelegateExecutor)
+
+	err = delegate.ExecDelegate(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "TestFailure", "TestNodeName", "TestDelegateOP")
+	require.Error(t, err, "An error was expected during executing plugin operation")
 }
 
 func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {

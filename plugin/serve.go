@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 
+	"encoding/gob"
 	"github.com/hashicorp/go-plugin"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
@@ -47,6 +48,8 @@ type ServeOpts struct {
 // Serve serves a plugin. This function never returns and should be the final
 // function called in the main function of the plugin.
 func Serve(opts *ServeOpts) {
+	SetupPluginCommunication()
+
 	// As a plugin configure janus logs to go to stderr in order to be show in the parent process
 	log.SetOutput(os.Stderr)
 	plugin.Serve(&plugin.ServeConfig{
@@ -65,4 +68,12 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 		DefinitionsPluginName:   &DefinitionsPlugin{Definitions: opts.Definitions},
 		ConfigManagerPluginName: &ConfigManagerPlugin{&defaultConfigManager{}},
 	}
+}
+
+// SetupPluginCommunication makes mandatory actions to allow RPC calls btw server and plugins
+// This must be called both by serve and each plugin
+func SetupPluginCommunication() {
+	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config from janus server to plugins
+	gob.Register(make([]interface{}, 0))
+	gob.RegisterName("RPCError", RPCError{})
 }

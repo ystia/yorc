@@ -96,7 +96,7 @@ type OperationExecutorExecOperationArgs struct {
 // OperationExecutorExecOperationResponse is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type OperationExecutorExecOperationResponse struct {
-	Error error
+	Error *RPCError
 }
 
 // ExecOperation is public for use by reflexion and should be considered as private to this package.
@@ -108,9 +108,11 @@ func (s *OperationExecutorServer) ExecOperation(args *OperationExecutorExecOpera
 
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
 	err := s.OpExecutor.ExecOperation(ctx, args.Conf, args.TaskID, args.DeploymentID, args.NodeName, args.Operation)
-	*reply = OperationExecutorExecOperationResponse{
-		Error: err,
+	var resp OperationExecutorExecOperationResponse
+	if err != nil {
+		resp.Error = NewRPCError(err)
 	}
+	*reply = resp
 	return nil
 }
 
@@ -125,7 +127,7 @@ func (s *OperationExecutorServer) GetSupportedArtifactTypes(_ interface{}, reply
 // Please do not use it directly.
 type OperationExecutorGetTypesResponse struct {
 	SupportedTypes []string
-	Error          error
+	Error          *RPCError
 }
 
 // GetSupportedArtifactTypes is public for use by reflexion and should be considered as private to this package.
@@ -136,5 +138,5 @@ func (c *OperationExecutorClient) GetSupportedArtifactTypes() ([]string, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get supported types for plugin")
 	}
-	return resp.SupportedTypes, resp.Error
+	return resp.SupportedTypes, toError(resp.Error)
 }
