@@ -211,14 +211,14 @@ func (k8s *k8sGenerator) generateVolumeMount(deploymentID, volumeNodeName string
 		}
 		return volumeMount, err
 	}
-	found, mountPath, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "mountPath")
+	found, mountPath, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "mount_path")
 	if err != nil || !found {
 		if err == nil {
-			err = errors.Errorf("Volume node %q needs mount capability with mountPath property", volumeNodeName)
+			err = errors.Errorf("Volume node %q needs mount capability with mount_path property", volumeNodeName)
 		}
 		return volumeMount, err
 	}
-	found, subPath, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "subPath")
+	found, subPath, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "sub_path")
 	if err != nil || !found {
 		if err == nil {
 			subPath = ""
@@ -226,7 +226,7 @@ func (k8s *k8sGenerator) generateVolumeMount(deploymentID, volumeNodeName string
 			return volumeMount, err
 		}
 	}
-	found, _, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "readOnly")
+	found, _, err = deployments.GetCapabilityProperty(k8s.kv, deploymentID, volumeNodeName, "mount", "read_only")
 	if err != nil || !found {
 		if err == nil {
 			readOnly = false

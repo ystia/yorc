@@ -48,11 +48,11 @@ capability_types:
     description: >
       Capability to mount a Kubernetes volume
     properties:
-      readOnly:
+      read_only:
         type: boolean
         required: false
         description: Mounted read-only if true, read-write otherwise (false or unspecified). Defaults to false.
-      subPath:
+      sub_path:
         type: string
         required: false
         description:  Path within the volume from which the container's volume should be mounted. Defaults to "" (volume's root).

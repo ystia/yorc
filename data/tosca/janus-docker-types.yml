@@ -64,7 +64,7 @@ capability_types:
     description: >
       Capability of a Docker Volume to be mounted in a Docker Container
     properties:
-      mountPath:
+      mount_path:
         type: string
         required: true
         description: Path within the container at which the volume should be mounted. Must not contain ':' if used in K8S.
