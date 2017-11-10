@@ -31,5 +31,14 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testResolver", func(t *testing.T) {
 			testResolver(t, kv)
 		})
+		t.Run("testGetTypePropertyDataType", func(t *testing.T) {
+			testGetTypePropertyDataType(t, kv)
+		})
+		t.Run("testGetNestedDataType", func(t *testing.T) {
+			testGetNestedDataType(t, kv)
+		})
+		t.Run("testReadComplexVA", func(t *testing.T) {
+			testReadComplexVA(t, kv)
+		})
 	})
 }

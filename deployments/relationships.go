@@ -13,9 +13,27 @@ import (
 
 // GetRelationshipPropertyFromRequirement returns the value of a relationship's property identified by a requirement index on a node
 func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex, propertyName string, nestedKeys ...string) (bool, string, error) {
+	relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	if err != nil {
+		return false, "", err
+	}
+
+	var propDataType string
+	if relationshipType != "" {
+		hasProp, err := TypeHasProperty(kv, deploymentID, relationshipType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+		if hasProp {
+			propDataType, err = GetTypePropertyDataType(kv, deploymentID, relationshipType, propertyName)
+			if err != nil {
+				return false, "", err
+			}
+		}
+	}
 	reqPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex)
 
-	found, result, err := getValueAssignment(kv, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, nestedKeys...)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, propDataType, nestedKeys...)
 	if err != nil {
 		return false, "", errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
 	}
@@ -24,13 +42,8 @@ func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, 
 	}
 
 	// Look at the relationship type to find a default value
-	kvp, _, err := kv.Get(path.Join(reqPrefix, "relationship"), nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-
-	if kvp != nil && len(kvp.Value) > 0 {
-		found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, string(kvp.Value), propertyName, nestedKeys...)
+	if relationshipType != "" {
+		found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, relationshipType, propertyName, nestedKeys...)
 		if err != nil {
 			return false, "", err
 		}
@@ -51,19 +64,34 @@ func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, 
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 func GetRelationshipAttributeFromRequirement(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, nestedKeys ...string) (bool, string, error) {
+	relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+	if err != nil {
+		return false, "", err
+	}
+
+	var attrDataType string
+	if relationshipType != "" {
+		hasProp, err := TypeHasAttribute(kv, deploymentID, relationshipType, attributeName)
+		if err != nil {
+			return false, "", err
+		}
+		if hasProp {
+			attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, relationshipType, attributeName)
+			if err != nil {
+				return false, "", err
+			}
+		}
+	}
+
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	found, result, err := getValueAssignment(kv, deploymentID, capAttrPath, nodeName, instanceName, requirementIndex, nestedKeys...)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, requirementIndex, attrDataType, nestedKeys...)
 	if err != nil || found {
 		// If there is an error or attribute was found
 		return found, result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)
 	}
 	// Now look at relationship type for default
-	relType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
-	if err != nil {
-		return false, "", err
-	}
-	found, result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relType, attributeName, nestedKeys...)
+	found, result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
 	if err != nil {
 		return false, "", err
 	}
@@ -73,20 +101,6 @@ func GetRelationshipAttributeFromRequirement(kv *api.KV, deploymentID, nodeName,
 		}
 		result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
 		return true, result, err
-	}
-
-	// No default found in type hierarchy
-	// then traverse HostedOn relationships to find the value
-	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
-	if err != nil {
-		return false, "", err
-	}
-	if host != "" {
-		found, result, err = GetRelationshipAttributeFromRequirement(kv, deploymentID, host, instanceName, requirementIndex, attributeName, nestedKeys...)
-		if err != nil || found {
-			// If there is an error or attribute was found
-			return found, result, err
-		}
 	}
 
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."

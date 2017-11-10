@@ -55,8 +55,25 @@ func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) err
 // If the attribute is still not found then it will explore the HostedOn hierarchy.
 // If still not found then it will check node properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (bool, string, error) {
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, "", err
+	}
+
+	var attrDataType string
+	hasAttr, err := TypeHasAttribute(kv, deploymentID, nodeType, attributeName)
+	if err != nil {
+		return false, "", err
+	}
+	if hasAttr {
+		attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, nodeType, attributeName)
+		if err != nil {
+			return false, "", err
+		}
+	}
+
 	// First look at instance-scoped attributes
-	found, result, err := getValueAssignment(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), nodeName, instanceName, "", nestedKeys...)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
 	if err != nil {
 		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)", attributeName, nodeName, instanceName)
 	}
@@ -65,7 +82,7 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 	}
 
 	// Then look at global node level (not instance-scoped)
-	found, result, err = getValueAssignment(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", nestedKeys...)
+	found, result, err = getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
 	if err != nil {
 		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q", attributeName, nodeName, instanceName)
 	}
@@ -74,10 +91,6 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 	}
 
 	// Not found look at node type
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
-	if err != nil {
-		return false, "", err
-	}
 	found, defaultValue, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, nodeType, attributeName, nestedKeys...)
 	if err != nil {
 		return false, "", err

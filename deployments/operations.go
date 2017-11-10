@@ -424,7 +424,7 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 
 	operationPath := getOperationPath(deploymentID, operation.ImplementedInType, operation.Name)
 	inputPath := path.Join(operationPath, "inputs", inputName, "data")
-	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath)
+	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
 	}
@@ -507,7 +507,8 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 	}
 	operationPath := getOperationPath(deploymentID, operation.ImplementedInType, operation.Name)
 	inputPath := path.Join(operationPath, "inputs", inputName, "default")
-	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath)
+	// TODO base datatype should be retrieved
+	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
 	}
@@ -555,4 +556,42 @@ func IsOperationInputAPropertyDefinition(kv *api.KV, deploymentID, typeName, ope
 
 	isPropDef, err := strconv.ParseBool(string(kvp.Value))
 	return isPropDef, errors.Wrapf(err, "Failed to parse boolean for operation %q of type %q", operationName, typeName)
+}
+
+// GetOperationInputType retrieves the optional data type of the parameter.
+//
+// As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
+// If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
+// the type (ie list:integer) otherwise string is assumed for then entry_schema.
+func GetOperationInputType(kv *api.KV, deploymentID, typeName, operationName, inputName string) (string, error) {
+	operationPath := getOperationPath(deploymentID, typeName, operationName)
+	kvp, _, err := kv.Get(path.Join(operationPath, "inputs", inputName), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil {
+		parentType, err := GetParentType(kv, deploymentID, typeName)
+		if err != nil {
+			return "", err
+		}
+		if parentType == "" {
+			// input not found
+			return "", inputNotFound{inputName, operationName, typeName}
+		}
+		res, err := GetOperationInputType(kv, deploymentID, parentType, operationName, inputName)
+		return res, errors.Wrapf(err, "input %q not found for operation %q implemented in type %q", inputName, operationName, typeName)
+	}
+	iType := string(kvp.Value)
+	if iType == "list" || iType == "map" {
+		kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "entry_schema"), nil)
+		if err != nil {
+			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && len(kvp.Value) > 0 {
+			iType += ":" + string(kvp.Value)
+		} else {
+			iType += ":string"
+		}
+	}
+	return iType, nil
 }

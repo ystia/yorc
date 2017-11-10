@@ -169,9 +169,6 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 	if len(operands) < 2 {
 		return "", errors.Errorf("expecting at least two parameters for a get_%s function (%s)", rType, funcString)
 	}
-	if fr.nodeName == "" {
-		return "", errors.Errorf(`Can't resolve %q without a specified node name`, funcString)
-	}
 	if rType == "attribute" && fr.instanceName == "" {
 		return "", errors.Errorf(`Can't resolve %q without a specified instance name`, funcString)
 	}
@@ -206,6 +203,10 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 		}
 	default:
 		actualNode = entity
+	}
+
+	if actualNode == "" {
+		return "", errors.Errorf(`Can't resolve %q without a specified node name`, funcString)
 	}
 	var args []string
 	var found bool

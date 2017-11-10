@@ -74,30 +74,46 @@ func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeNam
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, propertyName string, nestedKeys ...string) (bool, string, error) {
+	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return false, "", err
+	}
+
+	var propDataType string
+	if capabilityType != "" {
+		hasProp, err := TypeHasProperty(kv, deploymentID, capabilityType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+		if hasProp {
+			propDataType, err = GetTypePropertyDataType(kv, deploymentID, capabilityType, propertyName)
+			if err != nil {
+				return false, "", err
+			}
+		}
+	}
+
 	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "properties", propertyName)
-	found, result, err := getValueAssignment(kv, deploymentID, capPropPath, nodeName, "", "", nestedKeys...)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, nodeName, "", "", propDataType, nestedKeys...)
 	if err != nil || found {
 		// If there is an error or property was found
 		return found, result, errors.Wrapf(err, "Failed to get property %q for capability %q on node %q", propertyName, capabilityName, nodeName)
 	}
 
 	// Not found let's look at capability type for default
-	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
-	if err != nil {
-		return false, "", err
-	}
-	found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName, nestedKeys...)
-	if err != nil {
-		return false, "", err
-	}
-	if found {
-		if !isFunction {
-			return true, result, nil
+	if capabilityType != "" {
+		found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName, nestedKeys...)
+		if err != nil {
+			return false, "", err
 		}
-		result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", "", result, nestedKeys...)
-		return true, result, err
+		if found {
+			if !isFunction {
+				return true, result, nil
+			}
+			result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", "", result, nestedKeys...)
+			return true, result, err
+		}
 	}
-
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
 	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
@@ -117,9 +133,28 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, nestedKeys ...string) (bool, string, error) {
+	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return false, "", err
+	}
+
+	var attrDataType string
+	if capabilityType != "" {
+		hasProp, err := TypeHasAttribute(kv, deploymentID, capabilityType, attributeName)
+		if err != nil {
+			return false, "", err
+		}
+		if hasProp {
+			attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, capabilityType, attributeName)
+			if err != nil {
+				return false, "", err
+			}
+		}
+	}
+
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-	found, result, err := getValueAssignment(kv, deploymentID, capAttrPath, nodeName, instanceName, "", nestedKeys...)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
 	if err != nil || found {
 		// If there is an error or attribute was found
 		return found, result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
@@ -127,27 +162,25 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 
 	// Then look at global node level
 	nodeCapPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "attributes", attributeName)
-	found, result, err = getValueAssignment(kv, deploymentID, nodeCapPath, nodeName, instanceName, "", nestedKeys...)
+	found, result, err = getValueAssignmentWithDataType(kv, deploymentID, nodeCapPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
 	if err != nil || found {
 		// If there is an error or attribute was found
 		return found, result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
 	}
 
 	// Now look at capability type for default
-	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
-	if err != nil {
-		return false, "", err
-	}
-	found, result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, capabilityType, attributeName, nestedKeys...)
-	if err != nil {
-		return false, "", err
-	}
-	if found {
-		if !isFunction {
-			return true, result, nil
+	if capabilityType != "" {
+		found, result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, capabilityType, attributeName, nestedKeys...)
+		if err != nil {
+			return false, "", err
 		}
-		result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, "", result, nestedKeys...)
-		return true, result, err
+		if found {
+			if !isFunction {
+				return true, result, nil
+			}
+			result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, "", result, nestedKeys...)
+			return true, result, err
+		}
 	}
 
 	// No default found in type hierarchy

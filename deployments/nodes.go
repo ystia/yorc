@@ -206,33 +206,30 @@ func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, erro
 	return stackNodes, nil
 }
 
-// getTypeDefaultProperty checks if a type has a default value for a given property.
-//
-// It returns true if a default value is found false otherwise as first return parameter.
-// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-// The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultProperty(kv *api.KV, deploymentID, typeName, propertyName string, nestedKeys ...string) (bool, string, bool, error) {
-	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, propertyName, true, nestedKeys...)
-}
-
-// getTypeDefaultAttribute checks if a type has a default value for a given attribute.
-//
-// It returns true if a default value is found false otherwise as first return parameter.
-// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-// The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultAttribute(kv *api.KV, deploymentID, typeName, attributeName string, nestedKeys ...string) (bool, string, bool, error) {
-	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, attributeName, false, nestedKeys...)
-}
-
 // GetNodeProperty retrieves the value for a given property in a given node
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
 func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, nestedKeys ...string) (bool, string, error) {
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, "", err
+	}
+	var propDataType string
+	hasProp, err := TypeHasProperty(kv, deploymentID, nodeType, propertyName)
+	if err != nil {
+		return false, "", err
+	}
+	if hasProp {
+		propDataType, err = GetTypePropertyDataType(kv, deploymentID, nodeType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+	}
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
-	found, result, err := getValueAssignment(kv, deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", nestedKeys...)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", propDataType, nestedKeys...)
 	if err != nil {
 		return false, "", errors.Wrapf(err, "Failed to get property %q for node %q", propertyName, nodeName)
 	}
@@ -240,15 +237,8 @@ func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ne
 		return true, result, nil
 	}
 	// Not found look at node type
-	kvp, _, err := kv.Get(path.Join(nodePath, "type"), nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return false, "", errors.Errorf("Missing type for node %q in deployment %q", nodeName, deploymentID)
-	}
 
-	ok, value, isFunction, err := getTypeDefaultProperty(kv, deploymentID, string(kvp.Value), propertyName, nestedKeys...)
+	ok, value, isFunction, err := getTypeDefaultProperty(kv, deploymentID, nodeType, propertyName, nestedKeys...)
 	if err != nil {
 		return false, "", err
 	}
@@ -305,40 +295,6 @@ func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string,
 		attributes[instance] = result
 	}
 	return true, attributes, nil
-}
-
-// getTypeDefaultProperty checks if a type has a default value for a given property or attribute.
-// It returns true if a default value is found false otherwise as first return parameter.
-// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-// The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, propertyName string, isProperty bool, nestedKeys ...string) (bool, string, bool, error) {
-	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName)
-	var t string
-	if isProperty {
-		t = "properties"
-	} else {
-		t = "attributes"
-	}
-	defaultPath := path.Join(typePath, t, propertyName, "default")
-
-	found, result, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, defaultPath, nestedKeys...)
-	if err != nil {
-		return false, "", false, errors.Wrapf(err, "Failed to get default %s %q for type %q", t, propertyName, typeName)
-	}
-	if found {
-		return true, result, isFunction, nil
-	}
-
-	// No default in this type
-	// Lets look at parent type
-	parentType, err := GetParentType(kv, deploymentID, typeName)
-	if err != nil {
-		return false, "", false, err
-	}
-	if parentType == "" {
-		return false, "", false, nil
-	}
-	return getTypeDefaultAttributeOrProperty(kv, deploymentID, parentType, propertyName, isProperty, nestedKeys...)
 }
 
 // SetNodeInstanceAttribute sets an attribute value to a node instance
