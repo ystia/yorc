@@ -9,11 +9,13 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"net"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"strconv"
 )
 
 func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
@@ -83,11 +85,40 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	if _, eips, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "elastic_ips"); err != nil {
 		return err
 	} else if eips != "" {
-		for _, eips := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(eips), ",") {
-			eips = strings.TrimSpace(eips)
-			instance.ElasticIps = append(instance.ElasticIps, eips)
+		for _, eip := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(eips), ",") {
+			eip = strings.TrimSpace(eip)
+			if net.ParseIP(eip) == nil {
+				return errors.Errorf("Malformed provided Elastic IP: %s", eip)
+			}
+			instance.ElasticIps = append(instance.ElasticIps, eip)
 		}
 	}
+
+	// Check if the root block device must be deleted on termination
+	deleteVolumeOnTermination := true // Default is deleting root block device on compute termination
+	if _, s, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "delete_volume_on_termination"); err != nil {
+		return err
+	} else if s != "" {
+		deleteVolumeOnTermination, err = strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+	}
+	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: deleteVolumeOnTermination}
+
+	// Optional property to select availability zone of the compute instance
+	var availabilityZone string
+	if _, availabilityZone, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "availability_zone"); err != nil {
+		return err
+	}
+	instance.AvailabilityZone = availabilityZone
+
+	// Optional property to add the compute to a logical grouping of instances
+	var placementGroup string
+	if _, placementGroup, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "placement_group"); err != nil {
+		return err
+	}
+	instance.PlacementGroup = placementGroup
 
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)

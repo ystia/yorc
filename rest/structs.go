@@ -2,7 +2,10 @@ package rest
 
 import "novaforge.bull.com/starlings-janus/janus/events"
 import "novaforge.bull.com/starlings-janus/janus/tosca"
-import "novaforge.bull.com/starlings-janus/janus/registry"
+import (
+	"encoding/json"
+	"novaforge.bull.com/starlings-janus/janus/registry"
+)
 
 const (
 	// LinkRelSelf defines the AtomLink Rel attribute for relationships of the "self"
@@ -79,7 +82,7 @@ type EventsCollection struct {
 
 // LogsCollection is a collection of logs events
 type LogsCollection struct {
-	Logs      []events.LogEntry `json:"logs"`
+	Logs      []json.RawMessage `json:"logs"`
 	LastIndex uint64            `json:"last_index"`
 }
 

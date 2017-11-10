@@ -13,9 +13,11 @@ import (
 )
 
 func init() {
-
 	RootCmd.AddCommand(serverCmd)
-	serverInitInfraExtraFlags()
+
+	// Get the CLI args
+	args := os.Args
+	serverInitInfraExtraFlags(args)
 	setConfig()
 	cobra.OnInitialize(initConfig)
 }
@@ -30,29 +32,45 @@ var serverCmd = &cobra.Command{
 	Long:         `Perform the server command`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-
 		configuration := getConfig()
+		log.Debugf("Configuration :%+v", configuration)
 		shutdownCh := make(chan struct{})
 		return server.RunServer(configuration, shutdownCh)
 	},
 }
 
-func serverInitInfraExtraFlags() {
+func serverInitInfraExtraFlags(args []string) {
 	serverExtraInfraParams = make([]string, 0)
-	args := os.Args
 	for i := range args {
 		if strings.HasPrefix(args[i], "--infrastructure_") {
-			flagParts := strings.Split(args[i], "=")
-			flagName := strings.TrimLeft(flagParts[0], "-")
-			viperName := strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
-			if len(flagParts) == 1 {
-				// Boolean flag
-				serverCmd.PersistentFlags().Bool(flagName, false, "")
-				viper.SetDefault(viperName, false)
+			var viperName, flagName string
+			if strings.ContainsRune(args[i], '=') {
+				// Handle the syntax --infrastructure_xxx_yyy = value
+				flagParts := strings.Split(args[i], "=")
+				flagName = strings.TrimLeft(flagParts[0], "-")
+				viperName = strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
+				if len(flagParts) == 1 {
+					// Boolean flag
+					serverCmd.PersistentFlags().Bool(flagName, false, "")
+					viper.SetDefault(viperName, false)
+				} else {
+					serverCmd.PersistentFlags().String(flagName, "", "")
+					viper.SetDefault(viperName, "")
+				}
 			} else {
-				serverCmd.PersistentFlags().String(flagName, "", "")
-				viper.SetDefault(viperName, "")
+				// Handle the syntax --infrastructure_xxx_yyy value
+				flagName = strings.TrimLeft(args[i], "-")
+				viperName = strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
+				if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
+					serverCmd.PersistentFlags().String(flagName, "", "")
+					viper.SetDefault(viperName, "")
+				} else {
+					// Boolean flag
+					serverCmd.PersistentFlags().Bool(flagName, false, "")
+					viper.SetDefault(viperName, false)
+				}
 			}
+			// Add viper flag
 			viper.BindPFlag(viperName, serverCmd.PersistentFlags().Lookup(flagName))
 			serverExtraInfraParams = append(serverExtraInfraParams, viperName)
 		}
@@ -115,6 +133,7 @@ func setConfig() {
 
 	serverCmd.PersistentFlags().Bool("ansible_use_openssh", false, "Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts")
 	serverCmd.PersistentFlags().Bool("ansible_debug", false, "Prints massive debug information from Ansible")
+	serverCmd.PersistentFlags().Int("ansible_connection_retries", 5, "Number of retries in case of Ansible SSH connection failure")
 
 	//Bind flags for Consul
 	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
@@ -145,6 +164,7 @@ func setConfig() {
 
 	viper.BindPFlag("ansible_use_openssh", serverCmd.PersistentFlags().Lookup("ansible_use_openssh"))
 	viper.BindPFlag("ansible_debug", serverCmd.PersistentFlags().Lookup("ansible_debug"))
+	viper.BindPFlag("ansible_connection_retries", serverCmd.PersistentFlags().Lookup("ansible_connection_retries"))
 
 	//Environment Variables
 	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
@@ -170,6 +190,7 @@ func setConfig() {
 
 	viper.BindEnv("ansible_use_openssh")
 	viper.BindEnv("ansible_debug")
+	viper.BindEnv("ansible_connection_retries")
 
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
@@ -187,6 +208,7 @@ func setConfig() {
 
 	viper.SetDefault("ansible_use_openssh", false)
 	viper.SetDefault("ansible_debug", false)
+	viper.SetDefault("ansible_connection_retries", 5)
 
 	//Configuration file directories
 	viper.SetConfigName("config.janus") // name of config file (without extension)
@@ -197,8 +219,9 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
-	configuration.AnsibleDebugExec = viper.GetBool("ansible_use_openssh")
+	configuration.AnsibleUseOpenSSH = viper.GetBool("ansible_use_openssh")
 	configuration.AnsibleDebugExec = viper.GetBool("ansible_debug")
+	configuration.AnsibleConnectionRetries = viper.GetInt("ansible_connection_retries")
 	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.PluginsDirectory = viper.GetString("plugins_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")

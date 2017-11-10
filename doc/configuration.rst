@@ -18,6 +18,10 @@ Globals Command-line options
 
   * ``--ansible_debug``: Prints massive debug information from Ansible especially about connections
 
+.. _option_ansible_connection_retries_cmd:
+
+  * ``--ansible_connection_retries``: Number of retries in case of Ansible SSH connection failure.
+
 .. _option_config_cmd:
 
   * ``--config`` or ``-c``: Specify an alternative configuration file. By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory.
@@ -74,6 +78,10 @@ Globals Command-line options
 
   * ``--http_port``: Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.
 
+.. _option_keep_remote_path_cmd:
+
+  * ``--keep_operation_remote_path``: If set to true, do not delete temporary artifacts on provisioned Compute at the end of deployment (false by default for deployment temporary artifacts cleanup).
+
 .. _option_keyfile_cmd:
 
   * ``--key_file``: File path to a PEM-encoded private key. The key is used to enable SSL for the Janus HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.
@@ -84,7 +92,7 @@ Globals Command-line options
 
 .. _option_pluginsdir_cmd:
 
-  * ``--plugins_directory``: The name of the plugins directory of the Janus server. The default is to use a directory named *plugins* in the current directory.
+  * ``--plugins_directory``: The name of the plugins directory of the Janus server. The default is to use a directory named *plugins* in the current directory.
 
 .. _option_resources_prefix_cmd:
 
@@ -96,7 +104,7 @@ Globals Command-line options
 
 .. _option_workdir_cmd: 
 
-  * ``--working_directory`` or ``-w``: Specify an alternative working directory for Janus. The default is to use a directory named *work* in the current directory.
+  * ``--working_directory`` or ``-w``: Specify an alternative working directory for Janus. The default is to use a directory named *work* in the current directory.
 
 
 .. _janus_config_file_section:
@@ -155,6 +163,10 @@ Below is an example of configuration file with TLS enable.
 
   * ``ansible_debug``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
 
+.. _option_ansible_connection_retries_cfg:
+
+  * ``ansible_connection_retries``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+
 .. _option_consul_addr_cfg:
 
   * ``consul_address``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
@@ -207,6 +219,10 @@ Below is an example of configuration file with TLS enable.
 .. _option_http_port_cfg:
 
   * ``http_port``: Equivalent to :ref:`--http_port <option_http_port_cmd>` command-line flag.
+
+.. _option_keep_remote_path_cfg:
+
+  * ``keep_operation_remote_path``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
 
 .. _option_keyfile_cfg:
 
@@ -301,6 +317,10 @@ Environment variables
 
   * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
 
+.. _option_ansible_connection_retries_env:
+
+  * ``JANUS_ANSIBLE_CONNECTION_RETRIES``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+
 .. _option_consul_addr_env:
 
   * ``JANUS_CONSUL_ADDRESS``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
@@ -352,6 +372,10 @@ Environment variables
 .. _option_http_port_env:
 
   * ``JANUS_HTTP_PORT``: Equivalent to :ref:`--http_port <option_http_port_cmd>` command-line flag.
+
+.. _option_keep_remote_path_env:
+
+  * ``JANUS_KEEP_OPERATION_REMOTE_PATH``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
 
 .. _option_keyfile_env:
 
@@ -422,6 +446,11 @@ OpenStack
 
 OpenStack infrastructure key name is ``openstack`` in lower case.
 
+.. 
+   MAG - According to:
+   https://github.com/sphinx-doc/sphinx/issues/3043
+   http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
+.. tabularcolumns:: |p{0.35\textwidth}|p{0.30\textwidth}|p{0.05\textwidth}|p{0.15\textwidth}|p{0.10\textwidth}|
 
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 |            Option Name            |                                                     Description                                                     | Data Type |                      Required                      |    Default    |
@@ -442,13 +471,13 @@ OpenStack infrastructure key name is ``openstack`` in lower case.
 | ``private_network_name``          | Specify the name of private network to use as primary adminstration network between Janus and Compute               | string    | Required to use the ``PRIVATE`` keyword for TOSCA  |               |
 |                                   | instances. It should be a private network accessible by this instance of Janus.                                     |           | admin networks                                     |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-| ``provisioning_over_fip_allowed`` | This allows to perform the provisioning of a Compute over the associated floating IP if it exists. This is useful   | boolean   | no                                                 | ``false``.    |
+| ``provisioning_over_fip_allowed`` | This allows to perform the provisioning of a Compute over the associated floating IP if it exists. This is useful   | boolean   | no                                                 | ``false``     |
 |                                   | when Janus is not deployed on the same private network than the provisioned Compute.                                |           |                                                    |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``default_security_groups``       | Default security groups to be used when creating a Compute instance. It should be a comma-separated list of         | list of   | no                                                 |               |
 |                                   | security group names                                                                                                | strings   |                                                    |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-| ``insecure``                      | Trust self-signed SSL certificates                                                                                  | boolean   | no                                                 | false         |
+| ``insecure``                      | Trust self-signed SSL certificates                                                                                  | boolean   | no                                                 | ``false``     |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``cacert_file``                   | Specify a custom CA certificate when communicating over SSL. You can specify either a path to the file or the       | string    | no                                                 |               |
 |                                   | contents of the certificate                                                                                         |           |                                                    |               |
@@ -467,6 +496,12 @@ Kubernetes
 ~~~~~~~~~~
 
 Kubernetes infrastructure key name is ``kubernetes`` in lower case.
+
+.. 
+   MAG - According to:
+   https://github.com/sphinx-doc/sphinx/issues/3043
+   http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
+.. tabularcolumns:: |l|L|L|L|L|
 
 +----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
 |  Option Name   |                                   Description                                   | Data Type | Required | Default |

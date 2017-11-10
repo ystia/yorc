@@ -25,6 +25,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
@@ -34,12 +35,9 @@ import (
 
 const ansibleConfig = `[defaults]
 host_key_checking=False
-timeout=600
+timeout=30
 stdout_callback = json
 retry_files_save_path = #PLAY_PATH#
-
-[ssh_connection]
-retries=5
 `
 
 type ansibleRetriableError struct {
@@ -389,8 +387,8 @@ func (e *executionCommon) resolveContext() error {
 
 	}
 
+	execContext["DEPLOYMENT_ID"] = e.deploymentID
 	e.Context = execContext
-
 	return nil
 }
 
@@ -569,7 +567,17 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 }
 
 func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
-	events.LogEngineMessage(e.kv, e.deploymentID, "Start the ansible execution of : "+e.NodeName+" with operation : "+e.operation.Name)
+	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
+	logOptFields := events.LogOptionalFields{
+		events.WorkFlowID:    wfName,
+		events.NodeID:        e.NodeName,
+		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
+		events.InstanceID:    currentInstance,
+		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
+	}
+
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
 	var ansibleRecipePath string
 	if e.operation.RelOp.IsRelationshipOperation {
 		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.Name, currentInstance)
@@ -583,12 +591,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	if err = os.RemoveAll(ansibleRecipePath); err != nil {
 		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
 		log.Debugf("%+v", err)
-		events.LogEngineError(e.kv, e.deploymentID, err)
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err = os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
-		events.LogEngineError(e.kv, e.deploymentID, err)
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
@@ -674,12 +682,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write hosts file")
-		events.LogEngineError(e.kv, e.deploymentID, err)
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write ansible.cfg file")
-		events.LogEngineError(e.kv, e.deploymentID, err)
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if e.operation.RelOp.IsRelationshipOperation {
@@ -695,21 +703,21 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		outputsFiles, err := filepath.Glob(filepath.Join(ansibleRecipePath, "*-out.csv"))
 		if err != nil {
 			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-			events.LogEngineError(e.kv, e.deploymentID, err)
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 			return err
 		}
 		for _, outFile := range outputsFiles {
 			fi, err := os.Open(outFile)
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				events.LogEngineError(e.kv, e.deploymentID, err)
+				events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 				return err
 			}
 			r := csv.NewReader(fi)
 			records, err := r.ReadAll()
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				events.LogEngineError(e.kv, e.deploymentID, err)
+				events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 				return err
 			}
 			for _, line := range records {
@@ -724,9 +732,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 }
 
-func (e *executionCommon) checkAnsibleRetriableError(err error) error {
-	events.LogEngineError(e.kv, e.deploymentID, errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName))
-	log.Debug(err)
+func (e *executionCommon) checkAnsibleRetriableError(err error, logOptFields events.LogOptionalFields) error {
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName).Error())
+	log.Debugf(err.Error())
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The program has exited with an exit code != 0
 
@@ -735,8 +743,9 @@ func (e *executionCommon) checkAnsibleRetriableError(err error) error {
 		// defined for both Unix and Windows and in both cases has
 		// an ExitStatus() method with the same signature.
 		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			// Retry exit statuses 2 and 3
-			if status.ExitStatus() == 2 || status.ExitStatus() == 3 {
+			// Exit Code 4 is corresponding to unreachable host and is eligible for connection retries
+			// https://github.com/ansible/ansible/blob/devel/lib/ansible/executor/task_queue_manager.py
+			if status.ExitStatus() == 4 {
 				return ansibleRetriableError{root: err}
 			}
 		}

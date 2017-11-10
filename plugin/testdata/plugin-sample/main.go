@@ -18,7 +18,7 @@ func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Config
 	if err != nil {
 		return err
 	}
-	events.LogEngineMessage(cc.KV(), deploymentID, "Hello from myDelegateExecutor")
+	events.SimpleLogEntry(events.INFO, deploymentID).RegisterAsString("Hello from myDelegateExecutor")
 	return nil
 }
 
@@ -30,7 +30,7 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 	if err != nil {
 		return err
 	}
-	events.LogEngineMessage(cc.KV(), deploymentID, "Hello from myOperationExecutor")
+	events.SimpleLogEntry(events.INFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")
 	return nil
 }
 

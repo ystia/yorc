@@ -56,7 +56,7 @@ func (s *DefinitionsServer) GetDefinitions(_ interface{}, reply *DelegateExecuto
 // Please do not use it directly.
 type DelegateExecutorGetDefinitionsResponse struct {
 	Definitions map[string][]byte
-	Error       error
+	Error       *RPCError
 }
 
 // GetDefinitions is public for use by reflexion and should be considered as private to this package.
@@ -67,5 +67,5 @@ func (c *DefinitionsClient) GetDefinitions() (map[string][]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get tosca definitions for delegate plugin")
 	}
-	return resp.Definitions, resp.Error
+	return resp.Definitions, toError(resp.Error)
 }

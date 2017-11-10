@@ -35,36 +35,37 @@ const DefaultKeepOperationRemotePath = false
 type Configuration struct {
 	AnsibleUseOpenSSH             bool
 	AnsibleDebugExec              bool
-	PluginsDirectory              string        `json:"plugins_directory,omitempty"`
-	WorkingDirectory              string        `json:"working_directory,omitempty"`
-	WorkersNumber                 int           `json:"workers_number,omitempty"`
-	ServerGracefulShutdownTimeout time.Duration `json:"server_graceful_shutdown_timeout"`
-	HTTPPort                      int           `json:"http_port,omitempty"`
-	HTTPAddress                   string        `json:"http_address,omitempty"`
-	KeyFile                       string        `json:"key_file,omitempty"`
-	CertFile                      string        `json:"cert_file,omitempty"`
-	KeepOperationRemotePath       bool          `json:"keep_operation_remote_path,omitempty"`
-	ResourcesPrefix               string        `json:"os_prefix,omitempty"`
-	ConsulToken                   string        `json:"consul_token,omitempty"`
-	ConsulDatacenter              string        `json:"consul_datacenter,omitempty"`
-	ConsulAddress                 string        `json:"consul_address,omitempty"`
-	ConsulKey                     string        `json:"consul_key_file,omitempty"`
-	ConsulCert                    string        `json:"consul_cert_file,omitempty"`
-	ConsulCA                      string        `json:"consul_ca_cert,omitempty"`
-	ConsulCAPath                  string        `json:"consul_ca_path,omitempty"`
-	ConsulSSL                     bool          `json:"consul_ssl,omitempty"`
-	ConsulSSLVerify               bool          `json:"consul_ssl_verify,omitempty"`
-	ConsulPubMaxRoutines          int           `json:"rest_consul_publisher_max_routines,omitempty"`
-	Telemetry                     Telemetry     `json:"telemetry,omitempty"`
+	AnsibleConnectionRetries      int
+	PluginsDirectory              string
+	WorkingDirectory              string
+	WorkersNumber                 int
+	ServerGracefulShutdownTimeout time.Duration
+	HTTPPort                      int
+	HTTPAddress                   string
+	KeyFile                       string
+	CertFile                      string
+	KeepOperationRemotePath       bool
+	ResourcesPrefix               string
+	ConsulToken                   string
+	ConsulDatacenter              string
+	ConsulAddress                 string
+	ConsulKey                     string
+	ConsulCert                    string
+	ConsulCA                      string
+	ConsulCAPath                  string
+	ConsulSSL                     bool
+	ConsulSSLVerify               bool
+	ConsulPubMaxRoutines          int
+	Telemetry                     Telemetry
 	Infrastructures               map[string]InfrastructureConfig
 }
 
 // Telemetry holds the configuration for the telemetry service
 type Telemetry struct {
-	StatsdAddress           string `json:"statsd_address,omitempty"`
-	StatsiteAddress         string `json:"statsite_address,omitempty"`
+	StatsdAddress           string
+	StatsiteAddress         string
 	PrometheusEndpoint      bool
-	ServiceName             string `json:"service_name,omitempty"`
+	ServiceName             string
 	DisableHostName         bool
 	DisableGoRuntimeMetrics bool
 }
