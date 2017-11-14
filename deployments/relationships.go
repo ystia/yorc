@@ -19,6 +19,7 @@ func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, 
 	}
 
 	var propDataType string
+	var hasProp bool
 	if relationshipType != "" {
 		hasProp, err := TypeHasProperty(kv, deploymentID, relationshipType, propertyName)
 		if err != nil {
@@ -53,6 +54,36 @@ func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, 
 			}
 			result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", requirementIndex, result, nestedKeys...)
 			return true, result, err
+		}
+	}
+
+	if hasProp && relationshipType != "" {
+		// Check if the whole property is optional
+		isRequired, err := IsTypePropertyRequired(kv, deploymentID, relationshipType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+		if !isRequired {
+			// For backward compatibility
+			// TODO this doesn't look as a good idea to me
+			return true, "", nil
+		}
+
+		if len(nestedKeys) > 1 && propDataType != "" {
+			// Check if nested type is optional
+			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			if err != nil {
+				return false, "", err
+			}
+			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
+			if err != nil {
+				return false, "", err
+			}
+			if !isRequired {
+				// For backward compatibility
+				// TODO this doesn't look as a good idea to me
+				return true, "", nil
+			}
 		}
 	}
 	return false, "", nil

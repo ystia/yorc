@@ -54,7 +54,7 @@ index:
 
 	require.Equal(t, "integer", i.PropDef.Type)
 	require.Equal(t, "Number of replicas for indexes", i.PropDef.Description)
-	require.Equal(t, true, i.PropDef.Required)
+	require.Equal(t, true, *i.PropDef.Required)
 
 	i = inputs["index"]
 	require.Nil(t, i.ValueAssign)
@@ -62,5 +62,5 @@ index:
 
 	require.Equal(t, "string", i.PropDef.Type)
 	require.Equal(t, "The name of the index to be updated (specify no value for all indexes)", i.PropDef.Description)
-	require.Equal(t, false, i.PropDef.Required)
+	require.Equal(t, false, *i.PropDef.Required)
 }

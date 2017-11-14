@@ -32,12 +32,12 @@ topology_template:
 	input := topo.TopologyTemplate.Inputs["repository_default"]
 
 	require.Equal(t, "string", input.Type)
-	require.Equal(t, false, input.Required)
+	require.Equal(t, false, *input.Required)
 	require.Equal(t, `http://10.197.132.16/sla`, input.Default.GetLiteral())
 
 	input = topo.TopologyTemplate.Inputs["repository_value"]
 
 	require.Equal(t, "string", input.Type)
-	require.Equal(t, false, input.Required)
+	require.Equal(t, false, *input.Required)
 	require.Equal(t, `http://10.197.132.16/sla`, input.Value.GetLiteral())
 }

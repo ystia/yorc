@@ -256,7 +256,39 @@ func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ne
 		return false, "", err
 	}
 	if host != "" {
-		return GetNodeProperty(kv, deploymentID, host, propertyName, nestedKeys...)
+		found, result, err = GetNodeProperty(kv, deploymentID, host, propertyName, nestedKeys...)
+		if err != nil || found {
+			return found, result, err
+		}
+	}
+	if hasProp {
+		// Check if the whole property is optional
+		isRequired, err := IsTypePropertyRequired(kv, deploymentID, nodeType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+		if !isRequired {
+			// For backward compatibility
+			// TODO this doesn't look as a good idea to me
+			return true, "", nil
+		}
+
+		if len(nestedKeys) > 1 && propDataType != "" {
+			// Check if nested type is optional
+			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			if err != nil {
+				return false, "", err
+			}
+			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
+			if err != nil {
+				return false, "", err
+			}
+			if !isRequired {
+				// For backward compatibility
+				// TODO this doesn't look as a good idea to me
+				return true, "", nil
+			}
+		}
 	}
 	// Not found anywhere
 	return false, "", nil

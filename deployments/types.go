@@ -3,6 +3,7 @@ package deployments
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"novaforge.bull.com/starlings-janus/janus/helper/collections"
 
@@ -185,4 +186,54 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, prope
 		return false, "", false, nil
 	}
 	return getTypeDefaultAttributeOrProperty(kv, deploymentID, parentType, propertyName, isProperty, nestedKeys...)
+}
+
+// IsTypePropertyRequired checks if a property defined in a given type is required.
+//
+// As per the TOSCA specification a property is considered as required by default.
+// An error is returned if the given type doesn't define the given property.
+func IsTypePropertyRequired(kv *api.KV, deploymentID, typeName, propertyName string) (bool, error) {
+	return isTypePropOrAttrRequired(kv, deploymentID, typeName, propertyName, "property")
+}
+
+// IsTypeAttributeRequired checks if a attribute defined in a given type is required.
+//
+// As per the TOSCA specification a attribute is considered as required by default.
+// An error is returned if the given type doesn't define the given attribute.
+func IsTypeAttributeRequired(kv *api.KV, deploymentID, typeName, attributeName string) (bool, error) {
+	return isTypePropOrAttrRequired(kv, deploymentID, typeName, attributeName, "attribute")
+}
+
+func isTypePropOrAttrRequired(kv *api.KV, deploymentID, typeName, elemName, elemType string) (bool, error) {
+	var hasElem bool
+	var err error
+	if elemType == "property" {
+		hasElem, err = TypeHasProperty(kv, deploymentID, typeName, elemName)
+	} else {
+		hasElem, err = TypeHasAttribute(kv, deploymentID, typeName, elemName)
+	}
+	if err != nil {
+		return false, err
+	}
+	if !hasElem {
+		return false, errors.Errorf("type %q doesn't define %s %q can't check if it is required or not", typeName, elemType, elemName)
+	}
+
+	var t string
+	if elemType == "property" {
+		t = "properties"
+	} else {
+		t = "attributes"
+	}
+	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName, t, elemName, "required")
+	kvp, _, err := kv.Get(reqPath, nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		// Required by default
+		return true, nil
+	}
+	// Not required only if explicitly set to false
+	return !(strings.ToLower(string(kvp.Value)) == "false"), nil
 }

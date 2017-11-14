@@ -24,7 +24,7 @@ func testResolver(t *testing.T, kv *api.KV) {
 	t.Run("deployments/resolver/testGetOperationOutputReal", func(t *testing.T) {
 		testGetOperationOutputReal(t, kv)
 	})
-	t.Run("deployments/resolver/testGetOperationOutputReal", func(t *testing.T) {
+	t.Run("deployments/resolver/testResolveComplex", func(t *testing.T) {
 		testResolveComplex(t, kv)
 	})
 
@@ -122,6 +122,7 @@ func testResolveComplex(t *testing.T, kv *api.KV) {
 		{"ResolveGetPropertyMapAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, `{"one":"1","two":"2"}`},
 		{"ResolveGetPropertyMapSubKey", context{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, `1`},
 		{"ResolveGetPropertyMapSubKeyAlien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, `1`},
+		{"ResolveEmpty", context{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, ``},
 	}
 	for _, tt := range resolverTests {
 		t.Run(tt.name, func(t *testing.T) {

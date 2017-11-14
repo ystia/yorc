@@ -105,13 +105,13 @@ update_replicas:
 	require.Nil(t, ifDef.Inputs["nb_replicas"].ValueAssign)
 	require.Equal(t, "integer", ifDef.Inputs["nb_replicas"].PropDef.Type)
 	require.Equal(t, "Number of replicas for indexes", ifDef.Inputs["nb_replicas"].PropDef.Description)
-	require.Equal(t, true, ifDef.Inputs["nb_replicas"].PropDef.Required)
+	require.Equal(t, true, *ifDef.Inputs["nb_replicas"].PropDef.Required)
 	require.Contains(t, ifDef.Inputs, "index")
 	require.NotNil(t, ifDef.Inputs["index"].PropDef)
 	require.Nil(t, ifDef.Inputs["index"].ValueAssign)
 	require.Equal(t, "string", ifDef.Inputs["index"].PropDef.Type)
 	require.Equal(t, "The name of the index to be updated (specify no value for all indexes)", ifDef.Inputs["index"].PropDef.Description)
-	require.Equal(t, false, ifDef.Inputs["index"].PropDef.Required)
+	require.Equal(t, false, *ifDef.Inputs["index"].PropDef.Required)
 
 	require.Equal(t, "scripts/elasticsearch_updateReplicas.sh", ifDef.Implementation.Primary)
 }

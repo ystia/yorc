@@ -15,6 +15,9 @@ node_types:
         type: string
       empty:
         type: string
+      optionalEmpty:
+        type: string
+        required: false
     interfaces:
       Standard:
         create:
@@ -22,6 +25,7 @@ node_types:
             A1: {get_property: [SELF, document_root]}
             A2: {get_attribute: [HOST, ip_address]}
             A3: {get_property: [SELF, empty]}
+            A4: {get_property: [SELF, optionalEmpty]}
           implementation: /tmp/create.sh
   janus.types.B:
     derived_from: tosca.nodes.SoftwareComponent

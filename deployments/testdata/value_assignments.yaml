@@ -47,6 +47,9 @@ node_types:
   janus.tests.nodes.ValueAssignmentNode:
     derived_from: tosca.nodes.Root
     properties:
+      empty:
+        type: string
+        required: false
       port:
         type: string
         required: true
@@ -172,6 +175,7 @@ node_types:
             map_ex:
               keyex1: value1
               "keyex2": "value2"
+            empty: { get_property: [SELF, empty]}
           implementation: scripts/create.sh
         configure: scripts/conf.sh
 capability_types:

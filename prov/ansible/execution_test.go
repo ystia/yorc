@@ -144,7 +144,7 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 
 	err = execution.resolveInputs()
 	require.Nil(t, err)
-	require.Len(t, execution.EnvInputs, 9)
+	require.Len(t, execution.EnvInputs, 12)
 	instanceNames := make(map[string]struct{})
 	for _, envInput := range execution.EnvInputs {
 		instanceNames[envInput.InstanceName+"_"+envInput.Name] = struct{}{}
@@ -183,11 +183,22 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
+		case "A4":
+			switch envInput.InstanceName {
+			case "NodeA_0":
+				require.Equal(t, "", envInput.Value)
+			case "NodeA_1":
+				require.Equal(t, "", envInput.Value)
+			case "NodeA_2":
+				require.Equal(t, "", envInput.Value)
+			default:
+				require.Fail(t, "Unexpected instance name: ", envInput.Name)
+			}
 		default:
 			require.Fail(t, "Unexpected input name: ", envInput.Name)
 		}
 	}
-	require.Len(t, instanceNames, 9)
+	require.Len(t, instanceNames, 12)
 }
 
 func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
@@ -229,6 +240,9 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         NodeA_0_A3: ""
         NodeA_1_A3: ""
         NodeA_2_A3: ""
+        NodeA_0_A4: ""
+        NodeA_1_A4: ""
+        NodeA_2_A4: ""
 	    DEPLOYMENT_ID: "` + deploymentID + `"
         HOST: "ComputeA"
         INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
@@ -236,6 +250,7 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         A1: "{{A1}}"
         A2: "{{A2}}"
         A3: "{{A3}}"
+        A4: "{{A4}}"
         INSTANCE: "{{INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent

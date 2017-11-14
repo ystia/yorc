@@ -80,8 +80,9 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 	}
 
 	var propDataType string
+	var hasProp bool
 	if capabilityType != "" {
-		hasProp, err := TypeHasProperty(kv, deploymentID, capabilityType, propertyName)
+		hasProp, err = TypeHasProperty(kv, deploymentID, capabilityType, propertyName)
 		if err != nil {
 			return false, "", err
 		}
@@ -121,8 +122,42 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 		return false, "", err
 	}
 	if host != "" {
-		return GetCapabilityProperty(kv, deploymentID, host, capabilityName, propertyName, nestedKeys...)
+		found, result, err = GetCapabilityProperty(kv, deploymentID, host, capabilityName, propertyName, nestedKeys...)
+		if err != nil || found {
+			return found, result, err
+		}
 	}
+
+	if hasProp && capabilityType != "" {
+		// Check if the whole property is optional
+		isRequired, err := IsTypePropertyRequired(kv, deploymentID, capabilityType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+		if !isRequired {
+			// For backward compatibility
+			// TODO this doesn't look as a good idea to me
+			return true, "", nil
+		}
+
+		if len(nestedKeys) > 1 && propDataType != "" {
+			// Check if nested type is optional
+			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			if err != nil {
+				return false, "", err
+			}
+			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
+			if err != nil {
+				return false, "", err
+			}
+			if !isRequired {
+				// For backward compatibility
+				// TODO this doesn't look as a good idea to me
+				return true, "", nil
+			}
+		}
+	}
+
 	// Not found anywhere
 	return false, "", nil
 }

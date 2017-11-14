@@ -226,7 +226,12 @@ func storeOutputs(ctx context.Context, topology tosca.Topology, topologyPrefix s
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "name"), outputName)
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "description"), output.Description)
 		storeValueAssignment(consulStore, path.Join(outputPrefix, "default"), output.Default)
-		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "required"), strconv.FormatBool(output.Required))
+		if output.Required == nil {
+			// Required by default
+			consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "required"), "true")
+		} else {
+			consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "required"), strconv.FormatBool(*output.Required))
+		}
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "status"), output.Status)
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "type"), output.Type)
 		consulStore.StoreConsulKeyAsString(path.Join(outputPrefix, "entry_schema"), output.EntrySchema.Type)
@@ -243,7 +248,12 @@ func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "name"), inputName)
 		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "description"), input.Description)
 		storeValueAssignment(consulStore, path.Join(inputPrefix, "default"), input.Default)
-		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "required"), strconv.FormatBool(input.Required))
+		if input.Required == nil {
+			// Required by default
+			consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "required"), "true")
+		} else {
+			consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "required"), strconv.FormatBool(*input.Required))
+		}
 		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "status"), input.Status)
 		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "type"), input.Type)
 		consulStore.StoreConsulKeyAsString(path.Join(inputPrefix, "entry_schema"), input.EntrySchema.Type)
@@ -325,7 +335,12 @@ func storePropertyDefinition(ctx context.Context, propPrefix, propName string, p
 	consulStore.StoreConsulKeyAsString(propPrefix+"/type", propDefinition.Type)
 	consulStore.StoreConsulKeyAsString(propPrefix+"/entry_schema", propDefinition.EntrySchema.Type)
 	storeValueAssignment(consulStore, propPrefix+"/default", propDefinition.Default)
-	consulStore.StoreConsulKeyAsString(propPrefix+"/required", fmt.Sprint(propDefinition.Required))
+	if propDefinition.Required == nil {
+		// Required by default
+		consulStore.StoreConsulKeyAsString(propPrefix+"/required", "true")
+	} else {
+		consulStore.StoreConsulKeyAsString(propPrefix+"/required", fmt.Sprint(*propDefinition.Required))
+	}
 }
 
 // storeAttributeDefinition stores an attribute definition
@@ -465,7 +480,12 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 						storeValueAssignment(consulStore, inputPrefix+"/default", inputDef.PropDef.Default)
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/description", inputDef.PropDef.Description)
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/status", inputDef.PropDef.Status)
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/required", strconv.FormatBool(inputDef.PropDef.Required))
+						if inputDef.PropDef.Required == nil {
+							// Required by default
+							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", "true")
+						} else {
+							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", strconv.FormatBool(*inputDef.PropDef.Required))
+						}
 						isPropertyDefinition = true
 					}
 
@@ -597,7 +617,12 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 						storeValueAssignment(consulStore, inputPrefix+"/default", inputDef.PropDef.Default)
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/description", inputDef.PropDef.Description)
 						consulStore.StoreConsulKeyAsString(inputPrefix+"/status", inputDef.PropDef.Status)
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/required", strconv.FormatBool(inputDef.PropDef.Required))
+						if inputDef.PropDef.Required == nil {
+							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", "true")
+						} else {
+							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", strconv.FormatBool(*inputDef.PropDef.Required))
+						}
+
 						isPropertyDefinition = true
 					}
 
