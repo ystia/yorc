@@ -34,12 +34,12 @@ func GetConfig() config.Configuration {
 func TestTemplates(t *testing.T) {
 	t.Parallel()
 	ec := &executionCommon{
-		NodeName:            "Welcome",
-		operation:           prov.Operation{Name: "tosca.interfaces.node.lifecycle.standard.start"},
-		Artifacts:           map[string]string{"scripts": "my_scripts"},
-		OverlayPath:         "/some/local/path",
-		VarInputsNames:      []string{"INSTANCE", "PORT"},
-		OperationRemotePath: ".janus/path/on/remote",
+		NodeName:               "Welcome",
+		operation:              prov.Operation{Name: "tosca.interfaces.node.lifecycle.standard.start"},
+		Artifacts:              map[string]string{"scripts": "my_scripts"},
+		OverlayPath:            "/some/local/path",
+		VarInputsNames:         []string{"INSTANCE", "PORT"},
+		OperationRemoteBaseDir: ".janus/path/on/remote",
 	}
 
 	e := &executionScript{
@@ -218,18 +218,19 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
+	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp" state=directory mode=0755
+    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp" mode=0744
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
 
-    - shell: "{{ ansible_env.HOME}}/tmp/create.sh"
+    - shell: "{{ ansible_env.HOME}}/tmp/.janus/create.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -253,7 +254,7 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         A4: "{{A4}}"
         INSTANCE: "{{INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
 `
@@ -333,18 +334,19 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
+	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp" state=directory mode=0755
+    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp" mode=0744
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
 
-    - shell: "{{ ansible_env.HOME}}/tmp/pre_configure_source.sh"
+    - shell: "{{ ansible_env.HOME}}/tmp/.janus/pre_configure_source.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -363,7 +365,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         A2: "{{A2}}"
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
 `
@@ -443,18 +445,19 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
+	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp" state=directory mode=0755
+    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp" mode=0744
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
 
-    - shell: "{{ ansible_env.HOME}}/tmp/add_source.sh"
+    - shell: "{{ ansible_env.HOME}}/tmp/.janus/add_source.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -473,7 +476,7 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
         TARGET_INSTANCE: "{{TARGET_INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
 `
