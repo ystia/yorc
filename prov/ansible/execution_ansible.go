@@ -43,7 +43,7 @@ const ansiblePlaybook = `
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=absent
+    - file: path="{{ ansible_env.HOME}}/[[[.OperationRemoteBaseDir]]]" state=absent
 [[[end]]]
 `
 
