@@ -49,6 +49,10 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/0/id": []byte("0"),
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/1/id": []byte("1"),
+
+		consulutil.WorkflowsPrefix + "/t8/step1": []byte("status1"),
+		consulutil.WorkflowsPrefix + "/t8/step2": []byte("status2"),
+		consulutil.WorkflowsPrefix + "/t8/step3": []byte("status3"),
 	})
 }
 
@@ -402,6 +406,35 @@ func testIsTaskRelatedNode(t *testing.T, kv *api.KV) {
 			}
 			if got != tt.want {
 				t.Errorf("IsTaskRelatedNode() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testGetTaskRelatedWFSteps(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []TaskStep
+		wantErr bool
+	}{
+		{"TaskWith3Steps", args{kv, "t8"}, []TaskStep{{Name: "step1", Status: "status1"}, {Name: "step2", Status: "status2"}, {Name: "step3", Status: "status3"}}, false},
+		{"TaskWithoutStep", args{kv, "t9"}, []TaskStep{}, false},
+		{"TaskDoesntExist", args{kv, "fake"}, []TaskStep{}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetTaskRelatedWFSteps(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTaskRelatedWFSteps() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetTaskRelatedWFSteps() = %v, want %v", got, tt.want)
 			}
 		})
 	}

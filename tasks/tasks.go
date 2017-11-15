@@ -242,3 +242,18 @@ func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, s
 	}
 	return
 }
+
+// GetTaskRelatedWFSteps returns the steps of the related workflow
+func GetTaskRelatedWFSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
+	steps := make([]TaskStep, 0)
+
+	kvps, _, err := kv.List(path.Join(consulutil.WorkflowsPrefix, taskID), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	for _, kvp := range kvps {
+		steps = append(steps, TaskStep{Name: string(path.Base(kvp.Key)), Status: string(kvp.Value)})
+	}
+	return steps, nil
+}

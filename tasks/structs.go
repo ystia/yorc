@@ -44,6 +44,12 @@ const (
 	// NOTE: if a new status should be added then change validity check on GetTaskStatus
 )
 
+// TaskStep represents a step related to the task
+type TaskStep struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
 type anotherLivingTaskAlreadyExistsError struct {
 	taskID   string
 	targetID string

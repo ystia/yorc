@@ -84,3 +84,22 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	task.Type = taskType.String()
 	encodeJSONResponse(w, r, task)
 }
+
+func (s *Server) getTaskStepsHandler(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	deploymentId := params.ByName("id")
+	taskID := params.ByName("taskId")
+	kv := s.consulClient.KV()
+
+	if !s.tasksPreChecks(w, r, deploymentId, taskID) {
+		return
+	}
+
+	steps, err := tasks.GetTaskRelatedWFSteps(kv, taskID)
+	if err != nil {
+		log.Panic(err)
+	}
+	encodeJSONResponse(w, r, steps)
+}
