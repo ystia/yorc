@@ -64,7 +64,7 @@ func init() {
 		},
 	}
 
-	infoTaskCmd.PersistentFlags().BoolVarP(&withSteps, "steps", "w", false, "Show steps of the related workflow")
+	infoTaskCmd.PersistentFlags().BoolVarP(&withSteps, "steps", "w", false, "Show steps of the related workflow associated to the task")
 	tasksCmd.AddCommand(infoTaskCmd)
 }
 

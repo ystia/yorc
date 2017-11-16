@@ -17,9 +17,9 @@ func init() {
 
 var updateTaskStepCmd = &cobra.Command{
 	Use:   "fix <DeploymentId> <TaskId> <StepName>",
-	Short: "Fix a deployment task step in error",
+	Short: "Fix a deployment task step on error",
 	Long: `Fix a task step specifying the deployment id, the task id and the step name.
-	The task step must be in error to be fixed.`,
+	The task step must be on error to be fixed.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 3 {
 			return errors.Errorf("Expecting a deployment id, a task id and a step name(got %d parameters)", len(args))
