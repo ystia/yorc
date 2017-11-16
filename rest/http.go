@@ -128,6 +128,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/deployments/:id/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskHandler))
 	s.router.Get("/deployments/:id/tasks/:taskId/steps", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskStepsHandler))
 	s.router.Delete("/deployments/:id/tasks/:taskId", commonHandlers.ThenFunc(s.cancelTaskHandler))
+	s.router.Put("/deployments/:id/tasks/:taskId/steps/:stepId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.updateTaskStepStatusHandler))
 	s.router.Post("/deployments/:id/scale/:nodeName", commonHandlers.ThenFunc(s.scaleHandler))
 	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributesListHandler))
 	s.router.Get("/deployments/:id/nodes/:nodeName/instances/:instanceId/attributes/:attributeName", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getNodeInstanceAttributeHandler))

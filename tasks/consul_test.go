@@ -52,9 +52,14 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 		t.Run("TestIsTaskRelatedNode", func(t *testing.T) {
 			testIsTaskRelatedNode(t, kv)
 		})
-
 		t.Run("testGetTaskRelatedWFSteps", func(t *testing.T) {
 			testGetTaskRelatedWFSteps(t, kv)
+		})
+		t.Run("testUpdateTaskStepStatus", func(t *testing.T) {
+			testUpdateTaskStepStatus(t, kv)
+		})
+		t.Run("testTaskStepExists", func(t *testing.T) {
+			testTaskStepExists(t, kv)
 		})
 	})
 }

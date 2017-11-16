@@ -2,7 +2,7 @@
 
 package tasks
 
-import "fmt"
+import "strconv"
 
 const _TaskStatus_name = "INITIALRUNNINGDONEFAILEDCANCELED"
 
@@ -10,7 +10,7 @@ var _TaskStatus_index = [...]uint8{0, 7, 14, 18, 24, 32}
 
 func (i TaskStatus) String() string {
 	if i < 0 || i >= TaskStatus(len(_TaskStatus_index)-1) {
-		return fmt.Sprintf("TaskStatus(%d)", i)
+		return "TaskStatus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _TaskStatus_name[_TaskStatus_index[i]:_TaskStatus_index[i+1]]
 }
@@ -21,7 +21,7 @@ var _TaskType_index = [...]uint8{0, 6, 14, 21, 30, 35, 48, 62}
 
 func (i TaskType) String() string {
 	if i < 0 || i >= TaskType(len(_TaskType_index)-1) {
-		return fmt.Sprintf("TaskType(%d)", i)
+		return "TaskType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _TaskType_name[_TaskType_index[i]:_TaskType_index[i+1]]
 }

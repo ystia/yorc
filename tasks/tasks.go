@@ -243,8 +243,8 @@ func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, s
 	return
 }
 
-// GetTaskRelatedWFSteps returns the steps of the related workflow
-func GetTaskRelatedWFSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
+// GetTaskRelatedSteps returns the steps of the related workflow
+func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 	steps := make([]TaskStep, 0)
 
 	kvps, _, err := kv.List(path.Join(consulutil.WorkflowsPrefix, taskID), nil)
@@ -256,4 +256,47 @@ func GetTaskRelatedWFSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 		steps = append(steps, TaskStep{Name: string(path.Base(kvp.Key)), Status: string(kvp.Value)})
 	}
 	return steps, nil
+}
+
+// TaskStepExists checks if a task step exists with a stepID and related to a given taskID and returns it
+func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepID), nil)
+	if err != nil {
+		return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return false, nil, nil
+	}
+	return true, &TaskStep{Name: stepID, Status: string(kvp.Value)}, nil
+}
+
+// UpdateTaskStepStatus allows to update the
+func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
+	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(step.Status)}
+	_, err := kv.Put(kvp, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	return nil
+}
+
+// CheckTaskStepStatusChange checks if a status change is allowed
+func CheckTaskStepStatusChange(before, after string) (bool, error) {
+	if before == after {
+		return false, errors.New("Final and initial status are identical: nothing to do")
+	}
+	stBefore, err := ParseTaskStepStatus(before)
+	if err != nil {
+		return false, err
+	}
+	stAfter, err := ParseTaskStepStatus(after)
+	if err != nil {
+		return false, err
+	}
+
+	if stBefore != TaskStepStatusERROR || stAfter != TaskStepStatusDONE {
+		return false, nil
+	}
+	return true, nil
 }

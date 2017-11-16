@@ -2,7 +2,7 @@
 
 package events
 
-import "fmt"
+import "strconv"
 
 const _LogLevel_name = "INFODEBUGWARNERROR"
 
@@ -10,7 +10,7 @@ var _LogLevel_index = [...]uint8{0, 4, 9, 13, 18}
 
 func (i LogLevel) String() string {
 	if i < 0 || i >= LogLevel(len(_LogLevel_index)-1) {
-		return fmt.Sprintf("LogLevel(%d)", i)
+		return "LogLevel(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _LogLevel_name[_LogLevel_index[i]:_LogLevel_index[i+1]]
 }

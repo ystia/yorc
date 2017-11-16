@@ -50,9 +50,11 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/0/id": []byte("0"),
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/1/id": []byte("1"),
 
-		consulutil.WorkflowsPrefix + "/t8/step1": []byte("status1"),
-		consulutil.WorkflowsPrefix + "/t8/step2": []byte("status2"),
-		consulutil.WorkflowsPrefix + "/t8/step3": []byte("status3"),
+		consulutil.WorkflowsPrefix + "/t8/step1":  []byte("status1"),
+		consulutil.WorkflowsPrefix + "/t8/step2":  []byte("status2"),
+		consulutil.WorkflowsPrefix + "/t8/step3":  []byte("status3"),
+		consulutil.WorkflowsPrefix + "/t10/step1": []byte("status1"),
+		consulutil.WorkflowsPrefix + "/t11/step1": []byte("status1"),
 	})
 }
 
@@ -428,13 +430,106 @@ func testGetTaskRelatedWFSteps(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTaskRelatedWFSteps(tt.args.kv, tt.args.taskID)
+			got, err := GetTaskRelatedSteps(tt.args.kv, tt.args.taskID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetTaskRelatedWFSteps() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetTaskRelatedSteps() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetTaskRelatedWFSteps() = %v, want %v", got, tt.want)
+				t.Errorf("GetTaskRelatedSteps() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testUpdateTaskStepStatus(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+		step   *TaskStep
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *TaskStep
+		wantErr bool
+	}{
+		{"TaskStep", args{kv, "t10", &TaskStep{Name: "step1", Status: "status1"}}, &TaskStep{Name: "step1", Status: "status1Updated"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			UpdateTaskStepStatus(tt.args.kv, tt.args.taskID, tt.want)
+			_, found, err := TaskStepExists(tt.args.kv, tt.args.taskID, tt.args.step.Name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTaskRelatedSteps() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(found, tt.want) {
+				t.Errorf("GetTaskRelatedSteps() = %v, want %v", found, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckTaskStepStatusChange(t *testing.T) {
+	type args struct {
+		before string
+		after  string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"ChangeOK", args{"error", "done"}, true, false},
+		{"NotAllowed", args{"initial", "done"}, false, false},
+		{"NotAllowed", args{"initial", "running"}, false, false},
+		{"Error", args{"fake", "fake"}, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ok, err := CheckTaskStepStatusChange(tt.args.before, tt.args.after)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckTaskStepStatusChange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if ok != tt.want {
+				t.Errorf("CheckTaskStepStatusChange() = %v, want %v", ok, tt.want)
+			}
+		})
+	}
+}
+
+func testTaskStepExists(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+		stepID string
+	}
+	type ret struct {
+		found bool
+		step  *TaskStep
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    ret
+		wantErr bool
+	}{
+		{"TaskStep", args{kv, "t11", "step1"}, ret{true, &TaskStep{Name: "step1", Status: "status1"}}, false},
+		{"TaskStep", args{kv, "fake", "fakeAgain"}, ret{false, nil}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exist, stepFound, err := TaskStepExists(tt.args.kv, tt.args.taskID, tt.args.stepID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("testTaskStepExists() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			result := ret{exist, stepFound}
+			if !reflect.DeepEqual(result, tt.want) {
+				t.Errorf("testTaskStepExists() = %v, want %v", result, tt.want)
 			}
 		})
 	}

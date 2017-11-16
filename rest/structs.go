@@ -5,7 +5,6 @@ import "novaforge.bull.com/starlings-janus/janus/tosca"
 import (
 	"encoding/json"
 	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
 const (
@@ -167,6 +166,3 @@ type RegistryImplementationsCollection struct {
 type RegistryDefinitionsCollection struct {
 	Definitions []registry.Definition `json:"definitions"`
 }
-
-// TaskStep represents a step related to the task
-type TaskStep tasks.TaskStep
