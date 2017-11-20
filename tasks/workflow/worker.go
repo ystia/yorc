@@ -428,7 +428,18 @@ func (w worker) runWorkflows(ctx context.Context, t *task, workflows []string, b
 		}
 		for _, step := range wf {
 			step.SetTaskID(t)
-			consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
+			kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), nil)
+			if err != nil {
+				if t.Status() == tasks.RUNNING {
+					t.WithStatus(tasks.FAILED)
+				}
+				log.Printf("%v. Aborting", err)
+				return err
+			}
+			// Only create step key if step doesn't already exists to allow resuming task
+			if kvp == nil {
+				consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, t.ID, step.Name), "")
+			}
 		}
 		if err = w.processWorkflow(ctx, workflow, wf, t.TargetID, bypassErrors); err != nil {
 			if t.Status() == tasks.RUNNING {

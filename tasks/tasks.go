@@ -142,6 +142,16 @@ func CancelTask(kv *api.KV, taskID string) error {
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
+// ResumeTask marks a task as Initial to allow it being resumed
+func ResumeTask(kv *api.KV, taskID string) error {
+	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(INITIAL)))}
+	_, err := kv.Put(kvp, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return nil
+}
+
 // TargetHasLivingTasks checks if a targetID has associated tasks in status INITIAL or RUNNING and returns the id and status of the first one found
 func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
@@ -270,7 +280,7 @@ func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) 
 	return true, &TaskStep{Name: stepID, Status: string(kvp.Value)}, nil
 }
 
-// UpdateTaskStepStatus allows to update the
+// UpdateTaskStepStatus allows to update the task step status
 func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(step.Status)}
 	_, err := kv.Put(kvp, nil)

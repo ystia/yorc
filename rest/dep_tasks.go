@@ -156,3 +156,27 @@ func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Requ
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (s *Server) resumeTaskHandler(w http.ResponseWriter, r *http.Request) {
+	var params httprouter.Params
+	ctx := r.Context()
+	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
+	taskID := params.ByName("taskId")
+	kv := s.consulClient.KV()
+	if !s.tasksPreChecks(w, r, id, taskID) {
+		return
+	}
+
+	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
+		log.Panic(err)
+	} else if taskStatus != tasks.FAILED {
+		writeError(w, r, newBadRequestError(errors.Errorf("Cannot resume a task with status %q. Only task in %q status can be resumed.", taskStatus.String(), tasks.FAILED.String())))
+		return
+	}
+
+	if err := tasks.ResumeTask(kv, taskID); err != nil {
+		log.Panic(err)
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
