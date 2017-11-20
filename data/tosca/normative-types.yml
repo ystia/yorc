@@ -7,8 +7,6 @@ template_version: 1.0.0
 description: >
   Contains the normative types definition as currently supported in Janus.
 
-# TODO support DataTypes
-# NOTE: Not yet supported in Janus
 data_types:
   tosca.datatypes.Root:
     description: The TOSCA root Data Type all other TOSCA base Data Types derive from

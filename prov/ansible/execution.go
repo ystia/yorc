@@ -270,7 +270,24 @@ func (e *executionCommon) resolveArtifacts() error {
 }
 
 func (e *executionCommon) resolveHosts(nodeName string) error {
+	// Resolve hosts from the hostedOn hierarchy from bottom to top by finding the first node having a capability
+	// named endpoint and derived from "tosca.capabilities.Endpoint"
+
 	log.Debugf("Resolving hosts for node %q", nodeName)
+
+	hostedOnList := make([]string, 0)
+	hostedOnList = append(hostedOnList, nodeName)
+	parentHost, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	for parentHost != "" {
+		hostedOnList = append(hostedOnList, parentHost)
+		parentHost, err = deployments.GetHostedOnNode(e.kv, e.deploymentID, parentHost)
+		if err != nil {
+			return err
+		}
+	}
 
 	hosts := make(map[string]hostConnection)
 
@@ -281,41 +298,42 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 		instances = e.sourceNodeInstances
 	}
 
-	for _, instance := range instances {
-		found, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, nodeName, instance, "endpoint", "ip_address")
+	for i := len(hostedOnList) - 1; i >= 0; i-- {
+		host := hostedOnList[i]
+		capType, err := deployments.GetNodeCapabilityType(e.kv, e.deploymentID, host, "endpoint")
 		if err != nil {
 			return err
 		}
-		if found && ipAddress != "" {
-			var instanceName string
-			if e.isRelationshipTargetNode {
-				instanceName = operations.GetInstanceName(e.operation.RelOp.TargetNodeName, instance)
-			} else {
-				instanceName = operations.GetInstanceName(e.NodeName, instance)
-			}
 
-			hostConn := hostConnection{host: ipAddress, instanceID: instance}
-			var user string
-			found, user, err = deployments.GetNodeProperty(e.kv, e.deploymentID, nodeName, "user")
-			if err != nil {
-				return err
+		hasEndpoint, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, capType, "tosca.capabilities.Endpoint")
+		if err != nil {
+			return err
+		}
+		if hasEndpoint {
+			for _, instance := range instances {
+				found, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instance, "endpoint", "ip_address")
+				if err != nil {
+					return err
+				}
+				if found && ipAddress != "" {
+					instanceName := operations.GetInstanceName(nodeName, instance)
+					hostConn := hostConnection{host: ipAddress, instanceID: instance}
+					var user string
+					found, user, err = deployments.GetNodeProperty(e.kv, e.deploymentID, host, "user")
+					if err != nil {
+						return err
+					}
+					if found {
+						hostConn.user = user
+					}
+					hosts[instanceName] = hostConn
+				}
 			}
-			if found {
-				hostConn.user = user
-			}
-			hosts[instanceName] = hostConn
 		}
 	}
+
 	if len(hosts) == 0 {
-		// So we have to traverse the HostedOn relationships...
-		hostedOnNode, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-		if hostedOnNode == "" {
-			return errors.Errorf("Can't find an Host with an ip_address in the HostedOn hierarchy for node %q in deployment %q", e.NodeName, e.deploymentID)
-		}
-		return e.resolveHosts(hostedOnNode)
+		return errors.Errorf("Failed to resolve hosts for node %q", nodeName)
 	}
 	e.hosts = hosts
 	return nil
