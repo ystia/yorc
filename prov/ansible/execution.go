@@ -714,7 +714,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
-	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(".janus_", "")
+	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(strings.Replace(e.cfg.AnsibleTempDirName, " ", "-", -1)+"_", "")
 	if e.operation.RelOp.IsRelationshipOperation {
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
