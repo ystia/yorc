@@ -81,10 +81,8 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 			buffer.WriteString(envInput.InstanceName)
 			buffer.WriteString("_")
 		}
-		buffer.WriteString(envInput.Name)
-		buffer.WriteString(": \"")
-		buffer.WriteString(envInput.Value)
-		buffer.WriteString("\"\n")
+		buffer.WriteString(fmt.Sprintf("%s: %q", envInput.Name, envInput.Value))
+		buffer.WriteString("\n")
 	}
 
 	for artName, art := range e.Artifacts {
@@ -96,14 +94,12 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		buffer.WriteString("\"\n")
 	}
 	for contextKey, contextValue := range e.Context {
-		buffer.WriteString(contextKey)
-		buffer.WriteString(": \"")
-		buffer.WriteString(contextValue)
-		buffer.WriteString("\"\n")
+		buffer.WriteString(fmt.Sprintf("%s: %q", contextKey, contextValue))
+		buffer.WriteString("\n")
 	}
-	buffer.WriteString("dest_folder: ")
+	buffer.WriteString("dest_folder: \"")
 	buffer.WriteString(ansibleRecipePath)
-	buffer.WriteString("\n")
+	buffer.WriteString("\"\n")
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleGroupsVarsPath, "all.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write global group vars file: ")
