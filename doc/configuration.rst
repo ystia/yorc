@@ -22,6 +22,10 @@ Globals Command-line options
 
   * ``--ansible_connection_retries``: Number of retries in case of Ansible SSH connection failure.
 
+.. _option_operation_remote_base_dir_cmd:
+
+  * ``--operation_remote_base_dir``: Specify an alternative working directory for ansible.
+
 .. _option_config_cmd:
 
   * ``--config`` or ``-c``: Specify an alternative configuration file. By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory.
@@ -166,6 +170,10 @@ Below is an example of configuration file with TLS enable.
 .. _option_ansible_connection_retries_cfg:
 
   * ``ansible_connection_retries``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+
+.. _option_operation_remote_base_dir_cfg:
+
+  * ``operation_remote_base_dir``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
 
 .. _option_consul_addr_cfg:
 
@@ -320,6 +328,10 @@ Environment variables
 .. _option_ansible_connection_retries_env:
 
   * ``JANUS_ANSIBLE_CONNECTION_RETRIES``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+
+.. _option_operation_remote_base_dir_env:
+
+  * ``JANUS_OPERATION_REMOTE_BASE_DIR``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
 
 .. _option_consul_addr_env:
 
