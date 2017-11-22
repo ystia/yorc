@@ -13,6 +13,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"
+	"strings"
 )
 
 func init() {
@@ -100,7 +101,7 @@ func displayStepTables(client *janusClient, args []string) {
 	tasksTable.AddHeaders("Name", "Status")
 	errs := make([]error, 0)
 	for _, step := range steps {
-		tasksTable.AddRow(step.Name, getColoredTaskStatus(colorize, step.Status))
+		tasksTable.AddRow(step.Name, getColoredTaskStepStatus(colorize, step.Status))
 	}
 	fmt.Println(tasksTable.Render())
 	if len(errs) > 0 {
@@ -108,5 +109,21 @@ func displayStepTables(client *janusClient, args []string) {
 		for _, err := range errs {
 			fmt.Fprintln(os.Stderr, "###################\n", err)
 		}
+	}
+}
+
+func getColoredTaskStepStatus(colorize bool, status string) string {
+	if !colorize {
+		return status
+	}
+	switch {
+	case strings.ToLower(status) == "error":
+		return color.New(color.FgHiRed, color.Bold).SprintFunc()(status)
+	case strings.ToLower(status) == "canceled":
+		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(status)
+	case strings.ToLower(status) == "done":
+		return color.New(color.FgHiGreen, color.Bold).SprintFunc()(status)
+	default:
+		return status
 	}
 }
