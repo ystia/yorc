@@ -96,13 +96,14 @@ type visitStep struct {
 	s        *step
 }
 
-func (s *step) setStatus(status string) error {
-	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(status)}
+func (s *step) setStatus(status tasks.TaskStepStatus) error {
+	statusStr := strings.ToLower(status.String())
+	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(statusStr)}
 	_, err := s.kv.Put(kvp, nil)
 	if err != nil {
 		return err
 	}
-	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), Value: []byte(status)}
+	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), Value: []byte(statusStr)}
 	_, err = s.kv.Put(kvp, nil)
 	return err
 }
@@ -133,14 +134,22 @@ func (s *step) isRelationshipTargetNodeRelated() (bool, error) {
 // It first checks if the step is not already done in this workflow instance
 // And for ScaleUp and ScaleDown it checks if the node or the target node in case of an operation running on the target node is part of the operation
 func (s *step) isRunnable() (bool, error) {
-
 	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	if kvp != nil && string(kvp.Value) == "done" {
-		return false, nil
+	// Check if step is already done
+	status := string(kvp.Value)
+	if status != "" {
+		stepStatus, err := tasks.ParseTaskStepStatus(status)
+		if err != nil {
+			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+
+		if kvp != nil && stepStatus == tasks.TaskStepStatusDONE {
+			return false, nil
+		}
 	}
 
 	if s.t.TaskType == tasks.ScaleUp || s.t.TaskType == tasks.ScaleDown {
@@ -181,6 +190,19 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		events.WorkFlowID: workflowName,
 		events.NodeID:     s.Node,
 	}
+
+	// First: we check if step is runnable
+	if runnable, err := s.isRunnable(); err != nil {
+		return err
+	} else if !runnable {
+		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
+		s.setStatus(tasks.TaskStepStatusDONE)
+		s.notifyNext()
+		return nil
+	}
+
+	s.setStatus(tasks.TaskStepStatusINITIAL)
 	haveErr := false
 	for i := 0; i < len(s.Previous); i++ {
 		// Wait for previous be done
@@ -192,11 +214,11 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				goto BR
 			case <-shutdownChan:
 				log.Printf("Step %q canceled", s.Name)
-				s.setStatus("canceled")
+				s.setStatus(tasks.TaskStepStatusCANCELED)
 				return errors.New("workflow canceled")
 			case <-ctx.Done():
 				log.Printf("Step %q canceled: %q", s.Name, ctx.Err())
-				s.setStatus("canceled")
+				s.setStatus(tasks.TaskStepStatusCANCELED)
 				return ctx.Err()
 			case <-time.After(30 * time.Second):
 				log.Debugf("Step %q still waiting for %d previous steps", s.Name, len(s.Previous)-i)
@@ -204,23 +226,38 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		}
 	BR:
 	}
+	s.setStatus(tasks.TaskStepStatusRUNNING)
 
-	if runnable, err := s.isRunnable(); err != nil {
-		return err
-	} else if !runnable {
-		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
-		s.setStatus("done")
-		s.notifyNext()
-		return nil
-	}
+	// Create a new context to handle gracefully current step termination when an error occurred during another step
+	wfCtx, cancelWf := context.WithCancel(context.Background())
+	waitDoneCh := make(chan struct{})
+	defer close(waitDoneCh)
+	go func() {
+		select {
+		case <-ctx.Done():
+			log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
+			select {
+			// Temporize to allow current step termination before cancelling context and put step in error
+			case <-time.After(2 * time.Minute):
+				cancelWf()
+				log.Printf("Step %q not yet finished: we set it on error", s.Name)
+				s.setStatus(tasks.TaskStepStatusERROR)
+				return
+			case <-waitDoneCh:
+				return
+			}
+		case <-waitDoneCh:
+			return
+		}
+	}()
+	defer cancelWf()
 
 	log.Debugf("Processing step %q", s.Name)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
 	if err != nil {
 		setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 		log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-		s.setStatus(tosca.NodeStateError.String())
+		s.setStatus(tasks.TaskStepStatusERROR)
 		if bypassErrors {
 			ignoredErrsChan <- err
 			haveErr = true
@@ -236,7 +273,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-				s.setStatus(tosca.NodeStateError.String())
+				s.setStatus(tasks.TaskStepStatusERROR)
 				if bypassErrors {
 					ignoredErrsChan <- err
 					haveErr = true
@@ -247,14 +284,14 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				delegateOp := activity.ActivityValue()
 				err := func() error {
 					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
-					return provisioner.ExecDelegate(ctx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
+					return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
 				}()
 
 				if err != nil {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-					s.setStatus(tosca.NodeStateError.String())
+					s.setStatus(tasks.TaskStepStatusERROR)
 					if bypassErrors {
 						ignoredErrsChan <- err
 						haveErr = true
@@ -282,7 +319,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					ignoredErrsChan <- err
 					haveErr = true
 				} else {
-					s.setStatus(tosca.NodeStateError.String())
+					s.setStatus(tasks.TaskStepStatusERROR)
 					return err
 				}
 			}
@@ -295,14 +332,14 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					ignoredErrsChan <- err
 					haveErr = true
 				} else {
-					s.setStatus(tosca.NodeStateError.String())
+					s.setStatus(tasks.TaskStepStatusERROR)
 					return err
 				}
 			} else {
 
 				err = func() error {
 					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
-					return exec.ExecOperation(ctx, cfg, s.t.ID, deploymentID, s.Node, op)
+					return exec.ExecOperation(wfCtx, cfg, s.t.ID, deploymentID, s.Node, op)
 				}()
 				if err != nil {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
@@ -312,7 +349,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 						ignoredErrsChan <- err
 						haveErr = true
 					} else {
-						s.setStatus(tosca.NodeStateError.String())
+						s.setStatus(tasks.TaskStepStatusERROR)
 						return err
 					}
 				} else {
@@ -326,12 +363,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 
 	if haveErr {
 		log.Debug("Step %s generate an error but workflow continue", s.Name)
-		s.setStatus(tosca.NodeStateError.String())
+		s.setStatus(tasks.TaskStepStatusERROR)
 		// Return nil otherwise the rest of the workflow will be canceled
 		return nil
 	}
 	log.Debugf("Step %s done without error.", s.Name)
-	s.setStatus("done")
+	s.setStatus(tasks.TaskStepStatusDONE)
 	return nil
 }
 
@@ -369,7 +406,6 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 			return nil, errors.Errorf("Unsupported activity type: %s", key)
 		}
 	}
-	s.NotifyChan = make(chan struct{})
 
 	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
 	if err != nil {
@@ -425,5 +461,9 @@ func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*step, error) {
 		}
 	}
 
+	// build buffered NotifyChan with a size related to the previous steps nb
+	for _, s := range steps {
+		s.NotifyChan = make(chan struct{}, len(s.Previous))
+	}
 	return steps, nil
 }
