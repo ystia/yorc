@@ -225,12 +225,11 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
+  - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper.sh" mode=0744
+  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
+  - shell: "/bin/bash -l {{ ansible_env.HOME}}/tmp/.janus/wrapper.sh"
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
-
-
-    - shell: "{{ ansible_env.HOME}}/tmp/.janus/create.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -248,11 +247,11 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         HOST: "ComputeA"
         INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
         NODE: "NodeA"
-        A1: "{{A1}}"
-        A2: "{{A2}}"
-        A3: "{{A3}}"
-        A4: "{{A4}}"
-        INSTANCE: "{{INSTANCE}}"
+        A1: " {{A1}}"
+        A2: " {{A2}}"
+        A3: " {{A3}}"
+        A4: " {{A4}}"
+        INSTANCE: " {{INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
@@ -341,12 +340,11 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
+  - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper.sh" mode=0744
+  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
-
-
-    - shell: "{{ ansible_env.HOME}}/tmp/.janus/pre_configure_source.sh"
+  - shell: "/bin/bash -l {{ ansible_env.HOME}}/tmp/.janus/wrapper.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -361,9 +359,9 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         TARGET_INSTANCE: "NodeB_0"
         TARGET_INSTANCES: "NodeB_0,NodeB_1"
         TARGET_NODE: "NodeB"
-        A1: "{{A1}}"
-        A2: "{{A2}}"
-        SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
+        A1: " {{A1}}"
+        A2: " {{A2}}"
+        SOURCE_INSTANCE: " {{SOURCE_INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
@@ -452,12 +450,11 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
+  - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper.sh" mode=0744
+  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
-
-
-    - shell: "{{ ansible_env.HOME}}/tmp/.janus/add_source.sh"
+  - shell: "/bin/bash -l {{ ansible_env.HOME}}/tmp/.janus/wrapper.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -471,10 +468,10 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         TARGET_HOST: "ComputeB"
         TARGET_INSTANCES: "NodeB_0,NodeB_1"
         TARGET_NODE: "NodeB"
-        A1: "{{A1}}"
-        A2: "{{A2}}"
-        SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
-        TARGET_INSTANCE: "{{TARGET_INSTANCE}}"
+        A1: " {{A1}}"
+        A2: " {{A2}}"
+        SOURCE_INSTANCE: " {{SOURCE_INSTANCE}}"
+        TARGET_INSTANCE: " {{TARGET_INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
