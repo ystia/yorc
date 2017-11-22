@@ -138,6 +138,16 @@ The task should be in status "INITIAL" or "RUNNING" to be canceled.
 
      janus deployments tasks cancel <DeploymentId> <TaskId> [flags]
 
+Resume a deployment task
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Resume a task specifying the deployment id and the task id.
+The task should be in status "FAILED" to be resumed.
+
+.. code-block:: bash
+
+     janus deployments tasks resume <DeploymentId> <TaskId> [flags]
+
 Fix a deployment task step
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
