@@ -238,7 +238,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
 			select {
 			// Temporize to allow current step termination before cancelling context and put step in error
-			case <-time.After(2 * time.Minute):
+			case <-time.After(cfg.WfStepGracefulTerminationTimeout):
 				cancelWf()
 				log.Printf("Step %q not yet finished: we set it on error", s.Name)
 				s.setStatus(tasks.TaskStepStatusERROR)
