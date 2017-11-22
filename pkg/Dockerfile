@@ -1,4 +1,4 @@
-FROM loicalbertin/alpine-consul:1.0.3_consul-0.8.4
+FROM loicalbertin/alpine-consul:1.0.4_consul-1.0.1
 ARG TERRAFORM_VERSION
 ARG ANSIBLE_VERSION
 # Update terraform default when possible

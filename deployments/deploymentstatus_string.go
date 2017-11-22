@@ -2,7 +2,7 @@
 
 package deployments
 
-import "fmt"
+import "strconv"
 
 const _DeploymentStatus_name = "startOfDepStatusConstINITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESSendOfDepStatusConst"
 
@@ -10,7 +10,7 @@ var _DeploymentStatus_index = [...]uint8{0, 21, 28, 50, 58, 82, 92, 109, 128, 14
 
 func (i DeploymentStatus) String() string {
 	if i < 0 || i >= DeploymentStatus(len(_DeploymentStatus_index)-1) {
-		return fmt.Sprintf("DeploymentStatus(%d)", i)
+		return "DeploymentStatus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _DeploymentStatus_name[_DeploymentStatus_index[i]:_DeploymentStatus_index[i+1]]
 }
