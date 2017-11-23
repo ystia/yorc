@@ -1423,12 +1423,6 @@
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
-			"checksumSHA1": "SYvs8zfusNCJB445lyNhH4eML+o=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/helper",
-			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
-			"revisionTime": "2017-07-06T12:00:39Z"
-		},
-		{
 			"checksumSHA1": "OlElsDSD3vQga1BxUDsuj7dhyTM=",
 			"path": "novaforge.bull.com/starlings-janus/janus/prov/kubernetes",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
@@ -1437,12 +1431,6 @@
 		{
 			"checksumSHA1": "ACvGhr0iZBq35yWMS6LVm3EvruA=",
 			"path": "novaforge.bull.com/starlings-janus/janus/prov/operations",
-			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
-			"revisionTime": "2017-07-06T12:00:39Z"
-		},
-		{
-			"checksumSHA1": "omXeCgrzmYrOWuixaJ+PnnMLcvM=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/structs",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},

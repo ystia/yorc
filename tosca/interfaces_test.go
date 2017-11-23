@@ -4,76 +4,64 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
-func TestGroupedInterfacesParallel(t *testing.T) {
-	t.Run("groupInterfaces", func(t *testing.T) {
-		t.Run("TestInterfaceSimpleGrammar", interfaceSimpleGrammar)
-		t.Run("TestInterfaceComplexGrammar", interfaceComplexGrammar)
-		t.Run("TestInterfaceExpressionInputs", interfaceExpressionInputs)
-		t.Run("TestInterfaceExpressionInputsComplexExpression", interfaceExpressionInputsComplexExpression)
-		t.Run("TestInterfaceMixed", interfaceMixed)
-		t.Run("TestInterfaceFailing", interfaceFailing)
-		t.Run("TestInterfaceExpressionInputsAsPropDef", interfaceExpressionInputsAsPropDef)
-	})
-}
-
-func interfaceSimpleGrammar(t *testing.T) {
+func TestInterfaceSimpleGrammar(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `start: scripts/start_server.sh`
 	ifDefMap := InterfaceDefinitionMap{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &ifDefMap)
-	assert.Nil(t, err, "Expecting no error when unmarshaling Interface with simple grammar")
-	assert.Len(t, ifDefMap, 1, "Expecting one interface")
-	assert.Contains(t, ifDefMap, "start")
+	require.Nil(t, err, "Expecting no error when unmarshaling Interface with simple grammar")
+	require.Len(t, ifDefMap, 1, "Expecting one interface")
+	require.Contains(t, ifDefMap, "start")
 	ifDef := ifDefMap["start"]
-	assert.Len(t, ifDef.Inputs, 0, "Expecting no inputs")
-	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
+	require.Len(t, ifDef.Inputs, 0, "Expecting no inputs")
+	require.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
 
-func interfaceComplexGrammar(t *testing.T) {
+func TestInterfaceComplexGrammar(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
 start:
   inputs:
-    X: Y
+    X: "Y"
   implementation: scripts/start_server.sh`
 	ifDefMap := InterfaceDefinitionMap{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &ifDefMap)
-	assert.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
-	assert.Len(t, ifDefMap, 1, "Expecting one interface")
-	assert.Contains(t, ifDefMap, "start")
+	require.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
+	require.Len(t, ifDefMap, 1, "Expecting one interface")
+	require.Contains(t, ifDefMap, "start")
 	ifDef := ifDefMap["start"]
-	assert.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
-	assert.Contains(t, ifDef.Inputs, "X")
-	assert.Equal(t, "Y", fmt.Sprint(ifDef.Inputs["X"].ValueAssign))
-	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
+	require.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
+	require.Contains(t, ifDef.Inputs, "X")
+	require.Equal(t, "Y", fmt.Sprint(ifDef.Inputs["X"].ValueAssign.String()))
+	require.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
 
-func interfaceExpressionInputs(t *testing.T) {
+func TestInterfaceExpressionInputs(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
 start:
   inputs:
-    X: { getProperty: [SELF, prop]}
+    X: { get_property: [SELF, prop]}
   implementation: scripts/start_server.sh`
 	ifDefMap := InterfaceDefinitionMap{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &ifDefMap)
-	assert.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
-	assert.Len(t, ifDefMap, 1, "Expecting one interface")
-	assert.Contains(t, ifDefMap, "start")
+	require.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
+	require.Len(t, ifDefMap, 1, "Expecting one interface")
+	require.Contains(t, ifDefMap, "start")
 	ifDef := ifDefMap["start"]
-	assert.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
-	assert.Contains(t, ifDef.Inputs, "X")
+	require.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
+	require.Contains(t, ifDef.Inputs, "X")
 	require.Nil(t, ifDef.Inputs["X"].PropDef)
 	require.NotNil(t, ifDef.Inputs["X"].ValueAssign)
-	assert.Equal(t, "getProperty", ifDef.Inputs["X"].ValueAssign.Expression.Value)
+	require.Equal(t, ValueAssignmentFunction, ifDef.Inputs["X"].ValueAssign.Type)
+	require.EqualValues(t, "get_property", ifDef.Inputs["X"].ValueAssign.GetFunction().Operator)
 
 	var testData = []struct {
 		index int
@@ -83,14 +71,14 @@ start:
 		{1, "prop"},
 	}
 	for _, tt := range testData {
-		assert.Equal(t, tt.value, ifDef.Inputs["X"].ValueAssign.Expression.Children()[tt.index].Value)
-		assert.True(t, ifDef.Inputs["X"].ValueAssign.Expression.Children()[tt.index].IsLiteral())
+		require.Equal(t, tt.value, ifDef.Inputs["X"].ValueAssign.GetFunction().Operands[tt.index].String())
+		require.True(t, ifDef.Inputs["X"].ValueAssign.GetFunction().Operands[tt.index].IsLiteral())
 	}
 
-	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
+	require.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
 
-func interfaceExpressionInputsAsPropDef(t *testing.T) {
+func TestInterfaceExpressionInputsAsPropDef(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
 update_replicas:
@@ -107,28 +95,28 @@ update_replicas:
 	ifDefMap := InterfaceDefinitionMap{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &ifDefMap)
-	assert.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
-	assert.Len(t, ifDefMap, 1, "Expecting one interface")
-	assert.Contains(t, ifDefMap, "update_replicas")
+	require.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
+	require.Len(t, ifDefMap, 1, "Expecting one interface")
+	require.Contains(t, ifDefMap, "update_replicas")
 	ifDef := ifDefMap["update_replicas"]
-	assert.Len(t, ifDef.Inputs, 2, "Expecting 2 inputs")
-	assert.Contains(t, ifDef.Inputs, "nb_replicas")
+	require.Len(t, ifDef.Inputs, 2, "Expecting 2 inputs")
+	require.Contains(t, ifDef.Inputs, "nb_replicas")
 	require.NotNil(t, ifDef.Inputs["nb_replicas"].PropDef)
 	require.Nil(t, ifDef.Inputs["nb_replicas"].ValueAssign)
-	assert.Equal(t, "integer", ifDef.Inputs["nb_replicas"].PropDef.Type)
-	assert.Equal(t, "Number of replicas for indexes", ifDef.Inputs["nb_replicas"].PropDef.Description)
-	assert.Equal(t, true, ifDef.Inputs["nb_replicas"].PropDef.Required)
-	assert.Contains(t, ifDef.Inputs, "index")
+	require.Equal(t, "integer", ifDef.Inputs["nb_replicas"].PropDef.Type)
+	require.Equal(t, "Number of replicas for indexes", ifDef.Inputs["nb_replicas"].PropDef.Description)
+	require.Equal(t, true, *ifDef.Inputs["nb_replicas"].PropDef.Required)
+	require.Contains(t, ifDef.Inputs, "index")
 	require.NotNil(t, ifDef.Inputs["index"].PropDef)
 	require.Nil(t, ifDef.Inputs["index"].ValueAssign)
-	assert.Equal(t, "string", ifDef.Inputs["index"].PropDef.Type)
-	assert.Equal(t, "The name of the index to be updated (specify no value for all indexes)", ifDef.Inputs["index"].PropDef.Description)
-	assert.Equal(t, false, ifDef.Inputs["index"].PropDef.Required)
+	require.Equal(t, "string", ifDef.Inputs["index"].PropDef.Type)
+	require.Equal(t, "The name of the index to be updated (specify no value for all indexes)", ifDef.Inputs["index"].PropDef.Description)
+	require.Equal(t, false, *ifDef.Inputs["index"].PropDef.Required)
 
-	assert.Equal(t, "scripts/elasticsearch_updateReplicas.sh", ifDef.Implementation.Primary)
+	require.Equal(t, "scripts/elasticsearch_updateReplicas.sh", ifDef.Implementation.Primary)
 }
 
-func interfaceExpressionInputsComplexExpression(t *testing.T) {
+func TestInterfaceExpressionInputsComplexExpression(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
 start:
@@ -138,41 +126,42 @@ start:
 	ifDefMap := InterfaceDefinitionMap{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &ifDefMap)
-	assert.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
-	assert.Len(t, ifDefMap, 1, "Expecting one interface")
-	assert.Contains(t, ifDefMap, "start")
+	require.Nil(t, err, "Expecting no error when unmarshaling Interface with complex grammar")
+	require.Len(t, ifDefMap, 1, "Expecting one interface")
+	require.Contains(t, ifDefMap, "start")
 	ifDef := ifDefMap["start"]
-	assert.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
-	assert.Contains(t, ifDef.Inputs, "X")
+	require.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
+	require.Contains(t, ifDef.Inputs, "X")
 
 	require.Nil(t, ifDef.Inputs["X"].PropDef)
 	require.NotNil(t, ifDef.Inputs["X"].ValueAssign)
-	assert.Equal(t, "concat", ifDef.Inputs["X"].ValueAssign.Expression.Value)
+	require.Equal(t, ValueAssignmentFunction, ifDef.Inputs["X"].ValueAssign.Type)
+	require.EqualValues(t, "concat", ifDef.Inputs["X"].ValueAssign.GetFunction().Operator)
 
-	concatChildren := ifDef.Inputs["X"].ValueAssign.Expression.Children()
+	concatChildren := ifDef.Inputs["X"].ValueAssign.GetFunction().Operands
 
-	assert.Equal(t, 4, len(concatChildren))
+	require.Equal(t, 4, len(concatChildren))
 
 	var testData = []struct {
 		index     int
 		value     string
 		isLiteral bool
 	}{
-		{0, "http://", true},
-		{1, "get_attribute", false},
-		{2, ":", true},
-		{3, "get_property", false},
+		{0, `"http://"`, true},
+		{1, "get_attribute: [HOST, public_ip_address]", false},
+		{2, `":"`, true},
+		{3, "get_property: [SELF, port]", false},
 	}
 	for _, tt := range testData {
-		assert.Equal(t, tt.value, concatChildren[tt.index].Value)
-		assert.Equal(t, tt.isLiteral, concatChildren[tt.index].IsLiteral())
-		assert.Equal(t, ifDef.Inputs["X"].ValueAssign.Expression, concatChildren[tt.index].Parent())
+		require.Equal(t, tt.value, concatChildren[tt.index].String())
+		require.Equal(t, tt.isLiteral, concatChildren[tt.index].IsLiteral())
 	}
 
 	getAttr := concatChildren[1]
-	getAttrChildren := getAttr.Children()
+	require.IsType(t, &Function{}, getAttr)
+	getAttrChildren := getAttr.(*Function).Operands
 
-	assert.Equal(t, 2, len(getAttrChildren))
+	require.Equal(t, 2, len(getAttrChildren))
 
 	testData = []struct {
 		index     int
@@ -183,15 +172,15 @@ start:
 		{1, "public_ip_address", true},
 	}
 	for _, tt := range testData {
-		assert.Equal(t, tt.value, getAttrChildren[tt.index].Value)
-		assert.Equal(t, tt.isLiteral, getAttrChildren[tt.index].IsLiteral())
-		assert.Equal(t, getAttr, getAttrChildren[tt.index].Parent())
+		require.Equal(t, tt.value, getAttrChildren[tt.index].String())
+		require.Equal(t, tt.isLiteral, getAttrChildren[tt.index].IsLiteral())
 	}
 
 	getProp := concatChildren[3]
-	getPropChildren := getProp.Children()
+	require.IsType(t, &Function{}, getProp)
+	getPropChildren := getProp.(*Function).Operands
 
-	assert.Equal(t, 2, len(getPropChildren))
+	require.Equal(t, 2, len(getPropChildren))
 
 	testData = []struct {
 		index     int
@@ -202,40 +191,39 @@ start:
 		{1, "port", true},
 	}
 	for _, tt := range testData {
-		assert.Equal(t, tt.value, getPropChildren[tt.index].Value)
-		assert.Equal(t, tt.isLiteral, getPropChildren[tt.index].IsLiteral())
-		assert.Equal(t, getProp, getPropChildren[tt.index].Parent())
+		require.Equal(t, tt.value, getPropChildren[tt.index].String())
+		require.Equal(t, tt.isLiteral, getPropChildren[tt.index].IsLiteral())
 	}
 
-	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
+	require.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
 }
 
-func interfaceMixed(t *testing.T) {
+func TestInterfaceMixed(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
 start:
   inputs:
-    X: Y
+    X: "Y"
   implementation: scripts/start_server.sh
 stop: scripts/stop_server.sh`
 	ifDefMap := InterfaceDefinitionMap{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &ifDefMap)
-	assert.Nil(t, err, "Expecting no error when unmarshaling Interface with mixed grammar")
-	assert.Len(t, ifDefMap, 2, "Expecting one interface")
-	assert.Contains(t, ifDefMap, "start")
+	require.Nil(t, err, "Expecting no error when unmarshaling Interface with mixed grammar")
+	require.Len(t, ifDefMap, 2, "Expecting one interface")
+	require.Contains(t, ifDefMap, "start")
 	ifDef := ifDefMap["start"]
-	assert.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
-	assert.Contains(t, ifDef.Inputs, "X")
-	assert.Equal(t, "Y", fmt.Sprint(ifDef.Inputs["X"].ValueAssign))
-	assert.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
-	assert.Contains(t, ifDefMap, "stop")
+	require.Len(t, ifDef.Inputs, 1, "Expecting 1 input")
+	require.Contains(t, ifDef.Inputs, "X")
+	require.Equal(t, "Y", fmt.Sprint(ifDef.Inputs["X"].ValueAssign))
+	require.Equal(t, "scripts/start_server.sh", ifDef.Implementation.Primary)
+	require.Contains(t, ifDefMap, "stop")
 	ifDefConcreteStop := ifDefMap["stop"]
-	assert.Len(t, ifDefConcreteStop.Inputs, 0, "Expecting no inputs")
-	assert.Equal(t, "scripts/stop_server.sh", ifDefConcreteStop.Implementation.Primary)
+	require.Len(t, ifDefConcreteStop.Inputs, 0, "Expecting no inputs")
+	require.Equal(t, "scripts/stop_server.sh", ifDefConcreteStop.Implementation.Primary)
 }
 
-func interfaceFailing(t *testing.T) {
+func TestInterfaceFailing(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
 start:
@@ -245,5 +233,5 @@ stop: scripts/stop_server.sh`
 	ifDef := InterfaceDefinitionMap{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &ifDef)
-	assert.NotNil(t, err, "Expecting an error when unmarshaling Interface with an array as inputs")
+	require.NotNil(t, err, "Expecting an error when unmarshaling Interface with an array as inputs")
 }

@@ -4,30 +4,25 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-
-	"gopkg.in/yaml.v2"
 
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 // An EnvInput represent a TOSCA operation input
 //
 // This element is exported in order to be used by text.Template but should be consider as internal
 type EnvInput struct {
-	Name           string
-	Value          string
-	InstanceName   string
-	IsTargetScoped bool
+	Name         string
+	Value        string
+	InstanceName string
 }
 
 func (ei EnvInput) String() string {
-	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsTargetScoped: \"%t\"]", ei.Name, ei.Value, ei.InstanceName, ei.IsTargetScoped)
+	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q]", ei.Name, ei.Value, ei.InstanceName)
 }
 
 //
@@ -47,12 +42,11 @@ func ResolveInputs(kv *api.KV, deploymentID, nodeName, taskID string, operation 
 	return ResolveInputsWithInstances(kv, deploymentID, nodeName, taskID, operation, sourceInstances, targetInstances)
 }
 
-// InputsResolver used to resolve inputs for Kubernetes support
+// ResolveInputsWithInstances used to resolve inputs for an operation
 func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID string, operation prov.Operation,
 	sourceNodeInstances, targetNodeInstances []string) ([]*EnvInput, []string, error) {
 
 	log.Debug("resolving inputs")
-	resolver := deployments.NewResolver(kv, deploymentID)
 
 	envInputs := make([]*EnvInput, 0)
 	varInputsNames := make([]string, 0)
@@ -68,49 +62,44 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 			return nil, nil, err
 		}
 
-		va := tosca.ValueAssignment{}
-		var targetContext bool
-		if !isPropDef {
-			expr, err := deployments.GetOperationInputExpression(kv, deploymentID, operation.ImplementedInType, operation.Name, input)
+		if isPropDef {
+			inputValue, err := tasks.GetTaskInput(kv, taskID, input)
+			if err != nil {
+				if !tasks.IsTaskDataNotFoundError(err) {
+					return nil, nil, err
+				}
+				defaultInputValues, err := deployments.GetOperationInputPropertyDefinitionDefault(kv, deploymentID, nodeName, operation, input)
+				if err != nil {
+					return nil, nil, err
+				}
+				for i, iv := range defaultInputValues {
+					envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value})
+					if i == 0 {
+						varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
+					}
+				}
+				continue
+			}
+			instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 			if err != nil {
 				return nil, nil, err
 			}
-			// TODO if expr == ""
-			err = yaml.Unmarshal([]byte(expr), &va)
-			if err != nil {
-				return nil, nil, errors.Wrap(err, "Failed to resolve operation inputs, unable to unmarshal yaml expression: ")
+			for i, ins := range instances {
+				envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(nodeName, ins), Value: inputValue})
+				if i == 0 {
+					varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
+				}
 			}
-			targetContext = va.Expression.IsTargetContext()
-		}
-
-		var instancesIds []string
-		if operation.RelOp.IsRelationshipOperation && targetContext {
-			instancesIds = targetNodeInstances
 		} else {
-			instancesIds = sourceNodeInstances
-		}
-		var inputValue string
-		for i, instanceID := range instancesIds {
-			envI := &EnvInput{Name: input, IsTargetScoped: targetContext}
-			if operation.RelOp.IsRelationshipOperation && targetContext {
-				envI.InstanceName = GetInstanceName(operation.RelOp.TargetNodeName, instanceID)
-			} else {
-				envI.InstanceName = GetInstanceName(nodeName, instanceID)
-			}
-			if operation.RelOp.IsRelationshipOperation {
-				inputValue, err = resolver.ResolveExpressionForRelationship(va.Expression, nodeName, operation.RelOp.TargetNodeName, operation.RelOp.RequirementIndex, instanceID)
-			} else if isPropDef {
-				inputValue, err = tasks.GetTaskInput(kv, taskID, input)
-			} else {
-				inputValue, err = resolver.ResolveExpressionForNode(va.Expression, nodeName, instanceID)
-			}
+			inputValues, err := deployments.GetOperationInput(kv, deploymentID, nodeName, operation, input)
 			if err != nil {
 				return nil, nil, err
 			}
-			envI.Value = inputValue
-			envInputs = append(envInputs, envI)
-			if i == 0 {
-				varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
+			for i, iv := range inputValues {
+				envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value})
+				if i == 0 {
+					varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
+				}
 			}
 		}
 	}

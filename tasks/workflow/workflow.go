@@ -220,6 +220,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	if err != nil {
 		setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 		log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+		log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 		s.setStatus(tosca.NodeStateError.String())
 		if bypassErrors {
 			ignoredErrsChan <- err
@@ -236,6 +237,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				s.setStatus(tosca.NodeStateError.String())
 				if bypassErrors {
 					ignoredErrsChan <- err
@@ -254,6 +256,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+					log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 					s.setStatus(tosca.NodeStateError.String())
 					if bypassErrors {
 						ignoredErrsChan <- err
@@ -278,6 +281,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				if bypassErrors {
 					ignoredErrsChan <- err
 					haveErr = true
@@ -290,6 +294,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			exec, err := getOperationExecutor(kv, deploymentID, op.ImplementationArtifact)
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if bypassErrors {
 					ignoredErrsChan <- err
@@ -307,6 +312,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				if err != nil {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
 					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					if bypassErrors {
 						ignoredErrsChan <- err
@@ -325,7 +331,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	s.notifyNext()
 
 	if haveErr {
-		log.Debug("Step %s generate an error but workflow continue", s.Name)
+		log.Debugf("Step %s generate an error but workflow continue", s.Name)
 		s.setStatus(tosca.NodeStateError.String())
 		// Return nil otherwise the rest of the workflow will be canceled
 		return nil

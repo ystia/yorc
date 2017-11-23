@@ -2,6 +2,7 @@ package terraform
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -135,16 +136,33 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 }
 
 func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infraPath string, outputs map[string]string) error {
-	// This could be optimized by generating a json output for all outputs and then look at it for given outputs
-	for outPath, outName := range outputs {
-		cmd := executil.Command(ctx, "terraform", "output", outName)
-		cmd.Dir = infraPath
-		result, err := cmd.Output()
-		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
-		}
+	if len(outputs) == 0 {
+		return nil
+	}
+	type tfJSONOutput struct {
+		Sensitive bool   `json:"sensitive,omitempty"`
+		Type      string `json:"type,omitempty"`
+		Value     string `json:"value,omitempty"`
+	}
+	type tfOutputsList map[string]tfJSONOutput
 
-		_, err = kv.Put(&api.KVPair{Key: outPath, Value: result}, nil)
+	cmd := executil.Command(ctx, "terraform", "output", "-json")
+	cmd.Dir = infraPath
+	result, err := cmd.Output()
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
+	}
+	var outputsList tfOutputsList
+	err = json.Unmarshal(result, &outputsList)
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
+	}
+	for outPath, outName := range outputs {
+		output, ok := outputsList[outName]
+		if !ok {
+			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
+		}
+		_, err = kv.Put(&api.KVPair{Key: outPath, Value: []byte(output.Value)}, nil)
 		if err != nil {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}

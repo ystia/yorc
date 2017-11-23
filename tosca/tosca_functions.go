@@ -1,0 +1,194 @@
+package tosca
+
+import (
+	"bytes"
+	"fmt"
+	"strconv"
+
+	"github.com/pkg/errors"
+	"novaforge.bull.com/starlings-janus/janus/log"
+)
+
+// Operator is the keyword of a given TOSCA operation
+type Operator string
+
+const (
+	// GetPropertyOperator is the Operator of the get_property function
+	GetPropertyOperator Operator = "get_property"
+	// GetAttributeOperator is the Operator of the get_attribute function
+	GetAttributeOperator Operator = "get_attribute"
+	// GetInputOperator is the Operator of the get_input function
+	GetInputOperator Operator = "get_input"
+	// GetOperationOutputOperator is the Operator of the get_operation_output function
+	GetOperationOutputOperator Operator = "get_operation_output"
+	// ConcatOperator is the Operator of the concat function
+	ConcatOperator Operator = "concat"
+	// TokenOperator     Operator = "token"
+	// GetNodesOfTypeOperator     Operator = "get_nodes_of_type"
+	// GetArtifactOperator        Operator = "get_artifact"
+)
+
+// IsOperator checks if a given token is a known TOSCA function keyword
+func IsOperator(op string) bool {
+	return op == string(GetPropertyOperator) ||
+		op == string(GetAttributeOperator) ||
+		op == string(GetInputOperator) ||
+		op == string(GetOperationOutputOperator) ||
+		op == string(ConcatOperator)
+}
+
+func parseOperator(op string) (Operator, error) {
+	switch {
+	case op == string(GetPropertyOperator):
+		return GetPropertyOperator, nil
+	case op == string(GetAttributeOperator):
+		return GetAttributeOperator, nil
+	case op == string(GetInputOperator):
+		return GetInputOperator, nil
+	case op == string(GetOperationOutputOperator):
+		return GetOperationOutputOperator, nil
+	case op == string(ConcatOperator):
+		return ConcatOperator, nil
+	default:
+		return GetPropertyOperator, errors.Errorf("%q is not a known or supported TOSCA operator", op)
+
+	}
+}
+
+// Operand represents the parameters part of a TOSCA function it could be a LiteralOperand or a Function
+type Operand interface {
+	fmt.Stringer
+	// IsLiteral allows to know if an Operand is a LiteralOperand (true) or a TOSCA Function (false)
+	IsLiteral() bool
+}
+
+// LiteralOperand represents a literal in a TOSCA function
+type LiteralOperand string
+
+// IsLiteral allows to know if an Operand is a LiteralOperand (true) or a TOSCA Function (false)
+func (l LiteralOperand) IsLiteral() bool {
+	return true
+}
+
+func (l LiteralOperand) String() string {
+	s := string(l)
+	if shouldQuoteYamlString(s) {
+		// Quote String if it contains YAML special chars
+		s = strconv.Quote(s)
+	}
+	return s
+}
+
+// Function models a TOSCA Function
+//
+// A Function is composed by an Operator and a list of Operand
+type Function struct {
+	Operator Operator
+	Operands []Operand
+}
+
+// IsLiteral allows to know if an Operand is a LiteralOperand (true) or a TOSCA Function (false)
+func (f Function) IsLiteral() bool {
+	return false
+}
+
+func (f Function) String() string {
+	var b bytes.Buffer
+	b.WriteString(string(f.Operator))
+	b.WriteString(": ")
+	if len(f.Operands) == 1 {
+		// Shortcut
+		b.WriteString(f.Operands[0].String())
+		return b.String()
+	}
+	b.WriteString("[")
+	for i := range f.Operands {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(f.Operands[i].String())
+	}
+	b.WriteString("]")
+	return b.String()
+}
+
+// GetFunctionsByOperator returns the list of functions with a given Operator type contained in this Function
+//
+// Note that Functions can be nested like in a concat for instance
+func (f *Function) GetFunctionsByOperator(o Operator) []*Function {
+	result := make([]*Function, 0)
+	if f.Operator == o {
+		result = append(result, f)
+	}
+	for _, op := range f.Operands {
+		if !op.IsLiteral() {
+			result = append(result, op.(*Function).GetFunctionsByOperator(o)...)
+		}
+	}
+	return result
+}
+
+// UnmarshalYAML unmarshal a yaml into a Function
+func (f *Function) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var m map[interface{}]interface{}
+	if err := unmarshal(&m); err != nil {
+		return err
+	}
+	if len(m) != 1 {
+		return errors.Errorf("Not a TOSCA function")
+	}
+
+	fn, err := parseFunction(m)
+	if err != nil {
+		return err
+	}
+	f.Operator = fn.Operator
+	f.Operands = fn.Operands
+	return nil
+}
+
+func parseFunctionOperands(value interface{}) ([]Operand, error) {
+	var ops []Operand
+	switch v := value.(type) {
+	case []interface{}:
+		log.Debugf("Found array value %v %T", v, v)
+		ops = make([]Operand, len(v))
+		for i, op := range v {
+			o, err := parseFunctionOperands(op)
+			if err != nil {
+				return nil, err
+			}
+			ops[i] = o[0]
+		}
+	case map[interface{}]interface{}:
+		log.Debugf("Found map value %v %T", v, v)
+		f, err := parseFunction(v)
+		if err != nil {
+			return nil, err
+		}
+		ops = make([]Operand, 1)
+		ops[0] = f
+	default:
+		log.Debugf("Found a literal value %v %T", v, v)
+		ops = make([]Operand, 1)
+		ops[0] = LiteralOperand(fmt.Sprint(v))
+	}
+	return ops, nil
+}
+
+func parseFunction(f map[interface{}]interface{}) (*Function, error) {
+	log.Debugf("parsing TOSCA function %+v", f)
+	for k, v := range f {
+		operator, err := parseOperator(fmt.Sprint(k))
+		if err != nil {
+			return nil, errors.Wrap(err, "Not a TOSCA function")
+		}
+		ops, err := parseFunctionOperands(v)
+		if err != nil {
+			return nil, err
+		}
+
+		return &Function{Operator: operator, Operands: ops}, nil
+	}
+	return nil, errors.Errorf("Not a TOSCA function")
+}

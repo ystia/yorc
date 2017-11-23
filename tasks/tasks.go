@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"path"
 	"strconv"
 
@@ -14,6 +15,22 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
+
+type taskDataNotFound struct {
+	name   string
+	taskID string
+}
+
+func (t taskDataNotFound) Error() string {
+	return fmt.Sprintf("Data %q not found for task %q", t.name, t.taskID)
+}
+
+// IsTaskDataNotFoundError checks if an error is a task data not found error
+func IsTaskDataNotFoundError(err error) bool {
+	cause := errors.Cause(err)
+	_, ok := cause.(taskDataNotFound)
+	return ok
+}
 
 // TaskTypeForName converts a textual representation of a task into a TaskType
 func TaskTypeForName(taskType string) (TaskType, error) {
@@ -187,7 +204,7 @@ func GetTaskData(kv *api.KV, taskID, dataName string) (string, error) {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvP == nil {
-		return "", errors.Errorf("Data %q not found for task %q", dataName, taskID)
+		return "", errors.WithStack(taskDataNotFound{name: dataName, taskID: taskID})
 	}
 	return string(kvP.Value), nil
 }

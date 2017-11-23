@@ -16,8 +16,8 @@ type CapabilityDefinition struct {
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_CAPABILITY_ASSIGNMENT for more details
 type CapabilityAssignment struct {
-	Properties map[string]ValueAssignment `yaml:"properties,omitempty"`
-	Attributes map[string]ValueAssignment `yaml:"attributes,omitempty"`
+	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
+	Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into an CapabilityDefinition
