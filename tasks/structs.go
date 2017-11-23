@@ -5,6 +5,7 @@ import (
 )
 
 //go:generate stringer -type=TaskStatus,TaskType -output=structs_string.go structs.go
+//go:generate go-enum -f=structs.go --lower
 
 // A TaskType determines the type of a Task
 type TaskType int
@@ -30,6 +31,15 @@ const (
 // TaskStatus represents the status of a Task
 type TaskStatus int
 
+// TaskStepStatus x ENUM(
+// INITIAL,
+// RUNNING,
+// DONE,
+// ERROR,
+// CANCELED
+// )
+type TaskStepStatus int
+
 const (
 	// INITIAL is the initial status of a that haven't run yet
 	INITIAL TaskStatus = iota
@@ -43,6 +53,12 @@ const (
 	CANCELED
 	// NOTE: if a new status should be added then change validity check on GetTaskStatus
 )
+
+// TaskStep represents a step related to the task
+type TaskStep struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
 
 type anotherLivingTaskAlreadyExistsError struct {
 	taskID   string

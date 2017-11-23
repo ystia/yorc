@@ -23,7 +23,7 @@ func init() {
 var tasksCmd = &cobra.Command{
 	Use:   "tasks <DeploymentId>",
 	Short: "List tasks of a deployment",
-	Long: `Display infos about the tasks related to a given deployment.
+	Long: `Display info about the tasks related to a given deployment.
     It prints the tasks ID, type and status.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {

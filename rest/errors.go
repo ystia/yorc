@@ -28,7 +28,8 @@ func writeError(w http.ResponseWriter, r *http.Request, err *Error) {
 }
 
 var (
-	errNotFound = &Error{"not_found", 404, "Not Found", "Requested content not found."}
+	errNotFound  = &Error{"not_found", 404, "Not Found", "Requested content not found."}
+	errForbidden = &Error{"forbidden", 401, "Forbidden", "This operation is forbidden."}
 )
 
 func newContentNotFoundError(contentName string) *Error {

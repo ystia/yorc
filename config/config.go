@@ -31,33 +31,37 @@ const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 //DefaultKeepOperationRemotePath is set to true by default in order to remove path created to store operation artifacts on nodes.
 const DefaultKeepOperationRemotePath = false
 
+// DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
+const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
-	AnsibleUseOpenSSH             bool
-	AnsibleDebugExec              bool
-	AnsibleConnectionRetries      int
-	PluginsDirectory              string
-	WorkingDirectory              string
-	WorkersNumber                 int
-	ServerGracefulShutdownTimeout time.Duration
-	HTTPPort                      int
-	HTTPAddress                   string
-	KeyFile                       string
-	CertFile                      string
-	KeepOperationRemotePath       bool
-	ResourcesPrefix               string
-	ConsulToken                   string
-	ConsulDatacenter              string
-	ConsulAddress                 string
-	ConsulKey                     string
-	ConsulCert                    string
-	ConsulCA                      string
-	ConsulCAPath                  string
-	ConsulSSL                     bool
-	ConsulSSLVerify               bool
-	ConsulPubMaxRoutines          int
-	Telemetry                     Telemetry
-	Infrastructures               map[string]InfrastructureConfig
+	AnsibleUseOpenSSH                bool
+	AnsibleDebugExec                 bool
+	AnsibleConnectionRetries         int
+	PluginsDirectory                 string
+	WorkingDirectory                 string
+	WorkersNumber                    int
+	ServerGracefulShutdownTimeout    time.Duration
+	HTTPPort                         int
+	HTTPAddress                      string
+	KeyFile                          string
+	CertFile                         string
+	KeepOperationRemotePath          bool
+	ResourcesPrefix                  string
+	ConsulToken                      string
+	ConsulDatacenter                 string
+	ConsulAddress                    string
+	ConsulKey                        string
+	ConsulCert                       string
+	ConsulCA                         string
+	ConsulCAPath                     string
+	ConsulSSL                        bool
+	ConsulSSLVerify                  bool
+	ConsulPubMaxRoutines             int
+	Telemetry                        Telemetry
+	Infrastructures                  map[string]InfrastructureConfig
+	WfStepGracefulTerminationTimeout time.Duration
 }
 
 // Telemetry holds the configuration for the telemetry service
