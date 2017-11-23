@@ -714,7 +714,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
-	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(strings.Replace(e.cfg.OperationRemoteBaseDir, " ", "-", -1)+"_", "")
+	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(e.cfg.OperationRemoteBaseDir+"_", "")
 	if e.operation.RelOp.IsRelationshipOperation {
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
