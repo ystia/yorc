@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"net/http"
+	"path"
 )
 
 func init() {
@@ -24,13 +25,13 @@ var resumeTaskCmd = &cobra.Command{
 			errExit(err)
 		}
 
-		url := "/deployments/" + args[0] + "/tasks/" + args[1]
+		url := path.Join("/deployments", args[0], "tasks", args[1])
 		request, err := client.NewRequest("PUT", url, nil)
 		if err != nil {
 			errExit(err)
 		}
 
-		request.Header.Add("Accept", "application/json")
+		//request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
 		if err != nil {
 			errExit(err)

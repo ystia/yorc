@@ -13,6 +13,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -31,7 +32,7 @@ func init() {
 				errExit(err)
 			}
 
-			url := "/deployments/" + args[0] + "/tasks/" + args[1]
+			url := path.Join("/deployments", args[0], "/tasks/", args[1])
 			request, err := client.NewRequest("GET", url, nil)
 			if err != nil {
 				errExit(err)

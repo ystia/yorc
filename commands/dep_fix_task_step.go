@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"path"
 	"strings"
 )
 
@@ -36,13 +37,13 @@ var updateTaskStepCmd = &cobra.Command{
 			log.Panic(err)
 		}
 
-		url := "/deployments/" + args[0] + "/tasks/" + args[1] + "/steps/" + args[2]
+		url := path.Join("/deployments", args[0], "tasks", args[1], "steps", args[2])
 		request, err := client.NewRequest("PUT", url, bytes.NewBuffer(body))
 		if err != nil {
 			errExit(err)
 		}
 
-		request.Header.Add("Accept", "application/json")
+		request.Header.Add("Content-Type", "application/json")
 		response, err := client.Do(request)
 		if err != nil {
 			errExit(err)

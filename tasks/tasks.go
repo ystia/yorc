@@ -263,7 +263,7 @@ func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 	}
 
 	for _, kvp := range kvps {
-		steps = append(steps, TaskStep{Name: string(path.Base(kvp.Key)), Status: string(kvp.Value)})
+		steps = append(steps, TaskStep{Name: path.Base(kvp.Key), Status: string(kvp.Value)})
 	}
 	return steps, nil
 }

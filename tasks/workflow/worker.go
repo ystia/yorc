@@ -434,7 +434,7 @@ func (w worker) runWorkflows(ctx context.Context, t *task, workflows []string, b
 					t.WithStatus(tasks.FAILED)
 				}
 				log.Printf("%v. Aborting", err)
-				return err
+				return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
 			// Only create step key if step doesn't already exists to allow resuming task
 			if kvp == nil {
