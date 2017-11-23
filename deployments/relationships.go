@@ -21,7 +21,7 @@ func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, 
 	var propDataType string
 	var hasProp bool
 	if relationshipType != "" {
-		hasProp, err := TypeHasProperty(kv, deploymentID, relationshipType, propertyName)
+		hasProp, err := TypeHasProperty(kv, deploymentID, relationshipType, propertyName, true)
 		if err != nil {
 			return false, "", err
 		}
@@ -102,7 +102,7 @@ func GetRelationshipAttributeFromRequirement(kv *api.KV, deploymentID, nodeName,
 
 	var attrDataType string
 	if relationshipType != "" {
-		hasProp, err := TypeHasAttribute(kv, deploymentID, relationshipType, attributeName)
+		hasProp, err := TypeHasAttribute(kv, deploymentID, relationshipType, attributeName, true)
 		if err != nil {
 			return false, "", err
 		}

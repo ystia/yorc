@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/prov"
 
 	"strings"
 
@@ -719,4 +720,25 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 		})
 	}
 
+}
+
+func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/issue_get_empty_prop_rel.yaml")
+	require.Nil(t, err)
+	// First test operation outputs detection
+
+	results, err := GetOperationInput(kv, deploymentID, "ValueAssignmentNode2", prov.Operation{
+		Name:                   "tosca.interfaces.relationship.configure.pre_configure_target",
+		ImplementedInType:      "janus.tests.relationships.ValueAssignmentConnectsTo",
+		ImplementationArtifact: "",
+		RelOp: prov.RelationshipOperation{
+			IsRelationshipOperation: true,
+			RequirementIndex:        "1",
+			TargetNodeName:          "ValueAssignmentNode1",
+		}}, "input_empty")
+	require.Nil(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "", results[0].Value)
 }

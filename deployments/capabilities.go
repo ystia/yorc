@@ -82,7 +82,7 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 	var propDataType string
 	var hasProp bool
 	if capabilityType != "" {
-		hasProp, err = TypeHasProperty(kv, deploymentID, capabilityType, propertyName)
+		hasProp, err = TypeHasProperty(kv, deploymentID, capabilityType, propertyName, true)
 		if err != nil {
 			return false, "", err
 		}
@@ -175,7 +175,7 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 
 	var attrDataType string
 	if capabilityType != "" {
-		hasProp, err := TypeHasAttribute(kv, deploymentID, capabilityType, attributeName)
+		hasProp, err := TypeHasAttribute(kv, deploymentID, capabilityType, attributeName, true)
 		if err != nil {
 			return false, "", err
 		}

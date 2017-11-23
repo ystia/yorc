@@ -217,7 +217,7 @@ func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ne
 		return false, "", err
 	}
 	var propDataType string
-	hasProp, err := TypeHasProperty(kv, deploymentID, nodeType, propertyName)
+	hasProp, err := TypeHasProperty(kv, deploymentID, nodeType, propertyName, true)
 	if err != nil {
 		return false, "", err
 	}

@@ -61,7 +61,7 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 	}
 
 	var attrDataType string
-	hasAttr, err := TypeHasAttribute(kv, deploymentID, nodeType, attributeName)
+	hasAttr, err := TypeHasAttribute(kv, deploymentID, nodeType, attributeName, true)
 	if err != nil {
 		return false, "", err
 	}

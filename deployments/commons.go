@@ -133,7 +133,7 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 		}
 		castedResult := result.(map[string]interface{})
 		for currentDatatype != "" {
-			dtProps, err := GetTypeProperties(kv, deploymentID, currentDatatype)
+			dtProps, err := GetTypeProperties(kv, deploymentID, currentDatatype, false)
 			if err != nil {
 				return nil, err
 			}
@@ -151,11 +151,6 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 			}
 			currentDatatype, err = GetParentType(kv, deploymentID, currentDatatype)
 			if err != nil {
-				if IsTypeMissingError(err) {
-					// builtin YAML types like string, integer, map, list and so on are not
-					// considered as TOSCA types so just stop. This is not an error
-					break
-				}
 				return nil, err
 			}
 		}
