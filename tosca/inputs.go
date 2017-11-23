@@ -18,16 +18,16 @@ func (i *Input) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	i.ValueAssign = nil
 	i.PropDef = nil
 	log.Debug("Try to parse input as a PropertyDefinition")
-	v := new(ValueAssignment)
-	if err := unmarshal(v); err == nil {
-		i.ValueAssign = v
+	p := new(PropertyDefinition)
+	if err := unmarshal(p); err == nil && p.Type != "" {
+		i.PropDef = p
 		return nil
 	}
 	log.Debug("Try to parse input as a ValueAssignment")
-	p := new(PropertyDefinition)
-	if err := unmarshal(p); err != nil {
+	v := new(ValueAssignment)
+	if err := unmarshal(v); err != nil {
 		return err
 	}
-	i.PropDef = p
+	i.ValueAssign = v
 	return nil
 }

@@ -1,0 +1,561 @@
+tosca_definitions_version: alien_dsl_1_4_0
+description: Alien4Cloud generated service template
+template_name: ValueAssignment
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - tosca-normative-types: <normative-types.yml>
+
+data_types:
+  janus.tests.datatypes.ComplexType:
+    derived_from: tosca.datatypes.Root
+    properties:
+      literal:
+        type: integer
+      literalDefault:
+        type: string
+        default: ComplexDataTypeDefault
+      mymap:
+        type: map
+        entry_schema: 
+          type: integer
+  janus.tests.datatypes.SubComplexType:
+    derived_from: janus.tests.datatypes.ComplexType
+  janus.tests.datatypes.BaseType:
+    derived_from: tosca.datatypes.Root
+    properties:
+      nestedType:
+        type: janus.tests.datatypes.NestedType
+  janus.tests.datatypes.NestedType:
+    derived_from: tosca.datatypes.Root
+    properties:
+      listofstring:
+        type: list
+      subcomplex:
+        type: janus.tests.datatypes.SubComplexType
+      listofcomplex:
+        type: list
+        entry_schema:
+          type: janus.tests.datatypes.ComplexType 
+      mapofcomplex:
+        type: map
+        entry_schema:
+          type: janus.tests.datatypes.ComplexType       
+
+node_types:
+  janus.tests.nodes.ValueAssignmentNode:
+    derived_from: tosca.nodes.Root
+    properties:
+      empty:
+        type: string
+        required: false
+      port:
+        type: string
+        required: true
+      literal:
+        type: integer
+      list:
+        type: list
+      map:
+        type: map
+        entry_schema:
+          type: string
+      mapdef:
+        type: map
+        entry_schema:
+          type: string
+        default:
+          def1: "1"
+          def2: "2"
+      listdef:
+        type: list
+        entry_schema:
+          type: string
+        default:
+          - l1
+          - l2
+      complex:
+        type: janus.tests.datatypes.ComplexType
+      complexDef:
+        type: janus.tests.datatypes.ComplexType
+        default:
+          literal: 1
+      baseComplex:
+        type: janus.tests.datatypes.BaseType
+      baseComplexDef:
+        type: janus.tests.datatypes.BaseType
+        default:
+          nestedType:
+            listofstring: ["typeDefL1", "typeDefL2"]
+            subcomplex:
+              literal: 4
+            listofcomplex:
+              - literal: 42
+                mymap: {"nested": 1}
+              - literal: 43
+                mymap: {"nested": 2}
+            mapofcomplex:
+              m1: 
+                literal: 52
+                mymap: {"nested": 3}
+    attributes:
+      partition_name: { get_operation_output: [ SELF, Standard, configure, PARTITION_NAME ] }
+      concat_attr: { concat: [get_property: [SELF, port], concat: ["something", concat: [concat: ["hello", get_operation_output: [SELF, Standard, create, CREATE_OUTPUT]], "!"]] ] }
+      listDef:
+        type: list
+        entry_schema:
+          type: integer
+        default: [1,2,3]
+      mapDef:
+        type: map
+        entry_schema:
+          type: scalar-unit.size
+        default: {"T1": "4 GiB", "T2": "1 TiB","T3": "3 GB"}
+      lit:
+        type: string
+      listAttr:
+        type: list
+        entry_schema:
+          type: integer
+      mapAttr:
+        type: map
+        entry_schema:
+          type: string
+      complexAttr:
+        type: janus.tests.datatypes.ComplexType
+      complexDefAttr:
+        type: janus.tests.datatypes.ComplexType
+        default:
+          literal: 1
+      baseComplexAttr:
+        type: janus.tests.datatypes.BaseType
+      baseComplexDefAttr:
+        type: janus.tests.datatypes.BaseType
+        default:
+          nestedType:
+            listofstring: ["typeDefL1", "typeDefL2"]
+            subcomplex:
+              literal: 4
+            listofcomplex:
+              - literal: 42
+                mymap: {"nested": 1}
+              - literal: 43
+                mymap: {"nested": 2}
+            mapofcomplex:
+              m1: 
+                literal: 52
+                mymap: {"nested": 3}
+    capabilities:
+      host: 
+        type: janus.tests.capabilities.ValueAssignmentContainer
+    requirements:
+      - host:
+          capability: janus.tests.capabilities.ValueAssignmentContainer
+          relationship: janus.tests.relationships.ValueAssignmentHostedOn
+    interfaces:
+      custom:
+        publish:
+          inputs:
+            HOST_PATH: { get_attribute: [ SELF, concat_attr ] }
+            nb_replicas:
+              type: integer
+              description: Number of replicas for indexes
+              required: true
+          implementation: scripts/publisher_publish.sh
+      Standard:
+        create: 
+          inputs:
+            litteral: "testLiteral"
+            list: ["l1", "l2"]
+            list_ex:
+              - "le1"
+              - "le2"
+            map: {"key1": "value1", "key2": "value2"}
+            map_ex:
+              keyex1: value1
+              "keyex2": "value2"
+            empty: { get_property: [SELF, empty]}
+          implementation: scripts/create.sh
+        configure: scripts/conf.sh
+capability_types:
+  janus.tests.capabilities.ValueAssignmentContainer:
+    derived_from: tosca.capabilities.Container
+    properties:
+      literal:
+        type: string
+      mapProp:
+        type: map
+      listProp:
+        type: list
+      literalDefault:
+        type: string
+        default: "capDefault"
+      mapPropDefault:
+        type: map
+        default: 
+          capProp1: capPropVal1
+          capProp2: capPropVal2
+      listPropDefault:
+        type: list
+        default:
+          - "capPropI1"
+          - "capPropI2"
+          - "capPropI3"
+      complex:
+        type: janus.tests.datatypes.ComplexType
+      complexDef:
+        type: janus.tests.datatypes.ComplexType
+        default:
+          literal: 1
+      baseComplex:
+        type: janus.tests.datatypes.BaseType
+      baseComplexDef:
+        type: janus.tests.datatypes.BaseType
+        default:
+          nestedType:
+            listofstring: ["captypeDefL1", "captypeDefL2"]
+            subcomplex:
+              literal: 4
+            listofcomplex:
+              - literal: 42
+                mymap: {"capnested": 1}
+              - literal: 43
+                mymap: {"capnested": 2}
+            mapofcomplex:
+              m1: 
+                literal: 52
+                mymap: {"capnested": 3}
+    attributes:
+      literalAttr:
+        type: string
+      mapAttr:
+        type: map
+      listAttr:
+        type: list
+      literalDefault:
+        type: string
+        default: "capDefault"
+      mapAttrDefault:
+        type: map
+        default: 
+          capAttr1: capAttrVal1
+          capAttr2: capAttrVal2
+      listAttrDefault:
+        type: list
+        default:
+          - "capAttrI1"
+          - "capAttrI2"
+          - "capAttrI3"
+      complexAttr:
+        type: janus.tests.datatypes.ComplexType
+      complexDefAttr:
+        type: janus.tests.datatypes.ComplexType
+        default:
+          literal: 1
+      baseComplexAttr:
+        type: janus.tests.datatypes.BaseType
+      baseComplexDefAttr:
+        type: janus.tests.datatypes.BaseType
+        default:
+          nestedType:
+            listofstring: ["captypeDefL1", "captypeDefL2"]
+            subcomplex:
+              literal: 4
+            listofcomplex:
+              - literal: 42
+                mymap: {"capnested": 1}
+              - literal: 43
+                mymap: {"capnested": 2}
+            mapofcomplex:
+              m1: 
+                literal: 52
+                mymap: {"capnested": 3}
+relationship_types:
+  janus.tests.relationships.ValueAssignmentHostedOn:
+    derived_from: tosca.relationships.HostedOn
+    properties:
+      literal:
+        type: string
+      mapProp:
+        type: map
+      listProp:
+        type: list
+      literalDefault:
+        type: string
+        default: "relDefault"
+      mapPropDefault:
+        type: map
+        default: 
+          relProp1: relPropVal1
+          relProp2: relPropVal2
+      listPropDefault:
+        type: list
+        default:
+          - "relPropI1"
+          - "relPropI2"
+          - "relPropI3"
+      complex:
+        type: janus.tests.datatypes.ComplexType
+      complexDef:
+        type: janus.tests.datatypes.ComplexType
+        default:
+          literal: 1
+      baseComplex:
+        type: janus.tests.datatypes.BaseType
+      baseComplexDef:
+        type: janus.tests.datatypes.BaseType
+        default:
+          nestedType:
+            listofstring: ["reltypeDefL1", "reltypeDefL2"]
+            subcomplex:
+              literal: 4
+            listofcomplex:
+              - literal: 42
+                mymap: {"relnested": 1}
+              - literal: 43
+                mymap: {"relnested": 2}
+            mapofcomplex:
+              m1: 
+                literal: 52
+                mymap: {"relnested": 3}
+    attributes:
+      literalAttr:
+        type: string
+      mapAttr:
+        type: map
+      listAttr:
+        type: list
+      literalDefault:
+        type: string
+        default: "relDefault"
+      mapAttrDefault:
+        type: map
+        default: 
+          relAttr1: relAttrVal1
+          relAttr2: relAttrVal2
+      listAttrDefault:
+        type: list
+        default:
+          - "relAttrI1"
+          - "relAttrI2"
+          - "relAttrI3"
+      complexAttr:
+        type: janus.tests.datatypes.ComplexType
+      complexDefAttr:
+        type: janus.tests.datatypes.ComplexType
+        default:
+          literal: 1
+      baseComplexAttr:
+        type: janus.tests.datatypes.BaseType
+      baseComplexDefAttr:
+        type: janus.tests.datatypes.BaseType
+        default:
+          nestedType:
+            listofstring: ["reltypeDefL1", "reltypeDefL2"]
+            subcomplex:
+              literal: 4
+            listofcomplex:
+              - literal: 42
+                mymap: {"relnested": 1}
+              - literal: 43
+                mymap: {"relnested": 2}
+            mapofcomplex:
+              m1: 
+                literal: 52
+                mymap: {"relnested": 3}
+
+topology_template:
+  inputs:
+    literal:
+      type: string
+      value: literalInput
+    literalDefault:
+      type: integer
+      default: 1
+    complex:
+      type: janus.tests.datatypes.ComplexType
+      value:
+        literal: 11
+        literalDefault: InputLitDef
+    complexDef:
+      type: janus.tests.datatypes.ComplexType
+      default:
+        literal: 1
+    baseComplex:
+      type: janus.tests.datatypes.BaseType
+      value:
+        nestedType:
+          listofstring: ["InputL1", "InputL2"]
+          subcomplex:
+            literal: 2
+          listofcomplex:
+            - literal: 2
+              mymap: {"Input": 1}
+            - literal: 3
+              mymap: {"Input": 2}
+          mapofcomplex:
+            m1: 
+              literal: 4
+              mymap: {"Input": 3}
+    baseComplexDef:
+      type: janus.tests.datatypes.BaseType
+      default:
+        nestedType:
+          listofstring: ["InputDefL1", "InputDefL2"]
+          subcomplex:
+            literal: 4
+          listofcomplex:
+            - literal: 42
+              mymap: {"Inputnested": 1}
+            - literal: 43
+              mymap: {"Inputnested": 2}
+          mapofcomplex:
+            m1: 
+              literal: 52
+              mymap: {"Inputnested": 3}
+  node_templates:
+    VANode1:
+      type: janus.tests.nodes.ValueAssignmentNode
+      properties:
+        port: "80"
+        literal: 1
+        list: ["http://", "janus", ".io"]
+        map: {one: "1", "two": "2"}
+        complex:
+          literal: 11
+          literalDefault: VANode1LitDef
+      capabilities:
+        host:
+          properties:
+            literal: "user cap literal"
+            mapProp: {"U1": "V1", "U2": "V2"}
+            listProp: ["UV1", "UV2", "UV3"]
+            complex:
+              literal: 5
+              literalDefault: CapNode1
+            baseComplex:
+              nestedType:
+                listofstring: ["CapNode1L1", "CapNode1L2"]
+                subcomplex:
+                  literal: 2
+                listofcomplex:
+                  - literal: 2
+                    mymap: {"CapNode1": 1}
+                  - literal: 3
+                    mymap: {"CapNode1": 2}
+                mapofcomplex:
+                  m1: 
+                    literal: 4
+                    mymap: {"CapNode1": 3}
+
+    VANode2:
+      type: janus.tests.nodes.ValueAssignmentNode
+      properties:
+        port: "80"
+        literal: 1
+        list: 
+          - "http://"
+          - "janus"
+          - ".io"
+        map: 
+          one: "1" 
+          two: "2"
+        baseComplex:
+          nestedType:
+            listofstring: ["VANode2L1", "VANode2L2"]
+            subcomplex:
+              literal: 2
+            listofcomplex:
+              - literal: 2
+                mymap: {"VANode2": 1}
+              - literal: 3
+                mymap: {"VANode2": 2}
+            mapofcomplex:
+              m1: 
+                literal: 4
+                mymap: {"VANode2": 3}
+      requirements:
+        - host:
+            node: VANode1
+            capability: janus.tests.capabilities.ValueAssignmentContainer
+            relationship: 
+              type: janus.tests.relationships.ValueAssignmentHostedOn
+              properties:
+                literal: "user rel literal"
+                mapProp: {"U1": "V1", "U2": "V2"}
+                listProp: ["UV1", "UV2", "UV3"]
+                complex:
+                  literal: 5
+                  literalDefault: VANode2ToVANode1
+                baseComplex:
+                  nestedType:
+                    listofstring: ["VANode2ToVANode1L1", "VANode2ToVANode1L2"]
+                    subcomplex:
+                      literal: 2
+                    listofcomplex:
+                      - literal: 2
+                        mymap: {"VANode2ToVANode1": 1}
+                      - literal: 3
+                        mymap: {"VANode2ToVANode1": 2}
+                    mapofcomplex:
+                      m1: 
+                        literal: 4
+                        mymap: {"VANode2ToVANode1": 3}
+
+
+
+  outputs:
+    literal:
+      type: string
+      value: literalOutput
+    literalDefault:
+      type: integer
+      default: 1
+    complex:
+      type: janus.tests.datatypes.ComplexType
+      value:
+        literal: 11
+        literalDefault: OutputLitDef
+    complexDef:
+      type: janus.tests.datatypes.ComplexType
+      default:
+        literal: 1
+    baseComplex:
+      type: janus.tests.datatypes.BaseType
+      value:
+        nestedType:
+          listofstring: ["OutputL1", "OutputL2"]
+          subcomplex:
+            literal: 2
+          listofcomplex:
+            - literal: 2
+              mymap: {"Output": 1}
+            - literal: 3
+              mymap: {"Output": 2}
+          mapofcomplex:
+            m1: 
+              literal: 4
+              mymap: {"Output": 3}
+    baseComplexDef:
+      type: janus.tests.datatypes.BaseType
+      default:
+        nestedType:
+          listofstring: ["OutputDefL1", "OutputDefL2"]
+          subcomplex:
+            literal: 4
+          listofcomplex:
+            - literal: 42
+              mymap: {"Outputnested": 1}
+            - literal: 43
+              mymap: {"Outputnested": 2}
+          mapofcomplex:
+            m1: 
+              literal: 52
+              mymap: {"Outputnested": 3}
+    node1Lit:
+      value: {get_attribute: [VANode1, lit]}
+    node2BaseComplexPropAll:
+      value: {get_attribute: [VANode2, baseComplex]}
+    node2BaseComplexPropNestedSubComplexLiteral:
+      value: {get_property: [VANode2, baseComplex, nestedType, subcomplex, literal]}

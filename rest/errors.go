@@ -32,6 +32,10 @@ var (
 	errForbidden = &Error{"forbidden", 401, "Forbidden", "This operation is forbidden."}
 )
 
+func newContentNotFoundError(contentName string) *Error {
+	return &Error{"not_found", 404, "Not Found", fmt.Sprintf("%s not found.", contentName)}
+}
+
 func newInternalServerError(err interface{}) *Error {
 	return &Error{"internal_server_error", 500, "Internal Server Error", fmt.Sprintf("Something went wrong: %+v", err)}
 }
