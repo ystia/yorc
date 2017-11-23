@@ -134,7 +134,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("ansible_use_openssh", false, "Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts")
 	serverCmd.PersistentFlags().Bool("ansible_debug", false, "Prints massive debug information from Ansible")
 	serverCmd.PersistentFlags().Int("ansible_connection_retries", 5, "Number of retries in case of Ansible SSH connection failure")
-	serverCmd.PersistentFlags().String("operation_remote_base_dir", ".janus", "Name of the temporary directory used by Ansible")
+	serverCmd.PersistentFlags().String("operation_remote_base_dir", ".janus", "Name of the temporary directory used by Ansible on the nodes")
 
 	//Bind flags for Consul
 	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))

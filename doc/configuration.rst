@@ -24,7 +24,7 @@ Globals Command-line options
 
 .. _option_operation_remote_base_dir_cmd:
 
-  * ``--operation_remote_base_dir``: Specify an alternative working directory for ansible.
+  * ``--operation_remote_base_dir``: Specify an alternative working directory for Ansible on provisioned Compute.
 
 .. _option_config_cmd:
 
