@@ -104,6 +104,7 @@ type executionCommon struct {
 	operation                prov.Operation
 	NodeType                 string
 	Description              string
+	OperationRemoteBaseDir   string
 	OperationRemotePath      string
 	KeepOperationRemotePath  bool
 	EnvInputs                []*operations.EnvInput
@@ -712,10 +713,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
+	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
+	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(".janus_", "")
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s/%s", e.NodeName, e.relationshipType, e.operation.Name)
+		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
-		e.OperationRemotePath = fmt.Sprintf(".janus/%s/%s", e.NodeName, e.operation.Name)
+		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {

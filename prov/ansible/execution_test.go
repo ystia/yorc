@@ -33,12 +33,12 @@ func GetConfig() config.Configuration {
 func TestTemplates(t *testing.T) {
 	t.Parallel()
 	ec := &executionCommon{
-		NodeName:            "Welcome",
-		operation:           prov.Operation{Name: "tosca.interfaces.node.lifecycle.standard.start"},
-		Artifacts:           map[string]string{"scripts": "my_scripts"},
-		OverlayPath:         "/some/local/path",
-		VarInputsNames:      []string{"INSTANCE", "PORT"},
-		OperationRemotePath: ".janus/path/on/remote",
+		NodeName:               "Welcome",
+		operation:              prov.Operation{Name: "tosca.interfaces.node.lifecycle.standard.start"},
+		Artifacts:              map[string]string{"scripts": "my_scripts"},
+		OverlayPath:            "/some/local/path",
+		VarInputsNames:         []string{"INSTANCE", "PORT"},
+		OperationRemoteBaseDir: ".janus/path/on/remote",
 	}
 
 	e := &executionScript{
@@ -80,7 +80,7 @@ func testExecutionOnNode(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/expression"):             []byte("get_property: [SELF, empty]"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/name"):                   []byte("A2"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A2/expression"):             []byte("get_attribute: [HOST, ip_address]"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/primary"):           []byte("/tmp/create.sh"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/primary"):           []byte("/tmp/.janus/create.sh"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/implementation/dependencies"):      []byte(""),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A1/is_property_definition"): []byte("false"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeTypeName, "interfaces/standard/create/inputs/A3/is_property_definition"): []byte("false"),
@@ -208,18 +208,19 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
+	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp" state=directory mode=0755
+    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp" mode=0744
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
 
-    - shell: "{{ ansible_env.HOME}}/tmp/create.sh"
+    - shell: "{{ ansible_env.HOME}}/tmp/.janus/create.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -239,7 +240,7 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         A3: "{{A3}}"
         INSTANCE: "{{INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
 `
@@ -286,7 +287,7 @@ func testExecutionOnRelationshipSource(t *testing.T, srv1 *testutil.TestServer, 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/expression"):             []byte("get_property: [SOURCE, document_root]"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/name"):                   []byte("A2"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/expression"):             []byte("get_attribute: [TARGET, ip_address]"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/implementation/primary"):           []byte("/tmp/pre_configure_source.sh"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/implementation/primary"):           []byte("/tmp/.janus/pre_configure_source.sh"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/implementation/dependencies"):      []byte(""),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A1/is_property_definition"): []byte("false"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/pre_configure_source/inputs/A2/is_property_definition"): []byte("false"),
@@ -409,18 +410,19 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
+	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp" state=directory mode=0755
+    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp" mode=0744
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
 
-    - shell: "{{ ansible_env.HOME}}/tmp/pre_configure_source.sh"
+    - shell: "{{ ansible_env.HOME}}/tmp/.janus/pre_configure_source.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -439,7 +441,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         A2: "{{A2}}"
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
 `
@@ -486,7 +488,7 @@ func testExecutionOnRelationshipTarget(t *testing.T, srv1 *testutil.TestServer, 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/expression"):             []byte("get_property: [SOURCE, document_root]"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/name"):                   []byte("A2"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/expression"):             []byte("get_attribute: [TARGET, ip_address]"),
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/implementation/primary"):           []byte("/tmp/add_source.sh"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/implementation/primary"):           []byte("/tmp/.janus/add_source.sh"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/implementation/dependencies"):      []byte(""),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A1/is_property_definition"): []byte("false"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", relationshipTypeName, "interfaces/Configure/add_source/inputs/A2/is_property_definition"): []byte("false"),
@@ -610,18 +612,19 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 	// This is bad.... Hopefully it will be temporary
-	execution.(*executionScript).OperationRemotePath = "tmp"
+	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-    - file: path="{{ ansible_env.HOME}}/tmp" state=directory mode=0755
+    - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
 
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp" mode=0744
+    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
 
-    - shell: "{{ ansible_env.HOME}}/tmp/add_source.sh"
+    - shell: "{{ ansible_env.HOME}}/tmp/.janus/add_source.sh"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -640,7 +643,7 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         SOURCE_INSTANCE: "{{SOURCE_INSTANCE}}"
         TARGET_INSTANCE: "{{TARGET_INSTANCE}}"
 
-     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemotePath + `" state=absent
+     - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
 
 
 `

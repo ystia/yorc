@@ -44,3 +44,23 @@ func TestGetAllExceptLastElement(t *testing.T) {
 		require.Equal(t, tt.expected, GetAllExceptLastElement(tt.args.str, tt.args.separator))
 	}
 }
+
+func TestTimestampedName(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		prefix string
+		suffix string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{name: "TestWithSeparator", args: args{prefix: ".janus_", suffix: ""}},
+		{name: "TestWithSeparator", args: args{prefix: ".janus_", suffix: "_ending"}},
+	}
+
+	for _, tt := range tests {
+		require.Contains(t, UniqueTimestampedName(tt.args.prefix, tt.args.suffix), tt.args.prefix, tt.args.suffix)
+	}
+}
