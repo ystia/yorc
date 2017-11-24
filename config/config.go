@@ -39,6 +39,7 @@ type Configuration struct {
 	AnsibleUseOpenSSH                bool
 	AnsibleDebugExec                 bool
 	AnsibleConnectionRetries         int
+	OperationRemoteBaseDir           string
 	PluginsDirectory                 string
 	WorkingDirectory                 string
 	WorkersNumber                    int
