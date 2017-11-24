@@ -2,6 +2,10 @@
 #set -x
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+get_consul_version () {
+    grep consul_version ../versions.yaml | awk '{print $2}'
+}
+
 error_exit () {
     >&2 echo "${1}"
     if [[ $# -gt 1 ]]
@@ -10,6 +14,16 @@ error_exit () {
     else
         exit 1
     fi
+}
+
+install_consul() {
+    cd ${scriptDir}
+    consulVersion=$(get_consul_version)
+    zipName="consul_${consulVersion}_$(go env GOHOSTOS)_$(go env GOHOSTARCH).zip"
+    wget "https://releases.hashicorp.com/consul/${consulVersion}/${zipName}"
+    unzip ${zipName}
+    rm ${zipName}
+    chmod +x consul
 }
 
 
@@ -29,13 +43,14 @@ for tool in $@; do
     fi
 done
 
-if [[ ! -e "${scriptDir}/consul" ]]; then
-    cd ${scriptDir}
-    consulVersion=$(grep consul_version ../versions.yaml | awk '{print $2}')
-
-    zipName="consul_${consulVersion}_$(go env GOHOSTOS)_$(go env GOHOSTARCH).zip"
-    wget "https://releases.hashicorp.com/consul/${consulVersion}/${zipName}"
-    unzip ${zipName}
-    rm ${zipName}
-    chmod +x consul
+if [[ ! -x "${scriptDir}/consul" ]]; then
+    rm -f "${scriptDir}/consul"
+    install_consul
+else
+    installedConsulVersion=$(${scriptDir}/consul version | grep "Consul v" | cut -d 'v' -f2)
+    consulVersion=$(get_consul_version)
+    if [[ "${installedConsulVersion}" != "${consulVersion}" ]]; then
+        rm -f "${scriptDir}/consul"
+        install_consul
+    fi
 fi
