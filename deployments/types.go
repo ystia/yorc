@@ -3,6 +3,10 @@ package deployments
 import (
 	"fmt"
 	"path"
+	"strings"
+
+	"novaforge.bull.com/starlings-janus/janus/helper/collections"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -29,6 +33,9 @@ func IsTypeMissingError(err error) bool {
 //
 // An empty string denotes a root type
 func GetParentType(kv *api.KV, deploymentID, typeName string) (string, error) {
+	if tosca.IsBuiltinType(typeName) {
+		return "", nil
+	}
 	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName)
 	// Check if node type exist
 	if kvps, _, err := kv.List(typePath+"/", nil); err != nil {
@@ -70,4 +77,191 @@ func GetTypes(kv *api.KV, deploymentID string) ([]string, error) {
 		names = append(names, path.Base(t))
 	}
 	return names, nil
+}
+
+// GetTypeProperties returns the list of properties defined in a given type
+//
+// It lists only properties defined in the given type not in its parent types.
+func GetTypeProperties(kv *api.KV, deploymentID, typeName string, exploreParents bool) ([]string, error) {
+	return getTypeAttributesOrProperties(kv, deploymentID, typeName, "properties", exploreParents)
+}
+
+// GetTypeAttributes returns the list of attributes defined in a given type
+//
+// It lists only attributes defined in the given type not in its parent types.
+func GetTypeAttributes(kv *api.KV, deploymentID, typeName string, exploreParents bool) ([]string, error) {
+	return getTypeAttributesOrProperties(kv, deploymentID, typeName, "attributes", exploreParents)
+}
+
+func getTypeAttributesOrProperties(kv *api.KV, deploymentID, typeName, paramType string, exploreParents bool) ([]string, error) {
+	result, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, paramType)+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for i := range result {
+		result[i] = path.Base(result[i])
+	}
+	if exploreParents {
+		parentType, err := GetParentType(kv, deploymentID, typeName)
+		if err != nil {
+			return nil, err
+		}
+		if parentType != "" {
+			parentRes, err := getTypeAttributesOrProperties(kv, deploymentID, parentType, paramType, true)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, parentRes...)
+		}
+	}
+	return result, nil
+}
+
+// TypeHasProperty returns true if the type has a property named propertyName defined
+//
+// exploreParents switch enable property check on parent types
+func TypeHasProperty(kv *api.KV, deploymentID, typeName, propertyName string, exploreParents bool) (bool, error) {
+	props, err := GetTypeProperties(kv, deploymentID, typeName, exploreParents)
+	if err != nil {
+		return false, err
+	}
+	return collections.ContainsString(props, propertyName), nil
+}
+
+// TypeHasAttribute returns true if the type has a attribute named attributeName defined
+//
+// exploreParents switch enable attribute check on parent types
+func TypeHasAttribute(kv *api.KV, deploymentID, typeName, attributeName string, exploreParents bool) (bool, error) {
+	attrs, err := GetTypeAttributes(kv, deploymentID, typeName, exploreParents)
+	if err != nil {
+		return false, err
+	}
+	return collections.ContainsString(attrs, attributeName), nil
+}
+
+// getTypeDefaultProperty checks if a type has a default value for a given property.
+//
+// It returns true if a default value is found false otherwise as first return parameter.
+// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
+// The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
+func getTypeDefaultProperty(kv *api.KV, deploymentID, typeName, propertyName string, nestedKeys ...string) (bool, string, bool, error) {
+	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, propertyName, true, nestedKeys...)
+}
+
+// getTypeDefaultAttribute checks if a type has a default value for a given attribute.
+//
+// It returns true if a default value is found false otherwise as first return parameter.
+// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
+// The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
+func getTypeDefaultAttribute(kv *api.KV, deploymentID, typeName, attributeName string, nestedKeys ...string) (bool, string, bool, error) {
+	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, attributeName, false, nestedKeys...)
+}
+
+// getTypeDefaultProperty checks if a type has a default value for a given property or attribute.
+// It returns true if a default value is found false otherwise as first return parameter.
+// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
+// The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
+func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, propertyName string, isProperty bool, nestedKeys ...string) (bool, string, bool, error) {
+
+	// If this type doesn't contains the property lets continue to explore the type hierarchy
+	var hasProp bool
+	var err error
+	if isProperty {
+		hasProp, err = TypeHasProperty(kv, deploymentID, typeName, propertyName, false)
+	} else {
+		hasProp, err = TypeHasAttribute(kv, deploymentID, typeName, propertyName, false)
+	}
+	if err != nil {
+		return false, "", false, err
+	}
+	if hasProp {
+		typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName)
+		var t string
+		if isProperty {
+			t = "properties"
+		} else {
+			t = "attributes"
+		}
+		defaultPath := path.Join(typePath, t, propertyName, "default")
+
+		baseDataType, err := getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, isProperty)
+		if err != nil {
+			return false, "", false, err
+		}
+
+		found, result, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, defaultPath, baseDataType, nestedKeys...)
+		if err != nil {
+			return false, "", false, errors.Wrapf(err, "Failed to get default %s %q for type %q", t, propertyName, typeName)
+		}
+		if found {
+			return true, result, isFunction, nil
+		}
+	}
+	// No default in this type
+	// Lets look at parent type
+	parentType, err := GetParentType(kv, deploymentID, typeName)
+	if err != nil {
+		return false, "", false, err
+	}
+	if parentType == "" {
+		return false, "", false, nil
+	}
+	return getTypeDefaultAttributeOrProperty(kv, deploymentID, parentType, propertyName, isProperty, nestedKeys...)
+}
+
+// IsTypePropertyRequired checks if a property defined in a given type is required.
+//
+// As per the TOSCA specification a property is considered as required by default.
+// An error is returned if the given type doesn't define the given property.
+func IsTypePropertyRequired(kv *api.KV, deploymentID, typeName, propertyName string) (bool, error) {
+	return isTypePropOrAttrRequired(kv, deploymentID, typeName, typeName, propertyName, "property")
+}
+
+// IsTypeAttributeRequired checks if a attribute defined in a given type is required.
+//
+// As per the TOSCA specification a attribute is considered as required by default.
+// An error is returned if the given type doesn't define the given attribute.
+func IsTypeAttributeRequired(kv *api.KV, deploymentID, typeName, attributeName string) (bool, error) {
+	return isTypePropOrAttrRequired(kv, deploymentID, typeName, typeName, attributeName, "attribute")
+}
+
+func isTypePropOrAttrRequired(kv *api.KV, deploymentID, typeName, originalTypeName, elemName, elemType string) (bool, error) {
+	var hasElem bool
+	var err error
+	if elemType == "property" {
+		hasElem, err = TypeHasProperty(kv, deploymentID, typeName, elemName, false)
+	} else {
+		hasElem, err = TypeHasAttribute(kv, deploymentID, typeName, elemName, false)
+	}
+	if err != nil {
+		return false, err
+	}
+	if !hasElem {
+		parentType, err := GetParentType(kv, deploymentID, typeName)
+		if err != nil {
+			return false, err
+		}
+		if parentType == "" {
+			return false, errors.Errorf("type %q doesn't define %s %q can't check if it is required or not", originalTypeName, elemType, elemName)
+		}
+		return isTypePropOrAttrRequired(kv, deploymentID, parentType, originalTypeName, elemName, elemType)
+	}
+
+	var t string
+	if elemType == "property" {
+		t = "properties"
+	} else {
+		t = "attributes"
+	}
+	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName, t, elemName, "required")
+	kvp, _, err := kv.Get(reqPath, nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		// Required by default
+		return true, nil
+	}
+	// Not required only if explicitly set to false
+	return !(strings.ToLower(string(kvp.Value)) == "false"), nil
 }

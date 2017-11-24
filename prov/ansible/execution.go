@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -71,20 +72,6 @@ type hostConnection struct {
 	host       string
 	user       string
 	instanceID string
-}
-
-// An EnvInput represent a TOSCA operation input
-//
-// This element is exported in order to be used by text.Template but should be consider as internal
-type EnvInput struct {
-	Name           string
-	Value          string
-	InstanceName   string
-	IsTargetScoped bool
-}
-
-func (ei EnvInput) String() string {
-	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsTargetScoped: \"%t\"]", ei.Name, ei.Value, ei.InstanceName, ei.IsTargetScoped)
 }
 
 type execution interface {
@@ -283,7 +270,24 @@ func (e *executionCommon) resolveArtifacts() error {
 }
 
 func (e *executionCommon) resolveHosts(nodeName string) error {
+	// Resolve hosts from the hostedOn hierarchy from bottom to top by finding the first node having a capability
+	// named endpoint and derived from "tosca.capabilities.Endpoint"
+
 	log.Debugf("Resolving hosts for node %q", nodeName)
+
+	hostedOnList := make([]string, 0)
+	hostedOnList = append(hostedOnList, nodeName)
+	parentHost, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	for parentHost != "" {
+		hostedOnList = append(hostedOnList, parentHost)
+		parentHost, err = deployments.GetHostedOnNode(e.kv, e.deploymentID, parentHost)
+		if err != nil {
+			return err
+		}
+	}
 
 	hosts := make(map[string]hostConnection)
 
@@ -294,49 +298,42 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 		instances = e.sourceNodeInstances
 	}
 
-	for _, instance := range instances {
-		found, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, nodeName, instance, "endpoint", "ip_address")
+	for i := len(hostedOnList) - 1; i >= 0; i-- {
+		host := hostedOnList[i]
+		capType, err := deployments.GetNodeCapabilityType(e.kv, e.deploymentID, host, "endpoint")
 		if err != nil {
 			return err
 		}
-		if found && ipAddress != "" {
-			var instanceName string
-			if e.isRelationshipTargetNode {
-				instanceName = operations.GetInstanceName(e.operation.RelOp.TargetNodeName, instance)
-			} else {
-				instanceName = operations.GetInstanceName(e.NodeName, instance)
-			}
 
-			hostConn := hostConnection{host: ipAddress, instanceID: instance}
-			var user string
-			found, user, err = deployments.GetNodeProperty(e.kv, e.deploymentID, nodeName, "user")
-			if err != nil {
-				return err
-			}
-			if found && user != "" {
-				va := tosca.ValueAssignment{}
-				err = yaml.Unmarshal([]byte(user), &va)
-				if err != nil {
-					return errors.Wrapf(err, "Unable to resolve username to connect to host %q, unmarshaling yaml failed: ", nodeName)
-				}
-				hostConn.user, err = deployments.NewResolver(e.kv, e.deploymentID).ResolveExpressionForNode(va.Expression, nodeName, instance)
+		hasEndpoint, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, capType, "tosca.capabilities.Endpoint")
+		if err != nil {
+			return err
+		}
+		if hasEndpoint {
+			for _, instance := range instances {
+				found, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instance, "endpoint", "ip_address")
 				if err != nil {
 					return err
 				}
+				if found && ipAddress != "" {
+					instanceName := operations.GetInstanceName(nodeName, instance)
+					hostConn := hostConnection{host: ipAddress, instanceID: instance}
+					var user string
+					found, user, err = deployments.GetNodeProperty(e.kv, e.deploymentID, host, "user")
+					if err != nil {
+						return err
+					}
+					if found {
+						hostConn.user = user
+					}
+					hosts[instanceName] = hostConn
+				}
 			}
-			hosts[instanceName] = hostConn
 		}
 	}
+
 	if len(hosts) == 0 {
-		// So we have to traverse the HostedOn relationships...
-		hostedOnNode, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-		if hostedOnNode == "" {
-			return errors.Errorf("Can't find an Host with an ip_address in the HostedOn hierarchy for node %q in deployment %q", e.NodeName, e.deploymentID)
-		}
-		return e.resolveHosts(hostedOnNode)
+		return errors.Errorf("Failed to resolve hosts for node %q", nodeName)
 	}
 	e.hosts = hosts
 	return nil
@@ -426,7 +423,6 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 	}
 
 	e.HaveOutput = true
-	va := tosca.ValueAssignment{}
 	//We iterate over all entity of the output in this operation
 	for _, entity := range entities {
 		//We get the name of the output
@@ -443,19 +439,20 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 			if kvPair == nil {
 				return errors.Errorf("Operation output expression is missing for key: %q", output)
 			}
-
-			err = yaml.Unmarshal(kvPair.Value, &va)
+			va := &tosca.ValueAssignment{}
+			err = yaml.Unmarshal(kvPair.Value, va)
 			if err != nil {
 				return errors.Wrap(err, "Fail to parse operation output, check the following expression : ")
 			}
-
-			//Tosca grammar reminder: get_operation_output: <modelable_entity_name>, <interface_name>, <operation_name>, <output_variable_name>
-			if len(va.Expression.Children()) != 4 {
-				return errors.Errorf("The operation output doesn't have the expected number of children: %v", va.Expression.Children())
+			if va.Type != tosca.ValueAssignmentFunction {
+				return errors.Errorf("Output %q for operation %v is not a valid get_operation_output TOSCA function", path.Base(output), e.operation)
 			}
-
-			targetContext := va.Expression.IsTargetContext()
-			sourceContext := va.Expression.IsSourceContext()
+			oof := va.GetFunction()
+			if oof.Operator != tosca.GetOperationOutputOperator {
+				return errors.Errorf("Output %q for operation %v (%v) is not a valid get_operation_output TOSCA function", path.Base(output), e.operation, oof)
+			}
+			targetContext := oof.Operands[0].String() == "TARGET"
+			sourceContext := oof.Operands[0].String() == "SOURCE"
 			if (targetContext || sourceContext) && !e.operation.RelOp.IsRelationshipOperation {
 				return errors.Errorf("Can't resolve an operation output in SOURCE or TARGET context without a relationship operation: %q", va.String())
 			}
@@ -471,24 +468,23 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 			for _, instanceID := range instancesIds {
 				//We decide to add an in to differentiate if we export many time the same output
 				b := uint32(time.Now().Nanosecond())
+				interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
+				operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
+				outputVariableName := url.QueryEscape(oof.Operands[3].String())
 				if targetContext {
-					e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.operation.RelOp.TargetNodeName, instanceID, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
+					e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.operation.RelOp.TargetNodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
 				} else {
 					//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
-					if va.Expression.Children()[0].Value == "SELF" && e.operation.RelOp.IsRelationshipOperation {
-						relationshipType, err := deployments.GetRelationshipForRequirement(e.kv, e.deploymentID, e.NodeName, e.operation.RelOp.RequirementIndex)
-						if err != nil {
-							return err
-						}
-						relationShipPrefix := filepath.Join("relationship_instances", e.NodeName, relationshipType, instanceID)
-						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
-					} else if va.Expression.Children()[0].Value == "HOST" {
+					if oof.Operands[0].String() == "SELF" && e.operation.RelOp.IsRelationshipOperation {
+						relationShipPrefix := filepath.Join("relationship_instances", e.NodeName, e.operation.RelOp.RequirementIndex, instanceID)
+						e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", interfaceName, operationName, outputVariableName)
+					} else if oof.Operands[0].String() == "HOST" {
 						// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
 						continue
 
 					} else {
 						//In all others case we simply save the result of the output on the instance directory of the node
-						e.Outputs[va.Expression.Children()[3].Value+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", strings.ToLower(va.Expression.Children()[1].Value), strings.ToLower(va.Expression.Children()[2].Value), va.Expression.Children()[3].Value)
+						e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join("instances", e.NodeName, instanceID, "outputs", interfaceName, operationName, outputVariableName)
 					}
 				}
 

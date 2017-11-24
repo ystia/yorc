@@ -74,6 +74,10 @@ Globals Command-line options
 
   * ``--graceful_shutdown_timeout``: Timeout to wait for a graceful shutdown of the Janus server. After this delay the server immediately exits. The default is ``5m``.
 
+.. _option_wf_step_termination_timeout_cmd:
+
+  * ``--wf_step_graceful_termination_timeout``: Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error. The default is ``2m``.
+
 .. _option_http_addr_cmd:
 
   * ``--http_address``: Restrict the listening interface for the Janus HTTP REST API. By default Janus listens on all available interfaces
@@ -219,6 +223,10 @@ Below is an example of configuration file with TLS enable.
 .. _option_shut_timeout_cfg:
 
   * ``server_graceful_shutdown_timeout``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
+
+.. _option_wf_step_termination_timeout_cfg:
+
+  * ``wf_step_graceful_termination_timeout``: Equivalent to :ref:`--wf_step_graceful_termination_timeout <option_wf_step_termination_timeout_cmd>` command-line flag.
 
 .. _option_http_addr_cfg:
 
@@ -376,6 +384,10 @@ Environment variables
 .. _option_shut_timeout_env:
 
   * ``JANUS_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
+
+.. _option_wf_step_termination_timeout_env:
+
+  * ``JANUS_WF_STEP_GRACEFUL_TERMINATION_TIMEOUT``: Equivalent to :ref:`--wf_step_graceful_termination_timeout <option_wf_step_termination_timeout_cmd>` command-line flag.
 
 .. _option_http_addr_env:
 

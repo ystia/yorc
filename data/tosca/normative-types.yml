@@ -7,11 +7,14 @@ template_version: 1.0.0
 description: >
   Contains the normative types definition as currently supported in Janus.
 
-# TODO support DataTypes
-# NOTE: Not yet supported in Janus
 data_types:
   tosca.datatypes.Root:
     description: The TOSCA root Data Type all other TOSCA base Data Types derive from
+
+  tosca.datatypes.json:
+    derived_from: string
+  tosca.datatypes.xml:
+    derived_from: string
 
   tosca.datatypes.Credential:
     derived_from: tosca.datatypes.Root
@@ -40,6 +43,16 @@ data_types:
         description: The optional user (name or ID) used for non-token based credentials.
         required: false
 
+tosca.datatypes.TimeInterval:
+  derived_from: tosca.datatypes.Root
+  properties:
+    start_time:
+      type: timestamp
+      required: true
+    end_time:
+      type: timestamp
+      required: true
+      
   tosca.datatypes.network.NetworkInfo:
     derived_from: tosca.datatypes.Root
     description: The Network type is a complex TOSCA data type used to describe logical network information.

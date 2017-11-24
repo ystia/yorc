@@ -14,7 +14,7 @@ type Topology struct {
 
 	Repositories map[string]Repository `yaml:"repositories,omitempty"`
 
-	// TODO Data Types
+	DataTypes         map[string]DataType         `yaml:"data_types,omitempty"`
 	ArtifactTypes     map[string]ArtifactType     `yaml:"artifact_types,omitempty"`
 	NodeTypes         map[string]NodeType         `yaml:"node_types,omitempty"`
 	CapabilityTypes   map[string]CapabilityType   `yaml:"capability_types,omitempty"`
@@ -47,8 +47,8 @@ type NodeTemplate struct {
 	Type         string                          `yaml:"type"`
 	Description  string                          `yaml:"description,omitempty"`
 	Directives   []string                        `yaml:"directives,omitempty"`
-	Properties   map[string]ValueAssignment      `yaml:"properties,omitempty"`
-	Attributes   map[string]ValueAssignment      `yaml:"attributes,omitempty"`
+	Properties   map[string]*ValueAssignment     `yaml:"properties,omitempty"`
+	Attributes   map[string]*ValueAssignment     `yaml:"attributes,omitempty"`
 	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
 	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
 	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`

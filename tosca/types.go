@@ -1,13 +1,46 @@
 package tosca
 
+import (
+	"strings"
+)
+
+// IsBuiltinType checks if a given type name corresponds to a TOSCA builtin type.
+//
+// Known builtin types:
+// 	- string
+//	- integer
+//	- float
+//	- boolean
+//	- timestamp
+//	- null
+//	- list
+//	- map
+//	- version
+//	- range
+//	- scalar-unit.size
+//	- scalar-unit.time
+func IsBuiltinType(typeName string) bool {
+	// type representation for map and list could be map:<EntrySchema> or list:<EntrySchema> (ex: list:integer)
+	return strings.HasPrefix(typeName, "list") || strings.HasPrefix(typeName, "map") ||
+		typeName == "string" || typeName == "integer" || typeName == "float" || typeName == "boolean" ||
+		typeName == "timestamp" || typeName == "null" || typeName == "version" || typeName == "range" ||
+		typeName == "scalar-unit.size" || typeName == "scalar-unit.time"
+}
+
+// Type is the base type for all TOSCA types (like node types, relationship types, ...)
+type Type struct {
+	DerivedFrom string            `yaml:"derived_from,omitempty"`
+	Version     string            `yaml:"version,omitempty"`
+	Description string            `yaml:"description,omitempty"`
+	Metadata    map[string]string `yaml:"metadata,omitempty"`
+}
+
 // An NodeType is the representation of a TOSCA Node Type
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_NODE_TYPE
 // for more details
 type NodeType struct {
-	DerivedFrom  string                            `yaml:"derived_from,omitempty"`
-	Version      string                            `yaml:"version,omitempty"`
-	Description  string                            `yaml:"description,omitempty"`
+	Type         `yaml:",inline"`
 	Properties   map[string]PropertyDefinition     `yaml:"properties,omitempty"`
 	Attributes   map[string]AttributeDefinition    `yaml:"attributes,omitempty"`
 	Requirements []RequirementDefinitionMap        `yaml:"requirements,omitempty,flow"`
@@ -21,9 +54,7 @@ type NodeType struct {
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_RELATIONSHIP_TYPE
 // for more details
 type RelationshipType struct {
-	DerivedFrom      string                            `yaml:"derived_from,omitempty"`
-	Version          string                            `yaml:"version,omitempty"`
-	Description      string                            `yaml:"description,omitempty"`
+	Type             `yaml:",inline"`
 	Properties       map[string]PropertyDefinition     `yaml:"properties,omitempty"`
 	Attributes       map[string]AttributeDefinition    `yaml:"attributes,omitempty"`
 	Interfaces       map[string]InterfaceDefinitionMap `yaml:"interfaces,omitempty"`
@@ -36,9 +67,7 @@ type RelationshipType struct {
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_CAPABILITY_TYPE
 // for more details
 type CapabilityType struct {
-	DerivedFrom      string                         `yaml:"derived_from,omitempty"`
-	Version          string                         `yaml:"version,omitempty"`
-	Description      string                         `yaml:"description,omitempty"`
+	Type             `yaml:",inline"`
 	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
 	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
 	ValidSourceTypes []string                       `yaml:"valid_source_types,omitempty,flow"`
@@ -49,10 +78,19 @@ type CapabilityType struct {
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_ARTIFACT_TYPE
 // for more details
 type ArtifactType struct {
-	DerivedFrom string                        `yaml:"derived_from,omitempty"`
-	Version     string                        `yaml:"version,omitempty"`
-	Description string                        `yaml:"description,omitempty"`
-	MimeType    string                        `yaml:"mime_type,omitempty"`
-	FileExt     []string                      `yaml:"file_ext,omitempty"`
-	Properties  map[string]PropertyDefinition `yaml:"properties,omitempty"`
+	Type       `yaml:",inline"`
+	MimeType   string                        `yaml:"mime_type,omitempty"`
+	FileExt    []string                      `yaml:"file_ext,omitempty"`
+	Properties map[string]PropertyDefinition `yaml:"properties,omitempty"`
+}
+
+// An DataType is the representation of a TOSCA Data Type
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_DATA_TYPE
+// for more details
+type DataType struct {
+	Type       `yaml:",inline"`
+	Properties map[string]PropertyDefinition `yaml:"properties,omitempty"`
+	// Constraints not enforced in Janus so we don't parse them
+	// Constraints []ConstraintClause
 }

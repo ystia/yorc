@@ -60,4 +60,7 @@ func nodeTypeParsing(t *testing.T) {
 	nodeType := nodeTypeMap["starlings.samples.nodes.Welcome"]
 	assert.Equal(t, "tosca.nodes.SoftwareComponent", nodeType.DerivedFrom)
 	assert.Equal(t, "tosca.nodes.SoftwareComponent", nodeType.DerivedFrom)
+	assert.Equal(t, ValueAssignmentFunction.String(), nodeType.Attributes["url"].Type)
+	assert.Equal(t, ValueAssignmentFunction.String(), nodeType.Attributes["url"].Default.Type.String())
+	assert.Equal(t, `concat: ["http://", get_attribute: [HOST, public_ip_address], ":", get_property: [SELF, port]]`, nodeType.Attributes["url"].Default.String())
 }

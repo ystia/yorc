@@ -446,6 +446,47 @@ Content-Type: application/json
 }
 ```
 
+### Get task steps information <a name="task-steps-info"></a>
+
+Retrieve information about steps related to a task for a given deployment.
+'Accept' header should be set to 'application/json'.
+
+`GET    /deployments/<deployment_id>/tasks/<taskId>/steps`
+
+**Response**
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+[
+    {
+        "name": "step1",
+        "status": "done"
+    },
+    {
+        "name": "step2",
+        "status": "done"
+    },
+    {
+        "name": "step3",
+        "status": "error"
+    }
+]
+```
+
+### Update a task step status <a name="task-step-update"></a>
+
+Update a task step status for given deployment and task. For the moment, only step status change from "ERROR" to "DONE" is allowed otherwise an HTTP 401
+(Forbidden) error is returned.
+
+`PUT    /deployments/<deployment_id>/tasks/<taskId>/steps/<stepId>`
+
+**Response**
+```
+HTTP/1.1 200 OK
+Content-Length: 0
+```
 
 ### Cancel a task <a name="task-cancel"></a>
 
@@ -453,6 +494,19 @@ Cancel a task for a given deployment. The task should be in status "INITIAL" or 
 (Bad request) error is returned. 
 
 `DELETE    /deployments/<deployment_id>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 202 OK
+Content-Length: 0
+```
+
+### Resume a task <a name="task-resume"></a>
+
+Resume a task for a given deployment. The task should be in status "FAILED" to be resumed otherwise an HTTP 400
+(Bad request) error is returned.
+
+`PUT    /deployments/<deployment_id>/tasks/<taskId>`
 
 **Response**
 ```

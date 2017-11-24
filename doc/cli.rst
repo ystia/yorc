@@ -106,6 +106,58 @@ Flags:
   * ``-b``, ``--from-beginning``: Show logs from the beginning of a deployment
   * ``-n``, ``--no-stream``: Show logs then exit. Do not stream logs. It implies --from-beginning
 
+Get deployment tasks
+~~~~~~~~~~~~~~~~~~~~
+
+Display info about the tasks related to a given deployment.
+It prints the tasks ID, type and status.
+
+.. code-block:: bash
+
+     janus deployments tasks <DeploymentId> [flags]
+
+Get deployment task info
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Display information about a given task specifying the deployment id and the task id.
+
+.. code-block:: bash
+
+     janus deployments task info <DeploymentId> <TaskId> [flags]
+
+Flags:
+  * ``-w``, ``--steps``: Show steps of the related workflow associated to the task
+
+Cancel a deployment task
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Cancel a task specifying the deployment id and the task id.
+The task should be in status "INITIAL" or "RUNNING" to be canceled.
+
+.. code-block:: bash
+
+     janus deployments tasks cancel <DeploymentId> <TaskId> [flags]
+
+Resume a deployment task
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Resume a task specifying the deployment id and the task id.
+The task should be in status "FAILED" to be resumed.
+
+.. code-block:: bash
+
+     janus deployments tasks resume <DeploymentId> <TaskId> [flags]
+
+Fix a deployment task step
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fix a task step specifying the deployment id, the task id and the step name.
+The task step must be on error to be fixed.
+
+.. code-block:: bash
+
+     janus deployments tasks fix <DeploymentId> <TaskId> <StepName> [flags]
+
 Scale a specific node
 ~~~~~~~~~~~~~~~~~~~~~
 

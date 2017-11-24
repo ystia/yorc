@@ -3,6 +3,7 @@
   "plugins_directory": "plugins",
   "workers_number": 3,
   "server_graceful_shutdown_timeout": "5m",
+  "wf_step_graceful_termination_timeout": "2m",
   "http_port": 8800,
   "http_address": "0.0.0.0",
   "resources_prefix": "JANUS-",

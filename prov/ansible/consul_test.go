@@ -3,6 +3,8 @@ package ansible
 import (
 	"testing"
 
+	"novaforge.bull.com/starlings-janus/janus/log"
+
 	"novaforge.bull.com/starlings-janus/janus/testutil"
 )
 
@@ -11,19 +13,8 @@ func TestRunConsulAnsiblePackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	kv := client.KV()
 	defer srv.Stop()
-
-	t.Run("groupAnsible", func(t *testing.T) {
-		t.Run("TestExecutionOnNode", func(t *testing.T) {
-			testExecutionOnNode(t, srv, kv)
-		})
-		t.Run("TestExecutionOnRelationshipSource", func(t *testing.T) {
-			testExecutionOnRelationshipSource(t, srv, kv)
-		})
-		t.Run("TestExecutionOnRelationshipTarget", func(t *testing.T) {
-			testExecutionOnRelationshipTarget(t, srv, kv)
-		})
-		t.Run("TestLogAnsibleOutputInConsul", func(t *testing.T) {
-			testLogAnsibleOutputInConsul(t, kv)
-		})
+	log.SetDebug(true)
+	t.Run("TestExecution", func(t *testing.T) {
+		testExecution(t, srv, kv)
 	})
 }

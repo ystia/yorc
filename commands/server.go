@@ -111,6 +111,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Janus server. After this delay the server immediately exits.")
 	serverCmd.PersistentFlags().Bool("keep_operation_remote_path", config.DefaultKeepOperationRemotePath, "Define wether the path created to store artifacts on the nodes will be removed at the end of workflow executions.")
 	serverCmd.PersistentFlags().StringP("resources_prefix", "x", "", "Prefix created resources (like Computes and so on)")
+	serverCmd.PersistentFlags().Duration("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout, "Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error.")
 
 	// Flags definition for Janus HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
@@ -156,6 +157,7 @@ func setConfig() {
 	viper.BindPFlag("server_graceful_shutdown_timeout", serverCmd.PersistentFlags().Lookup("graceful_shutdown_timeout"))
 	viper.BindPFlag("keep_operation_remote_path", serverCmd.PersistentFlags().Lookup("keep_operation_remote_path"))
 	viper.BindPFlag("resources_prefix", serverCmd.PersistentFlags().Lookup("resources_prefix"))
+	viper.BindPFlag("wf_step_graceful_termination_timeout", serverCmd.PersistentFlags().Lookup("wf_step_graceful_termination_timeout"))
 
 	//Bind Flags Janus HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
@@ -189,6 +191,7 @@ func setConfig() {
 	viper.BindEnv("consul_ssl")
 	viper.BindEnv("consul_ssl_verify")
 	viper.BindEnv("keep_operation_remote_path")
+	viper.BindEnv("wf_step_graceful_termination_timeout")
 
 	viper.BindEnv("ansible_use_openssh")
 	viper.BindEnv("ansible_debug")
@@ -208,6 +211,7 @@ func setConfig() {
 	viper.SetDefault("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines)
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 	viper.SetDefault("keep_operation_remote_path", config.DefaultKeepOperationRemotePath)
+	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
 
 	viper.SetDefault("ansible_use_openssh", false)
 	viper.SetDefault("ansible_debug", false)
@@ -247,6 +251,7 @@ func getConfig() config.Configuration {
 	configuration.ConsulSSLVerify = viper.GetBool("consul_ssl_verify")
 	configuration.ServerGracefulShutdownTimeout = viper.GetDuration("server_graceful_shutdown_timeout")
 	configuration.KeepOperationRemotePath = viper.GetBool("keep_operation_remote_path")
+	configuration.WfStepGracefulTerminationTimeout = viper.GetDuration("wf_step_graceful_termination_timeout")
 
 	configuration.Infrastructures = make(map[string]config.InfrastructureConfig)
 

@@ -21,7 +21,9 @@ var consulPub *rateLimitedConsulPublisher
 // ConsulStore allows to store keys in Consul
 type ConsulStore interface {
 	StoreConsulKey(key string, value []byte)
+	StoreConsulKeyWithFlags(key string, value []byte, flags uint64)
 	StoreConsulKeyAsString(key, value string)
+	StoreConsulKeyAsStringWithFlags(key, value string, flags uint64)
 }
 
 // consulStore is the default implementation for ConsulStore.
@@ -51,36 +53,60 @@ func WithContext(ctx context.Context) (context.Context, *errgroup.Group, ConsulS
 	return errCtx, errGroup, &consulStore{ctx: errCtx}
 }
 
-// StoreConsulKeyAsString is equivalent to StoreConsulKey(key, []byte(value))
+// StoreConsulKeyAsString is equivalent to StoreConsulKeyWithFlags(key, []byte(value),0)
 func StoreConsulKeyAsString(key, value string) error {
-	return StoreConsulKey(key, []byte(value))
+	return StoreConsulKeyWithFlags(key, []byte(value), 0)
 }
 
-// StoreConsulKey stores a Consul key without the use of a ConsulStore you should avoid to use it when storing several keys that could be
-// stored concurrently as this function has an important overhead of creating an execution context using the WithContext function and
-// waiting for the key to be store in Consul using errGroup.Wait()
+// StoreConsulKeyAsStringWithFlags is equivalent to StoreConsulKeyWithFlags(key, []byte(value),flags)
+func StoreConsulKeyAsStringWithFlags(key, value string, flags uint64) error {
+	return StoreConsulKeyWithFlags(key, []byte(value), flags)
+}
+
+// StoreConsulKey is equivalent to StoreConsulKeyWithFlags(key, []byte(value),0)
 func StoreConsulKey(key string, value []byte) error {
 	_, errGroup, store := WithContext(context.Background())
 	store.StoreConsulKey(key, value)
 	return errGroup.Wait()
 }
 
-// StoreConsulKeyAsString is equivalent to StoreConsulKey(key, []byte(value))
-func (cs *consulStore) StoreConsulKeyAsString(key, value string) {
-	cs.StoreConsulKey(key, []byte(value))
+// StoreConsulKeyWithFlags stores a Consul key without the use of a ConsulStore you should avoid to use it when storing several keys that could be
+// stored concurrently as this function has an important overhead of creating an execution context using the WithContext function and
+// waiting for the key to be store in Consul using errGroup.Wait()
+// The given flags mask is associated to the K/V (See Flags in api.KVPair).
+func StoreConsulKeyWithFlags(key string, value []byte, flags uint64) error {
+	_, errGroup, store := WithContext(context.Background())
+	store.StoreConsulKeyWithFlags(key, value, flags)
+	return errGroup.Wait()
 }
 
-// StoreConsul sends a Consul key/value down to the rate limited Consul Publisher.
-//
-// This function may be blocking if the rate limited queue is full. The number of maximum parallel execution is controlled with an option.
+// StoreConsulKeyAsString is equivalent to StoreConsulKeyWithFlags(key, []byte(value),0)
+func (cs *consulStore) StoreConsulKeyAsString(key, value string) {
+	cs.StoreConsulKeyWithFlags(key, []byte(value), 0)
+}
+
+// StoreConsulKeyAsString is equivalent to StoreConsulKeyWithFlags(key, []byte(value), flags)
+func (cs *consulStore) StoreConsulKeyAsStringWithFlags(key, value string, flags uint64) {
+	cs.StoreConsulKeyWithFlags(key, []byte(value), flags)
+}
+
+// StoreConsulKey is equivalent to StoreConsulKeyWithFlags(key, []byte(value), 0)
 func (cs *consulStore) StoreConsulKey(key string, value []byte) {
+	cs.StoreConsulKeyWithFlags(key, value, 0)
+}
+
+// StoreConsulKeyWithFlags sends a Consul key/value down to the rate limited Consul Publisher.
+//
+// The given flags mask is associated to the K/V (See Flags in api.KVPair).
+// This function may be blocking if the rate limited queue is full. The number of maximum parallel execution is controlled with an option.
+func (cs *consulStore) StoreConsulKeyWithFlags(key string, value []byte, flags uint64) {
 	// PUT a new KV pair
 	select {
 	case <-cs.ctx.Done():
 		return
 	default:
 	}
-	p := &api.KVPair{Key: key, Value: value}
+	p := &api.KVPair{Key: key, Value: value, Flags: flags}
 	// Will block if the rateLimitedConsulPublisher is itself blocked by its semaphore
 	consulPub.publish(cs.ctx, p)
 }

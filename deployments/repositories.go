@@ -9,15 +9,15 @@ import (
 	"path"
 )
 
-//Official URL for the docker hub
+// DockerHubURL is the official URL for the docker hub
 const DockerHubURL string = "https://hub.docker.com/"
 
-// GetRepositoryUrlFromName allow you to retrieve the url of a repo from is name
+// GetRepositoryURLFromName allow you to retrieve the url of a repo from is name
 func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (url string, err error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "url"), nil)
 	if err != nil {
-		err = errors.Wrap(err, "An error has occured when trying to get repository url")
+		err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		return
 	}
 
@@ -30,36 +30,33 @@ func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (url st
 	return
 }
 
-//This function get the token_type of credential for a given repoName
-func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (token_type string, err error) {
+// GetRepositoryTokenTypeFromName retrieves the token_type of credential for a given repoName
+func GetRepositoryTokenTypeFromName(kv *api.KV, deploymentID, repoName string) (string, error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "token_type"), nil)
 	if err != nil {
-		err = errors.Wrap(err, "An error has occured when trying to get repository token_type")
-		return
+		return "", errors.Wrap(err, "An error has occurred when trying to get repository token_type")
 	}
 
 	if res == nil {
-		err = errors.Errorf("The repository %v has been not found", repoName)
-		return
+		return "", errors.Errorf("The repository %v has been not found", repoName)
 	}
 
-	token_type = string(res.Value)
-	return
+	return string(res.Value), nil
 }
 
-//This function get the credentials (user/token) for a given repoName
+// GetRepositoryTokenUserFromName This function get the credentials (user/token) for a given repoName
 func GetRepositoryTokenUserFromName(kv *api.KV, deploymentID, repoName string) (token string, user string, err error) {
 	repositoriesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "repositories")
 	res, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "token"), nil)
 	if err != nil {
-		err = errors.Wrap(err, "An error has occured when trying to get repository token")
+		err = errors.Wrap(err, "An error has occurred when trying to get repository token")
 		return
 	}
 
 	resUser, _, err := kv.Get(path.Join(repositoriesPath, repoName, "credentials", "user"), nil)
 	if err != nil {
-		err = errors.Wrap(err, "An error has occured when trying to get repository user")
+		err = errors.Wrap(err, "An error has occurred when trying to get repository user")
 		return
 	}
 

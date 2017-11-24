@@ -21,12 +21,24 @@ import (
 )
 
 const outputCustomWrapper = `
+#!/usr/bin/env bash
+# Workaround JSON structures being treated as python objects
+# basically it prevent double quotes to be changed into single quotes
+# by prefixing the value by a space
+# https://stackoverflow.com/questions/31969872/why-ansible-always-replaces-double-quotes-with-single-quotes-in-templates
+# We remove this space here. Obviously becomes a reserved keyword janus_escape_workaround
+for janus_escape_workaround in [[[StringsJoin .VarInputsNames " "]]] ;
+do
+  eval "export ${janus_escape_workaround}=\${${janus_escape_workaround}:1}"
+done
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Outputs -]]]
 [[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName (cut $artName) $.OperationRemotePath]]]
 [[[printf "echo $%s" $artName]]]
 [[[end]]]
+[[[if .HaveOutput]]]
 [[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
+[[[end]]]
 `
 
 const shellAnsiblePlaybook = `
@@ -35,17 +47,13 @@ const shellAnsiblePlaybook = `
   strategy: free
   tasks:
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=directory mode=0755
-    [[[if .HaveOutput]]]
     [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/%s/wrapper.sh\" mode=0744" $.OperationRemotePath]]]
-    [[[end]]]
     - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
     [[[end]]]
-    [[[if not .HaveOutput]]]
-    [[[printf "- shell: \"{{ ansible_env.HOME}}/%s/%s\"" $.OperationRemotePath .BasePrimary]]][[[else]]]
-    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/%s/wrapper.sh\"" $.OperationRemotePath]]][[[end]]]
+    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/%s/wrapper.sh\"" $.OperationRemotePath]]]
       environment:
         [[[ range $key, $envInput := .EnvInputs -]]]
         [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %q" $envInput.InstanceName $envInput.Name $envInput.Value]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
@@ -57,7 +65,7 @@ const shellAnsiblePlaybook = `
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
         [[[printf "%s: %q" $contextK $contextV]]]
         [[[end]]][[[ range $hostVarIndex, $hostVarValue := .VarInputsNames -]]]
-        [[[printf "%s: \"{{%s}}\"" $hostVarValue $hostVarValue]]]
+        [[[printf "%s: \" {{%s}}\"" $hostVarValue $hostVarValue]]]
         [[[end]]]
     [[[if .HaveOutput]]]
     [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
@@ -90,34 +98,34 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	var buffer bytes.Buffer
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-		"abs":  filepath.Abs,
-		"cut":  cutAfterLastUnderscore,
+		"path":        filepath.Dir,
+		"abs":         filepath.Abs,
+		"cut":         cutAfterLastUnderscore,
+		"StringsJoin": strings.Join,
 	}
 
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
 	tmpl = tmpl.Funcs(funcMap)
-	if e.HaveOutput {
-		wrapTemplate := template.New("execTemplate")
-		wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
-		wrapTemplate, err := tmpl.Parse(outputCustomWrapper)
-		if err != nil {
-			return err
-		}
-		if err := wrapTemplate.Execute(&buffer, e); err != nil {
-			err = errors.Wrap(err, "Failed to Generate wrapper template")
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
-			return err
-		}
-		if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
-			err = errors.Wrap(err, "Failed to write playbook file")
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
-			return err
-		}
+	wrapTemplate := template.New("execTemplate")
+	wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
+	wrapTemplate, err := tmpl.Parse(outputCustomWrapper)
+	if err != nil {
+		return err
 	}
+	if err := wrapTemplate.Execute(&buffer, e); err != nil {
+		err = errors.Wrap(err, "Failed to Generate wrapper template")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
+		err = errors.Wrap(err, "Failed to write playbook file")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
 	buffer.Reset()
-	tmpl, err := tmpl.Parse(shellAnsiblePlaybook)
+	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	if err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook")
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
@@ -141,13 +149,11 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
 	var cmd *executil.Cmd
-	var wrapperPath string
-	if e.HaveOutput {
-		wrapperPath, _ = filepath.Abs(ansibleRecipePath)
-		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
-	} else {
-		cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s", scriptPath))
+	wrapperPath, err := filepath.Abs(ansibleRecipePath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve script wrapper absolute path")
 	}
+	cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}

@@ -1,20 +1,19 @@
 package deployments
 
 import (
-	"path"
-	"strconv"
-
-	"strings"
-
 	"context"
-
+	"path"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+
 	"vbom.ml/util/sortorder"
 )
 
@@ -207,52 +206,48 @@ func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, erro
 	return stackNodes, nil
 }
 
-// GetTypeDefaultProperty checks if a type has a default value for a given property.
-//
-// It returns true if a default value is found false otherwise as first return parameter.
-// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-func GetTypeDefaultProperty(kv *api.KV, deploymentID, typeName, propertyName string) (bool, string, error) {
-	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, propertyName, true)
-}
-
-// GetTypeDefaultAttribute checks if a type has a default value for a given attribute.
-//
-// It returns true if a default value is found false otherwise as first return parameter.
-// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-func GetTypeDefaultAttribute(kv *api.KV, deploymentID, typeName, attributeName string) (bool, string, error) {
-	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, attributeName, false)
-}
-
 // GetNodeProperty retrieves the value for a given property in a given node
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
-func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (bool, string, error) {
+func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, nestedKeys ...string) (bool, string, error) {
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, "", err
+	}
+	var propDataType string
+	hasProp, err := TypeHasProperty(kv, deploymentID, nodeType, propertyName, true)
+	if err != nil {
+		return false, "", err
+	}
+	if hasProp {
+		propDataType, err = GetTypePropertyDataType(kv, deploymentID, nodeType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+	}
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-	kvp, _, err := kv.Get(path.Join(nodePath, "properties", propertyName), nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		return true, string(kvp.Value), nil
-	}
 
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", propDataType, nestedKeys...)
+	if err != nil {
+		return false, "", errors.Wrapf(err, "Failed to get property %q for node %q", propertyName, nodeName)
+	}
+	if found {
+		return true, result, nil
+	}
 	// Not found look at node type
-	kvp, _, err = kv.Get(path.Join(nodePath, "type"), nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return false, "", errors.Errorf("Missing type for node %q in deployment %q", nodeName, deploymentID)
-	}
 
-	ok, value, err := GetTypeDefaultProperty(kv, deploymentID, string(kvp.Value), propertyName)
+	ok, value, isFunction, err := getTypeDefaultProperty(kv, deploymentID, nodeType, propertyName, nestedKeys...)
 	if err != nil {
 		return false, "", err
 	}
 	if ok {
-		return true, value, nil
+		if !isFunction {
+			return true, value, nil
+		}
+		value, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", "", value, nestedKeys...)
+		return true, value, err
 	}
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
@@ -261,12 +256,45 @@ func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (b
 		return false, "", err
 	}
 	if host != "" {
-		return GetNodeProperty(kv, deploymentID, host, propertyName)
+		found, result, err = GetNodeProperty(kv, deploymentID, host, propertyName, nestedKeys...)
+		if err != nil || found {
+			return found, result, err
+		}
+	}
+	if hasProp {
+		// Check if the whole property is optional
+		isRequired, err := IsTypePropertyRequired(kv, deploymentID, nodeType, propertyName)
+		if err != nil {
+			return false, "", err
+		}
+		if !isRequired {
+			// For backward compatibility
+			// TODO this doesn't look as a good idea to me
+			return true, "", nil
+		}
+
+		if len(nestedKeys) > 1 && propDataType != "" {
+			// Check if nested type is optional
+			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
+			if err != nil {
+				return false, "", err
+			}
+			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
+			if err != nil {
+				return false, "", err
+			}
+			if !isRequired {
+				// For backward compatibility
+				// TODO this doesn't look as a good idea to me
+				return true, "", nil
+			}
+		}
 	}
 	// Not found anywhere
 	return false, "", nil
 }
 
+// SetNodeProperty sets a node property
 func SetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName, propertyValue string) error {
 	kvp := &api.KVPair{
 		Key:   path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "properties", propertyName),
@@ -284,146 +312,21 @@ func SetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName, propertyV
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
-func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string) (found bool, attributes map[string]string, err error) {
-	found = false
+func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string, nestedKeys ...string) (bool, map[string]string, error) {
 	instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
 	if err != nil {
-		return
+		return false, nil, err
 	}
 
-	if len(instances) > 0 {
-		attributes = make(map[string]string)
-		nodeInstancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
-		for _, instance := range instances {
-			var kvp *api.KVPair
-			kvp, _, err = kv.Get(path.Join(nodeInstancesPath, instance, "attributes", attributeName), nil)
-			if err != nil {
-				err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-				return
-			}
-			if kvp != nil {
-				attributes[instance] = string(kvp.Value)
-			}
+	attributes := make(map[string]string)
+	for _, instance := range instances {
+		_, result, err := GetInstanceAttribute(kv, deploymentID, nodeName, instance, attributeName, nestedKeys...)
+		if err != nil {
+			return false, nil, err
 		}
-		if len(attributes) > 0 {
-			found = true
-			return
-		}
+		attributes[instance] = result
 	}
-
-	// Look at not instance-scoped attribute
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-
-	kvp, _, err := kv.Get(path.Join(nodePath, "attributes", attributeName), nil)
-	if err != nil {
-		err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		return
-	}
-	if kvp != nil {
-		if attributes == nil {
-			attributes = make(map[string]string)
-		}
-		if len(instances) > 0 {
-			for _, instance := range instances {
-				attributes[instance] = string(kvp.Value)
-			}
-		} else {
-			attributes[""] = string(kvp.Value)
-		}
-		found = true
-		return
-	}
-
-	// Not found look at node type
-	kvp, _, err = kv.Get(path.Join(nodePath, "type"), nil)
-	if err != nil {
-		err = errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		return
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		err = errors.Errorf("Missing type for node %q in deployment %q", nodeName, deploymentID)
-		return
-	}
-
-	ok, defaultValue, err := GetTypeDefaultAttribute(kv, deploymentID, string(kvp.Value), attributeName)
-	if err != nil {
-		return
-	}
-	if ok {
-		if attributes == nil {
-			attributes = make(map[string]string)
-		}
-		if len(instances) > 0 {
-			for _, instance := range instances {
-				attributes[instance] = defaultValue
-			}
-		} else {
-			attributes[""] = defaultValue
-		}
-		found = true
-		return
-	}
-	// No default found in type hierarchy
-	// then traverse HostedOn relationships to find the value
-	var host string
-	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
-	if err != nil {
-		return
-	}
-	if host != "" {
-		found, attributes, err = GetNodeAttributes(kv, deploymentID, host, attributeName)
-		if found || err != nil {
-			return
-		}
-	}
-
-	// Now check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-	var prop string
-	found, prop, err = GetNodeProperty(kv, deploymentID, nodeName, attributeName)
-	if !found || err != nil {
-		return
-	}
-	if attributes == nil {
-		attributes = make(map[string]string)
-	}
-	if len(instances) > 0 {
-		for _, instance := range instances {
-			attributes[instance] = prop
-		}
-	} else {
-		attributes[""] = prop
-	}
-	return
-}
-
-// getTypeDefaultProperty checks if a type has a default value for a given property or attribute.
-// It returns true if a default value is found false otherwise as first return parameter.
-// If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
-func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, propertyName string, isProperty bool) (bool, string, error) {
-	typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName)
-	var defaultPath string
-	if isProperty {
-		defaultPath = path.Join(typePath, "properties", propertyName, "default")
-	} else {
-		defaultPath = path.Join(typePath, "attributes", propertyName, "default")
-	}
-	kvp, _, err := kv.Get(defaultPath, nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		return true, string(kvp.Value), nil
-	}
-	// No default in this type
-	// Lets look at parent type
-	parentType, err := GetParentType(kv, deploymentID, typeName)
-	if err != nil {
-		return false, "", err
-	}
-	if parentType == "" {
-		return false, "", nil
-	}
-	return getTypeDefaultAttributeOrProperty(kv, deploymentID, parentType, propertyName, isProperty)
+	return true, attributes, nil
 }
 
 // SetNodeInstanceAttribute sets an attribute value to a node instance
