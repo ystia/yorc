@@ -3,7 +3,7 @@
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 get_consul_version () {
-    grep consul_version ../versions.yaml | awk '{print $2}'
+    grep consul_version "${scriptDir}/../versions.yaml" | awk '{print $2}'
 }
 
 error_exit () {
