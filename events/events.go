@@ -8,26 +8,38 @@ import (
 	"time"
 
 	"encoding/json"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-// A Subscriber is used to poll for new StatusChange and LogEntry events
+// A Subscriber is used to poll for new StatusEvents (StatusUpdate datas) and LogEvents
 type Subscriber interface {
 	StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error)
 	LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error)
 }
 
-type consulPubSub struct {
+type consulDeploymentSubscriber struct {
 	kv           *api.KV
 	deploymentID string
 }
 
-// NewSubscriber returns an instance of Subscriber
+type consulSubscriber struct {
+	kv *api.KV
+}
+
+// NewSubscriber returns an instance of Subscriber for a deployment
 func NewSubscriber(kv *api.KV, deploymentID string) Subscriber {
-	return &consulPubSub{kv: kv, deploymentID: deploymentID}
+	return &consulDeploymentSubscriber{kv: kv, deploymentID: deploymentID}
+}
+
+// GetSubscriber returns an instance of Subscriber for any deployments
+// TODO : ...
+// Should have an singleton ?
+func GetSubscriber(kv *api.KV) Subscriber {
+	return &consulSubscriber{kv: kv}
 }
 
 // InstanceStatusChange publishes a status change for a given instance of a given node
@@ -95,9 +107,12 @@ func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (stri
 	return id, nil
 }
 
+// Create a KVPair corresponding to an event and put it to Consul under the event prefix,
+// in a sub-tree corresponding to its deployment
+// The eventType goes to the KVPair's Flags field
 func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpdateType, data string) (string, error) {
 	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	eventsPrefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	p := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(data), Flags: uint64(eventType)}
 	_, err := kv.Put(p, nil)
 	if err != nil {
@@ -106,9 +121,10 @@ func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpd
 	return now, nil
 }
 
-func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
+func (cp *consulDeploymentSubscriber) StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
 
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "events")
+	eventsPrefix := path.Join(consulutil.EventsPrefix, cp.deploymentID)
+	// Get all the events for a deployment using a QueryOptions with the given waitIndex and with WaitTime corresponding to the given timeout
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	events := make([]StatusUpdate, 0)
 
@@ -153,10 +169,10 @@ func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([
 }
 
 // LogsEvents allows to return logs from Consul KV storage
-func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+func (cp *consulDeploymentSubscriber) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
 	logs := make([]json.RawMessage, 0)
 
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "logs")
+	eventsPrefix := path.Join(consulutil.LogsPrefix, cp.deploymentID)
 	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return logs, 0, err
@@ -176,7 +192,7 @@ func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]j
 
 // GetStatusEventsIndex returns the latest index of InstanceStatus events for a given deployment
 func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events"), nil)
+	_, qm, err := kv.Get(path.Join(consulutil.EventsPrefix, deploymentID), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -188,7 +204,7 @@ func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
 
 // GetLogsEventsIndex returns the latest index of LogEntry events for a given deployment
 func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "logs"), nil)
+	_, qm, err := kv.Get(path.Join(consulutil.LogsPrefix, deploymentID), nil)
 	if err != nil {
 		return 0, err
 	}

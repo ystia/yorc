@@ -2,10 +2,11 @@ package events
 
 import (
 	"encoding/json"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"path"
 	"time"
+
+	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 //go:generate stringer -type=LogLevel -output=log_level_string.go
@@ -165,7 +166,7 @@ func (e LogEntry) RunBufferedRegistration(buf BufferedLogEntryWriter, quit chan 
 
 func (e LogEntry) generateKey() string {
 	// time.RFC3339Nano is needed for ConsulKV key value precision
-	return path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "logs", e.timestamp.Format(time.RFC3339Nano))
+	return path.Join(consulutil.LogsPrefix, e.deploymentID, e.timestamp.Format(time.RFC3339Nano))
 }
 
 func (e LogEntry) generateValue() ([]byte, map[string]interface{}) {

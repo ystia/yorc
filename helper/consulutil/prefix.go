@@ -13,3 +13,9 @@ const TasksLocksPrefix = janusPrefix + "/tasks-locks"
 
 // WorkflowsPrefix is the prefix in Consul KV store for workflows runtime data
 const WorkflowsPrefix = janusPrefix + "/workflows"
+
+// EventsPrefix is the prefix in Consul KV store for events concerning all the deployments
+const EventsPrefix = janusPrefix + "/events"
+
+// LogsPrefix is the prefix on KV store for logs concerning all the deployments
+const LogsPrefix = janusPrefix + "/logs"
