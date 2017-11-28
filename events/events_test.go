@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"encoding/json"
+
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/testutil"
 )
@@ -46,7 +47,7 @@ func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 		assert.Nil(t, err)
 		ids = append(ids, id)
 	}
-	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(testData))
@@ -201,7 +202,7 @@ func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 		})
 	}
 
-	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
@@ -248,7 +249,7 @@ func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 		})
 	}
 
-	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
@@ -295,7 +296,7 @@ func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 		})
 	}
 
-	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
@@ -342,7 +343,7 @@ func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 		})
 	}
 
-	prefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	kvps, _, err := kv.List(prefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))

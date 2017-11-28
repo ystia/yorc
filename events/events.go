@@ -21,25 +21,19 @@ type Subscriber interface {
 	LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error)
 }
 
-type consulDeploymentSubscriber struct {
+type consulPubSub struct {
 	kv           *api.KV
 	deploymentID string
 }
 
+// TODO : this should probably evolve...(temporary)
 type consulSubscriber struct {
 	kv *api.KV
 }
 
 // NewSubscriber returns an instance of Subscriber for a deployment
 func NewSubscriber(kv *api.KV, deploymentID string) Subscriber {
-	return &consulDeploymentSubscriber{kv: kv, deploymentID: deploymentID}
-}
-
-// GetSubscriber returns an instance of Subscriber for any deployments
-// TODO : ...
-// Should have an singleton ?
-func GetSubscriber(kv *api.KV) Subscriber {
-	return &consulSubscriber{kv: kv}
+	return &consulPubSub{kv: kv, deploymentID: deploymentID}
 }
 
 // InstanceStatusChange publishes a status change for a given instance of a given node
@@ -121,7 +115,7 @@ func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpd
 	return now, nil
 }
 
-func (cp *consulDeploymentSubscriber) StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
+func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
 
 	eventsPrefix := path.Join(consulutil.EventsPrefix, cp.deploymentID)
 	// Get all the events for a deployment using a QueryOptions with the given waitIndex and with WaitTime corresponding to the given timeout
@@ -169,7 +163,7 @@ func (cp *consulDeploymentSubscriber) StatusEvents(waitIndex uint64, timeout tim
 }
 
 // LogsEvents allows to return logs from Consul KV storage
-func (cp *consulDeploymentSubscriber) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
 	logs := make([]json.RawMessage, 0)
 
 	eventsPrefix := path.Join(consulutil.LogsPrefix, cp.deploymentID)
