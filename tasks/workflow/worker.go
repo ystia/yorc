@@ -179,6 +179,20 @@ func (w worker) handleTask(t *task) {
 					return
 				}
 			}
+			// Delete events tree corresponding to the deployment task
+			_, err = kv.DeleteTree(path.Join(consulutil.EventsPrefix, t.TargetID), nil)
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to purge events: %+v", t.TargetID, t.ID, err)
+				t.WithStatus(tasks.FAILED)
+				return
+			}
+			// Delete logs tree corresponding to the deployment task
+			_, err = kv.DeleteTree(path.Join(consulutil.LogsPrefix, t.TargetID), nil)
+			if err != nil {
+				log.Printf("Deployment id: %q, Task id: %q, Failed to purge logs: %+v", t.TargetID, t.ID, err)
+				t.WithStatus(tasks.FAILED)
+				return
+			}
 			err = os.RemoveAll(filepath.Join(w.cfg.WorkingDirectory, "deployments", t.TargetID))
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.ID, err)
