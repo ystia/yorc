@@ -15,27 +15,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
-// A Subscriber is used to poll for new StatusEvents (StatusUpdate datas) and LogEvents
-type Subscriber interface {
-	StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error)
-	LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error)
-}
-
-type consulPubSub struct {
-	kv           *api.KV
-	deploymentID string
-}
-
-// TODO : this should probably evolve...(temporary)
-type consulSubscriber struct {
-	kv *api.KV
-}
-
-// NewSubscriber returns an instance of Subscriber for a deployment
-func NewSubscriber(kv *api.KV, deploymentID string) Subscriber {
-	return &consulPubSub{kv: kv, deploymentID: deploymentID}
-}
-
 // InstanceStatusChange publishes a status change for a given instance of a given node
 //
 // InstanceStatusChange returns the published event id
@@ -115,11 +94,12 @@ func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpd
 	return now, nil
 }
 
-func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
+// StatusEvents return a list of events (StatusUpdate instances) for a givent deploymentID
+func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
 
-	eventsPrefix := path.Join(consulutil.EventsPrefix, cp.deploymentID)
+	eventsPrefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	// Get all the events for a deployment using a QueryOptions with the given waitIndex and with WaitTime corresponding to the given timeout
-	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	kvps, qm, err := kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	events := make([]StatusUpdate, 0)
 
 	if err != nil || qm == nil {
@@ -162,16 +142,16 @@ func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([
 	return events, qm.LastIndex, nil
 }
 
-// LogsEvents allows to return logs from Consul KV storage
-func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+// LogsEvents allows to return logs from Consul KV storage for a given deploymentID
+func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
 	logs := make([]json.RawMessage, 0)
 
-	eventsPrefix := path.Join(consulutil.LogsPrefix, cp.deploymentID)
-	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
+	kvps, qm, err := kv.List(logsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return logs, 0, err
 	}
-	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+	log.Debugf("Found %d logs before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex {
 			continue
@@ -180,7 +160,7 @@ func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]j
 		logs = append(logs, kvp.Value)
 	}
 
-	log.Debugf("Found %d events after index", len(logs))
+	log.Debugf("Found %d logs after index", len(logs))
 	return logs, qm.LastIndex, nil
 }
 

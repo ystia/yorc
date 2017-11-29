@@ -63,7 +63,6 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 	// Do not run this test in // as it cause some concurrency issue
 	// t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	sub := NewSubscriber(kv, deploymentID)
 
 	nodeName := "node1"
 	instance := "0"
@@ -75,7 +74,7 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 		i, err := GetStatusEventsIndex(kv, deploymentID)
 		require.Nil(t, err)
 		ready <- struct{}{}
-		events, _, err := sub.StatusEvents(i, 5*time.Minute)
+		events, _, err := StatusEvents(kv, deploymentID, i, 5*time.Minute)
 		assert.Nil(t, err)
 		require.Len(t, events, 1)
 		assert.Equal(t, events[0].Node, nodeName)
@@ -90,12 +89,11 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 func testConsulPubSubNewEventsTimeout(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	sub := NewSubscriber(kv, deploymentID)
 
 	timeout := 25 * time.Millisecond
 
 	t1 := time.Now()
-	events, _, err := sub.StatusEvents(1, timeout)
+	events, _, err := StatusEvents(kv, deploymentID, 1, timeout)
 	t2 := time.Now()
 	assert.Nil(t, err)
 	require.Len(t, events, 0)
@@ -105,7 +103,6 @@ func testConsulPubSubNewEventsTimeout(t *testing.T, kv *api.KV) {
 func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	t.Parallel()
 	deploymentID := testutil.BuildDeploymentID(t)
-	sub := NewSubscriber(kv, deploymentID)
 
 	var testData = []struct {
 		node     string
@@ -123,7 +120,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err := sub.StatusEvents(1, 5*time.Minute)
+	events, lastIdx, err := StatusEvents(kv, deploymentID, 1, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, events, 4)
 	for index, event := range events {
@@ -147,7 +144,7 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 		assert.Nil(t, err)
 	}
 
-	events, lastIdx, err = sub.StatusEvents(lastIdx, 5*time.Minute)
+	events, lastIdx, err = StatusEvents(kv, deploymentID, lastIdx, 5*time.Minute)
 	assert.Nil(t, err)
 	require.Len(t, events, 3)
 	require.NotZero(t, lastIdx)
@@ -377,20 +374,16 @@ func Test_consulPubSub_StatusEvents(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cp := &consulPubSub{
-				kv:           tt.fields.kv,
-				deploymentID: tt.fields.deploymentID,
-			}
-			got, got1, err := cp.StatusEvents(tt.args.waitIndex, tt.args.timeout)
+			got, got1, err := StatusEvents(tt.fields.kv, tt.fields.deploymentID, tt.args.waitIndex, tt.args.timeout)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("consulPubSub.StatusEvents() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("StatusEvents() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("consulPubSub.StatusEvents() got = %v, want %v", got, tt.want)
+				t.Errorf("StatusEvents() got = %v, want %v", got, tt.want)
 			}
 			if got1 != tt.want1 {
-				t.Errorf("consulPubSub.StatusEvents() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("StatusEvents() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}
@@ -416,8 +409,7 @@ func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 	ids[4] = id
 
-	sub := NewSubscriber(kv, deploymentID)
-	events, _, err := sub.StatusEvents(0, 5*time.Minute)
+	events, _, err := StatusEvents(kv, deploymentID, 0, 5*time.Minute)
 	require.Nil(t, err)
 	require.Len(t, events, 5)
 
@@ -484,8 +476,7 @@ func testconsulGetLogs(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 	require.True(t, prevIndex < newIndex)
 	prevIndex = newIndex
-	sub := NewSubscriber(kv, deploymentID)
-	logs, _, err := sub.LogsEvents(0, 5*time.Minute)
+	logs, _, err := LogsEvents(kv, deploymentID, 0, 5*time.Minute)
 	require.Nil(t, err)
 	require.Len(t, logs, 4)
 
