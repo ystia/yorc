@@ -18,33 +18,3 @@ node_types:
         type: string
         required: false
         description: Slurm partition where the nodes will be deployed
-  janus.nodes.slurm.Cntk:
-    derived_from: tosca.nodes.Compute
-    properties:
-      partition:
-        type: string
-        required: true
-      runAsUser:
-        type: string
-        required: true
-      modelPath:
-        type: string
-        required: true
-      modelFile:
-        type: string
-        required: true
-      imgPath:
-        type: string
-        required: true
-      nbNode:
-        type: string
-        required: false
-      nodesName:
-        type: string
-        required: false
-      nbMpiProcess:
-        type: string
-        required: false
-    attributes:
-      final_error:
-        type: string
