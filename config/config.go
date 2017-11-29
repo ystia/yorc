@@ -61,7 +61,8 @@ type Configuration struct {
 	ConsulSSLVerify                  bool
 	ConsulPubMaxRoutines             int
 	Telemetry                        Telemetry
-	Infrastructures                  map[string]InfrastructureConfig
+	Infrastructures                  map[string]GenericConfigMap
+	Vault                            GenericConfigMap
 	WfStepGracefulTerminationTimeout time.Duration
 }
 
@@ -75,26 +76,37 @@ type Telemetry struct {
 	DisableGoRuntimeMetrics bool
 }
 
-// InfrastructureConfig parameters for a given infrastructure.
+// GenericConfigMap allows to store configuration parameters that are not known in advance.
+// This is particularly useful when configration parameters may be defined in a plugin such for infrastructures.
 //
 // It has methods to automatically cast data to the desired type.
-type InfrastructureConfig map[string]interface{}
+type GenericConfigMap map[string]interface{}
+
+// IsSet checks if a given configuration key is defined
+func (gcm GenericConfigMap) IsSet(name string) bool {
+	_, ok := gcm[name]
+	return ok
+}
 
 // Get returns the raw value of a given configuration key
-func (ic InfrastructureConfig) Get(name string) interface{} {
-	return ic[name]
+func (gcm GenericConfigMap) Get(name string) interface{} {
+	return gcm[name]
 }
 
 // GetString returns the value of the given key casted into a string.
 // An empty string is returned if not found.
-func (ic InfrastructureConfig) GetString(name string) string {
-	return cast.ToString(ic[name])
+func (gcm GenericConfigMap) GetString(name string) string {
+	return cast.ToString(gcm[name])
 }
 
 // GetStringOrDefault returns the value of the given key casted into a string.
-// The given default value is returned if not found.
-func (ic InfrastructureConfig) GetStringOrDefault(name, defaultValue string) string {
-	if res := ic.GetString(name); res != "" {
+// The given default value is returned if not found or not a valid string.
+func (gcm GenericConfigMap) GetStringOrDefault(name, defaultValue string) string {
+	v, ok := gcm[name]
+	if !ok {
+		return defaultValue
+	}
+	if res, err := cast.ToStringE(v); err == nil {
 		return res
 	}
 	return defaultValue
@@ -102,19 +114,31 @@ func (ic InfrastructureConfig) GetStringOrDefault(name, defaultValue string) str
 
 // GetBool returns the value of the given key casted into a boolean.
 // False is returned if not found.
-func (ic InfrastructureConfig) GetBool(name string) bool {
-	return cast.ToBool(ic[name])
+func (gcm GenericConfigMap) GetBool(name string) bool {
+	return cast.ToBool(gcm[name])
 }
 
 // GetStringSlice returns the value of the given key casted into a slice of string.
 // If the corresponding raw value is a string, it is  splited on comas.
 // A nil or empty slice is returned if not found.
-func (ic InfrastructureConfig) GetStringSlice(name string) []string {
-	val := ic[name]
+func (gcm GenericConfigMap) GetStringSlice(name string) []string {
+	val := gcm[name]
 	switch v := val.(type) {
 	case string:
 		return strings.Split(v, ",")
 	default:
-		return cast.ToStringSlice(ic[name])
+		return cast.ToStringSlice(gcm[name])
 	}
+}
+
+// GetInt returns the value of the given key casted into an int.
+// 0 is returned if not found.
+func (gcm GenericConfigMap) GetInt(name string) int {
+	return cast.ToInt(gcm[name])
+}
+
+// GetDuration returns the value of the given key casted into a Duration.
+// A 0 duration is returned if not found.
+func (gcm GenericConfigMap) GetDuration(name string) time.Duration {
+	return cast.ToDuration(gcm[name])
 }

@@ -15,7 +15,7 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 
 	// AWS infrastructure config
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
+		Infrastructures: map[string]config.GenericConfigMap{
 			infrastructureName: {
 				"region":     "us-east-2",
 				"access_key": "test",

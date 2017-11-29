@@ -24,6 +24,12 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	if err != nil {
 		return err
 	}
+
+	_, err = buildVaultClient(configuration)
+	if err != nil {
+		return err
+	}
+
 	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()
 	if err != nil {

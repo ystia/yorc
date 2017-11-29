@@ -11,6 +11,19 @@
     "statsd_address": "127.0.0.1:8125",
     "expose_prometheus_endpoint": true
   },
+  "vault": {
+    "type": "hashicorp",
+    "address": "http://127.0.0.1:8200",
+    "max_retries": "5",
+    "timeout": "5m",
+    "ca_cert": "/etc/pki/janus/vault/ca/ca.pem",
+    "ca_path": "/etc/pki/janus/vault/ca/",
+    "client_cert": "/etc/pki/janus/vault/client/client.pem",
+    "client_key": "/etc/pki/janus/vault/client/client.key",
+    "tls_server_name": "vault.janus.rocks",
+    "tls_skip_verify": false,
+    "token": "blabla"
+  },
   "infrastructures":{
     "openstack": {
       "auth_url": "http://openstack:5000/v2.0",

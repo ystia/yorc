@@ -17,14 +17,26 @@ func init() {
 
 	// Get the CLI args
 	args := os.Args
-	serverInitInfraExtraFlags(args)
+
+	serverInitExtraFlags(args)
 	setConfig()
 	cobra.OnInitialize(initConfig)
 }
 
 var cfgFile string
 
-var serverExtraInfraParams []string
+var resolvedServerExtraParams []*serverExtraParams
+
+type serverExtraParams struct {
+	argPrefix   string
+	envPrefix   string
+	viperPrefix string
+	viperNames  []string
+	subSplit    int
+	storeFn     serverExtraParamStoreFn
+}
+
+type serverExtraParamStoreFn func(cfg *config.Configuration, param string)
 
 var serverCmd = &cobra.Command{
 	Use:          "server",
@@ -39,49 +51,68 @@ var serverCmd = &cobra.Command{
 	},
 }
 
-func serverInitInfraExtraFlags(args []string) {
-	serverExtraInfraParams = make([]string, 0)
-	for i := range args {
-		if strings.HasPrefix(args[i], "--infrastructure_") {
-			var viperName, flagName string
-			if strings.ContainsRune(args[i], '=') {
-				// Handle the syntax --infrastructure_xxx_yyy = value
-				flagParts := strings.Split(args[i], "=")
-				flagName = strings.TrimLeft(flagParts[0], "-")
-				viperName = strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
-				if len(flagParts) == 1 {
-					// Boolean flag
-					serverCmd.PersistentFlags().Bool(flagName, false, "")
-					viper.SetDefault(viperName, false)
-				} else {
-					serverCmd.PersistentFlags().String(flagName, "", "")
-					viper.SetDefault(viperName, "")
-				}
-			} else {
-				// Handle the syntax --infrastructure_xxx_yyy value
-				flagName = strings.TrimLeft(args[i], "-")
-				viperName = strings.Replace(strings.Replace(flagName, "infrastructure_", "infrastructures.", 1), "_", ".", 1)
-				if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
-					serverCmd.PersistentFlags().String(flagName, "", "")
-					viper.SetDefault(viperName, "")
-				} else {
-					// Boolean flag
-					serverCmd.PersistentFlags().Bool(flagName, false, "")
-					viper.SetDefault(viperName, false)
-				}
-			}
-			// Add viper flag
-			viper.BindPFlag(viperName, serverCmd.PersistentFlags().Lookup(flagName))
-			serverExtraInfraParams = append(serverExtraInfraParams, viperName)
-		}
+func serverInitExtraFlags(args []string) {
+	resolvedServerExtraParams = []*serverExtraParams{
+		&serverExtraParams{
+			argPrefix:   "infrastructure_",
+			envPrefix:   "JANUS_INFRA_",
+			viperPrefix: "infrastructures.",
+			viperNames:  make([]string, 0),
+			subSplit:    1,
+			storeFn:     addServerExtraInfraParams,
+		},
+		&serverExtraParams{
+			argPrefix:   "vault_",
+			envPrefix:   "JANUS_VAULT_",
+			viperPrefix: "vault.",
+			viperNames:  make([]string, 0),
+			storeFn:     addServerExtraVaultParam,
+		},
 	}
-	for _, envVar := range os.Environ() {
-		if strings.HasPrefix(envVar, "JANUS_INFRA_") {
-			envVarParts := strings.SplitN(envVar, "=", 2)
-			viperName := strings.ToLower(strings.Replace(strings.Replace(envVarParts[0], "JANUS_INFRA_", "infrastructures.", 1), "_", ".", 1))
-			viper.BindEnv(viperName, envVarParts[0])
-			if !collections.ContainsString(serverExtraInfraParams, viperName) {
-				serverExtraInfraParams = append(serverExtraInfraParams, viperName)
+
+	for _, sep := range resolvedServerExtraParams {
+		for i := range args {
+			if strings.HasPrefix(args[i], "--"+sep.argPrefix) {
+				var viperName, flagName string
+				if strings.ContainsRune(args[i], '=') {
+					// Handle the syntax --infrastructure_xxx_yyy = value
+					flagParts := strings.Split(args[i], "=")
+					flagName = strings.TrimLeft(flagParts[0], "-")
+					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
+					if len(flagParts) == 1 {
+						// Boolean flag
+						serverCmd.PersistentFlags().Bool(flagName, false, "")
+						viper.SetDefault(viperName, false)
+					} else {
+						serverCmd.PersistentFlags().String(flagName, "", "")
+						viper.SetDefault(viperName, "")
+					}
+				} else {
+					// Handle the syntax --infrastructure_xxx_yyy value
+					flagName = strings.TrimLeft(args[i], "-")
+					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
+					if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
+						serverCmd.PersistentFlags().String(flagName, "", "")
+						viper.SetDefault(viperName, "")
+					} else {
+						// Boolean flag
+						serverCmd.PersistentFlags().Bool(flagName, false, "")
+						viper.SetDefault(viperName, false)
+					}
+				}
+				// Add viper flag
+				viper.BindPFlag(viperName, serverCmd.PersistentFlags().Lookup(flagName))
+				sep.viperNames = append(sep.viperNames, viperName)
+			}
+		}
+		for _, envVar := range os.Environ() {
+			if strings.HasPrefix(envVar, sep.envPrefix) {
+				envVarParts := strings.SplitN(envVar, "=", 2)
+				viperName := strings.ToLower(strings.Replace(strings.Replace(envVarParts[0], sep.envPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit))
+				viper.BindEnv(viperName, envVarParts[0])
+				if !collections.ContainsString(sep.viperNames, viperName) {
+					sep.viperNames = append(sep.viperNames, viperName)
+				}
 			}
 		}
 	}
@@ -253,7 +284,7 @@ func getConfig() config.Configuration {
 	configuration.KeepOperationRemotePath = viper.GetBool("keep_operation_remote_path")
 	configuration.WfStepGracefulTerminationTimeout = viper.GetDuration("wf_step_graceful_termination_timeout")
 
-	configuration.Infrastructures = make(map[string]config.InfrastructureConfig)
+	configuration.Infrastructures = make(map[string]config.GenericConfigMap)
 
 	infras := viper.GetStringMap("infrastructures")
 	for infraName, infraConf := range infras {
@@ -265,10 +296,11 @@ func getConfig() config.Configuration {
 		configuration.Infrastructures[infraName] = infraConfMap
 	}
 
-	for _, infraParam := range serverExtraInfraParams {
-		addServerExtraInfraParams(&configuration, infraParam)
+	for _, sep := range resolvedServerExtraParams {
+		for _, infraParam := range sep.viperNames {
+			sep.storeFn(&configuration, infraParam)
+		}
 	}
-
 	configuration.Telemetry.StatsdAddress = viper.GetString("telemetry.statsd_address")
 	configuration.Telemetry.StatsiteAddress = viper.GetString("telemetry.statsite_address")
 	configuration.Telemetry.ServiceName = viper.GetString("telemetry.service_name")
@@ -281,14 +313,23 @@ func getConfig() config.Configuration {
 
 func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
 	if cfg.Infrastructures == nil {
-		cfg.Infrastructures = make(map[string]config.InfrastructureConfig)
+		cfg.Infrastructures = make(map[string]config.GenericConfigMap)
 	}
 	paramParts := strings.Split(infraParam, ".")
 	value := viper.Get(infraParam)
 	params, ok := cfg.Infrastructures[paramParts[1]]
 	if !ok {
-		params = make(config.InfrastructureConfig)
+		params = make(config.GenericConfigMap)
 		cfg.Infrastructures[paramParts[1]] = params
 	}
 	params[paramParts[2]] = value
+}
+
+func addServerExtraVaultParam(cfg *config.Configuration, vaultParam string) {
+	if cfg.Vault == nil {
+		cfg.Vault = make(config.GenericConfigMap)
+	}
+	paramParts := strings.Split(vaultParam, ".")
+	value := viper.Get(vaultParam)
+	cfg.Vault[paramParts[1]] = value
 }
