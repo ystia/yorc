@@ -174,7 +174,7 @@ func (e *defaultExecutor) createNodeAllocation(nodeAlloc *nodeAllocation, s sshu
 	// set the jobID
 	split := strings.Split(sallocOutput, " ")
 	jobID := strings.TrimSpace(split[len(split)-1])
-	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeAlloc.instanceName, nodeName, "endpoint", "job_id", jobID)
+	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "job_id", jobID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (job_id) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
@@ -186,15 +186,15 @@ func (e *defaultExecutor) createNodeAllocation(nodeAlloc *nodeAllocation, s sshu
 		return errors.Wrapf(err, "Failed to retrieve Slurm node name: %q:", slurmNodeName)
 	}
 	slurmNodeName = strings.Trim(slurmNodeName, "\" \t\n")
-	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeAlloc.instanceName, nodeName, "endpoint", "ip_address", slurmNodeName)
+	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", slurmNodeName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeAlloc.instanceName, nodeName, "ip_address", slurmNodeName)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "ip_address", slurmNodeName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (ip_address) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeAlloc.instanceName, nodeName, "node_name", slurmNodeName)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "node_name", slurmNodeName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (node_name) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
@@ -205,7 +205,7 @@ func (e *defaultExecutor) createNodeAllocation(nodeAlloc *nodeAllocation, s sshu
 		// cuda_visible_device attribute is not mandatory : just log the error
 		log.Println("[Warning]: " + err.Error())
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeAlloc.instanceName, nodeName, "cuda_visible_devices", cudaVisibleDevice)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "cuda_visible_devices", cudaVisibleDevice)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (cuda_visible_devices) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
