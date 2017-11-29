@@ -221,7 +221,7 @@ func (e *defaultExecutor) destroyNodeAllocation(kv *api.KV, nodeAlloc *nodeAlloc
 		return errors.Wrapf(err, "Failed to retrieve Slurm job ID for node name:%s, instance name:%q: %q:", nodeName, nodeAlloc.instanceName)
 	}
 	if !found {
-		return errors.Errorf("Failed to retrieve Slurm job ID for node name:%s, instance name:%q: %q:", nodeName, nodeAlloc.instanceName)
+		return errors.Errorf("Failed to retrieve Slurm job ID for node name:%s, instance name:%q:", nodeName, nodeAlloc.instanceName)
 	}
 	scancelCmd := fmt.Sprintf("scancel %s", jobID)
 	sCancelOutput, err := s.RunCommand(scancelCmd)
