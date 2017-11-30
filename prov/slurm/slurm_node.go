@@ -37,12 +37,15 @@ func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV,
 		node.memory = re.FindString(strings.Replace(memory, " ", "", -1))
 	}
 
-	// Set the name property
-	_, name, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "name")
+	// Set the job name property
+	found, jobName, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "job_name")
 	if err != nil {
 		return err
 	}
-	node.name = name
+	if !found {
+		jobName = cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+	}
+	node.jobName = jobName
 
 	// Set the node gres property from Tosca slurm.Compute property
 	_, gres, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "gres")

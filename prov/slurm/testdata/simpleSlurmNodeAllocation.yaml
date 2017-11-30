@@ -18,7 +18,7 @@ topology_template:
         partition: debug
         user: root
         gres: gpu:1
-        name: xyz
+        job_name: xyz
       capabilities:
         host:
           properties:

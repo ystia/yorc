@@ -166,7 +166,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 		sallocMemFlag = fmt.Sprintf("--gres=%s", nodeAlloc.gres)
 	}
 
-	sallocCmd := fmt.Sprintf("salloc --no-shell -J %s %s %s %s %s", nodeAlloc.name, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag)
+	sallocCmd := fmt.Sprintf("salloc --no-shell -J %s %s %s %s %s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag)
 	sallocOutput, err := s.RunCommand(sallocCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to allocate Slurm resource: %q:", sallocOutput)
@@ -181,7 +181,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Allocating Job ID:%q", jobID))
 
 	// run squeue cmd to get slurm node name
-	squeueCmd := "squeue -n xBD -j " + jobID + " --noheader -o \"%N\""
+	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N\"", nodeAlloc.jobName, jobID)
 	slurmNodeName, err := s.RunCommand(squeueCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to retrieve Slurm node name: %q:", slurmNodeName)

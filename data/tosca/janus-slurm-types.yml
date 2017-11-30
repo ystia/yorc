@@ -18,7 +18,7 @@ node_types:
         type: string
         required: false
         description: Slurm partition where the nodes will be deployed
-      name:
+      job_name:
         type: string
         required: false
         description: Specify a name for the job allocation. The specified name will appear along with the job id.

@@ -34,7 +34,7 @@ func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configur
 	require.Equal(t, "debug", infrastructure.nodes[0].partition)
 	require.Equal(t, "2G", infrastructure.nodes[0].memory)
 	require.Equal(t, "4", infrastructure.nodes[0].cpu)
-	require.Equal(t, "xyz", infrastructure.nodes[0].name)
+	require.Equal(t, "xyz", infrastructure.nodes[0].jobName)
 }
 
 func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg config.Configuration) {
@@ -52,7 +52,7 @@ func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg con
 	require.Equal(t, "", infrastructure.nodes[0].partition)
 	require.Equal(t, "", infrastructure.nodes[0].memory)
 	require.Equal(t, "", infrastructure.nodes[0].cpu)
-	require.Equal(t, "", infrastructure.nodes[0].name)
+	require.Equal(t, "", infrastructure.nodes[0].jobName)
 }
 
 func testMultipleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configuration) {
@@ -76,6 +76,6 @@ func testMultipleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Config
 		require.Equal(t, "debug", infrastructure.nodes[i].partition)
 		require.Equal(t, "2G", infrastructure.nodes[i].memory)
 		require.Equal(t, "4", infrastructure.nodes[i].cpu)
-		require.Equal(t, "xyz", infrastructure.nodes[i].name)
+		require.Equal(t, "xyz", infrastructure.nodes[i].jobName)
 	}
 }
