@@ -22,3 +22,11 @@ node_types:
         type: string
         required: false
         description: Specify a name for the job allocation. The specified name will appear along with the job id.
+      user:
+        type: string
+        description: The user name used to connect to the Compute and provision it.
+        required: true
+    attributes:
+      cuda_visible_devices:
+        type: string
+        description: Coma separated list of visibles GPU devices for the compute.
