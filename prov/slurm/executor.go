@@ -45,26 +45,26 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		events.OperationName: delegateOperation,
 	}
 
-	op := strings.ToLower(delegateOperation)
+	operation := strings.ToLower(delegateOperation)
 	switch {
-	case op == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields)
-	case op == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields)
+	case operation == "install":
+		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields, operation)
+	case operation == "uninstall":
+		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields, operation)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
 			return err
 		}
 	}
-	infra, err := e.generator.generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName)
+	infra, err := e.generator.generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
@@ -80,14 +80,14 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	return nil
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {
 			return err
 		}
 	}
-	infra, err := e.generator.generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName)
+	infra, err := e.generator.generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 	for _, compute := range infra.nodes {
 		func(comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.createNodeAllocation(comp, infra.provider.session, deploymentID, nodeName, logOptFields)
+				return e.createNodeAllocation(ctx, comp, infra.provider.session, deploymentID, nodeName, logOptFields)
 			})
 		}(&compute)
 	}
@@ -133,7 +133,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	for _, compute := range infra.nodes {
 		func(comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.destroyNodeAllocation(kv, comp, infra.provider.session, deploymentID, nodeName, logOptFields)
+				return e.destroyNodeAllocation(ctx, kv, comp, infra.provider.session, deploymentID, nodeName, logOptFields)
 			})
 		}(&compute)
 	}
@@ -149,8 +149,8 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	return nil
 }
 
-func (e *defaultExecutor) createNodeAllocation(nodeAlloc *nodeAllocation, s sshutil.Session, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for (deploymentID:%q, node name:%q)", deploymentID, nodeName))
+func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *nodeAllocation, s sshutil.Session, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
 	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag string
 	if nodeAlloc.cpu != "" {
@@ -166,7 +166,7 @@ func (e *defaultExecutor) createNodeAllocation(nodeAlloc *nodeAllocation, s sshu
 		sallocMemFlag = fmt.Sprintf("--gres=%s", nodeAlloc.gres)
 	}
 
-	sallocCmd := fmt.Sprintf("salloc --no-shell -J xBD %s %s %s %s", sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag)
+	sallocCmd := fmt.Sprintf("salloc --no-shell -J %s %s %s %s %s", nodeAlloc.name, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag)
 	sallocOutput, err := s.RunCommand(sallocCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to allocate Slurm resource: %q:", sallocOutput)
@@ -178,6 +178,7 @@ func (e *defaultExecutor) createNodeAllocation(nodeAlloc *nodeAllocation, s sshu
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (job_id) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Allocating Job ID:%q", jobID))
 
 	// run squeue cmd to get slurm node name
 	squeueCmd := "squeue -n xBD -j " + jobID + " --noheader -o \"%N\""
@@ -213,8 +214,8 @@ func (e *defaultExecutor) createNodeAllocation(nodeAlloc *nodeAllocation, s sshu
 	return nil
 }
 
-func (e *defaultExecutor) destroyNodeAllocation(kv *api.KV, nodeAlloc *nodeAllocation, s sshutil.Session, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for (deploymentID:%q, node name:%q)", deploymentID, nodeName))
+func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, s sshutil.Session, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// scancel cmd
 	found, jobID, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "job_id")
 	if err != nil {
@@ -228,6 +229,6 @@ func (e *defaultExecutor) destroyNodeAllocation(kv *api.KV, nodeAlloc *nodeAlloc
 	if err != nil {
 		return errors.Wrapf(err, "Failed to cancel Slurm job: %s:", sCancelOutput)
 	}
-
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
 	return nil
 }

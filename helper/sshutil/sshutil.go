@@ -50,7 +50,7 @@ func (s *SSHSession) initSession() *ssh.Session {
 
 // RunCommand allows to run a command via SSH
 func (s *SSHSession) RunCommand(cmd string) (string, error) {
-	log.Println("[SSHSession] '" + cmd + "'")
+	log.Debugf("[SSHSession] %q", cmd)
 	session := s.initSession()
 	defer session.Close()
 	var b bytes.Buffer

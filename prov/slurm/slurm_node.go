@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, instanceName, nodeName string, infra *infrastructure) error {
+func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -32,8 +32,17 @@ func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV,
 		return err
 	}
 	// Only take one letter for defining memory unit and remove the blank space between number and unit.
-	re := regexp.MustCompile("[[:digit:]]*[[:upper:]]{1}")
-	node.memory = re.FindString(strings.Replace(memory, " ", "", -1))
+	if memory != "" {
+		re := regexp.MustCompile("[[:digit:]]*[[:upper:]]{1}")
+		node.memory = re.FindString(strings.Replace(memory, " ", "", -1))
+	}
+
+	// Set the name property
+	_, name, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "name")
+	if err != nil {
+		return err
+	}
+	node.name = name
 
 	// Set the node gres property from Tosca slurm.Compute property
 	_, gres, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "gres")

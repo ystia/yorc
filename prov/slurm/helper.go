@@ -15,11 +15,11 @@ func getAttribute(s sshutil.Session, key string, jobID, nodeName string) (string
 			cmd := fmt.Sprintf("srun --jobid=%s env|grep CUDA_VISIBLE_DEVICES", jobID)
 			stdout, err := s.RunCommand(cmd)
 			if err != nil {
-				return "", errors.Wrapf(err, "Unable to retrieve (%s) for node:%s", key, nodeName)
+				return "", errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, nodeName)
 			}
 			value, err := getEnvValue(stdout)
 			if err != nil {
-				return "", errors.Wrapf(err, "Unable to retrieve (%s) for node:%s", key, nodeName)
+				return "", errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, nodeName)
 			}
 			return value, nil
 		}

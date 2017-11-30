@@ -23,5 +23,6 @@ type nodeAllocation struct {
 	memory       string
 	gres         string
 	partition    string
+	name         string
 	instanceName string
 }
