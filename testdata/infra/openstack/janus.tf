@@ -153,7 +153,7 @@ resource "null_resource" "janus-server-provisioning" {
       "sudo yum install -q -y python2-pip nfs-utils autofs",
       "cd /tmp && wget -q https://releases.hashicorp.com/terraform/0.9.11/terraform_0.9.11_linux_amd64.zip && sudo unzip /tmp/terraform_0.9.11_linux_amd64.zip -d /usr/local/bin",
       "sudo -H pip install -q pip --upgrade",
-      "sudo -H pip install -q ansible==2.3.1.0",
+      "sudo -H pip install -q ansible==2.4.1.0",
       "mv /tmp/config.janus.json ~/config.janus.json",
       "echo -e '/-    /etc/auto.direct\n' | sudo tee /etc/auto.master > /dev/null",
       "cat /tmp/auto.janus | sudo tee /etc/auto.direct > /dev/null",
