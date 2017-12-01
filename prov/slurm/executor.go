@@ -49,7 +49,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 
 	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
 	if err != nil {
-		return errors.Errorf("Invalid Slurm port configuration:%s", port)
+		return errors.Errorf("Invalid Slurm port configuration:%d", port)
 	}
 
 	e.client = &sshutil.SSHClient{
