@@ -7,7 +7,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 	"path"
@@ -26,16 +25,6 @@ func (g *slurmGenerator) generateInfrastructure(ctx context.Context, kv *api.KV,
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	infra := &infrastructure{}
-
-	infra.provider = &provider{
-		username: cfg.Infrastructures[infrastructureName].GetString("user_name"),
-		password: cfg.Infrastructures[infrastructureName].GetString("password"),
-		name:     cfg.Infrastructures[infrastructureName].GetString("name"),
-		url:      cfg.Infrastructures[infrastructureName].GetString("url"),
-		port:     cfg.Infrastructures[infrastructureName].GetString("port"),
-	}
-	infra.provider.session = sshutil.NewSSHSession(infra.provider.username, infra.provider.password, infra.provider.url, infra.provider.port)
-
 	log.Debugf("inspecting node %s", nodeKey)
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {

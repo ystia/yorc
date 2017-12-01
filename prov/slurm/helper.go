@@ -8,12 +8,12 @@ import (
 )
 
 // getAttribute allows to return an attribute with defined key from specific treatment
-func getAttribute(s sshutil.Session, key string, jobID, nodeName string) (string, error) {
+func getAttribute(client sshutil.Client, key string, jobID, nodeName string) (string, error) {
 	switch key {
 	case "cuda_visible_devices":
 		if jobID != "" {
 			cmd := fmt.Sprintf("srun --jobid=%s env|grep CUDA_VISIBLE_DEVICES", jobID)
-			stdout, err := s.RunCommand(cmd)
+			stdout, err := client.RunCommand(cmd)
 			if err != nil {
 				return "", errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, nodeName)
 			}

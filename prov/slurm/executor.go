@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -14,11 +15,13 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"strconv"
 	"strings"
 )
 
 type defaultExecutor struct {
 	generator defaultGenerator
+	client    *sshutil.SSHClient
 }
 
 func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
@@ -34,6 +37,25 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
+	}
+
+	// Get SSH client
+	SSHConfig := &ssh.ClientConfig{
+		User: cfg.Infrastructures[infrastructureName].GetString("user_name"),
+		Auth: []ssh.AuthMethod{
+			ssh.Password(cfg.Infrastructures[infrastructureName].GetString("password")),
+		},
+	}
+
+	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
+	if err != nil {
+		return errors.Errorf("Invalid Slurm port configuration:%s", port)
+	}
+
+	e.client = &sshutil.SSHClient{
+		Config: SSHConfig,
+		Host:   cfg.Infrastructures[infrastructureName].GetString("url"),
+		Port:   port,
 	}
 
 	// Fill log optional fields for log registration
@@ -111,7 +133,7 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 	for _, compute := range infra.nodes {
 		func(comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.createNodeAllocation(ctx, comp, infra.provider.session, deploymentID, nodeName, logOptFields)
+				return e.createNodeAllocation(ctx, comp, deploymentID, nodeName, logOptFields)
 			})
 		}(&compute)
 	}
@@ -133,7 +155,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	for _, compute := range infra.nodes {
 		func(comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.destroyNodeAllocation(ctx, kv, comp, infra.provider.session, deploymentID, nodeName, logOptFields)
+				return e.destroyNodeAllocation(ctx, kv, comp, deploymentID, nodeName, logOptFields)
 			})
 		}(&compute)
 	}
@@ -149,7 +171,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	return nil
 }
 
-func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *nodeAllocation, s sshutil.Session, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *nodeAllocation, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
 	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag string
@@ -167,7 +189,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 	}
 
 	sallocCmd := fmt.Sprintf("salloc --no-shell -J %s %s %s %s %s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag)
-	sallocOutput, err := s.RunCommand(sallocCmd)
+	sallocOutput, err := e.client.RunCommand(sallocCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to allocate Slurm resource: %q:", sallocOutput)
 	}
@@ -182,7 +204,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 
 	// run squeue cmd to get slurm node name
 	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N\"", nodeAlloc.jobName, jobID)
-	slurmNodeName, err := s.RunCommand(squeueCmd)
+	slurmNodeName, err := e.client.RunCommand(squeueCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to retrieve Slurm node name: %q:", slurmNodeName)
 	}
@@ -202,7 +224,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 
 	// Get cuda_visible_device attribute
 	var cudaVisibleDevice string
-	if cudaVisibleDevice, err = getAttribute(s, "cuda_visible_devices", jobID, nodeName); err != nil {
+	if cudaVisibleDevice, err = getAttribute(e.client, "cuda_visible_devices", jobID, nodeName); err != nil {
 		// cuda_visible_device attribute is not mandatory : just log the error
 		log.Println("[Warning]: " + err.Error())
 	}
@@ -214,7 +236,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 	return nil
 }
 
-func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, s sshutil.Session, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// scancel cmd
 	found, jobID, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "job_id")
@@ -225,7 +247,7 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV,
 		return errors.Errorf("Failed to retrieve Slurm job ID for node name:%s, instance name:%q:", nodeName, nodeAlloc.instanceName)
 	}
 	scancelCmd := fmt.Sprintf("scancel %s", jobID)
-	sCancelOutput, err := s.RunCommand(scancelCmd)
+	sCancelOutput, err := e.client.RunCommand(scancelCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to cancel Slurm job: %s:", sCancelOutput)
 	}

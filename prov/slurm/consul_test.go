@@ -13,7 +13,7 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 	kv := client.KV()
 	defer srv.Stop()
 
-	// AWS infrastructure config
+	// Slurm infrastructure config
 	cfg := config.Configuration{
 		Infrastructures: map[string]config.InfrastructureConfig{
 			infrastructureName: {
@@ -24,7 +24,7 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 				"port":      "1234",
 			}}}
 
-	t.Run("groupAWS", func(t *testing.T) {
+	t.Run("groupSlurm", func(t *testing.T) {
 		t.Run("simpleSlurmNodeAllocation", func(t *testing.T) {
 			testSimpleSlurmNodeAllocation(t, kv, cfg)
 		})

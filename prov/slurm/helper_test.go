@@ -7,12 +7,12 @@ import (
 )
 
 // MockSSHSession allows to mock an SSH session
-type MockSSHSession struct {
+type MockSSHClient struct {
 	MockRunCommand func(string) (string, error)
 }
 
 // RunCommand to mock a command ran via SSH
-func (s *MockSSHSession) RunCommand(cmd string) (string, error) {
+func (s *MockSSHClient) RunCommand(cmd string) (string, error) {
 	if s.MockRunCommand != nil {
 		return s.MockRunCommand(cmd)
 	}
@@ -21,7 +21,7 @@ func (s *MockSSHSession) RunCommand(cmd string) (string, error) {
 
 func TestGetAttribute(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHSession{
+	s := &MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "CUDA_VISIBLE_DEVICES=NoDevFiles", nil
 		},
@@ -33,7 +33,7 @@ func TestGetAttribute(t *testing.T) {
 
 func TestGetAttributeWithUnknownKey(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHSession{}
+	s := &MockSSHClient{}
 	value, err := getAttribute(s, "unknown_key", "1234", "myNodeName")
 	require.Equal(t, "", value)
 	require.Error(t, err, "unknown key error expected")
@@ -41,7 +41,7 @@ func TestGetAttributeWithUnknownKey(t *testing.T) {
 
 func TestGetAttributeWithFailure(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHSession{
+	s := &MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "", errors.New("expected failure")
 		},
@@ -53,7 +53,7 @@ func TestGetAttributeWithFailure(t *testing.T) {
 
 func TestGetAttributeWithMalformedStdout(t *testing.T) {
 	t.Parallel()
-	s := &MockSSHSession{
+	s := &MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "MALFORMED_VALUE", nil
 		},
