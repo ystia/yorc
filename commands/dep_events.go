@@ -7,10 +7,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/fatih/color"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"net/http"
+
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -19,21 +19,25 @@ func init() {
 	var fromBeginning bool
 	var noStream bool
 	var eventCmd = &cobra.Command{
-		Use:     "events <DeploymentId>",
-		Short:   "Stream events for a deployment",
-		Long:    `Stream events for a given deployment id`,
+		Use:     "events [<DeploymentId>]",
+		Short:   "Stream events for a deployment or all deployments",
+		Long:    `Stream all the events, or events for a given deployment id`,
 		Aliases: []string{"events"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
+			var deploymentID string
+			if len(args) == 1 {
+				deploymentID = args[0]
+			} else {
+				fmt.Println("No deployment id provided, events for all deployments will be returned")
 			}
+
 			client, err := getClient()
 			if err != nil {
 				errExit(err)
 			}
 			colorize := !noColor
 
-			streamsEvents(client, args[0], colorize, fromBeginning, noStream)
+			streamsEvents(client, deploymentID, colorize, fromBeginning, noStream)
 			return nil
 		},
 	}
@@ -47,13 +51,20 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		defer color.Unset()
 	}
 	var lastIdx uint64
+	var err error
+	var response *http.Response
+	var request *http.Request
 	if !fromBeginning && !stop {
-		// Get last index
-		response, err := client.Head("/deployments/" + deploymentID + "/events")
+		if deploymentID != "" {
+			response, err = client.Head("/deployments/" + deploymentID + "/events")
+			handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+		} else {
+			response, err = client.Head("/events")
+		}
 		if err != nil {
 			errExit(err)
 		}
-		handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+		// Get last index
 		idxHd := response.Header.Get(rest.JanusIndexHeader)
 		if idxHd != "" {
 			lastIdx, err = strconv.ParseUint(idxHd, 10, 64)
@@ -66,8 +77,11 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		}
 	}
 	for {
-
-		request, err := client.NewRequest("GET", fmt.Sprintf("/deployments/%s/events?index=%d", deploymentID, lastIdx), nil)
+		if deploymentID != "" {
+			request, err = client.NewRequest("GET", fmt.Sprintf("/deployments/%s/events?index=%d", deploymentID, lastIdx), nil)
+		} else {
+			request, err = client.NewRequest("GET", fmt.Sprintf("/events?index=%d", lastIdx), nil)
+		}
 		if err != nil {
 			errExit(err)
 		}
@@ -76,8 +90,10 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		if err != nil {
 			errExit(err)
 		}
+		if deploymentID != "" {
+			handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+		}
 
-		handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		var evts rest.EventsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
@@ -107,15 +123,15 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 			}
 			switch evType {
 			case events.InstanceStatusChangeType:
-				fmt.Printf("%s:\t Node: %s\t Instance: %s\t State: %s\n", ts, event.Node, event.Instance, event.Status)
+				fmt.Printf("%s:\t Deployment: %s\t Node: %s\t Instance: %s\t State: %s\n", ts, event.DeploymentID, event.Node, event.Instance, event.Status)
 			case events.DeploymentStatusChangeType:
-				fmt.Printf("%s:\t Deployment Status: %s\n", ts, event.Status)
+				fmt.Printf("%s:\t Deployment: %s\t Deployment Status: %s\n", ts, event.DeploymentID, event.Status)
 			case events.CustomCommandStatusChangeType:
-				fmt.Printf("%s:\t Task %q (custom command)\t Status: %s\n", ts, event.TaskID, event.Status)
+				fmt.Printf("%s:\t Deployment: %s\t Task %q (custom command)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
 			case events.ScalingStatusChangeType:
-				fmt.Printf("%s:\t Task %q (scaling)\t Status: %s\n", ts, event.TaskID, event.Status)
+				fmt.Printf("%s:\t Deployment: %s\t Task %q (scaling)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
 			case events.WorkflowStatusChangeType:
-				fmt.Printf("%s:\t Task %q (workflow)\t Status: %s\n", ts, event.TaskID, event.Status)
+				fmt.Printf("%s:\t Deployment: %s\t Task %q (workflow)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
 			}
 
 		}
