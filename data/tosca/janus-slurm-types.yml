@@ -30,16 +30,6 @@ node_types:
       cuda_visible_devices:
         type: string
         description: Coma separated list of visibles GPU devices for the compute.
-    capabilities:
-      endpoint:
-        type: janus.capabilities.Endpoint.Admin.Slurm
-
-capability_types:
-  janus.capabilities.Endpoint.Admin.Slurm:
-    derived_from: tosca.capabilities.Endpoint.Admin
-    description: Capability of Slurm endpoint to provide the ID of the job allocation
-    properties:
       job_id:
         type: string
-        required: true
-        description: The ID of the job allocation
+        description: The ID of the job allocation.

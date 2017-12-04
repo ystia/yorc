@@ -38,12 +38,18 @@ func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV,
 	}
 
 	// Set the job name property
+	// first: with the prop
 	found, jobName, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "job_name")
 	if err != nil {
 		return err
 	}
-	if !found {
+	if !found || jobName == "" {
+		// Second: with the config
 		jobName = cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+		if jobName == "" {
+			// Third: with the deploymentID
+			jobName = deploymentID
+		}
 	}
 	node.jobName = jobName
 
