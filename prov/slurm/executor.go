@@ -196,7 +196,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 	// set the jobID
 	split := strings.Split(sallocOutput, " ")
 	jobID := strings.TrimSpace(split[len(split)-1])
-	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "job_id", jobID)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", jobID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (job_id) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
@@ -239,7 +239,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// scancel cmd
-	found, jobID, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "job_id")
+	found, jobID, err := deployments.GetInstanceAttribute(kv, deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
 	if err != nil {
 		return errors.Wrapf(err, "Failed to retrieve Slurm job ID for node name:%s, instance name:%q: %q:", nodeName, nodeAlloc.instanceName)
 	}
