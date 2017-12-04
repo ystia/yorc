@@ -41,7 +41,7 @@ func init() {
 			return nil
 		},
 	}
-	eventCmd.PersistentFlags().BoolVarP(&fromBeginning, "from-beginning", "b", false, "Show events from the beginning of a deployment")
+	eventCmd.PersistentFlags().BoolVarP(&fromBeginning, "from-beginning", "b", false, "Show events from the beginning of deployments")
 	eventCmd.PersistentFlags().BoolVarP(&noStream, "no-stream", "n", false, "Show events then exit. Do not stream events. It implies --from-beginning")
 	deploymentsCmd.AddCommand(eventCmd)
 }
