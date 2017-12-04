@@ -2,7 +2,9 @@
 package config
 
 import (
+	"bytes"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/spf13/cast"
@@ -76,6 +78,14 @@ type Telemetry struct {
 	DisableGoRuntimeMetrics bool
 }
 
+// ResolveDynamicConfiguration resolves configuration parameters defined as
+// Go templates.
+func (c Configuration) ResolveDynamicConfiguration(fm template.FuncMap) {
+	for _, gcm := range c.Infrastructures {
+		gcm.resolveTemplates(fm)
+	}
+}
+
 // GenericConfigMap allows to store configuration parameters that are not known in advance.
 // This is particularly useful when configration parameters may be defined in a plugin such for infrastructures.
 //
@@ -141,4 +151,27 @@ func (gcm GenericConfigMap) GetInt(name string) int {
 // A 0 duration is returned if not found.
 func (gcm GenericConfigMap) GetDuration(name string) time.Duration {
 	return cast.ToDuration(gcm[name])
+}
+
+func (gcm GenericConfigMap) resolveTemplates(fm template.FuncMap) {
+	// TODO here we resolve data in oneshot for all
+	// but it may be more intersting to resolve it only when needed
+	// as a secret may expire or be renewed.
+	for key, value := range gcm {
+		s, err := cast.ToStringE(value)
+		if err != nil {
+			continue
+		}
+
+		t, err := template.New("GenericConfigMap").Funcs(fm).Parse(s)
+		if err != nil {
+			continue
+		}
+		b := bytes.Buffer{}
+		err = t.Execute(&b, nil)
+		if err != nil {
+			continue
+		}
+		gcm[key] = b.String()
+	}
 }

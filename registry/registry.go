@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/vault"
 )
@@ -209,7 +208,6 @@ func (r *defaultRegistry) GetVaultClientBuilder(id string) (vault.ClientBuilder,
 	r.vaultsLock.RLock()
 	defer r.vaultsLock.RUnlock()
 	for _, v := range r.vaultClientBuilders {
-		log.Debugf("v.ID %q == id %q ?", v.ID, id)
 		if v.ID == id {
 			return v.Builder, nil
 		}

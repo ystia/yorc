@@ -1,8 +1,12 @@
 package hashivault
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/vault"
@@ -96,4 +100,39 @@ func (b *clientBuilder) BuildClient(cfg config.Configuration) (vault.Client, err
 type vaultClient struct {
 	vClient *api.Client
 	token   *api.Secret
+}
+
+func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, error) {
+	// log.Debugf("Getting secret: %q", id)
+	opts := make(map[string]string)
+	for _, o := range options {
+		optsList := strings.SplitN(o, "=", 2)
+		if len(optsList) == 2 {
+			opts[optsList[0]] = optsList[1]
+		} else {
+			opts[o] = ""
+		}
+	}
+	s, err := vc.vClient.Logical().Read(id)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read secret %q", id)
+	}
+	secret := &vaultSecret{Secret: s, options: opts}
+	return secret, err
+}
+
+type vaultSecret struct {
+	*api.Secret
+	options map[string]string
+}
+
+func (vs *vaultSecret) String() string {
+	if d, ok := vs.options["data"]; ok {
+		return fmt.Sprint(vs.Data[d])
+	}
+	return fmt.Sprint(vs.Data)
+}
+
+func (vs *vaultSecret) Raw() interface{} {
+	return vs.Secret
 }
