@@ -21,6 +21,23 @@ Please report to the :ref:`janus_config_section` for an exhaustive list of Janus
 At least OpenStack access configuration files should be provided either by command-line flags, environment variables or configuration elements.
 They are omitted bellow for brevity and considered as provided by a configuration file in one of the default location.
 
+Notice that if you are using a passphrase on your ssh key, you have to start an ssh-agent before launching janus. It is strongly recommended to start one by giving him a socket name.
+
+.. code-block:: bash
+
+    eval `ssh-agent -a /tmp/ssh-sock`
+
+So in case of your ssh-agent process die, just restart it with the command above.
+
+If your ssh key does not have a passphrase, **do not start any ssh-agent** before starting janus and make sure that environement variable SSH_AUTH_SOCK is not set.
+
+.. code-block:: bash
+
+    killall ssh-agent
+    unset SSH_AUTH_SOCK 
+
+Then start janus
+
 .. code-block:: bash
 
     janus server
