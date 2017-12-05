@@ -41,7 +41,8 @@ data "template_file" "nfs-exports" {
 }
 
 resource "null_resource" "nfs-server-provisioning" {
-  connection {
+  connection {     
+    agent       = false
     # Use janus server as bastion
     bastion_host = "${openstack_compute_floatingip_associate_v2.janus-server-fip.0.floating_ip}"
 

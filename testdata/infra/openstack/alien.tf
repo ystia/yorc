@@ -56,6 +56,7 @@ data "template_file" "consul-agent-4alien-config" {
 
 resource "null_resource" "alien-server-provisioning" {
   connection {
+    agent       = false
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.alien-server-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"

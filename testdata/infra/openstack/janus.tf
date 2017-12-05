@@ -90,7 +90,8 @@ resource "openstack_compute_floatingip_associate_v2" "janus-server-fip" {
 resource "null_resource" "janus-server-provisioning" {
   count = "${var.janus_instances}"
 
-  connection {
+  connection {     
+    agent       = false
     user        = "${var.ssh_manager_user}"
     host        = "${element(openstack_compute_floatingip_associate_v2.janus-server-fip.*.floating_ip, count.index)}"
     private_key = "${file("${var.ssh_key_file}")}"
