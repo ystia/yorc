@@ -29,7 +29,7 @@ const outputCustomWrapper = `
 # We remove this space here. Obviously becomes a reserved keyword janus_escape_workaround
 for janus_escape_workaround in [[[StringsJoin .VarInputsNames " "]]] ;
 do
-  eval "export ${janus_escape_workaround}=\${${janus_escape_workaround}:1}"
+  eval "[[ \"\${${janus_escape_workaround}}\" == \" \"* ]] && { export ${janus_escape_workaround}=\${${janus_escape_workaround}:1};}"
 done
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Outputs -]]]
