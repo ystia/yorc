@@ -39,8 +39,7 @@ data "template_file" "janus-monitoring-consul-agent-config" {
 }
 
 resource "null_resource" "janus-monitoring-provisioning-install-consul" {
-  connection {     
-    agent       = false
+  connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
@@ -74,8 +73,7 @@ resource "null_resource" "janus-monitoring-provisioning-install-consul" {
 resource "null_resource" "janus-monitoring-provisioning-install-docker" {
   depends_on = ["null_resource.janus-monitoring-provisioning-install-consul"]
 
-  connection {     
-    agent       = false
+  connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
@@ -123,8 +121,7 @@ resource "null_resource" "janus-monitoring-provisioning-config-docker" {
   depends_on = ["null_resource.janus-monitoring-provisioning-install-docker"]
   count      = "${var.http_proxy != "" ? 1 : 0 }"
 
-  connection {     
-    agent       = false
+  connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
@@ -148,8 +145,7 @@ resource "null_resource" "janus-monitoring-provisioning-config-docker" {
 resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-grafana" {
   depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
 
-  connection {     
-    agent       = false
+  connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
@@ -176,8 +172,7 @@ resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-
 resource "null_resource" "janus-monitoring-provisioning-start-monitoring-prometheus" {
   depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
 
-  connection {     
-    agent       = false
+  connection {
     user        = "${var.ssh_manager_user}"
     host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"

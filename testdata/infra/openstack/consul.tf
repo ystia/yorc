@@ -31,8 +31,7 @@ resource "openstack_compute_instance_v2" "consul-server" {
 resource "null_resource" "consul-server-provisioning" {
   count = "${var.consul_server_instances}"
 
-  connection {     
-    agent       = false
+  connection {
     # Use janus server as bastion
     bastion_host = "${openstack_compute_floatingip_associate_v2.janus-server-fip.0.floating_ip}"
 
