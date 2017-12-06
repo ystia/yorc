@@ -94,125 +94,81 @@ func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpd
 	return now, nil
 }
 
-// StatusEvents return a list of events (StatusUpdate instances) for a givent deploymentID
+// StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
 func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
 	events := make([]StatusUpdate, 0)
 
+	var eventsPrefix string
+	var depIDProvided bool
 	if deploymentID != "" {
-		return deploymentStatusEvents(kv, deploymentID, waitIndex, timeout)
+		// the returned list of events must correspond to the provided deploymentID
+		eventsPrefix = path.Join(consulutil.EventsPrefix, deploymentID)
+		depIDProvided = true
+	} else {
+		// the returned list of events must correspond to all the deployments
+		eventsPrefix = path.Join(consulutil.EventsPrefix)
+		depIDProvided = false
 	}
-	// Get the deployment IDs
-	depPaths, _, err := kv.Keys(consulutil.DeploymentKVPrefix+"/", "/", nil)
-	if err != nil {
+
+	kvps, qm, err := kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	if err != nil || qm == nil {
 		return events, 0, err
 	}
-	if len(depPaths) == 0 {
-		log.Debug("=== no deployments")
-		return events, 0, nil
-	}
-
-	var lastIndex uint64
-	for depIndex, depPath := range depPaths {
-		depID := strings.TrimRight(strings.TrimPrefix(depPath, consulutil.DeploymentKVPrefix+"/"), "/ ")
-		log.Debugf("=== Found deployment %s with index %d", depID, depIndex)
-		depStatusUpdates, depLastIndex, err := deploymentStatusEvents(kv, depID, waitIndex, timeout)
-		if err != nil {
-			return events, lastIndex, err
-		}
-		if depLastIndex > lastIndex {
-			lastIndex = depLastIndex
-		}
-		log.Debugf("=== lastIndex = %d", lastIndex)
-		for _, depStatusUpdate := range depStatusUpdates {
-			events = append(events, depStatusUpdate)
-		}
-	}
-	return events, lastIndex, nil
-}
-
-func deploymentStatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
-	deploymentEvents := make([]StatusUpdate, 0)
-	deploymentEventsPrefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	// Get all the events for a deployment using a QueryOptions with the given waitIndex and with WaitTime corresponding to the given timeout
-	kvps, qm, err := kv.List(deploymentEventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
-
-	if err != nil || qm == nil {
-		return deploymentEvents, 0, err
-	}
-
 	for _, kvp := range kvps {
-
 		if kvp.ModifyIndex <= waitIndex {
 			continue
 		}
+		var eventTimestamp string
+		if depIDProvided {
+			eventTimestamp = strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
+		} else {
+			depIDAndTimestamp := strings.Split(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), "/")
+			deploymentID = depIDAndTimestamp[0]
+			eventTimestamp = depIDAndTimestamp[1]
+		}
+		//log.Debugf("DepId : %s", deploymentID)
+		//log.Debugf("Timestamp : %s", eventTimestamp)
+		//log.Debugf("kvp value : %s", string(kvp.Value))
+		//log.Debugf("Event type : %s", StatusUpdateType(kvp.Flags))
 
-		eventTimestamp := strings.TrimPrefix(kvp.Key, deploymentEventsPrefix+"/")
 		values := strings.Split(string(kvp.Value), "\n")
 		eventType := StatusUpdateType(kvp.Flags)
+
 		switch eventType {
 		case InstanceStatusChangeType:
 			if len(values) != 3 {
-				return deploymentEvents, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 			}
-			deploymentEvents = append(deploymentEvents, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Node: values[0], Status: values[1], Instance: values[2], DeploymentID: deploymentID})
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Node: values[0], Status: values[1], Instance: values[2], DeploymentID: deploymentID})
 		case DeploymentStatusChangeType:
 			if len(values) != 1 {
-				return deploymentEvents, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 			}
-			deploymentEvents = append(deploymentEvents, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Status: values[0], DeploymentID: deploymentID})
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Status: values[0], DeploymentID: deploymentID})
 		case CustomCommandStatusChangeType, ScalingStatusChangeType, WorkflowStatusChangeType:
 			if len(values) != 2 {
-				return deploymentEvents, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
+				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 			}
-			deploymentEvents = append(deploymentEvents, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), TaskID: values[0], Status: values[1], DeploymentID: deploymentID})
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), TaskID: values[0], Status: values[1], DeploymentID: deploymentID})
 		default:
-			return deploymentEvents, qm.LastIndex, errors.Errorf("Unsupported event type %d for event %q", kvp.Flags, kvp.Key)
+			return events, qm.LastIndex, errors.Errorf("Unsupported event type %d for event %q", kvp.Flags, kvp.Key)
 		}
 	}
-
-	return deploymentEvents, qm.LastIndex, nil
+	return events, qm.LastIndex, nil
 }
 
-// LogsEvents allows to return logs from Consul KV storage for a given deploymentID
+// LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
 func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
 	logs := make([]json.RawMessage, 0)
 
+	var logsPrefix string
 	if deploymentID != "" {
-		return deploymentLogsEvents(kv, deploymentID, waitIndex, timeout)
+		// the returned list of logs must correspond to the provided deploymentID
+		logsPrefix = path.Join(consulutil.LogsPrefix, deploymentID)
+	} else {
+		// the returned list of logs must correspond to all the deployments
+		logsPrefix = path.Join(consulutil.LogsPrefix)
 	}
-
-	// Get the deployment IDs
-	depPaths, _, err := kv.Keys(consulutil.DeploymentKVPrefix, "/", nil)
-	if err != nil {
-		return logs, 0, err
-	}
-	if len(depPaths) == 0 {
-		log.Debug("=== no deployments")
-		return logs, 0, nil
-	}
-	var lastIndex uint64
-	for _, depPath := range depPaths {
-		log.Debugf("=== lastIndex = %d", lastIndex)
-		depID := strings.TrimRight(strings.TrimPrefix(depPath, consulutil.DeploymentKVPrefix), "/ ")
-		depLogs, depLastIndex, err := deploymentLogsEvents(kv, depID, waitIndex, timeout)
-		if err != nil {
-			return logs, lastIndex, err
-		}
-		if depLastIndex > lastIndex {
-			lastIndex = depLastIndex
-		}
-		for _, depLog := range depLogs {
-			logs = append(logs, depLog)
-		}
-	}
-	log.Debugf("Found %d logs after index", len(logs))
-	return logs, lastIndex, nil
-}
-
-func deploymentLogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
-	logs := make([]json.RawMessage, 0)
-
-	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
 	kvps, qm, err := kv.List(logsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return logs, 0, err
@@ -225,6 +181,7 @@ func deploymentLogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, tim
 
 		logs = append(logs, kvp.Value)
 	}
+	log.Debugf("Found %d logs after index", len(logs))
 	return logs, qm.LastIndex, nil
 }
 
