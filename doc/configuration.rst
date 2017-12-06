@@ -441,7 +441,7 @@ Environment variables
 Infrastructures configuration
 -----------------------------
 
-Due to the plugable nature of infrastructures support in Janus their configuration differ from other configurable options.
+Due to the pluggable nature of infrastructures support in Janus their configuration differ from other configurable options.
 An infrastructure configuration option could be specified by either a its configuration placeholder in the configuration file, a command line flag
 or an environment variable.
 
@@ -561,4 +561,77 @@ AWS infrastructure key name is ``aws`` in lower case.
 | ``region``     | Specify the AWS region to use.         | string    | yes      |         |
 +----------------+----------------------------------------+-----------+----------+---------+
 
+
+Vault configuration
+-------------------
+
+Due to the pluggable nature of vaults support in Janus their configuration differ from other configurable options.
+A vault configuration option could be specified by either its configuration placeholder in the configuration file, a command line flag
+or an environment variable.
+
+The general principle is for a configurable option ``option_1`` it should be specified in the configuration file as following:
+
+.. code-block:: JSON
+    
+    {
+      "vault": {
+        "type": "vault_implementation",
+        "option_1": "value"
+      }
+    }
+  
+Similarly a command line flag with the name ``--vault_option_1`` and an environment variable with the name ``JANUS_VAULT_OPTION_1`` will be
+automatically supported and recognized. The default order of precedence apply here.
+
+``type`` is the only mandatory option for all vaults configurations, it allows to select the vault implementation by specifying it's ID. If the
+``type`` option is not present either in the config file, as a command line flag or as an environment variable, Vault configuration will be ignored.
+
+The integration with a Vault is totally optional and this configuration part may be leave empty.  
+
+Builtin Vaults configuration
+----------------------------
+
+.. _option_hashivault: 
+
+HashiCorp's Vault
+~~~~~~~~~~~~~~~~~
+
+This is the only builtin supported Vault implementation. 
+Implementation ID to use with the vault type configuration parameter is ``hashicorp``.
+
+
+Bellow are recognized configuration options for Vault:
+
+.. 
+   MAG - According to:
+   https://github.com/sphinx-doc/sphinx/issues/3043
+   http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
+.. tabularcolumns:: |l|L|l|l|l|
+
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+|     Option Name     |                                                            Description                                                            | Data Type | Required |  Default  |
+|                     |                                                                                                                                   |           |          |           |
++=====================+===================================================================================================================================+===========+==========+===========+
+| ``address``         | Address is the address of the Vault server. This should be a complete URL such as "https://vault.example.com".                    | string    | yes      |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``max_retries``     | MaxRetries controls the maximum number of times to retry when a 5xx error occurs. Set to 0 or less to disable                     | integer   | no       | ``0``     |
+|                     | retrying.                                                                                                                         |           |          |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``timeout``         | Timeout is for setting custom timeout parameter in the HttpClient.                                                                | string    | no       |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``ca_cert``         | CACert is the path to a PEM-encoded CA cert file to use to verify the Vault server SSL certificate.                               | string    | no       |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``ca_path``         | CAPath is the path to a directory of PEM-encoded CA cert files to verify the Vault server SSL certificate.                        | string    | no       |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``client_cert``     | ClientCert is the path to the certificate for Vault communication.                                                                | string    | no       |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``client_key``      | ClientKey is the path to the private key for Vault communication                                                                  | string    | no       |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``tls_server_name`` | TLSServerName, if set, is used to set the SNI host when connecting via TLS.                                                       | string    | no       |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``tls_skip_verify`` | Disables SSL verification                                                                                                         | boolean   | no       | ``false`` |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
+| ``token``           | Specifies the access token to use to connect to vault.  This is highly discouraged to this option in the                          | string    | no       |           |
+|                     | configuration file as the token is a sensitive data and should not be written on disk. Prefer the associated environment variable |           |          |           |
++---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
 

@@ -15,6 +15,7 @@ Janus |release| Documentation
    run
    cli
    secured
+   vault
    ha
    telemetry
 
