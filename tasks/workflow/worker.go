@@ -143,13 +143,21 @@ func (w worker) handleTask(t *task) {
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
 	case tasks.UnDeploy, tasks.Purge:
-		w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
-		err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
+		status, err := deployments.GetDeploymentStatus(kv, t.TargetID)
 		if err != nil {
-			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_FAILED)
+			log.Printf("Deployment id: %q, Task id: %q, Failed to get deployment status: %+v", t.TargetID, t.ID, err)
+			t.WithStatus(tasks.FAILED)
 			return
 		}
-		w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYED)
+		if status != deployments.UNDEPLOYED {
+			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
+			err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
+			if err != nil {
+				w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_FAILED)
+				return
+			}
+			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYED)
+		}
 		if t.TaskType == tasks.Purge {
 			_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, t.TargetID), nil)
 			if err != nil {
