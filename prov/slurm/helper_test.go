@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+	"time"
 )
 
 // MockSSHSession allows to mock an SSH session
@@ -99,9 +100,9 @@ func TestParseSallocResponseWithExpectedPending(t *testing.T) {
 	case err := <-chErr:
 		require.Fail(t, "unexpected error", err.Error())
 		return
+	case <- time.After(1 *time.Second):
+		require.Fail(t, "No response received")
 	}
-
-	require.Fail(t, "No response received")
 }
 
 // We test parsing the stdout line: "salloc: Granted job allocation 1881"
@@ -120,9 +121,9 @@ func TestParseSallocResponseWithExpectedGranted(t *testing.T) {
 	case err := <-chErr:
 		require.Fail(t, "unexpected error", err.Error())
 		return
+	case <- time.After(1 *time.Second):
+		require.Fail(t, "No response received")
 	}
-
-	require.Fail(t, "No response received")
 }
 
 // We test parsing the stderr lines:
@@ -143,7 +144,7 @@ func TestParseSallocResponseWithExpectedRevokedAllocation(t *testing.T) {
 	case err := <-chErr:
 		require.Error(t, err)
 		return
+	case <- time.After(1 *time.Second):
+		require.Fail(t, "No response received")
 	}
-
-	require.Fail(t, "No response received")
 }
