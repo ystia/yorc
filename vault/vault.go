@@ -15,6 +15,9 @@ type Client interface {
 	// Some extra options may be given. It is up to the Vault client implementation to choose
 	// to honor them.
 	GetSecret(id string, options ...string) (Secret, error)
+
+	// Shutdown tells a Client to shutdown, close all connections and release any created resources
+	Shutdown() error
 }
 
 // A Secret is a resolved secret instance.

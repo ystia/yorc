@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
@@ -87,19 +88,37 @@ func (b *clientBuilder) BuildClient(cfg config.Configuration) (vault.Client, err
 		}
 	}
 
-	token, err := client.Auth().Token().LookupSelf()
+	token, err := client.Auth().Token().Lookup(client.Token())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create HashiCorp Vault client, retrieving client token failed")
+
 	}
+	// log.Debugf("token: %+v", token)
+	renewable := cast.ToBool(token.Data["renewable"])
+	if renewable {
+		// From https://github.com/hashicorp/vault-service-broker/blob/036b95152e081eea1e4e39cb2ad534e98abea7dd/broker.go#L653
+		// Use renew-self instead of lookup here because we want the freshest renew
+		// and we can find out if it's renewable or not.
+		token, err = client.Auth().Token().RenewSelf(0)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create HashiCorp Vault client, retrieving client token failed")
 
-	//log.Debugf("Janus Token %+v", token)
-
-	return &vaultClient{vClient: client, token: token}, nil
+		}
+		if token.Auth == nil {
+			return nil, errors.New("renew self on vault token returned an empty auth")
+		}
+	}
+	vc := &vaultClient{vClient: client, token: token, shutdownCh: make(chan struct{})}
+	if renewable {
+		vc.startRenewing()
+	}
+	return vc, nil
 }
 
 type vaultClient struct {
-	vClient *api.Client
-	token   *api.Secret
+	vClient    *api.Client
+	token      *api.Secret
+	shutdownCh chan struct{}
 }
 
 func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, error) {
@@ -119,6 +138,39 @@ func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, er
 	}
 	secret := &vaultSecret{Secret: s, options: opts}
 	return secret, err
+}
+
+func (vc *vaultClient) startRenewing() {
+	go func() {
+		renewer, err := vc.vClient.NewRenewer(&api.RenewerInput{
+			Secret: vc.token,
+		})
+		if err != nil {
+			log.Print("Failed to create renewer for the Vault token")
+		}
+		go renewer.Renew()
+		defer renewer.Stop()
+
+		for {
+			select {
+			case err := <-renewer.DoneCh():
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// Renewal is now over
+			case renewal := <-renewer.RenewCh():
+				log.Debugf("Successfully renewed vault auth token at: %v", renewal.RenewedAt)
+			case <-vc.shutdownCh:
+				log.Debug("stopping vault client token renewal")
+				return
+			}
+		}
+	}()
+}
+
+func (vc *vaultClient) Shutdown() error {
+	return nil
 }
 
 type vaultSecret struct {
