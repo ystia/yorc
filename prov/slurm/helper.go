@@ -117,7 +117,6 @@ func parseJobID(str string, regexp *regexp.Regexp) (string, error) {
 	subMatch := regexp.FindStringSubmatch(str)
 	if subMatch != nil && len(subMatch) == 2 {
 		return subMatch[1], nil
-	} else {
-		return "", errors.Errorf("Unable to parse std:%q for retrieving jobID", str)
 	}
+	return "", errors.Errorf("Unable to parse std:%q for retrieving jobID", str)
 }

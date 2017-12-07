@@ -45,10 +45,13 @@ func (g *slurmGenerator) generateInfrastructure(ctx context.Context, kv *api.KV,
 			if err != nil {
 				return nil, err
 			}
-			if (operation == "install" && (instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted)) || (operation == "uninstall" && instanceState == tosca.NodeStateDeleted) {
-				// Do not generate something for this node instance (will be deleted if exists)
+
+			if operation == "install" && instanceState != tosca.NodeStateCreating {
+				continue
+			} else if operation == "uninstall" && instanceState != tosca.NodeStateDeleting {
 				continue
 			}
+
 			if err := g.generateNodeAllocation(ctx, kv, cfg, deploymentID, nodeName, instanceName, infra); err != nil {
 				return nil, err
 			}

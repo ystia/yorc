@@ -100,7 +100,7 @@ func TestParseSallocResponseWithExpectedPending(t *testing.T) {
 	case err := <-chErr:
 		require.Fail(t, "unexpected error", err.Error())
 		return
-	case <- time.After(1 *time.Second):
+	case <-time.After(1 * time.Second):
 		require.Fail(t, "No response received")
 	}
 }
@@ -121,7 +121,7 @@ func TestParseSallocResponseWithExpectedGranted(t *testing.T) {
 	case err := <-chErr:
 		require.Fail(t, "unexpected error", err.Error())
 		return
-	case <- time.After(1 *time.Second):
+	case <-time.After(1 * time.Second):
 		require.Fail(t, "No response received")
 	}
 }
@@ -144,7 +144,7 @@ func TestParseSallocResponseWithExpectedRevokedAllocation(t *testing.T) {
 	case err := <-chErr:
 		require.Error(t, err)
 		return
-	case <- time.After(1 *time.Second):
+	case <-time.After(1 * time.Second):
 		require.Fail(t, "No response received")
 	}
 }

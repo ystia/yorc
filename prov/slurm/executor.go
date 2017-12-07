@@ -86,6 +86,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 
 func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
+		log.Println("instance name = " + instance)
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
 			return err
@@ -97,12 +98,6 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	}
 	if err = e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra, logOptFields); err != nil {
 		return err
-	}
-	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateStarted)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -123,12 +118,6 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra, logOptFields); err != nil {
 		return err
 	}
-	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleted)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -139,7 +128,7 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 	for _, compute := range infra.nodes {
 		func(comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.createNodeAllocation(ctx, comp, deploymentID, nodeName, chAllocationErr, logOptFields)
+				return e.createNodeAllocation(ctx, kv, comp, deploymentID, nodeName, chAllocationErr, logOptFields)
 			})
 		}(compute)
 	}
@@ -186,7 +175,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	return nil
 }
 
-func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *nodeAllocation, deploymentID, nodeName string, chAllocationErr chan error, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, chAllocationErr chan error, logOptFields events.LogOptionalFields) error {
 	log.Debugf("node = %+v", nodeAlloc)
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
@@ -279,6 +268,12 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 		return errors.Wrapf(err, "Failed to set attribute (cuda_visible_devices) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
 
+	// Update the instance state
+	err = deployments.SetInstanceState(kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateStarted)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -299,6 +294,12 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV,
 			return errors.Wrapf(err, "Failed to cancel Slurm job: %s:", sCancelOutput)
 		}
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
+
+		// Update the instance state
+		err = deployments.SetInstanceState(kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateDeleted)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
