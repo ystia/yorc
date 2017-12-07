@@ -86,7 +86,6 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 
 func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
-		log.Println("instance name = " + instance)
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
 			return err
@@ -114,7 +113,6 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		return err
 	}
 
-	log.Debugf("infrastructure =%+v", infra)
 	if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra, logOptFields); err != nil {
 		return err
 	}
@@ -176,7 +174,6 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 }
 
 func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, chAllocationErr chan error, logOptFields events.LogOptionalFields) error {
-	log.Debugf("node = %+v", nodeAlloc)
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
 	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag string
