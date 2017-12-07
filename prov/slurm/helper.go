@@ -55,7 +55,10 @@ func getEnvValue(s string) (string, error) {
 //salloc: Job allocation 1882 has been revoked.
 //salloc: error: CPU count per node can not be satisfied
 //salloc: error: Job submit/allocate failed: Requested node configuration is not available
-func parseSallocResponse(r io.Reader, chRes chan string, chOut chan bool, chErr chan error) {
+func parseSallocResponse(r io.Reader, chRes chan struct {
+	jobID   string
+	granted bool
+}, chOut chan bool, chErr chan error) {
 	select {
 	case <-chOut:
 		return
@@ -79,7 +82,10 @@ func parseSallocResponse(r io.Reader, chRes chan string, chOut chan bool, chErr 
 					chErr <- err
 					goto END
 				}
-				chRes <- jobID
+				chRes <- struct {
+					jobID   string
+					granted bool
+				}{jobID: jobID, granted: true}
 				goto END
 			} else if rePending.MatchString(line) {
 				// expected line: "salloc: Pending job allocation 1881"
@@ -87,7 +93,10 @@ func parseSallocResponse(r io.Reader, chRes chan string, chOut chan bool, chErr 
 					chErr <- err
 					goto END
 				}
-				chRes <- jobID
+				chRes <- struct {
+					jobID   string
+					granted bool
+				}{jobID: jobID, granted: false}
 				goto END
 			}
 			// Otherwise, we consider this message as an salloc cli error and we retrieve the full lines

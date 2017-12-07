@@ -195,14 +195,20 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 
 	// salloc command can potentially be a long synchronous command according to the slurm cluster state
 	// so we run it with a session wrapper with stderr/stdout in order to allow job cancellation if user decides to give up the deployment
-	var jobID string
 	var wg sync.WaitGroup
 	sessionWrapper, err := e.client.GetSessionWrapper()
 	if err != nil {
 		return errors.Wrap(err, "Failed to get an SSH session wrapper")
 	}
 
-	chResult := make(chan string, 1)
+	chResult := make(chan struct {
+		jobID   string
+		granted bool
+	}, 1)
+	var result struct {
+		jobID   string
+		granted bool
+	}
 	chOut := make(chan bool, 1)
 	chErr := make(chan error)
 	go parseSallocResponse(sessionWrapper.Stderr, chResult, chOut, chErr)
@@ -211,10 +217,15 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	go func() {
 		defer wg.Done()
 		select {
-		case jobID = <-chResult:
-			log.Debugf("jobID has been received: %q", jobID)
-			deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", jobID)
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Allocating Job ID:%q", jobID))
+		case result = <-chResult:
+			var mes string
+			deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", result.jobID)
+			if result.granted {
+				mes = fmt.Sprintf("salloc command returned a GRANTED job allocation notification with job ID:%q", result.jobID)
+			} else {
+				mes = fmt.Sprintf("salloc command returned a PENDING job allocation notification with job ID:%q", result.jobID)
+			}
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(mes)
 			return
 		case err := <-chErr:
 			log.Debug(err.Error())
@@ -238,7 +249,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 
 	wg.Wait() // we wait until jobID has been set
 	// run squeue cmd to get slurm node name
-	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N\"", nodeAlloc.jobName, jobID)
+	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N\"", nodeAlloc.jobName, result.jobID)
 	slurmNodeName, err := e.client.RunCommand(squeueCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to retrieve Slurm node name: %q:", slurmNodeName)
@@ -259,7 +270,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 
 	// Get cuda_visible_device attribute
 	var cudaVisibleDevice string
-	if cudaVisibleDevice, err = getAttribute(e.client, "cuda_visible_devices", jobID, nodeName); err != nil {
+	if cudaVisibleDevice, err = getAttribute(e.client, "cuda_visible_devices", result.jobID, nodeName); err != nil {
 		// cuda_visible_device attribute is not mandatory : just log the error
 		log.Println("[Warning]: " + err.Error())
 	}

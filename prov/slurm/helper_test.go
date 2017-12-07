@@ -2,7 +2,6 @@ package slurm
 
 import (
 	"errors"
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
@@ -68,14 +67,17 @@ func TestGetAttributeWithMalformedStdout(t *testing.T) {
 // We test parsing the stderr line: ""
 func TestParseSallocResponseWithEmpty(t *testing.T) {
 	str := ""
-	chResult := make(chan string, 1)
+	chResult := make(chan struct {
+		jobID   string
+		granted bool
+	}, 1)
 	chOut := make(chan bool, 1)
 	chErr := make(chan error)
 
 	go parseSallocResponse(strings.NewReader(str), chResult, chOut, chErr)
 	select {
 	case <-chResult:
-		require.Fail(t, "No jobID expected")
+		require.Fail(t, "No response expected")
 		return
 	case err := <-chErr:
 		require.Fail(t, "unexpected error", err.Error())
@@ -88,14 +90,23 @@ func TestParseSallocResponseWithEmpty(t *testing.T) {
 // We test parsing the stderr line: "salloc: Pending job allocation 1881"
 func TestParseSallocResponseWithExpectedPending(t *testing.T) {
 	str := "salloc: Pending job allocation 1881\n"
-	chResult := make(chan string, 1)
+	chResult := make(chan struct {
+		jobID   string
+		granted bool
+	}, 1)
 	chOut := make(chan bool, 1)
 	chErr := make(chan error)
 
+	var res struct {
+		jobID   string
+		granted bool
+	}
+
 	go parseSallocResponse(strings.NewReader(str), chResult, chOut, chErr)
 	select {
-	case jobID := <-chResult:
-		require.Equal(t, "1881", jobID)
+	case res = <-chResult:
+		require.Equal(t, "1881", res.jobID)
+		require.Equal(t, false, res.granted)
 		return
 	case err := <-chErr:
 		require.Fail(t, "unexpected error", err.Error())
@@ -108,15 +119,23 @@ func TestParseSallocResponseWithExpectedPending(t *testing.T) {
 // We test parsing the stdout line: "salloc: Granted job allocation 1881"
 func TestParseSallocResponseWithExpectedGranted(t *testing.T) {
 	str := "salloc: Granted job allocation 1881\n"
-	chResult := make(chan string, 1)
+	chResult := make(chan struct {
+		jobID   string
+		granted bool
+	}, 1)
 	chOut := make(chan bool, 1)
 	chErr := make(chan error)
 
+	var res struct {
+		jobID   string
+		granted bool
+	}
+
 	go parseSallocResponse(strings.NewReader(str), chResult, chOut, chErr)
 	select {
-	case jobID := <-chResult:
-		fmt.Println("jobID = " + jobID)
-		require.Equal(t, "1881", jobID)
+	case res = <-chResult:
+		require.Equal(t, "1881", res.jobID)
+		require.Equal(t, true, res.granted)
 		return
 	case err := <-chErr:
 		require.Fail(t, "unexpected error", err.Error())
@@ -132,14 +151,17 @@ func TestParseSallocResponseWithExpectedGranted(t *testing.T) {
 // "salloc: error: Job submit/allocate failed: Requested node configuration is not available"
 func TestParseSallocResponseWithExpectedRevokedAllocation(t *testing.T) {
 	str := "salloc: Job allocation 1882 has been revoked.\nsalloc: error: CPU count per node can not be satisfied\nsalloc: error: Job submit/allocate failed: Requested node configuration is not available"
-	chResult := make(chan string, 1)
+	chResult := make(chan struct {
+		jobID   string
+		granted bool
+	}, 1)
 	chOut := make(chan bool, 1)
 	chErr := make(chan error)
 
 	go parseSallocResponse(strings.NewReader(str), chResult, chOut, chErr)
 	select {
-	case jobID := <-chResult:
-		require.Equal(t, "1881", jobID)
+	case <-chResult:
+		require.Fail(t, "No expected response")
 		return
 	case err := <-chErr:
 		require.Error(t, err)
