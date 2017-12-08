@@ -237,9 +237,32 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 		}
 	}()
 
+	// Listen to potential cancellation in case of pending allocation
+	ctxAlloc, cancelAlloc := context.WithCancel(ctx)
+	chEnd := make(chan bool)
+	go func() {
+		select {
+		case <-ctx.Done():
+			if &result != nil && result.jobID != "" {
+				log.Debug("Cancellation message has been sent: the pending job allocation has to be removed")
+				if err := cancelJobID(result.jobID, e.client); err != nil {
+					log.Printf("[Warning] an error occurred during cancelling jobID:%q", result.jobID)
+					return
+				}
+				// Drain the related jobID compute attribute
+				deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", "")
+				// Cancel salloc comand
+				cancelAlloc()
+			}
+			return
+		case <-chEnd:
+			return
+		}
+	}()
+
 	// Run the salloc command
 	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag))
-	err = sessionWrapper.RunCommand(ctx, sallocCmd)
+	err = sessionWrapper.RunCommand(ctxAlloc, sallocCmd)
 	if err != nil {
 		return errors.Wrap(err, "Failed to allocate Slurm resource")
 	}
@@ -282,6 +305,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 		return err
 	}
 
+	chEnd <- true
 	return nil
 }
 
@@ -296,10 +320,8 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV,
 		if !found {
 			return errors.Errorf("Failed to retrieve Slurm job ID for node name:%s, instance name:%q:", nodeName, nodeAlloc.instanceName)
 		}
-		scancelCmd := fmt.Sprintf("scancel %s", jobID)
-		sCancelOutput, err := e.client.RunCommand(scancelCmd)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to cancel Slurm job: %s:", sCancelOutput)
+		if err := cancelJobID(jobID, e.client); err != nil {
+			return err
 		}
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
 

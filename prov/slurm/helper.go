@@ -129,3 +129,12 @@ func parseJobID(str string, regexp *regexp.Regexp) (string, error) {
 	}
 	return "", errors.Errorf("Unable to parse std:%q for retrieving jobID", str)
 }
+
+func cancelJobID(jobID string, client *sshutil.SSHClient) error {
+	scancelCmd := fmt.Sprintf("scancel %s", jobID)
+	sCancelOutput, err := client.RunCommand(scancelCmd)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to cancel Slurm job: %s:", sCancelOutput)
+	}
+	return nil
+}
