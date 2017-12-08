@@ -126,10 +126,6 @@ func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout tim
 			deploymentID = depIDAndTimestamp[0]
 			eventTimestamp = depIDAndTimestamp[1]
 		}
-		//log.Debugf("DepId : %s", deploymentID)
-		//log.Debugf("Timestamp : %s", eventTimestamp)
-		//log.Debugf("kvp value : %s", string(kvp.Value))
-		//log.Debugf("Event type : %s", StatusUpdateType(kvp.Flags))
 
 		values := strings.Split(string(kvp.Value), "\n")
 		eventType := StatusUpdateType(kvp.Flags)

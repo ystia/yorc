@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/fatih/color"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/rest"
@@ -26,9 +27,12 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var deploymentID string
 			if len(args) == 1 {
+				// A deploymentID is provided
 				deploymentID = args[0]
-			} else {
+			} else if len(args) == 0 {
 				fmt.Println("No deployment id provided, events for all deployments will be returned")
+			} else {
+				return errors.Errorf("Expecting one deployment id or none (got %d parameters)", len(args))
 			}
 
 			client, err := getClient()
@@ -87,6 +91,7 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
+		defer response.Body.Close()
 		if err != nil {
 			errExit(err)
 		}
