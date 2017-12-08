@@ -315,21 +315,21 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV,
 	found, jobID, err := deployments.GetInstanceAttribute(kv, deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
 	if jobID != "" {
 		if err != nil {
-			return errors.Wrapf(err, "Failed to retrieve Slurm job ID for node name:%s, instance name:%q: %q:", nodeName, nodeAlloc.instanceName)
+			return errors.Wrapf(err, "Failed to retrieve Slurm job ID for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 		}
 		if !found {
-			return errors.Errorf("Failed to retrieve Slurm job ID for node name:%s, instance name:%q:", nodeName, nodeAlloc.instanceName)
+			log.Printf("[Warning]: No job ID found for node name:%q, instance name:%q. We assume it has already been deleted", nodeName, nodeAlloc.instanceName)
+		} else {
+			if err := cancelJobID(jobID, e.client); err != nil {
+				return err
+			}
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
 		}
-		if err := cancelJobID(jobID, e.client); err != nil {
-			return err
-		}
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
-
-		// Update the instance state
-		err = deployments.SetInstanceState(kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateDeleted)
-		if err != nil {
-			return err
-		}
+	}
+	// Update the instance state
+	err = deployments.SetInstanceState(kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateDeleted)
+	if err != nil {
+		return err
 	}
 	return nil
 }
