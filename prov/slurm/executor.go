@@ -33,6 +33,31 @@ func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
 }
 
+func (e *defaultExecutor) checkInfraConfig(cfg config.Configuration) error {
+	_, exist := cfg.Infrastructures[infrastructureName]
+	if !exist {
+		return errors.New("no slurm infrastructure configuration found")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("user_name"), "") == "" {
+		return errors.New("slurm infrastructure user_name is not set")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "") == "" {
+		return errors.New("slurm infrastructure password is not set")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("url"), "") == "" {
+		return errors.New("slurm infrastructure url is not set")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("port"), "") == "" {
+		return errors.New("slurm infrastructure port is not set")
+	}
+
+	return nil
+}
+
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	consulClient, err := cfg.GetConsulClient()
 	if err != nil {
@@ -41,6 +66,21 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	kv := consulClient.KV()
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
+		return err
+	}
+
+	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(kv, taskID, "workflowName")
+	logOptFields := events.LogOptionalFields{
+		events.NodeID:        nodeName,
+		events.WorkFlowID:    wfName,
+		events.InterfaceName: "delegate",
+		events.OperationName: delegateOperation,
+	}
+
+	// Check slurm configuration
+	if err = e.checkInfraConfig(cfg); err != nil {
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -54,22 +94,15 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 
 	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
 	if err != nil {
-		return errors.Errorf("Invalid Slurm port configuration:%d", port)
+		wrappErr := errors.Wrap(err, "slurm configuration port is not a valid port")
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(wrappErr.Error())
+		return wrappErr
 	}
 
 	e.client = &sshutil.SSHClient{
 		Config: SSHConfig,
 		Host:   cfg.Infrastructures[infrastructureName].GetString("url"),
 		Port:   port,
-	}
-
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(kv, taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.NodeID:        nodeName,
-		events.WorkFlowID:    wfName,
-		events.InterfaceName: "delegate",
-		events.OperationName: delegateOperation,
 	}
 
 	operation := strings.ToLower(delegateOperation)
