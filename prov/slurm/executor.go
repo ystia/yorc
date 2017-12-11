@@ -3,6 +3,9 @@ package slurm
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
@@ -15,8 +18,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
-	"strconv"
-	"strings"
 )
 
 type defaultExecutor struct {
@@ -202,13 +203,15 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 	}
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Allocating Job ID:%q", jobID))
 
-	// run squeue cmd to get slurm node name
-	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N\"", nodeAlloc.jobName, jobID)
-	slurmNodeName, err := e.client.RunCommand(squeueCmd)
+	// run squeue cmd to get slurm node name & partition
+	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N,%%P\"", nodeAlloc.jobName, jobID)
+	squeueOutput, err := e.client.RunCommand(squeueCmd)
+	split = strings.Split(squeueOutput, " ")
+	slurmNodeName := strings.Trim(split[0], "\" \t\n")
+	slurmPartition := strings.Trim(split[1], "\" \t\n")
 	if err != nil {
 		return errors.Wrapf(err, "Failed to retrieve Slurm node name: %q:", slurmNodeName)
 	}
-	slurmNodeName = strings.Trim(slurmNodeName, "\" \t\n")
 	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", slurmNodeName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
@@ -220,6 +223,10 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, nodeAlloc *n
 	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "node_name", slurmNodeName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (node_name) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
+	}
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "partition", slurmPartition)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set capability attribute (partition) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
 
 	// Get cuda_visible_device attribute
