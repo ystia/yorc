@@ -104,7 +104,7 @@ func parsing(t *testing.T) {
 	assert.Len(t, installWF.Steps, 1)
 	assert.Contains(t, installWF.Steps, "Compute_install")
 	computeInstallStep := installWF.Steps["Compute_install"]
-	assert.Equal(t, "Compute", computeInstallStep.Node)
+	assert.Equal(t, "Compute", computeInstallStep.Target)
 	assert.Nil(t, computeInstallStep.OnSuccess)
 	assert.Equal(t, "", computeInstallStep.Activity.CallOperation)
 	assert.Equal(t, "", computeInstallStep.Activity.SetState)
@@ -114,7 +114,7 @@ func parsing(t *testing.T) {
 	assert.Len(t, installWF.Steps, 1)
 	assert.Contains(t, uninstallWF.Steps, "Compute_uninstall")
 	computeUninstallStep := uninstallWF.Steps["Compute_uninstall"]
-	assert.Equal(t, "Compute", computeUninstallStep.Node)
+	assert.Equal(t, "Compute", computeUninstallStep.Target)
 	assert.Nil(t, computeUninstallStep.OnSuccess)
 	assert.Equal(t, "", computeUninstallStep.Activity.CallOperation)
 	assert.Equal(t, "", computeUninstallStep.Activity.SetState)

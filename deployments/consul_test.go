@@ -43,5 +43,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testIssueGetEmptyPropRel", func(t *testing.T) {
 			testIssueGetEmptyPropRel(t, kv)
 		})
+		t.Run("testRelationshipWorkflow", func(t *testing.T) {
+			testRelationshipWorkflow(t, kv)
+		})
 	})
 }
