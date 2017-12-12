@@ -179,6 +179,17 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		taskType = tasks.UnDeploy
 	}
 
+	if taskType == tasks.UnDeploy {
+		status, err := deployments.GetDeploymentStatus(s.consulClient.KV(), id)
+		if err != nil {
+			log.Panicf("%v", err)
+		}
+		if status == deployments.UNDEPLOYED {
+			writeError(w, r, newBadRequestMessage("Deployment already undeployed"))
+			return
+		}
+	}
+
 	if taskID, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
 			writeError(w, r, newBadRequestError(err))

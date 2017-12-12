@@ -1,0 +1,62 @@
+tosca_definitions_version: alien_dsl_1_4_0
+
+metadata:
+  template_name: SimpleCompute-Environment
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - path: <janus-slurm-types.yml>
+
+topology_template:
+  node_templates:
+    Compute:
+      type: janus.nodes.slurm.Compute
+      properties:
+        partition: debug
+        user: root
+        gres: gpu:1
+        job_name: xyz
+      capabilities:
+        host:
+          properties:
+            num_cpus: 4
+            mem_size: "2 GB"
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          node: Compute
+          activity:
+            delegate: install
+    uninstall:
+      steps:
+        Compute_uninstall:
+          node: Compute
+          activity:
+            delegate: uninstall
+    start:
+      steps:
+        Compute_start:
+          node: Compute
+          activity:
+            delegate: start
+    stop:
+      steps:
+        Compute_stop:
+          node: Compute
+          activity:
+            delegate: stop
