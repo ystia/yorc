@@ -11,9 +11,11 @@ type Workflow struct {
 //
 // Currently Workflows are not part of the TOSCA specification
 type Step struct {
-	Node      string   `yaml:"node" json:"node"`
-	Activity  Activity `yaml:"activity" json:"activity"`
-	OnSuccess []string `yaml:"on-success,omitempty" json:"on_success,omitempty"`
+	Node          string   `yaml:"node" json:"node"`
+	Target        string   `yaml:"target" json:"target"`
+	Activity      Activity `yaml:"activity" json:"activity"`
+	OnSuccess     []string `yaml:"on-success,omitempty" json:"on_success,omitempty"`
+	OperationHost string   `yaml:"operation_host,omitempty" json:"operation_host,omitempty"`
 }
 
 // An Activity is the representation of a TOSCA Workflow Step Activity

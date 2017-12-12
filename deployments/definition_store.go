@@ -698,7 +698,8 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
 			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
-			consulStore.StoreConsulKeyAsString(stepPrefix+"/node", step.Node)
+			consulStore.StoreConsulKeyAsString(stepPrefix+"/target", step.Target)
+			consulStore.StoreConsulKeyAsString(stepPrefix+"/operation_host", step.OperationHost)
 			if step.Activity.CallOperation != "" {
 				// Preserve case for requirement and target node name in case of relationship operation
 				opSlice := strings.SplitN(step.Activity.CallOperation, "/", 2)
