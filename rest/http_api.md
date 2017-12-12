@@ -10,7 +10,7 @@ Adding the 'pretty' url parameter to your requests allow to generate an indented
 ### Submit a CSAR to deploy <a name="submit-csar"></a>
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
 
-There is two ways to submit a new deployment, you can let Janus generate a unique deployment ID or you can specify it
+There are two ways to submit a new deployment, you can let Janus generate a unique deployment ID or you can specify it.
 
 #### Auto-generated deployment ID
 In this case you should use a `POST` method.
@@ -19,7 +19,7 @@ In this case you should use a `POST` method.
 
 
 #### Customized deployment ID
-In this case you should use a `PUT` method. There is some constraints on submitting a deployment with a given ID:
+In this case you should use a `PUT` method. There are some constraints on submitting a deployment with a given ID:
   * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
   * This ID should not already be in used (otherwise a `409 Conflict` error is returned)
 
@@ -256,7 +256,7 @@ Content-Type: application/json
 
 ### Get the value of an attribute for a given node instance <a name="attribute-value"></a>
 
-Retrieve the value an attributes for this instance.
+Retrieve the value of an attribute for this instance.
  
 'Accept' header should be set to 'application/json'.
 
@@ -278,20 +278,30 @@ Content-Type: application/json
 ### List deployment events <a name="list-events"></a>
 
 Retrieve a list of events. 'Accept' header should be set to 'application/json'.
-This endpoint supports long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
+
+There are two available endpoints, one allowing to retrieve the events for a given deployment, the other allowing to retrieve the events for all the known deployments.
+
+These endpoints support long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
 `wait` allows to specify a polling maximum duration, this is limited to 10 minutes. If not set, the wait time defaults to 5 minutes.
 This value can be specified in the form of "10s" or "5m" (i.e., 10 seconds or 5 minutes, respectively). `index` indicates that we are
 polling for events newer that this index. A _0_ value will always returns with all currently known event (possibly none if none were
 already published), a _1_ value will wait for at least one event.
 
+#### List deployment events concerning a given deployment
+
 `GET    /deployments/<deployment_id>/events?index=1&wait=5m`
 
-A critical note is that the return of this endpoint is no guarantee of new events. It is possible that the timeout was reached before
+#### List all the deployment events
+
+`GET    /events?index=1&wait=5m`
+
+#### Response
+
+A critical note is that the return of these endpoints has no guarantee of new events. It is possible that the timeout was reached before
 a new event was published.
 
 Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
 
-**Response**
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -320,6 +330,10 @@ You can retrieve the latest events `index` by using an HTTP `HEAD` request.
 
 `HEAD    /deployments/<deployment_id>/events`
 
+or
+
+`HEAD    /events`
+
 The latest index is returned as an HTTP Header called `X-Janus-Index`.
 
 **Response**
@@ -331,10 +345,13 @@ HTTP/1.1 200 OK
 X-Janus-Index: 1812
 ```
 
-### Get logs of a deployment <a name="list-logs"></a>
+### Get deployment logs <a name="list-logs"></a>
 
-Retrieve a list of logs. 'Accept' header should be set to 'application/json'.
-This endpoint supports long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
+Retrieve a list of logs concerning deployments. 'Accept' header should be set to 'application/json'.
+
+There are two available endpoints, one allowing to retrieve logs for a given deployment, the other allowing to retrieve the logs for all the known deployments.
+
+These endpoints supports long polling requests. Long polling is controlled by the `index` and `wait` query parameters.
 `wait` allows to specify a polling maximum duration, this is limited to 10 minutes. If not set, the wait time defaults to 5 minutes.
 This value can be specified in the form of "10s" or "5m" (i.e., 10 seconds or 5 minutes, respectively). `index` indicates that we are
 polling for events newer that this index. A _0_ value will always returns with all currently known logs (possibly none if none were
@@ -345,11 +362,18 @@ On optional `filter` parameter allows to filters logs by type. Currently availab
 `infrastructure`  for infrastructure provisioning logs and `software` for software provisioning logs. This parameter accepts a coma 
 separated list of values.  
 
+#### Get logs concerning a given deployment
+
 `GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]`
+
+
+#### Get all the logs
+
+`GET    /logs?index=1&wait=5m&filter=[software, engine, infrastructure]`
 
 Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
 
-**Response**
+#### Response ####
 
 ```
 HTTP/1.1 200 OK
@@ -372,6 +396,10 @@ X-Janus-Index: 1781
 You can retrieve the latest logs `index` by using an HTTP `HEAD` request.
 
 `HEAD    /deployments/<deployment_id>/logs`
+
+or
+
+`HEAD    /logs`
 
 The latest index is returned as an HTTP Header called `X-Janus-Index`.
 
