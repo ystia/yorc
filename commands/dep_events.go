@@ -27,7 +27,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var deploymentID string
 			if len(args) == 1 {
-				// A deploymentID is provided
+				// One deploymentID is provided
 				deploymentID = args[0]
 			} else if len(args) == 0 {
 				fmt.Println("No deployment id provided, events for all deployments will be returned")
@@ -91,7 +91,6 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
-		defer response.Body.Close()
 		if err != nil {
 			errExit(err)
 		}
@@ -140,6 +139,8 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 			}
 
 		}
+
+		response.Body.Close()
 
 		if stop {
 			return

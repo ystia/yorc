@@ -119,6 +119,9 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 				fmt.Printf("%s\n", format(log))
 			}
 		}
+
+		response.Body.Close()
+
 		if stop {
 			return
 		}

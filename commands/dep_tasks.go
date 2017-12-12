@@ -10,10 +10,11 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 
+	"net/http"
+
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"net/http"
 )
 
 func init() {
@@ -43,6 +44,7 @@ var tasksCmd = &cobra.Command{
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
+		defer response.Body.Close()
 		if err != nil {
 			errExit(err)
 		}

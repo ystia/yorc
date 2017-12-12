@@ -110,16 +110,17 @@ func submitCSAR(csarZip []byte, client *janusClient, deploymentID string) (strin
 		return "", err
 	}
 	request.Header.Add("Content-Type", "application/zip")
-	r, err := client.Do(request)
+	response, err := client.Do(request)
+	defer response.Body.Close()
 	if err != nil {
 		return "", err
 	}
-	if r.StatusCode != 201 {
+	if response.StatusCode != 201 {
 		// Try to get the reason
-		printErrors(r.Body)
-		return "", errors.Errorf("POST failed: Expecting HTTP Status code 201 got %d, reason %q", r.StatusCode, r.Status)
+		printErrors(response.Body)
+		return "", errors.Errorf("POST failed: Expecting HTTP Status code 201 got %d, reason %q", response.StatusCode, response.Status)
 	}
-	if location := r.Header.Get("Location"); location != "" {
+	if location := response.Header.Get("Location"); location != "" {
 		return location, nil
 	}
 	return "", errors.New("No \"Location\" header returned in Janus response")
