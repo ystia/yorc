@@ -34,9 +34,11 @@ type serverExtraParams struct {
 	viperNames  []string
 	subSplit    int
 	storeFn     serverExtraParamStoreFn
+	readConfFn  serverExtraParamReadConf
 }
 
 type serverExtraParamStoreFn func(cfg *config.Configuration, param string)
+type serverExtraParamReadConf func(cfg *config.Configuration)
 
 var serverCmd = &cobra.Command{
 	Use:          "server",
@@ -60,6 +62,7 @@ func serverInitExtraFlags(args []string) {
 			viperNames:  make([]string, 0),
 			subSplit:    1,
 			storeFn:     addServerExtraInfraParams,
+			readConfFn:  readInfraViperConfig,
 		},
 		&serverExtraParams{
 			argPrefix:   "vault_",
@@ -67,6 +70,7 @@ func serverInitExtraFlags(args []string) {
 			viperPrefix: "vault.",
 			viperNames:  make([]string, 0),
 			storeFn:     addServerExtraVaultParam,
+			readConfFn:  readVaultViperConfig,
 		},
 	}
 
@@ -284,19 +288,11 @@ func getConfig() config.Configuration {
 	configuration.KeepOperationRemotePath = viper.GetBool("keep_operation_remote_path")
 	configuration.WfStepGracefulTerminationTimeout = viper.GetDuration("wf_step_graceful_termination_timeout")
 
-	configuration.Infrastructures = make(map[string]config.GenericConfigMap)
-
-	infras := viper.GetStringMap("infrastructures")
-	for infraName, infraConf := range infras {
-		infraConfMap, ok := infraConf.(map[string]interface{})
-		if !ok {
-			log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
-		}
-
-		configuration.Infrastructures[infraName] = infraConfMap
-	}
+	configuration.Infrastructures = make(map[string]*config.DynamicMap)
+	configuration.Vault = config.NewDynamicMap()
 
 	for _, sep := range resolvedServerExtraParams {
+		sep.readConfFn(&configuration)
 		for _, infraParam := range sep.viperNames {
 			sep.storeFn(&configuration, infraParam)
 		}
@@ -311,25 +307,45 @@ func getConfig() config.Configuration {
 	return configuration
 }
 
+func readInfraViperConfig(cfg *config.Configuration) {
+	infras := viper.GetStringMap("infrastructures")
+	for infraName, infraConf := range infras {
+		infraConfMap, ok := infraConf.(map[string]interface{})
+		if !ok {
+			log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
+		}
+		if cfg.Infrastructures[infraName] == nil {
+			cfg.Infrastructures[infraName] = config.NewDynamicMap()
+		}
+		for k, v := range infraConfMap {
+			cfg.Infrastructures[infraName].Set(k, v)
+		}
+	}
+}
+
+func readVaultViperConfig(cfg *config.Configuration) {
+	vaultCfg := viper.GetStringMap("vault")
+	for k, v := range vaultCfg {
+		cfg.Vault.Set(k, v)
+	}
+}
+
 func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
 	if cfg.Infrastructures == nil {
-		cfg.Infrastructures = make(map[string]config.GenericConfigMap)
+		cfg.Infrastructures = make(map[string]*config.DynamicMap)
 	}
 	paramParts := strings.Split(infraParam, ".")
 	value := viper.Get(infraParam)
 	params, ok := cfg.Infrastructures[paramParts[1]]
 	if !ok {
-		params = make(config.GenericConfigMap)
+		params = config.NewDynamicMap()
 		cfg.Infrastructures[paramParts[1]] = params
 	}
-	params[paramParts[2]] = value
+	params.Set(paramParts[2], value)
 }
 
 func addServerExtraVaultParam(cfg *config.Configuration, vaultParam string) {
-	if cfg.Vault == nil {
-		cfg.Vault = make(config.GenericConfigMap)
-	}
 	paramParts := strings.Split(vaultParam, ".")
 	value := viper.Get(vaultParam)
-	cfg.Vault[paramParts[1]] = value
+	cfg.Vault.Set(paramParts[1], value)
 }

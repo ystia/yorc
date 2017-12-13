@@ -31,7 +31,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	fm := template.FuncMap{
 		"secret": vaultClient.GetSecret,
 	}
-	configuration.ResolveDynamicConfiguration(fm)
+	config.DefaultConfigTemplateResolver.SetTemplatesFunctions(fm)
 
 	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()

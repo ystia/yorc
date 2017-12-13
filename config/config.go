@@ -3,6 +3,7 @@ package config
 
 import (
 	"bytes"
+	"log"
 	"strings"
 	"text/template"
 	"time"
@@ -63,8 +64,8 @@ type Configuration struct {
 	ConsulSSLVerify                  bool
 	ConsulPubMaxRoutines             int
 	Telemetry                        Telemetry
-	Infrastructures                  map[string]GenericConfigMap
-	Vault                            GenericConfigMap
+	Infrastructures                  map[string]*DynamicMap
+	Vault                            *DynamicMap
 	WfStepGracefulTerminationTimeout time.Duration
 }
 
@@ -78,45 +79,63 @@ type Telemetry struct {
 	DisableGoRuntimeMetrics bool
 }
 
-// ResolveDynamicConfiguration resolves configuration parameters defined as
-// Go templates.
-func (c Configuration) ResolveDynamicConfiguration(fm template.FuncMap) {
-	for _, gcm := range c.Infrastructures {
-		gcm.resolveTemplates(fm)
-	}
+// NewDynamicMap creates a DynamicMap instance
+func NewDynamicMap() *DynamicMap {
+
+	return &DynamicMap{Map: make(map[string]interface{})}
 }
 
-// GenericConfigMap allows to store configuration parameters that are not known in advance.
+// NewDynamicMapWithPayload creates a DynamicMap instance and initialize it with a given map
+func NewDynamicMapWithPayload(m map[string]interface{}) *DynamicMap {
+	return &DynamicMap{Map: m}
+}
+
+// DynamicMap allows to store configuration parameters that are not known in advance.
 // This is particularly useful when configration parameters may be defined in a plugin such for infrastructures.
 //
 // It has methods to automatically cast data to the desired type.
-type GenericConfigMap map[string]interface{}
+type DynamicMap struct {
+	Map map[string]interface{}
+}
+
+// Keys returns registered keys in the dynamic map
+func (dm *DynamicMap) Keys() []string {
+	keys := make([]string, 0, len(dm.Map))
+	for k := range dm.Map {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// Set sets a value for a given key
+func (dm *DynamicMap) Set(name string, value interface{}) {
+	dm.Map[name] = value
+}
 
 // IsSet checks if a given configuration key is defined
-func (gcm GenericConfigMap) IsSet(name string) bool {
-	_, ok := gcm[name]
+func (dm *DynamicMap) IsSet(name string) bool {
+	_, ok := dm.Map[name]
 	return ok
 }
 
 // Get returns the raw value of a given configuration key
-func (gcm GenericConfigMap) Get(name string) interface{} {
-	return gcm[name]
+func (dm *DynamicMap) Get(name string) interface{} {
+	return DefaultConfigTemplateResolver.ResolveValueWithTemplates(name, dm.Map[name])
 }
 
 // GetString returns the value of the given key casted into a string.
 // An empty string is returned if not found.
-func (gcm GenericConfigMap) GetString(name string) string {
-	return cast.ToString(gcm[name])
+func (dm *DynamicMap) GetString(name string) string {
+	return cast.ToString(dm.Get(name))
 }
 
 // GetStringOrDefault returns the value of the given key casted into a string.
 // The given default value is returned if not found or not a valid string.
-func (gcm GenericConfigMap) GetStringOrDefault(name, defaultValue string) string {
-	v, ok := gcm[name]
-	if !ok {
+func (dm *DynamicMap) GetStringOrDefault(name, defaultValue string) string {
+	if !dm.IsSet(name) {
 		return defaultValue
 	}
-	if res, err := cast.ToStringE(v); err == nil {
+	if res, err := cast.ToStringE(dm.Get(name)); err == nil {
 		return res
 	}
 	return defaultValue
@@ -124,54 +143,77 @@ func (gcm GenericConfigMap) GetStringOrDefault(name, defaultValue string) string
 
 // GetBool returns the value of the given key casted into a boolean.
 // False is returned if not found.
-func (gcm GenericConfigMap) GetBool(name string) bool {
-	return cast.ToBool(gcm[name])
+func (dm *DynamicMap) GetBool(name string) bool {
+	return cast.ToBool(dm.Get(name))
 }
 
 // GetStringSlice returns the value of the given key casted into a slice of string.
 // If the corresponding raw value is a string, it is  splited on comas.
 // A nil or empty slice is returned if not found.
-func (gcm GenericConfigMap) GetStringSlice(name string) []string {
-	val := gcm[name]
+func (dm *DynamicMap) GetStringSlice(name string) []string {
+	val := dm.Get(name)
 	switch v := val.(type) {
 	case string:
 		return strings.Split(v, ",")
 	default:
-		return cast.ToStringSlice(gcm[name])
+		return cast.ToStringSlice(val)
 	}
 }
 
 // GetInt returns the value of the given key casted into an int.
 // 0 is returned if not found.
-func (gcm GenericConfigMap) GetInt(name string) int {
-	return cast.ToInt(gcm[name])
+func (dm *DynamicMap) GetInt(name string) int {
+	return cast.ToInt(dm.Get(name))
 }
 
 // GetDuration returns the value of the given key casted into a Duration.
 // A 0 duration is returned if not found.
-func (gcm GenericConfigMap) GetDuration(name string) time.Duration {
-	return cast.ToDuration(gcm[name])
+func (dm *DynamicMap) GetDuration(name string) time.Duration {
+	return cast.ToDuration(dm.Get(name))
 }
 
-func (gcm GenericConfigMap) resolveTemplates(fm template.FuncMap) {
-	// TODO here we resolve data in oneshot for all
-	// but it may be more intersting to resolve it only when needed
-	// as a secret may expire or be renewed.
-	for key, value := range gcm {
-		s, err := cast.ToStringE(value)
-		if err != nil {
-			continue
-		}
+// DefaultConfigTemplateResolver is the default resolver for configuration templates
+var DefaultConfigTemplateResolver TemplateResolver = &configTemplateResolver{}
 
-		t, err := template.New("GenericConfigMap").Funcs(fm).Parse(s)
+// TemplateResolver allows to resolve templates in DynamicMap
+type TemplateResolver interface {
+	// SetTemplatesFunctions allows to define custom template functions
+	SetTemplatesFunctions(fm template.FuncMap)
+	// ResolveValueWithTemplates resolves a template
+	ResolveValueWithTemplates(key string, value interface{}) interface{}
+}
+
+type configTemplateResolver struct {
+	templateFunctions template.FuncMap
+}
+
+func (ctr *configTemplateResolver) SetTemplatesFunctions(fm template.FuncMap) {
+	ctr.templateFunctions = fm
+}
+
+func (ctr *configTemplateResolver) ResolveValueWithTemplates(key string, value interface{}) interface{} {
+	if value == nil {
+		return nil
+	}
+	// templates should be strings
+	s, err := cast.ToStringE(value)
+	if err != nil {
+		return value
+	}
+	// templates should contains delimiters
+	if strings.Contains(s, "{{") && strings.Contains(s, "}}") {
+		t, err := template.New("GenericConfigMap").Funcs(ctr.templateFunctions).Parse(s)
 		if err != nil {
-			continue
+			log.Printf("[Warning] template parsing failed for key: %q value: %q: %v", key, s, err)
+			return value
 		}
 		b := bytes.Buffer{}
 		err = t.Execute(&b, nil)
 		if err != nil {
-			continue
+			log.Printf("[Warning] template execution failed for key: %q value: %q: %v", key, s, err)
+			return value
 		}
-		gcm[key] = b.String()
+		return b.String()
 	}
+	return value
 }
