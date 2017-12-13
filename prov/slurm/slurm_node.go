@@ -18,7 +18,7 @@ func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV,
 	if nodeType != "janus.nodes.slurm.Compute" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
-	node := nodeAllocation{instanceName: instanceName}
+	node := &nodeAllocation{instanceName: instanceName}
 
 	// Set the node CPU and memory property from Tosca Compute 'host' capability property
 	_, cpu, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "num_cpus")

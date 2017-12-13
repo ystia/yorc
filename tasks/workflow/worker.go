@@ -412,7 +412,7 @@ func (w worker) monitorTaskForCancellation(ctx context.Context, cancelFunc conte
 
 			if err == nil && kvp != nil {
 				if strings.ToLower(string(kvp.Value)) == "true" {
-					log.Debugln("[TASK MONITOR] Task cancelation requested.")
+					log.Debugln("[TASK MONITOR] Task cancellation requested.")
 					t.WithStatus(tasks.CANCELED)
 					cancelFunc()
 					return

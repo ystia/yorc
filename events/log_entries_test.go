@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-type mockTimeProvider struct{}
-
 func TestGenerateValue(t *testing.T) {
 	t.Parallel()
 	logEntry := WithOptionalFields(LogOptionalFields{

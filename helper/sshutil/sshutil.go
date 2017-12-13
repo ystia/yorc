@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 	"io"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
@@ -82,9 +83,25 @@ func (client *SSHClient) newSession() (*ssh.Session, error) {
 }
 
 // RunCommand allows to run a specified command from a session wrapper in order to handle stdout/stderr during long synchronous commands
-func (sw *SSHSessionWrapper) RunCommand(cmd string) error {
-	defer sw.Session.Close()
-	log.Debugf("[SSHSession] %q", cmd)
+func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
+	chClosed := make(chan bool)
+	defer func() {
+		sw.Session.Close()
+		chClosed <- true
+	}()
+	log.Debugf("[SSHSession] running command: %q", cmd)
+	go func() {
+		select {
+		case <-ctx.Done():
+			log.Debug("[SSHSession] Cancellation has been sent: a sigkill signal is sent to remote process")
+			sw.Session.Signal(ssh.SIGKILL)
+			sw.Session.Close()
+			return
+		case <-chClosed:
+			return
+		}
+	}()
+
 	err := sw.Session.Run(cmd)
 	return err
 }

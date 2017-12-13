@@ -235,15 +235,22 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
-			select {
-			// Temporize to allow current step termination before cancelling context and put step in error
-			case <-time.After(cfg.WfStepGracefulTerminationTimeout):
+			if s.t.status != tasks.CANCELED {
+				// Temporize to allow current step termination before cancelling context and put step in error
+				log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
+				select {
+				case <-time.After(cfg.WfStepGracefulTerminationTimeout):
+					cancelWf()
+					log.Printf("Step %q not yet finished: we set it on error", s.Name)
+					s.setStatus(tasks.TaskStepStatusERROR)
+					return
+				case <-waitDoneCh:
+					return
+				}
+			} else {
+				// We immediately cancel the step
 				cancelWf()
-				log.Printf("Step %q not yet finished: we set it on error", s.Name)
-				s.setStatus(tasks.TaskStepStatusERROR)
-				return
-			case <-waitDoneCh:
+				s.setStatus(tasks.TaskStepStatusCANCELED)
 				return
 			}
 		case <-waitDoneCh:

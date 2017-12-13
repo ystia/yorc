@@ -46,5 +46,8 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 		t.Run("TestGetLogs", func(t *testing.T) {
 			testconsulGetLogs(t, kv)
 		})
+		t.Run("TestRegisterLogsInConsul", func(t *testing.T) {
+			testRegisterLogsInConsul(t, kv)
+		})
 	})
 }
