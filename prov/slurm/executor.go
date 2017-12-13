@@ -26,6 +26,11 @@ type defaultExecutor struct {
 	client    *sshutil.SSHClient
 }
 
+type allocationResponse struct {
+	jobID   string
+	granted bool
+}
+
 const reSallocPending = `^salloc: Pending job allocation (\d+)`
 const reSallocGranted = `^salloc: Granted job allocation (\d+)`
 
@@ -154,12 +159,11 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 
 func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Creating the slurm infrastructure")
-	g, ctx := errgroup.WithContext(ctx)
-	chAllocationErr := make(chan error)
+	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.createNodeAllocation(ctx, kv, comp, deploymentID, nodeName, chAllocationErr, logOptFields)
+				return e.createNodeAllocation(ctx, kv, comp, deploymentID, nodeName, logOptFields)
 			})
 		}(compute)
 	}
@@ -171,22 +175,13 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 		return err
 	}
 
-	// Handle specific slurm job allocation errors
-	select {
-	case err := <-chAllocationErr:
-		err = errors.Wrapf(err, "Failed to allocate slurm job for deploymentID:%q, node name:%s", deploymentID, nodeName)
-		log.Debugf("%+v", err)
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
-		return err
-	default:
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Successfully creating the slurm infrastructure")
-		return nil
-	}
+	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Successfully creating the slurm infrastructure")
+	return nil
 }
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Destroying the slurm infrastructure")
-	g, ctx := errgroup.WithContext(ctx)
+	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(comp *nodeAllocation) {
 			g.Go(func() error {
@@ -206,7 +201,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	return nil
 }
 
-func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, chAllocationErr chan error, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
 	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag string
@@ -231,55 +226,46 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 		return errors.Wrap(err, "Failed to get an SSH session wrapper")
 	}
 
-	chResult := make(chan struct {
-		jobID   string
-		granted bool
-	}, 1)
-	var result struct {
-		jobID   string
-		granted bool
-	}
-	chOut := make(chan bool, 1)
+	// We keep these both two channels open as 2 routines are concurrently and potentially able to send messages on them and we only get the first sent message. They will be garbage collected.
 	chErr := make(chan error)
-	go parseSallocResponse(sessionWrapper.Stderr, chResult, chOut, chErr)
-	go parseSallocResponse(sessionWrapper.Stdout, chResult, chOut, chErr)
+	chAllocResp := make(chan allocationResponse)
+	var allocResponse allocationResponse
+	go parseSallocResponse(sessionWrapper.Stderr, chAllocResp, chErr)
+	go parseSallocResponse(sessionWrapper.Stdout, chAllocResp, chErr)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		select {
-		case result = <-chResult:
+		case allocResponse = <-chAllocResp:
 			var mes string
-			deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", result.jobID)
-			if result.granted {
-				mes = fmt.Sprintf("salloc command returned a GRANTED job allocation notification with job ID:%q", result.jobID)
+			deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "job_id", allocResponse.jobID)
+			if allocResponse.granted {
+				mes = fmt.Sprintf("salloc command returned a GRANTED job allocation notification with job ID:%q", allocResponse.jobID)
 			} else {
-				mes = fmt.Sprintf("salloc command returned a PENDING job allocation notification with job ID:%q", result.jobID)
+				mes = fmt.Sprintf("salloc command returned a PENDING job allocation notification with job ID:%q", allocResponse.jobID)
 			}
 			events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(mes)
 			return
 		case err := <-chErr:
 			log.Debug(err.Error())
 			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
-			chAllocationErr <- err
 			return
-		case <-time.After(5 * time.Second):
-			log.Println("timeout elapsed waiting for jobID parsing after slurm allocation request")
+		case <-time.After(30 * time.Second):
 			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString("timeout elapsed waiting for jobID parsing after slurm allocation request")
-			chAllocationErr <- err
 			return
 		}
 	}()
 
 	// Listen to potential cancellation in case of pending allocation
 	ctxAlloc, cancelAlloc := context.WithCancel(ctx)
-	chEnd := make(chan bool)
+	chEnd := make(chan struct{})
 	go func() {
 		select {
 		case <-ctx.Done():
-			if &result != nil && result.jobID != "" {
+			if &allocResponse != nil && allocResponse.jobID != "" {
 				log.Debug("Cancellation message has been sent: the pending job allocation has to be removed")
-				if err := cancelJobID(result.jobID, e.client); err != nil {
-					log.Printf("[Warning] an error occurred during cancelling jobID:%q", result.jobID)
+				if err := cancelJobID(allocResponse.jobID, e.client); err != nil {
+					log.Printf("[Warning] an error occurred during cancelling jobID:%q", allocResponse.jobID)
 					return
 				}
 				// Drain the related jobID compute attribute
@@ -302,7 +288,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 
 	wg.Wait() // we wait until jobID has been set
 	// run squeue cmd to get slurm node name
-	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N\"", nodeAlloc.jobName, result.jobID)
+	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N\"", nodeAlloc.jobName, allocResponse.jobID)
 	slurmNodeName, err := e.client.RunCommand(squeueCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to retrieve Slurm node name: %q:", slurmNodeName)
@@ -323,7 +309,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 
 	// Get cuda_visible_device attribute
 	var cudaVisibleDevice string
-	if cudaVisibleDevice, err = getAttribute(e.client, "cuda_visible_devices", result.jobID, nodeName); err != nil {
+	if cudaVisibleDevice, err = getAttribute(e.client, "cuda_visible_devices", allocResponse.jobID, nodeName); err != nil {
 		// cuda_visible_device attribute is not mandatory : just log the error
 		log.Println("[Warning]: " + err.Error())
 	}
@@ -338,7 +324,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 		return err
 	}
 
-	chEnd <- true
+	close(chEnd)
 	return nil
 }
 

@@ -55,70 +55,47 @@ func getEnvValue(s string) (string, error) {
 //salloc: Job allocation 1882 has been revoked.
 //salloc: error: CPU count per node can not be satisfied
 //salloc: error: Job submit/allocate failed: Requested node configuration is not available
-func parseSallocResponse(r io.Reader, chRes chan struct {
-	jobID   string
-	granted bool
-}, chOut chan bool, chErr chan error) {
-	select {
-	case <-chOut:
-		return
-	default:
-	}
+func parseSallocResponse(r io.Reader, chRes chan allocationResponse, chErr chan error) {
 	var (
 		jobID  string
 		err    error
 		strErr string
 	)
-	skip := false
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !skip {
-			reGranted := regexp.MustCompile(reSallocGranted)
-			rePending := regexp.MustCompile(reSallocPending)
-			if reGranted.MatchString(line) {
-				// expected line: "salloc: Granted job allocation 1881"
-				if jobID, err = parseJobID(line, reGranted); err != nil {
-					chErr <- err
-					goto END
-				}
-				chRes <- struct {
-					jobID   string
-					granted bool
-				}{jobID: jobID, granted: true}
-				goto END
-			} else if rePending.MatchString(line) {
-				// expected line: "salloc: Pending job allocation 1881"
-				if jobID, err = parseJobID(line, rePending); err != nil {
-					chErr <- err
-					goto END
-				}
-				chRes <- struct {
-					jobID   string
-					granted bool
-				}{jobID: jobID, granted: false}
-				goto END
+		reGranted := regexp.MustCompile(reSallocGranted)
+		rePending := regexp.MustCompile(reSallocPending)
+		if reGranted.MatchString(line) {
+			// expected line: "salloc: Granted job allocation 1881"
+			if jobID, err = parseJobID(line, reGranted); err != nil {
+				chErr <- err
+				return
 			}
-			// Otherwise, we consider this message as an salloc cli error and we retrieve the full lines
-			skip = true
+			chRes <- allocationResponse{jobID: jobID, granted: true}
+			return
+		} else if rePending.MatchString(line) {
+			// expected line: "salloc: Pending job allocation 1881"
+			if jobID, err = parseJobID(line, rePending); err != nil {
+				chErr <- err
+				return
+			}
+			chRes <- allocationResponse{jobID: jobID, granted: false}
+			return
+		}
+		// If no expected lines found, we retrieve the full lines
+		if strErr != "" {
+			strErr += " "
 		}
 		strErr += line
 	}
 	if err := scanner.Err(); err != nil {
 		chErr <- errors.Wrap(err, "An error occurred scanning stdout/stderr")
-		goto END
+		return
 	}
-	if strErr != "" {
+	if len(strErr) > 0 {
 		chErr <- errors.Errorf("salloc command returned an error:%q", strErr)
-		goto END
 	}
-	return
-
-END:
-	chOut <- true
-	close(chRes)
-	close(chOut)
-	close(chErr)
 	return
 }
 
