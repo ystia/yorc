@@ -66,6 +66,13 @@ func readWfStep(kv *api.KV, stepKey string) (tosca.Step, error) {
 	if kvp != nil && len(kvp.Value) != 0 {
 		step.OperationHost = string(kvp.Value)
 	}
+	kvp, _, err = kv.Get(path.Join(stepKey, "target_relationship"), nil)
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil && len(kvp.Value) != 0 {
+		step.TargetRelationShip = string(kvp.Value)
+	}
 	activity := tosca.Activity{}
 	kvp, _, err = kv.Get(path.Join(stepKey, "activity", "call-operation"), nil)
 	if err != nil {
