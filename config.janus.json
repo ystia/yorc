@@ -44,6 +44,9 @@
     },
     "aws":{
       "region": "us-east-2"
+    },
+    "slurm":{
+      "default_job_name": "xBD"
     }
   }
 }

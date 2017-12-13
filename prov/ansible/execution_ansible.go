@@ -28,7 +28,7 @@ const ansiblePlaybook = `
 [[[ range $artName, $art := .Artifacts ]]]    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
 [[[end]]]
-- include: [[[.PlaybookPath]]]
+- import_playbook: [[[.PlaybookPath]]]
 [[[if .HaveOutput]]]
 - name: Retrieving Operation outputs
   hosts: all
@@ -155,7 +155,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
 	if e.cfg.AnsibleDebugExec {
-		cmd.Args = append(cmd.Args, "-vvvvv")
+		cmd.Args = append(cmd.Args, "-vvvv")
 	}
 	if e.cfg.AnsibleUseOpenSSH {
 		cmd.Args = append(cmd.Args, "-c", "ssh")

@@ -10,6 +10,8 @@ import (
 	_ "novaforge.bull.com/starlings-janus/janus/prov/ansible"
 	// Registering kubernetes operation executor in the registry
 	_ "novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
+	// Registering slurm delegate executor in the registry
+	_ "novaforge.bull.com/starlings-janus/janus/prov/slurm"
 	// Registering builtin Tosca definition files
 	_ "novaforge.bull.com/starlings-janus/janus/tosca"
 	// Registering builtin HashiCorp Vault Client Builder

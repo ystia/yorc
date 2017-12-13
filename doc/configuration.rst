@@ -561,6 +561,28 @@ AWS infrastructure key name is ``aws`` in lower case.
 | ``region``     | Specify the AWS region to use.         | string    | yes      |         |
 +----------------+----------------------------------------+-----------+----------+---------+
 
+.. _option_infra_slurm:
+
+Slurm
+~~~~~~~~~~
+
+Slurm infrastructure key name is ``slurm`` in lower case.
+
++---------------------+---------------------------------------------------------------+-----------+----------+---------+
+|  Option Name        |                          Description                          | Data Type | Required | Default |
+|                     |                                                               |           |          |         |
++=====================+===============================================================+===========+==========+=========+
+| ``user_name``       | SSH Username to be used to connect to the Slurm Client's node | string    | yes      |         |
++---------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``password``        | SSH Password to be used to connect to the Slurm Client's node | string    | yes      |         |
++---------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``url``             | IP address of the Slurm Client's node                         | string    | yes      |         |
++---------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``port``            | SSH Port to be used to connect to the Slurm Client's node     | string    | yes      |         |
++---------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``default_job_name``| Default name for the job allocation.                          | string    | no       |         |
++---------------------+---------------------------------------------------------------+-----------+----------+---------+
+
 
 Vault configuration
 -------------------
