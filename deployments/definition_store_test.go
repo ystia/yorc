@@ -761,5 +761,6 @@ func testRelationshipWorkflow(t *testing.T, kv *api.KV) {
 	step := wfInstall.Steps["OracleJDK_hostedOnComputeHost_pre_configure_source"]
 	require.Equal(t, step.Target, "OracleJDK")
 	require.Equal(t, step.OperationHost, "SOURCE")
+	require.Equal(t, step.TargetRelationShip, "hostedOnComputeHost")
 
 }
