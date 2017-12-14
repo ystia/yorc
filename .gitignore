@@ -12,6 +12,7 @@ work
 /janus.exe
 /testdata/deployment/*.zip
 /testdata/deployment/*/*.zip
+/janus.zip
 /janus.tgz
 /janus-distrib.zip
 /pkg/janus

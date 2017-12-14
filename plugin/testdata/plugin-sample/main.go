@@ -14,10 +14,18 @@ type myDelegateExecutor struct{}
 
 func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	log.Printf("Hello from myDelegateExecutor")
-	cc, err := cfg.GetConsulClient()
+	_, err := cfg.GetConsulClient()
 	if err != nil {
 		return err
 	}
+
+	if cfg.Infrastructures["plugin"] != nil {
+		for _, k := range cfg.Infrastructures["plugin"].Keys() {
+			log.Printf("configuration key: %s", k)
+		}
+		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
+	}
+
 	events.SimpleLogEntry(events.INFO, deploymentID).RegisterAsString("Hello from myDelegateExecutor")
 	return nil
 }
@@ -26,10 +34,18 @@ type myOperationExecutor struct{}
 
 func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Printf("Hello from myOperationExecutor")
-	cc, err := cfg.GetConsulClient()
+	_, err := cfg.GetConsulClient()
 	if err != nil {
 		return err
 	}
+
+	if cfg.Infrastructures["plugin"] != nil {
+		for _, k := range cfg.Infrastructures["plugin"].Keys() {
+			log.Printf("configuration key: %s", k)
+		}
+		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
+	}
+
 	events.SimpleLogEntry(events.INFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")
 	return nil
 }

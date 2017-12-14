@@ -71,7 +71,7 @@ func (c *OperationExecutorClient) ExecOperation(ctx context.Context, conf config
 	if err != nil {
 		return errors.Wrap(err, "Failed to call ExecOperation for plugin")
 	}
-	return resp.Error
+	return toError(resp.Error)
 }
 
 // OperationExecutorServer is public for use by reflexion and should be considered as private to this package.

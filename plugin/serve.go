@@ -1,12 +1,16 @@
 package plugin
 
 import (
-	"os"
-
 	"encoding/gob"
+	"os"
+	"text/template"
+
 	"github.com/hashicorp/go-plugin"
+
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/vault"
 )
 
 const (
@@ -25,7 +29,7 @@ const (
 // This prevents users from executing bad plugins or executing a plugin
 // directory. It is a UX feature, not a security feature.
 var HandshakeConfig = plugin.HandshakeConfig{
-	ProtocolVersion:  1,
+	ProtocolVersion:  2,
 	MagicCookieKey:   "JANUS_PLUG_API",
 	MagicCookieValue: "a3292e718f7c96578aae47e92b7475394e72e6da3de3455554462ba15dde56d1b3187ad0e5f809f50767e0d10ca6944fdf4c6c412380d3aa083b9e8951f7101e",
 }
@@ -75,5 +79,9 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 func SetupPluginCommunication() {
 	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config from janus server to plugins
 	gob.Register(make([]interface{}, 0))
+	gob.Register(make([]string, 0))
+	gob.RegisterName("DynamicMap", &config.DynamicMap{})
+	gob.Register(template.FuncMap{})
+	gob.Register(new(vault.Client))
 	gob.RegisterName("RPCError", RPCError{})
 }

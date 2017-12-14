@@ -141,6 +141,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/registry/delegates", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDelegatesHandler))
 	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryImplementationsHandler))
 	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDefinitionsHandler))
+	s.router.Get("/registry/vaults", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listVaultsBuilderHandler))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
