@@ -324,9 +324,9 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (node_name) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "partition_assigned", slurmPartition)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "partition", slurmPartition)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to set capability attribute (partition) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
+		return errors.Wrapf(err, "Failed to set attribute (partition) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
 
 	// Get cuda_visible_device attribute

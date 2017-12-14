@@ -33,6 +33,6 @@ node_types:
       job_id:
         type: string
         description: The ID of the job allocation.
-      partition_assigned:
+      partition:
         type: string
         description: Slurm partition where the nodes are deployed.
