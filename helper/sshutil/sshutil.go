@@ -84,10 +84,10 @@ func (client *SSHClient) newSession() (*ssh.Session, error) {
 
 // RunCommand allows to run a specified command from a session wrapper in order to handle stdout/stderr during long synchronous commands
 func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
-	chClosed := make(chan bool)
+	chClosed := make(chan struct{})
 	defer func() {
 		sw.Session.Close()
-		chClosed <- true
+		close(chClosed)
 	}()
 	log.Debugf("[SSHSession] running command: %q", cmd)
 	go func() {
