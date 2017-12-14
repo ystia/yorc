@@ -288,8 +288,8 @@ func getConfig() config.Configuration {
 	configuration.KeepOperationRemotePath = viper.GetBool("keep_operation_remote_path")
 	configuration.WfStepGracefulTerminationTimeout = viper.GetDuration("wf_step_graceful_termination_timeout")
 
-	configuration.Infrastructures = make(map[string]*config.DynamicMap)
-	configuration.Vault = config.NewDynamicMap()
+	configuration.Infrastructures = make(map[string]config.DynamicMap)
+	configuration.Vault = make(config.DynamicMap)
 
 	for _, sep := range resolvedServerExtraParams {
 		sep.readConfFn(&configuration)
@@ -315,7 +315,7 @@ func readInfraViperConfig(cfg *config.Configuration) {
 			log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
 		}
 		if cfg.Infrastructures[infraName] == nil {
-			cfg.Infrastructures[infraName] = config.NewDynamicMap()
+			cfg.Infrastructures[infraName] = make(config.DynamicMap)
 		}
 		for k, v := range infraConfMap {
 			cfg.Infrastructures[infraName].Set(k, v)
@@ -332,13 +332,13 @@ func readVaultViperConfig(cfg *config.Configuration) {
 
 func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
 	if cfg.Infrastructures == nil {
-		cfg.Infrastructures = make(map[string]*config.DynamicMap)
+		cfg.Infrastructures = make(map[string]config.DynamicMap)
 	}
 	paramParts := strings.Split(infraParam, ".")
 	value := viper.Get(infraParam)
 	params, ok := cfg.Infrastructures[paramParts[1]]
 	if !ok {
-		params = config.NewDynamicMap()
+		params = make(config.DynamicMap)
 		cfg.Infrastructures[paramParts[1]] = params
 	}
 	params.Set(paramParts[2], value)

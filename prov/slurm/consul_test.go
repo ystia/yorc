@@ -15,14 +15,14 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 
 	// Slurm infrastructure config
 	cfg := config.Configuration{
-		Infrastructures: map[string]*config.DynamicMap{
-			infrastructureName: config.NewDynamicMapWithPayload(map[string]interface{}{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"user_name": "root",
 				"password":  "pwd",
 				"name":      "slurm",
 				"url":       "1.2.3.4",
 				"port":      "1234",
-			})}}
+			}}}
 
 	t.Run("groupSlurm", func(t *testing.T) {
 		t.Run("simpleSlurmNodeAllocation", func(t *testing.T) {

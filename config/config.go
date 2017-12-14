@@ -64,8 +64,8 @@ type Configuration struct {
 	ConsulSSLVerify                  bool
 	ConsulPubMaxRoutines             int
 	Telemetry                        Telemetry
-	Infrastructures                  map[string]*DynamicMap
-	Vault                            *DynamicMap
+	Infrastructures                  map[string]DynamicMap
+	Vault                            DynamicMap
 	WfStepGracefulTerminationTimeout time.Duration
 }
 
@@ -79,59 +79,46 @@ type Telemetry struct {
 	DisableGoRuntimeMetrics bool
 }
 
-// NewDynamicMap creates a DynamicMap instance
-func NewDynamicMap() *DynamicMap {
-
-	return &DynamicMap{Map: make(map[string]interface{})}
-}
-
-// NewDynamicMapWithPayload creates a DynamicMap instance and initialize it with a given map
-func NewDynamicMapWithPayload(m map[string]interface{}) *DynamicMap {
-	return &DynamicMap{Map: m}
-}
-
 // DynamicMap allows to store configuration parameters that are not known in advance.
 // This is particularly useful when configration parameters may be defined in a plugin such for infrastructures.
 //
 // It has methods to automatically cast data to the desired type.
-type DynamicMap struct {
-	Map map[string]interface{}
-}
+type DynamicMap map[string]interface{}
 
 // Keys returns registered keys in the dynamic map
-func (dm *DynamicMap) Keys() []string {
-	keys := make([]string, 0, len(dm.Map))
-	for k := range dm.Map {
+func (dm DynamicMap) Keys() []string {
+	keys := make([]string, 0, len(dm))
+	for k := range dm {
 		keys = append(keys, k)
 	}
 	return keys
 }
 
 // Set sets a value for a given key
-func (dm *DynamicMap) Set(name string, value interface{}) {
-	dm.Map[name] = value
+func (dm DynamicMap) Set(name string, value interface{}) {
+	dm[name] = value
 }
 
 // IsSet checks if a given configuration key is defined
-func (dm *DynamicMap) IsSet(name string) bool {
-	_, ok := dm.Map[name]
+func (dm DynamicMap) IsSet(name string) bool {
+	_, ok := dm[name]
 	return ok
 }
 
 // Get returns the raw value of a given configuration key
-func (dm *DynamicMap) Get(name string) interface{} {
-	return DefaultConfigTemplateResolver.ResolveValueWithTemplates(name, dm.Map[name])
+func (dm DynamicMap) Get(name string) interface{} {
+	return DefaultConfigTemplateResolver.ResolveValueWithTemplates(name, dm[name])
 }
 
 // GetString returns the value of the given key casted into a string.
 // An empty string is returned if not found.
-func (dm *DynamicMap) GetString(name string) string {
+func (dm DynamicMap) GetString(name string) string {
 	return cast.ToString(dm.Get(name))
 }
 
 // GetStringOrDefault returns the value of the given key casted into a string.
 // The given default value is returned if not found or not a valid string.
-func (dm *DynamicMap) GetStringOrDefault(name, defaultValue string) string {
+func (dm DynamicMap) GetStringOrDefault(name, defaultValue string) string {
 	if !dm.IsSet(name) {
 		return defaultValue
 	}
@@ -143,14 +130,14 @@ func (dm *DynamicMap) GetStringOrDefault(name, defaultValue string) string {
 
 // GetBool returns the value of the given key casted into a boolean.
 // False is returned if not found.
-func (dm *DynamicMap) GetBool(name string) bool {
+func (dm DynamicMap) GetBool(name string) bool {
 	return cast.ToBool(dm.Get(name))
 }
 
 // GetStringSlice returns the value of the given key casted into a slice of string.
 // If the corresponding raw value is a string, it is  splited on comas.
 // A nil or empty slice is returned if not found.
-func (dm *DynamicMap) GetStringSlice(name string) []string {
+func (dm DynamicMap) GetStringSlice(name string) []string {
 	val := dm.Get(name)
 	switch v := val.(type) {
 	case string:
@@ -162,13 +149,13 @@ func (dm *DynamicMap) GetStringSlice(name string) []string {
 
 // GetInt returns the value of the given key casted into an int.
 // 0 is returned if not found.
-func (dm *DynamicMap) GetInt(name string) int {
+func (dm DynamicMap) GetInt(name string) int {
 	return cast.ToInt(dm.Get(name))
 }
 
 // GetDuration returns the value of the given key casted into a Duration.
 // A 0 duration is returned if not found.
-func (dm *DynamicMap) GetDuration(name string) time.Duration {
+func (dm DynamicMap) GetDuration(name string) time.Duration {
 	return cast.ToDuration(dm.Get(name))
 }
 

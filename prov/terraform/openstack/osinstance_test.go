@@ -28,11 +28,11 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	deploymentID := loadTestYaml(t, kv)
 
 	cfg := config.Configuration{
-		Infrastructures: map[string]*config.DynamicMap{
-			infrastructureName: config.NewDynamicMapWithPayload(map[string]interface{}{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"region":               "RegionTwo",
 				"private_network_name": "test",
-			})}}
+			}}}
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -81,11 +81,11 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
 	})
 	cfg := config.Configuration{
-		Infrastructures: map[string]*config.DynamicMap{
-			infrastructureName: config.NewDynamicMapWithPayload(map[string]interface{}{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"provisioning_over_fip_allowed": true,
 				"private_network_name":          "test",
-			})}}
+			}}}
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 
@@ -136,11 +136,11 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances/Network/0/capabilities/endpoint/attributes/floating_ip_address"): []byte("10.0.0.200"),
 	})
 	cfg := config.Configuration{
-		Infrastructures: map[string]*config.DynamicMap{
-			infrastructureName: config.NewDynamicMapWithPayload(map[string]interface{}{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"provisioning_over_fip_allowed": false,
 				"private_network_name":          "test",
-			})}}
+			}}}
 	g := osGenerator{}
 	infrastructure := commons.Infrastructure{}
 
