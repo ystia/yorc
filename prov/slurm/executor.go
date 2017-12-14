@@ -304,9 +304,13 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 
 	wg.Wait() // we wait until jobID has been set
 	// run squeue cmd to get slurm node name
+	//TODO: use getAttribute function (modify it to be able to add more than one attribute)
 	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N,%%P\"", nodeAlloc.jobName, result.jobID)
 	squeueOutput, err := e.client.RunCommand(squeueCmd)
-	split := strings.Split(squeueOutput, " ")
+	split := strings.Split(squeueOutput, ",")
+	if len(split) != 2 {
+		return errors.New("Malformed command : " + squeueCmd)
+	}
 	slurmNodeName := strings.Trim(split[0], "\" \t\n")
 	slurmPartition := strings.Trim(split[1], "\" \t\n")
 	if err != nil {
