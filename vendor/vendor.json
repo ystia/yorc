@@ -399,20 +399,26 @@
 		{
 			"checksumSHA1": "au+CDkddC4sVFV15UaPiI7FvSw0=",
 			"path": "github.com/hashicorp/vault/helper/compressutil",
-			"revision": "1d2a38028af6cf2624bdbdc4852df89fe6790893",
-			"revisionTime": "2017-11-23T21:28:33Z"
+			"revision": "bdac1854478538052ba5b7ec9a9ec688d35a3335",
+			"revisionTime": "2017-11-14T16:57:40Z",
+			"version": "v0.9.0",
+			"versionExact": "v0.9.0"
 		},
 		{
 			"checksumSHA1": "yUiSTPf0QUuL2r/81sjuytqBoeQ=",
 			"path": "github.com/hashicorp/vault/helper/jsonutil",
-			"revision": "1d2a38028af6cf2624bdbdc4852df89fe6790893",
-			"revisionTime": "2017-11-23T21:28:33Z"
+			"revision": "bdac1854478538052ba5b7ec9a9ec688d35a3335",
+			"revisionTime": "2017-11-14T16:57:40Z",
+			"version": "v0.9.0",
+			"versionExact": "v0.9.0"
 		},
 		{
 			"checksumSHA1": "KxlPKaWE/Lu0PnJf4CkLVbcogdw=",
 			"path": "github.com/hashicorp/vault/helper/parseutil",
-			"revision": "1d2a38028af6cf2624bdbdc4852df89fe6790893",
-			"revisionTime": "2017-11-23T21:28:33Z"
+			"revision": "bdac1854478538052ba5b7ec9a9ec688d35a3335",
+			"revisionTime": "2017-11-14T16:57:40Z",
+			"version": "v0.9.0",
+			"versionExact": "v0.9.0"
 		},
 		{
 			"checksumSHA1": "ZhK6IO2XN81Y+3RAjTcVm1Ic7oU=",
