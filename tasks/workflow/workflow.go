@@ -28,7 +28,7 @@ const wfCallOpActivity string = "call-operation"
 
 type step struct {
 	Name       string
-	Node       string
+	Target     string
 	Activities []activity
 	Next       []*step
 	Previous   []*step
@@ -112,7 +112,7 @@ func (s *step) isRelationshipTargetNodeRelated() (bool, error) {
 	for _, activity := range s.Activities {
 		if activity.ActivityType() == wfCallOpActivity {
 			operation := activity.ActivityValue()
-			isRelationshipOp, operationRealName, _, targetNode, err := deployments.DecodeOperation(s.kv, s.t.TargetID, s.Node, operation)
+			isRelationshipOp, operationRealName, _, targetNode, err := deployments.DecodeOperation(s.kv, s.t.TargetID, s.Target, operation)
 			if err != nil {
 				return false, err
 			}
@@ -153,7 +153,7 @@ func (s *step) isRunnable() (bool, error) {
 	}
 
 	if s.t.TaskType == tasks.ScaleUp || s.t.TaskType == tasks.ScaleDown {
-		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Node)
+		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
 		if err != nil {
 			return false, err
 		}
@@ -188,7 +188,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	// Fill log optional fields for log registration
 	logOptFields := events.LogOptionalFields{
 		events.WorkFlowID: workflowName,
-		events.NodeID:     s.Node,
+		events.NodeID:     s.Target,
 	}
 
 	// First: we check if step is runnable
@@ -260,9 +260,9 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	defer cancelWf()
 
 	log.Debugf("Processing step %q", s.Name)
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Target)
 	if err != nil {
-		setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+		setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 		log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 		log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 		s.setStatus(tasks.TaskStepStatusERROR)
@@ -279,7 +279,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfDelegateActivity:
 			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
 			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				s.setStatus(tasks.TaskStepStatusERROR)
@@ -293,12 +293,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				delegateOp := activity.ActivityValue()
 				err := func() error {
 					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
-					return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
+					return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Target, delegateOp)
 				}()
 
 				if err != nil {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
-					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 					s.setStatus(tasks.TaskStepStatusERROR)
@@ -313,9 +313,9 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				}
 			}
 		case actType == wfSetStateActivity:
-			setNodeStatus(kv, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
+			setNodeStatus(kv, s.t.ID, deploymentID, s.Target, activity.ActivityValue())
 		case actType == wfCallOpActivity:
-			op, err := operations.GetOperation(kv, s.t.TargetID, s.Node, activity.ActivityValue())
+			op, err := operations.GetOperation(kv, s.t.TargetID, s.Target, activity.ActivityValue())
 			if err != nil {
 				if deployments.IsOperationNotImplemented(err) {
 					// Operation not implemented just skip it
@@ -323,7 +323,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					continue
 				}
 
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				if bypassErrors {
@@ -337,7 +337,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 
 			exec, err := getOperationExecutor(kv, deploymentID, op.ImplementationArtifact)
 			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if bypassErrors {
@@ -351,11 +351,11 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 
 				err = func() error {
 					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
-					return exec.ExecOperation(wfCtx, cfg, s.t.ID, deploymentID, s.Node, op)
+					return exec.ExecOperation(wfCtx, cfg, s.t.ID, deploymentID, s.Target, op)
 				}()
 				if err != nil {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
-					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 					log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					if bypassErrors {
@@ -396,7 +396,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 	if kvPair == nil {
 		return nil, errors.Errorf("Missing node attribute for step %s", stepName)
 	}
-	s.Node = string(kvPair.Value)
+	s.Target = string(kvPair.Value)
 
 	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
 	if err != nil {
