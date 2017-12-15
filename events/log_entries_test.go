@@ -67,7 +67,7 @@ func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
 		})
 	}
 
-	logsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "logs")
+	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
 	kvps, _, err := kv.List(logsPrefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))
