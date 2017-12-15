@@ -82,11 +82,11 @@ Flags:
 Get deployment events
 ~~~~~~~~~~~~~~~~~~~~~
 
-Streams events for a given deployment id
+Streams events for all or a given deployment id
 
 .. code-block:: bash
 
-     janus deployments events <DeploymentId> [flags]
+     janus deployments events [<DeploymentId>] [flags]
      
 Flags:
   * ``-b``, ``--from-beginning``: Show events from the beginning of a deployment
@@ -95,12 +95,12 @@ Flags:
 Get deployment logs
 ~~~~~~~~~~~~~~~~~~~
 
-Streams logs for a given deployment id.
+Streams logs for all or a given deployment id.
 The log format is: [Timestamp][Level][DeploymentID][WorkflowID][ExecutionID][NodeID][InstanceID][InterfaceName][OperationName][TypeID]Content
 
 .. code-block:: bash
 
-     janus deployments logs <DeploymentId> [flags]
+     janus deployments logs [<DeploymentId>] [flags]
      
 Flags:
   * ``-b``, ``--from-beginning``: Show logs from the beginning of a deployment

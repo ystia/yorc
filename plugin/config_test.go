@@ -1,11 +1,12 @@
 package plugin
 
 import (
+	"errors"
 	"testing"
 
-	"errors"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
+
 	"novaforge.bull.com/starlings-janus/janus/config"
 )
 

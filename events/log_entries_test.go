@@ -2,17 +2,16 @@ package events
 
 import (
 	"encoding/json"
+	"path"
+	"testing"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/testutil"
-	"path"
-	"testing"
-	"time"
 )
-
-type mockTimeProvider struct{}
 
 func TestGenerateValue(t *testing.T) {
 	t.Parallel()
@@ -37,7 +36,7 @@ func TestGenerateKey(t *testing.T) {
 	logEntry.timestamp = time.Now()
 
 	value := logEntry.generateKey()
-	require.Equal(t, "_janus/deployments/my_deploymentID/logs/"+logEntry.timestamp.Format(time.RFC3339Nano), string(value))
+	require.Equal(t, "_janus/logs/my_deploymentID/"+logEntry.timestamp.Format(time.RFC3339Nano), string(value))
 }
 
 func TestSimpleLogEntry(t *testing.T) {
@@ -66,7 +65,7 @@ func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
 		})
 	}
 
-	logsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "logs")
+	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
 	kvps, _, err := kv.List(logsPrefix, nil)
 	assert.Nil(t, err)
 	assert.Len(t, kvps, len(tests))

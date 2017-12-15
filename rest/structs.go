@@ -4,6 +4,7 @@ import "novaforge.bull.com/starlings-janus/janus/events"
 import "novaforge.bull.com/starlings-janus/janus/tosca"
 import (
 	"encoding/json"
+
 	"novaforge.bull.com/starlings-janus/janus/registry"
 )
 
@@ -165,4 +166,9 @@ type RegistryImplementationsCollection struct {
 // RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Janus registry
 type RegistryDefinitionsCollection struct {
 	Definitions []registry.Definition `json:"definitions"`
+}
+
+// RegistryVaultsCollection is the collection of Vaults Clients Builders registered in the Janus registry
+type RegistryVaultsCollection struct {
+	VaultClientBuilders []registry.VaultClientBuilder `json:"vaults"`
 }

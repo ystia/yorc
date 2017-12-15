@@ -3,13 +3,12 @@ package server
 import (
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"text/template"
+	"time"
 
 	"github.com/pkg/errors"
-
-	"sync"
-
-	"time"
 
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
@@ -23,6 +22,17 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	err := setupTelemetry(configuration)
 	if err != nil {
 		return err
+	}
+
+	vaultClient, err := buildVaultClient(configuration)
+	if err != nil {
+		return err
+	}
+	if vaultClient != nil {
+		fm := template.FuncMap{
+			"secret": vaultClient.GetSecret,
+		}
+		config.DefaultConfigTemplateResolver.SetTemplatesFunctions(fm)
 	}
 	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()

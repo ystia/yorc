@@ -3,13 +3,14 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"log"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"path"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
 func init() {
@@ -45,6 +46,7 @@ var updateTaskStepCmd = &cobra.Command{
 
 		request.Header.Add("Content-Type", "application/json")
 		response, err := client.Do(request)
+		defer response.Body.Close()
 		if err != nil {
 			errExit(err)
 		}

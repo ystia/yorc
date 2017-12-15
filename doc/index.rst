@@ -16,6 +16,7 @@ Janus |release| Documentation
    cli
    tosca
    secured
+   vault
    ha
    telemetry
 

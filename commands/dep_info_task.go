@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/fatih/color"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/fatih/color"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
+	"novaforge.bull.com/starlings-janus/janus/rest"
+	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
 func init() {
@@ -40,6 +41,7 @@ func init() {
 
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
+			defer response.Body.Close()
 			if err != nil {
 				errExit(err)
 			}
@@ -81,6 +83,7 @@ func displayStepTables(client *janusClient, args []string) {
 	}
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
+	defer response.Body.Close()
 	if err != nil {
 		errExit(err)
 	}

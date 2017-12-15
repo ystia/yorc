@@ -78,6 +78,7 @@ func postScalingRequest(client *janusClient, deploymentID, nodeName string, inst
 	log.Debugf("POST: %s", request.URL.String())
 
 	response, err := client.Do(request)
+	defer response.Body.Close()
 	if err != nil {
 		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
 	}

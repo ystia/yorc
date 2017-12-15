@@ -40,6 +40,7 @@ func init() {
 			}
 			request.Header.Add("Content-Type", "application/json")
 			response, err := client.Do(request)
+			defer response.Body.Close()
 			if err != nil {
 				errExit(err)
 			}
