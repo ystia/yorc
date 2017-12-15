@@ -28,11 +28,12 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	if err != nil {
 		return err
 	}
-	fm := template.FuncMap{
-		"secret": vaultClient.GetSecret,
+	if vaultClient != nil {
+		fm := template.FuncMap{
+			"secret": vaultClient.GetSecret,
+		}
+		config.DefaultConfigTemplateResolver.SetTemplatesFunctions(fm)
 	}
-	config.DefaultConfigTemplateResolver.SetTemplatesFunctions(fm)
-
 	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()
 	if err != nil {
