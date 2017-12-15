@@ -3,6 +3,7 @@ package terraform
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -13,7 +14,6 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov"
 	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -21,12 +21,13 @@ import (
 )
 
 type defaultExecutor struct {
-	generator commons.Generator
+	generator       commons.Generator
+	preDestroyCheck commons.PreDestroyInfraCallback
 }
 
 // NewExecutor returns an Executor
-func NewExecutor(generator commons.Generator) prov.DelegateExecutor {
-	return &defaultExecutor{generator}
+func NewExecutor(generator commons.Generator, preDestroyCheck commons.PreDestroyInfraCallback) prov.DelegateExecutor {
+	return &defaultExecutor{generator: generator, preDestroyCheck: preDestroyCheck}
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -68,12 +69,12 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 			return err
 		}
 	}
-	infraGenerated, outputs, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName)
+	infraGenerated, outputs, env, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	if infraGenerated {
-		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, logOptFields); err != nil {
+		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env, logOptFields); err != nil {
 			return err
 		}
 	}
@@ -93,12 +94,12 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 			return err
 		}
 	}
-	infraGenerated, outputs, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName)
+	infraGenerated, outputs, env, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 	if infraGenerated {
-		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, logOptFields); err != nil {
+		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env, logOptFields); err != nil {
 			return err
 		}
 	}
@@ -111,11 +112,12 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	return nil
 }
 
-func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, env []string, logOptFields events.LogOptionalFields) error {
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "init")
 	cmd.Dir = infraPath
+	cmd.Env = mergeEnvironments(env)
 	errbuf := events.NewBufferedLogEntryWriter()
 	out := events.NewBufferedLogEntryWriter()
 	cmd.Stdout = out
@@ -171,10 +173,10 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	return nil
 }
 
-func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, env []string, logOptFields events.LogOptionalFields) error {
 
 	// Remote Configuration for Terraform State to store it in the Consul KV store
-	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName, logOptFields); err != nil {
+	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName, env, logOptFields); err != nil {
 		return err
 	}
 
@@ -182,6 +184,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
+	cmd.Env = mergeEnvironments(env)
 	errbuf := events.NewBufferedLogEntryWriter()
 	out := events.NewBufferedLogEntryWriter()
 	cmd.Stdout = out
@@ -202,24 +205,20 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 
 }
 
-func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, logOptFields events.LogOptionalFields) error {
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-	// TODO  consider making this generic: references to OpenStack should not be found here.
-	if nodeType == "janus.nodes.openstack.BlockStorage" {
-		var deletable string
-		var found bool
-		found, deletable, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "deletable")
-		if err != nil {
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, env []string, logOptFields events.LogOptionalFields) error {
+	if e.preDestroyCheck != nil {
+
+		check, err := e.preDestroyCheck(ctx, kv, cfg, deploymentID, nodeName, logOptFields)
+		if err != nil || !check {
 			return err
 		}
-		if !found || strings.ToLower(deletable) != "true" {
-			// False by default
-			log.Debugf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
-			return nil
-		}
 	}
-	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, logOptFields)
+
+	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env, logOptFields)
+}
+
+// mergeEnvironments merges given env with current process env
+// in commands if duplicates only the last one is taken into account
+func mergeEnvironments(env []string) []string {
+	return append(os.Environ(), env...)
 }

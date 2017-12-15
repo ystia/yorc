@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/vault"
 )
 
 // BuiltinOrigin is the origin for Janus builtin
@@ -41,12 +42,22 @@ type Registry interface {
 	GetOperationExecutor(artifact string) (prov.OperationExecutor, error)
 	// ListOperationExecutors returns a map of node types matches to prov.DelegateExecutor origin
 	ListOperationExecutors() []OperationExecMatch
+
+	// Register a Vault Client Builder. Origin is the origin of the client builder (builtin for builtin vault client builder or the plugin name in case of a plugin)
+	RegisterVaultClientBuilder(id string, builder vault.ClientBuilder, origin string)
+	// Returns the first vault.ClientBuilder that matches the given id
+	//
+	// If the given id can't match any vault.ClientBuilder an error is returned
+	GetVaultClientBuilder(id string) (vault.ClientBuilder, error)
+
+	// ListVaultClients returns a list of registered Vault Clients origin
+	ListVaultClientBuilders() []VaultClientBuilder
 }
 
 var defaultReg Registry
 
 func init() {
-	defaultReg = &defaultRegistry{delegateMatches: make([]DelegateMatch, 0), definitions: make([]Definition, 0)}
+	defaultReg = &defaultRegistry{delegateMatches: make([]DelegateMatch, 0), definitions: make([]Definition, 0), vaultClientBuilders: make([]VaultClientBuilder, 0)}
 }
 
 // GetRegistry returns the singleton instance of the Registry
@@ -75,13 +86,22 @@ type Definition struct {
 	Data   []byte `json:"-"`
 }
 
+// VaultClientBuilder represents a vault client builder with its ID, Origin and Data content
+type VaultClientBuilder struct {
+	ID      string              `json:"id"`
+	Origin  string              `json:"origin"`
+	Builder vault.ClientBuilder `json:"-"`
+}
+
 type defaultRegistry struct {
-	delegateMatches  []DelegateMatch
-	operationMatches []OperationExecMatch
-	definitions      []Definition
-	delegatesLock    sync.RWMutex
-	operationsLock   sync.RWMutex
-	definitionsLock  sync.RWMutex
+	delegateMatches     []DelegateMatch
+	operationMatches    []OperationExecMatch
+	definitions         []Definition
+	vaultClientBuilders []VaultClientBuilder
+	delegatesLock       sync.RWMutex
+	operationsLock      sync.RWMutex
+	definitionsLock     sync.RWMutex
+	vaultsLock          sync.RWMutex
 }
 
 func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.DelegateExecutor, origin string) {
@@ -175,5 +195,30 @@ func (r *defaultRegistry) ListOperationExecutors() []OperationExecMatch {
 	defer r.operationsLock.RUnlock()
 	result := make([]OperationExecMatch, len(r.operationMatches))
 	copy(result, r.operationMatches)
+	return result
+}
+
+func (r *defaultRegistry) RegisterVaultClientBuilder(id string, builder vault.ClientBuilder, origin string) {
+	r.vaultsLock.Lock()
+	defer r.vaultsLock.Unlock()
+	// Insert as first
+	r.vaultClientBuilders = append([]VaultClientBuilder{VaultClientBuilder{ID: id, Origin: origin, Builder: builder}}, r.vaultClientBuilders...)
+}
+func (r *defaultRegistry) GetVaultClientBuilder(id string) (vault.ClientBuilder, error) {
+	r.vaultsLock.RLock()
+	defer r.vaultsLock.RUnlock()
+	for _, v := range r.vaultClientBuilders {
+		if v.ID == id {
+			return v.Builder, nil
+		}
+	}
+	return nil, errors.Errorf("Unknown vault id: %q", id)
+}
+
+func (r *defaultRegistry) ListVaultClientBuilders() []VaultClientBuilder {
+	r.vaultsLock.RLock()
+	defer r.vaultsLock.RUnlock()
+	result := make([]VaultClientBuilder, len(r.vaultClientBuilders))
+	copy(result, r.vaultClientBuilders)
 	return result
 }

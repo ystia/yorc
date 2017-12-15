@@ -25,3 +25,9 @@ func (s *Server) listRegistryDefinitionsHandler(w http.ResponseWriter, r *http.R
 	definitionsCollection := RegistryDefinitionsCollection{Definitions: definitions}
 	encodeJSONResponse(w, r, definitionsCollection)
 }
+
+func (s *Server) listVaultsBuilderHandler(w http.ResponseWriter, r *http.Request) {
+	vaults := reg.ListVaultClientBuilders()
+	vaultsCollection := RegistryVaultsCollection{VaultClientBuilders: vaults}
+	encodeJSONResponse(w, r, vaultsCollection)
+}

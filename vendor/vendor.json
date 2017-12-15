@@ -86,6 +86,12 @@
 			"revisionTime": "2016-10-02T08:12:59Z"
 		},
 		{
+			"checksumSHA1": "Z2LEpah3ZMTYNpRy7Rd+tI+T+W0=",
+			"path": "github.com/fatih/structs",
+			"revision": "f5faa72e73092639913f5833b75e1ac1d6bc7a63",
+			"revisionTime": "2017-10-20T06:48:19Z"
+		},
+		{
 			"checksumSHA1": "e2o/P8ZZ8Iz+um6/nyLUEg7S2H8=",
 			"path": "github.com/fsnotify/fsnotify",
 			"revision": "944cff21b3baf3ced9a880365682152ba577d348",
@@ -138,6 +144,12 @@
 			"path": "github.com/golang/protobuf/ptypes/timestamp",
 			"revision": "6daa6a29b8b866679a5be039ad0c8149de1cd60a",
 			"revisionTime": "2017-07-05T23:52:01Z"
+		},
+		{
+			"checksumSHA1": "p/8vSviYF91gFflhrt5vkyksroo=",
+			"path": "github.com/golang/snappy",
+			"revision": "553a641470496b2327abcac10b36396bd98e45c9",
+			"revisionTime": "2017-02-15T23:32:05Z"
 		},
 		{
 			"checksumSHA1": "hniadkbjSPo45tV/GWyoWJemr2g=",
@@ -377,6 +389,38 @@
 			"revisionTime": "2017-04-19T22:16:26Z"
 		},
 		{
+			"checksumSHA1": "iLvw4FsA3slTfxMOfrofZNXiCNU=",
+			"path": "github.com/hashicorp/vault/api",
+			"revision": "bdac1854478538052ba5b7ec9a9ec688d35a3335",
+			"revisionTime": "2017-11-14T16:57:40Z",
+			"version": "v0.9.0",
+			"versionExact": "v0.9.0"
+		},
+		{
+			"checksumSHA1": "au+CDkddC4sVFV15UaPiI7FvSw0=",
+			"path": "github.com/hashicorp/vault/helper/compressutil",
+			"revision": "bdac1854478538052ba5b7ec9a9ec688d35a3335",
+			"revisionTime": "2017-11-14T16:57:40Z",
+			"version": "v0.9.0",
+			"versionExact": "v0.9.0"
+		},
+		{
+			"checksumSHA1": "yUiSTPf0QUuL2r/81sjuytqBoeQ=",
+			"path": "github.com/hashicorp/vault/helper/jsonutil",
+			"revision": "bdac1854478538052ba5b7ec9a9ec688d35a3335",
+			"revisionTime": "2017-11-14T16:57:40Z",
+			"version": "v0.9.0",
+			"versionExact": "v0.9.0"
+		},
+		{
+			"checksumSHA1": "KxlPKaWE/Lu0PnJf4CkLVbcogdw=",
+			"path": "github.com/hashicorp/vault/helper/parseutil",
+			"revision": "bdac1854478538052ba5b7ec9a9ec688d35a3335",
+			"revisionTime": "2017-11-14T16:57:40Z",
+			"version": "v0.9.0",
+			"versionExact": "v0.9.0"
+		},
+		{
 			"checksumSHA1": "ZhK6IO2XN81Y+3RAjTcVm1Ic7oU=",
 			"path": "github.com/hashicorp/yamux",
 			"revision": "d1caa6c97c9fc1cc9e83bbe34d0603f9ff0ce8bd",
@@ -586,6 +630,12 @@
 			"path": "github.com/sean-/seed",
 			"revision": "e2103e2c35297fb7e17febb81e49b312087a2372",
 			"revisionTime": "2017-03-13T16:33:22Z"
+		},
+		{
+			"checksumSHA1": "0V9YhjDv2UlkQaAbSK41fzlx3JA=",
+			"path": "github.com/sethgrid/pester",
+			"revision": "760f8913c0483b776294e1bee43f1d687527127b",
+			"revisionTime": "2017-11-27T02:50:28Z"
 		},
 		{
 			"checksumSHA1": "59wTbS4fE2282Q88NrBYImbFGbo=",

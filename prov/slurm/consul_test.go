@@ -15,8 +15,8 @@ func TestRunConsulSlurmPackageTests(t *testing.T) {
 
 	// Slurm infrastructure config
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: {
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"user_name": "root",
 				"password":  "pwd",
 				"name":      "slurm",

@@ -14,6 +14,8 @@ import (
 	_ "novaforge.bull.com/starlings-janus/janus/prov/slurm"
 	// Registering builtin Tosca definition files
 	_ "novaforge.bull.com/starlings-janus/janus/tosca"
+	// Registering builtin HashiCorp Vault Client Builder
+	_ "novaforge.bull.com/starlings-janus/janus/vault/hashivault"
 )
 
 import (

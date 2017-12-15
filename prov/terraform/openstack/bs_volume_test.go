@@ -19,8 +19,8 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 
 	indexSuffix := path.Base(t.Name())
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"region": "Region_" + indexSuffix,
 			}}}
 	g := osGenerator{}
@@ -62,8 +62,8 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 
 	indexSuffix := path.Base(t.Name())
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"region": "Region_" + indexSuffix,
 			}}}
 	g := osGenerator{}
@@ -96,8 +96,8 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, 
 
 	indexSuffix := path.Base(t.Name())
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"region": "Region_" + indexSuffix,
 			}}}
 	g := osGenerator{}
@@ -119,8 +119,8 @@ func testGenerateOSBSVolumeWrongType(t *testing.T, srv1 *testutil.TestServer, kv
 
 	indexSuffix := path.Base(t.Name())
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"region": "Region_" + indexSuffix,
 			}}}
 	g := osGenerator{}
@@ -142,8 +142,8 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 
 	indexSuffix := path.Base(t.Name())
 	cfg := config.Configuration{
-		Infrastructures: map[string]config.InfrastructureConfig{
-			infrastructureName: config.InfrastructureConfig{
+		Infrastructures: map[string]config.DynamicMap{
+			infrastructureName: config.DynamicMap{
 				"region": "Region_" + indexSuffix,
 			}}}
 	g := osGenerator{}

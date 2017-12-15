@@ -1,7 +1,7 @@
 package slurm
 
 type infrastructure struct {
-	nodes []nodeAllocation
+	nodes []*nodeAllocation
 }
 
 type nodeAllocation struct {
