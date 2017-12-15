@@ -8,27 +8,12 @@ import (
 	"time"
 
 	"encoding/json"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 )
-
-// A Subscriber is used to poll for new StatusChange and LogEntry events
-type Subscriber interface {
-	StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error)
-	LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error)
-}
-
-type consulPubSub struct {
-	kv           *api.KV
-	deploymentID string
-}
-
-// NewSubscriber returns an instance of Subscriber
-func NewSubscriber(kv *api.KV, deploymentID string) Subscriber {
-	return &consulPubSub{kv: kv, deploymentID: deploymentID}
-}
 
 // InstanceStatusChange publishes a status change for a given instance of a given node
 //
@@ -95,9 +80,12 @@ func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (stri
 	return id, nil
 }
 
+// Create a KVPair corresponding to an event and put it to Consul under the event prefix,
+// in a sub-tree corresponding to its deployment
+// The eventType goes to the KVPair's Flags field
 func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpdateType, data string) (string, error) {
 	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events")
+	eventsPrefix := path.Join(consulutil.EventsPrefix, deploymentID)
 	p := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(data), Flags: uint64(eventType)}
 	_, err := kv.Put(p, nil)
 	if err != nil {
@@ -106,62 +94,82 @@ func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpd
 	return now, nil
 }
 
-func (cp *consulPubSub) StatusEvents(waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
-
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "events")
-	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+// StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
+func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
 	events := make([]StatusUpdate, 0)
 
+	var eventsPrefix string
+	var depIDProvided bool
+	if deploymentID != "" {
+		// the returned list of events must correspond to the provided deploymentID
+		eventsPrefix = path.Join(consulutil.EventsPrefix, deploymentID)
+		depIDProvided = true
+	} else {
+		// the returned list of events must correspond to all the deployments
+		eventsPrefix = path.Join(consulutil.EventsPrefix)
+		depIDProvided = false
+	}
+
+	kvps, qm, err := kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return events, 0, err
 	}
-
-	log.Debugf("Found %d events before filtering, last index is %q", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
-
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex {
 			continue
 		}
+		var eventTimestamp string
+		if depIDProvided {
+			eventTimestamp = strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
+		} else {
+			depIDAndTimestamp := strings.Split(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), "/")
+			deploymentID = depIDAndTimestamp[0]
+			eventTimestamp = depIDAndTimestamp[1]
+		}
 
-		eventTimestamp := strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
 		values := strings.Split(string(kvp.Value), "\n")
 		eventType := StatusUpdateType(kvp.Flags)
+
 		switch eventType {
 		case InstanceStatusChangeType:
 			if len(values) != 3 {
 				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 			}
-			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Node: values[0], Status: values[1], Instance: values[2]})
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Node: values[0], Status: values[1], Instance: values[2], DeploymentID: deploymentID})
 		case DeploymentStatusChangeType:
 			if len(values) != 1 {
 				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 			}
-			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Status: values[0]})
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Status: values[0], DeploymentID: deploymentID})
 		case CustomCommandStatusChangeType, ScalingStatusChangeType, WorkflowStatusChangeType:
 			if len(values) != 2 {
 				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
 			}
-			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), TaskID: values[0], Status: values[1]})
+			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), TaskID: values[0], Status: values[1], DeploymentID: deploymentID})
 		default:
 			return events, qm.LastIndex, errors.Errorf("Unsupported event type %d for event %q", kvp.Flags, kvp.Key)
 		}
-
 	}
-
-	log.Debugf("Found %d events after filtering", len(events))
 	return events, qm.LastIndex, nil
 }
 
-// LogsEvents allows to return logs from Consul KV storage
-func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+// LogsEvents allows to return logs from Consul KV storage for all, or a given deployment
+func LogsEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
 	logs := make([]json.RawMessage, 0)
 
-	eventsPrefix := path.Join(consulutil.DeploymentKVPrefix, cp.deploymentID, "logs")
-	kvps, qm, err := cp.kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
+	var logsPrefix string
+	if deploymentID != "" {
+		// the returned list of logs must correspond to the provided deploymentID
+		logsPrefix = path.Join(consulutil.LogsPrefix, deploymentID)
+	} else {
+		// the returned list of logs must correspond to all the deployments
+		logsPrefix = path.Join(consulutil.LogsPrefix)
+	}
+	kvps, qm, err := kv.List(logsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return logs, 0, err
 	}
-	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
+	log.Debugf("Found %d logs before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex {
 			continue
@@ -169,14 +177,13 @@ func (cp *consulPubSub) LogsEvents(waitIndex uint64, timeout time.Duration) ([]j
 
 		logs = append(logs, kvp.Value)
 	}
-
-	log.Debugf("Found %d events after index", len(logs))
+	log.Debugf("Found %d logs after index", len(logs))
 	return logs, qm.LastIndex, nil
 }
 
 // GetStatusEventsIndex returns the latest index of InstanceStatus events for a given deployment
 func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "events"), nil)
+	_, qm, err := kv.Get(path.Join(consulutil.EventsPrefix, deploymentID), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -188,7 +195,7 @@ func GetStatusEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
 
 // GetLogsEventsIndex returns the latest index of LogEntry events for a given deployment
 func GetLogsEventsIndex(kv *api.KV, deploymentID string) (uint64, error) {
-	_, qm, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "logs"), nil)
+	_, qm, err := kv.Get(path.Join(consulutil.LogsPrefix, deploymentID), nil)
 	if err != nil {
 		return 0, err
 	}

@@ -34,6 +34,7 @@ func init() {
 			}
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
+			defer response.Body.Close()
 			if err != nil {
 				errExit(err)
 			}

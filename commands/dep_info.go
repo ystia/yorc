@@ -13,10 +13,11 @@ import (
 	"bytes"
 	"strconv"
 
+	"net/http"
+
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -50,6 +51,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 			}
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
+			defer response.Body.Close()
 			if err != nil {
 				errExit(err)
 			}

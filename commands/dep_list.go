@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"net/http"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -32,6 +33,7 @@ var listCmd = &cobra.Command{
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
+		defer response.Body.Close()
 		if err != nil {
 			errExit(err)
 		}

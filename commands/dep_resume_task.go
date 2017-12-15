@@ -1,10 +1,11 @@
 package commands
 
 import (
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"net/http"
 	"path"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -33,6 +34,7 @@ var resumeTaskCmd = &cobra.Command{
 
 		//request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
+		defer response.Body.Close()
 		if err != nil {
 			errExit(err)
 		}

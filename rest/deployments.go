@@ -103,7 +103,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	zipReader, err := zip.OpenReader(file.Name())
 	if err != nil {
-		log.Fatal(err)
+		log.Panicf("%+v", err)
 	}
 	defer zipReader.Close()
 
