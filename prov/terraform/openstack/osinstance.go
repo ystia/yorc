@@ -157,7 +157,9 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 					for {
 						// ignore errors and retry
 						found, volID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
-						if found {
+						// As volumeID is an optional property GetInstanceAttribute then GetProperty
+						// may return an empty volumeID so keep checking as long as we have it
+						if found && volID != "" {
 							resultChan <- volID
 							return
 						}
@@ -272,7 +274,9 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 					if err != nil {
 						log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
 					}
-					if found {
+					// As networkID is an optional property GetInstanceAttribute then GetProperty
+					// may return an empty networkID so keep checking as long as we have it
+					if found && nID != "" {
 						resultChan <- nID
 						return
 					}
