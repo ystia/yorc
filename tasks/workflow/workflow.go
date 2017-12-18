@@ -27,15 +27,17 @@ const wfSetStateActivity string = "set-state"
 const wfCallOpActivity string = "call-operation"
 
 type step struct {
-	Name       string
-	Target     string
-	Activities []activity
-	Next       []*step
-	Previous   []*step
-	NotifyChan chan struct{}
-	kv         *api.KV
-	stepPrefix string
-	t          *task
+	Name               string
+	Target             string
+	TargetRelationship string
+	OperationHost      string
+	Activities         []activity
+	Next               []*step
+	Previous           []*step
+	NotifyChan         chan struct{}
+	kv                 *api.KV
+	stepPrefix         string
+	t                  *task
 }
 
 type activity interface {
@@ -388,15 +390,39 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*step, error) {
 	stepPrefix := stepsPrefix + stepName
 	s := &step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
-	kvPair, _, err := kv.Get(stepPrefix+"/node", nil)
+	kvPair, _, err := kv.Get(stepPrefix+"/target", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
 	if kvPair == nil {
-		return nil, errors.Errorf("Missing node attribute for step %s", stepName)
+		return nil, errors.Errorf("Missing target attribute for step %s", stepName)
 	}
 	s.Target = string(kvPair.Value)
+
+	kvPair, _, err = kv.Get(stepPrefix+"/target_relationship", nil)
+	if err != nil {
+		return nil, err
+	}
+	if kvPair != nil {
+		s.TargetRelationship = string(kvPair.Value)
+	}
+	kvPair, _, err = kv.Get(stepPrefix+"/operation_host", nil)
+	if err != nil {
+		return nil, err
+	}
+	if kvPair != nil {
+		s.OperationHost = string(kvPair.Value)
+	}
+	if s.TargetRelationship != "" {
+		if s.OperationHost == "" {
+			return nil, errors.Errorf("Operation host missing for step %s with target relationship %s, this is not allowed", stepName, s.TargetRelationship)
+		} else if strings.ToUpper(s.OperationHost) != "SOURCE" && strings.ToUpper(s.OperationHost) != "TARGET" {
+			return nil, errors.Errorf("Invalid value %q for operation host with step %s with target relationship %s : only SOURCE or TARGET values are accepted", s.OperationHost, stepName, s.TargetRelationship)
+		}
+	} else if s.OperationHost != "" && s.OperationHost != "SELF" && s.OperationHost != "HOST" {
+		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF or HOST values are accepted", s.OperationHost, stepName, s.TargetRelationship)
+	}
 
 	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
 	if err != nil {
