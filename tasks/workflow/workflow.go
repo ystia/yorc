@@ -421,7 +421,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 			return nil, errors.Errorf("Invalid value %q for operation host with step %s with target relationship %s : only SOURCE or TARGET values are accepted", s.OperationHost, stepName, s.TargetRelationship)
 		}
 	} else if s.OperationHost != "" && s.OperationHost != "SELF" && s.OperationHost != "HOST" {
-		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF or HOST values are accepted", s.OperationHost, stepName, s.TargetRelationship)
+		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF or HOST values are accepted", s.OperationHost, stepName)
 	}
 
 	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
