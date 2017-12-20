@@ -145,10 +145,9 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err != nil {
 		return nil, err
 	}
-	// TODO: should use implementation artifacts (tosca.artifacts.Implementation.Bash, tosca.artifacts.Implementation.Python, tosca.artifacts.Implementation.Ansible...) in some way
 	var exec execution
 	if isBash || isPython {
-		execScript := &executionScript{executionCommon: execCommon}
+		execScript := &executionScript{executionCommon: execCommon, isPython: isPython}
 		execCommon.ansibleRunner = execScript
 		exec = execScript
 	} else if isAnsible {
