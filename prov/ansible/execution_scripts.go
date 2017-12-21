@@ -20,8 +20,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
-const outputCustomWrapper = `
-#!/usr/bin/env bash
+const scriptCustomWrapper = `#!/usr/bin/env bash
 # Workaround JSON structures being treated as python objects
 # basically it prevent double quotes to be changed into single quotes
 # by prefixing the value by a space
@@ -41,19 +40,88 @@ done
 [[[end]]]
 `
 
+const pythonCustomWrapper = `#!/usr/bin/env python
+
+from os import chmod
+from os import environ
+from os.path import expanduser
+import sys
+
+home = expanduser("~")
+# Workaround JSON structures being treated as python objects
+# basically it prevent double quotes to be changed into single quotes
+# by prefixing the value by a space
+# https://stackoverflow.com/questions/31969872/why-ansible-always-replaces-double-quotes-with-single-quotes-in-templates
+# We remove this space here. Obviously becomes a reserved keyword janus_escape_workaround
+gVar = {}
+names=[ [[[qJoin .VarInputsNames]]] ]
+
+for n in names:
+	val = environ[n]
+	if val.startswith(' '):
+		val=val[1:]
+		environ[n]=val
+	gVar[n]=val
+
+names=[ [[[range $eidx, $ei := .EnvInputs]]][[[if ($eidx) gt 0]]], [[[end]]]"[[[if (len $ei.InstanceName) gt 0]]][[[printf "%s_" $ei.InstanceName]]][[[end]]][[[$ei.Name]]]"[[[end]]] ]
+names.extend([ [[[qJoinKeys .Artifacts]]] ])
+names.extend([ [[[qJoinKeys .Context]]] ])
+for n in names:
+	val = environ[n]
+	gVar[n]=val
+
+fName="{0}/{1}/{2}".format(home, [[[printf "%q, %q"  $.OperationRemotePath .BasePrimary]]])
+exec(compile(open(fName, "rb").read(), fName, 'exec'), gVar)
+
+[[[if .HaveOutput]]]
+import csv
+outFile="{0}/{1}/out.csv".format(home, [[[printf "%q"  $.OperationRemotePath]]])
+with open(outFile, 'w') as csvfile:
+	writer=csv.writer(csvfile, delimiter=',')
+	[[[range $outName, $outVal := .Outputs -]]]
+	if '[[[print (cut $outName)]]]' not in gVar:
+		sys.exit("Error: {0} doesn't define the required output value '[[[print (cut $outName)]]]'".format(fName))
+	writer.writerow([ '[[[print $outName]]]', gVar['[[[print (cut $outName)]]]'] ])
+	[[[end]]]
+	chmod(outFile, 0777)
+[[[end]]]
+
+`
+
+func quoteAndComaJoin(s []string) string {
+	var b bytes.Buffer
+	for i, e := range s {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteRune('"')
+		b.WriteString(e)
+		b.WriteRune('"')
+	}
+	return b.String()
+}
+
+func quoteAndComaJoinMapKeys(m map[string]string) string {
+	l := make([]string, 0, len(m))
+	for k := range m {
+		l = append(l, k)
+	}
+	return quoteAndComaJoin(l)
+}
+
 const shellAnsiblePlaybook = `
 - name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=directory mode=0755
-    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/%s/wrapper.sh\" mode=0744" $.OperationRemotePath]]]
+    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/%s/wrapper\" mode=0744" $.OperationRemotePath]]]
     - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
     [[[end]]]
-    [[[printf "- shell: \"/bin/bash -l {{ ansible_env.HOME}}/%s/wrapper.sh\"" $.OperationRemotePath]]]
+    [[[printf "- shell: \"/bin/bash -l -c {{ ansible_env.HOME}}/%s/wrapper\"" $.OperationRemotePath]]]
       environment:
         [[[ range $key, $envInput := .EnvInputs -]]]
         [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %q" $envInput.InstanceName $envInput.Name $envInput.Value]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
@@ -77,6 +145,7 @@ const shellAnsiblePlaybook = `
 
 type executionScript struct {
 	*executionCommon
+	isPython bool
 }
 
 func cutAfterLastUnderscore(str string) string {
@@ -102,6 +171,8 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		"abs":         filepath.Abs,
 		"cut":         cutAfterLastUnderscore,
 		"StringsJoin": strings.Join,
+		"qJoin":       quoteAndComaJoin,
+		"qJoinKeys":   quoteAndComaJoinMapKeys,
 	}
 
 	tmpl := template.New("execTemplate")
@@ -109,7 +180,12 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	tmpl = tmpl.Funcs(funcMap)
 	wrapTemplate := template.New("execTemplate")
 	wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
-	wrapTemplate, err := tmpl.Parse(outputCustomWrapper)
+	var err error
+	if e.isPython {
+		wrapTemplate, err = tmpl.Parse(pythonCustomWrapper)
+	} else {
+		wrapTemplate, err = tmpl.Parse(scriptCustomWrapper)
+	}
 	if err != nil {
 		return err
 	}
@@ -118,7 +194,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper.sh"), buffer.Bytes(), 0664); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
@@ -153,7 +229,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve script wrapper absolute path")
 	}
-	cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper.sh , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
+	cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}

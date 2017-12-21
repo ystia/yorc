@@ -226,9 +226,9 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper.sh" mode=0744
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper" mode=0744
   - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
-  - shell: "/bin/bash -l {{ ansible_env.HOME}}/tmp/.janus/wrapper.sh"
+  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.janus/wrapper"
 
       environment:
         NodeA_0_A1: "/var/www"
@@ -341,10 +341,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper.sh" mode=0744
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper" mode=0744
   - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
-  - shell: "/bin/bash -l {{ ansible_env.HOME}}/tmp/.janus/wrapper.sh"
+  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.janus/wrapper"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -451,10 +451,10 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper.sh" mode=0744
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper" mode=0744
   - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
 
-  - shell: "/bin/bash -l {{ ansible_env.HOME}}/tmp/.janus/wrapper.sh"
+  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.janus/wrapper"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
