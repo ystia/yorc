@@ -54,7 +54,7 @@ func init() {
 			fmt.Printf("Workflow %s:\n", workflowName)
 			for stepName, step := range wf.Steps {
 				fmt.Printf("  Step %s:\n", stepName)
-				fmt.Println("    Node:", step.Node)
+				fmt.Println("    Target:", step.Target)
 				fmt.Println("    Activity:")
 				if step.Activity.CallOperation != "" {
 					fmt.Println("      - Call Operation:", step.Activity.CallOperation)

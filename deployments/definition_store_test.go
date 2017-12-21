@@ -742,3 +742,25 @@ func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
 	require.Len(t, results, 1)
 	require.Equal(t, "", results[0].Value)
 }
+
+func testRelationshipWorkflow(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/relationship_workflow.yaml")
+	require.Nil(t, err)
+
+	workflows, err := GetWorkflows(kv, deploymentID)
+	require.Nil(t, err)
+	require.Equal(t, len(workflows), 4)
+	require.Equal(t, workflows[0], "install")
+
+	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
+	require.Nil(t, err)
+	require.Equal(t, len(wfInstall.Steps), 14)
+
+	step := wfInstall.Steps["OracleJDK_hostedOnComputeHost_pre_configure_source"]
+	require.Equal(t, step.Target, "OracleJDK")
+	require.Equal(t, step.OperationHost, "SOURCE")
+	require.Equal(t, step.TargetRelationShip, "hostedOnComputeHost")
+
+}

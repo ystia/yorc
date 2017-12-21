@@ -35,12 +35,12 @@ topology_template:
     install:
       steps:
         Compute_install:
-          node: Compute
+          target: Compute
           activity:
             delegate: install
     uninstall:
       steps:
         Compute_uninstall:
-          node: Compute
+          target: Compute
           activity:
             delegate: uninstall

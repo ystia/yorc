@@ -49,15 +49,30 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 }
 
 func readWfStep(kv *api.KV, stepKey string) (tosca.Step, error) {
-	kvp, _, err := kv.Get(path.Join(stepKey, "node"), nil)
+	kvp, _, err := kv.Get(path.Join(stepKey, "target"), nil)
 	step := tosca.Step{}
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return step, errors.Errorf("Missing mandatory attribute \"node\" for step %q", path.Base(stepKey))
+		return step, errors.Errorf("Missing mandatory attribute \"target\" for step %q", path.Base(stepKey))
 	}
-	step.Node = string(kvp.Value)
+	step.Target = string(kvp.Value)
+
+	kvp, _, err = kv.Get(path.Join(stepKey, "operation_host"), nil)
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil && len(kvp.Value) != 0 {
+		step.OperationHost = string(kvp.Value)
+	}
+	kvp, _, err = kv.Get(path.Join(stepKey, "target_relationship"), nil)
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil && len(kvp.Value) != 0 {
+		step.TargetRelationShip = string(kvp.Value)
+	}
 	activity := tosca.Activity{}
 	kvp, _, err = kv.Get(path.Join(stepKey, "activity", "call-operation"), nil)
 	if err != nil {
