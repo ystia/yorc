@@ -55,15 +55,17 @@ func init() {
 			for stepName, step := range wf.Steps {
 				fmt.Printf("  Step %s:\n", stepName)
 				fmt.Println("    Target:", step.Target)
-				fmt.Println("    Activity:")
-				if step.Activity.CallOperation != "" {
-					fmt.Println("      - Call Operation:", step.Activity.CallOperation)
-				}
-				if step.Activity.Delegate != "" {
-					fmt.Println("      - Delegate:", step.Activity.Delegate)
-				}
-				if step.Activity.SetState != "" {
-					fmt.Println("      - Set State:", step.Activity.SetState)
+				fmt.Println("    Activities:")
+				for _, activity := range step.Activities {
+					if activity.CallOperation != "" {
+						fmt.Println("      - Call Operation:", activity.CallOperation)
+					}
+					if activity.Delegate != "" {
+						fmt.Println("      - Delegate:", activity.Delegate)
+					}
+					if activity.SetState != "" {
+						fmt.Println("      - Set State:", activity.SetState)
+					}
 				}
 				if len(step.OnSuccess) > 0 {
 					fmt.Println("    On Success:")
