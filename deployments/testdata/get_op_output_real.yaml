@@ -294,402 +294,402 @@ topology_template:
       steps:
         configure_DockerContainer:
           node: DockerContainer
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
             - DockerContainer_configured
         DataInputs_initial:
           node: DataInputs
-          activity:
-            set_state: initial
+          activities:
+            - set_state: initial
           on-success:
             - DataInputs_creating
         start_DataOutputs:
           node: DataOutputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
             - DataOutputs_started
         DataOutputs_initial:
           node: DataOutputs
-          activity:
-            set_state: initial
+          activities:
+            - set_state: initial
           on-success:
             - DataOutputs_creating
         DockerContainer_configured:
           node: DockerContainer
-          activity:
-            set_state: configured
+          activities:
+            - set_state: configured
           on-success:
             - DockerContainer_starting
         DataInputs_starting:
           node: DataInputs
-          activity:
-            set_state: starting
+          activities:
+            - set_state: starting
           on-success:
             - start_DataInputs
         PublisherFromDockerVolume_configuring:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: configuring
+          activities:
+            - set_state: configuring
           on-success:
             - configure_PublisherFromDockerVolume
         DataInputs_creating:
           node: DataInputs
-          activity:
-            set_state: creating
+          activities:
+            - set_state: creating
           on-success:
             - DataInputs_created
         DataOutputs_created:
           node: DataOutputs
-          activity:
-            set_state: created
+          activities:
+            - set_state: created
           on-success:
             - DataOutputs_configuring
             - DockerContainer_configuring
         PublisherFromDockerVolume_initial:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: initial
+          activities:
+            - set_state: initial
           on-success:
             - PublisherFromDockerVolume_creating
         Compute_install:
           node: Compute
-          activity:
-            delegate: install
+          activities:
+            - delegate: install
           on-success:
             - DataInputs_initial
             - DataOutputs_initial
             - DockerContainer_initial
         configure_PublisherFromDockerVolume:
           node: PublisherFromDockerVolume
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
             - PublisherFromDockerVolume_configured
         PublisherFromDockerVolume_creating:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: creating
+          activities:
+            - set_state: creating
           on-success:
             - PublisherFromDockerVolume_created
         PublisherFromDockerVolume_created:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: created
+          activities:
+            - set_state: created
           on-success:
             - PublisherFromDockerVolume_configuring
             - DataOutputs_configuring
         DataOutputs_configured:
           node: DataOutputs
-          activity:
-            set_state: configured
+          activities:
+            - set_state: configured
           on-success:
             - DataOutputs_starting
         PublisherFromDockerVolume_configured:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: configured
+          activities:
+            - set_state: configured
           on-success:
             - PublisherFromDockerVolume_starting
         PublisherFromDockerVolume_starting:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: starting
+          activities:
+            - set_state: starting
           on-success:
             - start_PublisherFromDockerVolume
         PublisherFromDockerVolume_started:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: started
+          activities:
+            - set_state: started
           on-success:
             - run_DockerContainer
         DataOutputs_started:
           node: DataOutputs
-          activity:
-            set_state: started
+          activities:
+            - set_state: started
           on-success:
             - PublisherFromDockerVolume_configuring
         DataOutputs_configuring:
           node: DataOutputs
-          activity:
-            set_state: configuring
+          activities:
+            - set_state: configuring
           on-success:
             - configure_DataOutputs
         DataInputs_configuring:
           node: DataInputs
-          activity:
-            set_state: configuring
+          activities:
+            - set_state: configuring
           on-success:
             - configure_DataInputs
         DataOutputs_starting:
           node: DataOutputs
-          activity:
-            set_state: starting
+          activities:
+            - set_state: starting
           on-success:
             - start_DataOutputs
         DataOutputs_creating:
           node: DataOutputs
-          activity:
-            set_state: creating
+          activities:
+            - set_state: creating
           on-success:
             - DataOutputs_created
         start_DataInputs:
           node: DataInputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
             - DataInputs_started
         DockerContainer_initial:
           node: DockerContainer
-          activity:
-            set_state: initial
+          activities:
+            - set_state: initial
           on-success:
             - DockerContainer_creating
         start_DockerContainer:
           node: DockerContainer
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
             - DockerContainer_started
         configure_DataInputs:
           node: DataInputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
             - DataInputs_configured
         configure_DataOutputs:
           node: DataOutputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.configure
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.configure
           on-success:
             - DataOutputs_configured
         DockerContainer_started:
           node: DockerContainer
-          activity:
-            set_state: started
+          activities:
+            - set_state: started
           on-success:
             - DataInputs_configuring
             - PublisherFromDockerVolume_initial
             - DataOutputs_configuring
         start_PublisherFromDockerVolume:
           node: PublisherFromDockerVolume
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.start
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.start
           on-success:
             - PublisherFromDockerVolume_started
         DataInputs_started:
           node: DataInputs
-          activity:
-            set_state: started
+          activities:
+            - set_state: started
           on-success:
             - run_DockerContainer
         DockerContainer_starting:
           node: DockerContainer
-          activity:
-            set_state: starting
+          activities:
+            - set_state: starting
           on-success:
             - start_DockerContainer
         DataInputs_created:
           node: DataInputs
-          activity:
-            set_state: created
+          activities:
+            - set_state: created
           on-success:
             - DataInputs_configuring
             - DockerContainer_configuring
         DataInputs_configured:
           node: DataInputs
-          activity:
-            set_state: configured
+          activities:
+            - set_state: configured
           on-success:
             - DataInputs_starting
         DockerContainer_creating:
           node: DockerContainer
-          activity:
-            set_state: creating
+          activities:
+            - set_state: creating
           on-success:
             - DockerContainer_created
         DockerContainer_created:
           node: DockerContainer
-          activity:
-            set_state: created
+          activities:
+            - set_state: created
           on-success:
             - DockerContainer_configuring
         DockerContainer_configuring:
           node: DockerContainer
-          activity:
-            set_state: configuring
+          activities:
+            - set_state: configuring
           on-success:
             - configure_DockerContainer
         run_DockerContainer:
           node: DockerContainer
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.custom.run
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.custom.run
           on-success:
             - DockerContainer_finished
         DockerContainer_finished:
           node: DockerContainer
-          activity:
-            set_state: finished
+          activities:
+            - set_state: finished
           on-success:
             - publish_PublisherFromDockerVolume
         publish_PublisherFromDockerVolume:
           node: PublisherFromDockerVolume
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.custom.publish
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.custom.publish
           on-success:
             - PublisherFromDockerVolume_published
         PublisherFromDockerVolume_published:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: published
+          activities:
+            - set_state: published
     uninstall:
       steps:
         Compute_uninstall:
           node: Compute
-          activity:
-            delegate: uninstall
+          activities:
+            - delegate: uninstall
         DockerContainer_stopping:
           node: DockerContainer
-          activity:
-            set_state: stopping
+          activities:
+            - set_state: stopping
           on-success:
             - stop_DockerContainer
         stop_DockerContainer:
           node: DockerContainer
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
             - DockerContainer_stopped
         DockerContainer_stopped:
           node: DockerContainer
-          activity:
-            set_state: stopped
+          activities:
+            - set_state: stopped
           on-success:
             - DockerContainer_deleting
         DockerContainer_deleting:
           node: DockerContainer
-          activity:
-            set_state: deleting
+          activities:
+            - set_state: deleting
           on-success:
             - delete_DockerContainer
         delete_DockerContainer:
           node: DockerContainer
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.delete
           on-success:
             - DockerContainer_deleted
         DockerContainer_deleted:
           node: DockerContainer
-          activity:
-            set_state: deleted
+          activities:
+            - set_state: deleted
           on-success:
             - Compute_uninstall
         DockerVolume_stopping:
           node: DataInputs
-          activity:
-            set_state: stopping
+          activities:
+            - set_state: stopping
           on-success:
             - stop_DockerVolume
         stop_DockerVolume:
           node: DataInputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
             - DockerVolume_stopped
         DockerVolume_stopped:
           node: DataInputs
-          activity:
-            set_state: stopped
+          activities:
+            - set_state: stopped
           on-success:
             - DockerVolume_deleting
         DockerVolume_deleting:
           node: DataInputs
-          activity:
-            set_state: deleting
+          activities:
+            - set_state: deleting
           on-success:
             - delete_DockerVolume
         delete_DockerVolume:
           node: DataInputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.delete
           on-success:
             - DockerVolume_deleted
         DockerVolume_deleted:
           node: DataInputs
-          activity:
-            set_state: deleted
+          activities:
+            - set_state: deleted
           on-success:
             - Compute_uninstall
         DockerVolume_2_stopping:
           node: DataOutputs
-          activity:
-            set_state: stopping
+          activities:
+            - set_state: stopping
           on-success:
             - stop_DockerVolume_2
         stop_DockerVolume_2:
           node: DataOutputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
             - DockerVolume_2_stopped
         DockerVolume_2_stopped:
           node: DataOutputs
-          activity:
-            set_state: stopped
+          activities:
+            - set_state: stopped
           on-success:
             - DockerVolume_2_deleting
         DockerVolume_2_deleting:
           node: DataOutputs
-          activity:
-            set_state: deleting
+          activities:
+            - set_state: deleting
           on-success:
             - delete_DockerVolume_2
         delete_DockerVolume_2:
           node: DataOutputs
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.delete
           on-success:
             - DockerVolume_2_deleted
         DockerVolume_2_deleted:
           node: DataOutputs
-          activity:
-            set_state: deleted
+          activities:
+            - set_state: deleted
           on-success:
             - Compute_uninstall
         PublisherFromDockerVolume_stopping:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: stopping
+          activities:
+            - set_state: stopping
           on-success:
             - stop_PublisherFromDockerVolume
         stop_PublisherFromDockerVolume:
           node: PublisherFromDockerVolume
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.stop
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.stop
           on-success:
             - PublisherFromDockerVolume_stopped
         PublisherFromDockerVolume_stopped:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: stopped
+          activities:
+            - set_state: stopped
           on-success:
             - PublisherFromDockerVolume_deleting
         PublisherFromDockerVolume_deleting:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: deleting
+          activities:
+            - set_state: deleting
           on-success:
             - delete_PublisherFromDockerVolume
         delete_PublisherFromDockerVolume:
           node: PublisherFromDockerVolume
-          activity:
-            call_operation: tosca.interfaces.node.lifecycle.Standard.delete
+          activities:
+            - call_operation: tosca.interfaces.node.lifecycle.Standard.delete
           on-success:
             - PublisherFromDockerVolume_deleted
         PublisherFromDockerVolume_deleted:
           node: PublisherFromDockerVolume
-          activity:
-            set_state: deleted
+          activities:
+            - set_state: deleted
           on-success:
             - DockerContainer_stopping
