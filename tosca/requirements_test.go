@@ -34,6 +34,7 @@ func requirementAssignmentComplex(t *testing.T) {
     - local_storage:
         node: my_block_storage
         capability: tosca.capabilities.Attachment
+        type_requirement: host
         relationship:
           type: tosca.relationships.AttachesTo
           properties:
@@ -50,6 +51,7 @@ func requirementAssignmentComplex(t *testing.T) {
 	assert.Equal(t, "tosca.relationships.AttachesTo", lc.Relationship)
 	assert.Contains(t, lc.RelationshipProps, "location")
 	assert.Equal(t, "/dev/vde", lc.RelationshipProps["location"].String())
+	assert.Contains(t, lc.TypeRequirement, "host")
 }
 
 func requirementAssignmentSimple(t *testing.T) {
@@ -153,10 +155,12 @@ func requirementDefinitionAlien(t *testing.T) {
         relationship_type: starlings.relationships.ConnectsConsulAgentToServer
         lower_bound: 0
         upper_bound: 1
+        capability_name: server
       - wan_endpoint: starlings.capabilities.ConsulServerWAN
         relationship_type: starlings.relationships.ConnectsConsulServerWAN
         lower_bound: 0
         upper_bound: UNBOUNDED
+        capability_name: server
         `
 
 	nodes := make(map[string]ReqDefTestNode)
@@ -185,5 +189,6 @@ func requirementDefinitionAlien(t *testing.T) {
 	require.Equal(t, "starlings.relationships.ConnectsConsulServerWAN", req.Relationship)
 	require.Equal(t, uint64(0), req.Occurrences.LowerBound)
 	require.Equal(t, uint64(UNBOUNDED), req.Occurrences.UpperBound)
+	require.Equal(t, "server", req.CapabilityName)
 
 }

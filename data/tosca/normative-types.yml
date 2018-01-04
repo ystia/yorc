@@ -43,15 +43,15 @@ data_types:
         description: The optional user (name or ID) used for non-token based credentials.
         required: false
 
-tosca.datatypes.TimeInterval:
-  derived_from: tosca.datatypes.Root
-  properties:
-    start_time:
-      type: timestamp
-      required: true
-    end_time:
-      type: timestamp
-      required: true
+  tosca.datatypes.TimeInterval:
+    derived_from: tosca.datatypes.Root
+    properties:
+      start_time:
+        type: timestamp
+        required: true
+      end_time:
+        type: timestamp
+        required: true
       
   tosca.datatypes.network.NetworkInfo:
     derived_from: tosca.datatypes.Root
