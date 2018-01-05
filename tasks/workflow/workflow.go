@@ -424,29 +424,52 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF or HOST values are accepted", s.OperationHost, stepName)
 	}
 
-	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
+	kvKeys, _, err := kv.Keys(stepPrefix+"/activities/", "/", nil)
 	if err != nil {
 		return nil, err
 	}
-	if len(kvPairs) == 0 {
-		return nil, errors.Errorf("Activity missing for step %s, this is not allowed", stepName)
+	if len(kvKeys) == 0 {
+		return nil, errors.Errorf("Activities missing for step %s, this is not allowed", stepName)
+	}
+
+	for i := range kvKeys {
+		kvKeys[i] = path.Base(kvKeys[i])
 	}
 	s.Activities = make([]activity, 0)
-	for _, actKV := range kvPairs {
-		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activity/")
-		switch {
-		case key == wfDelegateActivity:
+	for _, index := range kvKeys {
+		actPath := path.Join(stepPrefix, "activities", index, wfDelegateActivity)
+		actKV, _, err := kv.Get(actPath, nil)
+		if err != nil {
+			return nil, err
+		}
+		if actKV != nil && len(actKV.Value) != 0 {
+			log.Debugf("Activity %s with index %s in step %s is %s", wfDelegateActivity, index, stepName, actKV.Value)
 			s.Activities = append(s.Activities, delegateActivity{delegate: string(actKV.Value)})
-		case key == wfSetStateActivity:
+			continue
+		}
+		actPath = path.Join(stepPrefix, "activities", index, wfSetStateActivity)
+		actKV, _, err = kv.Get(actPath, nil)
+		if err != nil {
+			return nil, err
+		}
+		if actKV != nil && len(actKV.Value) != 0 {
+			log.Debugf("Activity %s with index %s in step %s is %s", wfSetStateActivity, index, stepName, actKV.Value)
 			s.Activities = append(s.Activities, setStateActivity{state: string(actKV.Value)})
-		case key == wfCallOpActivity:
+			continue
+		}
+		actPath = path.Join(stepPrefix, "activities", index, wfCallOpActivity)
+		actKV, _, err = kv.Get(actPath, nil)
+		if err != nil {
+			return nil, err
+		}
+		if actKV != nil && len(actKV.Value) != 0 {
+			log.Debugf("Activity %s with index %s in step %s is %s", wfCallOpActivity, index, stepName, actKV.Value)
 			s.Activities = append(s.Activities, callOperationActivity{operation: string(actKV.Value)})
-		default:
-			return nil, errors.Errorf("Unsupported activity type: %s", key)
+			continue
 		}
 	}
 
-	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
+	kvPairs, _, err := kv.List(stepPrefix+"/next", nil)
 	if err != nil {
 		return nil, err
 	}
