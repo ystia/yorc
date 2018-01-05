@@ -187,7 +187,7 @@ func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, kv *api.KV, cfg config.
 	infrastructure := commons.Infrastructure{}
 
 	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
-	require.Error(t, err, "An error was expected due to malformed provided Elastic IP: %s", "12.12.oups.12")
+	require.Error(t, err, "An error was expected due to malformed provided Elastic IP: 12.12.oups.12")
 }
 
 func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV, cfg config.Configuration) {
