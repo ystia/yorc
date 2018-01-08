@@ -22,6 +22,8 @@ type RequirementDefinition struct {
 	Node         string `yaml:"node,omitempty"`
 	Relationship string `yaml:"relationship,omitempty"`
 	Occurrences  Range  `yaml:"occurrences,omitempty"`
+	// Non Tosca-Standard A4C capability_name property
+	CapabilityName string `yaml:"capability_name,omitempty"`
 	// Extra types used in list (A4C) mode
 	name string
 }
@@ -65,6 +67,7 @@ func (a *RequirementDefinition) UnmarshalYAML(unmarshal func(interface{}) error)
 		Relationship      string `yaml:"relationship,omitempty"`
 		RelationshipAlien string `yaml:"relationship_type,omitempty"`
 		Occurrences       Range  `yaml:"occurrences,omitempty"`
+		CapabilityName    string `yaml:"capability_name,omitempty"`
 
 		// Extra types for Alien Parsing
 		LowerBound string                 `yaml:"lower_bound,omitempty"`
@@ -79,6 +82,7 @@ func (a *RequirementDefinition) UnmarshalYAML(unmarshal func(interface{}) error)
 	a.Node = str.Node
 	a.Relationship = str.Relationship
 	a.Occurrences = str.Occurrences
+	a.CapabilityName = str.CapabilityName
 	if str.Capability == "" && len(str.XXX) == 1 {
 		for k, v := range str.XXX {
 			a.name = k
@@ -119,7 +123,8 @@ type RequirementAssignment struct {
 	Node              string `yaml:"node,omitempty"`
 	Relationship      string `yaml:"relationship,omitempty"`
 	RelationshipProps map[string]*ValueAssignment
-	// NodeFilter
+	// Non Tosca-Standard A4C type_requirement property
+	TypeRequirement string `yaml:"type_requirement,omitempty"`
 }
 
 // An RequirementRelationship is the representation of the relationship part of a TOSCA Requirement Assignment
@@ -139,22 +144,25 @@ func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error)
 	}
 
 	var ra struct {
-		Capability   string `yaml:"capability"`
-		Node         string `yaml:"node,omitempty"`
-		Relationship string `yaml:"relationship,omitempty"`
+		Capability      string `yaml:"capability"`
+		Node            string `yaml:"node,omitempty"`
+		Relationship    string `yaml:"relationship,omitempty"`
+		TypeRequirement string `yaml:"type_requirement,omitempty"`
 	}
 
 	if err := unmarshal(&ra); err == nil {
 		r.Capability = ra.Capability
 		r.Node = ra.Node
 		r.Relationship = ra.Relationship
+		r.TypeRequirement = ra.TypeRequirement
 		return nil
 	}
 
 	var rac struct {
-		Capability   string                  `yaml:"capability"`
-		Node         string                  `yaml:"node,omitempty"`
-		Relationship RequirementRelationship `yaml:"relationship,omitempty"`
+		Capability      string                  `yaml:"capability"`
+		Node            string                  `yaml:"node,omitempty"`
+		Relationship    RequirementRelationship `yaml:"relationship,omitempty"`
+		TypeRequirement string                  `yaml:"type_requirement,omitempty"`
 	}
 	if err := unmarshal(&rac); err != nil {
 		return err
@@ -163,5 +171,6 @@ func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error)
 	r.Node = rac.Node
 	r.Relationship = rac.Relationship.Type
 	r.RelationshipProps = rac.Relationship.Properties
+	r.TypeRequirement = rac.TypeRequirement
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 	"vbom.ml/util/sortorder"
 )
 
-// GetRequirementsKeysByNameForNode returns paths to requirements whose names matches the given requirementName.
+// GetRequirementsKeysByNameForNode returns paths to requirements whose names matches the given requirementName or typeRequirement in case of multiple assignments to an original requirementName
 //
 // The returned slice may be empty if there is no matching requirements.
 func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requirementName string) ([]string, error) {
@@ -22,6 +22,8 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 	}
 	for _, reqIndexKey := range reqKVPs {
 		reqIndexKey = path.Clean(reqIndexKey)
+
+		// Search matching with name
 		kvp, _, err := kv.Get(path.Join(reqIndexKey, "name"), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -30,6 +32,17 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 			return nil, errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
 		}
 		if string(kvp.Value) == requirementName {
+			reqKeys = append(reqKeys, reqIndexKey)
+			// Pass to the next index
+			continue
+		}
+
+		// Search matching with type_requirement
+		kvp, _, err = kv.Get(path.Join(reqIndexKey, "type_requirement"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && string(kvp.Value) == requirementName {
 			reqKeys = append(reqKeys, reqIndexKey)
 		}
 	}
@@ -130,7 +143,7 @@ func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requi
 	return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
-// GetRequirementByNameAndTargetForNode returns path to requirement which names matches the given requirementName and node matches the given targetName.
+// GetRequirementByNameAndTargetForNode returns path to requirement which names matches the given requirementName or typeRequirement in case of multiple assignments to an original requirementName and node matches the given targetName.
 //
 // The returned string may be empty if there is no matching requirements.
 func GetRequirementByNameAndTargetForNode(kv *api.KV, deploymentID, nodeName, requirementName, targetName string) (string, error) {
@@ -140,7 +153,10 @@ func GetRequirementByNameAndTargetForNode(kv *api.KV, deploymentID, nodeName, re
 		return "", errors.Wrapf(err, "Failed to get requirement index for node %q, requirement %q, target node %q", nodeName, requirementName, targetName)
 	}
 	for _, reqIndexKey := range reqKVPs {
+		var reqName, reqType string
 		reqIndexKey = path.Clean(reqIndexKey)
+
+		// Search matching with name
 		kvp, _, err := kv.Get(path.Join(reqIndexKey, "name"), nil)
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to get requirement index for node %q, requirement %q, target node %q", nodeName, requirementName, targetName)
@@ -148,9 +164,22 @@ func GetRequirementByNameAndTargetForNode(kv *api.KV, deploymentID, nodeName, re
 		if kvp == nil || len(kvp.Value) == 0 {
 			return "", errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
 		}
-		if string(kvp.Value) != requirementName {
+		reqName = string(kvp.Value)
+
+		// Search matching with type_requirement
+		kvp, _, err = kv.Get(path.Join(reqIndexKey, "type_requirement"), nil)
+		if err != nil {
+			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil {
+			reqType = string(kvp.Value)
+		}
+
+		// if name or type_requirement matches, we continue with node matching
+		if reqName != requirementName && reqType != requirementName {
 			continue
 		}
+
 		kvp, _, err = kv.Get(path.Join(reqIndexKey, "node"), nil)
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to get requirement index for node %q, requirement %q, target node %q", nodeName, requirementName, targetName)

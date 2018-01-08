@@ -267,6 +267,7 @@ func storeRequirementAssignment(ctx context.Context, requirement tosca.Requireme
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/node", requirement.Node)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/relationship", requirement.Relationship)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/capability", requirement.Capability)
+	consulStore.StoreConsulKeyAsString(requirementPrefix+"/type_requirement", requirement.TypeRequirement)
 	for propName, propValue := range requirement.RelationshipProps {
 		storeValueAssignment(consulStore, requirementPrefix+"/properties/"+url.QueryEscape(propName), propValue)
 	}
@@ -416,6 +417,7 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
+				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability_name", reqDefinition.CapabilityName)
 			}
 		}
 		capabilitiesPrefix := nodeTypePrefix + "/capabilities"
