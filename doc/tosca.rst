@@ -52,8 +52,19 @@ Injected Environment Variables
 When operation scripts are called, some environment variables are injected by Janus.
 
 - For Python and Bash scripts those variables are injected as environment variables.
+- For Python scripts they are also injected as global variables of the script and can be used directly. 
 - For Ansible playbooks they are injected as `Playbook variables <http://docs.ansible.com/ansible/latest/playbooks_variables.html>`_.
 
+Operation outputs
+~~~~~~~~~~~~~~~~~
+
+TOSCA `defines a function called get_operation_output <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/csd01/TOSCA-Simple-Profile-YAML-v1.2-csd01.html#DEFN_FUNCTION_GET_OPERATION_OUTPUT>`_,
+this function instructs Janus to retrieve a value at the end of a operation. In order to allow Janus to retrieve those values you should depending on your operation 
+implementation:
+
+* in Bash scripts you should export a variable named as the output variable (case sensitively)
+* in Python scripts you should define a variable (globally to your script root not locally to a class or function) named as the output variable (case sensitively)
+* in Ansible playbooks you should set a fact named as the output variable (case sensitively)
 
 Node operation
 ^^^^^^^^^^^^^^
