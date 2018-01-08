@@ -55,7 +55,7 @@ vet:
 	fi
 
 tools:
-	go get -u -v $(GOTOOLS)
+	@./build/tools.sh $(GOTOOLS)
 
 savedeps: checks
 	@godep save -v ./...
