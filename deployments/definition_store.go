@@ -504,6 +504,10 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				} else {
 					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
 					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+					if err := checkOperationHost(intDef.Implementation.OperationHost); err != nil {
+						return err
+					}
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/operation_host", intDef.Implementation.OperationHost)
 				}
 			}
 		}
@@ -633,6 +637,10 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 				}
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+				if err := checkOperationHost(intDef.Implementation.OperationHost); err != nil {
+					return err
+				}
+				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/operation_host", intDef.Implementation.OperationHost)
 			}
 		}
 
@@ -1147,4 +1155,21 @@ func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []strin
 	}
 
 	return true, bsName, nil
+}
+
+func checkOperationHost(operationHost string) error {
+	if operationHost != "" {
+		switch strings.ToUpper(operationHost) {
+		case "SELF":
+		case "HOST":
+		case "ORCHESTRATOR":
+		case "SOURCE":
+		case "TARGET":
+			return nil
+		default:
+			return errors.Errorf("Invalid value for Implementation operation_host property:%q", operationHost)
+
+		}
+	}
+	return nil
 }

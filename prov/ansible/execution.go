@@ -218,6 +218,14 @@ func (e *executionCommon) resolveOperation() error {
 		e.Description = string(kvPair.Value)
 	}
 
+	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/operation_host", nil)
+	if err != nil {
+		return errors.Wrap(err, "Consul query failed: ")
+	}
+	if kvPair != nil && len(kvPair.Value) > 0 {
+		e.operation.OperationHost = string(kvPair.Value)
+	}
+
 	return e.resolveInstances()
 }
 
