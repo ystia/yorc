@@ -129,7 +129,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 
-	storageKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		}
 	}
 
-	networkKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return err
 	}

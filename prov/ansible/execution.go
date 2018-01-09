@@ -224,6 +224,8 @@ func (e *executionCommon) resolveOperation() error {
 	}
 	if kvPair != nil && len(kvPair.Value) > 0 {
 		e.operation.OperationHost = string(kvPair.Value)
+	} else {
+		e.operation.OperationHost = "HOST"
 	}
 
 	return e.resolveInstances()

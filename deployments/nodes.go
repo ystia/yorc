@@ -463,7 +463,7 @@ func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) e
 }
 
 func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
-	localStorageReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	localStorageReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string)
 		}
 		nodesList = append(nodesList, string(kvp.Value))
 	}
-	networkReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	networkReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return nil, err
 	}

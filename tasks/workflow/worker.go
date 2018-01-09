@@ -251,7 +251,7 @@ func (w worker) handleTask(t *task) {
 			t.WithStatus(tasks.FAILED)
 			return
 		}
-		op, err := operations.GetOperation(kv, t.TargetID, nodeName, "custom."+commandName)
+		op, err := operations.GetOperation(kv, t.TargetID, nodeName, "custom."+commandName, "", "")
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 			err = setNodeStatus(t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
