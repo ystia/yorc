@@ -110,6 +110,7 @@ type executionCommon struct {
 	HaveOutput               bool
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
+	isOrchestratorOperation  bool
 	IsCustomCommand          bool
 	relationshipType         string
 	ansibleRunner            ansibleRunner
@@ -174,14 +175,10 @@ func (e *executionCommon) resolveOperation() error {
 		if err != nil {
 			return err
 		}
-
-		e.isRelationshipTargetNode = isTargetOperation(e.operation.Name)
-
 		err = e.resolveIsPerInstanceOperation(e.operation.Name)
 		if err != nil {
 			return err
 		}
-
 	} else if strings.Contains(e.operation.Name, "custom") {
 		e.IsCustomCommand = true
 	}
@@ -218,28 +215,38 @@ func (e *executionCommon) resolveOperation() error {
 		e.Description = string(kvPair.Value)
 	}
 
-	kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/operation_host", nil)
-	if err != nil {
-		return errors.Wrap(err, "Consul query failed: ")
-	}
-	if kvPair != nil && len(kvPair.Value) > 0 {
-		e.operation.OperationHost = string(kvPair.Value)
-	} else {
-		e.operation.OperationHost = "HOST"
+	// if operation_host is not overridden by requirement, we retrieve operation/implementation definition info
+	if e.operation.OperationHost == "" {
+		kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/operation_host", nil)
+		if err != nil {
+			return errors.Wrap(err, "Consul query failed: ")
+		}
+		if kvPair != nil && len(kvPair.Value) > 0 {
+			e.operation.OperationHost = string(kvPair.Value)
+		}
 	}
 
+	// Set specific operation host values
+	if e.operation.RelOp.IsRelationshipOperation && e.operation.OperationHost == "TARGET" {
+		e.isRelationshipTargetNode = true
+	} else if e.operation.OperationHost == "ORCHESTRATOR" {
+		e.isOrchestratorOperation = true
+	}
 	return e.resolveInstances()
 }
 
 func (e *executionCommon) resolveInstances() error {
 	var err error
-	if e.operation.RelOp.IsRelationshipOperation {
-		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
-		if err != nil {
-			return err
+	if !e.isOrchestratorOperation {
+		if e.operation.RelOp.IsRelationshipOperation {
+			e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
+			if err != nil {
+				return err
+			}
 		}
+		e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	}
-	e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+
 	return err
 }
 
@@ -303,6 +310,8 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 	var instances []string
 	if e.isRelationshipTargetNode {
 		instances = e.targetNodeInstances
+	} else if e.isOrchestratorOperation {
+		return errors.New("Execution on orchestrator's host is not yet implemented")
 	} else {
 		instances = e.sourceNodeInstances
 	}
@@ -502,16 +511,6 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 	}
 
 	return nil
-}
-
-// isTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
-//	pre_configure_target, post_configure_target, add_source
-func isTargetOperation(operationName string) bool {
-	op := strings.ToLower(operationName)
-	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_source") {
-		return true
-	}
-	return false
 }
 
 // resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):

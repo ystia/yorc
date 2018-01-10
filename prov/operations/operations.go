@@ -11,18 +11,12 @@ import (
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it
 func GetOperation(kv *api.KV, deploymentID, nodeName, operationName, requirementName, operationHost string) (prov.Operation, error) {
 	var (
-		opHost, implementingType, requirementIndex string
-		err                                        error
-		isRelationshipOp                           bool
+		implementingType, requirementIndex string
+		err                                error
+		isRelationshipOp                   bool
 	)
 	// if requirementName is filled, operation is associated to a relationship
 	isRelationshipOp = requirementName != ""
-	// Default operation host is HOST
-	if operationHost != "" {
-		opHost = operationHost
-	} else {
-		opHost = "HOST"
-	}
 	if requirementName != "" {
 		key, err := deployments.GetRequirementKeyByNameForNode(kv, deploymentID, nodeName, requirementName)
 		if err != nil {
@@ -59,7 +53,7 @@ func GetOperation(kv *api.KV, deploymentID, nodeName, operationName, requirement
 			RequirementIndex:        requirementIndex,
 			TargetNodeName:          targetNodeName,
 		},
-		OperationHost: opHost,
+		OperationHost: operationHost,
 	}
 	return op, nil
 }
