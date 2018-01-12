@@ -719,19 +719,24 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 			if step.OperationHost != "" {
 				consulStore.StoreConsulKeyAsString(stepPrefix+"/operation_host", strings.ToUpper(step.OperationHost))
 			}
-			if step.Activity.CallOperation != "" {
-				// Preserve case for requirement and target node name in case of relationship operation
-				opSlice := strings.SplitN(step.Activity.CallOperation, "/", 2)
-				opSlice[0] = strings.ToLower(opSlice[0])
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/call-operation", strings.Join(opSlice, "/"))
-			}
-			if step.Activity.Delegate != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/delegate", strings.ToLower(step.Activity.Delegate))
-			}
-			if step.Activity.SetState != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/set-state", strings.ToLower(step.Activity.SetState))
+			activitiesPrefix := stepPrefix + "/activities"
+			for actIndex, activity := range step.Activities {
+				activityPrefix := activitiesPrefix + "/" + strconv.Itoa(actIndex)
+				if activity.CallOperation != "" {
+					// Preserve case for requirement and target node name in case of relationship operation
+					opSlice := strings.SplitN(activity.CallOperation, "/", 2)
+					opSlice[0] = strings.ToLower(opSlice[0])
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/call-operation", strings.Join(opSlice, "/"))
+				}
+				if activity.Delegate != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/delegate", strings.ToLower(activity.Delegate))
+				}
+				if activity.SetState != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/set-state", strings.ToLower(activity.SetState))
+				}
 			}
 			for _, next := range step.OnSuccess {
+				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSucces_value
 				consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
 			}
 		}

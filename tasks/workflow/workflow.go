@@ -20,11 +20,12 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"strconv"
 )
 
-const wfDelegateActivity string = "delegate"
-const wfSetStateActivity string = "set-state"
-const wfCallOpActivity string = "call-operation"
+const wfDelegateActivity = "delegate"
+const wfSetStateActivity = "set-state"
+const wfCallOpActivity = "call-operation"
 
 type step struct {
 	Name               string
@@ -419,16 +420,17 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF or HOST values are accepted", s.OperationHost, stepName)
 	}
 
-	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
+	kvKeys, _, err := kv.List(stepPrefix+"/activities/", nil)
 	if err != nil {
 		return nil, err
 	}
-	if len(kvPairs) == 0 {
-		return nil, errors.Errorf("Activity missing for step %s, this is not allowed", stepName)
+	if len(kvKeys) == 0 {
+		return nil, errors.Errorf("Activities missing for step %s, this is not allowed", stepName)
 	}
+
 	s.Activities = make([]activity, 0)
-	for _, actKV := range kvPairs {
-		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activity/")
+	for i, actKV := range kvKeys {
+		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activities/"+strconv.Itoa(i)+"/")
 		switch {
 		case key == wfDelegateActivity:
 			s.Activities = append(s.Activities, delegateActivity{delegate: string(actKV.Value)})
@@ -441,7 +443,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		}
 	}
 
-	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
+	kvPairs, _, err := kv.List(stepPrefix+"/next", nil)
 	if err != nil {
 		return nil, err
 	}
