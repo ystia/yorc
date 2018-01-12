@@ -10,10 +10,33 @@ import (
 	"vbom.ml/util/sortorder"
 )
 
-// GetRequirementsKeysByNameForNode returns paths to requirements whose names matches the given requirementName or typeRequirement in case of multiple assignments to an original requirementName
+// GetRequirementKeyByNameForNode returns path to requirement which name match with defined requirementName for a given node name
+func GetRequirementKeyByNameForNode(kv *api.KV, deploymentID, nodeName, requirementName string) (string, error) {
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, reqIndexKey := range reqKVPs {
+		reqIndexKey = path.Clean(reqIndexKey)
+		kvp, _, err := kv.Get(path.Join(reqIndexKey, "name"), nil)
+		if err != nil {
+			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			return "", errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
+		}
+		if string(kvp.Value) == requirementName {
+			return reqIndexKey, nil
+		}
+	}
+	return "", nil
+}
+
+// GetRequirementsKeysByTypeForNode returns paths to requirements whose name or type_requirement match the given requirementType
 //
 // The returned slice may be empty if there is no matching requirements.
-func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requirementName string) ([]string, error) {
+func GetRequirementsKeysByTypeForNode(kv *api.KV, deploymentID, nodeName, requirementType string) ([]string, error) {
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
 	reqKeys := make([]string, 0)
@@ -31,7 +54,7 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 		if kvp == nil || len(kvp.Value) == 0 {
 			return nil, errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
 		}
-		if string(kvp.Value) == requirementName {
+		if string(kvp.Value) == requirementType {
 			reqKeys = append(reqKeys, reqIndexKey)
 			// Pass to the next index
 			continue
@@ -42,7 +65,7 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp != nil && string(kvp.Value) == requirementName {
+		if kvp != nil && string(kvp.Value) == requirementType {
 			reqKeys = append(reqKeys, reqIndexKey)
 		}
 	}
@@ -51,7 +74,7 @@ func GetRequirementsKeysByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 }
 
 // GetRequirementIndexFromRequirementKey returns the corresponding requirement index from a given requirement key
-// (typically returned by GetRequirementsKeysByNameForNode)
+// (typically returned by GetRequirementsKeysByTypeForNode)
 func GetRequirementIndexFromRequirementKey(requirementKey string) string {
 	return path.Base(requirementKey)
 }
@@ -141,57 +164,4 @@ func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requi
 
 	}
 	return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-}
-
-// GetRequirementByNameAndTargetForNode returns path to requirement which names matches the given requirementName or typeRequirement in case of multiple assignments to an original requirementName and node matches the given targetName.
-//
-// The returned string may be empty if there is no matching requirements.
-func GetRequirementByNameAndTargetForNode(kv *api.KV, deploymentID, nodeName, requirementName, targetName string) (string, error) {
-	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
-	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get requirement index for node %q, requirement %q, target node %q", nodeName, requirementName, targetName)
-	}
-	for _, reqIndexKey := range reqKVPs {
-		var reqName, reqType string
-		reqIndexKey = path.Clean(reqIndexKey)
-
-		// Search matching with name
-		kvp, _, err := kv.Get(path.Join(reqIndexKey, "name"), nil)
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed to get requirement index for node %q, requirement %q, target node %q", nodeName, requirementName, targetName)
-		}
-		if kvp == nil || len(kvp.Value) == 0 {
-			return "", errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
-		}
-		reqName = string(kvp.Value)
-
-		// Search matching with type_requirement
-		kvp, _, err = kv.Get(path.Join(reqIndexKey, "type_requirement"), nil)
-		if err != nil {
-			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil {
-			reqType = string(kvp.Value)
-		}
-
-		// if name or type_requirement matches, we continue with node matching
-		if reqName != requirementName && reqType != requirementName {
-			continue
-		}
-
-		kvp, _, err = kv.Get(path.Join(reqIndexKey, "node"), nil)
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed to get requirement index for node %q, requirement %q, target node %q", nodeName, requirementName, targetName)
-		}
-		if kvp == nil || len(kvp.Value) == 0 {
-			return "", errors.Errorf("Missing mandatory parameter \"name\" for requirement at index %q for node %q deployment %q", path.Base(reqIndexKey), nodeName, deploymentID)
-		}
-		if string(kvp.Value) == targetName {
-			// Found
-			return reqIndexKey, nil
-		}
-	}
-	// Not found
-	return "", nil
 }

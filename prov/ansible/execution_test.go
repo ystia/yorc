@@ -99,36 +99,34 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	})
 
 	var operationTestCases = []string{
-		"tosca.interfaces.node.lifecycle.configure.pre_configure_source/1",
-		"tosca.interfaces.node.lifecycle.configure.pre_configure_source/connect/" + nodeBName,
+		"tosca.interfaces.node.lifecycle.configure.pre_configure_source",
 	}
 	for i, operation := range operationTestCases {
 		t.Run("testExecutionResolveInputsOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionResolveInputsOnRelationshipSource(t, kv, deploymentID, nodeAName, nodeBName, operation, "janus.types.Rel")
+			testExecutionResolveInputsOnRelationshipSource(t, kv, deploymentID, nodeAName, nodeBName, operation, "janus.types.Rel", "connect", "SOURCE")
 		})
 		t.Run("testExecutionGenerateOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionGenerateOnRelationshipSource(t, kv, deploymentID, nodeAName, operation)
+			testExecutionGenerateOnRelationshipSource(t, kv, deploymentID, nodeAName, operation, "connect", "SOURCE")
 		})
 	}
 
 	operationTestCases = []string{
-		"tosca.interfaces.node.lifecycle.configure.add_source/1",
-		"tosca.interfaces.node.lifecycle.configure.add_source/connect/" + nodeBName,
+		"tosca.interfaces.node.lifecycle.configure.add_source",
 	}
 
 	for i, operation := range operationTestCases {
 		t.Run("testExecutionResolveInputOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionResolveInputOnRelationshipTarget(t, kv, deploymentID, nodeAName, nodeBName, operation, "janus.types.Rel")
+			testExecutionResolveInputOnRelationshipTarget(t, kv, deploymentID, nodeAName, nodeBName, operation, "janus.types.Rel", "connect", "TARGET")
 		})
 
 		t.Run("testExecutionGenerateOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionGenerateOnRelationshipTarget(t, kv, deploymentID, nodeAName, operation)
+			testExecutionGenerateOnRelationshipTarget(t, kv, deploymentID, nodeAName, operation, "connect", "TARGET")
 		})
 	}
 }
 
 func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, nodeTypeName, operation string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:           deploymentID,
@@ -212,7 +210,7 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 }
 
 func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
@@ -275,8 +273,8 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
 }
 
-func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation)
+func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
+	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:           deploymentID,
@@ -326,8 +324,8 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 	require.Len(t, instanceNames, 5)
 }
 
-func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
+func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
@@ -385,8 +383,8 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	compareStringsIgnoreWhitespace(t, expectedResult, writer.String())
 }
 
-func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation)
+func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
+	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:             deploymentID,
@@ -437,8 +435,8 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 	require.Len(t, instanceNames, 5)
 }
 
-func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation)
+func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
+	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)

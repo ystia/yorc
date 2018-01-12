@@ -36,13 +36,15 @@ func implementationComplexGrammar(t *testing.T) {
 	t.Parallel()
 	var inputYaml = `
 implementation:
-  primary: scripts/start_server.sh`
+  primary: scripts/start_server.sh
+  operation_host: HOST`
 	implem := implementationTestType{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &implem)
 	assert.Nil(t, err, "Expecting no error when unmarshaling Implementation with simple grammar")
 	assert.Equal(t, "scripts/start_server.sh", implem.Implementation.Primary)
 	assert.Len(t, implem.Implementation.Dependencies, 0, "Expecting no dependencies but found %d", len(implem.Implementation.Dependencies))
+	assert.Equal(t, "HOST", implem.Implementation.OperationHost)
 }
 
 func implementationArtifact(t *testing.T) {
@@ -67,7 +69,8 @@ implementation:
   primary: scripts/start_server.sh
   dependencies:
     - utils/utils.sh
-    - utils/log.sh`
+    - utils/log.sh
+  operation_host: SELF`
 	implem := implementationTestType{}
 
 	err := yaml.Unmarshal([]byte(inputYaml), &implem)
@@ -76,6 +79,7 @@ implementation:
 	assert.Len(t, implem.Implementation.Dependencies, 2, "Expecting 2 dependencies but found %d", len(implem.Implementation.Dependencies))
 	assert.Contains(t, implem.Implementation.Dependencies, "utils/utils.sh")
 	assert.Contains(t, implem.Implementation.Dependencies, "utils/log.sh")
+	assert.Equal(t, "SELF", implem.Implementation.OperationHost)
 }
 
 func implementationFailing(t *testing.T) {
