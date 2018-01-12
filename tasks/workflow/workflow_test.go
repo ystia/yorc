@@ -64,7 +64,7 @@ func testReadStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	data[wfName+"/steps/stepName/next/downstream"] = []byte("")
 	data[wfName+"/steps/stepName/target"] = []byte("nodeName")
 
-	data[wfName+"/steps/downstream/activities/1/call-operation"] = []byte("script.sh")
+	data[wfName+"/steps/downstream/activities/0/call-operation"] = []byte("script.sh")
 	data[wfName+"/steps/downstream/target"] = []byte("downstream")
 
 	srv1.PopulateKV(t, data)
