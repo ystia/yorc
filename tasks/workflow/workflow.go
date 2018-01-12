@@ -20,11 +20,12 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"strconv"
 )
 
-const wfDelegateActivity string = "delegate"
-const wfSetStateActivity string = "set-state"
-const wfCallOpActivity string = "call-operation"
+const wfDelegateActivity = "delegate"
+const wfSetStateActivity = "set-state"
+const wfCallOpActivity = "call-operation"
 
 type step struct {
 	Name               string
@@ -111,22 +112,17 @@ func (s *step) setStatus(status tasks.TaskStepStatus) error {
 }
 
 func (s *step) isRelationshipTargetNodeRelated() (bool, error) {
-	for _, activity := range s.Activities {
-		if activity.ActivityType() == wfCallOpActivity {
-			operation := activity.ActivityValue()
-			isRelationshipOp, operationRealName, _, targetNode, err := deployments.DecodeOperation(s.kv, s.t.TargetID, s.Target, operation)
-			if err != nil {
-				return false, err
-			}
-			if isRelationshipOp {
-				if deployments.IsRelationshipOperationOnTargetNode(operationRealName) {
-					isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, targetNode)
-					if err != nil || isNodeTargetTask {
-						return isNodeTargetTask, err
-					}
-				}
-			}
+	if s.TargetRelationship != "" && strings.ToUpper(s.OperationHost) == "TARGET" {
+		targetNodeName, err := deployments.GetTargetNodeForRequirement(s.kv, s.t.TargetID, s.Target, s.TargetRelationship)
+		if err != nil {
+			return false, err
 		}
+
+		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, targetNodeName)
+		if err != nil || isNodeTargetTask {
+			return isNodeTargetTask, err
+		}
+
 	}
 	return false, nil
 }
@@ -317,7 +313,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case actType == wfSetStateActivity:
 			setNodeStatus(kv, s.t.ID, deploymentID, s.Target, activity.ActivityValue())
 		case actType == wfCallOpActivity:
-			op, err := operations.GetOperation(kv, s.t.TargetID, s.Target, activity.ActivityValue())
+			op, err := operations.GetOperation(kv, s.t.TargetID, s.Target, activity.ActivityValue(), s.TargetRelationship, s.OperationHost)
 			if err != nil {
 				if deployments.IsOperationNotImplemented(err) {
 					// Operation not implemented just skip it
@@ -417,23 +413,24 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 	if s.TargetRelationship != "" {
 		if s.OperationHost == "" {
 			return nil, errors.Errorf("Operation host missing for step %s with target relationship %s, this is not allowed", stepName, s.TargetRelationship)
-		} else if strings.ToUpper(s.OperationHost) != "SOURCE" && strings.ToUpper(s.OperationHost) != "TARGET" {
+		} else if s.OperationHost != "SOURCE" && s.OperationHost != "TARGET" {
 			return nil, errors.Errorf("Invalid value %q for operation host with step %s with target relationship %s : only SOURCE or TARGET values are accepted", s.OperationHost, stepName, s.TargetRelationship)
 		}
 	} else if s.OperationHost != "" && s.OperationHost != "SELF" && s.OperationHost != "HOST" {
 		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF or HOST values are accepted", s.OperationHost, stepName)
 	}
 
-	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
+	kvKeys, _, err := kv.List(stepPrefix+"/activities/", nil)
 	if err != nil {
 		return nil, err
 	}
-	if len(kvPairs) == 0 {
-		return nil, errors.Errorf("Activity missing for step %s, this is not allowed", stepName)
+	if len(kvKeys) == 0 {
+		return nil, errors.Errorf("Activities missing for step %s, this is not allowed", stepName)
 	}
+
 	s.Activities = make([]activity, 0)
-	for _, actKV := range kvPairs {
-		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activity/")
+	for i, actKV := range kvKeys {
+		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activities/"+strconv.Itoa(i)+"/")
 		switch {
 		case key == wfDelegateActivity:
 			s.Activities = append(s.Activities, delegateActivity{delegate: string(actKV.Value)})
@@ -446,7 +443,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*v
 		}
 	}
 
-	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
+	kvPairs, _, err := kv.List(stepPrefix+"/next", nil)
 	if err != nil {
 		return nil, err
 	}

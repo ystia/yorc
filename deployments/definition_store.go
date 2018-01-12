@@ -504,6 +504,12 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				} else {
 					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
 					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+					if intDef.Implementation.OperationHost != "" {
+						if err := checkOperationHost(intDef.Implementation.OperationHost, false); err != nil {
+							return err
+						}
+						consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/operation_host", strings.ToUpper(intDef.Implementation.OperationHost))
+					}
 				}
 			}
 		}
@@ -633,6 +639,12 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 				}
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
 				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+				if intDef.Implementation.OperationHost != "" {
+					if err := checkOperationHost(intDef.Implementation.OperationHost, true); err != nil {
+						return err
+					}
+					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/operation_host", strings.ToUpper(intDef.Implementation.OperationHost))
+				}
 			}
 		}
 
@@ -705,21 +717,26 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 				consulStore.StoreConsulKeyAsString(stepPrefix+"/target_relationship", step.TargetRelationShip)
 			}
 			if step.OperationHost != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/operation_host", step.OperationHost)
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/operation_host", strings.ToUpper(step.OperationHost))
 			}
-			if step.Activity.CallOperation != "" {
-				// Preserve case for requirement and target node name in case of relationship operation
-				opSlice := strings.SplitN(step.Activity.CallOperation, "/", 2)
-				opSlice[0] = strings.ToLower(opSlice[0])
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/call-operation", strings.Join(opSlice, "/"))
-			}
-			if step.Activity.Delegate != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/delegate", strings.ToLower(step.Activity.Delegate))
-			}
-			if step.Activity.SetState != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/set-state", strings.ToLower(step.Activity.SetState))
+			activitiesPrefix := stepPrefix + "/activities"
+			for actIndex, activity := range step.Activities {
+				activityPrefix := activitiesPrefix + "/" + strconv.Itoa(actIndex)
+				if activity.CallOperation != "" {
+					// Preserve case for requirement and target node name in case of relationship operation
+					opSlice := strings.SplitN(activity.CallOperation, "/", 2)
+					opSlice[0] = strings.ToLower(opSlice[0])
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/call-operation", strings.Join(opSlice, "/"))
+				}
+				if activity.Delegate != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/delegate", strings.ToLower(activity.Delegate))
+				}
+				if activity.SetState != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/set-state", strings.ToLower(activity.SetState))
+				}
 			}
 			for _, next := range step.OnSuccess {
+				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSucces_value
 				consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
 			}
 		}
@@ -963,7 +980,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 		return err
 	}
 	if isBS {
-		attachReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "attachment")
+		attachReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
@@ -1049,7 +1066,7 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 This function check if a nodes need a floating IP, and return the name of Floating IP node.
 */
 func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, error) {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return false, "", err
 	}
@@ -1082,7 +1099,7 @@ func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, 
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
 func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
 	}
@@ -1122,7 +1139,7 @@ func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *ap
 This function check if a nodes need a floating IP, and return the name of Floating IP node.
 */
 func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []string, error) {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}
@@ -1147,4 +1164,32 @@ func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []strin
 	}
 
 	return true, bsName, nil
+}
+
+func checkOperationHost(operationHost string, isRelationshipType bool) error {
+	operationHostUpper := strings.ToUpper(operationHost)
+	if isRelationshipType {
+		// Allowed values are SOURCE, TARGET and ORCHESTRATOR
+		switch operationHostUpper {
+		case "ORCHESTRATOR":
+		case "SOURCE":
+		case "TARGET":
+			return nil
+		default:
+			return errors.Errorf("Invalid value for Implementation operation_host property associated to a relationship type :%q", operationHost)
+
+		}
+	} else {
+		// Allowed values are SELF, HOST and ORCHESTRATOR
+		switch operationHostUpper {
+		case "HOST":
+		case "ORCHESTRATOR":
+		case "SELF":
+			return nil
+		default:
+			return errors.Errorf("Invalid value for Implementation operation_host property associated to non-relationship type:%q", operationHost)
+
+		}
+	}
+	return nil
 }

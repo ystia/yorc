@@ -264,7 +264,7 @@ func (k8s *k8sGenerator) generateVolumeMounts(deploymentID, nodeName string) ([]
 // Get the node names corresponding to volumes mounted by the node 'nodeName'
 // Used volumes are obtained based on the requirements named 'use_volume'
 func getUsedVolumeNodesNames(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
-	useVolumeKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "use_volume")
+	useVolumeKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "use_volume")
 	if err != nil {
 		return nil, err
 	}
