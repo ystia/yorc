@@ -142,12 +142,12 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 
 	err = execution.resolveInputs()
 	require.Nil(t, err)
-	require.Len(t, execution.EnvInputs, 12)
+	require.Len(t, execution.EnvInputs, 24)
 	instanceNames := make(map[string]struct{})
 	for _, envInput := range execution.EnvInputs {
 		instanceNames[envInput.InstanceName+"_"+envInput.Name] = struct{}{}
 		switch envInput.Name {
-		case "A1":
+		case "A1", "G2":
 			switch envInput.InstanceName {
 			case "NodeA_0":
 				require.Equal(t, "/var/www", envInput.Value)
@@ -170,7 +170,7 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
-		case "A3":
+		case "A3", "G3":
 			switch envInput.InstanceName {
 			case "NodeA_0":
 				require.Equal(t, "", envInput.Value)
@@ -181,7 +181,7 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
-		case "A4":
+		case "A4", "G4":
 			switch envInput.InstanceName {
 			case "NodeA_0":
 				require.Equal(t, "", envInput.Value)
@@ -189,6 +189,17 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 				require.Equal(t, "", envInput.Value)
 			case "NodeA_2":
 				require.Equal(t, "", envInput.Value)
+			default:
+				require.Fail(t, "Unexpected instance name: ", envInput.Name)
+			}
+		case "G1":
+			switch envInput.InstanceName {
+			case "NodeA_0":
+				require.Equal(t, "G1", envInput.Value)
+			case "NodeA_1":
+				require.Equal(t, "G1", envInput.Value)
+			case "NodeA_2":
+				require.Equal(t, "G1", envInput.Value)
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
@@ -196,7 +207,7 @@ func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, no
 			require.Fail(t, "Unexpected input name: ", envInput.Name)
 		}
 	}
-	require.Len(t, instanceNames, 12)
+	require.Len(t, instanceNames, 24)
 }
 
 func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
@@ -241,6 +252,18 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         NodeA_0_A4: ""
         NodeA_1_A4: ""
         NodeA_2_A4: ""
+        NodeA_0_G1: "G1"
+        NodeA_1_G1: "G1"
+        NodeA_2_G1: "G1"
+        NodeA_0_G2: "/var/www"
+        NodeA_1_G2: "/var/www"
+        NodeA_2_G2: "/var/www"
+        NodeA_0_G3: ""
+        NodeA_1_G3: ""
+        NodeA_2_G3: ""
+        NodeA_0_G4: ""
+        NodeA_1_G4: ""
+        NodeA_2_G4: ""
 	    DEPLOYMENT_ID: "` + deploymentID + `"
         HOST: "ComputeA"
         INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
@@ -249,6 +272,10 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
         A2: " {{A2}}"
         A3: " {{A3}}"
         A4: " {{A4}}"
+        G1: " {{G1}}"
+        G2: " {{G2}}"
+        G3: " {{G3}}"
+        G4: " {{G4}}"
         INSTANCE: " {{INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
@@ -291,12 +318,12 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 
 	err = execution.resolveInputs()
 	require.Nil(t, err, "%+v", err)
-	require.Len(t, execution.EnvInputs, 5)
+	require.Len(t, execution.EnvInputs, 13)
 	instanceNames := make(map[string]struct{})
 	for _, envInput := range execution.EnvInputs {
 		instanceNames[envInput.InstanceName+"_"+envInput.Name] = struct{}{}
 		switch envInput.Name {
-		case "A1":
+		case "A1", "G2":
 			switch envInput.InstanceName {
 			case "NodeA_0":
 				require.Equal(t, "/var/www", envInput.Value)
@@ -307,7 +334,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
-		case "A2":
+		case "A2", "G3":
 
 			switch envInput.InstanceName {
 			case "NodeB_0":
@@ -317,11 +344,22 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
+		case "G1":
+			switch envInput.InstanceName {
+			case "NodeA_0":
+				require.Equal(t, "G1", envInput.Value)
+			case "NodeA_1":
+				require.Equal(t, "G1", envInput.Value)
+			case "NodeA_2":
+				require.Equal(t, "G1", envInput.Value)
+			default:
+				require.Fail(t, "Unexpected instance name: ", envInput.Name)
+			}
 		default:
 			require.Fail(t, "Unexpected input name: ", envInput.Name)
 		}
 	}
-	require.Len(t, instanceNames, 5)
+	require.Len(t, instanceNames, 13)
 }
 
 func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
@@ -349,6 +387,14 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         NodeA_2_A1: "/var/www"
         NodeB_0_A2: "10.10.10.10"
         NodeB_1_A2: "10.10.10.11"
+        NodeA_0_G1: "G1"
+        NodeA_1_G1: "G1"
+        NodeA_2_G1: "G1"
+        NodeA_0_G2: "/var/www"
+        NodeA_1_G2: "/var/www"
+        NodeA_2_G2: "/var/www"
+        NodeB_0_G3: "10.10.10.10"
+        NodeB_1_G3: "10.10.10.11"
 	    DEPLOYMENT_ID: "` + deploymentID + `"
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
@@ -359,6 +405,9 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         TARGET_NODE: "NodeB"
         A1: " {{A1}}"
         A2: " {{A2}}"
+        G1: " {{G1}}"
+        G2: " {{G2}}"
+        G3: " {{G3}}"
         SOURCE_INSTANCE: " {{SOURCE_INSTANCE}}"
 
      - file: path="{{ ansible_env.HOME}}/` + execution.(*executionScript).OperationRemoteBaseDir + `" state=absent
@@ -402,12 +451,12 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 
 	err = execution.resolveInputs()
 	require.Nil(t, err)
-	require.Len(t, execution.EnvInputs, 5)
+	require.Len(t, execution.EnvInputs, 12)
 	instanceNames := make(map[string]struct{})
 	for _, envInput := range execution.EnvInputs {
 		instanceNames[envInput.InstanceName+"_"+envInput.Name] = struct{}{}
 		switch envInput.Name {
-		case "A1":
+		case "A1", "G2":
 			switch envInput.InstanceName {
 			case "NodeA_0":
 				require.Equal(t, "/var/www", envInput.Value)
@@ -418,8 +467,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
-		case "A2":
-
+		case "A2", "G3":
 			switch envInput.InstanceName {
 			case "NodeB_0":
 				require.Equal(t, "10.10.10.10", envInput.Value)
@@ -428,11 +476,20 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 			default:
 				require.Fail(t, "Unexpected instance name: ", envInput.Name)
 			}
+		case "G1":
+			switch envInput.InstanceName {
+			case "NodeB_0":
+				require.Equal(t, "G1", envInput.Value)
+			case "NodeB_1":
+				require.Equal(t, "G1", envInput.Value)
+			default:
+				require.Fail(t, "Unexpected instance name: ", envInput.Name)
+			}
 		default:
 			require.Fail(t, "Unexpected input name: ", envInput.Name)
 		}
 	}
-	require.Len(t, instanceNames, 5)
+	require.Len(t, instanceNames, 12)
 }
 
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
@@ -458,7 +515,14 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         NodeA_1_A1: "/var/www"
         NodeA_2_A1: "/var/www"
         NodeB_0_A2: "10.10.10.10"
-        NodeB_1_A2: "10.10.10.11"
+		NodeB_1_A2: "10.10.10.11"
+		NodeB_0_G1: "G1"
+        NodeB_1_G1: "G1"
+        NodeA_0_G2: "/var/www"
+        NodeA_1_G2: "/var/www"
+        NodeA_2_G2: "/var/www"
+        NodeB_0_G3: "10.10.10.10"
+        NodeB_1_G3: "10.10.10.11"
 	    DEPLOYMENT_ID: "` + deploymentID + `"
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
@@ -468,6 +532,9 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         TARGET_NODE: "NodeB"
         A1: " {{A1}}"
         A2: " {{A2}}"
+        G1: " {{G1}}"
+        G2: " {{G2}}"
+        G3: " {{G3}}"
         SOURCE_INSTANCE: " {{SOURCE_INSTANCE}}"
         TARGET_INSTANCE: " {{TARGET_INSTANCE}}"
 
