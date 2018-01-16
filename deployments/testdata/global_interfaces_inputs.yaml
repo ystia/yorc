@@ -1,0 +1,61 @@
+tosca_definitions_version: alien_dsl_2_0_0
+description: Alien4Cloud generated service template
+template_name: GetOpOutputTest2
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - type-types: <normative-types.yml>
+
+
+node_types:
+  janus.tests.nodes.GlobalInputs:
+    derived_from: tosca.nodes.Root
+    properties:
+      p1:
+        type: string
+        default: "Val1"
+    interfaces:
+      Standard:
+        inputs:
+          G1: "myLitteral"
+          G2: {get_property: [SELF, p1]}
+          G3:
+            type: string
+            required: false
+            default: "Global3Default"
+          # If global input is overriden in an operation
+          # operation input take the precedence and this one is ignored
+          L1: 42
+        create:
+          inputs:
+            L1: 1
+            L2: {get_property: [SELF, p1]}
+          implementation: scripts/create.sh
+
+topology_template:
+  node_templates:
+    Compute:
+      type: tosca.nodes.Compute
+      capabilities:
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: PRIVATE
+    GI:
+      type: janus.tests.nodes.GlobalInputs
+      properties:
+        p1: "Value1"
+      requirements:
+        - host:
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+
