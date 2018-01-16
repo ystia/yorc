@@ -75,7 +75,7 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 		// ie in the other go routine and at this time step may have changed as we are in a for loop.
 		func(s *step) {
 			g.Go(func() error {
-				return s.run(ctx, deploymentID, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, bypassErrors, workflowName)
+				return s.run(ctx, deploymentID, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, bypassErrors, workflowName, w)
 			})
 		}(s)
 	}
