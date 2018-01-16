@@ -41,12 +41,12 @@ type Type struct {
 // for more details
 type NodeType struct {
 	Type         `yaml:",inline"`
-	Properties   map[string]PropertyDefinition     `yaml:"properties,omitempty"`
-	Attributes   map[string]AttributeDefinition    `yaml:"attributes,omitempty"`
-	Requirements []RequirementDefinitionMap        `yaml:"requirements,omitempty,flow"`
-	Capabilities map[string]CapabilityDefinition   `yaml:"capabilities,omitempty"`
-	Interfaces   map[string]InterfaceDefinitionMap `yaml:"interfaces,omitempty"`
-	Artifacts    ArtifactDefMap                    `yaml:"artifacts,omitempty"`
+	Properties   map[string]PropertyDefinition   `yaml:"properties,omitempty"`
+	Attributes   map[string]AttributeDefinition  `yaml:"attributes,omitempty"`
+	Requirements []RequirementDefinitionMap      `yaml:"requirements,omitempty,flow"`
+	Capabilities map[string]CapabilityDefinition `yaml:"capabilities,omitempty"`
+	Interfaces   map[string]InterfaceDefinition  `yaml:"interfaces,omitempty"`
+	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
 }
 
 // An RelationshipType is the representation of a TOSCA Relationship Type
@@ -55,11 +55,11 @@ type NodeType struct {
 // for more details
 type RelationshipType struct {
 	Type             `yaml:",inline"`
-	Properties       map[string]PropertyDefinition     `yaml:"properties,omitempty"`
-	Attributes       map[string]AttributeDefinition    `yaml:"attributes,omitempty"`
-	Interfaces       map[string]InterfaceDefinitionMap `yaml:"interfaces,omitempty"`
-	Artifacts        ArtifactDefMap                    `yaml:"artifacts,omitempty"`
-	ValidTargetTypes []string                          `yaml:"valid_target_types,omitempty"`
+	Properties       map[string]PropertyDefinition  `yaml:"properties,omitempty"`
+	Attributes       map[string]AttributeDefinition `yaml:"attributes,omitempty"`
+	Interfaces       map[string]InterfaceDefinition `yaml:"interfaces,omitempty"`
+	Artifacts        ArtifactDefMap                 `yaml:"artifacts,omitempty"`
+	ValidTargetTypes []string                       `yaml:"valid_target_types,omitempty"`
 }
 
 // An CapabilityType is the representation of a TOSCA Capability Type

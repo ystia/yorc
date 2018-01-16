@@ -46,5 +46,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testRelationshipWorkflow", func(t *testing.T) {
 			testRelationshipWorkflow(t, kv)
 		})
+		t.Run("testGlobalInputs", func(t *testing.T) {
+			testGlobalInputs(t, kv)
+		})
 	})
 }

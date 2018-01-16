@@ -1,8 +1,6 @@
 GOTOOLS = golang.org/x/tools/cmd/stringer github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... github.com/abice/go-enum
 
-PACKAGES=$(shell go list ./... | grep -v '/vendor/')
-
-VETARGS?=-asmdecl -atomic -bool -buildtags -copylocks -methods \
+VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
 VERSION=$(shell grep "janus_version" versions.yaml | awk '{print $$2}')
@@ -15,7 +13,7 @@ build: test
 	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags '-X novaforge.bull.com/starlings-janus/janus/commands.version=v$(VERSION) -X novaforge.bull.com/starlings-janus/janus/commands.gitCommit=$(COMMIT_HASH)'
 
 generate: checks
-	@go generate $(PACKAGES)
+	@go generate ./...
 
 checks:
 	@./build/checks.sh $(GOTOOLS)
@@ -30,21 +28,20 @@ dist: build
 test: generate
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@export PATH=$$PWD/build:$$PATH; go test $(PACKAGES) $(TESTARGS) -p 1
+	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 ./...
 endif
 
 
 cover: 
-	@go test $(PACKAGES) -p 1 --cover $(COVERARGS)  
+	@go test -p 1 -cover $(COVERARGS) ./...  
 
 format:
 	@echo "--> Running go fmt"
-	@go fmt $(PACKAGES)
+	@go fmt ./...
 
 vet:
 	@echo "--> Running go tool vet $(VETARGS) ."
 	@go list ./... \
-		| grep -v '/vendor/' \
 		| cut -d '/' -f 4- \
 		| xargs -n1 \
 			go tool vet $(VETARGS) ;\
