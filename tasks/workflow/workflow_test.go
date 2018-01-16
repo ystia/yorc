@@ -37,6 +37,8 @@ func testReadStepFromConsul(t *testing.T, srv1 *testutil.TestServer, kv *api.KV)
 	data[wfName+"/steps/stepName/activities/2/call-operation"] = []byte("script.sh")
 	data[wfName+"/steps/stepName/target"] = []byte("nodeName")
 
+	data[wfName+"/steps/Some_other_inline/activities/0/inline"] = []byte("my_custom_wf")
+
 	srv1.PopulateKV(t, data)
 
 	visitedMap := make(map[string]*visitStep)
@@ -48,9 +50,18 @@ func testReadStepFromConsul(t *testing.T, srv1 *testutil.TestServer, kv *api.KV)
 	require.Contains(t, step.Activities, delegateActivity{delegate: "install"})
 	require.Contains(t, step.Activities, setStateActivity{state: "installed"})
 	require.Contains(t, step.Activities, callOperationActivity{operation: "script.sh"})
-
 	require.Len(t, visitedMap, 1)
 	require.Contains(t, visitedMap, "stepName")
+
+	visitedMap = make(map[string]*visitStep)
+	step, err = readStep(kv, wfName+"/steps/", "Some_other_inline", visitedMap)
+	require.Nil(t, err)
+	require.Equal(t, "", step.Target)
+	require.Equal(t, "Some_other_inline", step.Name)
+	require.Len(t, step.Activities, 1)
+	require.Contains(t, step.Activities, inlineActivity{inline: "my_custom_wf"})
+	require.Len(t, visitedMap, 1)
+	require.Contains(t, visitedMap, "Some_other_inline")
 }
 
 func testReadStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -108,6 +119,8 @@ func testReadWorkFlowFromConsul(t *testing.T, srv1 *testutil.TestServer, kv *api
 	data[wfName+"/steps/step13/activities/0/delegate"] = []byte("install")
 	data[wfName+"/steps/step13/target"] = []byte("nodeName")
 
+	data[wfName+"/steps/step15/activities/0/inline"] = []byte("inception")
+
 	data[wfName+"/steps/step20/activities/0/delegate"] = []byte("install")
 	data[wfName+"/steps/step20/target"] = []byte("nodeName")
 
@@ -115,5 +128,5 @@ func testReadWorkFlowFromConsul(t *testing.T, srv1 *testutil.TestServer, kv *api
 
 	steps, err := readWorkFlowFromConsul(kv, wfName)
 	require.Nil(t, err, "oups")
-	require.Len(t, steps, 5)
+	require.Len(t, steps, 6)
 }

@@ -106,8 +106,8 @@ func parsing(t *testing.T) {
 	computeInstallStep := installWF.Steps["Compute_install"]
 	assert.Equal(t, "Compute", computeInstallStep.Target)
 	assert.Nil(t, computeInstallStep.OnSuccess)
-	//assert.Equal(t, "", computeInstallStep.Activity.CallOperation)
-	//assert.Equal(t, "", computeInstallStep.Activity.SetState)
+	assert.Equal(t, "", computeInstallStep.Activities[0].CallOperation)
+	assert.Equal(t, "", computeInstallStep.Activities[0].SetState)
 	assert.Equal(t, "install", computeInstallStep.Activities[0].Delegate)
 
 	uninstallWF := topologyTemplate.Workflows["uninstall"]
@@ -116,7 +116,7 @@ func parsing(t *testing.T) {
 	computeUninstallStep := uninstallWF.Steps["Compute_uninstall"]
 	assert.Equal(t, "Compute", computeUninstallStep.Target)
 	assert.Nil(t, computeUninstallStep.OnSuccess)
-	//assert.Equal(t, "", computeUninstallStep.Activity.CallOperation)
-	//assert.Equal(t, "", computeUninstallStep.Activity.SetState)
+	assert.Equal(t, "", computeUninstallStep.Activities[0].CallOperation)
+	assert.Equal(t, "", computeUninstallStep.Activities[0].SetState)
 	assert.Equal(t, "uninstall", computeUninstallStep.Activities[0].Delegate)
 }

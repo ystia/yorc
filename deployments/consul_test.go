@@ -49,5 +49,11 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testGlobalInputs", func(t *testing.T) {
 			testGlobalInputs(t, kv)
 		})
+		t.Run("testInlineWorkflow", func(t *testing.T) {
+			testInlineWorkflow(t, kv)
+		})
+		t.Run("testCheckCycleInNestedWorkflows", func(t *testing.T) {
+			testCheckCycleInNestedWorkflows(t, kv)
+		})
 	})
 }

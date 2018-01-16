@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/helper/collections"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/registry"
@@ -108,6 +109,11 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	}
 	storeCapabilityTypes(ctx, topology, topologyPrefix)
 	storeArtifactTypes(ctx, topology, topologyPrefix)
+
+	// Detect potential cycles in inline workflows
+	if err := checkNestedWorkflows(topology); err != nil {
+		return err
+	}
 	storeWorkflows(ctx, topology, deploymentID)
 	return nil
 }
@@ -705,7 +711,9 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
 			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
-			consulStore.StoreConsulKeyAsString(stepPrefix+"/target", step.Target)
+			if step.Target != "" {
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/target", step.Target)
+			}
 			if step.TargetRelationShip != "" {
 				consulStore.StoreConsulKeyAsString(stepPrefix+"/target_relationship", step.TargetRelationShip)
 			}
@@ -727,6 +735,9 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 				if activity.SetState != "" {
 					consulStore.StoreConsulKeyAsString(activityPrefix+"/set-state", strings.ToLower(activity.SetState))
 				}
+				if activity.Inline != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/inline", strings.ToLower(activity.Inline))
+				}
 			}
 			for _, next := range step.OnSuccess {
 				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSucces_value
@@ -734,6 +745,35 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 			}
 		}
 	}
+}
+
+// checkNestedWorkflows detect potential cycle in all nested workflows
+func checkNestedWorkflows(topology tosca.Topology) error {
+	for wfName, workflow := range topology.TopologyTemplate.Workflows {
+		nestedWfs := make([]string, 0)
+		if err := checkNestedWorkflow(topology, workflow, nestedWfs, wfName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkNestedWorkflows detect potential cycle in a nested workflow
+func checkNestedWorkflow(topology tosca.Topology, workflow tosca.Workflow, nestedWfs []string, wfName string) error {
+	nestedWfs = append(nestedWfs, wfName)
+	for _, step := range workflow.Steps {
+		for _, activity := range step.Activities {
+			if activity.Inline != "" {
+				if collections.ContainsString(nestedWfs, activity.Inline) {
+					return errors.Errorf("A cycle has been detected in inline workflows [initial: %q, repeated: %q]", nestedWfs[0], activity.Inline)
+				}
+				if err := checkNestedWorkflow(topology, topology.TopologyTemplate.Workflows[activity.Inline], nestedWfs, activity.Inline); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL

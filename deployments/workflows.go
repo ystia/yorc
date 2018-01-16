@@ -8,8 +8,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"strconv"
+	"strings"
 )
 
 // GetWorkflows returns the list of workflows names for a given deployment
@@ -51,17 +52,9 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 
 func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (tosca.Step, error) {
 	step := tosca.Step{}
-	// Get the step's target
-	kvp, _, err := kv.Get(path.Join(stepKey, "target"), nil)
-	if err != nil {
-		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return step, errors.Errorf("Missing mandatory attribute \"target\" for step %q", path.Base(stepKey))
-	}
-	step.Target = string(kvp.Value)
+	targetIsMandatory := false
 	// Get the step operation's host (not mandatory)
-	kvp, _, err = kv.Get(path.Join(stepKey, "operation_host"), nil)
+	kvp, _, err := kv.Get(path.Join(stepKey, "operation_host"), nil)
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -77,48 +70,47 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (tos
 		step.TargetRelationShip = string(kvp.Value)
 	}
 	// Get the step's activities
-	activities, _, err := kv.Keys(stepKey+"/activities", "/", nil)
+	activitiesKeys, _, err := kv.List(stepKey+"/activities", nil)
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	step.Activities = make([]tosca.Activity, len(activities))
-
-	actIndexes, err := getActivitiesIndexes(kv, stepKey, stepName)
+	step.Activities = make([]tosca.Activity, len(activitiesKeys))
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for i, index := range actIndexes {
+	for i, actKV := range activitiesKeys {
 		activity := tosca.Activity{}
-		foundAct, actValue, err := getActivity(kv, stepKey, stepName, index, "delegate")
-
-		if err != nil {
-			return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if foundAct {
-			activity.Delegate = actValue
+		key := strings.TrimPrefix(actKV.Key, stepKey+"activities/"+strconv.Itoa(i)+"/")
+		switch {
+		case key == "delegate":
+			activity.Delegate = string(actKV.Value)
 			step.Activities[i] = activity
-			continue
-		}
-
-		foundAct, actValue, err = getActivity(kv, stepKey, stepName, index, "set-state")
-		if err != nil {
-			return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if foundAct {
-			activity.SetState = actValue
+			targetIsMandatory = true
+		case key == "set-state":
+			activity.SetState = string(actKV.Value)
 			step.Activities[i] = activity
-			continue
-		}
-		foundAct, actValue, err = getActivity(kv, stepKey, stepName, index, "call-operation")
-		if err != nil {
-			return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if foundAct {
-			activity.CallOperation = actValue
+			targetIsMandatory = true
+		case key == "call-operation":
+			activity.CallOperation = string(actKV.Value)
 			step.Activities[i] = activity
-			continue
+			targetIsMandatory = true
+		case key == "inline":
+			activity.Inline = string(actKV.Value)
+			step.Activities[i] = activity
 		}
 	}
+	// Get the step's target (mandatory except if all activities are inline)
+	kvp, _, err = kv.Get(path.Join(stepKey, "target"), nil)
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if targetIsMandatory && (kvp == nil || len(kvp.Value) == 0) {
+		return step, errors.Errorf("Missing mandatory attribute \"target\" for step %q", path.Base(stepKey))
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		step.Target = string(kvp.Value)
+	}
+
 	// Get the next steps of the current step and use it to set the OnSuccess filed
 	nextSteps, _, err := kv.Keys(stepKey+"/next/", "/", nil)
 	if err != nil {
@@ -135,28 +127,4 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (tos
 		}
 	}
 	return step, nil
-}
-
-func getActivitiesIndexes(kv *api.KV, stepKey string, stepName string) ([]string, error) {
-	actKVPs, _, err := kv.Keys(stepKey+"/activities"+"/", "/", nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, consulutil.ConsulGenericErrMsg)
-	}
-	for i := range actKVPs {
-		actKVPs[i] = path.Base(actKVPs[i])
-	}
-	return actKVPs, nil
-}
-
-func getActivity(kv *api.KV, stepKey string, stepName string, index string, activityType string) (bool, string, error) {
-	actPath := path.Join(stepKey, "activities", index, activityType)
-	kvp, _, err := kv.Get(actPath, nil)
-	if err != nil {
-		return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil && len(kvp.Value) != 0 {
-		log.Debugf("Activity %s with index %s in step %s is %s", activityType, index, stepName, kvp.Value)
-		return true, string(kvp.Value), nil
-	}
-	return false, "", nil
 }

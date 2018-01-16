@@ -752,7 +752,6 @@ func testRelationshipWorkflow(t *testing.T, kv *api.KV) {
 	workflows, err := GetWorkflows(kv, deploymentID)
 	require.Nil(t, err)
 	require.Equal(t, len(workflows), 4)
-	require.Equal(t, workflows[0], "install")
 
 	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
 	require.Nil(t, err)
@@ -846,4 +845,40 @@ func testGlobalInputs(t *testing.T, kv *api.KV) {
 	for _, res := range inputResults {
 		require.Equal(t, "Global3Default", res.Value)
 	}
+}
+
+func testInlineWorkflow(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/inline_workflow.yaml")
+	require.Nil(t, err)
+
+	workflows, err := GetWorkflows(kv, deploymentID)
+	require.Nil(t, err)
+	require.Equal(t, len(workflows), 3)
+
+	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
+	require.Nil(t, err)
+	require.Equal(t, len(wfInstall.Steps), 4)
+
+	step := wfInstall.Steps["Some_other_inline"]
+	require.Equal(t, step.Target, "")
+	require.Equal(t, len(step.Activities), 1)
+	require.Equal(t, step.Activities[0].Inline, "my_custom_wf")
+
+	step = wfInstall.Steps["inception_inline"]
+	require.Equal(t, step.Target, "")
+	require.Equal(t, len(step.Activities), 1)
+	require.Equal(t, step.Activities[0].Inline, "inception")
+
+	wfInception, err := ReadWorkflow(kv, deploymentID, "inception")
+	require.Nil(t, err)
+	require.Equal(t, len(wfInception.Steps), 1)
+}
+
+func testCheckCycleInNestedWorkflows(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/cyclic_workflow.yaml")
+	require.Error(t, err, "a cycle should be detected in inline workflows")
 }
