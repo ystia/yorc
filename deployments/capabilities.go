@@ -101,6 +101,16 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 		return found, result, errors.Wrapf(err, "Failed to get property %q for capability %q on node %q", propertyName, capabilityName, nodeName)
 	}
 
+	// Not found: let's look at capability in node type
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, "", err
+	}
+	found, result, err = GetNodeTypeCapabilityProperty(kv, deploymentID, nodeType, capabilityName, propertyName, propDataType)
+	if err != nil || found {
+		return found, result, err
+	}
+
 	// Not found let's look at capability type for default
 	if capabilityType != "" {
 		found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName, nestedKeys...)
@@ -307,4 +317,24 @@ func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityNam
 		return "", nil
 	}
 	return GetNodeTypeCapabilityType(kv, deploymentID, parentType, capabilityName)
+}
+
+// GetNodeTypeCapabilityProperty retrieves the property value of a node type capability identified by its name
+//
+// It explores the type hierarchy (derived_from) to found the given capability.
+func GetNodeTypeCapabilityProperty(kv *api.KV, deploymentID, nodeType, capabilityName, propertyName, propDataType string) (bool, string, error) {
+	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "capabilities", capabilityName, "properties", propertyName)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, "", "", "", propDataType)
+	if err != nil || found {
+		return found, result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)
+	}
+
+	parentType, err := GetParentType(kv, deploymentID, nodeType)
+	if err != nil {
+		return false, "", err
+	}
+	if parentType == "" {
+		return false, "", nil
+	}
+	return GetNodeTypeCapabilityProperty(kv, deploymentID, parentType, capabilityName, propertyName, propDataType)
 }
