@@ -118,55 +118,39 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 		return false, nil, nil, err
 	}
 	outputs := make(map[string]string)
-	var instances []string
-	switch nodeType {
-	case "janus.nodes.openstack.Compute":
-		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+
+	instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, nil, nil, err
+	}
+
+	for instNb, instanceName := range instances {
+		instanceState, err := deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 		if err != nil {
 			return false, nil, nil, err
 		}
+		if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+			// Do not generate something for this node instance (will be deleted if exists)
+			continue
+		}
 
-		for _, instanceName := range instances {
-			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
-			if err != nil {
-				return false, nil, nil, err
-			}
-			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
-				// Do not generate something for this node instance (will be deleted if exists)
-				continue
-			}
+		switch nodeType {
+		case "janus.nodes.openstack.Compute":
 			err = g.generateOSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, err
 			}
-		}
 
-	case "janus.nodes.openstack.BlockStorage":
-		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
-		if err != nil {
-			return false, nil, nil, err
-		}
-
-		var bsIds []string
-		var volumeID string
-		if volumeID, err = g.getStringFormConsul(kv, nodeKey, "properties/volume_id"); err != nil {
-			return false, nil, nil, err
-		} else if volumeID != "" {
-			log.Debugf("Reusing existing volume with id %q for node %q", volumeID, nodeName)
-			bsIds = strings.Split(volumeID, ",")
-		}
-
-		for instNb, instanceName := range instances {
-			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
-			if err != nil {
+		case "janus.nodes.openstack.BlockStorage":
+			var bsIds []string
+			var volumeID string
+			if volumeID, err = g.getStringFormConsul(kv, nodeKey, "properties/volume_id"); err != nil {
 				return false, nil, nil, err
+			} else if volumeID != "" {
+				log.Debugf("Reusing existing volume with id %q for node %q", volumeID, nodeName)
+				bsIds = strings.Split(volumeID, ",")
 			}
-			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
-				// Do not generate something for this node instance (will be deleted if exists)
-				continue
-			}
+
 			var bsVolume BlockStorageVolume
 			bsVolume, err = g.generateOSBSVolume(kv, cfg, nodeKey, instanceName)
 			if err != nil {
@@ -185,24 +169,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 				commons.AddResource(&infrastructure, "consul_keys", name, &consulKeys)
 			}
 
-		}
-
-	case "janus.nodes.openstack.FloatingIP":
-		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
-		if err != nil {
-			return false, nil, nil, err
-		}
-
-		for _, instanceName := range instances {
-			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
-			if err != nil {
-				return false, nil, nil, err
-			}
-			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
-				// Do not generate something for this node instance (will be deleted if exists)
-				continue
-			}
+		case "janus.nodes.openstack.FloatingIP":
 			var ip IP
 			ip, err = g.generateFloatingIP(kv, nodeKey, instanceName)
 
@@ -248,38 +215,38 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			}
 			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 			commons.AddResource(&infrastructure, "consul_keys", ip.Name, &consulKeys)
+
+		case "janus.nodes.openstack.Network":
+			var networkID string
+			networkID, err = g.getStringFormConsul(kv, nodeKey, "properties/network_id")
+			if err != nil {
+				return false, nil, nil, err
+			} else if networkID != "" {
+				log.Debugf("Reusing existing volume with id %q for node %q", networkID, nodeName)
+				return false, nil, cmdEnv, nil
+			}
+			var network Network
+			network, err = g.generateNetwork(kv, cfg, nodeKey, deploymentID)
+
+			if err != nil {
+				return false, nil, nil, err
+			}
+			var subnet Subnet
+			subnet, err = g.generateSubnet(kv, cfg, nodeKey, deploymentID, nodeName)
+
+			if err != nil {
+				return false, nil, nil, err
+			}
+
+			commons.AddResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
+			commons.AddResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
+			consulKey := commons.ConsulKey{Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
+			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+			commons.AddResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
+
+		default:
+			return false, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 		}
-
-	case "janus.nodes.openstack.Network":
-		var networkID string
-		networkID, err = g.getStringFormConsul(kv, nodeKey, "properties/network_id")
-		if err != nil {
-			return false, nil, nil, err
-		} else if networkID != "" {
-			log.Debugf("Reusing existing volume with id %q for node %q", networkID, nodeName)
-			return false, nil, cmdEnv, nil
-		}
-		var network Network
-		network, err = g.generateNetwork(kv, cfg, nodeKey, deploymentID)
-
-		if err != nil {
-			return false, nil, nil, err
-		}
-		var subnet Subnet
-		subnet, err = g.generateSubnet(kv, cfg, nodeKey, deploymentID, nodeName)
-
-		if err != nil {
-			return false, nil, nil, err
-		}
-
-		commons.AddResource(&infrastructure, "openstack_networking_network_v2", nodeName, &network)
-		commons.AddResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
-		consulKey := commons.ConsulKey{Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
-		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
-		commons.AddResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
-
-	default:
-		return false, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
