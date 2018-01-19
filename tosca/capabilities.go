@@ -2,7 +2,7 @@ package tosca
 
 // An CapabilityDefinition is the representation of a TOSCA Capability Definition
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_CAPABILITY_DEFN for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_CAPABILITY_DEFN for more details
 type CapabilityDefinition struct {
 	Type             string                         `yaml:"type"`
 	Description      string                         `yaml:"description,omitempty"`
@@ -14,7 +14,7 @@ type CapabilityDefinition struct {
 
 // An CapabilityAssignment is the representation of a TOSCA Capability Assignment
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_CAPABILITY_ASSIGNMENT for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_CAPABILITY_ASSIGNMENT for more details
 type CapabilityAssignment struct {
 	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
 	Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty"`

@@ -2,7 +2,7 @@ package tosca
 
 // An Implementation is the representation of the implementation part of a TOSCA Operation Definition
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_OPERATION_DEF for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_OPERATION_DEF for more details
 type Implementation struct {
 	Primary       string             `yaml:"primary"`
 	Dependencies  []string           `yaml:"dependencies,omitempty"`

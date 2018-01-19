@@ -16,7 +16,7 @@ type RequirementDefinitionMap map[string]RequirementDefinition
 
 // An RequirementDefinition is the representation of a TOSCA Requirement Definition
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_REQUIREMENT_DEF for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_REQUIREMENT_DEF for more details
 type RequirementDefinition struct {
 	Capability   string `yaml:"capability"`
 	Node         string `yaml:"node,omitempty"`
@@ -117,7 +117,7 @@ type RequirementAssignmentMap map[string]RequirementAssignment
 
 // An RequirementAssignment is the representation of a TOSCA Requirement Assignment
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_REQUIREMENT_ASSIGNMENT for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_REQUIREMENT_ASSIGNMENT for more details
 type RequirementAssignment struct {
 	Capability        string `yaml:"capability"`
 	Node              string `yaml:"node,omitempty"`
@@ -129,7 +129,7 @@ type RequirementAssignment struct {
 
 // An RequirementRelationship is the representation of the relationship part of a TOSCA Requirement Assignment
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_REQUIREMENT_ASSIGNMENT for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_REQUIREMENT_ASSIGNMENT for more details
 type RequirementRelationship struct {
 	Type       string                      `yaml:"type"`
 	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`

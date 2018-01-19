@@ -13,7 +13,7 @@ const UNBOUNDED uint64 = 18446744073709551615
 
 // An Range is the representation of a TOSCA Range Type
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#TYPE_TOSCA_RANGE
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#TYPE_TOSCA_RANGE
 // for more details
 type Range struct {
 	LowerBound uint64
