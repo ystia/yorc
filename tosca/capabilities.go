@@ -2,7 +2,8 @@ package tosca
 
 // An CapabilityDefinition is the representation of a TOSCA Capability Definition
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_CAPABILITY_DEFN for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_CAPABILITY_DEFN for more details
+// NOTE: Here is Alien specific difference with Tosca Specification about Properties/Attributes maps of ValueAssignment instead of maps of PropertyDefinition in Tosca spec
 type CapabilityDefinition struct {
 	Type             string                      `yaml:"type"`
 	Description      string                      `yaml:"description,omitempty"`
