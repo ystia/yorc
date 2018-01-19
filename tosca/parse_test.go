@@ -20,7 +20,7 @@ func TestGroupedParsingParallel(t *testing.T) {
 
 func parsing(t *testing.T) {
 	t.Parallel()
-	definition, err := os.Open(filepath.Join("..", "testdata", "deployment", "dep.yaml"))
+	definition, err := os.Open(filepath.Join("testdata", "dep.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
