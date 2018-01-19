@@ -242,6 +242,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			commons.AddResource(&infrastructure, "openstack_networking_subnet_v2", nodeName+"_subnet", &subnet)
 			consulKey := commons.ConsulKey{Path: nodeKey + "/attributes/network_id", Value: fmt.Sprintf("${openstack_networking_network_v2.%s.id}", nodeName)}
 			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
+			consulKeys.DependsOn = []string{fmt.Sprintf("openstack_networking_subnet_v2.%s_subnet", nodeName)}
 			commons.AddResource(&infrastructure, "consul_keys", nodeName, &consulKeys)
 
 		default:
