@@ -176,14 +176,13 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 
 	var taskType tasks.TaskType
 	if _, ok := r.URL.Query()["purge"]; ok {
-		log.Debugln("PURGE !!!!!!!!!!!!!!!!!!!!!!!!!!")
+		log.Debugf("A purge task on deployment:%s has been requested", id)
 		taskType = tasks.Purge
 	} else {
 		taskType = tasks.UnDeploy
 	}
 
 	if taskType == tasks.UnDeploy {
-		log.Debugln("UNDEPLOY !!!!!!!!!!!!!!!!!!!!!!!!!!")
 		status, err := deployments.GetDeploymentStatus(s.consulClient.KV(), id)
 		if err != nil {
 			log.Panicf("%v", err)

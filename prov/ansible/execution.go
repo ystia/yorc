@@ -724,7 +724,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	} else {
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
-	log.Debugf("************************** OperationRemotePath:%s", e.OperationRemotePath)
+	log.Debugf("OperationRemotePath:%s", e.OperationRemotePath)
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
 		return err
