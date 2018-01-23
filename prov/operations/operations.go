@@ -53,7 +53,8 @@ func GetOperation(kv *api.KV, deploymentID, nodeName, operationName, requirement
 			RequirementIndex:        requirementIndex,
 			TargetNodeName:          targetNodeName,
 		},
-		OperationHost: operationHost,
+		OperationHost:      operationHost,
+		TargetRelationship: requirementName,
 	}
 	return op, nil
 }

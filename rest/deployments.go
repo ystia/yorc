@@ -71,7 +71,9 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 			log.Panicf("%v", err)
 		}
 		if dExits {
-			writeError(w, r, newConflictRequest(fmt.Sprintf("Deployment with id %q already exists", id)))
+			mess := fmt.Sprintf("Deployment with id %q already exists", id)
+			log.Debugf("[ERROR]: %s", mess)
+			writeError(w, r, newConflictRequest(mess))
 			return
 		}
 		uid = id
@@ -174,12 +176,14 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 
 	var taskType tasks.TaskType
 	if _, ok := r.URL.Query()["purge"]; ok {
+		log.Debugln("PURGE !!!!!!!!!!!!!!!!!!!!!!!!!!")
 		taskType = tasks.Purge
 	} else {
 		taskType = tasks.UnDeploy
 	}
 
 	if taskType == tasks.UnDeploy {
+		log.Debugln("UNDEPLOY !!!!!!!!!!!!!!!!!!!!!!!!!!")
 		status, err := deployments.GetDeploymentStatus(s.consulClient.KV(), id)
 		if err != nil {
 			log.Panicf("%v", err)
@@ -191,7 +195,9 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if taskID, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
+		log.Debugln("register task err" + err.Error())
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+			log.Debugln("another task is living !!!!!!!!!!!!!!! ")
 			writeError(w, r, newBadRequestError(err))
 			return
 		}
