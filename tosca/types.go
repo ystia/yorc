@@ -37,7 +37,7 @@ type Type struct {
 
 // An NodeType is the representation of a TOSCA Node Type
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_NODE_TYPE
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_NODE_TYPE
 // for more details
 type NodeType struct {
 	Type         `yaml:",inline"`
@@ -51,7 +51,7 @@ type NodeType struct {
 
 // An RelationshipType is the representation of a TOSCA Relationship Type
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_RELATIONSHIP_TYPE
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_RELATIONSHIP_TYPE
 // for more details
 type RelationshipType struct {
 	Type             `yaml:",inline"`
@@ -64,7 +64,7 @@ type RelationshipType struct {
 
 // An CapabilityType is the representation of a TOSCA Capability Type
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_CAPABILITY_TYPE
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_CAPABILITY_TYPE
 // for more details
 type CapabilityType struct {
 	Type             `yaml:",inline"`
@@ -75,7 +75,7 @@ type CapabilityType struct {
 
 // An ArtifactType is the representation of a TOSCA Artifact Type
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_ARTIFACT_TYPE
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_ARTIFACT_TYPE
 // for more details
 type ArtifactType struct {
 	Type       `yaml:",inline"`

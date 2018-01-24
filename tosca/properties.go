@@ -2,7 +2,7 @@ package tosca
 
 // An PropertyDefinition is the representation of a TOSCA Property Definition
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ELEMENT_PROPERTY_DEFN for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_PROPERTY_DEFN for more details
 type PropertyDefinition struct {
 	Type        string           `yaml:"type"`
 	Description string           `yaml:"description,omitempty"`

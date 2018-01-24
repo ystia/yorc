@@ -607,7 +607,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
 	var ansibleRecipePath string
 	if e.operation.RelOp.IsRelationshipOperation {
-		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.Name, currentInstance)
+		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.TargetRelationship, e.operation.Name, currentInstance)
 	} else {
 		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.operation.Name, currentInstance)
 	}
@@ -724,6 +724,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	} else {
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
+	log.Debugf("OperationRemotePath:%s", e.OperationRemotePath)
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
 		return err

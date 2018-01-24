@@ -48,7 +48,7 @@ func (adm *ArtifactDefMap) UnmarshalYAML(unmarshal func(interface{}) error) erro
 
 // An ArtifactDefinition is the representation of a TOSCA Artifact Definition
 //
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html#DEFN_ENTITY_ARTIFACT_DEF for more details
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_ARTIFACT_DEF for more details
 type ArtifactDefinition struct {
 	Type        string `yaml:"type,omitempty"`
 	File        string `yaml:"file,omitempty"`

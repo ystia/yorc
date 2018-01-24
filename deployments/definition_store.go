@@ -1089,7 +1089,7 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 
 	for i := uint32(0); i < numberInstances; i++ {
 		instanceName := strconv.FormatUint(uint64(i), 10)
-		createNodeInstance(consulStore, deploymentID, nodeName, instanceName)
+		createNodeInstance(kv, consulStore, deploymentID, nodeName, instanceName)
 	}
 }
 
