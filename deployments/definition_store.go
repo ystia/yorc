@@ -481,13 +481,11 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
-				propPrefix := capabilityPropsPrefix + "/" + propName
-				storePropertyDefinition(ctx, propPrefix, propName, propValue)
+				storeValueAssignment(consulStore, capabilityPropsPrefix+"/"+url.QueryEscape(propName), propValue)
 			}
 			capabilityAttrPrefix := capabilityPrefix + "/attributes"
 			for attrName, attrValue := range capability.Attributes {
-				attrPrefix := capabilityAttrPrefix + "/" + attrName
-				storeAttributeDefinition(ctx, attrPrefix, attrName, attrValue)
+				storeValueAssignment(consulStore, capabilityAttrPrefix+"/"+url.QueryEscape(attrName), attrValue)
 			}
 		}
 

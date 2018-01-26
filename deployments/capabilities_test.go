@@ -7,8 +7,11 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 
+	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/stretchr/testify/require"
+	"strings"
 )
 
 func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -278,4 +281,22 @@ func testGetNodeCapabilityType(t *testing.T, kv *api.KV) {
 			}
 		})
 	}
+}
+
+func testGetCapabilityProperties(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/capabilities_properties.yaml")
+	require.Nil(t, err)
+	found, value, err := GetCapabilityProperty(kv, deploymentID, "Tomcat", "data_endpoint", "port")
+	require.Equal(t, found, true)
+	require.Equal(t, value, "8088")
+
+	found, value, err = GetCapabilityProperty(kv, deploymentID, "Tomcat", "data_endpoint", "protocol")
+	require.Equal(t, found, true)
+	require.Equal(t, value, "http")
+
+	found, value, err = GetCapabilityProperty(kv, deploymentID, "Tomcat", "data_endpoint", "network_name")
+	require.Equal(t, found, true)
+	require.Equal(t, value, "PRIVATE")
 }

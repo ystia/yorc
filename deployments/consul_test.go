@@ -55,5 +55,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testCheckCycleInNestedWorkflows", func(t *testing.T) {
 			testCheckCycleInNestedWorkflows(t, kv)
 		})
+		t.Run("testGetCapabilityProperties", func(t *testing.T) {
+			testGetCapabilityProperties(t, kv)
+		})
 	})
 }
