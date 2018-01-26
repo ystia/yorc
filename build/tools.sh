@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-#set -x
+set -x
+scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 error_exit () {
     >&2 echo "${1}"
@@ -20,10 +21,10 @@ copy_tools () {
         if [[ ! -x $GOPATH/bin/${tool##*/} ]]; then
             echo "$GOPATH/bin/${tool##*/} doesn't exist. We copy it from build tools folder to $GOPATH/bin"
             arch=$(uname -m)
-			if [[ ! -z ./build/tools/${arch} ]]; then
-				error_exit "No binaries found for arch:${arch}"
-			fi
-            cp ./build/tools/${arch}/${tool##*/} $GOPATH/bin
+            if [[ ! -d ${scriptDir}/tools/${arch} ]]; then
+                error_exit "No binaries found for arch:${arch}"
+            fi
+            cp ${scriptDir}/tools/${arch}/${tool##*/} $GOPATH/bin
         fi
     done
 }
