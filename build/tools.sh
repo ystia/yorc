@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -x
+#set -x
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 error_exit () {
