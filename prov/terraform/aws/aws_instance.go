@@ -196,7 +196,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 }
 
 func isElasticIPPRequired(kv *api.KV, deploymentID, nodeName string) (bool, error) {
-	networkKeys, err := deployments.GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return false, err
 	}

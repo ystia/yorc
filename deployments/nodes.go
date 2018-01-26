@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
@@ -463,7 +464,7 @@ func storeSubKeysInSet(kv *api.KV, parentPath string, set map[string]struct{}) e
 }
 
 func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
-	localStorageReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	localStorageReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +481,7 @@ func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string)
 		}
 		nodesList = append(nodesList, string(kvp.Value))
 	}
-	networkReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	networkReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return nil, err
 	}
@@ -582,7 +583,7 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 		instancesIDs = append(instancesIDs, id)
 		for _, stackNode := range stackNodes {
 
-			createNodeInstance(consulStore, deploymentID, stackNode, id)
+			createNodeInstance(kv, consulStore, deploymentID, stackNode, id)
 			if _, ok := nodesMap[stackNode]; ok {
 				nodesMap[stackNode] = nodesMap[stackNode] + "," + id
 			} else {
@@ -606,13 +607,15 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 }
 
 // createNodeInstance creates required elements for a new node
-func createNodeInstance(consulStore consulutil.ConsulStore, deploymentID, nodeName, instanceName string) {
+func createNodeInstance(kv *api.KV, consulStore consulutil.ConsulStore, deploymentID, nodeName, instanceName string) {
 
 	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
 
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), tosca.NodeStateInitial.String())
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
+	// Publish a status change event
+	events.InstanceStatusChange(kv, deploymentID, nodeName, instanceName, tosca.NodeStateInitial.String())
 }
 
 // DoesNodeExist checks if a given node exist in a deployment

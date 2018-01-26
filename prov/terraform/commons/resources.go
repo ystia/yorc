@@ -12,6 +12,7 @@ type Infrastructure struct {
 
 // The ConsulKeys can be used as 'resource' to writes or 'data' to read sets of individual values into Consul.
 type ConsulKeys struct {
+	Resource
 	Datacenter string      `json:"datacenter,omitempty"`
 	Token      string      `json:"token,omitempty"`
 	Keys       []ConsulKey `json:"key"`
@@ -19,6 +20,8 @@ type ConsulKeys struct {
 
 // A Resource is the base type for terraform resources
 type Resource struct {
+	Count        int                      `json:"count,omitempty"`
+	DependsOn    []string                 `json:"depends_on,omitempty"`
 	Connection   *Connection              `json:"connection,omitempty"`
 	Provisioners []map[string]interface{} `json:"provisioner,omitempty"`
 }

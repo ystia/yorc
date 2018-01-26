@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"strconv"
+	"strings"
 )
 
 // GetWorkflows returns the list of workflows names for a given deployment
@@ -35,53 +37,81 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 	}
 	wf.Steps = make(map[string]tosca.Step, len(steps))
 	for _, stepKey := range steps {
-		step, err := readWfStep(kv, stepKey)
-		if err != nil {
-			return wf, err
-		}
 		stepName, err := url.QueryUnescape(path.Base(stepKey))
 		if err != nil {
 			return wf, errors.Wrapf(err, "Failed to get back step name from Consul")
+		}
+		step, err := readWfStep(kv, stepKey, stepName, workflowName)
+		if err != nil {
+			return wf, err
 		}
 		wf.Steps[stepName] = step
 	}
 	return wf, nil
 }
 
-func readWfStep(kv *api.KV, stepKey string) (tosca.Step, error) {
-	kvp, _, err := kv.Get(path.Join(stepKey, "node"), nil)
+func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (tosca.Step, error) {
 	step := tosca.Step{}
-	if err != nil {
-		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return step, errors.Errorf("Missing mandatory attribute \"node\" for step %q", path.Base(stepKey))
-	}
-	step.Node = string(kvp.Value)
-	activity := tosca.Activity{}
-	kvp, _, err = kv.Get(path.Join(stepKey, "activity", "call-operation"), nil)
+	targetIsMandatory := false
+	// Get the step operation's host (not mandatory)
+	kvp, _, err := kv.Get(path.Join(stepKey, "operation_host"), nil)
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil && len(kvp.Value) != 0 {
-		activity.CallOperation = string(kvp.Value)
+		step.OperationHost = string(kvp.Value)
 	}
-	kvp, _, err = kv.Get(path.Join(stepKey, "activity", "set-state"), nil)
+	// Get the target relationship (not mandatory)
+	kvp, _, err = kv.Get(path.Join(stepKey, "target_relationship"), nil)
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil && len(kvp.Value) != 0 {
-		activity.SetState = string(kvp.Value)
+		step.TargetRelationShip = string(kvp.Value)
 	}
-	kvp, _, err = kv.Get(path.Join(stepKey, "activity", "delegate"), nil)
+	// Get the step's activities
+	activitiesKeys, _, err := kv.List(stepKey+"/activities", nil)
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if kvp != nil && len(kvp.Value) != 0 {
-		activity.Delegate = string(kvp.Value)
+	step.Activities = make([]tosca.Activity, len(activitiesKeys))
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	step.Activity = activity
+	for i, actKV := range activitiesKeys {
+		activity := tosca.Activity{}
+		key := strings.TrimPrefix(actKV.Key, stepKey+"activities/"+strconv.Itoa(i)+"/")
+		switch {
+		case key == "delegate":
+			activity.Delegate = string(actKV.Value)
+			step.Activities[i] = activity
+			targetIsMandatory = true
+		case key == "set-state":
+			activity.SetState = string(actKV.Value)
+			step.Activities[i] = activity
+			targetIsMandatory = true
+		case key == "call-operation":
+			activity.CallOperation = string(actKV.Value)
+			step.Activities[i] = activity
+			targetIsMandatory = true
+		case key == "inline":
+			activity.Inline = string(actKV.Value)
+			step.Activities[i] = activity
+		}
+	}
+	// Get the step's target (mandatory except if all activities are inline)
+	kvp, _, err = kv.Get(path.Join(stepKey, "target"), nil)
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if targetIsMandatory && (kvp == nil || len(kvp.Value) == 0) {
+		return step, errors.Errorf("Missing mandatory attribute \"target\" for step %q", path.Base(stepKey))
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		step.Target = string(kvp.Value)
+	}
 
+	// Get the next steps of the current step and use it to set the OnSuccess filed
 	nextSteps, _, err := kv.Keys(stepKey+"/next/", "/", nil)
 	if err != nil {
 		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)

@@ -20,6 +20,11 @@ node_types:
         required: false
     interfaces:
       Standard:
+        inputs:
+          G1: "G1"
+          G2: {get_property: [SELF, document_root]}
+          G3: {get_property: [SELF, empty]}
+          G4: {get_property: [SELF, optionalEmpty]}
         create:
           inputs:
             A1: {get_property: [SELF, document_root]}
@@ -35,6 +40,10 @@ relationship_types:
     derived_from: tosca.relationships.Root
     interfaces:
       Configure:
+        inputs:
+          G1: "G1"
+          G2: {get_property: [SOURCE, document_root]}
+          G3: {get_attribute: [TARGET, ip_address]}
         pre_configure_source:
           inputs:
             A1: {get_property: [SOURCE, document_root]}

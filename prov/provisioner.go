@@ -26,6 +26,10 @@ type Operation struct {
 	ImplementationArtifact string
 	// Additional information for relationship operation
 	RelOp RelationshipOperation
+	// Node on which operation should be executed
+	OperationHost string
+	// Requirement name in case of relationship
+	TargetRelationship string
 }
 
 // String implements the fmt.Stringer interface

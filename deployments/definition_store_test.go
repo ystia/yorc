@@ -742,3 +742,143 @@ func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
 	require.Len(t, results, 1)
 	require.Equal(t, "", results[0].Value)
 }
+
+func testRelationshipWorkflow(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/relationship_workflow.yaml")
+	require.Nil(t, err)
+
+	workflows, err := GetWorkflows(kv, deploymentID)
+	require.Nil(t, err)
+	require.Equal(t, len(workflows), 4)
+
+	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
+	require.Nil(t, err)
+	require.Equal(t, len(wfInstall.Steps), 14)
+
+	step := wfInstall.Steps["OracleJDK_hostedOnComputeHost_pre_configure_source"]
+	require.Equal(t, step.Target, "OracleJDK")
+	require.Equal(t, step.OperationHost, "SOURCE")
+	require.Equal(t, step.TargetRelationShip, "hostedOnComputeHost")
+
+}
+
+func testGlobalInputs(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/global_interfaces_inputs.yaml")
+	require.Nil(t, err)
+
+	nodeName := "GI"
+	giType := "janus.tests.nodes.GlobalInputs"
+	operationName := "tosca.interfaces.nodes.lifecycle.standard.create"
+
+	err = SetInstanceAttribute(deploymentID, nodeName, "0", "state", "initial")
+	require.Nil(t, err)
+	err = SetInstanceAttribute(deploymentID, nodeName, "1", "state", "initial")
+	require.Nil(t, err)
+
+	inputs, err := GetOperationInputs(kv, deploymentID, giType, operationName)
+	require.Nil(t, err)
+	require.Len(t, inputs, 5)
+	require.Equal(t, []string{"L1", "L2", "G1", "G2", "G3"}, inputs)
+
+	isPropDef, err := IsOperationInputAPropertyDefinition(kv, deploymentID, giType, operationName, "L1")
+	require.Nil(t, err)
+	require.False(t, isPropDef)
+	isPropDef, err = IsOperationInputAPropertyDefinition(kv, deploymentID, giType, operationName, "L2")
+	require.Nil(t, err)
+	require.False(t, isPropDef)
+	isPropDef, err = IsOperationInputAPropertyDefinition(kv, deploymentID, giType, operationName, "G1")
+	require.Nil(t, err)
+	require.False(t, isPropDef)
+	isPropDef, err = IsOperationInputAPropertyDefinition(kv, deploymentID, giType, operationName, "G2")
+	require.Nil(t, err)
+	require.False(t, isPropDef)
+	isPropDef, err = IsOperationInputAPropertyDefinition(kv, deploymentID, giType, operationName, "G3")
+	require.Nil(t, err)
+	require.True(t, isPropDef)
+	isPropDef, err = IsOperationInputAPropertyDefinition(kv, deploymentID, giType, operationName, "G4")
+	require.Error(t, err)
+
+	operation := prov.Operation{
+		Name:                   operationName,
+		ImplementedInType:      giType,
+		ImplementationArtifact: "tosca.artifacts.Implementation.Bash",
+		OperationHost:          "SELF",
+		RelOp:                  prov.RelationshipOperation{},
+	}
+
+	inputResults, err := GetOperationInput(kv, deploymentID, nodeName, operation, "L1")
+	require.Nil(t, err)
+	require.Len(t, inputResults, 2)
+	for _, res := range inputResults {
+		require.Equal(t, "1", res.Value)
+	}
+	inputResults, err = GetOperationInput(kv, deploymentID, nodeName, operation, "L2")
+	require.Nil(t, err)
+	require.Len(t, inputResults, 2)
+	for _, res := range inputResults {
+		require.Equal(t, "Value1", res.Value)
+	}
+	inputResults, err = GetOperationInput(kv, deploymentID, nodeName, operation, "G1")
+	require.Nil(t, err)
+	require.Len(t, inputResults, 2)
+	for _, res := range inputResults {
+		require.Equal(t, "myLitteral", res.Value)
+	}
+	inputResults, err = GetOperationInput(kv, deploymentID, nodeName, operation, "G2")
+	require.Nil(t, err)
+	require.Len(t, inputResults, 2)
+	for _, res := range inputResults {
+		require.Equal(t, "Value1", res.Value)
+	}
+	inputResults, err = GetOperationInput(kv, deploymentID, nodeName, operation, "G3")
+	require.Error(t, err)
+
+	inputResults, err = GetOperationInputPropertyDefinitionDefault(kv, deploymentID, nodeName, operation, "G1")
+	require.Error(t, err)
+	inputResults, err = GetOperationInputPropertyDefinitionDefault(kv, deploymentID, nodeName, operation, "G3")
+	require.Nil(t, err)
+	require.Len(t, inputResults, 2)
+	for _, res := range inputResults {
+		require.Equal(t, "Global3Default", res.Value)
+	}
+}
+
+func testInlineWorkflow(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/inline_workflow.yaml")
+	require.Nil(t, err)
+
+	workflows, err := GetWorkflows(kv, deploymentID)
+	require.Nil(t, err)
+	require.Equal(t, len(workflows), 3)
+
+	wfInstall, err := ReadWorkflow(kv, deploymentID, "install")
+	require.Nil(t, err)
+	require.Equal(t, len(wfInstall.Steps), 4)
+
+	step := wfInstall.Steps["Some_other_inline"]
+	require.Equal(t, step.Target, "")
+	require.Equal(t, len(step.Activities), 1)
+	require.Equal(t, step.Activities[0].Inline, "my_custom_wf")
+
+	step = wfInstall.Steps["inception_inline"]
+	require.Equal(t, step.Target, "")
+	require.Equal(t, len(step.Activities), 1)
+	require.Equal(t, step.Activities[0].Inline, "inception")
+
+	wfInception, err := ReadWorkflow(kv, deploymentID, "inception")
+	require.Nil(t, err)
+	require.Equal(t, len(wfInception.Steps), 1)
+}
+
+func testCheckCycleInNestedWorkflows(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/cyclic_workflow.yaml")
+	require.Error(t, err, "a cycle should be detected in inline workflows")
+}

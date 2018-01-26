@@ -110,7 +110,7 @@ func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, col
 			err = getJSONEntityFromAtomGetRequest(client, atomLink, &node)
 			if err != nil {
 				errs = append(errs, err)
-				nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg, "")
+				nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 				continue
 			}
 			statusesMap := make(map[string]int)
@@ -121,7 +121,7 @@ func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, col
 					err = getJSONEntityFromAtomGetRequest(client, nodeLink, &instance)
 					if err != nil {
 						errs = append(errs, err)
-						nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg, "")
+						nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 						continue
 					}
 					statusesMap[instance.Status]++
@@ -143,7 +143,7 @@ func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, col
 			err = getJSONEntityFromAtomGetRequest(client, atomLink, &task)
 			if err != nil {
 				errs = append(errs, err)
-				tasksTable.AddRow(path.Base(atomLink.Href), "", commErrorMsg)
+				tasksTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 				continue
 			}
 			tasksTable.AddRow(task.ID, task.Type, getColoredTaskStatus(colorize, task.Status))

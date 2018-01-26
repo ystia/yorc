@@ -110,6 +110,7 @@ type executionCommon struct {
 	HaveOutput               bool
 	isRelationshipTargetNode bool
 	isPerInstanceOperation   bool
+	isOrchestratorOperation  bool
 	IsCustomCommand          bool
 	relationshipType         string
 	ansibleRunner            ansibleRunner
@@ -174,14 +175,10 @@ func (e *executionCommon) resolveOperation() error {
 		if err != nil {
 			return err
 		}
-
-		e.isRelationshipTargetNode = isTargetOperation(e.operation.Name)
-
 		err = e.resolveIsPerInstanceOperation(e.operation.Name)
 		if err != nil {
 			return err
 		}
-
 	} else if strings.Contains(e.operation.Name, "custom") {
 		e.IsCustomCommand = true
 	}
@@ -218,18 +215,38 @@ func (e *executionCommon) resolveOperation() error {
 		e.Description = string(kvPair.Value)
 	}
 
+	// if operation_host is not overridden by requirement, we retrieve operation/implementation definition info
+	if e.operation.OperationHost == "" {
+		kvPair, _, err = e.kv.Get(e.OperationPath+"/implementation/operation_host", nil)
+		if err != nil {
+			return errors.Wrap(err, "Consul query failed: ")
+		}
+		if kvPair != nil && len(kvPair.Value) > 0 {
+			e.operation.OperationHost = string(kvPair.Value)
+		}
+	}
+
+	// Set specific operation host values
+	if e.operation.RelOp.IsRelationshipOperation && e.operation.OperationHost == "TARGET" {
+		e.isRelationshipTargetNode = true
+	} else if e.operation.OperationHost == "ORCHESTRATOR" {
+		e.isOrchestratorOperation = true
+	}
 	return e.resolveInstances()
 }
 
 func (e *executionCommon) resolveInstances() error {
 	var err error
-	if e.operation.RelOp.IsRelationshipOperation {
-		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
-		if err != nil {
-			return err
+	if !e.isOrchestratorOperation {
+		if e.operation.RelOp.IsRelationshipOperation {
+			e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
+			if err != nil {
+				return err
+			}
 		}
+		e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	}
-	e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+
 	return err
 }
 
@@ -293,6 +310,8 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 	var instances []string
 	if e.isRelationshipTargetNode {
 		instances = e.targetNodeInstances
+	} else if e.isOrchestratorOperation {
+		return errors.New("Execution on orchestrator's host is not yet implemented")
 	} else {
 		instances = e.sourceNodeInstances
 	}
@@ -494,16 +513,6 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 	return nil
 }
 
-// isTargetOperation returns true if the given operationName contains one of the following patterns (case doesn't matter):
-//	pre_configure_target, post_configure_target, add_source
-func isTargetOperation(operationName string) bool {
-	op := strings.ToLower(operationName)
-	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_source") {
-		return true
-	}
-	return false
-}
-
 // resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
 //	add_target, remove_target, add_source, target_changed
 // And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
@@ -598,7 +607,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
 	var ansibleRecipePath string
 	if e.operation.RelOp.IsRelationshipOperation {
-		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.Name, currentInstance)
+		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.TargetRelationship, e.operation.Name, currentInstance)
 	} else {
 		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.operation.Name, currentInstance)
 	}
@@ -715,6 +724,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	} else {
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
+	log.Debugf("OperationRemotePath:%s", e.OperationRemotePath)
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
 		return err

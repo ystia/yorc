@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/helper/collections"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/registry"
@@ -108,6 +109,11 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	}
 	storeCapabilityTypes(ctx, topology, topologyPrefix)
 	storeArtifactTypes(ctx, topology, topologyPrefix)
+
+	// Detect potential cycles in inline workflows
+	if err := checkNestedWorkflows(topology); err != nil {
+		return err
+	}
 	storeWorkflows(ctx, topology, deploymentID)
 	return nil
 }
@@ -267,6 +273,7 @@ func storeRequirementAssignment(ctx context.Context, requirement tosca.Requireme
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/node", requirement.Node)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/relationship", requirement.Relationship)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/capability", requirement.Capability)
+	consulStore.StoreConsulKeyAsString(requirementPrefix+"/type_requirement", requirement.TypeRequirement)
 	for propName, propValue := range requirement.RelationshipProps {
 		storeValueAssignment(consulStore, requirementPrefix+"/properties/"+url.QueryEscape(propName), propValue)
 	}
@@ -392,6 +399,49 @@ func storeValueAssignment(consulStore consulutil.ConsulStore, vaPrefix string, v
 	}
 }
 
+func storeInputDefinition(consulStore consulutil.ConsulStore, inputPrefix, operationOutputPrefix string, inputDef tosca.Input) error {
+	isValueAssignment := false
+	isPropertyDefinition := false
+	if inputDef.ValueAssign != nil {
+		storeValueAssignment(consulStore, inputPrefix+"/data", inputDef.ValueAssign)
+		isValueAssignment = true
+		if inputDef.ValueAssign.Type == tosca.ValueAssignmentFunction {
+			f := inputDef.ValueAssign.GetFunction()
+			opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+			for _, oof := range opOutputFuncs {
+				if len(oof.Operands) != 4 {
+					return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
+				}
+				entityName := url.QueryEscape(oof.Operands[0].String())
+				if entityName == "TARGET" || entityName == "SOURCE" {
+					return errors.Errorf("Can't use SOURCE or TARGET keyword in a %q in node type context: %v", tosca.GetOperationOutputOperator, oof)
+				}
+				interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
+				operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
+				outputVariableName := url.QueryEscape(oof.Operands[3].String())
+				consulStore.StoreConsulKeyAsString(operationOutputPrefix+"/"+interfaceName+"/"+operationName+"/outputs/"+entityName+"/"+outputVariableName+"/expression", oof.String())
+			}
+		}
+	}
+	if inputDef.PropDef != nil {
+		consulStore.StoreConsulKeyAsString(inputPrefix+"/type", inputDef.PropDef.Type)
+		storeValueAssignment(consulStore, inputPrefix+"/default", inputDef.PropDef.Default)
+		consulStore.StoreConsulKeyAsString(inputPrefix+"/description", inputDef.PropDef.Description)
+		consulStore.StoreConsulKeyAsString(inputPrefix+"/status", inputDef.PropDef.Status)
+		if inputDef.PropDef.Required == nil {
+			// Required by default
+			consulStore.StoreConsulKeyAsString(inputPrefix+"/required", "true")
+		} else {
+			consulStore.StoreConsulKeyAsString(inputPrefix+"/required", strconv.FormatBool(*inputDef.PropDef.Required))
+		}
+		isPropertyDefinition = true
+	}
+
+	consulStore.StoreConsulKeyAsString(inputPrefix+"/is_value_assignment", strconv.FormatBool(isValueAssignment))
+	consulStore.StoreConsulKeyAsString(inputPrefix+"/is_property_definition", strconv.FormatBool(isPropertyDefinition))
+	return nil
+}
+
 // storeTypes stores topology types
 func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, importPath string) error {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
@@ -416,6 +466,7 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/occurrences/upper_bound", strconv.FormatUint(reqDefinition.Occurrences.UpperBound, 10))
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/relationship", reqDefinition.Relationship)
 				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability", reqDefinition.Capability)
+				consulStore.StoreConsulKeyAsString(reqPrefix+"/capability_name", reqDefinition.CapabilityName)
 			}
 		}
 		capabilitiesPrefix := nodeTypePrefix + "/capabilities"
@@ -430,78 +481,57 @@ func storeTypes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			consulStore.StoreConsulKeyAsString(capabilityPrefix+"/valid_sources", strings.Join(capability.ValidSourceTypes, ","))
 			capabilityPropsPrefix := capabilityPrefix + "/properties"
 			for propName, propValue := range capability.Properties {
-				propPrefix := capabilityPropsPrefix + "/" + propName
-				storePropertyDefinition(ctx, propPrefix, propName, propValue)
+				storeValueAssignment(consulStore, capabilityPropsPrefix+"/"+url.QueryEscape(propName), propValue)
 			}
 			capabilityAttrPrefix := capabilityPrefix + "/attributes"
 			for attrName, attrValue := range capability.Attributes {
-				attrPrefix := capabilityAttrPrefix + "/" + attrName
-				storeAttributeDefinition(ctx, attrPrefix, attrName, attrValue)
+				storeValueAssignment(consulStore, capabilityAttrPrefix+"/"+url.QueryEscape(attrName), attrValue)
 			}
 		}
 
-		interfacesPrefix := nodeTypePrefix + "/interfaces"
 		for intTypeName, intMap := range nodeType.Interfaces {
 			intTypeName = strings.ToLower(intTypeName)
-			for intName, intDef := range intMap {
-				intName = strings.ToLower(intName)
-				intPrefix := path.Join(interfacesPrefix, intTypeName, intName)
-				consulStore.StoreConsulKeyAsString(intPrefix+"/name", intName)
-				consulStore.StoreConsulKeyAsString(intPrefix+"/description", intDef.Description)
-
-				for inputName, inputDef := range intDef.Inputs {
-					inputPrefix := path.Join(intPrefix, "inputs", inputName)
-					consulStore.StoreConsulKeyAsString(inputPrefix+"/name", inputName)
-					isValueAssignment := false
-					isPropertyDefinition := false
-					if inputDef.ValueAssign != nil {
-						storeValueAssignment(consulStore, inputPrefix+"/data", inputDef.ValueAssign)
-						isValueAssignment = true
-						if inputDef.ValueAssign.Type == tosca.ValueAssignmentFunction {
-							f := inputDef.ValueAssign.GetFunction()
-							opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-							for _, oof := range opOutputFuncs {
-								if len(oof.Operands) != 4 {
-									return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-								}
-								entityName := url.QueryEscape(oof.Operands[0].String())
-								if entityName == "TARGET" || entityName == "SOURCE" {
-									return errors.Errorf("Can't use SOURCE or TARGET keyword in a %q in node type context: %v", tosca.GetOperationOutputOperator, oof)
-								}
-								interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
-								operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
-								outputVariableName := url.QueryEscape(oof.Operands[3].String())
-								consulStore.StoreConsulKeyAsString(nodeTypePrefix+"/interfaces/"+interfaceName+"/"+operationName+"/outputs/"+entityName+"/"+outputVariableName+"/expression", oof.String())
-							}
-						}
-					}
-					if inputDef.PropDef != nil {
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/type", inputDef.PropDef.Type)
-						storeValueAssignment(consulStore, inputPrefix+"/default", inputDef.PropDef.Default)
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/description", inputDef.PropDef.Description)
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/status", inputDef.PropDef.Status)
-						if inputDef.PropDef.Required == nil {
-							// Required by default
-							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", "true")
-						} else {
-							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", strconv.FormatBool(*inputDef.PropDef.Required))
-						}
-						isPropertyDefinition = true
-					}
-
-					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_value_assignment", strconv.FormatBool(isValueAssignment))
-					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_property_definition", strconv.FormatBool(isPropertyDefinition))
+			interfacePrefix := path.Join(nodeTypePrefix, "interfaces", intTypeName)
+			// Store Global inputs
+			for inputName, inputDef := range intMap.Inputs {
+				inputPrefix := path.Join(interfacePrefix, "inputs", inputName)
+				consulStore.StoreConsulKeyAsString(inputPrefix+"/name", inputName)
+				err := storeInputDefinition(consulStore, inputPrefix, interfacePrefix, inputDef)
+				if err != nil {
+					return err
 				}
-				if intDef.Implementation.Artifact != (tosca.ArtifactDefinition{}) {
-					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/file", intDef.Implementation.Artifact.File)
-					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/type", intDef.Implementation.Artifact.Type)
-					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/repository", intDef.Implementation.Artifact.Repository)
-					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/description", intDef.Implementation.Artifact.Description)
-					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/deploy_path", intDef.Implementation.Artifact.DeployPath)
+			}
+
+			for opName, operationDef := range intMap.Operations {
+				opName = strings.ToLower(opName)
+				operationPrefix := path.Join(interfacePrefix, opName)
+				consulStore.StoreConsulKeyAsString(operationPrefix+"/name", opName)
+				consulStore.StoreConsulKeyAsString(operationPrefix+"/description", operationDef.Description)
+
+				for inputName, inputDef := range operationDef.Inputs {
+					inputPrefix := path.Join(operationPrefix, "inputs", inputName)
+					consulStore.StoreConsulKeyAsString(inputPrefix+"/name", inputName)
+					err := storeInputDefinition(consulStore, inputPrefix, interfacePrefix, inputDef)
+					if err != nil {
+						return err
+					}
+				}
+				if operationDef.Implementation.Artifact != (tosca.ArtifactDefinition{}) {
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/file", operationDef.Implementation.Artifact.File)
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/type", operationDef.Implementation.Artifact.Type)
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/repository", operationDef.Implementation.Artifact.Repository)
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/description", operationDef.Implementation.Artifact.Description)
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/deploy_path", operationDef.Implementation.Artifact.DeployPath)
 
 				} else {
-					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
-					consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/primary", path.Join(importPath, operationDef.Implementation.Primary))
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/dependencies", strings.Join(operationDef.Implementation.Dependencies, ","))
+					if operationDef.Implementation.OperationHost != "" {
+						if err := checkOperationHost(operationDef.Implementation.OperationHost, false); err != nil {
+							return err
+						}
+						consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/operation_host", strings.ToUpper(operationDef.Implementation.OperationHost))
+					}
 				}
 			}
 		}
@@ -577,60 +607,41 @@ func storeRelationshipTypes(ctx context.Context, topology tosca.Topology, topolo
 			}
 		}
 
-		interfacesPrefix := relationTypePrefix + "/interfaces"
 		for intTypeName, intMap := range relationType.Interfaces {
 			intTypeName = strings.ToLower(intTypeName)
-			for intName, intDef := range intMap {
-				intName = strings.ToLower(intName)
-				intPrefix := path.Join(interfacesPrefix, intTypeName, intName)
-				consulStore.StoreConsulKeyAsString(intPrefix+"/name", intName)
-				consulStore.StoreConsulKeyAsString(intPrefix+"/description", intDef.Description)
-
-				for inputName, inputDef := range intDef.Inputs {
-					inputPrefix := path.Join(intPrefix, "inputs", inputName)
-					consulStore.StoreConsulKeyAsString(inputPrefix+"/name", inputName)
-					isValueAssignement := false
-					isPropertyDefinition := false
-					if inputDef.ValueAssign != nil {
-						storeValueAssignment(consulStore, inputPrefix+"/data", inputDef.ValueAssign)
-						isValueAssignement = true
-						if inputDef.ValueAssign.Type == tosca.ValueAssignmentFunction {
-							f := inputDef.ValueAssign.GetFunction()
-							opOutputFuncs := f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
-							for _, oof := range opOutputFuncs {
-								if len(oof.Operands) != 4 {
-									return errors.Errorf("Invalid %q TOSCA function: %v", tosca.GetOperationOutputOperator, oof)
-								}
-								entityName := url.QueryEscape(oof.Operands[0].String())
-								if entityName == "TARGET" || entityName == "SOURCE" {
-									return errors.Errorf("Can't use SOURCE or TARGET keyword in a %q in node type context: %v", tosca.GetOperationOutputOperator, oof)
-								}
-								interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
-								operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
-								outputVariableName := url.QueryEscape(oof.Operands[3].String())
-								consulStore.StoreConsulKeyAsString(relationTypePrefix+"/interfaces/"+interfaceName+"/"+operationName+"/outputs/"+entityName+"/"+outputVariableName+"/expression", oof.String())
-							}
-						}
-					}
-					if inputDef.PropDef != nil {
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/type", inputDef.PropDef.Type)
-						storeValueAssignment(consulStore, inputPrefix+"/default", inputDef.PropDef.Default)
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/description", inputDef.PropDef.Description)
-						consulStore.StoreConsulKeyAsString(inputPrefix+"/status", inputDef.PropDef.Status)
-						if inputDef.PropDef.Required == nil {
-							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", "true")
-						} else {
-							consulStore.StoreConsulKeyAsString(inputPrefix+"/required", strconv.FormatBool(*inputDef.PropDef.Required))
-						}
-
-						isPropertyDefinition = true
-					}
-
-					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_value_assignment", strconv.FormatBool(isValueAssignement))
-					consulStore.StoreConsulKeyAsString(inputPrefix+"/is_property_definition", strconv.FormatBool(isPropertyDefinition))
+			interfacePrefix := path.Join(relationTypePrefix, "interfaces", intTypeName)
+			// Store Global inputs
+			for inputName, inputDef := range intMap.Inputs {
+				inputPrefix := path.Join(interfacePrefix, "inputs", inputName)
+				consulStore.StoreConsulKeyAsString(inputPrefix+"/name", inputName)
+				err := storeInputDefinition(consulStore, inputPrefix, interfacePrefix, inputDef)
+				if err != nil {
+					return err
 				}
-				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/primary", path.Join(importPath, intDef.Implementation.Primary))
-				consulStore.StoreConsulKeyAsString(intPrefix+"/implementation/dependencies", strings.Join(intDef.Implementation.Dependencies, ","))
+			}
+
+			for opName, operationDef := range intMap.Operations {
+				opName = strings.ToLower(opName)
+				operationPrefix := path.Join(interfacePrefix, opName)
+				consulStore.StoreConsulKeyAsString(operationPrefix+"/name", opName)
+				consulStore.StoreConsulKeyAsString(operationPrefix+"/description", operationDef.Description)
+
+				for inputName, inputDef := range operationDef.Inputs {
+					inputPrefix := path.Join(operationPrefix, "inputs", inputName)
+					consulStore.StoreConsulKeyAsString(inputPrefix+"/name", inputName)
+					err := storeInputDefinition(consulStore, inputPrefix, interfacePrefix, inputDef)
+					if err != nil {
+						return err
+					}
+				}
+				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/primary", path.Join(importPath, operationDef.Implementation.Primary))
+				consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/dependencies", strings.Join(operationDef.Implementation.Dependencies, ","))
+				if operationDef.Implementation.OperationHost != "" {
+					if err := checkOperationHost(operationDef.Implementation.OperationHost, true); err != nil {
+						return err
+					}
+					consulStore.StoreConsulKeyAsString(operationPrefix+"/implementation/operation_host", strings.ToUpper(operationDef.Implementation.OperationHost))
+				}
 			}
 		}
 
@@ -698,24 +709,69 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
 		for stepName, step := range workflow.Steps {
 			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
-			consulStore.StoreConsulKeyAsString(stepPrefix+"/node", step.Node)
-			if step.Activity.CallOperation != "" {
-				// Preserve case for requirement and target node name in case of relationship operation
-				opSlice := strings.SplitN(step.Activity.CallOperation, "/", 2)
-				opSlice[0] = strings.ToLower(opSlice[0])
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/call-operation", strings.Join(opSlice, "/"))
+			if step.Target != "" {
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/target", step.Target)
 			}
-			if step.Activity.Delegate != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/delegate", strings.ToLower(step.Activity.Delegate))
+			if step.TargetRelationShip != "" {
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/target_relationship", step.TargetRelationShip)
 			}
-			if step.Activity.SetState != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/activity/set-state", strings.ToLower(step.Activity.SetState))
+			if step.OperationHost != "" {
+				consulStore.StoreConsulKeyAsString(stepPrefix+"/operation_host", strings.ToUpper(step.OperationHost))
+			}
+			activitiesPrefix := stepPrefix + "/activities"
+			for actIndex, activity := range step.Activities {
+				activityPrefix := activitiesPrefix + "/" + strconv.Itoa(actIndex)
+				if activity.CallOperation != "" {
+					// Preserve case for requirement and target node name in case of relationship operation
+					opSlice := strings.SplitN(activity.CallOperation, "/", 2)
+					opSlice[0] = strings.ToLower(opSlice[0])
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/call-operation", strings.Join(opSlice, "/"))
+				}
+				if activity.Delegate != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/delegate", strings.ToLower(activity.Delegate))
+				}
+				if activity.SetState != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/set-state", strings.ToLower(activity.SetState))
+				}
+				if activity.Inline != "" {
+					consulStore.StoreConsulKeyAsString(activityPrefix+"/inline", strings.ToLower(activity.Inline))
+				}
 			}
 			for _, next := range step.OnSuccess {
+				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSucces_value
 				consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
 			}
 		}
 	}
+}
+
+// checkNestedWorkflows detect potential cycle in all nested workflows
+func checkNestedWorkflows(topology tosca.Topology) error {
+	for wfName, workflow := range topology.TopologyTemplate.Workflows {
+		nestedWfs := make([]string, 0)
+		if err := checkNestedWorkflow(topology, workflow, nestedWfs, wfName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkNestedWorkflows detect potential cycle in a nested workflow
+func checkNestedWorkflow(topology tosca.Topology, workflow tosca.Workflow, nestedWfs []string, wfName string) error {
+	nestedWfs = append(nestedWfs, wfName)
+	for _, step := range workflow.Steps {
+		for _, activity := range step.Activities {
+			if activity.Inline != "" {
+				if collections.ContainsString(nestedWfs, activity.Inline) {
+					return errors.Errorf("A cycle has been detected in inline workflows [initial: %q, repeated: %q]", nestedWfs[0], activity.Inline)
+				}
+				if err := checkNestedWorkflow(topology, topology.TopologyTemplate.Workflows[activity.Inline], nestedWfs, activity.Inline); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
@@ -955,7 +1011,7 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 		return err
 	}
 	if isBS {
-		attachReqs, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "attachment")
+		attachReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "attachment")
 		if err != nil {
 			return err
 		}
@@ -1033,7 +1089,7 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 
 	for i := uint32(0); i < numberInstances; i++ {
 		instanceName := strconv.FormatUint(uint64(i), 10)
-		createNodeInstance(consulStore, deploymentID, nodeName, instanceName)
+		createNodeInstance(kv, consulStore, deploymentID, nodeName, instanceName)
 	}
 }
 
@@ -1041,7 +1097,7 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 This function check if a nodes need a floating IP, and return the name of Floating IP node.
 */
 func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, error) {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "network")
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
 		return false, "", err
 	}
@@ -1074,7 +1130,7 @@ func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, 
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL
 func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName string) error {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return err
 	}
@@ -1114,7 +1170,7 @@ func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *ap
 This function check if a nodes need a floating IP, and return the name of Floating IP node.
 */
 func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []string, error) {
-	requirementsKey, err := GetRequirementsKeysByNameForNode(kv, deploymentID, nodeName, "local_storage")
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
 		return false, nil, err
 	}
@@ -1139,4 +1195,32 @@ func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []strin
 	}
 
 	return true, bsName, nil
+}
+
+func checkOperationHost(operationHost string, isRelationshipType bool) error {
+	operationHostUpper := strings.ToUpper(operationHost)
+	if isRelationshipType {
+		// Allowed values are SOURCE, TARGET and ORCHESTRATOR
+		switch operationHostUpper {
+		case "ORCHESTRATOR":
+		case "SOURCE":
+		case "TARGET":
+			return nil
+		default:
+			return errors.Errorf("Invalid value for Implementation operation_host property associated to a relationship type :%q", operationHost)
+
+		}
+	} else {
+		// Allowed values are SELF, HOST and ORCHESTRATOR
+		switch operationHostUpper {
+		case "HOST":
+		case "ORCHESTRATOR":
+		case "SELF":
+			return nil
+		default:
+			return errors.Errorf("Invalid value for Implementation operation_host property associated to non-relationship type:%q", operationHost)
+
+		}
+	}
+	return nil
 }

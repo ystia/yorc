@@ -8,13 +8,14 @@ import (
 	"strings"
 
 	yaml "gopkg.in/yaml.v2"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"novaforge.bull.com/starlings-janus/janus/helper/collections"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/prov"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 // IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented
@@ -77,6 +78,12 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 
 // This function return the path for a given operation
 func getOperationPath(deploymentID, nodeType, operationName string) string {
+	opPath, _ := getOperationAndInterfacePath(deploymentID, nodeType, operationName)
+	return opPath
+}
+
+// This function return the path for a given operation and the path of its interface
+func getOperationAndInterfacePath(deploymentID, nodeType, operationName string) (string, string) {
 	var op string
 	if idx := strings.Index(operationName, "configure."); idx >= 0 {
 		op = operationName[idx:]
@@ -90,10 +97,11 @@ func getOperationPath(deploymentID, nodeType, operationName string) string {
 		op = strings.TrimPrefix(op, "tosca.interfaces.node.lifecycle.")
 		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
 	}
-	op = strings.Replace(op, ".", "/", -1)
-	operationPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", op)
+	opPaths := strings.Split(op, ".")
+	operationPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", path.Join(opPaths...))
+	interfacePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", opPaths[0])
 
-	return operationPath
+	return operationPath, interfacePath
 
 }
 
@@ -194,67 +202,6 @@ func GetOperationImplementationRepository(kv *api.KV, deploymentID, nodeType, op
 	}
 
 	return string(kvp.Value), nil
-}
-
-// IsNormativeOperation checks if a given operationName is known as a normative operation.
-//
-// The given operationName should be the fully qualified operation name composed of the <interface_type_name>.<operation_name>
-// Basically this function checks if operationName starts with either tosca.interfaces.node.lifecycle.Standard or tosca.interfaces.relationship.Configure (the case is ignored)
-func IsNormativeOperation(kv *api.KV, deploymentID, operationName string) bool {
-	operationName = strings.ToLower(operationName)
-	return strings.HasPrefix(operationName, "tosca.interfaces.relationship.configure") || strings.HasPrefix(operationName, "tosca.interfaces.node.lifecycle.standard")
-}
-
-// IsRelationshipOperationOnTargetNode returns true if the given operationName contains one of the following patterns (case doesn't matter):
-//		pre_configure_target, post_configure_target, add_source
-// Those patterns indicates that a relationship operation executes on the target node
-func IsRelationshipOperationOnTargetNode(operationName string) bool {
-	op := strings.ToLower(operationName)
-	if strings.Contains(op, "pre_configure_target") || strings.Contains(op, "post_configure_target") || strings.Contains(op, "add_source") {
-		return true
-	}
-	return false
-}
-
-// DecodeOperation takes a given operationName that should be formated as <fully_qualified_operation_name> or <fully_qualified_relationship_operation_name>/<requirementIndex> or <fully_qualified_relationship_operation_name>/<requirementName>/<targetNodeName>
-// and extract the revelant information
-//
-// * isRelationshipOp indicates if operationName follows one of the relationship operation format
-// * operationRealName extracts the fully_qualified_operation_name (identical to operationName if isRelationshipOp==false)
-// * requirementIndex is the index of the requirement for this relationship operation (empty if isRelationshipOp==false)
-// * targetNodeName is the name of the target node for this relationship operation (empty if isRelationshipOp==false)
-func DecodeOperation(kv *api.KV, deploymentID, nodeName, operationName string) (isRelationshipOp bool, operationRealName, requirementIndex, targetNodeName string, err error) {
-	opParts := strings.Split(operationName, "/")
-	if len(opParts) == 1 {
-		// not a relationship use default for return values
-		operationRealName = operationName
-		return
-	} else if len(opParts) == 2 {
-		isRelationshipOp = true
-		operationRealName = opParts[0]
-		requirementIndex = opParts[1]
-
-		targetNodeName, err = GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
-		return
-	} else if len(opParts) == 3 {
-		isRelationshipOp = true
-		operationRealName = opParts[0]
-		requirementName := opParts[1]
-		targetNodeName = opParts[2]
-		var requirementPath string
-		requirementPath, err = GetRequirementByNameAndTargetForNode(kv, deploymentID, nodeName, requirementName, targetNodeName)
-		if err != nil {
-			return
-		}
-		if requirementPath == "" {
-			err = errors.Errorf("Unable to find a matching requirement for this relationship operation %q, source node %q, requirement name %q, target node %q", operationName, nodeName, requirementName, targetNodeName)
-			return
-		}
-		requirementIndex = path.Base(requirementPath)
-		return
-	}
-	err = errors.Errorf("operation %q doesn't follow the format <fully_qualified_operation_name>/<requirementIndex> or <fully_qualified_operation_name>/<requirementName>/<targetNodeName>", operationName)
-	return
 }
 
 // GetOperationOutputForNode return a map with in index the instance number and in value the result of the output
@@ -367,8 +314,8 @@ func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, o
 
 // GetOperationInputs returns the list of inputs names for a given operation
 func GetOperationInputs(kv *api.KV, deploymentID, typeName, operationName string) ([]string, error) {
-	operationPath := getOperationPath(deploymentID, typeName, operationName)
-
+	operationPath, interfacePath := getOperationAndInterfacePath(deploymentID, typeName, operationName)
+	// First Get operation inputs
 	inputKeys, _, err := kv.Keys(operationPath+"/inputs/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -376,6 +323,18 @@ func GetOperationInputs(kv *api.KV, deploymentID, typeName, operationName string
 	inputs := make([]string, len(inputKeys))
 	for i, input := range inputKeys {
 		inputs[i] = path.Base(input)
+	}
+
+	// Then Get global interface inputs
+	inputKeys, _, err = kv.Keys(interfacePath+"/inputs/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for _, input := range inputKeys {
+		inputName := path.Base(input)
+		if !collections.ContainsString(inputs, inputName) {
+			inputs = append(inputs, inputName)
+		}
 	}
 	return inputs, nil
 }
@@ -422,21 +381,35 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		return nil, errors.Errorf("Input %q for operation %v is a property definition we can't resolve it without a task input", inputName, operation)
 	}
 
-	operationPath := getOperationPath(deploymentID, operation.ImplementedInType, operation.Name)
+	operationPath, interfacePath := getOperationAndInterfacePath(deploymentID, operation.ImplementedInType, operation.Name)
 	inputPath := path.Join(operationPath, "inputs", inputName, "data")
 	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
 	}
+	if !found {
+		// Check global interface input
+		inputPath = path.Join(interfacePath, "inputs", inputName, "data")
+		found, res, isFunction, err = getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
+		if err != nil {
+			return nil, err
+		}
+	}
 	results := make([]OperationInputResult, 0)
 	if found {
 		if !isFunction {
-			instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+			var ctxNodeName string
+			if operation.RelOp.IsRelationshipOperation && operation.OperationHost == "TARGET" {
+				ctxNodeName = operation.RelOp.TargetNodeName
+			} else {
+				ctxNodeName = nodeName
+			}
+			instances, err := GetNodeInstancesIds(kv, deploymentID, ctxNodeName)
 			if err != nil {
 				return nil, err
 			}
 			for _, ins := range instances {
-				results = append(results, OperationInputResult{nodeName, ins, res})
+				results = append(results, OperationInputResult{ctxNodeName, ins, res})
 			}
 			return results, nil
 		}
@@ -505,12 +478,22 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 	} else if !isPropDef {
 		return nil, errors.Errorf("Input %q for operation %v is not a property definition we can't resolve its default value", inputName, operation)
 	}
-	operationPath := getOperationPath(deploymentID, operation.ImplementedInType, operation.Name)
+	operationPath, interfacePath := getOperationAndInterfacePath(deploymentID, operation.ImplementedInType, operation.Name)
 	inputPath := path.Join(operationPath, "inputs", inputName, "default")
 	// TODO base datatype should be retrieved
 	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
+	}
+
+	if !found {
+		// Check global interface input
+		inputPath = path.Join(interfacePath, "inputs", inputName, "default")
+		// TODO base datatype should be retrieved
+		found, res, isFunction, err = getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
+		if err != nil {
+			return nil, err
+		}
 	}
 	results := make([]OperationInputResult, 0)
 	if found {
@@ -544,54 +527,22 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 
 // IsOperationInputAPropertyDefinition checks if a given operation input is a property definition
 func IsOperationInputAPropertyDefinition(kv *api.KV, deploymentID, typeName, operationName, inputName string) (bool, error) {
-	operationPath := getOperationPath(deploymentID, typeName, operationName)
+	operationPath, interfacePath := getOperationAndInterfacePath(deploymentID, typeName, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "inputs", inputName, "is_property_definition"), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	if kvp == nil || len(kvp.Value) == 0 {
-		return false, errors.Errorf("Operation %q not found for type %q", operationName, typeName)
+		kvp, _, err = kv.Get(path.Join(interfacePath, "inputs", inputName, "is_property_definition"), nil)
+		if err != nil {
+			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp == nil || len(kvp.Value) == 0 {
+			return false, errors.Errorf("Operation input %q not found for operation %q in type %q", inputName, operationName, typeName)
+		}
 	}
 
 	isPropDef, err := strconv.ParseBool(string(kvp.Value))
 	return isPropDef, errors.Wrapf(err, "Failed to parse boolean for operation %q of type %q", operationName, typeName)
-}
-
-// GetOperationInputType retrieves the optional data type of the parameter.
-//
-// As this keyname is required for a TOSCA Property definition, but is not for a TOSCA Parameter definition it may be empty.
-// If the input type is list or map and an entry_schema is provided a semicolon and the entry_schema value are appended to
-// the type (ie list:integer) otherwise string is assumed for then entry_schema.
-func GetOperationInputType(kv *api.KV, deploymentID, typeName, operationName, inputName string) (string, error) {
-	operationPath := getOperationPath(deploymentID, typeName, operationName)
-	kvp, _, err := kv.Get(path.Join(operationPath, "inputs", inputName), nil)
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil {
-		parentType, err := GetParentType(kv, deploymentID, typeName)
-		if err != nil {
-			return "", err
-		}
-		if parentType == "" {
-			// input not found
-			return "", inputNotFound{inputName, operationName, typeName}
-		}
-		res, err := GetOperationInputType(kv, deploymentID, parentType, operationName, inputName)
-		return res, errors.Wrapf(err, "input %q not found for operation %q implemented in type %q", inputName, operationName, typeName)
-	}
-	iType := string(kvp.Value)
-	if iType == "list" || iType == "map" {
-		kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "entry_schema"), nil)
-		if err != nil {
-			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-		if kvp != nil && len(kvp.Value) > 0 {
-			iType += ":" + string(kvp.Value)
-		} else {
-			iType += ":string"
-		}
-	}
-	return iType, nil
 }

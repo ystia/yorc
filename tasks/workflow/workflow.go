@@ -20,22 +20,26 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"strconv"
 )
 
-const wfDelegateActivity string = "delegate"
-const wfSetStateActivity string = "set-state"
-const wfCallOpActivity string = "call-operation"
+const wfDelegateActivity = "delegate"
+const wfSetStateActivity = "set-state"
+const wfCallOpActivity = "call-operation"
+const wfInlineActivity = "inline"
 
 type step struct {
-	Name       string
-	Node       string
-	Activities []activity
-	Next       []*step
-	Previous   []*step
-	NotifyChan chan struct{}
-	kv         *api.KV
-	stepPrefix string
-	t          *task
+	Name               string
+	Target             string
+	TargetRelationship string
+	OperationHost      string
+	Activities         []activity
+	Next               []*step
+	Previous           []*step
+	NotifyChan         chan struct{}
+	kv                 *api.KV
+	stepPrefix         string
+	t                  *task
 }
 
 type activity interface {
@@ -76,6 +80,17 @@ func (c callOperationActivity) ActivityValue() string {
 	return c.operation
 }
 
+type inlineActivity struct {
+	inline string
+}
+
+func (i inlineActivity) ActivityType() string {
+	return wfInlineActivity
+}
+func (i inlineActivity) ActivityValue() string {
+	return i.inline
+}
+
 func (s *step) IsTerminal() bool {
 	return len(s.Next) == 0
 }
@@ -109,22 +124,17 @@ func (s *step) setStatus(status tasks.TaskStepStatus) error {
 }
 
 func (s *step) isRelationshipTargetNodeRelated() (bool, error) {
-	for _, activity := range s.Activities {
-		if activity.ActivityType() == wfCallOpActivity {
-			operation := activity.ActivityValue()
-			isRelationshipOp, operationRealName, _, targetNode, err := deployments.DecodeOperation(s.kv, s.t.TargetID, s.Node, operation)
-			if err != nil {
-				return false, err
-			}
-			if isRelationshipOp {
-				if deployments.IsRelationshipOperationOnTargetNode(operationRealName) {
-					isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, targetNode)
-					if err != nil || isNodeTargetTask {
-						return isNodeTargetTask, err
-					}
-				}
-			}
+	if s.TargetRelationship != "" && strings.ToUpper(s.OperationHost) == "TARGET" {
+		targetNodeName, err := deployments.GetTargetNodeForRequirement(s.kv, s.t.TargetID, s.Target, s.TargetRelationship)
+		if err != nil {
+			return false, err
 		}
+
+		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, targetNodeName)
+		if err != nil || isNodeTargetTask {
+			return isNodeTargetTask, err
+		}
+
 	}
 	return false, nil
 }
@@ -153,7 +163,7 @@ func (s *step) isRunnable() (bool, error) {
 	}
 
 	if s.t.TaskType == tasks.ScaleUp || s.t.TaskType == tasks.ScaleDown {
-		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Node)
+		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
 		if err != nil {
 			return false, err
 		}
@@ -184,11 +194,18 @@ func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) er
 	return nil
 }
 
-func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool, workflowName string) error {
+func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool, workflowName string, w worker) error {
 	// Fill log optional fields for log registration
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID: workflowName,
-		events.NodeID:     s.Node,
+	var logOptFields events.LogOptionalFields
+	if s.Target != "" {
+		logOptFields = events.LogOptionalFields{
+			events.WorkFlowID: workflowName,
+			events.NodeID:     s.Target,
+		}
+	} else {
+		logOptFields = events.LogOptionalFields{
+			events.WorkFlowID: workflowName,
+		}
 	}
 
 	// First: we check if step is runnable
@@ -260,26 +277,26 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	defer cancelWf()
 
 	log.Debugf("Processing step %q", s.Name)
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Node)
-	if err != nil {
-		setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
-		log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
-		log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
-		s.setStatus(tasks.TaskStepStatusERROR)
-		if bypassErrors {
-			ignoredErrsChan <- err
-			haveErr = true
-		} else {
-			return err
-		}
-	}
 	for _, activity := range s.Activities {
 		actType := activity.ActivityType()
-		switch {
-		case actType == wfDelegateActivity:
+		switch actType {
+		case wfDelegateActivity:
+			nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Target)
+			if err != nil {
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
+				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
+				s.setStatus(tasks.TaskStepStatusERROR)
+				if bypassErrors {
+					ignoredErrsChan <- err
+					haveErr = true
+				} else {
+					return err
+				}
+			}
 			provisioner, err := registry.GetRegistry().GetDelegateExecutor(nodeType)
 			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				s.setStatus(tasks.TaskStepStatusERROR)
@@ -293,12 +310,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				delegateOp := activity.ActivityValue()
 				err := func() error {
 					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
-					return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Node, delegateOp)
+					return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Target, delegateOp)
 				}()
 
 				if err != nil {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
-					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 					s.setStatus(tasks.TaskStepStatusERROR)
@@ -312,10 +329,10 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
 				}
 			}
-		case actType == wfSetStateActivity:
-			setNodeStatus(kv, s.t.ID, deploymentID, s.Node, activity.ActivityValue())
-		case actType == wfCallOpActivity:
-			op, err := operations.GetOperation(kv, s.t.TargetID, s.Node, activity.ActivityValue())
+		case wfSetStateActivity:
+			setNodeStatus(kv, s.t.ID, deploymentID, s.Target, activity.ActivityValue())
+		case wfCallOpActivity:
+			op, err := operations.GetOperation(kv, s.t.TargetID, s.Target, activity.ActivityValue(), s.TargetRelationship, s.OperationHost)
 			if err != nil {
 				if deployments.IsOperationNotImplemented(err) {
 					// Operation not implemented just skip it
@@ -323,7 +340,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					continue
 				}
 
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				if bypassErrors {
@@ -337,7 +354,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 
 			exec, err := getOperationExecutor(kv, deploymentID, op.ImplementationArtifact)
 			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 				if bypassErrors {
@@ -348,14 +365,26 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 					return err
 				}
 			} else {
-
+				nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Target)
+				if err != nil {
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
+					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+					log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
+					s.setStatus(tasks.TaskStepStatusERROR)
+					if bypassErrors {
+						ignoredErrsChan <- err
+						haveErr = true
+					} else {
+						return err
+					}
+				}
 				err = func() error {
 					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
-					return exec.ExecOperation(wfCtx, cfg, s.t.ID, deploymentID, s.Node, op)
+					return exec.ExecOperation(wfCtx, cfg, s.t.ID, deploymentID, s.Target, op)
 				}()
 				if err != nil {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
-					setNodeStatus(kv, s.t.ID, deploymentID, s.Node, tosca.NodeStateError.String())
+					setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 					log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
 					log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
 					if bypassErrors {
@@ -368,6 +397,10 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				} else {
 					metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
 				}
+			}
+		case wfInlineActivity:
+			if err := w.runWorkflows(ctx, s.t, []string{activity.ActivityValue()}, bypassErrors); err != nil {
+				return err
 			}
 		}
 	}
@@ -388,39 +421,73 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*visitStep) (*step, error) {
 	stepPrefix := stepsPrefix + stepName
 	s := &step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
-	kvPair, _, err := kv.Get(stepPrefix+"/node", nil)
+	kvPair, _, err := kv.Get(stepPrefix+"/target_relationship", nil)
 	if err != nil {
-		log.Print(err)
 		return nil, err
 	}
-	if kvPair == nil {
-		return nil, errors.Errorf("Missing node attribute for step %s", stepName)
+	if kvPair != nil {
+		s.TargetRelationship = string(kvPair.Value)
 	}
-	s.Node = string(kvPair.Value)
+	kvPair, _, err = kv.Get(stepPrefix+"/operation_host", nil)
+	if err != nil {
+		return nil, err
+	}
+	if kvPair != nil {
+		s.OperationHost = string(kvPair.Value)
+	}
+	if s.TargetRelationship != "" {
+		if s.OperationHost == "" {
+			return nil, errors.Errorf("Operation host missing for step %s with target relationship %s, this is not allowed", stepName, s.TargetRelationship)
+		} else if s.OperationHost != "SOURCE" && s.OperationHost != "TARGET" {
+			return nil, errors.Errorf("Invalid value %q for operation host with step %s with target relationship %s : only SOURCE or TARGET values are accepted", s.OperationHost, stepName, s.TargetRelationship)
+		}
+	} else if s.OperationHost != "" && s.OperationHost != "SELF" && s.OperationHost != "HOST" {
+		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF or HOST values are accepted", s.OperationHost, stepName)
+	}
 
-	kvPairs, _, err := kv.List(stepPrefix+"/activity", nil)
+	kvKeys, _, err := kv.List(stepPrefix+"/activities/", nil)
 	if err != nil {
 		return nil, err
 	}
-	if len(kvPairs) == 0 {
-		return nil, errors.Errorf("Activity missing for step %s, this is not allowed", stepName)
+	if len(kvKeys) == 0 {
+		return nil, errors.Errorf("Activities missing for step %s, this is not allowed", stepName)
 	}
+
 	s.Activities = make([]activity, 0)
-	for _, actKV := range kvPairs {
-		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activity/")
+	targetIsMandatory := false
+	for i, actKV := range kvKeys {
+		key := strings.TrimPrefix(actKV.Key, stepPrefix+"/activities/"+strconv.Itoa(i)+"/")
 		switch {
 		case key == wfDelegateActivity:
 			s.Activities = append(s.Activities, delegateActivity{delegate: string(actKV.Value)})
+			targetIsMandatory = true
 		case key == wfSetStateActivity:
 			s.Activities = append(s.Activities, setStateActivity{state: string(actKV.Value)})
+			targetIsMandatory = true
 		case key == wfCallOpActivity:
 			s.Activities = append(s.Activities, callOperationActivity{operation: string(actKV.Value)})
+			targetIsMandatory = true
+		case key == wfInlineActivity:
+			s.Activities = append(s.Activities, inlineActivity{inline: string(actKV.Value)})
 		default:
 			return nil, errors.Errorf("Unsupported activity type: %s", key)
 		}
 	}
 
-	kvPairs, _, err = kv.List(stepPrefix+"/next", nil)
+	// Get the step's target (mandatory except if all activities are inline)
+	kvPair, _, err = kv.Get(stepPrefix+"/target", nil)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	if targetIsMandatory && (kvPair == nil || len(kvPair.Value) == 0) {
+		return nil, errors.Errorf("Missing target attribute for step %s", stepName)
+	}
+	if kvPair != nil && len(kvPair.Value) > 0 {
+		s.Target = string(kvPair.Value)
+	}
+
+	kvPairs, _, err := kv.List(stepPrefix+"/next", nil)
 	if err != nil {
 		return nil, err
 	}

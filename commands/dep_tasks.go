@@ -71,7 +71,7 @@ var tasksCmd = &cobra.Command{
 				err = getJSONEntityFromAtomGetRequest(client, atomLink, &task)
 				if err != nil {
 					errs = append(errs, err)
-					tasksTable.AddRow(path.Base(atomLink.Href), "", commErrorMsg)
+					tasksTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 					continue
 				}
 				tasksTable.AddRow(task.ID, task.Type, getColoredTaskStatus(colorize, task.Status))
