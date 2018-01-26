@@ -1,4 +1,4 @@
-janus_version: 2.0.1
+janus_version: 2.0.2-SNAPSHOT
 consul_version: 1.0.1
 terraform_version: 0.9.11
 ansible_version: 2.4.1.0
