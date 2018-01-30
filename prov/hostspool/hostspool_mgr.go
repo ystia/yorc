@@ -42,6 +42,8 @@ type Connection struct {
 type Manager interface {
 	Add(hostname string, connection Connection, tags map[string]string) error
 	Remove(hostname string) error
+	AddTags(hostname string, tags map[string]string) error
+	RemoveTags(hostname string, tags []string) error
 }
 
 // NewManager creates a Manager backed to Consul
@@ -119,9 +121,13 @@ func (cm *consulManager) addWait(hostname string, conn Connection, tags map[stri
 	}
 
 	for k, v := range tags {
+		k = url.PathEscape(k)
+		if k == "" {
+			return errors.New("empty tags are not allowed")
+		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "tags", url.PathEscape(k)),
+			Key:   path.Join(hostKVPrefix, "tags", k),
 			Value: []byte(v),
 		})
 	}
@@ -189,6 +195,130 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 	_, err = kv.DeleteTree(hostKVPrefix, nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete host %q", hostname)
+	}
+
+	return nil
+}
+
+func (cm *consulManager) AddTags(hostname string, tags map[string]string) error {
+	return cm.addTagsWait(hostname, tags, 45*time.Second)
+}
+func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, maxWaitTime time.Duration) error {
+	if hostname == "" {
+		return errors.New(`"hostname" missing`)
+	}
+	if tags == nil || len(tags) == 0 {
+		return nil
+	}
+
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	ops := make(api.KVTxnOps, 0)
+
+	for k, v := range tags {
+		k = url.PathEscape(k)
+		if k == "" {
+			return errors.New("empty tags are not allowed")
+		}
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "tags", k),
+			Value: []byte(v),
+		})
+	}
+
+	_, cleanupFn, err := cm.lockKey(hostname, "tags addition", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	kv := cm.cc.KV()
+
+	// Checks host existence
+	kvp, _, err := kv.Get(path.Join(hostKVPrefix, "status"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return errors.Errorf("host %q does not exist", hostname)
+	}
+
+	// We don't care about host status for updating tags
+
+	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
+	}
+
+	return nil
+}
+
+func (cm *consulManager) RemoveTags(hostname string, tags []string) error {
+	return cm.removeTagsWait(hostname, tags, 45*time.Second)
+}
+func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitTime time.Duration) error {
+	if hostname == "" {
+		return errors.New(`"hostname" missing`)
+	}
+	if tags == nil || len(tags) == 0 {
+		return nil
+	}
+
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	ops := make(api.KVTxnOps, 0)
+
+	for _, v := range tags {
+		v = url.PathEscape(v)
+		if v == "" {
+			return errors.New("empty tags are not allowed")
+		}
+		ops = append(ops, &api.KVTxnOp{
+			Verb: api.KVDelete,
+			Key:  path.Join(hostKVPrefix, "tags", v),
+		})
+	}
+
+	_, cleanupFn, err := cm.lockKey(hostname, "tags remove", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	kv := cm.cc.KV()
+
+	// Checks host existence
+	kvp, _, err := kv.Get(path.Join(hostKVPrefix, "status"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return errors.Errorf("host %q does not exist", hostname)
+	}
+
+	// We don't care about host status for updating tags
+
+	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			if e.OpIndex == 0 {
+				return errors.Errorf("an host with the same name already exists in the pool: %s", e.What)
+			}
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 
 	return nil
