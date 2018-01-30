@@ -172,3 +172,8 @@ type RegistryDefinitionsCollection struct {
 type RegistryVaultsCollection struct {
 	VaultClientBuilders []registry.VaultClientBuilder `json:"vaults"`
 }
+
+// RegistryResourcesProvidersCollection is the collection of Resources Providers registered in the Janus registry
+type RegistryResourcesProvidersCollection struct {
+	ResourcesProviders []registry.ResourcesProvider `json:"resources_providers"`
+}

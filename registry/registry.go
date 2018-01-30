@@ -52,6 +52,17 @@ type Registry interface {
 
 	// ListVaultClients returns a list of registered Vault Clients origin
 	ListVaultClientBuilders() []VaultClientBuilder
+
+	// RegisterResourcesProvider allows to register a resources Provider with its name as unique id
+	RegisterResourcesProvider(name string, resourcesProvider prov.ResourcesProvider, origin string)
+
+	// GetResourcesProvider returns a prov.ResourcesProvider from its name as unique id
+	//
+	// If the given id can't match any prov.ResourcesProvider an error is returned
+	GetResourcesProvider(name string) (prov.ResourcesProvider, error)
+
+	// ListResourcesProvider returns a list of registered Resources Providers origin
+	ListResourcesProviders() []ResourcesProvider
 }
 
 var defaultReg Registry
@@ -93,15 +104,24 @@ type VaultClientBuilder struct {
 	Builder vault.ClientBuilder `json:"-"`
 }
 
+// ResourcesProvider represents a resources provider with its Name, Origin and Data content
+type ResourcesProvider struct {
+	Name     string                 `json:"id"`
+	Origin   string                 `json:"origin"`
+	Provider prov.ResourcesProvider `json:"-"`
+}
+
 type defaultRegistry struct {
-	delegateMatches     []DelegateMatch
-	operationMatches    []OperationExecMatch
-	definitions         []Definition
-	vaultClientBuilders []VaultClientBuilder
-	delegatesLock       sync.RWMutex
-	operationsLock      sync.RWMutex
-	definitionsLock     sync.RWMutex
-	vaultsLock          sync.RWMutex
+	delegateMatches       []DelegateMatch
+	operationMatches      []OperationExecMatch
+	definitions           []Definition
+	vaultClientBuilders   []VaultClientBuilder
+	resourcesProviders    []ResourcesProvider
+	delegatesLock         sync.RWMutex
+	operationsLock        sync.RWMutex
+	definitionsLock       sync.RWMutex
+	vaultsLock            sync.RWMutex
+	resourcesProviderLock sync.RWMutex
 }
 
 func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.DelegateExecutor, origin string) {
@@ -112,7 +132,7 @@ func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.Dele
 		for i := range matches {
 			newDelegates[i] = DelegateMatch{Match: matches[i], Executor: executor, Origin: origin}
 		}
-		// Put them at the begining
+		// Put them at the beginning
 		r.delegateMatches = append(newDelegates, r.delegateMatches...)
 	}
 }
@@ -174,7 +194,7 @@ func (r *defaultRegistry) RegisterOperationExecutor(matches []string, executor p
 		for i := range matches {
 			newOpExecMatch[i] = OperationExecMatch{Artifact: matches[i], Executor: executor, Origin: origin}
 		}
-		// Put them at the begining
+		// Put them at the beginning
 		r.operationMatches = append(newOpExecMatch, r.operationMatches...)
 	}
 }
@@ -220,5 +240,30 @@ func (r *defaultRegistry) ListVaultClientBuilders() []VaultClientBuilder {
 	defer r.vaultsLock.RUnlock()
 	result := make([]VaultClientBuilder, len(r.vaultClientBuilders))
 	copy(result, r.vaultClientBuilders)
+	return result
+}
+
+func (r *defaultRegistry) RegisterResourcesProvider(name string, resourcesProvider prov.ResourcesProvider, origin string) {
+	r.resourcesProviderLock.RLock()
+	defer r.resourcesProviderLock.RUnlock()
+	r.resourcesProviders = append([]ResourcesProvider{{Name: name, Origin: origin, Provider: resourcesProvider}})
+}
+
+func (r *defaultRegistry) GetResourcesProvider(name string) (prov.ResourcesProvider, error) {
+	r.resourcesProviderLock.RLock()
+	defer r.resourcesProviderLock.RUnlock()
+	for _, pr := range r.resourcesProviders {
+		if pr.Name == name {
+			return pr.Provider, nil
+		}
+	}
+	return nil, errors.Errorf("Unknown resources provider name: %q", name)
+}
+
+func (r *defaultRegistry) ListResourcesProviders() []ResourcesProvider {
+	r.resourcesProviderLock.RLock()
+	defer r.resourcesProviderLock.RUnlock()
+	result := make([]ResourcesProvider, len(r.resourcesProviders))
+	copy(result, r.resourcesProviders)
 	return result
 }

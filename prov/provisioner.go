@@ -65,3 +65,10 @@ func (ro RelationshipOperation) String() string {
 type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
 }
+
+// ResourcesProvider is the interface for resources providers
+//
+// GetResourcesUsage returns data about resources usage for defined provider
+type ResourcesProvider interface {
+	GetResourcesUsage() (map[string]string, error)
+}
