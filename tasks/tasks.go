@@ -32,28 +32,6 @@ func IsTaskDataNotFoundError(err error) bool {
 	return ok
 }
 
-// TaskTypeForName converts a textual representation of a task into a TaskType
-func TaskTypeForName(taskType string) (TaskType, error) {
-	switch strings.ToLower(taskType) {
-	case "deploy":
-		return Deploy, nil
-	case "undeploy":
-		return UnDeploy, nil
-	case "purge":
-		return Purge, nil
-	case "custom":
-		return CustomCommand, nil
-	case "scale-up":
-		return ScaleUp, nil
-	case "scale-down":
-		return ScaleDown, nil
-	case "customworkflow":
-		return CustomWorkflow, nil
-	default:
-		return Deploy, errors.Errorf("Unsupported task type %q", taskType)
-	}
-}
-
 // GetTasksIdsForTarget returns IDs of tasks related to a given targetID
 func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
@@ -71,6 +49,25 @@ func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 		}
 	}
 	return tasks, nil
+}
+
+// GetTaskResultSet retrieves the task related resultSet
+//
+// If no resultSet is found, nil is returned instead
+func GetTaskResultSet(kv *api.KV, taskID string) (map[string]string, error) {
+	kvps, _, err := kv.List(path.Join(consulutil.TasksPrefix, taskID, "resultSet"), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	if kvps != nil && len(kvps) > 0 {
+		res := make(map[string]string)
+		for _, kvp := range kvps {
+			res[path.Base(kvp.Key)] = string(kvp.Value)
+		}
+		return res, nil
+	}
+	return nil, nil
 }
 
 // GetTaskStatus retrieves the TaskStatus of a task
@@ -105,7 +102,7 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	if err != nil {
 		return Deploy, errors.Wrapf(err, "Invalid task type:")
 	}
-	if typeInt < 0 || typeInt > int(CustomWorkflow) {
+	if typeInt < 0 || typeInt > int(Query) {
 		return Deploy, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil

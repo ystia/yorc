@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"strings"
 )
 
 func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskID string) bool {
@@ -61,12 +62,21 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var params httprouter.Params
+	var (
+		params httprouter.Params
+		id     string
+		url    string
+	)
 	ctx := r.Context()
+	url = r.URL.String()
 	params = ctx.Value("params").(httprouter.Params)
-	id := params.ByName("id")
 	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
+	if strings.HasPrefix(url, "/deployments") {
+		id = params.ByName("id")
+	} else {
+		id = params.ByName("providerName")
+	}
 
 	if !s.tasksPreChecks(w, r, id, taskID) {
 		return
@@ -84,6 +94,14 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panic(err)
 	}
 	task.Type = taskType.String()
+
+	resultSet, err := tasks.GetTaskResultSet(kv, taskID)
+	if err != nil {
+		log.Panic(err)
+	}
+	if resultSet != nil {
+		task.ResultSet = resultSet
+	}
 	encodeJSONResponse(w, r, task)
 }
 

@@ -25,6 +25,8 @@ const (
 	CustomCommand
 	// CustomWorkflow defines a Task of type "CustomWorkflow"
 	CustomWorkflow
+	// Query defines a Task of type "Query"
+	Query
 	// NOTE: if a new task type should be added then change validity check on GetTaskType
 )
 

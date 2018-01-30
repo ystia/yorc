@@ -196,7 +196,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	if taskID, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
 		log.Debugln("register task err" + err.Error())
 		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
-			log.Debugln("another task is living !!!!!!!!!!!!!!! ")
+			log.Debugln("another task is living")
 			writeError(w, r, newBadRequestError(err))
 			return
 		}

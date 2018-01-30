@@ -64,5 +64,8 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 		t.Run("testResumeTask", func(t *testing.T) {
 			testResumeTask(t, kv)
 		})
+		t.Run("testGetTaskResultSet", func(t *testing.T) {
+			testGetTaskResultSet(t, kv)
+		})
 	})
 }

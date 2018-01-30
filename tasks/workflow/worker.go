@@ -25,6 +25,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
 	"novaforge.bull.com/starlings-janus/janus/log"
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
@@ -339,6 +340,71 @@ func (w worker) handleTask(t *task) {
 		}
 		err = w.runWorkflows(ctx, t, strings.Split(wfName, ","), bypassErrors)
 		if err != nil {
+			return
+		}
+	case tasks.Query:
+		queryName, err := tasks.GetTaskData(kv, t.ID, "query_name")
+		if err != nil {
+			log.Printf("Query Task id: %q Failed to get query: %v", t.ID, err)
+			log.Debugf("%+v", err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		targetType, err := tasks.GetTaskData(kv, t.ID, "target_type")
+		if err != nil {
+			log.Printf("Query Task id: %q Failed to get type: %v", t.ID, err)
+			log.Debugf("%+v", err)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+
+		switch targetType {
+		case "resourcesProvider":
+			var reg = registry.GetRegistry()
+			resourcesProvider, err := reg.GetResourcesProvider(t.TargetID)
+			if err != nil {
+				log.Printf("Query Task id: %q Failed to retrieve target type: %v", t.ID, err)
+				log.Debugf("%+v", err)
+				t.WithStatus(tasks.FAILED)
+				return
+			}
+			switch queryName {
+			case "GetResourcesUsage":
+				res, err := resourcesProvider.GetResourcesUsage()
+				if err != nil {
+					log.Printf("Query Task id: %q Failed to run query: %v", t.ID, err)
+					log.Debugf("%+v", err)
+					t.WithStatus(tasks.FAILED)
+					return
+				}
+
+				// store resultSet
+				resultPrefix := path.Join(consulutil.TasksPrefix, t.ID, "resultSet")
+				if res != nil {
+					for keyM, valM := range res {
+						key := &api.KVPair{Key: path.Join(resultPrefix, keyM), Value: []byte(valM)}
+						if _, err := kv.Put(key, nil); err != nil {
+							log.Printf("Query Task id: %q Failed to run query: %v", t.ID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
+							log.Debugf("%+v", err)
+							t.WithStatus(tasks.FAILED)
+							return
+						}
+					}
+				}
+			default:
+				events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown query name (%s) for Query Task with id: %q and target type: %q", queryName, t.ID, targetType))
+				log.Printf("Unknown targetType (%s) for task with id %q and targetId %q", targetType, t.ID, t.TargetID)
+				if t.Status() == tasks.RUNNING {
+					t.WithStatus(tasks.FAILED)
+				}
+				return
+			}
+		default:
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown type (%s) for Query Task with id %q", targetType, t.ID))
+			log.Printf("Unknown target type (%s) for task with id %q and targetId %q", targetType, t.ID, t.TargetID)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
+			}
 			return
 		}
 	default:
