@@ -172,3 +172,40 @@ func TestParseSallocResponseWithExpectedRevokedAllocation(t *testing.T) {
 		require.Fail(t, "No response received")
 	}
 }
+
+func TestGetCpuInfo(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "0.01-N/A,80/88/32/20", nil
+		},
+	}
+	m := make(map[string]string)
+	err := getCpuInfo(m, s)
+	require.Nil(t, err)
+	require.Equal(t, 5, len(m))
+	require.Equal(t, "0.01-N/A", m["cpu_load"])
+	require.Equal(t, "80", m["allocated_state_cpus"])
+	require.Equal(t, "88", m["idle_state_cpus"])
+	require.Equal(t, "32", m["other_state_cpus"])
+	require.Equal(t, "20", m["total_cpus"])
+}
+
+func TestGetJobInfo(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			if strings.Contains(cmd, "RUNNING") {
+				return "42", nil
+			} else {
+				return "0", nil
+			}
+		},
+	}
+	m := make(map[string]string)
+	err := getJobInfo(m, s)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(m))
+	require.Equal(t, "42", m["nb_running_jobs"])
+	require.Equal(t, "0", m["nb_pending_jobs"])
+}

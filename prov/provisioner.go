@@ -70,5 +70,5 @@ type OperationExecutor interface {
 //
 // GetResourcesUsage returns data about resources usage for defined provider
 type ResourcesProvider interface {
-	GetResourcesUsage() (map[string]string, error)
+	GetResourcesUsage(ctx context.Context, cfg config.Configuration) (map[string]string, error)
 }

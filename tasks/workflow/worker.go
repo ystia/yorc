@@ -370,7 +370,7 @@ func (w worker) handleTask(t *task) {
 			}
 			switch queryName {
 			case "GetResourcesUsage":
-				res, err := resourcesProvider.GetResourcesUsage()
+				res, err := resourcesProvider.GetResourcesUsage(ctx, w.cfg)
 				if err != nil {
 					log.Printf("Query Task id: %q Failed to run query: %v", t.ID, err)
 					log.Debugf("%+v", err)
