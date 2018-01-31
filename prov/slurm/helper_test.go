@@ -181,7 +181,7 @@ func TestGetCpuInfo(t *testing.T) {
 		},
 	}
 	m := make(map[string]string)
-	err := getCpuInfo(m, s)
+	err := getCPUInfo(m, s)
 	require.Nil(t, err)
 	require.Equal(t, 5, len(m))
 	require.Equal(t, "0.01-N/A", m["cpu_load"])
@@ -197,9 +197,8 @@ func TestGetJobInfo(t *testing.T) {
 		MockRunCommand: func(cmd string) (string, error) {
 			if strings.Contains(cmd, "RUNNING") {
 				return "42", nil
-			} else {
-				return "0", nil
 			}
+			return "0", nil
 		},
 	}
 	m := make(map[string]string)

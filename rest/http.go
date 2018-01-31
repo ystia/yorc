@@ -148,7 +148,7 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/registry/vaults", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listVaultsBuilderHandler))
 	s.router.Get("/registry/resourcesProviders", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listResourcesProvidersHandler))
 
-	s.router.Get("/providers/:providerName/resourcesUsage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getResourcesProvidersUsageHandler))
+	s.router.Post("/providers/:providerName/resourcesUsage", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postResourcesProvidersUsageHandler))
 	s.router.Get("/providers/:providerName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskHandler))
 
 	if s.config.Telemetry.PrometheusEndpoint {

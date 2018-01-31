@@ -8,7 +8,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
-func (s *Server) getResourcesProvidersUsageHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) postResourcesProvidersUsageHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)

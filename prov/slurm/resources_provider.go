@@ -22,15 +22,15 @@ func (s *slurmResourcesProvider) GetResourcesUsage(ctx context.Context, cfg conf
 
 	s.client, err = getSSHClient(cfg)
 	if err != nil {
-		log.Printf("Unable to get resources usage due to:+v", err)
+		log.Printf("Unable to get resources usage due to:%+v", err)
 		return nil, err
 	}
-	if err = getCpuInfo(m, s.client); err != nil {
-		log.Printf("Unable to get cpu usage due to:+v", err)
+	if err = getCPUInfo(m, s.client); err != nil {
+		log.Printf("Unable to get cpu usage due to:%+v", err)
 		return nil, err
 	}
 	if err = getJobInfo(m, s.client); err != nil {
-		log.Printf("Unable to get job states due to:+v", err)
+		log.Printf("Unable to get job states due to:%+v", err)
 		return nil, err
 	}
 	return m, nil

@@ -662,7 +662,7 @@ Content-Type: application/json
 
 ### Get TOSCA Definitions <a name="registry-definitions"></a>
 
-Retrieves the list of the embedded TOSCA definitions and there origins. The origin parameter cloud be `builtin` for Janus builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
+Retrieves the list of the embedded TOSCA definitions and their origins. The origin parameter cloud be `builtin` for Janus builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -687,7 +687,7 @@ Content-Type: application/json
 
 ### Get Delegates Executors <a name="registry-delegates"></a>
 
-Retrieves the list of delegates executors and there origins. The origin parameter cloud be `builtin` for Janus builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
+Retrieves the list of delegates executors and their origins. The origin parameter cloud be `builtin` for Janus builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -710,7 +710,7 @@ Content-Type: application/json
 
 ### Get Implementations Executors <a name="registry-implementations"></a>
 
-Retrieves the list of implementations executors and there origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+Retrieves the list of implementations executors and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -733,3 +733,72 @@ Content-Type: application/json
 }
 ```
 
+### Get Resource Providers <a name="registry-providers"></a>
+
+Retrieves the list of resource providers and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/resourcesProviders`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+    "resources_providers": [
+        {
+            "id": "slurm",
+            "origin": "builtin"
+        }
+    ]
+}
+```
+
+## Resource Providers
+
+### Execute a query to retrieve resources usage for a specific provider <a name="resource-usage-query-exec"></a>
+Submit a query for a given resources provider to retrieve resources usage information.
+'Content-Type' header should be set to 'application/json'.
+
+`POST    /providers/<provider_name>/resourcesUsage`
+
+**Response**
+```
+HTTP/1.1 202 Accepted
+Content-Length: 0
+Location: /providers/slurm/tasks/277b47aa-9c8c-4936-837e-39261237cec4
+```
+
+### Get query information <a name="task-info"></a>
+
+Retrieve information about a task for a given resource provider.
+'Accept' header should be set to 'application/json'.
+
+`GET    /providers/<provider_name>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "id": "b4144668-5ec8-41c0-8215-842661520147",
+  "target_id": "slurm",
+  "type": "QUERY",
+  "status": "DONE"
+  "result_set": {
+      "allocated_state_cpus": "80",
+      "cpu_load": "0.01-N/A",
+      "idle_state_cpus": "88",
+      "nb_pending_jobs": "0",
+      "nb_running_jobs": "44",
+      "other_state_cpus": "32",
+      "total_cpus": "200"
+  }
+}
+```

@@ -18,7 +18,7 @@ import (
 func getSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
 	// Check slurm configuration
 	if err := checkInfraConfig(cfg); err != nil {
-		log.Printf("Unable to provide SSH client due to:+v", err)
+		log.Printf("Unable to provide SSH client due to:%+v", err)
 		return nil, err
 	}
 
@@ -33,7 +33,7 @@ func getSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
 	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
 	if err != nil {
 		wrapErr := errors.Wrap(err, "slurm configuration port is not a valid port")
-		log.Printf("Unable to provide SSH client due to:+v", wrapErr)
+		log.Printf("Unable to provide SSH client due to:%+v", wrapErr)
 		return nil, err
 	}
 
@@ -176,7 +176,7 @@ func cancelJobID(jobID string, client *sshutil.SSHClient) error {
 	return nil
 }
 
-func getCpuInfo(data map[string]string, client sshutil.Client) error {
+func getCPUInfo(data map[string]string, client sshutil.Client) error {
 	cpuInfoCmd := fmt.Sprintf("sinfo -h -o \"%%O,%%C\"")
 	output, err := client.RunCommand(cpuInfoCmd)
 	if err != nil {
