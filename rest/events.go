@@ -17,7 +17,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	kv := s.consulClient.KV()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
 		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
@@ -64,7 +64,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	kv := s.consulClient.KV()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
 		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
@@ -114,7 +114,7 @@ func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	kv := s.consulClient.KV()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
 		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {
@@ -136,7 +136,7 @@ func (s *Server) headLogsEventsIndex(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
 	kv := s.consulClient.KV()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	if id != "" {
 		if depExist, err := deployments.DoesDeploymentExists(kv, id); err != nil {

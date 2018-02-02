@@ -20,7 +20,7 @@ import (
 func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
 	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)

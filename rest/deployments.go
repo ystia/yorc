@@ -47,7 +47,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPut {
 		var params httprouter.Params
 		ctx := r.Context()
-		params = ctx.Value("params").(httprouter.Params)
+		params = ctx.Value(paramsLookupKey).(httprouter.Params)
 		id := params.ByName("id")
 		id, err := url.QueryUnescape(id)
 		if err != nil {
@@ -162,7 +162,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
 	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
@@ -210,7 +210,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
 	kv := s.consulClient.KV()

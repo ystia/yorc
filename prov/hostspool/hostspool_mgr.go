@@ -1,7 +1,5 @@
 package hostspool
 
-//go:generate go-enum -f=hostspool_mgr.go --lower
-
 import (
 	"fmt"
 	"net/url"
@@ -16,34 +14,15 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 )
 
-// HostStatus x ENUM(
-// Free,
-// Allocated
-// )
-type HostStatus int
-
-// TODO support winrm for windows hosts
-
-// A Connection holds info used to connect to an host using SSH
-type Connection struct {
-	// The User that we should use for the connection. Defaults to root.
-	User string `json:"user,omitempty"`
-	// The Password that we should use for the connection. One of Password or PrivateKey is required. PrivateKey takes the precedence.
-	Password string `json:"password,omitempty"`
-	// The SSH Private Key that we should use for the connection. One of Password or PrivateKey is required. PrivateKey takes the precedence.
-	PrivateKey string `json:"private_key,omitempty"`
-	// The address of the Host to connect to. Defaults to the hostname specified during the registration.
-	Host string `json:"host,omitempty"`
-	// The Port to connect to. Defaults to 22 if set to 0.
-	Port uint64 `json:"port,omitempty"`
-}
-
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(hostname string, connection Connection, tags map[string]string) error
 	Remove(hostname string) error
 	AddTags(hostname string, tags map[string]string) error
 	RemoveTags(hostname string, tags []string) error
+	UpdateConnection(hostname string, connection Connection) error
+	List() ([]string, error)
+	GetHost(hostname string) (Host, error)
 }
 
 // NewManager creates a Manager backed to Consul
@@ -62,11 +41,11 @@ func (cm *consulManager) Add(hostname string, conn Connection, tags map[string]s
 }
 func (cm *consulManager) addWait(hostname string, conn Connection, tags map[string]string, maxWaitTime time.Duration) error {
 	if hostname == "" {
-		return errors.New(`"hostname" missing`)
+		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 
 	if conn.Password == "" && conn.PrivateKey == "" {
-		return errors.New(`at least "password" or "private_key" is required for an host pool connection`)
+		return errors.WithStack(badRequestError{`at least "password" or "private_key" is required for an host pool connection`})
 	}
 
 	user := conn.User
@@ -123,7 +102,7 @@ func (cm *consulManager) addWait(hostname string, conn Connection, tags map[stri
 	for k, v := range tags {
 		k = url.PathEscape(k)
 		if k == "" {
-			return errors.New("empty tags are not allowed")
+			return errors.WithStack(badRequestError{"empty tags are not allowed"})
 		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -147,7 +126,7 @@ func (cm *consulManager) addWait(hostname string, conn Connection, tags map[stri
 		errs := make([]string, 0)
 		for _, e := range response.Errors {
 			if e.OpIndex == 0 {
-				return errors.Errorf("an host with the same name already exists in the pool: %s", e.What)
+				return errors.WithStack(hostAlreadyExistError{})
 			}
 			errs = append(errs, e.What)
 		}
@@ -157,10 +136,88 @@ func (cm *consulManager) addWait(hostname string, conn Connection, tags map[stri
 	return nil
 }
 
+func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {
+	return cm.updateConnWait(hostname, conn, 45*time.Second)
+}
+func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWaitTime time.Duration) error {
+	if hostname == "" {
+		return errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+
+	// check if host exists
+	_, err := cm.GetHostStatus(hostname)
+	if err != nil {
+		return err
+	}
+
+	ops := make(api.KVTxnOps, 0)
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	if conn.User != "" {
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "connection", "user"),
+			Value: []byte(conn.User),
+		})
+	}
+	if conn.Port != 0 {
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "connection", "port"),
+			Value: []byte(strconv.FormatUint(conn.Port, 10)),
+		})
+	}
+	if conn.Host != "" {
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "connection", "host"),
+			Value: []byte(conn.Host),
+		})
+	}
+	if conn.PrivateKey != "" {
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "connection", "private_key"),
+			Value: []byte(conn.PrivateKey),
+		})
+	}
+	if conn.Password != "" {
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "connection", "password"),
+			Value: []byte(conn.Password),
+		})
+	}
+
+	_, cleanupFn, err := cm.lockKey(hostname, "creation", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to update host %q connection: %s", hostname, strings.Join(errs, ", "))
+	}
+
+	return nil
+}
+
 func (cm *consulManager) Remove(hostname string) error {
 	return cm.removeWait(hostname, 45*time.Second)
 }
 func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) error {
+	if hostname == "" {
+		return errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+
 	lockCh, cleanupFn, err := cm.lockKey(hostname, "deletion", maxWaitTime)
 	if err != nil {
 		return err
@@ -176,14 +233,14 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.Errorf("host %q does not exist", hostname)
+		return errors.WithStack(hostNotFoundError{})
 	}
 	status, err := ParseHostStatus(string(kvp.Value))
 	if err != nil {
 		return errors.Wrapf(err, "invalid status for host %q", hostname)
 	}
 	if status != HostStatusFree {
-		return errors.Errorf("can't delete host %q with status %q", hostname, status.String())
+		return errors.WithStack(badRequestError{fmt.Sprintf("can't delete host %q with status %q", hostname, status.String())})
 	}
 
 	select {
@@ -205,7 +262,7 @@ func (cm *consulManager) AddTags(hostname string, tags map[string]string) error 
 }
 func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, maxWaitTime time.Duration) error {
 	if hostname == "" {
-		return errors.New(`"hostname" missing`)
+		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 	if tags == nil || len(tags) == 0 {
 		return nil
@@ -217,7 +274,7 @@ func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, ma
 	for k, v := range tags {
 		k = url.PathEscape(k)
 		if k == "" {
-			return errors.New("empty tags are not allowed")
+			return errors.WithStack(badRequestError{"empty tags are not allowed"})
 		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -240,7 +297,7 @@ func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, ma
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.Errorf("host %q does not exist", hostname)
+		return errors.WithStack(hostNotFoundError{})
 	}
 
 	// We don't care about host status for updating tags
@@ -255,7 +312,7 @@ func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, ma
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to add tags to host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 
 	return nil
@@ -266,7 +323,7 @@ func (cm *consulManager) RemoveTags(hostname string, tags []string) error {
 }
 func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitTime time.Duration) error {
 	if hostname == "" {
-		return errors.New(`"hostname" missing`)
+		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 	if tags == nil || len(tags) == 0 {
 		return nil
@@ -278,7 +335,7 @@ func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitT
 	for _, v := range tags {
 		v = url.PathEscape(v)
 		if v == "" {
-			return errors.New("empty tags are not allowed")
+			return errors.WithStack(badRequestError{"empty tags are not allowed"})
 		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb: api.KVDelete,
@@ -300,7 +357,7 @@ func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitT
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.Errorf("host %q does not exist", hostname)
+		return errors.WithStack(hostNotFoundError{})
 	}
 
 	// We don't care about host status for updating tags
@@ -313,12 +370,9 @@ func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitT
 		// Check the response
 		errs := make([]string, 0)
 		for _, e := range response.Errors {
-			if e.OpIndex == 0 {
-				return errors.Errorf("an host with the same name already exists in the pool: %s", e.What)
-			}
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to delete tags on host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 
 	return nil
@@ -364,4 +418,123 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 		lock.Destroy()
 	}
 	return
+}
+
+func (cm *consulManager) List() ([]string, error) {
+	hosts, _, err := cm.cc.KV().Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	for i := range hosts {
+		hosts[i] = path.Base(hosts[i])
+	}
+	return hosts, nil
+}
+
+func (cm *consulManager) GetHostStatus(hostname string) (HostStatus, error) {
+	if hostname == "" {
+		return HostStatus(0), errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "status"), nil)
+	if err != nil {
+		return HostStatus(0), errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return HostStatus(0), errors.WithStack(hostNotFoundError{})
+	}
+	status, err := ParseHostStatus(string(kvp.Value))
+	if err != nil {
+		return HostStatus(0), errors.Wrapf(err, "failed to retrieve status for host %q", hostname)
+	}
+	return status, nil
+}
+
+func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) {
+	conn := Connection{}
+	if hostname == "" {
+		return conn, errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	kv := cm.cc.KV()
+	connKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname, "connection")
+
+	kvp, _, err := kv.Get(path.Join(connKVPrefix, "host"), nil)
+	if err != nil {
+		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil {
+		conn.Host = string(kvp.Value)
+	}
+	kvp, _, err = kv.Get(path.Join(connKVPrefix, "user"), nil)
+	if err != nil {
+		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil {
+		conn.User = string(kvp.Value)
+	}
+	kvp, _, err = kv.Get(path.Join(connKVPrefix, "password"), nil)
+	if err != nil {
+		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil {
+		conn.Password = string(kvp.Value)
+	}
+	kvp, _, err = kv.Get(path.Join(connKVPrefix, "private_key"), nil)
+	if err != nil {
+		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil {
+		conn.PrivateKey = string(kvp.Value)
+	}
+	kvp, _, err = kv.Get(path.Join(connKVPrefix, "port"), nil)
+	if err != nil {
+		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil {
+		conn.Port, err = strconv.ParseUint(string(kvp.Value), 10, 64)
+		if err != nil {
+			return conn, errors.Wrapf(err, "failed to retrieve connection port for host %q", hostname)
+		}
+	}
+
+	return conn, nil
+}
+
+func (cm *consulManager) GetHostTags(hostname string) (map[string]string, error) {
+	if hostname == "" {
+		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	// check if host exists
+	_, err := cm.GetHostStatus(hostname)
+	if err != nil {
+		return nil, err
+	}
+	kvps, _, err := cm.cc.KV().List(path.Join(consulutil.HostsPoolPrefix, hostname, "tags"), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	tags := make(map[string]string, len(kvps))
+	for _, kvp := range kvps {
+		tags[path.Base(kvp.Key)] = string(kvp.Value)
+	}
+	return tags, nil
+}
+
+func (cm *consulManager) GetHost(hostname string) (Host, error) {
+	host := Host{Name: hostname}
+	if hostname == "" {
+		return host, errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	var err error
+	host.Status, err = cm.GetHostStatus(hostname)
+	if err != nil {
+		return host, err
+	}
+
+	host.Connection, err = cm.GetHostConnection(hostname)
+	if err != nil {
+		return host, err
+	}
+
+	host.Tags, err = cm.GetHostTags(hostname)
+	return host, err
 }

@@ -733,3 +733,144 @@ Content-Type: application/json
 }
 ```
 
+## Hosts Pool
+
+### Add an Host to the pool <a name="hostspool-add"></a>
+
+Adds an host to the hosts pool managed by this Janus cluster.
+The connection object of the JSON request is mandatory while the tags list is optional.
+This tags list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PUT /hosts_pool/<hostname>`
+
+#### Request body
+
+```json
+{
+    "connection": {
+        "host": "defaults_to_<hostname>",
+        "user": "defaults_to_root",
+        "port": "defaults_to_22",
+        "private_key": "one_of_password_or_private_key_required",
+        "password": "one_of_password_or_private_key_required"
+    },
+    "tags": [
+        {"name": "os", "value": "linux"},
+        {"op": "add", "name": "memory", "value": "4G"}
+    ]
+}
+```
+
+#### Response
+
+`HTTP/1.1 201 Created`
+
+Other possible response response codes are `400` if an host with the same `<hostname>` already exists or if  required parameters are missing.
+
+### Update an Host of the pool <a name="hostspool-update"></a>
+
+Updates tags list of connection of an host of the hosts pool managed by this Janus cluster.
+
+Both connection and tags list object of the JSON request are optional.
+This tags list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PATCH /hosts_pool/<hostname>`
+
+#### Request body
+
+```json
+{
+    "connection": {
+        "password": "new_pass"
+    },
+    "tags": [
+        {"op": "remove", "name": "os", "value": "linux"},
+        {"op": "add", "name": "memory", "value": "4G"}
+    ]
+}
+```
+
+#### Response
+
+`HTTP/1.1 200 OK`
+
+Other possible response response codes are `404` if the host doesn't exist in the pool or `400` if required parameters are missing.
+
+### Delete an Host from the pool <a name="hostspool-delete"></a>
+
+Deletes an host from the hosts pool managed by this Janus cluster.
+
+`DELETE /hosts_pool/<hostname>`
+
+#### Response
+
+`HTTP/1.1 200 OK`
+
+Other possible response response codes are `404` if the host doesn't exist in the pool.
+
+### List Hosts in the pool <a name="hostspool-list"></a>
+
+Lists hosts of the hosts pool managed by this Janus cluster.
+
+'Accept' header should be set to 'application/json'.
+
+`GET /hosts_pool`
+
+#### Response
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "hosts": [
+    {"rel":"host","href":"/hosts_pool/host1","type":"application/json"},
+    {"rel":"host","href":"/hosts_pool/host2","type":"application/json"}
+  ]
+}
+```
+
+### Get Host in the pool <a name="hostspool-get"></a>
+
+Gets the description of an host of the hosts pool managed by this Janus cluster.
+
+'Accept' header should be set to 'application/json'.
+
+`GET /hosts_pool/<hostname>`
+
+#### Response
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "host1",
+  "connection": {
+    "user": "ubuntu",
+    "password": "newPass",
+    "host": "host1",
+    "port": 22
+  },
+  "status": "Free",
+  "tags": {
+    "memory": "4G",
+    "os": "linux"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "/hosts_pool/host1",
+      "type": "application/json"
+    }
+  ]
+}
+```

@@ -1,11 +1,15 @@
 package rest
 
-import "novaforge.bull.com/starlings-janus/janus/events"
-import "novaforge.bull.com/starlings-janus/janus/tosca"
+//go:generate go-enum -f=structs.go --lower
+
 import (
+	"bytes"
 	"encoding/json"
 
+	"novaforge.bull.com/starlings-janus/janus/events"
+	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
 	"novaforge.bull.com/starlings-janus/janus/registry"
+	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 const (
@@ -25,6 +29,8 @@ const (
 	LinkRelAttribute string = "attribute"
 	// LinkRelWorkflow defines the AtomLink Rel attribute for relationships of the "attribute"
 	LinkRelWorkflow string = "workflow"
+	// LinkRelHost defines the AtomLink Rel attribute for relationships of the "host" (for hostspool)
+	LinkRelHost string = "host"
 )
 
 const (
@@ -151,6 +157,64 @@ type WorkflowsCollection struct {
 type Workflow struct {
 	Name string `json:"name"`
 	tosca.Workflow
+}
+
+// MapEntryOperation is an enumeration of valid values for a MapEntry.Op field
+// ENUM(
+// Add,
+// Remove
+// )
+type MapEntryOperation int
+
+// MarshalJSON is used to represent this enumeration as a string instead of an int
+func (o MapEntryOperation) MarshalJSON() ([]byte, error) {
+	buffer := bytes.NewBufferString(`"`)
+	buffer.WriteString(o.String())
+	buffer.WriteString(`"`)
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalJSON is used to read this enumeration from a string
+func (o *MapEntryOperation) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*o, err = ParseMapEntryOperation(s)
+	return err
+}
+
+// A MapEntry allows to manipulate a Map collection by performing operations (Op) on entries.
+// It is inspired (with many simplifications) by the JSON Patch RFC https://tools.ietf.org/html/rfc6902
+type MapEntry struct {
+	// Op is the operation for this entry. The default if omitted is "add". An "add" operation acts like a remplace if the entry already exists
+	Op MapEntryOperation `json:"op,omitempty"`
+	// Name is the map entry key name
+	Name string `json:"name"`
+	// Value is the value of the map entry. Optional for a "remove" operation
+	Value string `json:"value,omitempty"`
+}
+
+// HostRequest represents a request for creating or updating an host in the hosts pool
+type HostRequest struct {
+	Connection *hostspool.Connection `json:"connection,omitempty"`
+	Tags       []MapEntry            `json:"tags,omitempty"`
+}
+
+// HostsCollection is a collection of hosts registered in the host pool links
+//
+// Links are all of type LinkRelHost.
+type HostsCollection struct {
+	Hosts []AtomLink `json:"hosts"`
+}
+
+// Host is a host in the host pool representation
+//
+// Links are all of type LinkRelSelf.
+type Host struct {
+	hostspool.Host
+	Links []AtomLink `json:"links"`
 }
 
 // RegistryDelegatesCollection is the collection of Delegates executors registered in the Janus registry
