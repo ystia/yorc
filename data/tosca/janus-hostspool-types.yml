@@ -1,0 +1,21 @@
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+
+template_name: janus-hostspool-types
+template_author: Janus
+template_version: 1.0.0
+
+imports:
+  - janus: <janus-types.yml>
+
+node_types:
+  janus.nodes.hostspool.Compute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      tags:
+        type: list
+        entry_schema:
+          type: string
+    attributes:
+      hostname:
+        type: string
+        description: The hostname as known in the hosts pool
