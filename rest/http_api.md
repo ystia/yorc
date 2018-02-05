@@ -771,7 +771,7 @@ Other possible response response codes are `400` if an host with the same `<host
 
 ### Update an Host of the pool <a name="hostspool-update"></a>
 
-Updates tags list of connection of an host of the hosts pool managed by this Janus cluster.
+Updates tags list or connection of an host of the hosts pool managed by this Janus cluster.
 
 Both connection and tags list object of the JSON request are optional.
 This tags list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.

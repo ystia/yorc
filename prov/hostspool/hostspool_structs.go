@@ -5,6 +5,7 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
 )
 
 // HostStatus x ENUM(
@@ -46,6 +47,19 @@ type Connection struct {
 	Host string `json:"host,omitempty"`
 	// The Port to connect to. Defaults to 22 if set to 0.
 	Port uint64 `json:"port,omitempty"`
+}
+
+// String allows to stringify a connection
+func (conn Connection) String() string {
+	var pass, key string
+	if conn.Password != "" {
+		pass = "password: " + conn.Password + ", "
+	}
+	if conn.PrivateKey != "" {
+		key = "private key: " + conn.PrivateKey + ", "
+	}
+
+	return "user: " + conn.User + ", " + pass + key + "host: " + conn.Host + ", " + "port: " + strconv.FormatUint(conn.Port, 10)
 }
 
 // An Host holds information on an Host as it is known by the hostspool
