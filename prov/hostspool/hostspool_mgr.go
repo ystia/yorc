@@ -174,6 +174,16 @@ func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWai
 		})
 	}
 	if conn.PrivateKey != "" {
+		if conn.PrivateKey == "-" {
+			ok, err := cm.DoesHostHasConnectionPassword(hostname)
+			if err != nil {
+				return err
+			}
+			if !ok && conn.Password == "" || ok && conn.Password == "-" {
+				return errors.WithStack(badRequestError{`at any time at least one of "password" or "private_key" is required`})
+			}
+			conn.PrivateKey = ""
+		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(hostKVPrefix, "connection", "private_key"),
@@ -181,6 +191,16 @@ func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWai
 		})
 	}
 	if conn.Password != "" {
+		if conn.Password == "-" {
+			ok, err := cm.DoesHostHasConnectionPrivateKey(hostname)
+			if err != nil {
+				return err
+			}
+			if !ok && conn.PrivateKey == "" || ok && conn.PrivateKey == "-" {
+				return errors.WithStack(badRequestError{`at any time at least one of "password" or "private_key" is required`})
+			}
+			conn.Password = ""
+		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(hostKVPrefix, "connection", "password"),
@@ -447,6 +467,22 @@ func (cm *consulManager) GetHostStatus(hostname string) (HostStatus, error) {
 		return HostStatus(0), errors.Wrapf(err, "failed to retrieve status for host %q", hostname)
 	}
 	return status, nil
+}
+
+func (cm *consulManager) DoesHostHasConnectionPrivateKey(hostname string) (bool, error) {
+	c, err := cm.GetHostConnection(hostname)
+	if err != nil {
+		return false, err
+	}
+	return c.PrivateKey != "", nil
+}
+
+func (cm *consulManager) DoesHostHasConnectionPassword(hostname string) (bool, error) {
+	c, err := cm.GetHostConnection(hostname)
+	if err != nil {
+		return false, err
+	}
+	return c.Password != "", nil
 }
 
 func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) {

@@ -5,11 +5,14 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // HostStatus x ENUM(
-// Free,
-// Allocated
+// free,
+// allocated
 // )
 type HostStatus int
 
@@ -26,10 +29,10 @@ func (hs *HostStatus) UnmarshalJSON(b []byte) error {
 	var s string
 	err := json.Unmarshal(b, &s)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to unmarshal HostStatus as string")
 	}
-	*hs, err = ParseHostStatus(s)
-	return err
+	*hs, err = ParseHostStatus(strings.ToLower(s))
+	return errors.Wrap(err, "failed to parse HostStatus from JSON input")
 }
 
 // TODO support winrm for windows hosts

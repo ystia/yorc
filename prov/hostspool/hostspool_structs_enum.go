@@ -15,7 +15,7 @@ const (
 	HostStatusAllocated
 )
 
-const _HostStatusName = "FreeAllocated"
+const _HostStatusName = "freeallocated"
 
 var _HostStatusMap = map[HostStatus]string{
 	0: _HostStatusName[0:4],

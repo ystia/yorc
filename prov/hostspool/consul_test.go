@@ -27,4 +27,13 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("TestConsulManagerConcurrency", func(t *testing.T) {
 		testConsulManagerConcurrency(t, client)
 	})
+	t.Run("TestConsulManagerUpdateConnection", func(t *testing.T) {
+		testConsulManagerUpdateConn(t, client)
+	})
+	t.Run("TestConsulManagerList", func(t *testing.T) {
+		testConsulManagerList(t, client)
+	})
+	t.Run("TestConsulManagerGetHost", func(t *testing.T) {
+		testConsulManagerGetHost(t, client)
+	})
 }
