@@ -22,21 +22,21 @@ func cleanupHostsPool(t *testing.T, cc *api.Client) {
 	}
 }
 
-func testConsulManagerAddTags(t *testing.T, cc *api.Client) {
+func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := NewManager(cc)
-	err := cm.Add("host_tags_update", Connection{PrivateKey: "key.pem"}, map[string]string{
-		"tag1":         "val1",
-		"tag/&special": "val/&special",
+	err := cm.Add("host_labels_update", Connection{PrivateKey: "key.pem"}, map[string]string{
+		"label1":         "val1",
+		"label/&special": "val/&special",
 	})
 	require.NoError(t, err)
-	err = cm.Add("host_no_tags_update", Connection{PrivateKey: "key.pem"}, map[string]string{
-		"tag1": "val1",
+	err = cm.Add("host_no_labels_update", Connection{PrivateKey: "key.pem"}, map[string]string{
+		"label1": "val1",
 	})
 	require.NoError(t, err)
 	type args struct {
 		hostname string
-		tags     map[string]string
+		labels   map[string]string
 	}
 	tests := []struct {
 		name       string
@@ -47,76 +47,76 @@ func testConsulManagerAddTags(t *testing.T, cc *api.Client) {
 	}{
 		{"TestMissingHostName", args{"", nil}, true, nil, IsBadRequestError},
 		{"TestHostNameDoesNotExist", args{"does_not_exist", map[string]string{"t1": "v1"}}, true, nil, IsHostNotFoundError},
-		{"TestEmptyTags", args{"host_tags_update", map[string]string{
-			"tag1":         "update1",
-			"tag/&special": "update/&special",
-			"":             "added",
+		{"TestEmptyLabels", args{"host_labels_update", map[string]string{
+			"label1":         "update1",
+			"label/&special": "update/&special",
+			"":               "added",
 		}}, true, map[string]string{
-			"tags/tag1":           "val1",
-			"tags/tag%2F&special": "val/&special",
+			"labels/label1":           "val1",
+			"labels/label%2F&special": "val/&special",
 		}, nil},
-		{"TestTagsUpdates", args{"host_tags_update", map[string]string{
-			"tag1":         "update1",
-			"tag/&special": "update/&special",
-			"addition":     "added",
+		{"TestLabelsUpdates", args{"host_labels_update", map[string]string{
+			"label1":         "update1",
+			"label/&special": "update/&special",
+			"addition":       "added",
 		}}, false, map[string]string{
-			"tags/tag1":           "update1",
-			"tags/tag%2F&special": "update/&special",
-			"tags/addition":       "added",
+			"labels/label1":           "update1",
+			"labels/label%2F&special": "update/&special",
+			"labels/addition":         "added",
 		}, nil},
-		{"TestTagsNoUpdatesNil", args{"host_no_tags_update", nil}, false, map[string]string{
-			"tags/tag1": "val1",
+		{"TestLabelsNoUpdatesNil", args{"host_no_labels_update", nil}, false, map[string]string{
+			"labels/label1": "val1",
 		}, nil},
-		{"TestTagsNoUpdatesEmpty", args{"host_no_tags_update", map[string]string{}}, false, map[string]string{
-			"tags/tag1": "val1",
+		{"TestLabelsNoUpdatesEmpty", args{"host_no_labels_update", map[string]string{}}, false, map[string]string{
+			"labels/label1": "val1",
 		}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
-			if err = cm.AddTags(tt.args.hostname, tt.args.tags); (err != nil) != tt.wantErr {
-				t.Fatalf("consulManager.AddTags() error = %v, wantErr %v", err, tt.wantErr)
+			if err = cm.AddLabels(tt.args.hostname, tt.args.labels); (err != nil) != tt.wantErr {
+				t.Fatalf("consulManager.AddLabels() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
-				assert.True(t, tt.errorCheck(err), "consulManager.AddTags() unexpected error %T", err)
+				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
 				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
 				if err != nil {
-					t.Fatalf("consulManager.AddTags() consul comm error during result check (you should retry) %v", err)
+					t.Fatalf("consulManager.AddLabels() consul comm error during result check (you should retry) %v", err)
 				}
 				if kvp == nil && v != "<nil>" {
-					t.Fatalf("consulManager.AddTags() missing required key %q", k)
+					t.Fatalf("consulManager.AddLabels() missing required key %q", k)
 				}
 				if kvp != nil && v == "<nil>" {
-					t.Fatalf("consulManager.AddTags() expecting key %q to not exists", k)
+					t.Fatalf("consulManager.AddLabels() expecting key %q to not exists", k)
 				}
 				if kvp != nil && string(kvp.Value) != v {
-					t.Errorf("consulManager.AddTags() key check failed actual = %q, expected %q", string(kvp.Value), v)
+					t.Errorf("consulManager.AddLabels() key check failed actual = %q, expected %q", string(kvp.Value), v)
 				}
 			}
 		})
 	}
-	tags, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, "host_no_tags_update", "tags")+"/", "/", nil)
+	labels, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, "host_no_labels_update", "labels")+"/", "/", nil)
 	require.NoError(t, err)
-	assert.Len(t, tags, 1, `Expecting only one tag for host "host_no_tags_update", something updated those tags`)
+	assert.Len(t, labels, 1, `Expecting only one label for host "host_no_labels_update", something updated those labels`)
 }
-func testConsulManagerRemoveTags(t *testing.T, cc *api.Client) {
+func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := NewManager(cc)
-	err := cm.Add("host_tags_remove", Connection{PrivateKey: "key.pem"}, map[string]string{
-		"tag1":         "val1",
-		"tag/&special": "val/&special",
-		"tagSurvivor":  "still here!",
+	err := cm.Add("host_labels_remove", Connection{PrivateKey: "key.pem"}, map[string]string{
+		"label1":         "val1",
+		"label/&special": "val/&special",
+		"labelSurvivor":  "still here!",
 	})
 	require.NoError(t, err)
-	err = cm.Add("host_no_tags_remove", Connection{PrivateKey: "key.pem"}, map[string]string{
-		"tag1": "val1",
+	err = cm.Add("host_no_labels_remove", Connection{PrivateKey: "key.pem"}, map[string]string{
+		"label1": "val1",
 	})
 	require.NoError(t, err)
 	type args struct {
 		hostname string
-		tags     []string
+		labels   []string
 	}
 	tests := []struct {
 		name       string
@@ -126,56 +126,56 @@ func testConsulManagerRemoveTags(t *testing.T, cc *api.Client) {
 		errorCheck func(error) bool
 	}{
 		{"TestMissingHostName", args{"", nil}, true, nil, IsBadRequestError},
-		{"TestHostNameDoesNotExist", args{"does_not_exist", []string{"tag1"}}, true, nil, IsHostNotFoundError},
-		{"TestEmptyTag", args{"host_tags_remove", []string{""}}, true, nil, IsBadRequestError},
-		{"TestTagsUpdates", args{"host_tags_remove", []string{"tag1", "tag/&special"}}, false, map[string]string{
-			"tag1":             "<nil>",
-			"tag/&special":     "<nil>",
-			"tags/tagSurvivor": "still here!",
+		{"TestHostNameDoesNotExist", args{"does_not_exist", []string{"label1"}}, true, nil, IsHostNotFoundError},
+		{"TestEmptyLabel", args{"host_labels_remove", []string{""}}, true, nil, IsBadRequestError},
+		{"TestLabelsUpdates", args{"host_labels_remove", []string{"label1", "label/&special"}}, false, map[string]string{
+			"label1":               "<nil>",
+			"label/&special":       "<nil>",
+			"labels/labelSurvivor": "still here!",
 		}, nil},
-		{"TestTagsNoUpdatesNil", args{"host_no_tags_remove", nil}, false, map[string]string{
-			"tags/tag1": "val1",
+		{"TestLabelsNoUpdatesNil", args{"host_no_labels_remove", nil}, false, map[string]string{
+			"labels/label1": "val1",
 		}, nil},
-		{"TestTagsNoUpdatesEmpty", args{"host_no_tags_remove", []string{}}, false, map[string]string{
-			"tags/tag1": "val1",
+		{"TestLabelsNoUpdatesEmpty", args{"host_no_labels_remove", []string{}}, false, map[string]string{
+			"labels/label1": "val1",
 		}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
-			if err = cm.RemoveTags(tt.args.hostname, tt.args.tags); (err != nil) != tt.wantErr {
-				t.Fatalf("consulManager.RemoveTags() error = %v, wantErr %v", err, tt.wantErr)
+			if err = cm.RemoveLabels(tt.args.hostname, tt.args.labels); (err != nil) != tt.wantErr {
+				t.Fatalf("consulManager.RemoveLabels() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
-				assert.True(t, tt.errorCheck(err), "consulManager.AddTags() unexpected error %T", err)
+				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
 				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
 				if err != nil {
-					t.Fatalf("consulManager.RemoveTags() consul comm error during result check (you should retry) %v", err)
+					t.Fatalf("consulManager.RemoveLabels() consul comm error during result check (you should retry) %v", err)
 				}
 				if kvp == nil && v != "<nil>" {
-					t.Fatalf("consulManager.RemoveTags() missing required key %q", k)
+					t.Fatalf("consulManager.RemoveLabels() missing required key %q", k)
 				}
 				if kvp != nil && v == "<nil>" {
-					t.Fatalf("consulManager.RemoveTags() expecting key %q to not exists", k)
+					t.Fatalf("consulManager.RemoveLabels() expecting key %q to not exists", k)
 				}
 				if kvp != nil && string(kvp.Value) != v {
-					t.Errorf("consulManager.RemoveTags() key check failed actual = %q, expected %q", string(kvp.Value), v)
+					t.Errorf("consulManager.RemoveLabels() key check failed actual = %q, expected %q", string(kvp.Value), v)
 				}
 			}
 		})
 	}
-	tags, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, "host_no_tags_remove", "tags")+"/", "/", nil)
+	labels, _, err := cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, "host_no_labels_remove", "labels")+"/", "/", nil)
 	require.NoError(t, err)
-	assert.Len(t, tags, 1, `Expecting only one tag for host "host_no_tags_remove", something updated those tags`)
+	assert.Len(t, labels, 1, `Expecting only one label for host "host_no_labels_remove", something updated those labels`)
 }
 func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	type args struct {
 		hostname string
 		conn     Connection
-		tags     map[string]string
+		labels   map[string]string
 	}
 	tests := []struct {
 		name       string
@@ -186,7 +186,7 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 	}{
 		{"TestMissingHostName", args{"", Connection{Password: "test"}, nil}, true, nil, IsBadRequestError},
 		{"TestMissingConnectionSecret", args{"host1", Connection{}, nil}, true, nil, IsBadRequestError},
-		{"TestEmptyTag", args{"host1", Connection{Password: "test"}, map[string]string{"tag1": "v1", "": "val2"}}, true, nil, IsBadRequestError},
+		{"TestEmptyLabel", args{"host1", Connection{Password: "test"}, map[string]string{"label1": "v1", "": "val2"}}, true, nil, IsBadRequestError},
 		{"TestConnectionDefaults", args{"host1", Connection{Password: "test"}, nil}, false, map[string]string{
 			"connection/user":     "root",
 			"connection/password": "test",
@@ -194,33 +194,33 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 			"connection/port":     "22"},
 			nil},
 		{"TestHostAlreadyExists", args{"host1", Connection{Password: "test2"}, nil}, true, nil, IsHostAlreadyExistError},
-		{"TestTagsSupport", args{"hostwithtags", Connection{
+		{"TestLabelsSupport", args{"hostwithlabels", Connection{
 			Host:       "127.0.1.1",
 			User:       "ubuntu",
 			Port:       23,
 			PrivateKey: "path/to/key",
 		}, map[string]string{
-			"tag1":         "val1",
-			"tag/&special": "val&special",
+			"label1":         "val1",
+			"label/&special": "val&special",
 		}}, false, map[string]string{
-			"connection/user":        "ubuntu",
-			"connection/password":    "",
-			"connection/private_key": "path/to/key",
-			"connection/host":        "127.0.1.1",
-			"connection/port":        "23",
-			"tags/tag1":              "val1",
-			"tags/tag%2F&special":    "val&special",
+			"connection/user":         "ubuntu",
+			"connection/password":     "",
+			"connection/private_key":  "path/to/key",
+			"connection/host":         "127.0.1.1",
+			"connection/port":         "23",
+			"labels/label1":           "val1",
+			"labels/label%2F&special": "val&special",
 		}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := NewManager(cc)
 			var err error
-			if err = cm.Add(tt.args.hostname, tt.args.conn, tt.args.tags); (err != nil) != tt.wantErr {
+			if err = cm.Add(tt.args.hostname, tt.args.conn, tt.args.labels); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.Add() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
-				assert.True(t, tt.errorCheck(err), "consulManager.AddTags() unexpected error %T", err)
+				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
 				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
@@ -310,7 +310,7 @@ func testConsulManagerUpdateConn(t *testing.T, cc *api.Client) {
 				t.Fatalf("consulManager.Add() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
-				assert.True(t, tt.errorCheck(err), "consulManager.AddTags() unexpected error %T", err)
+				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 			for k, v := range tt.checks {
 				kvp, _, err := cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, tt.args.hostname, k), nil)
@@ -358,7 +358,7 @@ func testConsulManagerRemove(t *testing.T, cc *api.Client) {
 				t.Errorf("consulManager.Remove() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
-				assert.True(t, tt.errorCheck(err), "consulManager.AddTags() unexpected error %T", err)
+				assert.True(t, tt.errorCheck(err), "consulManager.AddLabels() unexpected error %T", err)
 			}
 		})
 	}
@@ -397,10 +397,10 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc}
-	tagList := map[string]string{
-		"tag1": "v1",
-		"tag2": "v2",
-		"tag3": "v3",
+	labelList := map[string]string{
+		"label1": "v1",
+		"label2": "v2",
+		"label3": "v3",
 	}
 	connection := Connection{
 		User:       "rootget",
@@ -409,13 +409,13 @@ func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 		Port:       26,
 		PrivateKey: "keyget.pem",
 	}
-	err := cm.Add("get_host1", connection, tagList)
+	err := cm.Add("get_host1", connection, labelList)
 	require.NoError(t, err)
 
 	host, err := cm.GetHost("get_host1")
 	require.NoError(t, err)
 	assert.Equal(t, connection, host.Connection)
-	assert.Equal(t, tagList, host.Tags)
+	assert.Equal(t, labelList, host.Labels)
 	assert.Equal(t, "get_host1", host.Name)
 	assert.Equal(t, HostStatusFree, host.Status)
 
@@ -436,10 +436,10 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for addWait()")
 	err = cm.removeWait("concurrent_host1", 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeWait()")
-	err = cm.addTagsWait("concurrent_host1", map[string]string{"t1": "v1"}, 500*time.Millisecond)
-	assert.Error(t, err, "Expecting concurrency lock for addTagsWait()")
-	err = cm.removeTagsWait("concurrent_host1", []string{"t1"}, 500*time.Millisecond)
-	assert.Error(t, err, "Expecting concurrency lock for removeTagsWait()")
+	err = cm.addLabelsWait("concurrent_host1", map[string]string{"t1": "v1"}, 500*time.Millisecond)
+	assert.Error(t, err, "Expecting concurrency lock for addLabelsWait()")
+	err = cm.removeLabelsWait("concurrent_host1", []string{"t1"}, 500*time.Millisecond)
+	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 	err = cm.updateConnWait("concurrent_host1", Connection{}, 500*time.Millisecond)
-	assert.Error(t, err, "Expecting concurrency lock for removeTagsWait()")
+	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 }

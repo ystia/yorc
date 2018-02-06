@@ -199,7 +199,7 @@ type MapEntry struct {
 // HostRequest represents a request for creating or updating an host in the hosts pool
 type HostRequest struct {
 	Connection *hostspool.Connection `json:"connection,omitempty"`
-	Tags       []MapEntry            `json:"tags,omitempty"`
+	Labels     []MapEntry            `json:"labels,omitempty"`
 }
 
 // HostsCollection is a collection of hosts registered in the host pool links

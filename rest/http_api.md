@@ -738,8 +738,8 @@ Content-Type: application/json
 ### Add an Host to the pool <a name="hostspool-add"></a>
 
 Adds an host to the hosts pool managed by this Janus cluster.
-The connection object of the JSON request is mandatory while the tags list is optional.
-This tags list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
+The connection object of the JSON request is mandatory while the labels list is optional.
+This labels list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
 
 'Content-Type' header should be set to 'application/json'.
 
@@ -756,7 +756,7 @@ This tags list should be composed with elements with the "op" parameter set to "
         "private_key": "one_of_password_or_private_key_required",
         "password": "one_of_password_or_private_key_required"
     },
-    "tags": [
+    "labels": [
         {"name": "os", "value": "linux"},
         {"op": "add", "name": "memory", "value": "4G"}
     ]
@@ -771,10 +771,10 @@ Other possible response response codes are `400` if an host with the same `<host
 
 ### Update an Host of the pool <a name="hostspool-update"></a>
 
-Updates tags list of connection of an host of the hosts pool managed by this Janus cluster.
+Updates labels list or connection of an host of the hosts pool managed by this Janus cluster.
 
-Both connection and tags list object of the JSON request are optional.
-This tags list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
+Both connection and labels list object of the JSON request are optional.
+This labels list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
 
 'Content-Type' header should be set to 'application/json'.
 
@@ -787,7 +787,7 @@ This tags list should be composed with elements with the "op" parameter set to "
     "connection": {
         "password": "new_pass"
     },
-    "tags": [
+    "labels": [
         {"op": "remove", "name": "os", "value": "linux"},
         {"op": "add", "name": "memory", "value": "4G"}
     ]
@@ -861,7 +861,7 @@ Content-Type: application/json
     "port": 22
   },
   "status": "Free",
-  "tags": {
+  "labels": {
     "memory": "4G",
     "os": "linux"
   },

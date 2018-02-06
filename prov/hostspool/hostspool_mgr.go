@@ -16,10 +16,10 @@ import (
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
-	Add(hostname string, connection Connection, tags map[string]string) error
+	Add(hostname string, connection Connection, labels map[string]string) error
 	Remove(hostname string) error
-	AddTags(hostname string, tags map[string]string) error
-	RemoveTags(hostname string, tags []string) error
+	AddLabels(hostname string, labels map[string]string) error
+	RemoveLabels(hostname string, labels []string) error
 	UpdateConnection(hostname string, connection Connection) error
 	List(filters ...string) ([]string, error)
 	GetHost(hostname string) (Host, error)
@@ -38,10 +38,10 @@ type consulManager struct {
 	cc *api.Client
 }
 
-func (cm *consulManager) Add(hostname string, conn Connection, tags map[string]string) error {
-	return cm.addWait(hostname, conn, tags, 45*time.Second)
+func (cm *consulManager) Add(hostname string, conn Connection, labels map[string]string) error {
+	return cm.addWait(hostname, conn, labels, 45*time.Second)
 }
-func (cm *consulManager) addWait(hostname string, conn Connection, tags map[string]string, maxWaitTime time.Duration) error {
+func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
@@ -101,14 +101,14 @@ func (cm *consulManager) addWait(hostname string, conn Connection, tags map[stri
 		},
 	}
 
-	for k, v := range tags {
+	for k, v := range labels {
 		k = url.PathEscape(k)
 		if k == "" {
-			return errors.WithStack(badRequestError{"empty tags are not allowed"})
+			return errors.WithStack(badRequestError{"empty labels are not allowed"})
 		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "tags", k),
+			Key:   path.Join(hostKVPrefix, "labels", k),
 			Value: []byte(v),
 		})
 	}
@@ -272,39 +272,37 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 	return nil
 }
 
-func (cm *consulManager) AddTags(hostname string, tags map[string]string) error {
-	return cm.addTagsWait(hostname, tags, 45*time.Second)
+func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {
+	return cm.addLabelsWait(hostname, labels, 45*time.Second)
 }
-func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, maxWaitTime time.Duration) error {
+func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string, maxWaitTime time.Duration) error {
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
-	if tags == nil || len(tags) == 0 {
+	if labels == nil || len(labels) == 0 {
 		return nil
 	}
 
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
 	ops := make(api.KVTxnOps, 0)
 
-	for k, v := range tags {
+	for k, v := range labels {
 		k = url.PathEscape(k)
 		if k == "" {
-			return errors.WithStack(badRequestError{"empty tags are not allowed"})
+			return errors.WithStack(badRequestError{"empty labels are not allowed"})
 		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "tags", k),
+			Key:   path.Join(hostKVPrefix, "labels", k),
 			Value: []byte(v),
 		})
 	}
 
-	_, cleanupFn, err := cm.lockKey(hostname, "tags addition", maxWaitTime)
+	_, cleanupFn, err := cm.lockKey(hostname, "labels addition", maxWaitTime)
 	if err != nil {
 		return err
 	}
 	defer cleanupFn()
-
-	kv := cm.cc.KV()
 
 	// Checks host existence
 	_, err = cm.GetHostStatus(hostname)
@@ -312,7 +310,7 @@ func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, ma
 		return err
 	}
 
-	// We don't care about host status for updating tags
+	// We don't care about host status for updating labels
 
 	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
 	if err != nil {
@@ -324,44 +322,42 @@ func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, ma
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to add tags to host %q: %s", hostname, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to add labels to host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 
 	return nil
 }
 
-func (cm *consulManager) RemoveTags(hostname string, tags []string) error {
-	return cm.removeTagsWait(hostname, tags, 45*time.Second)
+func (cm *consulManager) RemoveLabels(hostname string, labels []string) error {
+	return cm.removeLabelsWait(hostname, labels, 45*time.Second)
 }
-func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitTime time.Duration) error {
+func (cm *consulManager) removeLabelsWait(hostname string, labels []string, maxWaitTime time.Duration) error {
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
-	if tags == nil || len(tags) == 0 {
+	if labels == nil || len(labels) == 0 {
 		return nil
 	}
 
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
 	ops := make(api.KVTxnOps, 0)
 
-	for _, v := range tags {
+	for _, v := range labels {
 		v = url.PathEscape(v)
 		if v == "" {
-			return errors.WithStack(badRequestError{"empty tags are not allowed"})
+			return errors.WithStack(badRequestError{"empty labels are not allowed"})
 		}
 		ops = append(ops, &api.KVTxnOp{
 			Verb: api.KVDelete,
-			Key:  path.Join(hostKVPrefix, "tags", v),
+			Key:  path.Join(hostKVPrefix, "labels", v),
 		})
 	}
 
-	_, cleanupFn, err := cm.lockKey(hostname, "tags remove", maxWaitTime)
+	_, cleanupFn, err := cm.lockKey(hostname, "labels remove", maxWaitTime)
 	if err != nil {
 		return err
 	}
 	defer cleanupFn()
-
-	kv := cm.cc.KV()
 
 	// Checks host existence
 	_, err = cm.GetHostStatus(hostname)
@@ -369,7 +365,7 @@ func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitT
 		return err
 	}
 
-	// We don't care about host status for updating tags
+	// We don't care about host status for updating labels
 
 	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
 	if err != nil {
@@ -381,7 +377,7 @@ func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitT
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to delete tags on host %q: %s", hostname, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to delete labels on host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 
 	return nil
@@ -539,7 +535,7 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 	return conn, nil
 }
 
-func (cm *consulManager) GetHostTags(hostname string) (map[string]string, error) {
+func (cm *consulManager) GetHostLabels(hostname string) (map[string]string, error) {
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
@@ -548,15 +544,15 @@ func (cm *consulManager) GetHostTags(hostname string) (map[string]string, error)
 	if err != nil {
 		return nil, err
 	}
-	kvps, _, err := cm.cc.KV().List(path.Join(consulutil.HostsPoolPrefix, hostname, "tags"), nil)
+	kvps, _, err := cm.cc.KV().List(path.Join(consulutil.HostsPoolPrefix, hostname, "labels"), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	tags := make(map[string]string, len(kvps))
+	labels := make(map[string]string, len(kvps))
 	for _, kvp := range kvps {
-		tags[path.Base(kvp.Key)] = string(kvp.Value)
+		labels[path.Base(kvp.Key)] = string(kvp.Value)
 	}
-	return tags, nil
+	return labels, nil
 }
 
 func (cm *consulManager) GetHost(hostname string) (Host, error) {
@@ -575,7 +571,7 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 		return host, err
 	}
 
-	host.Tags, err = cm.GetHostTags(hostname)
+	host.Labels, err = cm.GetHostLabels(hostname)
 	return host, err
 }
 

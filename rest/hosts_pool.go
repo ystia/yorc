@@ -54,16 +54,16 @@ func (s *Server) newHostInPool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, newBadRequestMessage(`"connection" parameter is missing for host addition`))
 		return
 	}
-	tags := make(map[string]string, len(host.Tags))
-	for _, entry := range host.Tags {
+	labels := make(map[string]string, len(host.Labels))
+	for _, entry := range host.Labels {
 		if entry.Op != MapEntryOperationAdd {
 			writeError(w, r, newBadRequestMessage(fmt.Sprintf("unsupported operation %q for tag %q for host addition", entry.Op.String(), entry.Name)))
 			return
 		}
-		tags[entry.Name] = entry.Value
+		labels[entry.Name] = entry.Value
 	}
 
-	err = s.hostsPoolMgr.Add(hostname, *host.Connection, tags)
+	err = s.hostsPoolMgr.Add(hostname, *host.Connection, labels)
 	if err != nil {
 		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(err))
@@ -107,18 +107,18 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 			log.Panic(err)
 		}
 	}
-	tagsAdd := make(map[string]string)
-	tagsDelete := make([]string, 0)
-	for _, entry := range host.Tags {
+	labelsAdd := make(map[string]string)
+	labelsDelete := make([]string, 0)
+	for _, entry := range host.Labels {
 		if entry.Op == MapEntryOperationAdd {
-			tagsAdd[entry.Name] = entry.Value
+			labelsAdd[entry.Name] = entry.Value
 		}
 		if entry.Op == MapEntryOperationRemove {
-			tagsDelete = append(tagsDelete, entry.Name)
+			labelsDelete = append(labelsDelete, entry.Name)
 		}
 	}
-	if len(tagsDelete) > 0 {
-		err = s.hostsPoolMgr.RemoveTags(hostname, tagsDelete)
+	if len(labelsDelete) > 0 {
+		err = s.hostsPoolMgr.RemoveLabels(hostname, labelsDelete)
 		if err != nil {
 			if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))
@@ -131,8 +131,8 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 			log.Panic(err)
 		}
 	}
-	if len(tagsAdd) > 0 {
-		err = s.hostsPoolMgr.AddTags(hostname, tagsAdd)
+	if len(labelsAdd) > 0 {
+		err = s.hostsPoolMgr.AddLabels(hostname, labelsAdd)
 		if err != nil {
 			if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))

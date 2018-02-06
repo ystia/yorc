@@ -18,11 +18,11 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("TestConsulManagerRemove", func(t *testing.T) {
 		testConsulManagerRemove(t, client)
 	})
-	t.Run("TestConsulManagerAddTags", func(t *testing.T) {
-		testConsulManagerAddTags(t, client)
+	t.Run("TestConsulManagerAddLabels", func(t *testing.T) {
+		testConsulManagerAddLabels(t, client)
 	})
-	t.Run("TestConsulManagerRemoveTags", func(t *testing.T) {
-		testConsulManagerRemoveTags(t, client)
+	t.Run("TestConsulManagerRemoveLabels", func(t *testing.T) {
+		testConsulManagerRemoveLabels(t, client)
 	})
 	t.Run("TestConsulManagerConcurrency", func(t *testing.T) {
 		testConsulManagerConcurrency(t, client)

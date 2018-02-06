@@ -56,5 +56,5 @@ type Host struct {
 	Name       string            `json:"name,omitempty"`
 	Connection Connection        `json:"connection"`
 	Status     HostStatus        `json:"status"`
-	Tags       map[string]string `json:"tags,omitempty"`
+	Labels     map[string]string `json:"labels,omitempty"`
 }
