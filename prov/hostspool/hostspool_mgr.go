@@ -21,8 +21,10 @@ type Manager interface {
 	AddTags(hostname string, tags map[string]string) error
 	RemoveTags(hostname string, tags []string) error
 	UpdateConnection(hostname string, connection Connection) error
-	List() ([]string, error)
+	List(filters ...string) ([]string, error)
 	GetHost(hostname string) (Host, error)
+	Allocate(filters ...string) (string, error)
+	Release(hostname string) error
 }
 
 // NewManager creates a Manager backed to Consul
@@ -248,16 +250,9 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 
 	kv := cm.cc.KV()
 
-	kvp, _, err := kv.Get(path.Join(hostKVPrefix, "status"), nil)
+	status, err := cm.GetHostStatus(hostname)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.WithStack(hostNotFoundError{})
-	}
-	status, err := ParseHostStatus(string(kvp.Value))
-	if err != nil {
-		return errors.Wrapf(err, "invalid status for host %q", hostname)
+		return err
 	}
 	if status != HostStatusFree {
 		return errors.WithStack(badRequestError{fmt.Sprintf("can't delete host %q with status %q", hostname, status.String())})
@@ -312,12 +307,9 @@ func (cm *consulManager) addTagsWait(hostname string, tags map[string]string, ma
 	kv := cm.cc.KV()
 
 	// Checks host existence
-	kvp, _, err := kv.Get(path.Join(hostKVPrefix, "status"), nil)
+	_, err = cm.GetHostStatus(hostname)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.WithStack(hostNotFoundError{})
+		return err
 	}
 
 	// We don't care about host status for updating tags
@@ -372,12 +364,9 @@ func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitT
 	kv := cm.cc.KV()
 
 	// Checks host existence
-	kvp, _, err := kv.Get(path.Join(hostKVPrefix, "status"), nil)
+	_, err = cm.GetHostStatus(hostname)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.WithStack(hostNotFoundError{})
+		return err
 	}
 
 	// We don't care about host status for updating tags
@@ -399,13 +388,19 @@ func (cm *consulManager) removeTagsWait(hostname string, tags []string, maxWaitT
 }
 
 func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Duration) (lockCh <-chan struct{}, cleanupFn func(), err error) {
+	var sessionName string
+	if hostname != "" {
+		sessionName = fmt.Sprintf("%q %s", hostname, opType)
+	} else {
+		sessionName = opType
+	}
 	lock, err := cm.cc.LockOpts(&api.LockOptions{
 		Key:            kvLockKey,
-		Value:          []byte(fmt.Sprintf("locked for %q %s", hostname, opType)),
+		Value:          []byte(fmt.Sprintf("locked for %s", sessionName)),
 		MonitorRetries: 2,
 		LockWaitTime:   lockWaitTime,
 		LockTryOnce:    true,
-		SessionName:    fmt.Sprintf("%q %s", hostname, opType),
+		SessionName:    sessionName,
 		SessionTTL:     lockWaitTime.String(),
 		SessionOpts: &api.SessionEntry{
 			Behavior: api.SessionBehaviorDelete,
@@ -440,7 +435,7 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 	return
 }
 
-func (cm *consulManager) List() ([]string, error) {
+func (cm *consulManager) List(filters ...string) ([]string, error) {
 	hosts, _, err := cm.cc.KV().Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -449,6 +444,15 @@ func (cm *consulManager) List() ([]string, error) {
 		hosts[i] = path.Base(hosts[i])
 	}
 	return hosts, nil
+}
+
+func (cm *consulManager) setHostStatus(hostname string, status HostStatus) error {
+	_, err := cm.GetHostStatus(hostname)
+	if err != nil {
+		return err
+	}
+	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, hostname, "status"), Value: []byte(HostStatusFree.String())}, nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
 func (cm *consulManager) GetHostStatus(hostname string) (HostStatus, error) {
@@ -573,4 +577,72 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 
 	host.Tags, err = cm.GetHostTags(hostname)
 	return host, err
+}
+
+func (cm *consulManager) Allocate(filters ...string) (string, error) {
+	return cm.allocateWait(45*time.Second, filters...)
+}
+func (cm *consulManager) allocateWait(maxWaitTime time.Duration, filters ...string) (string, error) {
+	lockCh, cleanupFn, err := cm.lockKey("", "allocation", maxWaitTime)
+	if err != nil {
+		return "", err
+	}
+	defer cleanupFn()
+
+	hosts, err := cm.List(filters...)
+	if err != nil {
+		return "", err
+	}
+	// Filters only free hosts but try to bypass errors if we can allocate an host
+	var lastErr error
+	freeHosts := hosts[:0]
+	for _, h := range hosts {
+		select {
+		case <-lockCh:
+			return "", errors.New("admin lock lost on hosts pool during host allocation")
+		default:
+		}
+		hs, err := cm.GetHostStatus(h)
+		if err != nil {
+			lastErr = err
+		} else if hs == HostStatusFree {
+			freeHosts = append(freeHosts, h)
+		}
+	}
+
+	if len(freeHosts) == 0 {
+		if lastErr != nil {
+			return "", lastErr
+		}
+		return "", errors.WithStack(noMatchingHostFoundError{})
+	}
+	// Get the first host that match
+	hostname := freeHosts[0]
+	select {
+	case <-lockCh:
+		return "", errors.New("admin lock lost on hosts pool during host allocation")
+	default:
+	}
+	cm.setHostStatus(hostname, HostStatusAllocated)
+	return hostname, nil
+}
+func (cm *consulManager) Release(hostname string) error {
+	return cm.releaseWait(hostname, 45*time.Second)
+}
+func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration) error {
+	_, cleanupFn, err := cm.lockKey(hostname, "release", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	status, err := cm.GetHostStatus(hostname)
+	if err != nil {
+		return err
+	}
+	if status != HostStatusAllocated {
+		return errors.WithStack(badRequestError{fmt.Sprintf("unexpected status %q when releasing host %q", status.String(), hostname)})
+	}
+	return cm.setHostStatus(hostname, HostStatusFree)
+
 }

@@ -41,3 +41,15 @@ func IsBadRequestError(err error) bool {
 	_, ok := errors.Cause(err).(badRequestError)
 	return ok
 }
+
+type noMatchingHostFoundError struct{}
+
+func (e noMatchingHostFoundError) Error() string {
+	return "no matching host found"
+}
+
+// IsNoMatchingHostFoundError checks if an error is an error due to no hosts match the given filters if any
+func IsNoMatchingHostFoundError(err error) bool {
+	_, ok := errors.Cause(err).(noMatchingHostFoundError)
+	return ok
+}
