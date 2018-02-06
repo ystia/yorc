@@ -8,29 +8,29 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov"
 )
 
-type slurmResourcesProvider struct {
+type slurmInfraUsageCollector struct {
 	client *sshutil.SSHClient
 }
 
-func newResourcesProvider() prov.ResourcesProvider {
-	return &slurmResourcesProvider{}
+func newInfraUsageCollector() prov.InfrastructureUsageCollector {
+	return &slurmInfraUsageCollector{}
 }
 
-func (s *slurmResourcesProvider) GetResourcesUsage(ctx context.Context, cfg config.Configuration) (map[string]string, error) {
+func (s *slurmInfraUsageCollector) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID string) (map[string]string, error) {
 	var err error
 	m := make(map[string]string)
 
 	s.client, err = getSSHClient(cfg)
 	if err != nil {
-		log.Printf("Unable to get resources usage due to:%+v", err)
+		log.Printf("Unable to get usage info due to:%+v", err)
 		return nil, err
 	}
 	if err = getCPUInfo(m, s.client); err != nil {
-		log.Printf("Unable to get cpu usage due to:%+v", err)
+		log.Printf("Unable to get cpu usage info due to:%+v", err)
 		return nil, err
 	}
 	if err = getJobInfo(m, s.client); err != nil {
-		log.Printf("Unable to get job states due to:%+v", err)
+		log.Printf("Unable to get job states info due to:%+v", err)
 		return nil, err
 	}
 	return m, nil

@@ -343,65 +343,50 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 	case tasks.Query:
-		queryName, err := tasks.GetTaskData(kv, t.ID, "query_name")
-		if err != nil {
-			log.Printf("Query Task id: %q Failed to get query: %v", t.ID, err)
-			log.Debugf("%+v", err)
+		split := strings.Split(t.TargetID, ":")
+		if len(split) != 2 {
+			log.Printf("Query Task (id: %q): unexpected format for targetID: %q", t.ID, t.TargetID)
 			t.WithStatus(tasks.FAILED)
 			return
 		}
-		targetType, err := tasks.GetTaskData(kv, t.ID, "target_type")
-		if err != nil {
-			log.Printf("Query Task id: %q Failed to get type: %v", t.ID, err)
-			log.Debugf("%+v", err)
-			t.WithStatus(tasks.FAILED)
-			return
-		}
+		query := split[0]
+		target := split[1]
 
-		switch targetType {
-		case "resourcesProvider":
+		switch query {
+		case "infra_usage":
 			var reg = registry.GetRegistry()
-			resourcesProvider, err := reg.GetResourcesProvider(t.TargetID)
+			collector, err := reg.GetInfraUsageCollector(target)
 			if err != nil {
 				log.Printf("Query Task id: %q Failed to retrieve target type: %v", t.ID, err)
 				log.Debugf("%+v", err)
 				t.WithStatus(tasks.FAILED)
 				return
 			}
-			switch queryName {
-			case "GetResourcesUsage":
-				res, err := resourcesProvider.GetResourcesUsage(ctx, w.cfg)
-				if err != nil {
-					log.Printf("Query Task id: %q Failed to run query: %v", t.ID, err)
-					log.Debugf("%+v", err)
-					t.WithStatus(tasks.FAILED)
-					return
-				}
-
-				// store resultSet
-				resultPrefix := path.Join(consulutil.TasksPrefix, t.ID, "resultSet")
-				if res != nil {
-					for keyM, valM := range res {
-						key := &api.KVPair{Key: path.Join(resultPrefix, keyM), Value: []byte(valM)}
-						if _, err := kv.Put(key, nil); err != nil {
-							log.Printf("Query Task id: %q Failed to run query: %v", t.ID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
-							log.Debugf("%+v", err)
-							t.WithStatus(tasks.FAILED)
-							return
-						}
-					}
-				}
-			default:
-				events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown query name (%s) for Query Task with id: %q and target type: %q", queryName, t.ID, targetType))
-				log.Printf("Unknown targetType (%s) for task with id %q and targetId %q", targetType, t.ID, t.TargetID)
-				if t.Status() == tasks.RUNNING {
-					t.WithStatus(tasks.FAILED)
-				}
+			res, err := collector.GetUsageInfo(ctx, w.cfg, t.ID)
+			if err != nil {
+				log.Printf("Query Task id: %q Failed to run query: %v", t.ID, err)
+				log.Debugf("%+v", err)
+				t.WithStatus(tasks.FAILED)
 				return
 			}
+
+			// store resultSet
+			resultPrefix := path.Join(consulutil.TasksPrefix, t.ID, "resultSet")
+			if res != nil {
+				for keyM, valM := range res {
+					key := &api.KVPair{Key: path.Join(resultPrefix, keyM), Value: []byte(valM)}
+					if _, err := kv.Put(key, nil); err != nil {
+						log.Printf("Query Task id: %q Failed to run query: %v", t.ID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
+						log.Debugf("%+v", err)
+						t.WithStatus(tasks.FAILED)
+						return
+					}
+				}
+			}
 		default:
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown type (%s) for Query Task with id %q", targetType, t.ID))
-			log.Printf("Unknown target type (%s) for task with id %q and targetId %q", targetType, t.ID, t.TargetID)
+			mess := fmt.Sprintf("Unknown query: %q for Task with id %q", query, t.ID)
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(mess)
+			log.Printf(mess)
 			if t.Status() == tasks.RUNNING {
 				t.WithStatus(tasks.FAILED)
 			}

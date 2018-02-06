@@ -31,8 +31,8 @@ func (s *Server) listVaultsBuilderHandler(w http.ResponseWriter, r *http.Request
 	encodeJSONResponse(w, r, vaultsCollection)
 }
 
-func (s *Server) listResourcesProvidersHandler(w http.ResponseWriter, r *http.Request) {
-	providers := reg.ListResourcesProviders()
-	resourcesProvidersCollection := RegistryResourcesProvidersCollection{ResourcesProviders: providers}
-	encodeJSONResponse(w, r, resourcesProvidersCollection)
+func (s *Server) listInfraHandler(w http.ResponseWriter, r *http.Request) {
+	infras := reg.ListInfraUsageCollectors()
+	infraCollection := RegistryInfraUsageCollectorsCollection{InfrastructureUsageCollectors: infras}
+	encodeJSONResponse(w, r, infraCollection)
 }

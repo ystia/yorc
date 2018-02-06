@@ -733,14 +733,14 @@ Content-Type: application/json
 }
 ```
 
-### Get Resource Providers <a name="registry-providers"></a>
+### Get infrastructure usage collectors <a name="registry-infra"></a>
 
-Retrieves the list of resource providers and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+Retrieves the list of infrastructure usage collectors and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
 
-`GET /registry/resourcesProviders`
+`GET /registry/infra_usage_collectors`
 
 **Response**
 ```
@@ -749,7 +749,7 @@ Content-Type: application/json
 ```
 ```json
 {
-    "resources_providers": [
+    "infrastructures": [
         {
             "id": "slurm",
             "origin": "builtin"
@@ -758,27 +758,27 @@ Content-Type: application/json
 }
 ```
 
-## Resource Providers
+## Infrastructure Usage
 
-### Execute a query to retrieve resources usage for a specific provider <a name="resource-usage-query-exec"></a>
-Submit a query for a given resources provider to retrieve resources usage information.
+### Execute a query to retrieve infrastructure usage for a defined infrastructure usage collector <a name="infra-usage-query-exec"></a>
+Submit a query for a given infrastructure to retrieve usage information.
 'Content-Type' header should be set to 'application/json'.
 
-`POST    /providers/<provider_name>/resourcesUsage`
+`POST    /infra_usage/<infra_name>`
 
 **Response**
 ```
 HTTP/1.1 202 Accepted
 Content-Length: 0
-Location: /providers/slurm/tasks/277b47aa-9c8c-4936-837e-39261237cec4
+Location: /infra_usage/<infra_name>/tasks/<task_id>
 ```
 
 ### Get query information <a name="task-info"></a>
 
-Retrieve information about a task for a given resource provider.
+Retrieve information about a task for a given infrastructure usage collector.
 'Accept' header should be set to 'application/json'.
 
-`GET    /providers/<provider_name>/tasks/<taskId>`
+`GET    /infra_usage/<infra_name>/tasks/<taskId>`
 
 **Response**
 ```

@@ -25,14 +25,22 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 		return false
 	}
 
-	// First check that the targetId of the task is the deployment id
-	ttid, err := tasks.GetTaskTarget(kv, taskID)
+	// Get the task type
+	taskType, err := tasks.GetTaskType(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
-	if ttid != id {
-		writeError(w, r, newBadRequestError(errors.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
-		return false
+
+	// check that the targetId of the task is the deployment id if task not query-typed
+	if taskType != tasks.Query {
+		ttid, err := tasks.GetTaskTarget(kv, taskID)
+		if err != nil {
+			log.Panic(err)
+		}
+		if ttid != id {
+			writeError(w, r, newBadRequestError(errors.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
+			return false
+		}
 	}
 	return true
 }
@@ -75,7 +83,7 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(url, "/deployments") {
 		id = params.ByName("id")
 	} else {
-		id = params.ByName("providerName")
+		id = params.ByName("infraName")
 	}
 
 	if !s.tasksPreChecks(w, r, id, taskID) {

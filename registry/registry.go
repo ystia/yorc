@@ -53,16 +53,16 @@ type Registry interface {
 	// ListVaultClients returns a list of registered Vault Clients origin
 	ListVaultClientBuilders() []VaultClientBuilder
 
-	// RegisterResourcesProvider allows to register a resources Provider with its name as unique id
-	RegisterResourcesProvider(name string, resourcesProvider prov.ResourcesProvider, origin string)
+	// RegisterInfraUsageCollector allows to register an infrastructure usage collector with its name as unique id
+	RegisterInfraUsageCollector(name string, infraUsageCollector prov.InfrastructureUsageCollector, origin string)
 
-	// GetResourcesProvider returns a prov.ResourcesProvider from its name as unique id
+	// GetInfraUsageCollector returns a prov.Infrastructure from its name as unique id
 	//
-	// If the given id can't match any prov.ResourcesProvider an error is returned
-	GetResourcesProvider(name string) (prov.ResourcesProvider, error)
+	// If the given id can't match any prov.Infrastructure an error is returned
+	GetInfraUsageCollector(name string) (prov.InfrastructureUsageCollector, error)
 
-	// ListResourcesProvider returns a list of registered Resources Providers origin
-	ListResourcesProviders() []ResourcesProvider
+	// ListInfraUsageCollectors returns a list of registered infrastructure usage collectors origin
+	ListInfraUsageCollectors() []InfrastructureUsageCollector
 }
 
 var defaultReg Registry
@@ -104,24 +104,24 @@ type VaultClientBuilder struct {
 	Builder vault.ClientBuilder `json:"-"`
 }
 
-// ResourcesProvider represents a resources provider with its Name, Origin and Data content
-type ResourcesProvider struct {
-	Name     string                 `json:"id"`
-	Origin   string                 `json:"origin"`
-	Provider prov.ResourcesProvider `json:"-"`
+// InfrastructureUsageCollector represents an infrastructure usage collector with its Name, Origin and Data content
+type InfrastructureUsageCollector struct {
+	Name                string                            `json:"id"`
+	Origin              string                            `json:"origin"`
+	InfraUsageCollector prov.InfrastructureUsageCollector `json:"-"`
 }
 
 type defaultRegistry struct {
-	delegateMatches       []DelegateMatch
-	operationMatches      []OperationExecMatch
-	definitions           []Definition
-	vaultClientBuilders   []VaultClientBuilder
-	resourcesProviders    []ResourcesProvider
-	delegatesLock         sync.RWMutex
-	operationsLock        sync.RWMutex
-	definitionsLock       sync.RWMutex
-	vaultsLock            sync.RWMutex
-	resourcesProviderLock sync.RWMutex
+	delegateMatches          []DelegateMatch
+	operationMatches         []OperationExecMatch
+	definitions              []Definition
+	vaultClientBuilders      []VaultClientBuilder
+	infraUsageCollectors     []InfrastructureUsageCollector
+	delegatesLock            sync.RWMutex
+	operationsLock           sync.RWMutex
+	definitionsLock          sync.RWMutex
+	vaultsLock               sync.RWMutex
+	infraUsageCollectorsLock sync.RWMutex
 }
 
 func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.DelegateExecutor, origin string) {
@@ -243,27 +243,27 @@ func (r *defaultRegistry) ListVaultClientBuilders() []VaultClientBuilder {
 	return result
 }
 
-func (r *defaultRegistry) RegisterResourcesProvider(name string, resourcesProvider prov.ResourcesProvider, origin string) {
-	r.resourcesProviderLock.RLock()
-	defer r.resourcesProviderLock.RUnlock()
-	r.resourcesProviders = append([]ResourcesProvider{{Name: name, Origin: origin, Provider: resourcesProvider}})
+func (r *defaultRegistry) RegisterInfraUsageCollector(name string, infraUsageCollector prov.InfrastructureUsageCollector, origin string) {
+	r.infraUsageCollectorsLock.RLock()
+	defer r.infraUsageCollectorsLock.RUnlock()
+	r.infraUsageCollectors = append([]InfrastructureUsageCollector{{Name: name, Origin: origin, InfraUsageCollector: infraUsageCollector}})
 }
 
-func (r *defaultRegistry) GetResourcesProvider(name string) (prov.ResourcesProvider, error) {
-	r.resourcesProviderLock.RLock()
-	defer r.resourcesProviderLock.RUnlock()
-	for _, pr := range r.resourcesProviders {
+func (r *defaultRegistry) GetInfraUsageCollector(name string) (prov.InfrastructureUsageCollector, error) {
+	r.infraUsageCollectorsLock.RLock()
+	defer r.infraUsageCollectorsLock.RUnlock()
+	for _, pr := range r.infraUsageCollectors {
 		if pr.Name == name {
-			return pr.Provider, nil
+			return pr.InfraUsageCollector, nil
 		}
 	}
-	return nil, errors.Errorf("Unknown resources provider name: %q", name)
+	return nil, errors.Errorf("Unknown infra usage collector with name: %q", name)
 }
 
-func (r *defaultRegistry) ListResourcesProviders() []ResourcesProvider {
-	r.resourcesProviderLock.RLock()
-	defer r.resourcesProviderLock.RUnlock()
-	result := make([]ResourcesProvider, len(r.resourcesProviders))
-	copy(result, r.resourcesProviders)
+func (r *defaultRegistry) ListInfraUsageCollectors() []InfrastructureUsageCollector {
+	r.infraUsageCollectorsLock.RLock()
+	defer r.infraUsageCollectorsLock.RUnlock()
+	result := make([]InfrastructureUsageCollector, len(r.infraUsageCollectors))
+	copy(result, r.infraUsageCollectors)
 	return result
 }
