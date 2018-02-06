@@ -45,7 +45,7 @@ func (cm *consulManager) addWait(hostname string, conn Connection, tags map[stri
 	}
 
 	if conn.Password == "" && conn.PrivateKey == "" {
-		return errors.WithStack(badRequestError{`at least "password" or "private_key" is required for an host pool connection`})
+		return errors.WithStack(badRequestError{`at least "password" or "private_key" is required for a host pool connection`})
 	}
 
 	user := conn.User

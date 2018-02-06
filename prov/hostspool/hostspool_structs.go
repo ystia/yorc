@@ -35,7 +35,7 @@ func (hs *HostStatus) UnmarshalJSON(b []byte) error {
 
 // TODO support winrm for windows hosts
 
-// A Connection holds info used to connect to an host using SSH
+// A Connection holds info used to connect to a host using SSH
 type Connection struct {
 	// The User that we should use for the connection. Defaults to root.
 	User string `json:"user,omitempty"`

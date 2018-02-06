@@ -19,7 +19,7 @@ func IsHostNotFoundError(err error) bool {
 type hostAlreadyExistError struct{}
 
 func (e hostAlreadyExistError) Error() string {
-	return "an host with the same name already exists in the pool"
+	return "a host with the same name already exists in the pool"
 }
 
 // IsHostAlreadyExistError checks if an error is an "host already exists" error

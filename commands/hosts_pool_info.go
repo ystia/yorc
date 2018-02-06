@@ -14,9 +14,9 @@ import (
 
 func init() {
 	var getCmd = &cobra.Command{
-		Use:   "get <hostname>",
-		Short: "Get host pool",
-		Long:  `Gets the description of an host of the hosts pool managed by this Janus cluster.`,
+		Use:   "info <hostname>",
+		Short: "Get host pool info",
+		Long:  `Gets the description of a host of the hosts pool managed by this Janus cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
 			if len(args) != 1 {

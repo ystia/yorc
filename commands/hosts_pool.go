@@ -12,8 +12,8 @@ func init() {
 }
 
 var hostsPoolCmd = &cobra.Command{
-	Use:           "hpool",
-	Aliases:       []string{"hostspool", "hostpool", "hp"},
+	Use:           "hostspool",
+	Aliases:       []string{"hostpool", "hostsp", "hpool", "hp"},
 	Short:         "Perform commands on hosts pool",
 	Long:          `Allow to add, update and delete hosts pool`,
 	SilenceErrors: true,

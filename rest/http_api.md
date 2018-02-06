@@ -735,9 +735,9 @@ Content-Type: application/json
 
 ## Hosts Pool
 
-### Add an Host to the pool <a name="hostspool-add"></a>
+### Add a Host to the pool <a name="hostspool-add"></a>
 
-Adds an host to the hosts pool managed by this Janus cluster.
+Adds a host to the hosts pool managed by this Janus cluster.
 The connection object of the JSON request is mandatory while the tags list is optional.
 This tags list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
 
@@ -767,11 +767,11 @@ This tags list should be composed with elements with the "op" parameter set to "
 
 `HTTP/1.1 201 Created`
 
-Other possible response response codes are `400` if an host with the same `<hostname>` already exists or if  required parameters are missing.
+Other possible response response codes are `400` if a host with the same `<hostname>` already exists or if  required parameters are missing.
 
-### Update an Host of the pool <a name="hostspool-update"></a>
+### Update a Host of the pool <a name="hostspool-update"></a>
 
-Updates tags list or connection of an host of the hosts pool managed by this Janus cluster.
+Updates tags list or connection of a host of the hosts pool managed by this Janus cluster.
 
 Both connection and tags list object of the JSON request are optional.
 This tags list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
@@ -800,9 +800,9 @@ This tags list should be composed with elements with the "op" parameter set to "
 
 Other possible response response codes are `404` if the host doesn't exist in the pool or `400` if required parameters are missing.
 
-### Delete an Host from the pool <a name="hostspool-delete"></a>
+### Delete a Host from the pool <a name="hostspool-delete"></a>
 
-Deletes an host from the hosts pool managed by this Janus cluster.
+Deletes a host from the hosts pool managed by this Janus cluster.
 
 `DELETE /hosts_pool/<hostname>`
 
@@ -838,7 +838,7 @@ Content-Type: application/json
 
 ### Get Host in the pool <a name="hostspool-get"></a>
 
-Gets the description of an host of the hosts pool managed by this Janus cluster.
+Gets the description of a host of the hosts pool managed by this Janus cluster.
 
 'Accept' header should be set to 'application/json'.
 
