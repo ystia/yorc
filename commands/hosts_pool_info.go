@@ -3,11 +3,12 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"io/ioutil"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -51,16 +52,16 @@ func init() {
 			}
 
 			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Tags")
-			var tagsList string
-			for k, v := range host.Tags {
-				if tagsList != "" {
-					tagsList += ", "
+			hostsTable.AddHeaders("Name", "Connection", "Status", "Labels")
+			var labelsList string
+			for k, v := range host.Labels {
+				if labelsList != "" {
+					labelsList += ", "
 				}
-				tagsList += fmt.Sprintf("%s:%s", k, v)
+				labelsList += fmt.Sprintf("%s:%s", k, v)
 			}
 
-			hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), tagsList)
+			hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), labelsList)
 
 			if colorize {
 				defer color.Unset()

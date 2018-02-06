@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"log"
 	"net/http"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )

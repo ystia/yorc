@@ -1,16 +1,17 @@
 package commands
 
 import (
+	"net/http"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"net/http"
 )
 
 func init() {
 	var delCmd = &cobra.Command{
 		Use:   "delete <hostname>",
 		Short: "Delete host pool",
-		Long:  `Delete tags list or connection of a host of the hosts pool managed by this Janus cluster.`,
+		Long:  `Delete a host of the hosts pool managed by this Janus cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))

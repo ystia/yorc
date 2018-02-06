@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-
 	"net/http"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
-	"strings"
 )
 
 func init() {
@@ -50,25 +50,25 @@ var hpListCmd = &cobra.Command{
 		}
 
 		hostsTable := tabutil.NewTable()
-		hostsTable.AddHeaders("Name", "Connection", "Status", "Tags")
+		hostsTable.AddHeaders("Name", "Connection", "Status", "Labels")
 		for _, hostLink := range hostsColl.Hosts {
 			if hostLink.Rel == rest.LinkRelHost {
 				var host rest.Host
-				var tagsList string
+				var labelsList string
 
 				err = getJSONEntityFromAtomGetRequest(client, hostLink, &host)
 				if err != nil {
 					errExit(err)
 				}
 
-				for k, v := range host.Tags {
-					if tagsList != "" {
-						tagsList += ", "
+				for k, v := range host.Labels {
+					if labelsList != "" {
+						labelsList += ", "
 					}
-					tagsList += fmt.Sprintf("%s:%s", k, v)
+					labelsList += fmt.Sprintf("%s:%s", k, v)
 				}
 
-				hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), tagsList)
+				hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), labelsList)
 			}
 		}
 		if colorize {

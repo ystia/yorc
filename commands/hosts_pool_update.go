@@ -2,9 +2,10 @@ package commands
 
 import (
 	"bytes"
+	"net/http"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"net/http"
 )
 
 func init() {
@@ -13,7 +14,7 @@ func init() {
 	var updCmd = &cobra.Command{
 		Use:   "update <hostname>",
 		Short: "Update host pool",
-		Long:  `Update tags list or connection of a host of the hosts pool managed by this Janus cluster.`,
+		Long:  `Update labels list or connection of a host of the hosts pool managed by this Janus cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
