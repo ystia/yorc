@@ -519,7 +519,7 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) error {
 	op := strings.ToLower(operationName)
 	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") {
-		// Do not call the call the operation several time for an HostedOn relationship (makes no sense till we scale at compute level)
+		// Do not call the call the operation several time for a "HostedOn" relationship (makes no sense till we scale at compute level)
 		if hostedOn, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn"); err != nil || hostedOn {
 			e.isPerInstanceOperation = false
 			return err

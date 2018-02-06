@@ -241,3 +241,114 @@ Flags:
   * ``-w``, ``--workflow-name``: The workflows name (**mandatory**)
   * ``--horizontal``: Draw graph with an horizontal layout. (layout is vertical by default)
 
+CLI Commands related to hosts pool
+-----------------------------------
+
+All hosts pool related commands are sub-commands of a command named ``hostspool``.
+In practice that means that the commands starts with
+
+.. code-block:: bash
+
+    janus hostspool
+
+For brevity ``hostspool`` supports the following aliases: ``hostpool``, ``hostsp``, ``hpool`` and ``hp``.
+
+Add a host pool
+~~~~~~~~~~~~~
+
+Adds a host to the hosts pool managed by this Janus cluster.
+The <hostname> should not already exists.
+The connection object of the JSON request is mandatory while the tags list is optional.
+This tags list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
+
+.. code-block:: bash
+
+     janus hostspool add <hostname> [flags]
+
+Flags:
+  * ``--data`` or ``-d`` :  Specify a json format for the host pool to add. The Json format for the host pool is described below.
+  * ``--key`` or ``-k`` : Specify a private key to access host if no host connection is defined in json format. (**mandatory if no password is defined**)
+  * ``--pwd`` or ``-p`` : Specify a password to access host if no host connection is defined in json format. (**mandatory if no private key is defined**)
+
+Host pool (JSON):
+
+.. code-block:: JSON
+
+    {
+      "connection": {
+        "host": "defaults_to_<hostname>",
+        "user": "defaults_to_root",
+        "port": "defaults_to_22",
+        "private_key": "one_of_password_or_private_key_required",
+        "password": "one_of_password_or_private_key_required"
+      },
+      "tags": [
+        {"name": "os", "value": "linux"},
+        {"op": "add", "name": "memory", "value": "4G"}
+      ]
+    }
+
+Update a host pool
+~~~~~~~~~~~~~
+
+Update tags list or connection of a host of the hosts pool managed by this Janus cluster.
+The <hostname> should  exists.
+Both connection and tags list object of the JSON request are optional.
+This tags list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
+
+.. code-block:: bash
+
+     janus hostspool update <hostname> [flags]
+
+Flags:
+  * ``--data`` or ``-d`` :  Specify a json format for the host pool to update. The Json format for the host pool is described below.
+
+Host pool (JSON):
+
+.. code-block:: JSON
+
+    {
+      "connection": {
+        "host": "defaults_to_<hostname>",
+        "user": "defaults_to_root",
+        "port": "defaults_to_22",
+        "private_key": "one_of_password_or_private_key_required",
+        "password": "one_of_password_or_private_key_required"
+      },
+      "tags": [
+        {"name": "os", "value": "linux"},
+        {"op": "add", "name": "memory", "value": "4G"}
+      ]
+    }
+
+Delete a host pool
+~~~~~~~~~~~~~
+
+Deletes a host from the hosts pool managed by this Janus cluster.
+The <hostname> should  exists.
+
+.. code-block:: bash
+
+     janus hostspool delete <hostname>
+
+
+List hosts in the pool
+~~~~~~~~~~~~~
+
+Lists hosts of the hosts pool managed by this Janus cluster.
+
+.. code-block:: bash
+
+     janus hostspool list
+
+
+Get information on a specific host in the pool
+~~~~~~~~~~~~~
+
+Gets the description of a host of the hosts pool managed by this Janus cluster.
+
+.. code-block:: bash
+
+     janus hostspool info <hostname>
+
+

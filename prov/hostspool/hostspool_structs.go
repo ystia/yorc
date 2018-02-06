@@ -5,6 +5,7 @@ package hostspool
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -37,7 +38,7 @@ func (hs *HostStatus) UnmarshalJSON(b []byte) error {
 
 // TODO support winrm for windows hosts
 
-// A Connection holds info used to connect to an host using SSH
+// A Connection holds info used to connect to a host using SSH
 type Connection struct {
 	// The User that we should use for the connection. Defaults to root.
 	User string `json:"user,omitempty"`
@@ -49,6 +50,19 @@ type Connection struct {
 	Host string `json:"host,omitempty"`
 	// The Port to connect to. Defaults to 22 if set to 0.
 	Port uint64 `json:"port,omitempty"`
+}
+
+// String allows to stringify a connection
+func (conn Connection) String() string {
+	var pass, key string
+	if conn.Password != "" {
+		pass = "password: " + conn.Password + ", "
+	}
+	if conn.PrivateKey != "" {
+		key = "private key: " + conn.PrivateKey + ", "
+	}
+
+	return "user: " + conn.User + ", " + pass + key + "host: " + conn.Host + ", " + "port: " + strconv.FormatUint(conn.Port, 10)
 }
 
 // An Host holds information on an Host as it is known by the hostspool
