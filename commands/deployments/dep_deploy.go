@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -30,9 +31,9 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a path to a file or directory (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			absPath, err := filepath.Abs(args[0])
 			if err != nil {
@@ -42,24 +43,24 @@ func init() {
 			if err != nil {
 				return err
 			}
-			var location string = ""
+			var location = ""
 			if !fileInfo.IsDir() {
 				file, err := os.Open(absPath)
 				if err != nil {
-					errExit(err)
+					httputil.ErrExit(err)
 				}
 
 				defer file.Close()
 
 				buff, err := ioutil.ReadAll(file)
 				if err != nil {
-					errExit(err)
+					httputil.ErrExit(err)
 				}
 				fileType := http.DetectContentType(buff)
 				if fileType == "application/zip" {
 					location, err = submitCSAR(buff, client, deploymentID)
 					if err != nil {
-						errExit(err)
+						httputil.ErrExit(err)
 					}
 				}
 			}
@@ -67,12 +68,12 @@ func init() {
 			if location == "" {
 				csarZip, err := ziputil.ZipPath(absPath)
 				if err != nil {
-					errExit(err)
+					httputil.ErrExit(err)
 				}
 				location, err = submitCSAR(csarZip, client, deploymentID)
 
 				if err != nil {
-					errExit(err)
+					httputil.ErrExit(err)
 				}
 			}
 			taskID := path.Base(location)
@@ -81,9 +82,9 @@ func init() {
 			}
 			fmt.Printf("Deployment submitted. Deployment Id: %s\t(Deployment Task Id: %s)\n", deploymentID, taskID)
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(client, deploymentID, !noColor, true, false)
+				StreamsLogs(client, deploymentID, !NoColor, true, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(client, deploymentID, !noColor, true, false)
+				StreamsEvents(client, deploymentID, !NoColor, true, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
@@ -95,10 +96,10 @@ func init() {
 	// Do not impose a max id length as it doesn't have a concrete impact for now
 	//deployCmd.PersistentFlags().StringVarP(&deploymentID, "id", "", "", fmt.Sprintf("Specify a id for this deployment. This id should not already exists, should respect the following format: %q and should be less than %d characters long", rest.JanusDeploymentIDPattern, rest.JanusDeploymentIDMaxLength))
 	deployCmd.PersistentFlags().StringVarP(&deploymentID, "id", "", "", fmt.Sprintf("Specify a id for this deployment. This id should not already exists, should respect the following format: %q", rest.JanusDeploymentIDPattern))
-	deploymentsCmd.AddCommand(deployCmd)
+	DeploymentsCmd.AddCommand(deployCmd)
 }
 
-func submitCSAR(csarZip []byte, client *janusClient, deploymentID string) (string, error) {
+func submitCSAR(csarZip []byte, client *httputil.JanusClient, deploymentID string) (string, error) {
 	var request *http.Request
 	var err error
 	if deploymentID != "" {
@@ -117,7 +118,7 @@ func submitCSAR(csarZip []byte, client *janusClient, deploymentID string) (strin
 	}
 	if response.StatusCode != 201 {
 		// Try to get the reason
-		printErrors(response.Body)
+		httputil.PrintErrors(response.Body)
 		return "", errors.Errorf("POST failed: Expecting HTTP Status code 201 got %d, reason %q", response.StatusCode, response.Status)
 	}
 	if location := response.Header.Get("Location"); location != "" {

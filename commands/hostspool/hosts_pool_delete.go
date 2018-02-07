@@ -1,10 +1,10 @@
-package commands
+package hostspool
 
 import (
-	"net/http"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -16,23 +16,23 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			request, err := client.NewRequest("DELETE", "/hosts_pool/"+args[0], nil)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
-			handleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
 			return nil
 		},
 	}

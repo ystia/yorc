@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -21,9 +22,9 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			url := "/deployments/" + args[0]
@@ -33,22 +34,22 @@ func init() {
 
 			request, err := client.NewRequest("DELETE", url, nil)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
-			handleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
+			httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
 
 			fmt.Println("Undeployment submitted. In progress...")
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(client, args[0], !noColor, false, false)
+				StreamsLogs(client, args[0], !NoColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(client, args[0], !noColor, false, false)
+				StreamsEvents(client, args[0], !NoColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
@@ -57,7 +58,7 @@ func init() {
 		},
 	}
 
-	deploymentsCmd.AddCommand(undeployCmd)
+	DeploymentsCmd.AddCommand(undeployCmd)
 	undeployCmd.PersistentFlags().BoolVarP(&purge, "purge", "p", false, "To use if you want to purge instead of undeploy")
 	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after undeploying the application. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 	undeployCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after undeploying the CSAR.")

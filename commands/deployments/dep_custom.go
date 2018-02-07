@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -26,9 +27,9 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			if len(jsonParam) == 0 && len(nodeName) == 0 {
 				return errors.Errorf("You need to provide a JSON or complete the arguments")
@@ -56,17 +57,17 @@ func init() {
 
 			request, err := client.NewRequest("POST", "/deployments/"+args[0]+"/custom", bytes.NewBuffer([]byte(jsonParam)))
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			request.Header.Add("Content-Type", "application/json")
 
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
-			handleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
+			httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusAccepted)
 			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
 			return nil
 		},
@@ -75,5 +76,5 @@ func init() {
 	customCmd.PersistentFlags().StringVarP(&nodeName, "node", "n", "", "Provide the node name (use with flag c and i)")
 	customCmd.PersistentFlags().StringVarP(&customCName, "custom", "c", "", "Provide the custom command name (use with flag n and i)")
 	customCmd.PersistentFlags().StringSliceVarP(&inputs, "inputsMap", "i", make([]string, 0), "Provide the input for the custom command (use with flag c and n)")
-	deploymentsCmd.AddCommand(customCmd)
+	DeploymentsCmd.AddCommand(customCmd)
 }

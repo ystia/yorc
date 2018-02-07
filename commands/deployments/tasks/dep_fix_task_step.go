@@ -1,4 +1,4 @@
-package commands
+package tasks
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
@@ -26,9 +27,9 @@ var updateTaskStepCmd = &cobra.Command{
 		if len(args) != 3 {
 			return errors.Errorf("Expecting a deployment id, a task id and a step name(got %d parameters)", len(args))
 		}
-		client, err := getClient()
+		client, err := httputil.GetClient()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 
 		// The task step status is set to "done"
@@ -41,17 +42,17 @@ var updateTaskStepCmd = &cobra.Command{
 		url := path.Join("/deployments", args[0], "tasks", args[1], "steps", args[2])
 		request, err := client.NewRequest("PUT", url, bytes.NewBuffer(body))
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 
 		request.Header.Add("Content-Type", "application/json")
 		response, err := client.Do(request)
 		defer response.Body.Close()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		ids := args[0] + "/" + args[1]
-		handleHTTPStatusCode(response, ids, "deployment/task/step", http.StatusOK)
+		httputil.HandleHTTPStatusCode(response, ids, "deployment/task/step", http.StatusOK)
 		return nil
 	},
 }

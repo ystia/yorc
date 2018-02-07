@@ -1,14 +1,14 @@
-package commands
+package hostspool
 
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"io/ioutil"
+	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -23,32 +23,32 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			request, err := client.NewRequest("GET", "/hosts_pool/"+args[0], nil)
 			request.Header.Add("Accept", "application/json")
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
-			handleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
 			var host rest.Host
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			err = json.Unmarshal(body, &host)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			hostsTable := tabutil.NewTable()

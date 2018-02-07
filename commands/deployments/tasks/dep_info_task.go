@@ -1,4 +1,4 @@
-package commands
+package tasks
 
 import (
 	"encoding/json"
@@ -13,6 +13,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/deployments"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
@@ -28,33 +30,33 @@ func init() {
 			if len(args) != 2 {
 				return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			url := path.Join("/deployments", args[0], "/tasks/", args[1])
 			request, err := client.NewRequest("GET", url, nil)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			ids := args[0] + "/" + args[1]
-			handleHTTPStatusCode(response, ids, "deployment/task", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, ids, "deployment/task", http.StatusOK)
 			var task rest.Task
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			err = json.Unmarshal(body, &task)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			fmt.Println("Task: ", task.ID)
 			fmt.Println("Task status:", task.Status)
@@ -72,30 +74,30 @@ func init() {
 	tasksCmd.AddCommand(infoTaskCmd)
 }
 
-func displayStepTables(client *janusClient, args []string) {
-	colorize := !noColor
+func displayStepTables(client *httputil.JanusClient, args []string) {
+	colorize := !deployments.NoColor
 	if colorize {
 		commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(commErrorMsg)
 	}
 	request, err := client.NewRequest("GET", "/deployments/"+args[0]+"/tasks/"+args[1]+"/steps", nil)
 	if err != nil {
-		errExit(err)
+		httputil.ErrExit(err)
 	}
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
 	defer response.Body.Close()
 	if err != nil {
-		errExit(err)
+		httputil.ErrExit(err)
 	}
-	handleHTTPStatusCode(response, args[0], "step", http.StatusOK)
+	httputil.HandleHTTPStatusCode(response, args[0], "step", http.StatusOK)
 	var steps []tasks.TaskStep
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		errExit(err)
+		httputil.ErrExit(err)
 	}
 	err = json.Unmarshal(body, &steps)
 	if err != nil {
-		errExit(err)
+		httputil.ErrExit(err)
 	}
 	if colorize {
 		defer color.Unset()

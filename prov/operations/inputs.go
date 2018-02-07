@@ -25,7 +25,7 @@ func (ei EnvInput) String() string {
 	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q]", ei.Name, ei.Value, ei.InstanceName)
 }
 
-//
+// ResolveInputs allows to resolve inputs for an operation
 func ResolveInputs(kv *api.KV, deploymentID, nodeName, taskID string, operation prov.Operation) ([]*EnvInput, []string, error) {
 	sourceInstances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {

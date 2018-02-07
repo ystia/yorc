@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"fmt"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -35,9 +36,9 @@ func init() {
 				return errors.New("Missing non-zero \"delta\" flag")
 			}
 
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			deploymentID := args[0]
 
@@ -48,9 +49,9 @@ func init() {
 
 			fmt.Println("Scaling request submitted. Task Id:", path.Base(location))
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(client, deploymentID, !noColor, false, false)
+				StreamsLogs(client, deploymentID, !NoColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(client, deploymentID, !noColor, false, false)
+				StreamsEvents(client, deploymentID, !NoColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}
@@ -61,13 +62,13 @@ func init() {
 	scaleCmd.PersistentFlags().Int32VarP(&instancesDelta, "delta", "d", 0, "The non-zero number of instance to add (if > 0) or remove (if < 0).")
 	scaleCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after issuing the scaling request. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 	scaleCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after  issuing the scaling request.")
-	deploymentsCmd.AddCommand(scaleCmd)
+	DeploymentsCmd.AddCommand(scaleCmd)
 }
 
-func postScalingRequest(client *janusClient, deploymentID, nodeName string, instancesDelta int32) (string, error) {
+func postScalingRequest(client *httputil.JanusClient, deploymentID, nodeName string, instancesDelta int32) (string, error) {
 	request, err := client.NewRequest("POST", path.Join("/deployments", deploymentID, "scale", nodeName), nil)
 	if err != nil {
-		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
+		httputil.ErrExit(errors.Wrap(err, httputil.JanusAPIDefaultErrorMsg))
 	}
 
 	query := request.URL.Query()
@@ -80,11 +81,11 @@ func postScalingRequest(client *janusClient, deploymentID, nodeName string, inst
 	response, err := client.Do(request)
 	defer response.Body.Close()
 	if err != nil {
-		errExit(errors.Wrap(err, janusAPIDefaultErrorMsg))
+		httputil.ErrExit(errors.Wrap(err, httputil.JanusAPIDefaultErrorMsg))
 	}
 
 	ids := deploymentID + "/" + nodeName
-	handleHTTPStatusCode(response, ids, "deployment/node", http.StatusAccepted)
+	httputil.HandleHTTPStatusCode(response, ids, "deployment/node", http.StatusAccepted)
 	location := response.Header.Get("Location")
 	if location == "" {
 		return "", errors.New("No \"Location\" header returned in Janus response")

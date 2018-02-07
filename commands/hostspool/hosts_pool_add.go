@@ -1,14 +1,14 @@
-package commands
+package hostspool
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"log"
+	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -26,9 +26,9 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			if len(jsonParam) == 0 && len(privateKey) == 0 && len(password) == 0 {
 				return errors.Errorf("You need to provide either JSON with connection information or private key or password for the host pool")
@@ -50,17 +50,17 @@ func init() {
 
 			request, err := client.NewRequest("PUT", "/hosts_pool/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			request.Header.Add("Content-Type", "application/json")
 
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
-			handleHTTPStatusCode(response, args[0], "host pool", http.StatusCreated)
+			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusCreated)
 			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
 			return nil
 		},

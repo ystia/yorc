@@ -1,4 +1,4 @@
-package commands
+package workflows
 
 import (
 	"encoding/json"
@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/tmc/dot"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -24,34 +25,34 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			if workflowName == "" {
 				return errors.New("Missing mandatory \"workflow-name\" parameter")
 			}
 			request, err := client.NewRequest("GET", fmt.Sprintf("/deployments/%s/workflows/%s", args[0], workflowName), nil)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			ids := args[0] + "/" + workflowName
-			handleHTTPStatusCode(response, ids, "deployment/workflow", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, ids, "deployment/workflow", http.StatusOK)
 
 			var wf rest.Workflow
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			err = json.Unmarshal(body, &wf)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			graph := dot.NewGraph("Workflow " + workflowName)

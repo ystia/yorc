@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"encoding/json"
@@ -18,12 +18,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
-var commErrorMsg = "Janus API communication error"
+var commErrorMsg = httputil.JanusAPIDefaultErrorMsg
 
 func init() {
 	var detailedInfo bool
@@ -37,33 +38,33 @@ It prints the deployment status and the status of all the nodes contained in thi
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
-			colorize := !noColor
+			colorize := !NoColor
 			if colorize {
-				commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(commErrorMsg)
+				commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(httputil.JanusAPIDefaultErrorMsg)
 			}
 			request, err := client.NewRequest("GET", "/deployments/"+args[0], nil)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
-			handleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
 			var dep rest.Deployment
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			err = json.Unmarshal(body, &dep)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			fmt.Println("Deployment: ", dep.ID)
 
@@ -88,10 +89,10 @@ It prints the deployment status and the status of all the nodes contained in thi
 	}
 	infoCmd.PersistentFlags().BoolVarP(&detailedInfo, "detailed", "d", false, "Add details to the info command making it less concise and readable.")
 
-	deploymentsCmd.AddCommand(infoCmd)
+	DeploymentsCmd.AddCommand(infoCmd)
 }
 
-func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, colorize bool) []error {
+func tableBasedDeploymentRendering(client *httputil.JanusClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	nodesTable := tabutil.NewTable()
 	nodesTable.AddHeaders("Node", "Statuses")
@@ -107,7 +108,7 @@ func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, col
 		if atomLink.Rel == rest.LinkRelNode {
 			var node rest.Node
 
-			err = getJSONEntityFromAtomGetRequest(client, atomLink, &node)
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, atomLink, &node)
 			if err != nil {
 				errs = append(errs, err)
 				nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
@@ -118,7 +119,7 @@ func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, col
 			for _, nodeLink := range node.Links {
 				if nodeLink.Rel == rest.LinkRelInstance {
 					var instance rest.NodeInstance
-					err = getJSONEntityFromAtomGetRequest(client, nodeLink, &instance)
+					err = httputil.GetJSONEntityFromAtomGetRequest(client, nodeLink, &instance)
 					if err != nil {
 						errs = append(errs, err)
 						nodesTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
@@ -140,17 +141,17 @@ func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, col
 			nodesTable.AddRow(node.Name, buffer.String())
 		} else if atomLink.Rel == rest.LinkRelTask {
 			var task rest.Task
-			err = getJSONEntityFromAtomGetRequest(client, atomLink, &task)
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, atomLink, &task)
 			if err != nil {
 				errs = append(errs, err)
 				tasksTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 				continue
 			}
-			tasksTable.AddRow(task.ID, task.Type, getColoredTaskStatus(colorize, task.Status))
+			tasksTable.AddRow(task.ID, task.Type, GetColoredTaskStatus(colorize, task.Status))
 		} else if atomLink.Rel == rest.LinkRelOutput {
 			var output rest.Output
 
-			err = getJSONEntityFromAtomGetRequest(client, atomLink, &output)
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, atomLink, &output)
 			if err != nil {
 				errs = append(errs, err)
 				outputsTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
@@ -171,7 +172,7 @@ func tableBasedDeploymentRendering(client *janusClient, dep rest.Deployment, col
 	return errs
 }
 
-func detailedDeploymentRendering(client *janusClient, dep rest.Deployment, colorize bool) []error {
+func detailedDeploymentRendering(client *httputil.JanusClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	var err error
 	nodesList := []string{"Nodes:"}
@@ -182,7 +183,7 @@ func detailedDeploymentRendering(client *janusClient, dep rest.Deployment, color
 		if atomLink.Rel == rest.LinkRelNode {
 			var node rest.Node
 
-			err = getJSONEntityFromAtomGetRequest(client, atomLink, &node)
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, atomLink, &node)
 			if err != nil {
 				errs = append(errs, err)
 				nodesList = append(nodesList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
@@ -193,7 +194,7 @@ func detailedDeploymentRendering(client *janusClient, dep rest.Deployment, color
 			for _, nodeLink := range node.Links {
 				if nodeLink.Rel == rest.LinkRelInstance {
 					var inst rest.NodeInstance
-					err = getJSONEntityFromAtomGetRequest(client, nodeLink, &inst)
+					err = httputil.GetJSONEntityFromAtomGetRequest(client, nodeLink, &inst)
 					if err != nil {
 						errs = append(errs, err)
 						nodesList = append(nodesList, fmt.Sprintf("      - %s: %s", path.Base(nodeLink.Href), commErrorMsg))
@@ -204,7 +205,7 @@ func detailedDeploymentRendering(client *janusClient, dep rest.Deployment, color
 					for _, instanceLink := range inst.Links {
 						if instanceLink.Rel == rest.LinkRelAttribute {
 							var attr rest.Attribute
-							err = getJSONEntityFromAtomGetRequest(client, instanceLink, &attr)
+							err = httputil.GetJSONEntityFromAtomGetRequest(client, instanceLink, &attr)
 							if err != nil {
 								errs = append(errs, err)
 								nodesList = append(nodesList, fmt.Sprintf("          - %s: %s", path.Base(instanceLink.Href), commErrorMsg))
@@ -217,7 +218,7 @@ func detailedDeploymentRendering(client *janusClient, dep rest.Deployment, color
 			}
 		} else if atomLink.Rel == rest.LinkRelTask {
 			var task rest.Task
-			err = getJSONEntityFromAtomGetRequest(client, atomLink, &task)
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, atomLink, &task)
 			if err != nil {
 				errs = append(errs, err)
 				tasksList = append(tasksList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
@@ -225,11 +226,11 @@ func detailedDeploymentRendering(client *janusClient, dep rest.Deployment, color
 			}
 			tasksList = append(tasksList, fmt.Sprintf("  - %s:", task.ID))
 			tasksList = append(tasksList, fmt.Sprintf("      type: %s", task.Type))
-			tasksList = append(tasksList, fmt.Sprintf("      status: %s", getColoredTaskStatus(colorize, task.Status)))
+			tasksList = append(tasksList, fmt.Sprintf("      status: %s", GetColoredTaskStatus(colorize, task.Status)))
 		} else if atomLink.Rel == rest.LinkRelOutput {
 			var output rest.Output
 
-			err = getJSONEntityFromAtomGetRequest(client, atomLink, &output)
+			err = httputil.GetJSONEntityFromAtomGetRequest(client, atomLink, &output)
 			if err != nil {
 				errs = append(errs, err)
 				outputsList = append(outputsList, fmt.Sprintf("  - %s: %s", path.Base(atomLink.Href), commErrorMsg))
@@ -285,7 +286,8 @@ func getColoredNodeStatus(colorize bool, status string) string {
 	}
 }
 
-func getColoredTaskStatus(colorize bool, status string) string {
+// GetColoredTaskStatus allows to color status on CLI
+func GetColoredTaskStatus(colorize bool, status string) string {
 	if !colorize {
 		return status
 	}

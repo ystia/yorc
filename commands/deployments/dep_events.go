@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -35,22 +36,23 @@ func init() {
 				return errors.Errorf("Expecting one deployment id or none (got %d parameters)", len(args))
 			}
 
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
-			colorize := !noColor
+			colorize := !NoColor
 
-			streamsEvents(client, deploymentID, colorize, fromBeginning, noStream)
+			StreamsEvents(client, deploymentID, colorize, fromBeginning, noStream)
 			return nil
 		},
 	}
 	eventCmd.PersistentFlags().BoolVarP(&fromBeginning, "from-beginning", "b", false, "Show events from the beginning of deployments")
 	eventCmd.PersistentFlags().BoolVarP(&noStream, "no-stream", "n", false, "Show events then exit. Do not stream events. It implies --from-beginning")
-	deploymentsCmd.AddCommand(eventCmd)
+	DeploymentsCmd.AddCommand(eventCmd)
 }
 
-func streamsEvents(client *janusClient, deploymentID string, colorize, fromBeginning, stop bool) {
+// StreamsEvents allows to stream events
+func StreamsEvents(client *httputil.JanusClient, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}
@@ -61,19 +63,19 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 	if !fromBeginning && !stop {
 		if deploymentID != "" {
 			response, err = client.Head("/deployments/" + deploymentID + "/events")
-			handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		} else {
 			response, err = client.Head("/events")
 		}
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		// Get last index
 		idxHd := response.Header.Get(rest.JanusIndexHeader)
 		if idxHd != "" {
 			lastIdx, err = strconv.ParseUint(idxHd, 10, 64)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			fmt.Println("Streaming new events...")
 		} else {
@@ -87,25 +89,25 @@ func streamsEvents(client *janusClient, deploymentID string, colorize, fromBegin
 			request, err = client.NewRequest("GET", fmt.Sprintf("/events?index=%d", lastIdx), nil)
 		}
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		if deploymentID != "" {
-			handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		}
 
 		var evts rest.EventsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		err = json.Unmarshal(body, &evts)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		if lastIdx == evts.LastIndex {
 			continue

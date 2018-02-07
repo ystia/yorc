@@ -1,17 +1,18 @@
-package commands
+package hostspool
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+
 	"net/http"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
+	"strings"
 )
 
 func init() {
@@ -24,29 +25,29 @@ var hpListCmd = &cobra.Command{
 	Long:  `Lists hosts of the hosts pool managed by this Janus cluster.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		colorize := !noColor
-		client, err := getClient()
+		client, err := httputil.GetClient()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		request, err := client.NewRequest("GET", "/hosts_pool", nil)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
 		defer response.Body.Close()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
-		handleHTTPStatusCode(response, "", "host pool", http.StatusOK)
+		httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
 		var hostsColl rest.HostsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		err = json.Unmarshal(body, &hostsColl)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 
 		hostsTable := tabutil.NewTable()
@@ -56,9 +57,9 @@ var hpListCmd = &cobra.Command{
 				var host rest.Host
 				var labelsList string
 
-				err = getJSONEntityFromAtomGetRequest(client, hostLink, &host)
+				err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &host)
 				if err != nil {
-					errExit(err)
+					httputil.ErrExit(err)
 				}
 
 				for k, v := range host.Labels {
