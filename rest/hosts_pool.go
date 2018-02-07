@@ -174,8 +174,11 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
-
-	hostsNames, err := s.hostsPoolMgr.List()
+	filters := r.URL.Query()["filter"]
+	if filters == nil {
+		filters = make([]string, 0, 0)
+	}
+	hostsNames, err := s.hostsPoolMgr.List(filters...)
 	if err != nil {
 		log.Panic(err)
 	}

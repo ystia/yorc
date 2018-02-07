@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
 )
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
@@ -436,10 +437,19 @@ func (cm *consulManager) List(filters ...string) ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for i := range hosts {
-		hosts[i] = path.Base(hosts[i])
+	results := hosts[:0]
+	for _, host := range hosts {
+		host = path.Base(host)
+		labels, err := cm.GetHostLabels(host)
+		if err != nil {
+			return nil, err
+		}
+		ok, err := labelsutil.MatchesAll(labels, filters...)
+		if err == nil && ok {
+			results = append(results, host)
+		}
 	}
-	return hosts, nil
+	return results, nil
 }
 
 func (cm *consulManager) setHostStatus(hostname string, status HostStatus) error {

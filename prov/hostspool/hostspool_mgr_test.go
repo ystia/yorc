@@ -442,4 +442,8 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 	err = cm.updateConnWait("concurrent_host1", Connection{}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
+	_, err = cm.allocateWait(500 * time.Millisecond)
+	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")
+	err = cm.releaseWait("concurrent_host1", 500*time.Millisecond)
+	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
 }
