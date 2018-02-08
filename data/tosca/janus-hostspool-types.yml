@@ -11,7 +11,7 @@ node_types:
   janus.nodes.hostspool.Compute:
     derived_from: tosca.nodes.Compute
     properties:
-      tags:
+      filters:
         type: list
         entry_schema:
           type: string
