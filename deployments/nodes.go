@@ -331,11 +331,10 @@ func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string,
 }
 
 // SetNodeInstanceAttribute sets an attribute value to a node instance
+//
+// Deprecated: Use SetInstanceAttribute
 func SetNodeInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName, attributeValue string) error {
-	keyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	kvp := &api.KVPair{Key: keyPath, Value: []byte(attributeValue)}
-	_, err := kv.Put(kvp, nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return SetInstanceAttribute(deploymentID, nodeName, instanceName, attributeName, attributeValue)
 }
 
 // GetNodes returns the names of the different nodes for a given deployment.
