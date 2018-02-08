@@ -58,7 +58,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		events.OperationName: delegateOperation,
 	}
 
-	e.client, err = getSSHClient(cfg)
+	e.client, err = GetSSHClient(cfg)
 	if err != nil {
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
 		return err

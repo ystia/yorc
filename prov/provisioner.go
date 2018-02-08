@@ -66,9 +66,9 @@ type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
 }
 
-// InfrastructureUsageCollector is the interface for collecting information about infrastructure usage
+// InfraUsageCollector is the interface for collecting information about infrastructure usage
 //
-// GetResourcesUsage returns data about infrastructure usage for defined infrastructure
-type InfrastructureUsageCollector interface {
+// GetUsageInfo returns data about infrastructure usage for defined infrastructure
+type InfraUsageCollector interface {
 	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID string) (map[string]string, error)
 }

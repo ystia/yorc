@@ -14,8 +14,8 @@ import (
 	"strings"
 )
 
-// getSSHClient returns a SSH client with slurm configuration credentials usage
-func getSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
+// GetSSHClient returns a SSH client with slurm configuration credentials usage
+func GetSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
 	// Check slurm configuration
 	if err := checkInfraConfig(cfg); err != nil {
 		log.Printf("Unable to provide SSH client due to:%+v", err)
@@ -172,42 +172,6 @@ func cancelJobID(jobID string, client *sshutil.SSHClient) error {
 	sCancelOutput, err := client.RunCommand(scancelCmd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to cancel Slurm job: %s:", sCancelOutput)
-	}
-	return nil
-}
-
-func getCPUInfo(data map[string]string, client sshutil.Client) error {
-	cpuInfoCmd := fmt.Sprintf("sinfo -h -o \"%%O,%%C\"")
-	output, err := client.RunCommand(cpuInfoCmd)
-	if err != nil {
-		return err
-	}
-	split := strings.Split(output, ",")
-	if len(split) != 2 {
-		return fmt.Errorf("Unexpected output format for sinfo command:%q" + output)
-	}
-	data["cpu_load"] = strings.Trim(split[0], "\" \t\n")
-	splitNbCpus := strings.Split(split[1], "/")
-	if len(splitNbCpus) != 4 {
-		return fmt.Errorf("Unexpected output format for sinfo command:%q" + output)
-	}
-	data["allocated_state_cpus"] = strings.Trim(splitNbCpus[0], "\" \t\n")
-	data["idle_state_cpus"] = strings.Trim(splitNbCpus[1], "\" \t\n")
-	data["other_state_cpus"] = strings.Trim(splitNbCpus[2], "\" \t\n")
-	data["total_cpus"] = strings.Trim(splitNbCpus[3], "\" \t\n")
-
-	return nil
-}
-
-func getJobInfo(data map[string]string, client sshutil.Client) error {
-	states := []string{"PENDING", "RUNNING"}
-	for _, state := range states {
-		jobInfoCmd := fmt.Sprintf("squeue -h -t %s | wc -l", state)
-		output, err := client.RunCommand(jobInfoCmd)
-		if err != nil {
-			return err
-		}
-		data[fmt.Sprintf("nb_%s_jobs", strings.ToLower(state))] = strings.Trim(output, "\" \t\n")
 	}
 	return nil
 }

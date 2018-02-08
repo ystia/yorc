@@ -5,6 +5,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/log"
+	"novaforge.bull.com/starlings-janus/janus/registry"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
@@ -13,6 +14,15 @@ func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params = ctx.Value("params").(httprouter.Params)
 	infraName := params.ByName("infraName")
+
+	// Check an infraUsageCollector with the defined infra name exists
+	var reg = registry.GetRegistry()
+	_, err := reg.GetInfraUsageCollector(infraName)
+	if err != nil {
+		log.Printf("[ERROR] %v", err)
+		writeError(w, r, newBadRequestError(err))
+		return
+	}
 
 	// Build a task targetID to describe query
 	targetID := fmt.Sprintf("infra_usage:%s", infraName)

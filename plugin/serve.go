@@ -22,6 +22,8 @@ const (
 	ConfigManagerPluginName = "cfgManager"
 	// OperationPluginName is the name of Operation Plugins it could be used as a lookup key in Client.Dispense
 	OperationPluginName = "operation"
+	// InfraUsageCollectorPluginName is the name of InfraUsageCollector Plugins it could be used as a lookup key in Client.Dispense
+	InfraUsageCollectorPluginName = "infraUsageCollector"
 )
 
 // HandshakeConfig are used to just do a basic handshake between
@@ -40,13 +42,18 @@ type DelegateFunc func() prov.DelegateExecutor
 // OperationFunc is a function that is called when creating a plugin server
 type OperationFunc func() prov.OperationExecutor
 
+// InfraUsageCollectorFunc is a function that is called when creating a plugin server
+type InfraUsageCollectorFunc func() prov.InfraUsageCollector
+
 // ServeOpts are the configurations to serve a plugin.
 type ServeOpts struct {
-	DelegateFunc                    DelegateFunc
-	DelegateSupportedTypes          []string
-	Definitions                     map[string][]byte
-	OperationFunc                   OperationFunc
-	OperationSupportedArtifactTypes []string
+	DelegateFunc                      DelegateFunc
+	DelegateSupportedTypes            []string
+	Definitions                       map[string][]byte
+	OperationFunc                     OperationFunc
+	OperationSupportedArtifactTypes   []string
+	InfraUsageCollectorFunc           InfraUsageCollectorFunc
+	InfraUsageCollectorSupportedInfra string
 }
 
 // Serve serves a plugin. This function never returns and should be the final
@@ -67,10 +74,11 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 		opts = new(ServeOpts)
 	}
 	return map[string]plugin.Plugin{
-		DelegatePluginName:      &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
-		OperationPluginName:     &OperationPlugin{F: opts.OperationFunc, SupportedTypes: opts.OperationSupportedArtifactTypes},
-		DefinitionsPluginName:   &DefinitionsPlugin{Definitions: opts.Definitions},
-		ConfigManagerPluginName: &ConfigManagerPlugin{&defaultConfigManager{}},
+		DelegatePluginName:            &DelegatePlugin{F: opts.DelegateFunc, SupportedTypes: opts.DelegateSupportedTypes},
+		OperationPluginName:           &OperationPlugin{F: opts.OperationFunc, SupportedTypes: opts.OperationSupportedArtifactTypes},
+		DefinitionsPluginName:         &DefinitionsPlugin{Definitions: opts.Definitions},
+		ConfigManagerPluginName:       &ConfigManagerPlugin{&defaultConfigManager{}},
+		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: opts.InfraUsageCollectorFunc, SupportedInfra: opts.InfraUsageCollectorSupportedInfra},
 	}
 }
 
