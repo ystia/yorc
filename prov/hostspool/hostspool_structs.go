@@ -70,5 +70,6 @@ type Host struct {
 	Name       string            `json:"name,omitempty"`
 	Connection Connection        `json:"connection"`
 	Status     HostStatus        `json:"status"`
+	Message    string            `json:"reason,omitempty"`
 	Labels     map[string]string `json:"labels,omitempty"`
 }

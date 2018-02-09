@@ -860,7 +860,8 @@ Content-Type: application/json
     "host": "host1",
     "port": 22
   },
-  "status": "Free",
+  "status": "allocated",
+  "message": "allocated for node instance \"Compute-0\" in deployment \"myDeployment\"",
   "labels": {
     "memory": "4G",
     "os": "linux"

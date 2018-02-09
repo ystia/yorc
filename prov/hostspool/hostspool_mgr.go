@@ -24,7 +24,7 @@ type Manager interface {
 	UpdateConnection(hostname string, connection Connection) error
 	List(filters ...string) ([]string, error)
 	GetHost(hostname string) (Host, error)
-	Allocate(filters ...string) (string, error)
+	Allocate(message string, filters ...string) (string, error)
 	Release(hostname string) error
 }
 
@@ -439,6 +439,9 @@ func (cm *consulManager) List(filters ...string) ([]string, error) {
 	}
 	results := hosts[:0]
 	for _, host := range hosts {
+		if host == kvLockKey {
+			continue
+		}
 		host = path.Base(host)
 		labels, err := cm.GetHostLabels(host)
 		if err != nil {
@@ -457,7 +460,7 @@ func (cm *consulManager) setHostStatus(hostname string, status HostStatus) error
 	if err != nil {
 		return err
 	}
-	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, hostname, "status"), Value: []byte(HostStatusFree.String())}, nil)
+	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, hostname, "status"), Value: []byte(status.String())}, nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
@@ -545,6 +548,37 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 	return conn, nil
 }
 
+func (cm *consulManager) GetHostMessage(hostname string) (string, error) {
+	if hostname == "" {
+		return "", errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	// check if host exists
+	_, err := cm.GetHostStatus(hostname)
+	if err != nil {
+		return "", err
+	}
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "message"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", nil
+	}
+	return string(kvp.Value), nil
+}
+
+func (cm *consulManager) setHostMessage(hostname, message string) error {
+	if hostname == "" {
+		return errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	// check if host exists
+	_, err := cm.GetHostStatus(hostname)
+	if err != nil {
+		return err
+	}
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.HostsPoolPrefix, hostname, "message"), message)
+}
+
 func (cm *consulManager) GetHostLabels(hostname string) (map[string]string, error) {
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
@@ -575,6 +609,10 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
+	host.Message, err = cm.GetHostMessage(hostname)
+	if err != nil {
+		return host, err
+	}
 
 	host.Connection, err = cm.GetHostConnection(hostname)
 	if err != nil {
@@ -585,10 +623,10 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	return host, err
 }
 
-func (cm *consulManager) Allocate(filters ...string) (string, error) {
-	return cm.allocateWait(45*time.Second, filters...)
+func (cm *consulManager) Allocate(message string, filters ...string) (string, error) {
+	return cm.allocateWait(45*time.Second, message, filters...)
 }
-func (cm *consulManager) allocateWait(maxWaitTime time.Duration, filters ...string) (string, error) {
+func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string, filters ...string) (string, error) {
 	lockCh, cleanupFn, err := cm.lockKey("", "allocation", maxWaitTime)
 	if err != nil {
 		return "", err
@@ -629,8 +667,11 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, filters ...stri
 		return "", errors.New("admin lock lost on hosts pool during host allocation")
 	default:
 	}
-	cm.setHostStatus(hostname, HostStatusAllocated)
-	return hostname, nil
+	err = cm.setHostMessage(hostname, message)
+	if err != nil {
+		return "", err
+	}
+	return hostname, cm.setHostStatus(hostname, HostStatusAllocated)
 }
 func (cm *consulManager) Release(hostname string) error {
 	return cm.releaseWait(hostname, 45*time.Second)
@@ -648,6 +689,10 @@ func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration)
 	}
 	if status != HostStatusAllocated {
 		return errors.WithStack(badRequestError{fmt.Sprintf("unexpected status %q when releasing host %q", status.String(), hostname)})
+	}
+	err = cm.setHostMessage(hostname, "")
+	if err != nil {
+		return err
 	}
 	return cm.setHostStatus(hostname, HostStatusFree)
 

@@ -3,6 +3,7 @@ package hostspool
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -46,7 +47,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 			return err
 		}
 		for _, instance := range instances {
-			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreated)
+			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateStarted)
 		}
 		return nil
 	case "uninstall":
@@ -58,7 +59,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 			return err
 		}
 		for _, instance := range instances {
-			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleted)
 		}
 		return nil
 	}
@@ -73,9 +74,11 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 		return err
 	}
 	var filters []string
-	err = json.Unmarshal([]byte(jsonProp), filters)
-	if err != nil {
-		return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, nodeName, jsonProp)
+	if jsonProp != "" {
+		err = json.Unmarshal([]byte(jsonProp), &filters)
+		if err != nil {
+			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, nodeName, jsonProp)
+		}
 	}
 
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
@@ -84,7 +87,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 	}
 	for _, instance := range instances {
 		logOptFields[events.InstanceID] = instance
-		hostname, err := hpManager.Allocate(filters...)
+		hostname, err := hpManager.Allocate(fmt.Sprintf(`allocated for node instance "%s-%s" in deployment %q`, nodeName, instance, deploymentID), filters...)
 		if err != nil {
 			return err
 		}
