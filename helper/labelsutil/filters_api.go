@@ -2,24 +2,25 @@ package labelsutil
 
 import "novaforge.bull.com/starlings-janus/janus/helper/labelsutil/internal"
 
-// Matches checks if a given string representation of a filter matches a set of labels
-func Matches(labels map[string]string, filter string) (bool, error) {
-	f, err := internal.FilterFromString(filter)
-	if err != nil {
-		return false, err
-	}
-	return f.Matches(labels)
+// Filter defines the Label filter interface
+type Filter interface {
+	Matches(labels map[string]string) (bool, error)
 }
 
 // MatchesAll checks if all of the given filters match a set of labels
 //
 // Providing no filters is not considered as an error and will return true.
-func MatchesAll(labels map[string]string, filters ...string) (bool, error) {
+func MatchesAll(labels map[string]string, filters ...Filter) (bool, error) {
 	for _, filter := range filters {
-		m, err := Matches(labels, filter)
+		m, err := filter.Matches(labels)
 		if err != nil || !m {
 			return m, err
 		}
 	}
 	return true, nil
+}
+
+// CreateFilter creates a Filter from a given input string
+func CreateFilter(filter string) (Filter, error) {
+	return internal.FilterFromString(filter)
 }

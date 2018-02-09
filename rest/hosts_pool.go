@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
 	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
 
 	"github.com/julienschmidt/httprouter"
@@ -174,10 +175,17 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
-	filters := r.URL.Query()["filter"]
-	if filters == nil {
-		filters = make([]string, 0, 0)
+	filtersString := r.URL.Query()["filter"]
+	filters := make([]labelsutil.Filter, len(filtersString))
+	for i := range filtersString {
+		var err error
+		filters[i], err = labelsutil.CreateFilter(filtersString[i])
+		if err != nil {
+			writeError(w, r, newBadRequestError(err))
+			return
+		}
 	}
+
 	hostsNames, err := s.hostsPoolMgr.List(filters...)
 	if err != nil {
 		log.Panic(err)

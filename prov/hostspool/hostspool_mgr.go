@@ -22,9 +22,9 @@ type Manager interface {
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
 	UpdateConnection(hostname string, connection Connection) error
-	List(filters ...string) ([]string, error)
+	List(filters ...labelsutil.Filter) ([]string, error)
 	GetHost(hostname string) (Host, error)
-	Allocate(message string, filters ...string) (string, error)
+	Allocate(message string, filters ...labelsutil.Filter) (string, error)
 	Release(hostname string) error
 }
 
@@ -432,7 +432,7 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 	return
 }
 
-func (cm *consulManager) List(filters ...string) ([]string, error) {
+func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, error) {
 	hosts, _, err := cm.cc.KV().Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -623,10 +623,10 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	return host, err
 }
 
-func (cm *consulManager) Allocate(message string, filters ...string) (string, error) {
+func (cm *consulManager) Allocate(message string, filters ...labelsutil.Filter) (string, error) {
 	return cm.allocateWait(45*time.Second, message, filters...)
 }
-func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string, filters ...string) (string, error) {
+func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string, filters ...labelsutil.Filter) (string, error) {
 	lockCh, cleanupFn, err := cm.lockKey("", "allocation", maxWaitTime)
 	if err != nil {
 		return "", err

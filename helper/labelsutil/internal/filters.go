@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/alecthomas/participle"
-
+	"github.com/alecthomas/participle/lexer"
 	"github.com/dustin/go-humanize"
+	"github.com/pkg/errors"
 
 	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-
-	"github.com/alecthomas/participle/lexer"
-	"github.com/pkg/errors"
 )
 
 // FilterFromString generates a Filter from a given input string
@@ -34,8 +32,6 @@ var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
 
 var filterParser = participle.MustBuild(&Filter{}, fLexer)
 
-// Filter --> label (= | > | <) value
-
 type Filter struct {
 	LabelName          string              `parser:"@(Ident|String)"`
 	EqOperator         *EqOperator         `parser:"[ @@ "`
@@ -46,10 +42,7 @@ type Filter struct {
 func (f *Filter) Matches(labels map[string]string) (bool, error) {
 	val, ok := labels[f.LabelName]
 	if !ok {
-		if f.EqOperator == nil && f.SetOperator == nil && f.ComparableOperator == nil {
-			return false, nil
-		}
-		return false, errors.Errorf("label %q not found", f.LabelName)
+		return false, nil
 	}
 	if f.EqOperator != nil {
 		return f.EqOperator.matches(val)

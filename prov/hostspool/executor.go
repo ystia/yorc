@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
+
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/consul/api"
@@ -73,11 +75,18 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 	if err != nil {
 		return err
 	}
-	var filters []string
+	var filtersString []string
 	if jsonProp != "" {
-		err = json.Unmarshal([]byte(jsonProp), &filters)
+		err = json.Unmarshal([]byte(jsonProp), &filtersString)
 		if err != nil {
 			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, nodeName, jsonProp)
+		}
+	}
+	filters := make([]labelsutil.Filter, len(filtersString))
+	for i := range filtersString {
+		filters[i], err = labelsutil.CreateFilter(filtersString[i])
+		if err != nil {
+			return err
 		}
 	}
 
