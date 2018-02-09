@@ -15,6 +15,7 @@ node_types:
         type: list
         entry_schema:
           type: string
+        required: false
     attributes:
       hostname:
         type: string
