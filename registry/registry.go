@@ -62,7 +62,7 @@ type Registry interface {
 	GetInfraUsageCollector(name string) (prov.InfraUsageCollector, error)
 
 	// ListInfraUsageCollectors returns a list of registered infrastructure usage collectors origin
-	ListInfraUsageCollectors() []InfrastructureUsageCollector
+	ListInfraUsageCollectors() []InfraUsageCollector
 }
 
 var defaultReg Registry
@@ -105,7 +105,7 @@ type VaultClientBuilder struct {
 }
 
 // InfraUsageCollector represents an infrastructure usage collector with its Name, Origin and Data content
-type InfrastructureUsageCollector struct {
+type InfraUsageCollector struct {
 	Name                string                   `json:"id"`
 	Origin              string                   `json:"origin"`
 	InfraUsageCollector prov.InfraUsageCollector `json:"-"`
@@ -116,7 +116,7 @@ type defaultRegistry struct {
 	operationMatches         []OperationExecMatch
 	definitions              []Definition
 	vaultClientBuilders      []VaultClientBuilder
-	infraUsageCollectors     []InfrastructureUsageCollector
+	infraUsageCollectors     []InfraUsageCollector
 	delegatesLock            sync.RWMutex
 	operationsLock           sync.RWMutex
 	definitionsLock          sync.RWMutex
@@ -246,7 +246,7 @@ func (r *defaultRegistry) ListVaultClientBuilders() []VaultClientBuilder {
 func (r *defaultRegistry) RegisterInfraUsageCollector(name string, infraUsageCollector prov.InfraUsageCollector, origin string) {
 	r.infraUsageCollectorsLock.RLock()
 	defer r.infraUsageCollectorsLock.RUnlock()
-	r.infraUsageCollectors = append([]InfrastructureUsageCollector{{Name: name, Origin: origin, InfraUsageCollector: infraUsageCollector}})
+	r.infraUsageCollectors = append([]InfraUsageCollector{{Name: name, Origin: origin, InfraUsageCollector: infraUsageCollector}})
 }
 
 func (r *defaultRegistry) GetInfraUsageCollector(name string) (prov.InfraUsageCollector, error) {
@@ -260,10 +260,10 @@ func (r *defaultRegistry) GetInfraUsageCollector(name string) (prov.InfraUsageCo
 	return nil, errors.Errorf("Unknown infra usage collector with name: %q", name)
 }
 
-func (r *defaultRegistry) ListInfraUsageCollectors() []InfrastructureUsageCollector {
+func (r *defaultRegistry) ListInfraUsageCollectors() []InfraUsageCollector {
 	r.infraUsageCollectorsLock.RLock()
 	defer r.infraUsageCollectorsLock.RUnlock()
-	result := make([]InfrastructureUsageCollector, len(r.infraUsageCollectors))
+	result := make([]InfraUsageCollector, len(r.infraUsageCollectors))
 	copy(result, r.infraUsageCollectors)
 	return result
 }

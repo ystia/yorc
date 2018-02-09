@@ -47,13 +47,13 @@ type InfraUsageCollectorFunc func() prov.InfraUsageCollector
 
 // ServeOpts are the configurations to serve a plugin.
 type ServeOpts struct {
-	DelegateFunc                      DelegateFunc
-	DelegateSupportedTypes            []string
-	Definitions                       map[string][]byte
-	OperationFunc                     OperationFunc
-	OperationSupportedArtifactTypes   []string
-	InfraUsageCollectorFunc           InfraUsageCollectorFunc
-	InfraUsageCollectorSupportedInfra string
+	DelegateFunc                       DelegateFunc
+	DelegateSupportedTypes             []string
+	Definitions                        map[string][]byte
+	OperationFunc                      OperationFunc
+	OperationSupportedArtifactTypes    []string
+	InfraUsageCollectorFunc            InfraUsageCollectorFunc
+	InfraUsageCollectorSupportedInfras []string
 }
 
 // Serve serves a plugin. This function never returns and should be the final
@@ -78,7 +78,7 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 		OperationPluginName:           &OperationPlugin{F: opts.OperationFunc, SupportedTypes: opts.OperationSupportedArtifactTypes},
 		DefinitionsPluginName:         &DefinitionsPlugin{Definitions: opts.Definitions},
 		ConfigManagerPluginName:       &ConfigManagerPlugin{&defaultConfigManager{}},
-		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: opts.InfraUsageCollectorFunc, SupportedInfra: opts.InfraUsageCollectorSupportedInfra},
+		InfraUsageCollectorPluginName: &InfraUsageCollectorPlugin{F: opts.InfraUsageCollectorFunc, SupportedInfras: opts.InfraUsageCollectorSupportedInfras},
 	}
 }
 

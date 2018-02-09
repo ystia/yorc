@@ -176,5 +176,5 @@ type RegistryVaultsCollection struct {
 
 // RegistryInfraUsageCollectorsCollection is the collection of infrastructure usage collectors registered in the Janus registry
 type RegistryInfraUsageCollectorsCollection struct {
-	InfrastructureUsageCollectors []registry.InfrastructureUsageCollector `json:"infrastructure_usage_collectors"`
+	InfraUsageCollectors []registry.InfraUsageCollector `json:"infrastructure_usage_collectors"`
 }

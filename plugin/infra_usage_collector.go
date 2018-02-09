@@ -13,20 +13,20 @@ import (
 // InfraUsageCollector is an extension of prov.InfraStructureUsageCollector
 type InfraUsageCollector interface {
 	prov.InfraUsageCollector
-	GetSupportedInfra() (string, error)
+	GetSupportedInfras() ([]string, error)
 }
 
 // InfraUsageCollectorPlugin is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type InfraUsageCollectorPlugin struct {
-	F              func() prov.InfraUsageCollector
-	SupportedInfra string
+	F               func() prov.InfraUsageCollector
+	SupportedInfras []string
 }
 
 // Server is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (p *InfraUsageCollectorPlugin) Server(b *plugin.MuxBroker) (interface{}, error) {
-	des := &InfraUsageCollectorServer{Broker: b, SupportedInfra: p.SupportedInfra}
+	des := &InfraUsageCollectorServer{Broker: b, SupportedInfras: p.SupportedInfras}
 	if p.F != nil {
 		des.InfraUsageCollector = p.F()
 	}
@@ -48,7 +48,7 @@ type InfraUsageCollectorClient struct {
 
 // GetUsageInfo is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID string) (map[string]string, error) {
+func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]string, error) {
 	id := c.Broker.NextId()
 	closeChan := make(chan struct{}, 0)
 	defer close(closeChan)
@@ -59,6 +59,7 @@ func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config
 		ChannelID: id,
 		Conf:      cfg,
 		TaskID:    taskID,
+		InfraName: infraName,
 	}
 	err := c.Client.Call("Plugin.GetUsageInfo", args, &resp)
 	if err != nil {
@@ -67,16 +68,16 @@ func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config
 	return resp.UsageInfo, toError(resp.Error)
 }
 
-// GetSupportedInfra is public for use by reflexion and should be considered as private to this package.
+// GetSupportedInfras is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-func (c *InfraUsageCollectorClient) GetSupportedInfra() (string, error) {
-	var resp InfraUsageCollectorGetSupportedInfraResponse
-	err := c.Client.Call("Plugin.GetSupportedInfra", new(interface{}), &resp)
+func (c *InfraUsageCollectorClient) GetSupportedInfras() ([]string, error) {
+	var resp InfraUsageCollectorGetSupportedInfrasResponse
+	err := c.Client.Call("Plugin.GetSupportedInfras", new(interface{}), &resp)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get supported infra for infra collector plugin")
+		return nil, errors.Wrap(err, "Failed to get supported infra for infra collector plugin")
 	}
 
-	return resp.Infra, toError(resp.Error)
+	return resp.Infras, toError(resp.Error)
 }
 
 // InfraUsageCollectorServer is public for use by reflexion and should be considered as private to this package.
@@ -84,7 +85,7 @@ func (c *InfraUsageCollectorClient) GetSupportedInfra() (string, error) {
 type InfraUsageCollectorServer struct {
 	Broker              *plugin.MuxBroker
 	InfraUsageCollector prov.InfraUsageCollector
-	SupportedInfra      string
+	SupportedInfras     []string
 }
 
 // InfraUsageCollectorGetUsageInfoArgs is public for use by reflexion and should be considered as private to this package.
@@ -93,6 +94,7 @@ type InfraUsageCollectorGetUsageInfoArgs struct {
 	ChannelID uint32
 	Conf      config.Configuration
 	TaskID    string
+	InfraName string
 }
 
 // InfraUsageCollectorGetUsageInfoResponse is public for use by reflexion and should be considered as private to this package.
@@ -102,11 +104,11 @@ type InfraUsageCollectorGetUsageInfoResponse struct {
 	Error     *RPCError
 }
 
-// InfraUsageCollectorGetSupportedInfraResponse is public for use by reflexion and should be considered as private to this package.
+// InfraUsageCollectorGetSupportedInfrasResponse is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-type InfraUsageCollectorGetSupportedInfraResponse struct {
-	Infra string
-	Error *RPCError
+type InfraUsageCollectorGetSupportedInfrasResponse struct {
+	Infras []string
+	Error  *RPCError
 }
 
 // GetUsageInfo is public for use by reflexion and should be considered as private to this package.
@@ -116,7 +118,7 @@ func (s *InfraUsageCollectorServer) GetUsageInfo(args *InfraUsageCollectorGetUsa
 	defer cancelFunc()
 
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
-	usageInfo, err := s.InfraUsageCollector.GetUsageInfo(ctx, args.Conf, args.TaskID)
+	usageInfo, err := s.InfraUsageCollector.GetUsageInfo(ctx, args.Conf, args.TaskID, args.InfraName)
 
 	var resp InfraUsageCollectorGetUsageInfoResponse
 	resp.UsageInfo = usageInfo
@@ -128,9 +130,9 @@ func (s *InfraUsageCollectorServer) GetUsageInfo(args *InfraUsageCollectorGetUsa
 	return nil
 }
 
-// GetSupportedInfra is public for use by reflexion and should be considered as private to this package.
+// GetSupportedInfras is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-func (s *InfraUsageCollectorServer) GetSupportedInfra(_ interface{}, reply *InfraUsageCollectorGetSupportedInfraResponse) error {
-	*reply = InfraUsageCollectorGetSupportedInfraResponse{Infra: s.SupportedInfra}
+func (s *InfraUsageCollectorServer) GetSupportedInfras(_ interface{}, reply *InfraUsageCollectorGetSupportedInfrasResponse) error {
+	*reply = InfraUsageCollectorGetSupportedInfrasResponse{Infras: s.SupportedInfras}
 	return nil
 }

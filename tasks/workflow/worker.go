@@ -362,7 +362,7 @@ func (w worker) handleTask(t *task) {
 				t.WithStatus(tasks.FAILED)
 				return
 			}
-			res, err := collector.GetUsageInfo(ctx, w.cfg, t.ID)
+			res, err := collector.GetUsageInfo(ctx, w.cfg, t.ID, target)
 			if err != nil {
 				log.Printf("Query Task id: %q Failed to run query: %v", t.ID, err)
 				log.Debugf("%+v", err)

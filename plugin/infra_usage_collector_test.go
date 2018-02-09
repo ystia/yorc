@@ -16,14 +16,16 @@ type mockInfraUsageCollector struct {
 	ctx                context.Context
 	conf               config.Configuration
 	taskID             string
+	infraName          string
 	contextCancelled   bool
 }
 
-func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID string) (map[string]string, error) {
+func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName string) (map[string]string, error) {
 	m.getUsageInfoCalled = true
 	m.ctx = ctx
 	m.conf = conf
 	m.taskID = taskID
+	m.infraName = infraName
 
 	go func() {
 		<-m.ctx.Done()
@@ -57,12 +59,13 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 
 	plugin := raw.(prov.InfraUsageCollector)
 
-	info, err := plugin.GetUsageInfo(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID")
+	info, err := plugin.GetUsageInfo(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "myInfra")
 	require.Nil(t, err)
 	require.True(t, mock.getUsageInfoCalled)
 	require.Equal(t, "test", mock.conf.ConsulAddress)
 	require.Equal(t, "testdc", mock.conf.ConsulDatacenter)
 	require.Equal(t, "TestTaskID", mock.taskID)
+	require.Equal(t, "myInfra", mock.infraName)
 	require.Equal(t, 3, len(info))
 
 	val, exist := info["keyOne"]
@@ -93,7 +96,7 @@ func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 
 	plugin := raw.(prov.InfraUsageCollector)
 
-	_, err = plugin.GetUsageInfo(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestFailure")
+	_, err = plugin.GetUsageInfo(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestFailure", "myInfra")
 	require.Error(t, err, "An error was expected during executing plugin infra usage collector")
 }
 
@@ -115,7 +118,7 @@ func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
 	ctx := context.Background()
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
-		_, err = plugin.GetUsageInfo(ctx, config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestCancel")
+		_, err = plugin.GetUsageInfo(ctx, config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestCancel", "myInfra")
 		require.Nil(t, err)
 	}()
 	cancelF()
@@ -132,7 +135,7 @@ func TestGetSupportedInfra(t *testing.T) {
 			F: func() prov.InfraUsageCollector {
 				return mock
 			},
-			SupportedInfra: "myInfra",
+			SupportedInfras: []string{"myInfra"},
 		},
 	})
 	defer client.Close()
@@ -142,7 +145,8 @@ func TestGetSupportedInfra(t *testing.T) {
 
 	plugin := raw.(InfraUsageCollector)
 
-	infra, err := plugin.GetSupportedInfra()
+	infras, err := plugin.GetSupportedInfras()
 	require.Nil(t, err)
-	require.Equal(t, "myInfra", infra)
+	require.Equal(t, 1, len(infras))
+	require.Equal(t, "myInfra", infras[0])
 }
