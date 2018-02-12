@@ -107,8 +107,8 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panic(err)
 	}
-	if resultSet != nil {
-		task.ResultSet = resultSet
+	if resultSet != "" {
+		task.ResultSet = []byte(resultSet)
 	}
 	encodeJSONResponse(w, r, task)
 }

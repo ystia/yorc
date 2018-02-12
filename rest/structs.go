@@ -111,11 +111,11 @@ type OutputsCollection struct {
 
 // Task is the representation of a Janus' task
 type Task struct {
-	ID        string            `json:"id"`
-	TargetID  string            `json:"target_id"`
-	Type      string            `json:"type"`
-	Status    string            `json:"status"`
-	ResultSet map[string]string `json:"result_set,omitempty"`
+	ID        string          `json:"id"`
+	TargetID  string          `json:"target_id"`
+	Type      string          `json:"type"`
+	Status    string          `json:"status"`
+	ResultSet json.RawMessage `json:"result_set,omitempty"`
 }
 
 // TaskRequest is the representation of a request to process a new task

@@ -17,6 +17,7 @@ import (
 
 	"time"
 
+	"encoding/json"
 	"github.com/armon/go-metrics"
 	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/deployments"
@@ -370,17 +371,22 @@ func (w worker) handleTask(t *task) {
 				return
 			}
 
-			// store resultSet
+			// store resultSet as a JSON
 			resultPrefix := path.Join(consulutil.TasksPrefix, t.ID, "resultSet")
 			if res != nil {
-				for keyM, valM := range res {
-					key := &api.KVPair{Key: path.Join(resultPrefix, keyM), Value: []byte(valM)}
-					if _, err := kv.Put(key, nil); err != nil {
-						log.Printf("Query Task id: %q Failed to run query: %v", t.ID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
-						log.Debugf("%+v", err)
-						t.WithStatus(tasks.FAILED)
-						return
-					}
+				jsonRes, err := json.Marshal(res)
+				if err != nil {
+					log.Printf("Failed to marshal infra usage info [%+v]: due to error:%+v", res, err)
+					log.Debugf("%+v", err)
+					t.WithStatus(tasks.FAILED)
+					return
+				}
+				kvPair := &api.KVPair{Key: resultPrefix, Value: jsonRes}
+				if _, err := kv.Put(kvPair, nil); err != nil {
+					log.Printf("Query Task id: %q Failed to store result: %v", t.ID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
+					log.Debugf("%+v", err)
+					t.WithStatus(tasks.FAILED)
+					return
 				}
 			}
 		default:

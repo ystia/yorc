@@ -8,6 +8,8 @@ import (
 
 	"path"
 
+	"encoding/json"
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"strconv"
@@ -57,14 +59,23 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 		consulutil.WorkflowsPrefix + "/t10/step1": []byte("status1"),
 		consulutil.WorkflowsPrefix + "/t11/step1": []byte("status1"),
 
-		consulutil.TasksPrefix + "/t12/status": []byte("3"),
-
-		consulutil.TasksPrefix + "/t13/resultSet/key1": []byte("value1"),
-		consulutil.TasksPrefix + "/t13/resultSet/key2": []byte("value2"),
-		consulutil.TasksPrefix + "/t13/resultSet/key3": []byte("value3"),
-
-		consulutil.TasksPrefix + "/t14/status": []byte("3"),
+		consulutil.TasksPrefix + "/t12/status":    []byte("3"),
+		consulutil.TasksPrefix + "/t13/resultSet": buildResultset(),
+		consulutil.TasksPrefix + "/t14/status":    []byte("3"),
 	})
+}
+
+func buildResultset() []byte {
+	m := make(map[string]interface{})
+	m["key1"] = "value1"
+	m["key2"] = "value2"
+	m["key3"] = "value3"
+
+	res, err := json.Marshal(m)
+	if err != nil {
+		fmt.Printf("Failed to marshal map [%+v]: due to error:%+v", m, err)
+	}
+	return res
 }
 
 func testGetTasksIdsForTarget(t *testing.T, kv *api.KV) {
@@ -594,11 +605,11 @@ func testGetTaskResultSet(t *testing.T, kv *api.KV) {
 	tests := []struct {
 		name    string
 		args    args
-		want    map[string]string
+		want    string
 		wantErr bool
 	}{
-		{"taskWithResultSet", args{kv, "t13"}, map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}, false},
-		{"taskWithoutResultSet", args{kv, "t14"}, nil, false},
+		{"taskWithResultSet", args{kv, "t13"}, "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}", false},
+		{"taskWithoutResultSet", args{kv, "t14"}, "", false},
 	}
 
 	for _, tt := range tests {

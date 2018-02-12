@@ -51,23 +51,18 @@ func GetTasksIdsForTarget(kv *api.KV, targetID string) ([]string, error) {
 	return tasks, nil
 }
 
-// GetTaskResultSet retrieves the task related resultSet
+// GetTaskResultSet retrieves the task related resultSet in json string format
 //
 // If no resultSet is found, nil is returned instead
-func GetTaskResultSet(kv *api.KV, taskID string) (map[string]string, error) {
-	kvps, _, err := kv.List(path.Join(consulutil.TasksPrefix, taskID, "resultSet"), nil)
+func GetTaskResultSet(kv *api.KV, taskID string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "resultSet"), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-
-	if kvps != nil && len(kvps) > 0 {
-		res := make(map[string]string)
-		for _, kvp := range kvps {
-			res[path.Base(kvp.Key)] = string(kvp.Value)
-		}
-		return res, nil
+	if kvp != nil {
+		return string(kvp.Value), nil
 	}
-	return nil, nil
+	return "", nil
 }
 
 // GetTaskStatus retrieves the TaskStatus of a task

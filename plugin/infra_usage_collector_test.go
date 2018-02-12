@@ -20,7 +20,7 @@ type mockInfraUsageCollector struct {
 	contextCancelled   bool
 }
 
-func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName string) (map[string]string, error) {
+func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName string) (map[string]interface{}, error) {
 	m.getUsageInfoCalled = true
 	m.ctx = ctx
 	m.conf = conf
@@ -37,7 +37,7 @@ func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.
 	if m.taskID == "TestFailure" {
 		return nil, NewRPCError(errors.New("a failure occurred during plugin infra usage collector"))
 	}
-	res := make(map[string]string)
+	res := make(map[string]interface{})
 	res["keyOne"] = "valueOne"
 	res["keyTwo"] = "valueTwo"
 	res["keyThree"] = "valueThree"

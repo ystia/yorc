@@ -70,5 +70,5 @@ type OperationExecutor interface {
 //
 // GetUsageInfo returns data about infrastructure usage for defined infrastructure
 type InfraUsageCollector interface {
-	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]string, error)
+	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error)
 }

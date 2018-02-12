@@ -48,7 +48,7 @@ type InfraUsageCollectorClient struct {
 
 // GetUsageInfo is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]string, error) {
+func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error) {
 	id := c.Broker.NextId()
 	closeChan := make(chan struct{}, 0)
 	defer close(closeChan)
@@ -100,7 +100,7 @@ type InfraUsageCollectorGetUsageInfoArgs struct {
 // InfraUsageCollectorGetUsageInfoResponse is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type InfraUsageCollectorGetUsageInfoResponse struct {
-	UsageInfo map[string]string
+	UsageInfo map[string]interface{}
 	Error     *RPCError
 }
 
