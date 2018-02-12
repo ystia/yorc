@@ -186,19 +186,29 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	hostsNames, err := s.hostsPoolMgr.List(filters...)
+	hostsNames, warnings, err := s.hostsPoolMgr.List(filters...)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	if len(hostsNames) == 0 {
+	if len(hostsNames) == 0 && len(warnings) == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	hostsCol := HostsCollection{Hosts: make([]AtomLink, len(hostsNames))}
+	hostsCol := HostsCollection{}
+	if len(hostsNames) > 0 {
+		hostsCol.Hosts = make([]AtomLink, len(hostsNames))
+	}
 	for i, h := range hostsNames {
 		hostsCol.Hosts[i] = newAtomLink(LinkRelHost, fmt.Sprintf("/hosts_pool/%s", h))
 	}
+	if len(warnings) > 0 {
+		hostsCol.Warnings = make([]string, len(warnings))
+	}
+	for i, w := range warnings {
+		hostsCol.Warnings[i] = w.Error()
+	}
+
 	encodeJSONResponse(w, r, hostsCol)
 }

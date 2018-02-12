@@ -22,9 +22,9 @@ type Manager interface {
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
 	UpdateConnection(hostname string, connection Connection) error
-	List(filters ...labelsutil.Filter) ([]string, error)
+	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, error)
 	GetHost(hostname string) (Host, error)
-	Allocate(message string, filters ...labelsutil.Filter) (string, error)
+	Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
 	Release(hostname string) error
 }
 
@@ -432,11 +432,12 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 	return
 }
 
-func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, error) {
+func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, error) {
 	hosts, _, err := cm.cc.KV().Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	warnings := make([]labelsutil.Warning, 0)
 	results := hosts[:0]
 	for _, host := range hosts {
 		if host == kvLockKey {
@@ -445,14 +446,16 @@ func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, error) {
 		host = path.Base(host)
 		labels, err := cm.GetHostLabels(host)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		ok, err := labelsutil.MatchesAll(labels, filters...)
-		if err == nil && ok {
+		ok, warn := labelsutil.MatchesAll(labels, filters...)
+		if warn != nil {
+			warnings = append(warnings, errors.Wrapf(warn, "host: %q", host))
+		} else if ok {
 			results = append(results, host)
 		}
 	}
-	return results, nil
+	return results, warnings, nil
 }
 
 func (cm *consulManager) setHostStatus(hostname string, status HostStatus) error {
@@ -623,19 +626,19 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	return host, err
 }
 
-func (cm *consulManager) Allocate(message string, filters ...labelsutil.Filter) (string, error) {
+func (cm *consulManager) Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
 	return cm.allocateWait(45*time.Second, message, filters...)
 }
-func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string, filters ...labelsutil.Filter) (string, error) {
+func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
 	lockCh, cleanupFn, err := cm.lockKey("", "allocation", maxWaitTime)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer cleanupFn()
 
-	hosts, err := cm.List(filters...)
+	hosts, warnings, err := cm.List(filters...)
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
 	// Filters only free hosts but try to bypass errors if we can allocate an host
 	var lastErr error
@@ -643,7 +646,7 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 	for _, h := range hosts {
 		select {
 		case <-lockCh:
-			return "", errors.New("admin lock lost on hosts pool during host allocation")
+			return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
 		default:
 		}
 		hs, err := cm.GetHostStatus(h)
@@ -656,22 +659,22 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 
 	if len(freeHosts) == 0 {
 		if lastErr != nil {
-			return "", lastErr
+			return "", warnings, lastErr
 		}
-		return "", errors.WithStack(noMatchingHostFoundError{})
+		return "", warnings, errors.WithStack(noMatchingHostFoundError{})
 	}
 	// Get the first host that match
 	hostname := freeHosts[0]
 	select {
 	case <-lockCh:
-		return "", errors.New("admin lock lost on hosts pool during host allocation")
+		return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
 	default:
 	}
 	err = cm.setHostMessage(hostname, message)
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
-	return hostname, cm.setHostStatus(hostname, HostStatusAllocated)
+	return hostname, warnings, cm.setHostStatus(hostname, HostStatusAllocated)
 }
 func (cm *consulManager) Release(hostname string) error {
 	return cm.releaseWait(hostname, 45*time.Second)

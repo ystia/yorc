@@ -206,7 +206,8 @@ type HostRequest struct {
 //
 // Links are all of type LinkRelHost.
 type HostsCollection struct {
-	Hosts []AtomLink `json:"hosts"`
+	Hosts    []AtomLink `json:"hosts"`
+	Warnings []string   `json:"warnings,omitempty"`
 }
 
 // Host is a host in the host pool representation

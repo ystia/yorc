@@ -832,7 +832,8 @@ Content-Type: application/json
   "hosts": [
     {"rel":"host","href":"/hosts_pool/host1","type":"application/json"},
     {"rel":"host","href":"/hosts_pool/host2","type":"application/json"}
-  ]
+  ],
+  "warnings": ["filter error for host3", "filter error for host4"]
 }
 ```
 

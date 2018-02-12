@@ -96,7 +96,11 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 	}
 	for _, instance := range instances {
 		logOptFields[events.InstanceID] = instance
-		hostname, err := hpManager.Allocate(fmt.Sprintf(`allocated for node instance "%s-%s" in deployment %q`, nodeName, instance, deploymentID), filters...)
+		hostname, warnings, err := hpManager.Allocate(fmt.Sprintf(`allocated for node instance "%s-%s" in deployment %q`, nodeName, instance, deploymentID), filters...)
+		for _, warn := range warnings {
+			events.WithOptionalFields(logOptFields).
+				NewLogEntry(events.WARN, deploymentID).Registerf(`%v`, warn)
+		}
 		if err != nil {
 			return err
 		}
