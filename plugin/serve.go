@@ -86,6 +86,7 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 // This must be called both by serve and each plugin
 func SetupPluginCommunication() {
 	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config from janus server to plugins
+	gob.Register(make(map[string]interface{}, 0))
 	gob.Register(make([]interface{}, 0))
 	gob.Register(make([]string, 0))
 	gob.RegisterName("DynamicMap", &config.DynamicMap{})
