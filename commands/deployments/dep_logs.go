@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
@@ -35,22 +36,23 @@ func init() {
 				return errors.Errorf("Expecting one deployment id or none (got %d parameters)", len(args))
 			}
 
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
-			colorize := !noColor
+			colorize := !NoColor
 
-			streamsLogs(client, deploymentID, colorize, fromBeginning, noStream)
+			StreamsLogs(client, deploymentID, colorize, fromBeginning, noStream)
 			return nil
 		},
 	}
 	logCmd.PersistentFlags().BoolVarP(&fromBeginning, "from-beginning", "b", false, "Show logs from the beginning of deployments")
 	logCmd.PersistentFlags().BoolVarP(&noStream, "no-stream", "n", false, "Show logs then exit. Do not stream logs. It implies --from-beginning")
-	deploymentsCmd.AddCommand(logCmd)
+	DeploymentsCmd.AddCommand(logCmd)
 }
 
-func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginning, stop bool) {
+// StreamsLogs allows to stream logs
+func StreamsLogs(client *httputil.JanusClient, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}
@@ -61,12 +63,12 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 	if !fromBeginning && !stop {
 		if deploymentID != "" {
 			response, err = client.Head("/deployments/" + deploymentID + "/logs")
-			handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		} else {
 			response, err = client.Head("/logs")
 		}
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 
 		// Get last index
@@ -74,7 +76,7 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 		if idxHd != "" {
 			lastIdx, err = strconv.ParseUint(idxHd, 10, 64)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			fmt.Println("Streaming new logs...")
 		} else {
@@ -89,26 +91,26 @@ func streamsLogs(client *janusClient, deploymentID string, colorize, fromBeginni
 			request, err = client.NewRequest("GET", fmt.Sprintf("/logs?index=%d%s", lastIdx, filtersParam), nil)
 		}
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 
 		if deploymentID != "" {
-			handleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		}
 
 		var logs rest.LogsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		err = json.Unmarshal(body, &logs)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 
 		lastIdx = logs.LastIndex
@@ -132,7 +134,7 @@ func format(log json.RawMessage) string {
 	var data map[string]interface{}
 	err := json.Unmarshal(log, &data)
 	if err != nil {
-		errExit(err)
+		httputil.ErrExit(err)
 	}
 	return events.FormatLog(data)
 }

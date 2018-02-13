@@ -1,4 +1,4 @@
-package commands
+package tasks
 
 import (
 	"encoding/json"
@@ -15,12 +15,15 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/deployments"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
-	deploymentsCmd.AddCommand(tasksCmd)
+	deployments.DeploymentsCmd.AddCommand(tasksCmd)
 }
 
+var commErrorMsg = httputil.JanusAPIDefaultErrorMsg
 var tasksCmd = &cobra.Command{
 	Use:   "tasks <DeploymentId>",
 	Short: "List tasks of a deployment",
@@ -30,33 +33,33 @@ var tasksCmd = &cobra.Command{
 		if len(args) != 1 {
 			return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 		}
-		client, err := getClient()
+		client, err := httputil.GetClient()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
-		colorize := !noColor
+		colorize := !deployments.NoColor
 		if colorize {
 			commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(commErrorMsg)
 		}
 		request, err := client.NewRequest("GET", "/deployments/"+args[0], nil)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
 		defer response.Body.Close()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
-		handleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
+		httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
 		var dep rest.Deployment
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		err = json.Unmarshal(body, &dep)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		if colorize {
 			defer color.Unset()
@@ -68,13 +71,13 @@ var tasksCmd = &cobra.Command{
 		for _, atomLink := range dep.Links {
 			if atomLink.Rel == rest.LinkRelTask {
 				var task rest.Task
-				err = getJSONEntityFromAtomGetRequest(client, atomLink, &task)
+				err = httputil.GetJSONEntityFromAtomGetRequest(client, atomLink, &task)
 				if err != nil {
 					errs = append(errs, err)
 					tasksTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 					continue
 				}
-				tasksTable.AddRow(task.ID, task.Type, getColoredTaskStatus(colorize, task.Status))
+				tasksTable.AddRow(task.ID, task.Type, deployments.GetColoredTaskStatus(colorize, task.Status))
 			}
 		}
 		fmt.Println(tasksTable.Render())

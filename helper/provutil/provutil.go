@@ -4,6 +4,7 @@ import (
 	"strings"
 )
 
+// SanitizeForShell allows to sanitize a string in order to be embedded in shell command
 func SanitizeForShell(str string) string {
 	return strings.Map(func(r rune) rune {
 		// Replace hyphen by underscore

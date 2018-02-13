@@ -1,11 +1,11 @@
-package commands
+package hostspool
 
 import (
 	"bytes"
-	"net/http"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"net/http"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -19,9 +19,9 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			if len(jsonParam) == 0 {
 				return errors.Errorf("You need to provide a JSON with updated information")
@@ -29,17 +29,17 @@ func init() {
 
 			request, err := client.NewRequest("PATCH", "/hosts_pool/"+args[0], bytes.NewBuffer([]byte(jsonParam)))
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			request.Header.Add("Content-Type", "application/json")
 
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
-			handleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
 			return nil
 		},
 	}

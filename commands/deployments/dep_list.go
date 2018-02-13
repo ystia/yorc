@@ -1,4 +1,4 @@
-package commands
+package deployments
 
 import (
 	"encoding/json"
@@ -9,12 +9,13 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
 )
 
 func init() {
-	deploymentsCmd.AddCommand(listCmd)
+	DeploymentsCmd.AddCommand(listCmd)
 }
 
 var listCmd = &cobra.Command{
@@ -22,30 +23,30 @@ var listCmd = &cobra.Command{
 	Short: "List deployments",
 	Long:  `List active deployments. Giving their id and status.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		colorize := !noColor
-		client, err := getClient()
+		colorize := !NoColor
+		client, err := httputil.GetClient()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		request, err := client.NewRequest("GET", "/deployments", nil)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
 		defer response.Body.Close()
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
-		handleHTTPStatusCode(response, "", "deployment", http.StatusOK)
+		httputil.HandleHTTPStatusCode(response, "", "deployment", http.StatusOK)
 		var deps rest.DeploymentsCollection
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 		err = json.Unmarshal(body, &deps)
 		if err != nil {
-			errExit(err)
+			httputil.ErrExit(err)
 		}
 
 		depsTable := tabutil.NewTable()
@@ -54,9 +55,9 @@ var listCmd = &cobra.Command{
 			if depLink.Rel == rest.LinkRelDeployment {
 				var dep rest.Deployment
 
-				err = getJSONEntityFromAtomGetRequest(client, depLink, &dep)
+				err = httputil.GetJSONEntityFromAtomGetRequest(client, depLink, &dep)
 				if err != nil {
-					errExit(err)
+					httputil.ErrExit(err)
 				}
 				depsTable.AddRow(dep.ID, getColoredDeploymentStatus(colorize, dep.Status))
 			}

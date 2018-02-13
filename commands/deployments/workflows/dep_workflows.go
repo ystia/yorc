@@ -1,9 +1,10 @@
-package commands
+package workflows
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/deployments"
 )
 
 var workflowsCmd = &cobra.Command{
@@ -19,5 +20,5 @@ var workflowsCmd = &cobra.Command{
 }
 
 func init() {
-	deploymentsCmd.AddCommand(workflowsCmd)
+	deployments.DeploymentsCmd.AddCommand(workflowsCmd)
 }

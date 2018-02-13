@@ -35,7 +35,7 @@ func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 	return srv1, client
 }
 
-// Create a deploymentID from the test name value
+// BuildDeploymentID allows to create a deploymentID from the test name value
 func BuildDeploymentID(t *testing.T) string {
 	return strings.Replace(t.Name(), "/", "_", -1)
 }

@@ -1,4 +1,4 @@
-package commands
+package workflows
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/deployments"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -23,9 +25,9 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			if workflowName == "" {
 				return errors.New("Missing mandatory \"workflow-name\" parameter")
@@ -36,22 +38,22 @@ func init() {
 			}
 			request, err := client.NewRequest("POST", url, nil)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			request.Header.Add("Content-Type", "application/json")
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			ids := args[0] + "/" + workflowName
-			handleHTTPStatusCode(response, ids, "deployment/workflow", http.StatusAccepted, http.StatusCreated)
+			httputil.HandleHTTPStatusCode(response, ids, "deployment/workflow", http.StatusAccepted, http.StatusCreated)
 
 			fmt.Println("New task ", path.Base(response.Header.Get("Location")), " created to execute ", workflowName)
 			if shouldStreamLogs && !shouldStreamEvents {
-				streamsLogs(client, args[0], !noColor, false, false)
+				deployments.StreamsLogs(client, args[0], !deployments.NoColor, false, false)
 			} else if !shouldStreamLogs && shouldStreamEvents {
-				streamsEvents(client, args[0], !noColor, false, false)
+				deployments.StreamsEvents(client, args[0], !deployments.NoColor, false, false)
 			} else if shouldStreamLogs && shouldStreamEvents {
 				return errors.Errorf("You can't provide stream-events and stream-logs flags at same time")
 			}

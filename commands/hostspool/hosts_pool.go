@@ -1,16 +1,18 @@
-package commands
+package hostspool
 
 import (
 	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"novaforge.bull.com/starlings-janus/janus/commands"
 )
 
 func init() {
-	RootCmd.AddCommand(hostsPoolCmd)
+	commands.RootCmd.AddCommand(hostsPoolCmd)
 	setHostsPoolConfig()
 }
+
+var noColor bool
 
 var hostsPoolCmd = &cobra.Command{
 	Use:           "hostspool",

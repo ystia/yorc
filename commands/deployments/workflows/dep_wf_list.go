@@ -1,4 +1,4 @@
-package commands
+package workflows
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 )
 
 func init() {
@@ -23,31 +24,31 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			client, err := getClient()
+			client, err := httputil.GetClient()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			request, err := client.NewRequest("GET", fmt.Sprintf("/deployments/%s/workflows", args[0]), nil)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
-			handleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
 
 			var wfs rest.WorkflowsCollection
 			body, err := ioutil.ReadAll(response.Body)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 			err = json.Unmarshal(body, &wfs)
 			if err != nil {
-				errExit(err)
+				httputil.ErrExit(err)
 			}
 
 			for _, wfLink := range wfs.Workflows {
