@@ -7,12 +7,13 @@ import (
 
 	"net/http"
 
+	"strings"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
-	"strings"
 )
 
 func init() {
@@ -51,7 +52,7 @@ var hpListCmd = &cobra.Command{
 		}
 
 		hostsTable := tabutil.NewTable()
-		hostsTable.AddHeaders("Name", "Connection", "Status", "Labels")
+		hostsTable.AddHeaders("Name", "Connection", "Status", "Message", "Labels")
 		for _, hostLink := range hostsColl.Hosts {
 			if hostLink.Rel == rest.LinkRelHost {
 				var host rest.Host
@@ -69,7 +70,7 @@ var hpListCmd = &cobra.Command{
 					labelsList += fmt.Sprintf("%s:%s", k, v)
 				}
 
-				hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), labelsList)
+				hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), host.Message, labelsList)
 			}
 		}
 		if colorize {
@@ -89,8 +90,8 @@ func getColoredHostStatus(colorize bool, status string) string {
 	case strings.ToLower(status) == "free":
 		return color.New(color.FgHiGreen, color.Bold).SprintFunc()(status)
 	case strings.ToLower(status) == "allocated":
-		return color.New(color.FgHiRed, color.Bold).SprintFunc()(status)
-	default:
 		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(status)
+	default:
+		return color.New(color.FgHiRed, color.Bold).SprintFunc()(status)
 	}
 }

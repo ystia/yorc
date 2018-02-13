@@ -13,7 +13,8 @@ import (
 
 // HostStatus x ENUM(
 // free,
-// allocated
+// allocated,
+// error
 // )
 type HostStatus int
 

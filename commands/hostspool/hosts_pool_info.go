@@ -3,11 +3,12 @@ package hostspool
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"io/ioutil"
-	"net/http"
 	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
 	"novaforge.bull.com/starlings-janus/janus/rest"
@@ -52,7 +53,7 @@ func init() {
 			}
 
 			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Labels")
+			hostsTable.AddHeaders("Name", "Connection", "Status", "Message", "Labels")
 			var labelsList string
 			for k, v := range host.Labels {
 				if labelsList != "" {
@@ -61,7 +62,7 @@ func init() {
 				labelsList += fmt.Sprintf("%s:%s", k, v)
 			}
 
-			hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), labelsList)
+			hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), host.Message, labelsList)
 
 			if colorize {
 				defer color.Unset()

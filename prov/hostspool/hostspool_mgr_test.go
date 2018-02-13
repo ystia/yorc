@@ -7,12 +7,52 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/api"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
 )
+
+var dummySSHkey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAo3x7OqBJ3ftBxFPaEXrRdmJXo8xqNxNVm7i5tJSqGICzqO2P
+ft1GW7PDb8EgZn8UM/xuQLBfJEStovMaWD8hiCN3ekEguAMrcZ2g+/7QOxwicpEc
+054eH5CmIOyGpcED6KGVLdTWSGa/MfLW6HHAyjdeeX4NPA0tPm4kswT6ehOc6otX
+adjCh0H83Nx+qqSvAIAIkeofw/AEd8Zbmfz9+iibYHwwaaPmVuNqj93FvcpK3Bma
+8Hlo4KoeCmI8XD1ixpeJq83wJf5wEXTaw1zajQToUegWITofP8v9mbbCuS+cwZO2
+YvVYIzr2/oHaSDD54O+yQ3H7bbR/1EQNWmYtAwIDAQABAoIBABxrqnyBmvXFFSTN
+Mu6w/DLpW7T0904FxW8hyN7UrVE/Jnxqd/SlAPM2J/aIi1pmIxv6eSwzvQZwDgNy
+4ZSPvQOOrtmI8ugqXOYOcgr8vDRaar6h7XH4XeI84jR9CddM26IYXPevtWS2v+wt
+/CBCjjJZN8pFGIXlAIWG3khkyCpqcUj0yZZoLadA8aaxZmp+h4bs638awRRVbvzz
+8sqaWaVcX6H2MLtFb8IjxLPWqVx7e1UWuUbpmIAnMJtmEhT3vEAyWSAuOvwUXz9S
+wxK3eewJNPzehOK5mAqNhSLGSo3UExVYFxFCXbZE+7WH8KqeDoZp6lp/gRKwXTGG
+t18ZT9kCgYEA0ddxBshuzk+grEGoHEBs67pSjezR2nHTq1nwzowDB4PQwBGXZq7q
+Q/LbQUbKHS9f5mVpPziGIxnSNoNemFpX9quReghZ5u70dm7GZzZaltZCjbKcma4l
+Jms0bHDDtseHHQwjIY/pQKeaubt7HVEPc4+pGxovyMWSRg6ZJVvD0YcCgYEAx3Kw
+Mx+FOyrr08s+hBPG9pXS02xOwZmZOpI62elv5t/oEaIJVL2TNcfU3a7Vv8848LVJ
+9F1xuV4j8rRGop0IYW8R/EHs/Oq+2c1rR6JAyLOzTHEnFyCKACzAYSKUsCEOPqYc
+gxZ4Qz11Xf0s17yrnyieI3oEzBPBP4Ei5eL7F6UCgYB1nvxk3+50SF/4jijsBRTI
+oTzq/sa2Wj1ae+Sl8gc0rCdTsciarwrzIWrS0Rozd72aiFeRL17IyA1zrvlUDrfl
+tU+rBolWD7UJuZgOfIIUsG7HvElZPyrluQu+iQq7JmZO2uHKSz9klU3+M9+TlD9D
++E/CuE/2iwAtsrsXHLPLewKBgC7uOLG+3/29KsKqV2qCsNWDCZnAKYP6nYifsgNm
+n3MnCpdjlmh/Ny13eQo0wo0guJhDQESk3Eau9Sx96QUIiFlM5mGCLb6Rihj78htn
+/XB8gFsjYPxbJr3FyfrRRUVwccaiFaFu3xuLUZutICkfdw67YwKcCpbuqxFDVK/d
+ShIVAoGBAMe5pMcaQhjwGMcsNySH0cTF+0xWbFqoiMZJYtqe6Bi3C9ZM4wCfQDVI
+WSPb8a8DvmtjA0/IyWLtRhiKDPo0ultXa3DHINOC2+sZ5qJpsycNaqV4ObcmCJCc
+h5pSY3nqKgmTiTW5EGnhLxUnEmS0MMvVT59ldx2pZhzgDyxYWO09
+-----END RSA PRIVATE KEY-----`
+
+type mockSSHClient struct{}
+
+func (m *mockSSHClient) RunCommand(string) (string, error) {
+	return "ok", nil
+}
+
+var mockSSHClientFactory = func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
+	return &mockSSHClient{}
+}
 
 func cleanupHostsPool(t *testing.T, cc *api.Client) {
 	t.Helper()
@@ -24,13 +64,13 @@ func cleanupHostsPool(t *testing.T, cc *api.Client) {
 
 func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
-	cm := NewManager(cc)
-	err := cm.Add("host_labels_update", Connection{PrivateKey: "key.pem"}, map[string]string{
+	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	err := cm.Add("host_labels_update", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1":         "val1",
 		"label/&special": "val/&special",
 	})
 	require.NoError(t, err)
-	err = cm.Add("host_no_labels_update", Connection{PrivateKey: "key.pem"}, map[string]string{
+	err = cm.Add("host_no_labels_update", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1": "val1",
 	})
 	require.NoError(t, err)
@@ -103,14 +143,14 @@ func testConsulManagerAddLabels(t *testing.T, cc *api.Client) {
 }
 func testConsulManagerRemoveLabels(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
-	cm := NewManager(cc)
-	err := cm.Add("host_labels_remove", Connection{PrivateKey: "key.pem"}, map[string]string{
+	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	err := cm.Add("host_labels_remove", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1":         "val1",
 		"label/&special": "val/&special",
 		"labelSurvivor":  "still here!",
 	})
 	require.NoError(t, err)
-	err = cm.Add("host_no_labels_remove", Connection{PrivateKey: "key.pem"}, map[string]string{
+	err = cm.Add("host_no_labels_remove", Connection{PrivateKey: dummySSHkey}, map[string]string{
 		"label1": "val1",
 	})
 	require.NoError(t, err)
@@ -198,14 +238,14 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 			Host:       "127.0.1.1",
 			User:       "ubuntu",
 			Port:       23,
-			PrivateKey: "path/to/key",
+			PrivateKey: "testdata/new_key.pem",
 		}, map[string]string{
 			"label1":         "val1",
 			"label/&special": "val&special",
 		}}, false, map[string]string{
 			"connection/user":         "ubuntu",
 			"connection/password":     "",
-			"connection/private_key":  "path/to/key",
+			"connection/private_key":  "testdata/new_key.pem",
 			"connection/host":         "127.0.1.1",
 			"connection/port":         "23",
 			"labels/label1":           "val1",
@@ -214,7 +254,7 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cm := NewManager(cc)
+			cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
 			var err error
 			if err = cm.Add(tt.args.hostname, tt.args.conn, tt.args.labels); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.Add() error = %v, wantErr %v", err, tt.wantErr)
@@ -243,8 +283,8 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 
 func testConsulManagerUpdateConn(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
-	cm := NewManager(cc)
-	originalConn := Connection{User: "u1", Password: "test", Host: "h1", Port: 24, PrivateKey: "key.pem"}
+	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	originalConn := Connection{User: "u1", Password: "test", Host: "h1", Port: 24, PrivateKey: dummySSHkey}
 	cm.Add("hostUpdateConn1", originalConn, nil)
 	type args struct {
 		hostname string
@@ -270,14 +310,14 @@ func testConsulManagerUpdateConn(t *testing.T, cc *api.Client) {
 			User:       "root",
 			Password:   "test",
 			Host:       "host1",
-			PrivateKey: "new_key.pem",
+			PrivateKey: "testdata/new_key.pem",
 			Port:       22,
 		}}, false, map[string]string{
 			"connection/user":        "root",
 			"connection/password":    "test",
 			"connection/host":        "host1",
 			"connection/port":        "22",
-			"connection/private_key": "new_key.pem"},
+			"connection/private_key": "testdata/new_key.pem"},
 			nil},
 		{"TestConnectionCantRemoveBothPrivateKeyAndPassword", args{"hostUpdateConn1", Connection{
 			Password:   "-",
@@ -287,7 +327,7 @@ func testConsulManagerUpdateConn(t *testing.T, cc *api.Client) {
 			Password: "-",
 		}}, false, map[string]string{
 			"connection/password":    "",
-			"connection/private_key": "new_key.pem"},
+			"connection/private_key": "testdata/new_key.pem"},
 			nil},
 		{"TestConnectionCantRemovePKifNoPass", args{"hostUpdateConn1", Connection{
 			PrivateKey: "-",
@@ -333,9 +373,9 @@ func testConsulManagerUpdateConn(t *testing.T, cc *api.Client) {
 
 func testConsulManagerRemove(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
-	cm := NewManager(cc)
-	cm.Add("host1", Connection{PrivateKey: "key.pem"}, nil)
-	cm.Add("host2", Connection{PrivateKey: "key.pem"}, nil)
+	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
+	cm.Add("host1", Connection{PrivateKey: dummySSHkey}, nil)
+	cm.Add("host2", Connection{PrivateKey: dummySSHkey}, nil)
 	_, err := cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, "host2", "status"), Value: []byte(HostStatusAllocated.String())}, nil)
 	require.NoError(t, err)
 	type args struct {
@@ -366,26 +406,27 @@ func testConsulManagerRemove(t *testing.T, cc *api.Client) {
 
 func testConsulManagerList(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc}
-	err := cm.Add("list_host1", Connection{PrivateKey: "key.pem"}, nil)
+	cm := &consulManager{cc, mockSSHClientFactory}
+	err := cm.Add("list_host1", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cm.Add("list_host2", Connection{PrivateKey: "key.pem"}, nil)
+	err = cm.Add("list_host2", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cm.Add("list_host3", Connection{PrivateKey: "key.pem"}, nil)
+	err = cm.Add("list_host3", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cm.Add("list_host4", Connection{PrivateKey: "key.pem"}, nil)
+	err = cm.Add("list_host4", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hosts, err := cm.List()
+	hosts, warnings, err := cm.List()
 	require.NoError(t, err)
+	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
 	assert.Contains(t, hosts, "list_host1")
 	assert.Contains(t, hosts, "list_host2")
@@ -396,7 +437,7 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 
 func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc}
+	cm := &consulManager{cc, mockSSHClientFactory}
 	labelList := map[string]string{
 		"label1": "v1",
 		"label2": "v2",
@@ -407,7 +448,7 @@ func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 		Password:   "testget",
 		Host:       "host1get",
 		Port:       26,
-		PrivateKey: "keyget.pem",
+		PrivateKey: dummySSHkey,
 	}
 	err := cm.Add("get_host1", connection, labelList)
 	require.NoError(t, err)
@@ -423,8 +464,8 @@ func testConsulManagerGetHost(t *testing.T, cc *api.Client) {
 
 func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc}
-	err := cm.Add("concurrent_host1", Connection{PrivateKey: "key.pem"}, nil)
+	cm := &consulManager{cc, mockSSHClientFactory}
+	err := cm.Add("concurrent_host1", Connection{PrivateKey: dummySSHkey}, nil)
 	require.NoError(t, err)
 	l, err := cc.LockKey(kvLockKey)
 	require.NoError(t, err)
@@ -432,7 +473,7 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	require.NoError(t, err)
 	defer l.Unlock()
 
-	err = cm.addWait("concurrent_host2", Connection{PrivateKey: "key.pem"}, nil, 500*time.Millisecond)
+	err = cm.addWait("concurrent_host2", Connection{PrivateKey: dummySSHkey}, nil, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for addWait()")
 	err = cm.removeWait("concurrent_host1", 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeWait()")
@@ -442,7 +483,7 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 	err = cm.updateConnWait("concurrent_host1", Connection{}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
-	_, err = cm.allocateWait(500 * time.Millisecond)
+	_, _, err = cm.allocateWait(500*time.Millisecond, "test message")
 	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")
 	err = cm.releaseWait("concurrent_host1", 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")

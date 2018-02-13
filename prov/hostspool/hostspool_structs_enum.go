@@ -13,13 +13,16 @@ const (
 	HostStatusFree HostStatus = iota
 	// HostStatusAllocated is a HostStatus of type Allocated
 	HostStatusAllocated
+	// HostStatusError is a HostStatus of type Error
+	HostStatusError
 )
 
-const _HostStatusName = "freeallocated"
+const _HostStatusName = "freeallocatederror"
 
 var _HostStatusMap = map[HostStatus]string{
 	0: _HostStatusName[0:4],
 	1: _HostStatusName[4:13],
+	2: _HostStatusName[13:18],
 }
 
 func (i HostStatus) String() string {
@@ -30,10 +33,12 @@ func (i HostStatus) String() string {
 }
 
 var _HostStatusValue = map[string]HostStatus{
-	_HostStatusName[0:4]:                   0,
-	strings.ToLower(_HostStatusName[0:4]):  0,
-	_HostStatusName[4:13]:                  1,
-	strings.ToLower(_HostStatusName[4:13]): 1,
+	_HostStatusName[0:4]:                    0,
+	strings.ToLower(_HostStatusName[0:4]):   0,
+	_HostStatusName[4:13]:                   1,
+	strings.ToLower(_HostStatusName[4:13]):  1,
+	_HostStatusName[13:18]:                  2,
+	strings.ToLower(_HostStatusName[13:18]): 2,
 }
 
 // ParseHostStatus attempts to convert a string to a HostStatus

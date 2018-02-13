@@ -1,8 +1,11 @@
 package hostspool
 
 import (
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -10,9 +13,11 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
 
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
+	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
 )
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
@@ -28,15 +33,34 @@ type Manager interface {
 	Release(hostname string) error
 }
 
+// SSHClientFactory is a that could be called to customize the client used to check the connection.
+//
+// Currently this is used for testing purpose to mock the ssh connection.
+type SSHClientFactory func(config *ssh.ClientConfig, conn Connection) sshutil.Client
+
 // NewManager creates a Manager backed to Consul
 func NewManager(cc *api.Client) Manager {
-	return &consulManager{cc: cc}
+	return NewManagerWithSSHFactory(cc, func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
+		return &sshutil.SSHClient{
+			Config: config,
+			Host:   conn.Host,
+			Port:   int(conn.Port),
+		}
+	})
+}
+
+// NewManagerWithSSHFactory creates a Manager with a given ssh factory
+//
+// Currently this is used for testing purpose to mock the ssh connection.
+func NewManagerWithSSHFactory(cc *api.Client, sshClientFactory SSHClientFactory) Manager {
+	return &consulManager{cc: cc, getSSHClient: sshClientFactory}
 }
 
 const kvLockKey = consulutil.HostsPoolPrefix + "/.mgrLock"
 
 type consulManager struct {
-	cc *api.Client
+	cc           *api.Client
+	getSSHClient SSHClientFactory
 }
 
 func (cm *consulManager) Add(hostname string, conn Connection, labels map[string]string) error {
@@ -136,7 +160,11 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 
-	return nil
+	err = cm.checkConnection(hostname)
+	if err != nil {
+		cm.setHostStatusWithMessage(hostname, HostStatusError, "can't connect to host")
+	}
+	return err
 }
 
 func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {
@@ -148,7 +176,7 @@ func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWai
 	}
 
 	// check if host exists
-	_, err := cm.GetHostStatus(hostname)
+	status, err := cm.GetHostStatus(hostname)
 	if err != nil {
 		return err
 	}
@@ -230,6 +258,17 @@ func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWai
 		return errors.Errorf("Failed to update host %q connection: %s", hostname, strings.Join(errs, ", "))
 	}
 
+	err = cm.checkConnection(hostname)
+	if err != nil {
+		if status != HostStatusError {
+			cm.backupHostStatus(hostname)
+			cm.setHostStatusWithMessage(hostname, HostStatusError, "failed to connect to host")
+		}
+		return err
+	}
+	if status == HostStatusError {
+		cm.restoreHostStatus(hostname)
+	}
 	return nil
 }
 
@@ -255,7 +294,10 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 	if err != nil {
 		return err
 	}
-	if status != HostStatusFree {
+	switch status {
+	case HostStatusFree, HostStatusError:
+		// Ok go ahead
+	default:
 		return errors.WithStack(badRequestError{fmt.Sprintf("can't delete host %q with status %q", hostname, status.String())})
 	}
 
@@ -458,13 +500,74 @@ func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsu
 	return results, warnings, nil
 }
 
+func (cm *consulManager) backupHostStatus(hostname string) error {
+	status, err := cm.GetHostStatus(hostname)
+	if err != nil {
+		return err
+	}
+	message, err := cm.GetHostMessage(hostname)
+	if err != nil {
+		return err
+	}
+	hostPath := path.Join(consulutil.HostsPoolPrefix, hostname)
+	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(hostPath, ".statusBackup"), Value: []byte(status.String())}, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(hostPath, ".messageBackup"), Value: []byte(message)}, nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+func (cm *consulManager) restoreHostStatus(hostname string) error {
+	hostPath := path.Join(consulutil.HostsPoolPrefix, hostname)
+	kvp, _, err := cm.cc.KV().Get(path.Join(hostPath, ".statusBackup"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return errors.Errorf("missing backup status for host %q", hostname)
+	}
+	status, err := ParseHostStatus(string(kvp.Value))
+	if err != nil {
+		return errors.Wrapf(err, "invalid backup status for host %q", hostname)
+	}
+	err = cm.setHostStatus(hostname, status)
+	if err != nil {
+		return err
+	}
+	_, err = cm.cc.KV().Delete(path.Join(hostPath, ".statusBackup"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	kvp, _, err = cm.cc.KV().Get(path.Join(hostPath, ".messageBackup"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	var msg string
+	if kvp != nil {
+		msg = string(kvp.Value)
+	}
+	err = cm.setHostMessage(hostname, msg)
+	if err != nil {
+		return err
+	}
+	_, err = cm.cc.KV().Delete(path.Join(hostPath, ".messageBackup"), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 func (cm *consulManager) setHostStatus(hostname string, status HostStatus) error {
+	return cm.setHostStatusWithMessage(hostname, status, "")
+}
+
+func (cm *consulManager) setHostStatusWithMessage(hostname string, status HostStatus, message string) error {
 	_, err := cm.GetHostStatus(hostname)
 	if err != nil {
 		return err
 	}
 	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, hostname, "status"), Value: []byte(status.String())}, nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return cm.setHostMessage(hostname, message)
 }
 
 func (cm *consulManager) GetHostStatus(hostname string) (HostStatus, error) {
@@ -640,7 +743,7 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 	if err != nil {
 		return "", warnings, err
 	}
-	// Filters only free hosts but try to bypass errors if we can allocate an host
+	// Filters only free and connectable hosts but try to bypass errors if we can allocate an host
 	var lastErr error
 	freeHosts := hosts[:0]
 	for _, h := range hosts {
@@ -648,6 +751,11 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 		case <-lockCh:
 			return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
 		default:
+		}
+		err := cm.checkConnection(h)
+		if err != nil {
+			lastErr = err
+			continue
 		}
 		hs, err := cm.GetHostStatus(h)
 		if err != nil {
@@ -670,11 +778,7 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 		return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
 	default:
 	}
-	err = cm.setHostMessage(hostname, message)
-	if err != nil {
-		return "", warnings, err
-	}
-	return hostname, warnings, cm.setHostStatus(hostname, HostStatusAllocated)
+	return hostname, warnings, cm.setHostStatusWithMessage(hostname, HostStatusAllocated, message)
 }
 func (cm *consulManager) Release(hostname string) error {
 	return cm.releaseWait(hostname, 45*time.Second)
@@ -699,4 +803,73 @@ func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration)
 	}
 	return cm.setHostStatus(hostname, HostStatusFree)
 
+}
+
+// Check if we can log into an host given a connection
+func (cm *consulManager) checkConnection(hostname string) error {
+
+	conn, err := cm.GetHostConnection(hostname)
+	if err != nil {
+		return errors.Wrapf(err, "failed to connect to host %q", hostname)
+	}
+	conf, err := getSSHConfig(conn)
+	if err != nil {
+		return errors.Wrapf(err, "failed to connect to host %q", hostname)
+	}
+
+	client := cm.getSSHClient(conf, conn)
+	_, err = client.RunCommand(`echo "Connected!"`)
+	return errors.Wrapf(err, "failed to connect to host %q", hostname)
+}
+
+func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
+	conf := &ssh.ClientConfig{
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		User:            conn.User,
+	}
+
+	if conn.PrivateKey != "" {
+		keyAuth, err := readPrivateKey(conn.PrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		conf.Auth = append(conf.Auth, keyAuth)
+	}
+
+	if conn.Password != "" {
+		conf.Auth = append(conf.Auth, ssh.Password(conn.Password))
+	}
+	return conf, nil
+}
+
+func readPrivateKey(pk string) (ssh.AuthMethod, error) {
+	var p []byte
+	// check if pk is a path
+	if _, err := os.Stat(pk); err == nil {
+		p, err = ioutil.ReadFile(pk)
+		if err != nil {
+			p = []byte(pk)
+		}
+	} else {
+		p = []byte(pk)
+	}
+
+	// We parse the private key on our own first so that we can
+	// show a nicer error if the private key has a password.
+	block, _ := pem.Decode(p)
+	if block == nil {
+		return nil, errors.Errorf("Failed to read key %q: no key found", pk)
+	}
+	if block.Headers["Proc-Type"] == "4,ENCRYPTED" {
+		return nil, errors.Errorf(
+			"Failed to read key %q: password protected keys are\n"+
+				"not supported. Please decrypt the key prior to use.", pk)
+	}
+
+	signer, err := ssh.ParsePrivateKey(p)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse key file %q", pk)
+	}
+
+	return ssh.PublicKeys(signer), nil
 }
