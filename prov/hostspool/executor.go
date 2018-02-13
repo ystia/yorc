@@ -116,6 +116,17 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 		if err != nil {
 			return err
 		}
+		credentials := map[string]interface{}{"user": host.Connection.User}
+		if host.Connection.Password != "" {
+			credentials["token"] = host.Connection.Password
+		}
+		if host.Connection.PrivateKey != "" {
+			credentials["keys"] = []string{host.Connection.PrivateKey}
+		}
+		err = deployments.SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instance, "endpoint", "credentials", credentials)
+		if err != nil {
+			return err
+		}
 
 		privateAddress, ok := host.Labels["private_address"]
 		if !ok {
