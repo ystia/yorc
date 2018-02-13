@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
@@ -845,8 +846,12 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 func readPrivateKey(pk string) (ssh.AuthMethod, error) {
 	var p []byte
 	// check if pk is a path
-	if _, err := os.Stat(pk); err == nil {
-		p, err = ioutil.ReadFile(pk)
+	keyPath, err := homedir.Expand(pk)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to expand key path")
+	}
+	if _, err := os.Stat(keyPath); err == nil {
+		p, err = ioutil.ReadFile(keyPath)
 		if err != nil {
 			p = []byte(pk)
 		}
