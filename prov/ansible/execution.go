@@ -298,7 +298,7 @@ func (e *executionCommon) setEndpointCredentials(kv *api.KV, host, instanceID, c
 			return nil
 		}
 		if found {
-			conn.user = user
+			conn.user = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.user", user).(string)
 		} else {
 			// TODO log it
 		}
@@ -307,14 +307,14 @@ func (e *executionCommon) setEndpointCredentials(kv *api.KV, host, instanceID, c
 			return nil
 		}
 		if found && password != "" {
-			conn.password = password
+			conn.password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.password", password).(string)
 		}
 		found, privateKey, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "keys", "0")
 		if err != nil {
 			return nil
 		}
 		if found && privateKey != "" {
-			conn.privateKey = privateKey
+			conn.privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.privateKey", privateKey).(string)
 		}
 	}
 	return nil
@@ -369,6 +369,7 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 					return err
 				}
 				if found && ipAddress != "" {
+					ipAddress = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := hostConnection{host: ipAddress, instanceID: instance}
 					e.setEndpointCredentials(e.kv, host, instance, capType, &hostConn)

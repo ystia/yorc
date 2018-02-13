@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
+	"novaforge.bull.com/starlings-janus/janus/config"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
 	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
@@ -810,6 +811,13 @@ func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration)
 	return nil
 }
 
+func resolveTemplatesInConnection(conn *Connection) {
+	conn.User = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.User", conn.User).(string)
+	conn.Password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Password", conn.Password).(string)
+	conn.PrivateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.PrivateKey", conn.PrivateKey).(string)
+	conn.Host = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Host", conn.Host).(string)
+}
+
 // Check if we can log into an host given a connection
 func (cm *consulManager) checkConnection(hostname string) error {
 
@@ -817,6 +825,7 @@ func (cm *consulManager) checkConnection(hostname string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
 	}
+	resolveTemplatesInConnection(&conn)
 	conf, err := getSSHConfig(conn)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to host %q", hostname)
