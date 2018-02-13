@@ -798,12 +798,16 @@ func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration)
 	if status != HostStatusAllocated {
 		return errors.WithStack(badRequestError{fmt.Sprintf("unexpected status %q when releasing host %q", status.String(), hostname)})
 	}
-	err = cm.setHostMessage(hostname, "")
+	err = cm.setHostStatus(hostname, HostStatusFree)
 	if err != nil {
 		return err
 	}
-	return cm.setHostStatus(hostname, HostStatusFree)
-
+	err = cm.checkConnection(hostname)
+	if err != nil {
+		cm.backupHostStatus(hostname)
+		cm.setHostStatusWithMessage(hostname, HostStatusError, "failed to connect to host")
+	}
+	return nil
 }
 
 // Check if we can log into an host given a connection
