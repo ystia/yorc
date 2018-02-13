@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"log"
 	"net/http"
+	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
 	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
 	"novaforge.bull.com/starlings-janus/janus/rest"
@@ -17,6 +19,10 @@ func init() {
 	var jsonParam string
 	var privateKey string
 	var password string
+	var user string
+	var host string
+	var port uint64
+	var labels []string
 
 	var addCmd = &cobra.Command{
 		Use:   "add <hostname>",
@@ -36,10 +42,20 @@ func init() {
 			if len(jsonParam) == 0 {
 				var hostRequest rest.HostRequest
 				hostRequest.Connection = &hostspool.Connection{
+					User:       user,
+					Host:       host,
+					Port:       port,
 					Password:   password,
 					PrivateKey: privateKey,
 				}
-
+				for _, l := range labels {
+					parts := strings.SplitN(l, "=", 2)
+					me := rest.MapEntry{Name: parts[0]}
+					if len(parts) == 2 {
+						me.Value = parts[1]
+					}
+					hostRequest.Labels = append(hostRequest.Labels, me)
+				}
 				tmp, err := json.Marshal(hostRequest)
 				if err != nil {
 					log.Panic(err)
@@ -66,8 +82,12 @@ func init() {
 		},
 	}
 	addCmd.Flags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the host pool")
+	addCmd.Flags().StringVarP(&user, "user", "", "root", "User used to connect to the host")
+	addCmd.Flags().StringVarP(&host, "host", "", "", "Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)")
+	addCmd.Flags().Uint64VarP(&port, "port", "", 22, "Port used to connect to the host. (defaults to the hostname in the hosts pool)")
 	addCmd.Flags().StringVarP(&privateKey, "key", "k", "", "Need to provide a private key or a password for the host pool")
-	addCmd.Flags().StringVarP(&password, "pwd", "p", "", "Need to provide a private key or a password for the host pool")
+	addCmd.Flags().StringVarP(&password, "password", "p", "", "Need to provide a private key or a password for the host pool")
+	addCmd.Flags().StringSliceVarP(&labels, "label", "", nil, "Label in form 'key=value' to add to the host. May be specified several time.")
 
 	hostsPoolCmd.AddCommand(addCmd)
 }
