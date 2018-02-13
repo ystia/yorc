@@ -78,24 +78,36 @@ type ComparableOperator struct {
 	Unit  *string `parser:"[@(Ident|String|Number)]"`
 }
 
+func compareFloats(op string, v1, v2 float64) (bool, error) {
+	switch op {
+	case ">":
+		return v1 > v2, nil
+	case ">=":
+		return v1 >= v2, nil
+	case "<":
+		return v1 < v2, nil
+	case "<=":
+		return v1 <= v2, nil
+	default:
+		return false, errors.Errorf("Unsupported comparator %q", op)
+	}
+}
+
+func compareDurations(op string, v1, v2 time.Duration) (bool, error) {
+	return compareFloats(op, float64(v1), float64(v2))
+}
+
+func compareUInts(op string, v1, v2 uint64) (bool, error) {
+	return compareFloats(op, float64(v1), float64(v2))
+}
+
 func (o *ComparableOperator) matches(value string) (bool, error) {
 	if o.Unit == nil {
 		fValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return false, errors.Wrap(err, "expecting a number for a comparison filter")
 		}
-		switch o.Type {
-		case ">":
-			return fValue > o.Value, nil
-		case ">=":
-			return fValue >= o.Value, nil
-		case "<":
-			return fValue < o.Value, nil
-		case "<=":
-			return fValue <= o.Value, nil
-		default:
-			return false, errors.Errorf("Unsupported comparator %q", o.Type)
-		}
+		return compareFloats(o.Type, fValue, o.Value)
 	}
 	oValueAsString := strconv.FormatFloat(o.Value, 'f', -1, 64)
 	oDuration, err := time.ParseDuration(oValueAsString + *o.Unit)
@@ -104,18 +116,7 @@ func (o *ComparableOperator) matches(value string) (bool, error) {
 		if err != nil {
 			return false, errors.Wrap(err, "expecting a duration for a comparison filter")
 		}
-		switch o.Type {
-		case ">":
-			return vDuration > oDuration, nil
-		case ">=":
-			return vDuration >= oDuration, nil
-		case "<":
-			return vDuration < oDuration, nil
-		case "<=":
-			return vDuration <= oDuration, nil
-		default:
-			return false, errors.Errorf("Unsupported comparator %q", o.Type)
-		}
+		return compareDurations(o.Type, vDuration, oDuration)
 	}
 	oBytes, err := humanize.ParseBytes(oValueAsString + *o.Unit)
 	if err != nil {
@@ -125,18 +126,7 @@ func (o *ComparableOperator) matches(value string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "expecting a bytes notation for a comparison filter")
 	}
-	switch o.Type {
-	case ">":
-		return vBytes > oBytes, nil
-	case ">=":
-		return vBytes >= oBytes, nil
-	case "<":
-		return vBytes < oBytes, nil
-	case "<=":
-		return vBytes <= oBytes, nil
-	default:
-		return false, errors.Errorf("Unsupported comparator %q", o.Type)
-	}
+	return compareUInts(o.Type, vBytes, oBytes)
 }
 
 // SetOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
