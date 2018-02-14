@@ -82,12 +82,16 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, nodeName, jsonProp)
 		}
 	}
-	filters := make([]labelsutil.Filter, len(filtersString))
+	filters, err := createFiltersFromComputeCapabilities(cc.KV(), deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
 	for i := range filtersString {
-		filters[i], err = labelsutil.CreateFilter(filtersString[i])
+		f, err := labelsutil.CreateFilter(filtersString[i])
 		if err != nil {
 			return err
 		}
+		filters = append(filters, f)
 	}
 
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
@@ -162,6 +166,59 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 	delete(logOptFields, events.InstanceID)
 
 	return nil
+}
+
+func appendCapabilityFilter(kv *api.KV, deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
+	found, p, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, capName, propName)
+	if err != nil {
+		return filters, err
+	}
+	if found && p != "" {
+		f, err := labelsutil.CreateFilter(capName + "." + propName + " " + op + " " + p)
+		if err != nil {
+			return filters, err
+		}
+		return append(filters, f), nil
+	}
+	return filters, nil
+}
+
+func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName string) ([]labelsutil.Filter, error) {
+	var err error
+	filters := make([]labelsutil.Filter, 0)
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "num_cpus", ">=", filters)
+	if err != nil {
+		return nil, err
+	}
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "cpu_frequency", ">=", filters)
+	if err != nil {
+		return nil, err
+	}
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "disk_size", ">=", filters)
+	if err != nil {
+		return nil, err
+	}
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "host", "mem_size", ">=", filters)
+	if err != nil {
+		return nil, err
+	}
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "architecture", "=", filters)
+	if err != nil {
+		return nil, err
+	}
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "type", "=", filters)
+	if err != nil {
+		return nil, err
+	}
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "distribution", "=", filters)
+	if err != nil {
+		return nil, err
+	}
+	filters, err = appendCapabilityFilter(kv, deploymentID, nodeName, "os", "version", "=", filters)
+	if err != nil {
+		return nil, err
+	}
+	return filters, nil
 }
 
 func (e *defaultExecutor) hostsPoolDelete(ctx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
