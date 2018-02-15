@@ -1,5 +1,3 @@
-.. _janus_infras_section:
-
 Janus Supported infrastructures
 ===============================
 
