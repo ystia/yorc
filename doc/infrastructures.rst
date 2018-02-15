@@ -8,11 +8,13 @@ This section describes the state of our integration with supported infrastructur
 Hosts Pool
 ----------
 
-|prod|
+.. only:: html
+
+   |prod|
 
 The Hosts Pool is a very special kind of infrastructure. It consists in registering existing Compute nodes into a pool managed by Janus.
 Those compute nodes could be physical or virtual machines, containers or whatever as long as Janus can SSH into it. Janus will be responsible to 
-allocate and release hosts for deployments. This safe to use it concurrently in a Janus cluster, Janus instances will synchronize amongst themselves to 
+allocate and release hosts for deployments. This is safe to use it concurrently in a Janus cluster, Janus instances will synchronize amongst themselves to 
 ensure consistency of the pool.  
 
 To sum up this infrastructure type is really great when you want to use an infrastructure that is not yet supported by Janus.
@@ -20,7 +22,7 @@ To sum up this infrastructure type is really great when you want to use an infra
 Hosts management
 ~~~~~~~~~~~~~~~~
 
-Janus comes with a REST API that allows to manage hosts in the pool and to easily integrates it with other systems. The Janus CLI leverage this REST API 
+Janus comes with a REST API that allows to manage hosts in the pool and to easily integrate it with other systems. The Janus CLI leverage this REST API 
 to make it user friendly, please refer to :ref:`janus_cli_hostspool_section` for more informations
 
 Hosts Pool labels & filters
@@ -33,12 +35,12 @@ It is strongly recommended to associate labels to your hosts. Labels allow to fi
 Filters Grammar
 ^^^^^^^^^^^^^^^
 
-There is four kinds of filters supported by Janus:
+There are four kinds of filters supported by Janus:
 
-  * Filters based on the presence of a label ``label_identifier`` will match if a label with the given name is associated with an host whatever its value is.
+  * Filters based on the presence of a label ``label_identifier`` will match if a label with the given name is associated with a host whatever its value is.
   * Filters based on equality to a value ``label_identifier (=|==|!=) value`` will match if the value associated with the given label is equals (``=`` and ``==``) or different (``!=``) to the given value
   * Filters based on sets ``label_identifier (in | not in) (value [, other_value])`` will match if the value associated with the given label is one (``in``) or is not one (``not in``) of the given values
-  * Filters based on comparisons ``label_identifier (< | <= | > | >=) number[unit]`` will match if the value associated with the given label is a number and matches the comparison sign. An unit could be associated 
+  * Filters based on comparisons ``label_identifier (< | <= | > | >=) number[unit]`` will match if the value associated with the given label is a number and matches the comparison sign. A unit could be associated 
     with the number, currently supported units are golang durations ("ns", "us" , "ms", "s", "m" or "h"), bytes units ("B", "KiB", "KB", "MiB",	"MB", "GiB", "GB", "TiB", "TB", "PiB", "PB", "EiB", "EB") and
     `International System of Units (SI) <https://en.wikipedia.org/wiki/Metric_prefix>`_. The case of the unit does not matter.  
 
@@ -81,7 +83,9 @@ This means that it is strongly recommended to add the following labels to your h
 Slurm
 -----
 
-|prod|
+.. only:: html
+
+   |prod|
 
 `Slurm <https://slurm.schedmd.com/>`_ is an open source, fault-tolerant, and highly scalable cluster management and job scheduling system for large and small Linux clusters.
 It is wildly used in High Performance Computing and it is the default scheduler of the `Bull Super Computer Suite <https://atos.net/en/products/high-performance-computing-hpc>`_ .
@@ -95,7 +99,7 @@ TOSCA allows to specify `requirements on Compute nodes <http://docs.oasis-open.o
 if specified ``num_cpus`` and  ``mem_size`` requirements are used to allocate only the required resoures on computes. This allows to share a Slurm managed compute
 across several deployments. If not specified a whole compute node will be allocated.
 
-Janus also support `Slurm GRES <https://slurm.schedmd.com/gres.html>`_ based scheduling. This is generally used to request an host with a specific type of resource (consumable or not) 
+Janus also support `Slurm GRES <https://slurm.schedmd.com/gres.html>`_ based scheduling. This is generally used to request a host with a specific type of resource (consumable or not) 
 such as GPUs.
 
 Future work
@@ -110,7 +114,9 @@ Future work
 AWS
 ---
 
-|dev|
+.. only:: html
+
+   |dev|
 
 The AWS integration within Janus allows to provision Compute nodes and Elastic IPs on top of `AWS EC2 <https://aws.amazon.com/ec2/>`_ this part is ready for production
 but we plan to support soon the following features to make it production-ready:
@@ -129,7 +135,9 @@ Future work
 OpenStack
 ---------
 
-|prod|
+.. only:: html
+
+   |prod|
 
 The `OpenStack <https://www.openstack.org/>`_ integration within Janus is production-ready. We support Compute, Block Storage, Virtual Networks and Floating IPs
 provisioning.
@@ -145,7 +153,9 @@ Future work
 Kubernetes
 ----------
 
-|incubation|
+.. only:: html
+   
+   |incubation|
 
 Kubernetes support is in a kind of Proof Of Concept phasis for now. We are currently working on a total refactoring of this part.
 
