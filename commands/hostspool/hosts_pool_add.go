@@ -84,7 +84,7 @@ func init() {
 	addCmd.Flags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the host pool")
 	addCmd.Flags().StringVarP(&user, "user", "", "root", "User used to connect to the host")
 	addCmd.Flags().StringVarP(&host, "host", "", "", "Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)")
-	addCmd.Flags().Uint64VarP(&port, "port", "", 22, "Port used to connect to the host. (defaults to the hostname in the hosts pool)")
+	addCmd.Flags().Uint64VarP(&port, "port", "", 22, "Port used to connect to the host.")
 	addCmd.Flags().StringVarP(&privateKey, "key", "k", "", "Need to provide a private key or a password for the host pool")
 	addCmd.Flags().StringVarP(&password, "password", "p", "", "Need to provide a private key or a password for the host pool")
 	addCmd.Flags().StringSliceVarP(&labels, "label", "", nil, "Label in form 'key=value' to add to the host. May be specified several time.")
