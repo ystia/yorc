@@ -268,9 +268,9 @@ This labels list should be composed with elements with the "op" parameter set to
      janus hostspool add <hostname> [flags]
 
 Flags:
-  * ``--data`` or ``-d`` :  Specify a json format for the host pool to add. The Json format for the host pool is described below.
-  * ``--key`` or ``-k`` : Specify a private key to access host if no host connection is defined in json format. (**mandatory if no password is defined**)
-  * ``--password`` or ``-p`` : Specify a password to access host if no host connection is defined in json format. (**mandatory if no private key is defined**)
+  * ``--data`` or ``-d`` :  Specify a JSON format for the host pool to add. The JSON format for the host pool is described below.
+  * ``--key`` or ``-k`` : Specify a private key to access host if no host connection is defined in JSON format. (**mandatory if no password is defined**)
+  * ``--password`` or ``-p`` : Specify a password to access host if no host connection is defined in JSON format. (**mandatory if no private key is defined**)
   * ``--host``: Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)
   * ``--label``: Label in form ``key=value`` to add to the host. May be specified several time.
   * ``--port``: Port used to connect to the host. (default 22)
@@ -308,7 +308,7 @@ This labels list should be composed with elements with the "op" parameter set to
      janus hostspool update <hostname> [flags]
 
 Flags:
-  * ``--data`` or ``-d`` :  Specify a json format for the host pool to update. The Json format for the host pool is described below.
+  * ``--data`` or ``-d`` :  Specify a JSON format for the host pool to update. The JSON format for the host pool is described below.
   * ``--add-label``: Add a label in form 'key=value' to the host. May be specified several time.
   * ``--host``: Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)
   * ``--key`` or ``-k``: At any time a host of the pool should have at least one of private key or password. To delete a registered private key use the "-" character.
