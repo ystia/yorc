@@ -77,6 +77,16 @@ This means that it is strongly recommended to add the following labels to your h
   * ``os.distribution``     (ie. os.distribution=ubuntu)
   * ``os.version``          (ie. os.version=17.10)
 
+Some labels are also automatically exposed as TOSCA Compute instance attributes:
+
+  * if present a label named ``private_address`` will be used as attribute ``private_address`` and ``ip_address`` of the Compute. If not set the connection host will be used instead
+    this allows to specify a network different for the applicative communication and for the orchestrator communication
+  * if present, following labels will fill the ``networks`` attribute of the Compute node:
+
+    * ``networks.<idx>.network_name`` (ie. ``networks.0.network_name``) 
+    * ``networks.<idx>.network_id`` (ie. ``networks.0.network_id``) 
+    * ``networks.<idx>.addresses`` as a coma separated list of addresses (ie. ``networks.0.addresses``)
+    
 
 .. _janus_infras_slurm_section:
 
