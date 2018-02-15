@@ -131,10 +131,23 @@ func TestFiltersCompareMatching(t *testing.T) {
 		{"TestCompBytesGEFalse", `l1 >= 10.0B`, args{map[string]string{"l1": "0.0B", "m2": "v2"}}, false, false},
 		{"TestCompBytesGENoKey", `l3 >= 10.0MB`, args{map[string]string{"l1": "20.0", "m2": "v2"}}, false, false},
 
+		{"TestCompSILTTrue", `l1 < 10GHz`, args{map[string]string{"l1": "5MHz", "m2": "v2"}}, true, false},
+		{"TestCompSILTFalse", `l1 < 10 MHz`, args{map[string]string{"l1": "50.0THz", "m2": "v2"}}, false, false},
+		{"TestCompSILTNoKey", `l3 < 10 THz`, args{map[string]string{"l1": "50.0 h", "m2": "v2"}}, false, false},
+		{"TestCompSILETrue", `l1 <= 10.0Hz`, args{map[string]string{"l1": "10 Hz", "m2": "v2"}}, true, false},
+		{"TestCompSILEFalse", `l1 <= 10.0MHz`, args{map[string]string{"l1": "20.0GHz", "m2": "v2"}}, false, false},
+		{"TestCompSILENoKey", `l3 <= 10.0THz`, args{map[string]string{"l1": "20.0", "m2": "v2"}}, false, false},
+		{"TestCompSIGTTrue", `l1 > 1.0MHz`, args{map[string]string{"l1": "0.5GHz", "m2": "v2"}}, true, false},
+		{"TestCompSIGTFalse", `l1 > 10.0GHz`, args{map[string]string{"l1": "500.1Hz", "m2": "v2"}}, false, false},
+		{"TestCompSIGTNoKey", `l3 > 10Hz`, args{map[string]string{"l1": "50.0", "m2": "v2"}}, false, false},
+		{"TestCompSIGETrue", `l1 >= 1.8010THz`, args{map[string]string{"l1": "1.8010THz", "m2": "v2"}}, true, false},
+		{"TestCompSIGEFalse", `l1 >= 10.0Hz`, args{map[string]string{"l1": "0.0Hz", "m2": "v2"}}, false, false},
+		{"TestCompSIGENoKey", `l3 >= 10.0MHz`, args{map[string]string{"l1": "20.0", "m2": "v2"}}, false, false},
+
 		{"TestCompNotNumber", `l1 >= 10.0`, args{map[string]string{"l1": "2.0.0-SNAPSHOT", "m2": "v2"}}, false, true},
 		{"TestCompNotDuration", `l1 <= 10.0s`, args{map[string]string{"l1": "dev", "m2": "v2"}}, false, true},
 		{"TestCompNotBytes", `l1 <= 10.0MB`, args{map[string]string{"l1": "dev", "m2": "v2"}}, false, true},
-		{"TestCompNotSupportedUnit", `l1 <= 10.0 SomeThing`, args{map[string]string{"l1": "1.0MB", "m2": "v2"}}, false, true},
+		{"TestCompUnitMismatch", `l1 <= 10.0 Ghz`, args{map[string]string{"l1": "1.0MB", "m2": "v2"}}, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

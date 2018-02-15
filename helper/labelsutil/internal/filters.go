@@ -119,14 +119,25 @@ func (o *ComparableOperator) matches(value string) (bool, error) {
 		return compareDurations(o.Type, vDuration, oDuration)
 	}
 	oBytes, err := humanize.ParseBytes(oValueAsString + *o.Unit)
-	if err != nil {
-		return false, errors.Errorf("Unsupported unit %q for comparison filter", o.Type)
+	if err == nil {
+		vBytes, err := humanize.ParseBytes(value)
+		if err != nil {
+			return false, errors.Wrap(err, "expecting a bytes notation for a comparison filter")
+		}
+		return compareUInts(o.Type, vBytes, oBytes)
 	}
-	vBytes, err := humanize.ParseBytes(value)
-	if err != nil {
-		return false, errors.Wrap(err, "expecting a bytes notation for a comparison filter")
+	oSI, oUnit, err := humanize.ParseSI(oValueAsString + *o.Unit)
+	if err == nil {
+		vSI, vUnit, err := humanize.ParseSI(value)
+		if err != nil {
+			return false, errors.Wrap(err, "expecting a international system of unit notation for a comparison filter")
+		}
+		if oUnit != vUnit {
+			return false, errors.Errorf("Units mismatch for comparison filter (can't compare %q with %q", oUnit, vUnit)
+		}
+		return compareFloats(o.Type, vSI, oSI)
 	}
-	return compareUInts(o.Type, vBytes, oBytes)
+	return false, errors.Errorf("Unsupported unit %q for comparison filter", o.Type)
 }
 
 // SetOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly

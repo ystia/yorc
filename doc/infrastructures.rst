@@ -41,8 +41,8 @@ There is four kinds of filters supported by Janus:
   * Filters based on equality to a value ``label_identifier (=|==|!=) value`` will match if the value associated with the given label is equals (``=`` and ``==``) or different (``!=``) to the given value
   * Filters based on sets ``label_identifier (in | not in) (value [, other_value])`` will match if the value associated with the given label is one (``in``) or is not one (``not in``) of the given values
   * Filters based on comparisons ``label_identifier (< | <= | > | >=) number[unit]`` will match if the value associated with the given label is a number and matches the comparison sign. An unit could be associated 
-    with the number, currently supported units are golang durations ("ns", "us" , "ms", "s", "m" or "h") and bytes units ("B", "KiB", "KB", "MiB",	"MB", "GiB", "GB", "TiB", "TB", "PiB", "PB", "EiB", "EB")
-    the case of the unit does not matter.  
+    with the number, currently supported units are golang durations ("ns", "us" , "ms", "s", "m" or "h"), bytes units ("B", "KiB", "KB", "MiB",	"MB", "GiB", "GB", "TiB", "TB", "PiB", "PB", "EiB", "EB") and
+    `International System of Units (SI) <https://en.wikipedia.org/wiki/Metric_prefix>`_. The case of the unit does not matter.  
 
 Here are some example:
 
