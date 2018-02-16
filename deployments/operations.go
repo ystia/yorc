@@ -181,11 +181,30 @@ func GetOperationImplementationType(kv *api.KV, deploymentID, nodeType, operatio
 		return "", errors.Wrap(err, "Fail to get the type of operation implementation")
 	}
 
-	if kvp == nil {
-		return "", errors.Errorf("Operation type not found for %q", operationName)
+	if kvp != nil && len(kvp.Value) > 0 {
+		return string(kvp.Value), nil
 	}
 
-	return string(kvp.Value), nil
+	kvp, _, err = kv.Get(path.Join(operationPath, "implementation/primary"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, "Fail to get the type of operation primary implementation")
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Errorf("Failed to resolve implementation for operation %q in node %q", operationName, nodeType)
+	}
+
+	primary := string(kvp.Value)
+	primarySlice := strings.Split(primary, ".")
+	ext := primarySlice[len(primarySlice)-1]
+	artImpl, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+	if err != nil {
+		return "", err
+	}
+	if artImpl == "" {
+		return "", errors.Errorf("Failed to resolve implementation artifact for type %q, operation %q, implementation %q and extension %q", nodeType, operationName, primary, ext)
+	}
+	return artImpl, nil
+
 }
 
 // GetOperationImplementationFile allows you when the implementation of an operation is an artifact to retrieve the file of this artifact
@@ -301,29 +320,17 @@ func GetImplementationArtifactForOperation(kv *api.KV, deploymentID, nodeName, o
 		return "", err
 	}
 
-	// TODO keep in mind that with Alien we may have a an implementation artifact directly in the operation. This part is currently under development in the Kubernetes branch
-	// and we should take this into account when it will be merged.
-	_, primary, err := GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, nodeOrRelType, operationName)
+	implementedIn, err := GetTypeImplementingAnOperation(kv, deploymentID, nodeOrRelType, operationName)
 	if err != nil {
 		return "", err
 	}
-	if primary == "" {
-		implType, err := GetOperationImplementationType(kv, deploymentID, nodeOrRelType, operationName)
-		if err != nil {
-			return "", err
-		}
-		return implType, nil
-	}
-	primarySlice := strings.Split(primary, ".")
-	ext := primarySlice[len(primarySlice)-1]
-	artImpl, err := GetImplementationArtifactForExtension(kv, deploymentID, ext)
+
+	implType, err := GetOperationImplementationType(kv, deploymentID, implementedIn, operationName)
 	if err != nil {
 		return "", err
 	}
-	if artImpl == "" {
-		return "", errors.Errorf("Failed to resolve implementation artifact for type %q, operation %q, implementation %q and extension %q", nodeOrRelType, operationName, primary, ext)
-	}
-	return artImpl, nil
+	return implType, nil
+
 }
 
 // GetOperationInputs returns the list of inputs names for a given operation
