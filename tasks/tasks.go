@@ -161,6 +161,12 @@ func ResumeTask(kv *api.KV, taskID string) error {
 	return nil
 }
 
+// DeleteTask allows to delete a stored task
+func DeleteTask(kv *api.KV, taskID string) error {
+	_, err := kv.DeleteTree(path.Join(consulutil.TasksPrefix, taskID), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 // TargetHasLivingTasks checks if a targetID has associated tasks in status INITIAL or RUNNING and returns the id and status of the first one found
 func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)

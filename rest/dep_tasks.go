@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"strings"
 )
 
 func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskID string) bool {
@@ -25,22 +24,14 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 		return false
 	}
 
-	// Get the task type
-	taskType, err := tasks.GetTaskType(kv, taskID)
+	// First check that the targetId of the task is the deployment id
+	ttid, err := tasks.GetTaskTarget(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
-
-	// check that the targetId of the task is the deployment id if task not query-typed
-	if taskType != tasks.Query {
-		ttid, err := tasks.GetTaskTarget(kv, taskID)
-		if err != nil {
-			log.Panic(err)
-		}
-		if ttid != id {
-			writeError(w, r, newBadRequestError(errors.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
-			return false
-		}
+	if ttid != id {
+		writeError(w, r, newBadRequestError(errors.Errorf("Task with id %q doesn't correspond to the deployment with id %q", taskID, id)))
+		return false
 	}
 	return true
 }
@@ -70,21 +61,12 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		params httprouter.Params
-		id     string
-		url    string
-	)
+	var params httprouter.Params
 	ctx := r.Context()
-	url = r.URL.String()
 	params = ctx.Value("params").(httprouter.Params)
+	id := params.ByName("id")
 	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
-	if strings.HasPrefix(url, "/deployments") {
-		id = params.ByName("id")
-	} else {
-		id = params.ByName("infraName")
-	}
 
 	if !s.tasksPreChecks(w, r, id, taskID) {
 		return

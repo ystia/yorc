@@ -787,18 +787,59 @@ Content-Type: application/json
 ```
 ```json
 {
-  "id": "b4144668-5ec8-41c0-8215-842661520147",
-  "target_id": "slurm",
-  "type": "QUERY",
-  "status": "DONE"
-  "result_set": {
-      "allocated_state_cpus": "80",
-      "cpu_load": "0.01-N/A",
-      "idle_state_cpus": "88",
-      "nb_pending_jobs": "0",
-      "nb_running_jobs": "44",
-      "other_state_cpus": "32",
-      "total_cpus": "200"
-  }
+    "id": "9eb9dd64-c08b-45b2-baae-8c657ce33403",
+    "target_id": "infra_usage:slurm",
+    "type": "Query",
+    "status": "DONE",
+    "result_set": {
+        "cluster": {
+            "cpus": {
+            "allocated": "90",
+            "cpu_load": "0.01-0.03",
+            "idle": "78",
+            "other": "8",
+            "total": "176"
+        },
+        "memory": {
+            "allocated": "242,464 MB",
+            "total": "360,448 MB"
+            },
+        "nodes": "22"
+        },
+        "partitions": [
+        {
+            "cpus": {
+                "allocated": "90",
+                "cpu_load": "0.01-0.03",
+                "idle": "38",
+                "other": "8",
+                "total": "136"
+            },
+            "jobs": {
+                "pending": "0",
+                "running": "48"
+            },
+            "memory": {
+                "allocated": "242,464 MB",
+                "total": "278,528 MB"
+            },
+            "name": "debug",
+            "nodes": "17",
+            "nodes_list": "hpda[1-2,5-17,19-20,23-25]",
+            "state": "up"
+        }]
+    }
 }
+```
+### Delete a query <a name="query-delete"></a>
+
+Delete an existing query. The task should be in status "DONE" or "FAILED" to be deleted otherwise an HTTP 400
+(Bad request) error is returned.
+
+`DELETE    /infra_usage/<infra_name>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 202 OK
+Content-Length: 0
 ```

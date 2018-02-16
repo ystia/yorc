@@ -62,6 +62,10 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 		consulutil.TasksPrefix + "/t12/status":    []byte("3"),
 		consulutil.TasksPrefix + "/t13/resultSet": buildResultset(),
 		consulutil.TasksPrefix + "/t14/status":    []byte("3"),
+
+		consulutil.TasksPrefix + "/t15/targetId": []byte("xxx"),
+		consulutil.TasksPrefix + "/t15/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t15/type":     []byte("2"),
 	})
 }
 
@@ -621,6 +625,40 @@ func testGetTaskResultSet(t *testing.T, kv *api.KV) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetTaskStatus() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testDeleteTask(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"taskToDelete", args{kv, "t15"}, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := DeleteTask(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			got, err := TaskExists(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("DeleteTask() = %v, want %v", got, tt.want)
 			}
 		})
 	}
