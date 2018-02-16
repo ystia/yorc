@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 
 	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -28,6 +29,9 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/prov/operations"
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
+
+const deploymentResourceType string = "janus.nodes.kubernetes.api.types.DeploymentResource"
+const serviceResourceType string = "janus.nodes.kubernetes.api.types.ServiceResource"
 
 // An EnvInput represent a TOSCA operation input
 //
@@ -95,11 +99,12 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	nbInstances := int32(len(instances))
 	switch strings.ToLower(e.Operation.Name) {
-	case "tosca.interfaces.node.lifecycle.standard.delete",
-		"tosca.interfaces.node.lifecycle.standard.configure":
+	case "standard.create":
+		return e.createKubernetesResource(ctx)
+	case "standard.configure":
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
-	case "tosca.interfaces.node.lifecycle.standard.start":
+	case "standard.start":
 		if e.taskType == tasks.ScaleUp {
 			log.Println("##### Scale up node !")
 			err = e.scaleNode(ctx, tasks.ScaleUp, nbInstances)
@@ -111,16 +116,98 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 			return err
 		}
 		return e.checkNode(ctx)
-	case "tosca.interfaces.node.lifecycle.standard.stop":
+	case "standard.stop":
 		if e.taskType == tasks.ScaleDown {
 			log.Println("##### Scale down node !")
 			return e.scaleNode(ctx, tasks.ScaleDown, nbInstances)
 		}
 		return e.uninstallNode(ctx)
+	case "standard.delete":
+		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
+		return nil
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
+}
 
+func (e *executionCommon) createKubernetesResource(ctx context.Context) (err error) {
+	nodeType, err := deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create k8s resource")
+	}
+
+	switch nodeType {
+	case deploymentResourceType:
+		return e.createDeploymentResource(ctx)
+	case serviceResourceType:
+		return e.createServiceResource(ctx)
+	default:
+		return errors.Errorf("Unsupported k8s resource type %q", nodeType)
+	}
+
+}
+
+func (e *executionCommon) createDeploymentResource(ctx context.Context) (err error) {
+	var deploymentRepr v1beta1.Deployment
+
+	if found, result, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec"); err != nil {
+		return err
+	} else if !found {
+		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
+	} else {
+		// Unmarshal JSON to k8s data structs
+		if err = json.Unmarshal([]byte(result), &deploymentRepr); err != nil {
+			log.Printf("Try to create k8S resource %s", result)
+			return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
+		}
+	}
+
+	clientset := ctx.Value("clientset")
+
+	// TODO manage Namespace creation
+	// Get it from matadata, or generate it using deploymentID
+	// (Synchronize with Alien)
+	//namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	//namespace := deploymentRepresentation.ObjectMeta.Namespace
+	namespace := "default"
+
+	// Crete a deployment based on the provided representation and return's the k8s server's representation of the created deployment
+	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Create(&deploymentRepr)
+	if err != nil {
+		return err
+	}
+	log.Printf("$$$$$ k8s Deployment %s created", deployment.Name)
+
+	return nil
+}
+
+func (e *executionCommon) createServiceResource(ctx context.Context) (err error) {
+	var serviceRepr v1.Service
+
+	if found, result, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec"); err != nil {
+		return err
+	} else if !found {
+		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
+	} else {
+		// Unmarshal JSON to k8s data structs
+		if err = json.Unmarshal([]byte(result), &serviceRepr); err != nil {
+			log.Printf("Try to create k8s resource %s", result)
+			return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
+		}
+	}
+
+	clientset := ctx.Value("clientset")
+	namespace := "default"
+
+	// Crete a service based on a provided representation and return's the k8s server's representation of the created service
+	service, err := (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&serviceRepr)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create service")
+	}
+
+	log.Printf("$$$$$ k8s Service %s created", service.Name)
+
+	return nil
 }
 
 func (e *executionCommon) parseEnvInputs() []v1.EnvVar {

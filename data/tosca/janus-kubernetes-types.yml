@@ -12,7 +12,29 @@ artifact_types:
     description: Docker Container Image to be deployed by Kubernetes
     derived_from: tosca.artifacts.Deployment.Image.Container.Docker
 
+  janus.artifacts.Deployment.Kubernetes:
+    description: Docker deployment descriptor
+    derived_from: tosca.artifacts.Deployment
+
 node_types:
+  janus.nodes.kubernetes.api.types.DeploymentResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.DeploymentResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embeded"
+            type: janus.artifacts.Deployment.Kubernetes
+
+  janus.nodes.kubernetes.api.types.ServiceResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.ServiceResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embeded"
+            type: janus.artifacts.Deployment.Kubernetes
+
   janus.nodes.KubernetesVolume:
     derived_from: janus.nodes.DockerVolume
     properties:
