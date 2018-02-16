@@ -160,6 +160,26 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 			log.Debugf("%+v", err)
 		}
 
+		// Request the infra usage collector plugin
+		raw, err = rpcClient.Dispense(plugin.InfraUsageCollectorPluginName)
+		if err == nil {
+			infraUsageCollectorPlugin := raw.(plugin.InfraUsageCollector)
+			infras, err := infraUsageCollectorPlugin.GetSupportedInfras()
+			if err != nil {
+				log.Printf("[Warning] Failed to retrieve supported infrastructure for plugin %q.", pluginID)
+				log.Debugf("%+v", err)
+			}
+			if len(infras) > 0 {
+				for _, infra := range infras {
+					log.Debugf("Registering infrastructure usage collector %q into registry for plugin %q", infra, pluginID)
+					reg.RegisterInfraUsageCollector(infra, infraUsageCollectorPlugin, pluginID)
+				}
+			}
+		} else {
+			log.Printf("[Warning] Can't get collector supported infra from plugin %q: %v. This is likely due to a outdated plugin.", pluginID, err)
+			log.Debugf("%+v", err)
+		}
+
 		pm.pluginClients = append(pm.pluginClients, client)
 
 		log.Printf("Plugin %q successfully loaded", pluginID)

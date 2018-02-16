@@ -2,7 +2,6 @@ package rest
 
 import (
 	"net/http"
-
 	"novaforge.bull.com/starlings-janus/janus/registry"
 )
 
@@ -30,4 +29,10 @@ func (s *Server) listVaultsBuilderHandler(w http.ResponseWriter, r *http.Request
 	vaults := reg.ListVaultClientBuilders()
 	vaultsCollection := RegistryVaultsCollection{VaultClientBuilders: vaults}
 	encodeJSONResponse(w, r, vaultsCollection)
+}
+
+func (s *Server) listInfraHandler(w http.ResponseWriter, r *http.Request) {
+	infras := reg.ListInfraUsageCollectors()
+	infraCollection := RegistryInfraUsageCollectorsCollection{InfraUsageCollectors: infras}
+	encodeJSONResponse(w, r, infraCollection)
 }

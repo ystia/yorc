@@ -73,7 +73,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		taskID, err = s.scaleDown(id, nodeName, uint32(-instancesDelta))
 	}
 	if err != nil {
-		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}

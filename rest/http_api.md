@@ -662,7 +662,7 @@ Content-Type: application/json
 
 ### Get TOSCA Definitions <a name="registry-definitions"></a>
 
-Retrieves the list of the embedded TOSCA definitions and there origins. The origin parameter cloud be `builtin` for Janus builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
+Retrieves the list of the embedded TOSCA definitions and their origins. The origin parameter cloud be `builtin` for Janus builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -687,7 +687,7 @@ Content-Type: application/json
 
 ### Get Delegates Executors <a name="registry-delegates"></a>
 
-Retrieves the list of delegates executors and there origins. The origin parameter cloud be `builtin` for Janus builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
+Retrieves the list of delegates executors and their origins. The origin parameter cloud be `builtin` for Janus builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -710,7 +710,7 @@ Content-Type: application/json
 
 ### Get Implementations Executors <a name="registry-implementations"></a>
 
-Retrieves the list of implementations executors and there origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+Retrieves the list of implementations executors and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -733,3 +733,113 @@ Content-Type: application/json
 }
 ```
 
+### Get infrastructure usage collectors <a name="registry-infra"></a>
+
+Retrieves the list of infrastructure usage collectors and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+
+'Accept' header should be set to 'application/json'.
+
+
+`GET /registry/infra_usage_collectors`
+
+**Response**
+```
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+```json
+{
+    "infrastructures": [
+        {
+            "id": "slurm",
+            "origin": "builtin"
+        }
+    ]
+}
+```
+
+## Infrastructure Usage
+
+### Execute a query to retrieve infrastructure usage for a defined infrastructure usage collector <a name="infra-usage-query-exec"></a>
+Submit a query for a given infrastructure to retrieve usage information.
+'Content-Type' header should be set to 'application/json'.
+
+`POST    /infra_usage/<infra_name>`
+
+**Response**
+```
+HTTP/1.1 202 Accepted
+Content-Length: 0
+Location: /infra_usage/<infra_name>/tasks/<task_id>
+```
+
+### Get query information <a name="task-info"></a>
+
+Retrieve information about a task for a given infrastructure usage collector.
+'Accept' header should be set to 'application/json'.
+
+`GET    /infra_usage/<infra_name>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+    "id": "9eb9dd64-c08b-45b2-baae-8c657ce33403",
+    "target_id": "infra_usage:slurm",
+    "type": "Query",
+    "status": "DONE",
+    "result_set": {
+        "cluster": {
+            "cpus": {
+            "allocated": "90",
+            "cpu_load": "0.01-0.03",
+            "idle": "78",
+            "other": "8",
+            "total": "176"
+        },
+        "memory": {
+            "allocated": "242,464 MB",
+            "total": "360,448 MB"
+            },
+        "nodes": "22"
+        },
+        "partitions": [
+        {
+            "cpus": {
+                "allocated": "90",
+                "cpu_load": "0.01-0.03",
+                "idle": "38",
+                "other": "8",
+                "total": "136"
+            },
+            "jobs": {
+                "pending": "0",
+                "running": "48"
+            },
+            "memory": {
+                "allocated": "242,464 MB",
+                "total": "278,528 MB"
+            },
+            "name": "debug",
+            "nodes": "17",
+            "nodes_list": "hpda[1-2,5-17,19-20,23-25]",
+            "state": "up"
+        }]
+    }
+}
+```
+### Delete a query <a name="query-delete"></a>
+
+Delete an existing query. The task should be in status "DONE" or "FAILED" to be deleted otherwise an HTTP 400
+(Bad request) error is returned.
+
+`DELETE    /infra_usage/<infra_name>/tasks/<taskId>`
+
+**Response**
+```
+HTTP/1.1 202 OK
+Content-Length: 0
+```
