@@ -327,8 +327,8 @@ func CheckTaskStepStatusChange(before, after string) (bool, error) {
 	return true, nil
 }
 
-// GetQueryTaskIDs returns an array of taskID query-typed and optionally filtered by query
-func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string) ([]string, error) {
+// GetQueryTaskIDs returns an array of taskID query-typed, optionally filtered by query and target
+func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string, target string) ([]string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
 	if err != nil {
 		return nil, err
@@ -350,8 +350,9 @@ func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string) ([]string, err
 			log.Printf("[WARNING] the task with id:%q won't be listed due to error:%+v", id, err)
 			continue
 		}
-		log.Debugf("targetId:%q", string(kvp.Value))
-		if kvp != nil && len(kvp.Value) > 0 && strings.HasPrefix(string(kvp.Value), query) {
+		targetID := string(kvp.Value)
+		log.Debugf("targetId:%q", targetID)
+		if kvp != nil && len(kvp.Value) > 0 && strings.HasPrefix(targetID, query) && strings.HasSuffix(targetID, target) {
 			tasks = append(tasks, id)
 		}
 	}

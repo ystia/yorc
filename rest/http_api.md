@@ -843,9 +843,31 @@ Delete an existing query. The task should be in status "DONE" or "FAILED" to be 
 HTTP/1.1 202 OK
 Content-Length: 0
 ```
-### List all queries about infrastructure usage <a name="list-query"></a>
+### List all queries about an infrastructure usage <a name="list-query"></a>
 
 Retrieve all queries run about infrastructure usage.
 'Accept' header should be set to 'application/json'.
 
-`GET    /queries/tasks?query=infra_usage`
+`GET    /infra_usage?target=slurm`
+
+**Response**
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+"tasks": [
+  {
+    "rel": "task",
+    "href": "/infra_usage/slurm/tasks/b0d91e99-1970-4fc0-8cc2-2cb4f5007e27",
+    "type": "application/json"
+  },
+  {
+    "rel": "task",
+    "href": "/infra_usage/slurm/tasks/b4f9682d-7020-45dc-b2db-d0c84b8c30e2",
+    "type": "application/json"
+  }
+ ]
+}
+```
