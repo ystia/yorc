@@ -1,0 +1,28 @@
+tosca_definitions_version: janus_tosca_simple_yaml_1_0
+
+template_name: janus-hostspool-types
+template_author: Janus
+template_version: 1.0.0
+
+imports:
+  - janus: <janus-types.yml>
+
+node_types:
+  janus.nodes.hostspool.Compute:
+    derived_from: janus.nodes.Compute
+    properties:
+      filters:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+    attributes:
+      hostname:
+        type: string
+        description: The hostname as known in the hosts pool
+    capabilities:
+      endpoint:
+        type: janus.capabilities.Endpoint.ProvisioningAdmin
+        properties:
+          credentials:
+            user: "not significant, will be set by Janus itself"

@@ -14,6 +14,7 @@ Janus |release| Documentation
    configuration
    run
    cli
+   infrastructures
    tosca
    secured
    vault

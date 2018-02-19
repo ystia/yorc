@@ -1,0 +1,164 @@
+GET http://127.0.0.1:8800/hosts_pool HTTP/1.1
+Accept: application/json
+
+###
+
+PUT http://127.0.0.1:8800/hosts_pool/ubu1 HTTP/1.1
+Content-Type: application/json
+
+{
+    "connection": {
+        "user": "ubuntu",
+        "password": "test"
+    },
+    "labels": [
+        {"name": "os", "value": "linux"}
+    ]
+}
+###
+
+PUT http://127.0.0.1:8800/hosts_pool/ubu2 HTTP/1.1
+Content-Type: application/json
+
+{
+    "connection": {
+        "user": "ubuntu",
+        "private_key": "janus.pem",
+        "port": 23
+    },
+    "labels": [
+        {"name": "os", "value": "linux"}
+    ]
+}
+
+###
+
+GET http://127.0.0.1:8800/hosts_pool/ubu2?pretty HTTP/1.1
+
+###
+
+DELETE http://127.0.0.1:8800/hosts_pool/ubu1 HTTP/1.1
+
+###
+
+DELETE http://127.0.0.1:8800/hosts_pool/ubu2 HTTP/1.1
+
+
+###
+
+PATCH http://127.0.0.1:8800/hosts_pool/ubu1 HTTP/1.1
+Content-Type: application/json
+
+{
+    "connection": {
+        "user": "ubuntu",
+        "password": "newPass"
+    },
+    "labels": [
+        {"op": "remove", "name": "os", "value": "linux"},
+        {"op": "add", "name": "mem", "value": "4G"}
+    ]
+}
+###
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PUT http://127.0.0.1:8800/hosts_pool/c0 HTTP/1.1
+Content-Type: application/json
+
+{
+    "connection": {
+        "user": "cloud-user",
+        "host": "10.197.138.127",
+        "private_key": "~/.ssh/janus.pem"
+    },
+    "labels": [
+        {"name": "os.type", "value": "linux"},
+        {"name": "host.mem_size", "value": "2GB"},
+        {"name": "os.distribution", "value": "centos"},
+        {"name": "id", "value": "c0"}
+    ]
+}
+
+###
+
+PUT http://127.0.0.1:8800/hosts_pool/c1 HTTP/1.1
+Content-Type: application/json
+
+{
+    "connection": {
+        "user": "cloud-user",
+        "host": "10.197.138.126",
+        "private_key": "~/.ssh/janus.pem"
+    },
+    "labels": [
+        {"name": "os.type", "value": "linux"},
+        {"name": "host.mem_size", "value": "2GB"},
+        {"name": "os.distribution", "value": "centos"},
+        {"name": "id", "value": "c1"}
+    ]
+}
+
+###
+
+PUT http://127.0.0.1:8800/hosts_pool/c2 HTTP/1.1
+Content-Type: application/json
+
+{
+    "connection": {
+        "user": "cloud-user",
+        "host": "10.197.138.129",
+        "private_key": "~/.ssh/janus.pem"
+    },
+    "labels": [
+        {"name": "os.type", "value": "linux"},
+        {"name": "host.mem_size", "value": "2GB"},
+        {"name": "os.distribution", "value": "centos"},
+        {"name": "id", "value": "c2"}
+    ]
+}
+
+
+###
+
+GET http://127.0.0.1:8800/hosts_pool/c0?pretty HTTP/1.1
+Accept: application/json
+###
+
+GET http://127.0.0.1:8800/hosts_pool/c1?pretty HTTP/1.1
+Accept: application/json
+###
+
+GET http://127.0.0.1:8800/hosts_pool/c2?pretty HTTP/1.1
+Accept: application/json
+
+
+
+###
+
+PATCH http://127.0.0.1:8800/hosts_pool/c0 HTTP/1.1
+Content-Type: application/json
+
+{
+    "labels": [
+        {"op": "remove", "name": "mem"},
+        {"op": "add", "name": "id", "value": "c0"}
+    ]
+}
+
+###
+
+GET http://127.0.0.1:8800/hosts_pool?pretty&filter=host.mem_size>1GB&filter=id=c1 HTTP/1.1
+Accept: application/json

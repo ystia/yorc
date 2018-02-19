@@ -12,8 +12,9 @@ import (
 func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	infraName := params.ByName("infraName")
+	log.Debugf("Posting query for getting infra usage information with infra:%q", infraName)
 
 	// Check an infraUsageCollector with the defined infra name exists
 	var reg = registry.GetRegistry()

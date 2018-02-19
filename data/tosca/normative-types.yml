@@ -111,7 +111,7 @@ data_types:
         constraints:
           - valid_values: [ udp, tcp, igmp ]
       target:
-        type: PortDef
+        type: tosca.datatypes.network.PortDef
         description: The optional target port.
       target_range:
         type: range
@@ -119,7 +119,7 @@ data_types:
         constraints:
           - in_range: [ 1, 65535 ]
       source:
-        type: PortDef
+        type: tosca.datatypes.network.PortDef
         description: The optional target port.
       source_range:
         type: range
@@ -229,7 +229,7 @@ capability_types:
           Examples: http, https, ftp, tcp, udp, etc.
         default: tcp
       port:
-        type: PortDef
+        type: tosca.datatypes.network.PortDef
         description: The optional port of the endpoint.
         required: false
       secure:

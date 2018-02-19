@@ -12,7 +12,7 @@ import (
 func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	opt := params.ByName("opt")
 
@@ -46,7 +46,7 @@ func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	links := s.listOutputsLinks(id)
 	if len(links) == 0 {

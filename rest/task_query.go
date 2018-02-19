@@ -27,7 +27,7 @@ func (s *Server) taskQueryPreChecks(w http.ResponseWriter, r *http.Request, task
 func (s *Server) getTaskQueryHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
 

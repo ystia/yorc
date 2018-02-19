@@ -19,3 +19,6 @@ const EventsPrefix = janusPrefix + "/events"
 
 // LogsPrefix is the prefix on KV store for logs concerning all the deployments
 const LogsPrefix = janusPrefix + "/logs"
+
+// HostsPoolPrefix is the prefix on KV store for the hosts pool service
+const HostsPoolPrefix = janusPrefix + "/hosts_pool"

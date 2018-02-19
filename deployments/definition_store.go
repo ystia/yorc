@@ -903,7 +903,7 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 	return errGroup.Wait()
 }
 
-// In this function we iterate over all node to know which node need to have an HOST output and search for this HOST and tell him to export this output
+// In this function we iterate over all node to know which node need to have a HOST output and search for this HOST and tell him to export this output
 func fixGetOperationOutputForHost(ctx context.Context, kv *api.KV, deploymentID, nodeName string) error {
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if nodeType != "" && err == nil {
