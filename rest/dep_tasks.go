@@ -9,6 +9,7 @@ import (
 
 	"encoding/json"
 	"io/ioutil"
+
 	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
@@ -39,7 +40,7 @@ func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, task
 func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
@@ -63,7 +64,7 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
@@ -98,7 +99,7 @@ func (s *Server) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getTaskStepsHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	deploymentID := params.ByName("id")
 	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()
@@ -117,7 +118,7 @@ func (s *Server) getTaskStepsHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	deploymentID := params.ByName("id")
 	taskID := params.ByName("taskId")
 	stepID := params.ByName("stepId")
@@ -168,7 +169,7 @@ func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Requ
 func (s *Server) resumeTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	taskID := params.ByName("taskId")
 	kv := s.consulClient.KV()

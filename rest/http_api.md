@@ -5,32 +5,34 @@ Currently supported urls are:
 
 ## Deployments
 
-Adding the 'pretty' url parameter to your requests allow to generate an indented json output. 
+Adding the 'pretty' url parameter to your requests allow to generate an indented json output.
 
 ### Submit a CSAR to deploy <a name="submit-csar"></a>
+
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
 
 There are two ways to submit a new deployment, you can let Janus generate a unique deployment ID or you can specify it.
 
 #### Auto-generated deployment ID
+
 In this case you should use a `POST` method.
 
 `POST /deployments`
 
-
 #### Customized deployment ID
+
 In this case you should use a `PUT` method. There are some constraints on submitting a deployment with a given ID:
-  * This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
-  * This ID should not already be in used (otherwise a `409 Conflict` error is returned)
+
+* This ID should respect the following format: `^[-_0-9a-zA-Z]+$` and be less than 36 characters long (otherwise a `400 BadRequest` error is returned)
+* This ID should not already be in used (otherwise a `409 Conflict` error is returned)
 
 `PUT /deployments/<deployment_id>`
 
-
-#### Result
+**Result**:
 
 In both submission ways, a successfully submitted deployment will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating the task URI handling the deployment process.
 
-```
+```HTTP
 HTTP/1.1 201 Created
 Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/b4144668-5ec8-41c0-8215-842661520147
 Content-Length: 0
@@ -47,12 +49,13 @@ Retrieves the list of deployments. 'Accept' header should be set to 'application
 
 `GET /deployments`
 
-**Response**
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "deployments": [
@@ -67,7 +70,9 @@ Undeploy a deployment. By adding the optional 'purge' url parameter to your requ
 
 `DELETE /deployments/<deployment_id>[?purge]`
 
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 202 Accepted
 Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/b4144668-5ec8-41c0-8215-842661520147
 Content-Length: 0
@@ -78,7 +83,6 @@ This endpoint produces no content except in case of error.
 A critical note is that the undeployment is proceeded asynchronously and a success only guarantees that the undeployment task is successfully
 **submitted**.
 
-
 ### Get the deployment information <a name="dep-info"></a>
 
 Retrieve the deployment status and the list (as Atom links) of the nodes and tasks related the deployment.
@@ -87,12 +91,13 @@ Retrieve the deployment status and the list (as Atom links) of the nodes and tas
 
 `GET    /deployments/<deployment_id>`
 
-**Response**
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "id": "55d54226-5ce5-4278-96e4-97dd4cbb4e62",
@@ -131,17 +136,18 @@ Content-Type: application/json
 ### Get the deployment information about a given node <a name="node-info"></a>
 
 Retrieve the node status and the list (as Atom links) of the instances for this node.
- 
+
 'Accept' header should be set to 'application/json'.
 
 `GET    /deployments/<deployment_id>/nodes/<node_name>`
 
-**Response**
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "name": "ComputeB",
@@ -166,21 +172,21 @@ Content-Type: application/json
 }
 ```
 
-
 ### Get the deployment information about a given node instance <a name="instance-info"></a>
 
 Retrieve the node instance status and the list (as Atom links) of the attributes for this instance.
- 
+
 'Accept' header should be set to 'application/json'.
 
 `GET    /deployments/<deployment_id>/nodes/<node_name>/instances/<instance_name>`
 
-**Response**
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "id": "0",
@@ -215,21 +221,21 @@ Content-Type: application/json
 }
 ```
 
-
 ### Get the attributes list of a given node instance <a name="instance-attributes"></a>
 
 Retrieve the list (as Atom links) of the attributes for this instance.
- 
+
 'Accept' header should be set to 'application/json'.
 
 `GET    /deployments/<deployment_id>/nodes/<node_name>/instances/<instance_name>/attributes`
 
-**Response**
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "attributes": [
@@ -253,21 +259,21 @@ Content-Type: application/json
 
 ```
 
-
 ### Get the value of an attribute for a given node instance <a name="attribute-value"></a>
 
 Retrieve the value of an attribute for this instance.
- 
+
 'Accept' header should be set to 'application/json'.
 
 `GET    /deployments/<deployment_id>/nodes/<node_name>/instances/<instance_name>/attributes/<attribute_name>`
 
-**Response**
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "name": "ip_address",
@@ -302,11 +308,12 @@ a new event was published.
 
 Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 X-Janus-Index: 1812
 ```
+
 ```json
 {
   "events": [
@@ -336,11 +343,11 @@ or
 
 The latest index is returned as an HTTP Header called `X-Janus-Index`.
 
-**Response**
+**Response**:
 
 As per an HTTP `HEAD` request the response as no body.
 
-```
+```HTTP
 HTTP/1.1 200 OK
 X-Janus-Index: 1812
 ```
@@ -357,15 +364,13 @@ This value can be specified in the form of "10s" or "5m" (i.e., 10 seconds or 5 
 polling for events newer that this index. A _0_ value will always returns with all currently known logs (possibly none if none were
 already published), a _1_ value will wait for at least one log.
 
-
-On optional `filter` parameter allows to filters logs by type. Currently available filters are `engine` for Janus deployment logs, 
-`infrastructure`  for infrastructure provisioning logs and `software` for software provisioning logs. This parameter accepts a coma 
-separated list of values.  
+On optional `filter` parameter allows to filters logs by type. Currently available filters are `engine` for Janus deployment logs,
+`infrastructure`  for infrastructure provisioning logs and `software` for software provisioning logs. This parameter accepts a coma
+separated list of values.
 
 #### Get logs concerning a given deployment
 
 `GET    /deployments/<deployment_id>/logs?index=1&wait=5m&filter=[software, engine, infrastructure]`
-
 
 #### Get all the logs
 
@@ -373,13 +378,14 @@ separated list of values.
 
 Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
 
-#### Response ####
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 X-Janus-Index: 1781
 ```
+
 ```json
 {
     "logs":[
@@ -389,7 +395,6 @@ X-Janus-Index: 1781
      "last_index":1781
 }
 ```
-
 
 ### Get latest logs index <a name="last-log-idx"></a>
 
@@ -403,11 +408,11 @@ or
 
 The latest index is returned as an HTTP Header called `X-Janus-Index`.
 
-**Response**
+**Response**:
 
 As per an HTTP `HEAD` request the response as no body.
 
-```
+```HTTP
 HTTP/1.1 200 OK
 X-Janus-Index: 1812
 ```
@@ -415,17 +420,19 @@ X-Janus-Index: 1812
 ### Get an output <a name="output-value"></a>
 
 Retrieve a specific output. While the deployment status is DEPLOYMENT_IN_PROGRESS an output may be unresolvable in this case an empty string
-is returned. With other deployment statuses an unresolvable output leads to an Internal Server Error. 
- 
+is returned. With other deployment statuses an unresolvable output leads to an Internal Server Error.
+
 'Accept' header should be set to 'application/json'.
 
 `GET    /deployments/<deployment_id>/outputs/output_name>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "name":"compute_url",
@@ -439,11 +446,13 @@ Retrieve a list of outputs. 'Accept' header should be set to 'application/json'.
 
 `GET    /deployments/<deployment_id>/outputs`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "outputs":[
@@ -460,11 +469,13 @@ Retrieve information about a task for a given deployment.
 
 `GET    /deployments/<deployment_id>/tasks/<taskId>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "id": "b4144668-5ec8-41c0-8215-842661520147",
@@ -481,11 +492,13 @@ Retrieve information about steps related to a task for a given deployment.
 
 `GET    /deployments/<deployment_id>/tasks/<taskId>/steps`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 [
     {
@@ -510,21 +523,23 @@ Update a task step status for given deployment and task. For the moment, only st
 
 `PUT    /deployments/<deployment_id>/tasks/<taskId>/steps/<stepId>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 OK
 Content-Length: 0
 ```
 
 ### Cancel a task <a name="task-cancel"></a>
 
-Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be canceled otherwise an HTTP 400 
-(Bad request) error is returned. 
+Cancel a task for a given deployment. The task should be in status "INITIAL" or "RUNNING" to be canceled otherwise an HTTP 400
+(Bad request) error is returned.
 
 `DELETE    /deployments/<deployment_id>/tasks/<taskId>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 202 OK
 Content-Length: 0
 ```
@@ -536,52 +551,55 @@ Resume a task for a given deployment. The task should be in status "FAILED" to b
 
 `PUT    /deployments/<deployment_id>/tasks/<taskId>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 202 OK
 Content-Length: 0
 ```
 
 ### Execute a custom command <a name="custom-cmd-exec"></a>
-Submit a custom command for a given deployment.  
+
+Submit a custom command for a given deployment.
 'Content-Type' header should be set to 'application/json'.
 
 `POST    /deployments/<deployment_id>/custom`
 
 Request body:
+
 ```json
 {
     "node": "NodeName",
     "name": "Custom_Command_Name",
     "inputs": {
-    	"index":"",
-    	"nb_replicas":"2"
+      "index":"",
+      "nb_replicas":"2"
     }
 }
 ```
 
+**Response**:
 
-**Response**
-```
+```HTTP
 HTTP/1.1 202 Accepted
 Content-Length: 0
 Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```
 
 ### Scale a node <a name="scale-node"></a>
-Scales a node on a deployed deployment. A non-zero integer query parameter named `delta` is required and indicates the number of instances to 
-add or to remove for this scaling operation. 
+
+Scales a node on a deployed deployment. A non-zero integer query parameter named `delta` is required and indicates the number of instances to
+add or to remove for this scaling operation.
 
 A critical note is that the scaling operation is proceeded asynchronously and a success only guarantees that the scaling operation is successfully
 **submitted**.
-
 
 `POST /deployments/<deployment_id>/scale/<node_name>?delta=<int32>`
 
 A successfully submitted scaling operation will result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating
 the URI of the task handling this operation.
 
-```
+```HTTP
 HTTP/1.1 201 Created
 Location: /deployments/b5aed048-c6d5-4a41-b7ff-1dbdc62c03b0/tasks/012906dc-7916-4529-89b8-fdf628838fe5
 Content-Length: 0
@@ -590,39 +608,42 @@ Content-Length: 0
 This endpoint produces no content except in case of error.
 
 This endpoint will failed with an error "400 Bad Request" if:
-  * another task is already running for this deployment
-  * the delta query parameter is missing
-  * the delta query parameter is not an integer or if it is equal to 0
 
+* another task is already running for this deployment
+* the delta query parameter is missing
+* the delta query parameter is not an integer or if it is equal to 0
 
 ### Execute a workflow <a name="workflow-exec"></a>
+
 Submit a custom workflow for a given deployment. By adding the optional 'continueOnError' url parameter to your request workflow will
-not stop at the first encountered error and will run to its end. 
+not stop at the first encountered error and will run to its end.
 
 `POST /deployments/<deployment_id>/workflows/<workflow_name>[?continueOnError]`
 
 A successfully submitted workflow result in an HTTP status code 201 with a 'Location' header relative to the base URI indicating
 the URI of the task handling this workflow execution.
 
+**Response**:
 
-**Response**
-```
+```HTTP
 HTTP/1.1 201 Created
 Content-Length: 0
 Location: /deployments/08dc9a56-8161-4f54-876e-bb346f1bcc36/tasks/277b47aa-9c8c-4936-837e-39261237cec4
 ```
 
 ### List workflows <a name="list-workflows></a>
+
 Retrieves the list of workflows for a given deployment. 'Accept' header should be set to 'application/json'.
 
 `GET /deployments/<deployment_id>/workflows`
 
-**Response**
+**Response**:
 
-```
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
   "workflows": [
@@ -634,15 +655,18 @@ Content-Type: application/json
 ```
 
 ### Get workflow description <a name="workflow-info"></a>
+
 Retrieves a JSON representation of a given workflow. 'Accept' header should be set to 'application/json'.
 
 `GET /deployments/<deployment_id>/workflows/<workflow_name>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 Created
 Content-Type: application/json
 ```
+
 ```json
 {
   "Name": "agentsInMaintenance",
@@ -657,7 +681,6 @@ Content-Type: application/json
 }
 ```
 
-
 ## Registry
 
 ### Get TOSCA Definitions <a name="registry-definitions"></a>
@@ -666,14 +689,15 @@ Retrieves the list of the embedded TOSCA definitions and their origins. The orig
 
 'Accept' header should be set to 'application/json'.
 
-
 `GET /registry/definitions`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 Created
 Content-Type: application/json
 ```
+
 ```json
 {
   "definitions": [
@@ -691,14 +715,15 @@ Retrieves the list of delegates executors and their origins. The origin paramete
 
 'Accept' header should be set to 'application/json'.
 
-
 `GET /registry/delegates`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 Created
 Content-Type: application/json
 ```
+
 ```json
 {
   "delegates": [
@@ -714,14 +739,15 @@ Retrieves the list of implementations executors and their origins. The origin pa
 
 'Accept' header should be set to 'application/json'.
 
-
 `GET /registry/implementations`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 Created
 Content-Type: application/json
 ```
+
 ```json
 {
   "implementations": [
@@ -739,14 +765,15 @@ Retrieves the list of infrastructure usage collectors and their origins. The ori
 
 'Accept' header should be set to 'application/json'.
 
-
 `GET /registry/infra_usage_collectors`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 Created
 Content-Type: application/json
 ```
+
 ```json
 {
     "infrastructures": [
@@ -758,16 +785,168 @@ Content-Type: application/json
 }
 ```
 
+## Hosts Pool
+
+### Add a Host to the pool <a name="hostspool-add"></a>
+
+Adds a host to the hosts pool managed by this Janus cluster.
+The connection object of the JSON request is mandatory while the labels list is optional.
+This labels list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PUT /hosts_pool/<hostname>`
+
+**Request body**:
+
+```json
+{
+    "connection": {
+        "host": "defaults_to_<hostname>",
+        "user": "defaults_to_root",
+        "port": "defaults_to_22",
+        "private_key": "one_of_password_or_private_key_required",
+        "password": "one_of_password_or_private_key_required"
+    },
+    "labels": [
+        {"name": "os", "value": "linux"},
+        {"op": "add", "name": "memory", "value": "4G"}
+    ]
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 201 Created
+```
+
+Other possible response response codes are `400` if a host with the same `<hostname>` already exists or if  required parameters are missing.
+
+### Update a Host of the pool <a name="hostspool-update"></a>
+
+Updates labels list or connection of a host of the hosts pool managed by this Janus cluster.
+
+Both connection and labels list object of the JSON request are optional.
+This labels list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
+
+'Content-Type' header should be set to 'application/json'.
+
+`PATCH /hosts_pool/<hostname>`
+
+**Request body**:
+
+```json
+{
+    "connection": {
+        "password": "new_pass"
+    },
+    "labels": [
+        {"op": "remove", "name": "os", "value": "linux"},
+        {"op": "add", "name": "memory", "value": "4G"}
+    ]
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+```
+
+Other possible response response codes are `404` if the host doesn't exist in the pool or `400` if required parameters are missing.
+
+### Delete a Host from the pool <a name="hostspool-delete"></a>
+
+Deletes a host from the hosts pool managed by this Janus cluster.
+
+`DELETE /hosts_pool/<hostname>`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+```
+
+Other possible response response codes are `404` if the host doesn't exist in the pool.
+
+### List Hosts in the pool <a name="hostspool-list"></a>
+
+Lists hosts of the hosts pool managed by this Janus cluster.
+
+'Accept' header should be set to 'application/json'.
+
+`GET /hosts_pool`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "hosts": [
+    {"rel":"host","href":"/hosts_pool/host1","type":"application/json"},
+    {"rel":"host","href":"/hosts_pool/host2","type":"application/json"}
+  ],
+  "warnings": ["filter error for host3", "filter error for host4"]
+}
+```
+
+### Get Host in the pool <a name="hostspool-get"></a>
+
+Gets the description of a host of the hosts pool managed by this Janus cluster.
+
+'Accept' header should be set to 'application/json'.
+
+`GET /hosts_pool/<hostname>`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "host1",
+  "connection": {
+    "user": "ubuntu",
+    "password": "newPass",
+    "host": "host1",
+    "port": 22
+  },
+  "status": "allocated",
+  "message": "allocated for node instance \"Compute-0\" in deployment \"myDeployment\"",
+  "labels": {
+    "memory": "4G",
+    "os": "linux"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "/hosts_pool/host1",
+      "type": "application/json"
+    }
+  ]
+}
+```
+
 ## Infrastructure Usage
 
 ### Execute a query to retrieve infrastructure usage for a defined infrastructure usage collector <a name="infra-usage-query-exec"></a>
+
 Submit a query for a given infrastructure to retrieve usage information.
 'Content-Type' header should be set to 'application/json'.
 
 `POST    /infra_usage/<infra_name>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 202 Accepted
 Content-Length: 0
 Location: /infra_usage/<infra_name>/tasks/<task_id>
@@ -780,11 +959,13 @@ Retrieve information about a task for a given infrastructure usage collector.
 
 `GET    /infra_usage/<infra_name>/tasks/<taskId>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
+
 ```json
 {
     "id": "9eb9dd64-c08b-45b2-baae-8c657ce33403",
@@ -831,6 +1012,7 @@ Content-Type: application/json
     }
 }
 ```
+
 ### Delete a query <a name="query-delete"></a>
 
 Delete an existing query. The task should be in status "DONE" or "FAILED" to be deleted otherwise an HTTP 400
@@ -838,8 +1020,9 @@ Delete an existing query. The task should be in status "DONE" or "FAILED" to be 
 
 `DELETE    /infra_usage/<infra_name>/tasks/<taskId>`
 
-**Response**
-```
+**Response**:
+
+```HTTP
 HTTP/1.1 202 OK
 Content-Length: 0
 ```

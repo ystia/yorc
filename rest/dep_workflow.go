@@ -18,7 +18,7 @@ import (
 func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	deploymentID := params.ByName("id")
 	workflowName := params.ByName("workflowName")
 
@@ -66,7 +66,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listWorkflowsHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	deploymentID := params.ByName("id")
 
 	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), deploymentID)
@@ -93,7 +93,7 @@ func (s *Server) listWorkflowsHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	deploymentID := params.ByName("id")
 	workflowName := params.ByName("workflowName")
 	kv := s.consulClient.KV()

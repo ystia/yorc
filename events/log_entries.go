@@ -2,6 +2,7 @@ package events
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
 	"time"
 
@@ -153,6 +154,14 @@ func (e LogEntry) Register(content []byte) {
 // RegisterAsString allows to register a log entry with string content
 func (e LogEntry) RegisterAsString(content string) {
 	e.Register([]byte(content))
+}
+
+// Registerf allows to register a log entry with formats
+// according to a format specifier.
+//
+// This is basically a convenient function around RegisterAsString(fmt.Sprintf()).
+func (e LogEntry) Registerf(format string, a ...interface{}) {
+	e.RegisterAsString(fmt.Sprintf(format, a...))
 }
 
 // RunBufferedRegistration allows to run a registration with a buffered writer

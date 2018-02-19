@@ -16,7 +16,7 @@ import (
 func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 

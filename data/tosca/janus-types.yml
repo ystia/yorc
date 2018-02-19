@@ -14,3 +14,52 @@ artifact_types:
     description: This artifact type represents a Ansible playbook type that contains Ansible commands that can be executed.
     mime_type: application/x-yaml
     file_ext: [ yml, yaml ]
+
+data_types:
+  janus.datatypes.ProvisioningCredential:
+    derived_from: tosca.datatypes.Credential
+    properties:
+      # Token is optional if keys are provided
+      token:
+        type: string
+        required: false
+        description: The token used as a credential for authorization or access to a networked resource.
+      # User is required
+      user:
+        type: string
+        required: true
+        description: The user (name or ID) used as a credential for authorization or access to a networked resource.
+
+capability_types:
+  janus.capabilities.Endpoint.ProvisioningAdmin:
+    derived_from: tosca.capabilities.Endpoint.Admin
+    properties:
+      # Adds credentials to the admin endpoint used for provisioning
+      credentials:
+        type: janus.datatypes.ProvisioningCredential
+        description: Credentials used to provision the resource
+        required: false
+    # # Not supported by alien
+    # attributes:
+    #   protocol:
+    #     type: string
+    #     description: >
+    #       The name of the protocol (i.e., the protocol prefix) that the endpoint accepts (any OSI Layer 4-7 protocols)
+    #       Examples: http, https, ftp, tcp, udp, etc.
+    #     default: ssh
+    #   port:
+    #     type: tosca.datatypes.network.PortDef
+    #     description: The port of the endpoint.
+    #     default: 22
+    #   credentials:
+    #     type: janus.datatypes.ProvisioningCredential
+    #     description: Credentials used to provision the resource
+    #     required: false
+
+node_types:
+  janus.nodes.Compute:
+    derived_from: tosca.nodes.Compute
+    # specialize our admin endpoint
+    capabilities:
+      endpoint:
+        type: janus.capabilities.Endpoint.ProvisioningAdmin
