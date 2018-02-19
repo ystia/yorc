@@ -147,6 +147,13 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 			return err
 		}
 
+		if publicAddress, ok := host.Labels["public_address"]; ok {
+			err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "public_address", publicAddress)
+			if err != nil {
+				return err
+			}
+		}
+
 		for label, value := range host.Labels {
 			err = setAttributeFromLabel(deploymentID, nodeName, instance, label, value, "networks", "network_name")
 			if err != nil {

@@ -81,6 +81,7 @@ Some labels are also automatically exposed as TOSCA Compute instance attributes:
 
   * if present a label named ``private_address`` will be used as attribute ``private_address`` and ``ip_address`` of the Compute. If not set the connection host will be used instead
     this allows to specify a network different for the applicative communication and for the orchestrator communication
+  * if present a label named ``public_address`` will be used as attribute ``public_address`` of the Compute.
   * if present, following labels will fill the ``networks`` attribute of the Compute node:
 
     * ``networks.<idx>.network_name`` (ie. ``networks.0.network_name``) 
