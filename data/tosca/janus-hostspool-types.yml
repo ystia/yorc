@@ -20,3 +20,9 @@ node_types:
       hostname:
         type: string
         description: The hostname as known in the hosts pool
+    capabilities:
+      endpoint:
+        type: janus.capabilities.Endpoint.ProvisioningAdmin
+        properties:
+          credentials:
+            user: "not significant, will be set by Janus itself"
