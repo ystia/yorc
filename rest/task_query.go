@@ -90,3 +90,41 @@ func (s *Server) deleteTaskQueryHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.WriteHeader(http.StatusAccepted)
 }
+
+func (s *Server) listTaskQueryHandler(w http.ResponseWriter, r *http.Request) {
+	var queryMthd string
+	queryValues := r.URL.Query()
+	if queryValues != nil {
+		queryMthd = queryValues.Get("query")
+	}
+
+	kv := s.consulClient.KV()
+	ids, err := tasks.GetQueryTaskIDs(kv, tasks.Query, queryMthd)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	taskList := make([]Task, 0)
+	for _, taskID := range ids {
+		task := Task{ID: taskID}
+		targetID, err := tasks.GetTaskTarget(kv, taskID)
+		if err != nil {
+			log.Panic(err)
+		}
+		task.TargetID = targetID
+		status, err := tasks.GetTaskStatus(kv, taskID)
+		if err != nil {
+			log.Panic(err)
+		}
+		task.Status = status.String()
+
+		taskType, err := tasks.GetTaskType(kv, taskID)
+		if err != nil {
+			log.Panic(err)
+		}
+		task.Type = taskType.String()
+
+		taskList = append(taskList, task)
+	}
+	encodeJSONResponse(w, r, taskList)
+}

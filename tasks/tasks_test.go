@@ -60,12 +60,28 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 		consulutil.WorkflowsPrefix + "/t11/step1": []byte("status1"),
 
 		consulutil.TasksPrefix + "/t12/status":    []byte("3"),
+		consulutil.TasksPrefix + "/t12/type":      []byte("5"),
+		consulutil.TasksPrefix + "/t12/targetId":  []byte("id"),
 		consulutil.TasksPrefix + "/t13/resultSet": buildResultset(),
+		consulutil.TasksPrefix + "/t13/targetId":  []byte("id"),
+		consulutil.TasksPrefix + "/t13/type":      []byte("5"),
+		consulutil.TasksPrefix + "/t13/status":    []byte("3"),
 		consulutil.TasksPrefix + "/t14/status":    []byte("3"),
+		consulutil.TasksPrefix + "/t14/type":      []byte("5"),
 
 		consulutil.TasksPrefix + "/t15/targetId": []byte("xxx"),
 		consulutil.TasksPrefix + "/t15/status":   []byte("2"),
 		consulutil.TasksPrefix + "/t15/type":     []byte("2"),
+
+		consulutil.TasksPrefix + "/t16/targetId": []byte("infra_usage:aaa"),
+		consulutil.TasksPrefix + "/t16/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t16/type":     []byte("7"),
+		consulutil.TasksPrefix + "/t17/targetId": []byte("infra_usage:bbb"),
+		consulutil.TasksPrefix + "/t17/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t17/type":     []byte("7"),
+		consulutil.TasksPrefix + "/t18/targetId": []byte("infra_usage:ccc"),
+		consulutil.TasksPrefix + "/t18/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t18/type":     []byte("7"),
 	})
 }
 
@@ -659,6 +675,35 @@ func testDeleteTask(t *testing.T, kv *api.KV) {
 			}
 			if got != tt.want {
 				t.Errorf("DeleteTask() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{"taskWithTypeQueryAndInfraUsage", args{kv, "t13"}, []string{"t16", "t17", "t18"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetQueryTaskIDs(kv, Query, "infra_usage")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetQueryTaskIDs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetQueryTaskIDs() = %v, want %v", got, tt.want)
 			}
 		})
 	}

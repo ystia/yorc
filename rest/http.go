@@ -152,6 +152,8 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/infra_usage/:infraName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
 	s.router.Delete("/infra_usage/:infraName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
 
+	s.router.Get("/queries/tasks", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
+
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))
 	}

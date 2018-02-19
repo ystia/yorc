@@ -843,3 +843,9 @@ Delete an existing query. The task should be in status "DONE" or "FAILED" to be 
 HTTP/1.1 202 OK
 Content-Length: 0
 ```
+### List all queries about infrastructure usage <a name="list-query"></a>
+
+Retrieve all queries run about infrastructure usage.
+'Accept' header should be set to 'application/json'.
+
+`GET    /queries/tasks?query=infra_usage`
