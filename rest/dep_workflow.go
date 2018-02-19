@@ -51,7 +51,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.CustomWorkflow, data)
 	if err != nil {
-		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}

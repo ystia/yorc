@@ -157,6 +157,11 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryImplementationsHandler))
 	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDefinitionsHandler))
 	s.router.Get("/registry/vaults", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listVaultsBuilderHandler))
+	s.router.Get("/registry/infra_usage_collectors", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listInfraHandler))
+
+	s.router.Post("/infra_usage/:infraName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postInfraUsageHandler))
+	s.router.Get("/infra_usage/:infraName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
+	s.router.Delete("/infra_usage/:infraName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
 
 	s.router.Put("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
 	s.router.Patch("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))

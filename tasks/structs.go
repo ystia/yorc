@@ -25,6 +25,8 @@ const (
 	CustomCommand
 	// CustomWorkflow defines a Task of type "CustomWorkflow"
 	CustomWorkflow
+	// Query defines a Task of type "Query"
+	Query
 	// NOTE: if a new task type should be added then change validity check on GetTaskType
 )
 
@@ -71,7 +73,11 @@ func (e anotherLivingTaskAlreadyExistsError) Error() string {
 }
 
 // IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
-func IsAnotherLivingTaskAlreadyExistsError(err error) bool {
-	_, ok := err.(anotherLivingTaskAlreadyExistsError)
-	return ok
+// If true, it returns the taskID of the currently running task
+func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
+	e, ok := err.(anotherLivingTaskAlreadyExistsError)
+	if ok {
+		return ok, e.taskID
+	}
+	return ok, ""
 }

@@ -117,10 +117,11 @@ type OutputsCollection struct {
 
 // Task is the representation of a Janus' task
 type Task struct {
-	ID       string `json:"id"`
-	TargetID string `json:"target_id"`
-	Type     string `json:"type"`
-	Status   string `json:"status"`
+	ID        string          `json:"id"`
+	TargetID  string          `json:"target_id"`
+	Type      string          `json:"type"`
+	Status    string          `json:"status"`
+	ResultSet json.RawMessage `json:"result_set,omitempty"`
 }
 
 // TaskRequest is the representation of a request to process a new task
@@ -236,4 +237,9 @@ type RegistryDefinitionsCollection struct {
 // RegistryVaultsCollection is the collection of Vaults Clients Builders registered in the Janus registry
 type RegistryVaultsCollection struct {
 	VaultClientBuilders []registry.VaultClientBuilder `json:"vaults"`
+}
+
+// RegistryInfraUsageCollectorsCollection is the collection of infrastructure usage collectors registered in the Janus registry
+type RegistryInfraUsageCollectorsCollection struct {
+	InfraUsageCollectors []registry.InfraUsageCollector `json:"infrastructure_usage_collectors"`
 }

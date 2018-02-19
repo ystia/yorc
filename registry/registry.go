@@ -52,6 +52,17 @@ type Registry interface {
 
 	// ListVaultClients returns a list of registered Vault Clients origin
 	ListVaultClientBuilders() []VaultClientBuilder
+
+	// RegisterInfraUsageCollector allows to register an infrastructure usage collector with its name as unique id
+	RegisterInfraUsageCollector(name string, infraUsageCollector prov.InfraUsageCollector, origin string)
+
+	// GetInfraUsageCollector returns a prov.Infrastructure from its name as unique id
+	//
+	// If the given id can't match any prov.Infrastructure an error is returned
+	GetInfraUsageCollector(name string) (prov.InfraUsageCollector, error)
+
+	// ListInfraUsageCollectors returns a list of registered infrastructure usage collectors origin
+	ListInfraUsageCollectors() []InfraUsageCollector
 }
 
 var defaultReg Registry
@@ -93,15 +104,24 @@ type VaultClientBuilder struct {
 	Builder vault.ClientBuilder `json:"-"`
 }
 
+// InfraUsageCollector represents an infrastructure usage collector with its Name, Origin and Data content
+type InfraUsageCollector struct {
+	Name                string                   `json:"id"`
+	Origin              string                   `json:"origin"`
+	InfraUsageCollector prov.InfraUsageCollector `json:"-"`
+}
+
 type defaultRegistry struct {
-	delegateMatches     []DelegateMatch
-	operationMatches    []OperationExecMatch
-	definitions         []Definition
-	vaultClientBuilders []VaultClientBuilder
-	delegatesLock       sync.RWMutex
-	operationsLock      sync.RWMutex
-	definitionsLock     sync.RWMutex
-	vaultsLock          sync.RWMutex
+	delegateMatches          []DelegateMatch
+	operationMatches         []OperationExecMatch
+	definitions              []Definition
+	vaultClientBuilders      []VaultClientBuilder
+	infraUsageCollectors     []InfraUsageCollector
+	delegatesLock            sync.RWMutex
+	operationsLock           sync.RWMutex
+	definitionsLock          sync.RWMutex
+	vaultsLock               sync.RWMutex
+	infraUsageCollectorsLock sync.RWMutex
 }
 
 func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.DelegateExecutor, origin string) {
@@ -112,7 +132,7 @@ func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.Dele
 		for i := range matches {
 			newDelegates[i] = DelegateMatch{Match: matches[i], Executor: executor, Origin: origin}
 		}
-		// Put them at the begining
+		// Put them at the beginning
 		r.delegateMatches = append(newDelegates, r.delegateMatches...)
 	}
 }
@@ -174,7 +194,7 @@ func (r *defaultRegistry) RegisterOperationExecutor(matches []string, executor p
 		for i := range matches {
 			newOpExecMatch[i] = OperationExecMatch{Artifact: matches[i], Executor: executor, Origin: origin}
 		}
-		// Put them at the begining
+		// Put them at the beginning
 		r.operationMatches = append(newOpExecMatch, r.operationMatches...)
 	}
 }
@@ -220,5 +240,30 @@ func (r *defaultRegistry) ListVaultClientBuilders() []VaultClientBuilder {
 	defer r.vaultsLock.RUnlock()
 	result := make([]VaultClientBuilder, len(r.vaultClientBuilders))
 	copy(result, r.vaultClientBuilders)
+	return result
+}
+
+func (r *defaultRegistry) RegisterInfraUsageCollector(name string, infraUsageCollector prov.InfraUsageCollector, origin string) {
+	r.infraUsageCollectorsLock.RLock()
+	defer r.infraUsageCollectorsLock.RUnlock()
+	r.infraUsageCollectors = append([]InfraUsageCollector{{Name: name, Origin: origin, InfraUsageCollector: infraUsageCollector}})
+}
+
+func (r *defaultRegistry) GetInfraUsageCollector(name string) (prov.InfraUsageCollector, error) {
+	r.infraUsageCollectorsLock.RLock()
+	defer r.infraUsageCollectorsLock.RUnlock()
+	for _, pr := range r.infraUsageCollectors {
+		if pr.Name == name {
+			return pr.InfraUsageCollector, nil
+		}
+	}
+	return nil, errors.Errorf("Unknown infra usage collector with name: %q", name)
+}
+
+func (r *defaultRegistry) ListInfraUsageCollectors() []InfraUsageCollector {
+	r.infraUsageCollectorsLock.RLock()
+	defer r.infraUsageCollectorsLock.RUnlock()
+	result := make([]InfraUsageCollector, len(r.infraUsageCollectors))
+	copy(result, r.infraUsageCollectors)
 	return result
 }

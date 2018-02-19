@@ -63,7 +63,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.CustomCommand, data)
 	if err != nil {
-		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}

@@ -1,5 +1,5 @@
 janus_version: 3.0.0-SNAPSHOT
-consul_version: 1.0.1
+consul_version: 1.0.6
 terraform_version: 0.9.11
 ansible_version: 2.4.1.0
 

@@ -65,3 +65,10 @@ func (ro RelationshipOperation) String() string {
 type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
 }
+
+// InfraUsageCollector is the interface for collecting information about infrastructure usage
+//
+// GetUsageInfo returns data about infrastructure usage for defined infrastructure
+type InfraUsageCollector interface {
+	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error)
+}
