@@ -22,8 +22,8 @@ dist: build
 	@rm -rf ./dist && mkdir -p ./dist
 	@echo "--> Creating an archive"
 	@tar czvf yorc.tgz yorc && echo "TODO: clean this part after CI update" &&  cp yorc yorc.tgz dist/
-	@cd doc && make html latexpdf && cd _build && cp -r html latex/yorc.pdf ../../dist
-	@cd ./dist && zip -r yorc-server-$(VERSION)-documentation.zip html yorc.pdf && zip yorc-server-$(VERSION)-distrib.zip yorc yorc-server-$(VERSION)-documentation.zip
+	@cd doc && make html latexpdf && cd _build && cp -r html latex/Yorc.pdf ../../dist
+	@cd ./dist && zip -r yorc-server-$(VERSION)-documentation.zip html Yorc.pdf && zip yorc-server-$(VERSION)-distrib.zip yorc yorc-server-$(VERSION)-documentation.zip
 
 test: generate
 ifndef SKIP_TESTS
