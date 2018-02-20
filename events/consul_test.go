@@ -49,5 +49,8 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 		t.Run("TestRegisterLogsInConsul", func(t *testing.T) {
 			testRegisterLogsInConsul(t, kv)
 		})
+		t.Run("TestLogsSortedByTimestamp", func(t *testing.T) {
+			testLogsSortedByTimestamp(t, kv)
+		})
 	})
 }
