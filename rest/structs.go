@@ -124,6 +124,11 @@ type Task struct {
 	ResultSet json.RawMessage `json:"result_set,omitempty"`
 }
 
+// TasksCollection is the collection of task's links
+type TasksCollection struct {
+	Tasks []AtomLink `json:"tasks,omitempty"`
+}
+
 // TaskRequest is the representation of a request to process a new task
 type TaskRequest struct {
 	Type string `json:"type"`

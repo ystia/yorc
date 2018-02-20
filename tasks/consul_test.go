@@ -70,5 +70,8 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 		t.Run("testDeleteTask", func(t *testing.T) {
 			testDeleteTask(t, kv)
 		})
+		t.Run("testGetQueryTaskIDs", func(t *testing.T) {
+			testGetQueryTaskIDs(t, kv)
+		})
 	})
 }

@@ -14,6 +14,7 @@ import (
 	"novaforge.bull.com/starlings-janus/janus/deployments"
 	"novaforge.bull.com/starlings-janus/janus/events"
 	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 type taskDataNotFound struct {
@@ -91,14 +92,14 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 		return Deploy, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return Deploy, errors.Errorf("Missing status for type with id %q", taskID)
+		return Deploy, errors.Errorf("Missing type for task with id %q", taskID)
 	}
 	typeInt, err := strconv.Atoi(string(kvp.Value))
 	if err != nil {
 		return Deploy, errors.Wrapf(err, "Invalid task type:")
 	}
 	if typeInt < 0 || typeInt > int(Query) {
-		return Deploy, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
+		return Deploy, errors.Errorf("Invalid type for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil
 }
@@ -324,4 +325,36 @@ func CheckTaskStepStatusChange(before, after string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// GetQueryTaskIDs returns an array of taskID query-typed, optionally filtered by query and target
+func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string, target string) ([]string, error) {
+	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
+	if err != nil {
+		return nil, err
+	}
+	tasks := make([]string, 0)
+	for _, taskKey := range tasksKeys {
+		id := path.Base(taskKey)
+		if ttyp, err := GetTaskType(kv, id); err != nil {
+			// Ignore errors
+			log.Printf("[WARNING] the task with id:%q won't be listed due to error:%+v", id, err)
+			continue
+		} else if ttyp != taskType {
+			continue
+		}
+
+		kvp, _, err := kv.Get(path.Join(taskKey, "targetId"), nil)
+		if err != nil {
+			// Ignore errors
+			log.Printf("[WARNING] the task with id:%q won't be listed due to error:%+v", id, err)
+			continue
+		}
+		targetID := string(kvp.Value)
+		log.Debugf("targetId:%q", targetID)
+		if kvp != nil && len(kvp.Value) > 0 && strings.HasPrefix(targetID, query) && strings.HasSuffix(targetID, target) {
+			tasks = append(tasks, id)
+		}
+	}
+	return tasks, nil
 }

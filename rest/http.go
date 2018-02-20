@@ -162,6 +162,7 @@ func (s *Server) registerHandlers() {
 	s.router.Post("/infra_usage/:infraName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postInfraUsageHandler))
 	s.router.Get("/infra_usage/:infraName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
 	s.router.Delete("/infra_usage/:infraName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
+	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
 
 	s.router.Put("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
 	s.router.Patch("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
