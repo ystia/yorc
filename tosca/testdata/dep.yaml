@@ -10,7 +10,7 @@ imports:
 topology_template:
   node_templates:
     Compute:
-      type: janus.nodes.openstack.Compute
+      type: yorc.nodes.openstack.Compute
       properties:
         user: cloud-user
         flavor: 2

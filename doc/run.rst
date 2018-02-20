@@ -1,12 +1,12 @@
-Starting Janus
+Starting Yorc
 ==============
 
 Starting Consul
 ---------------
 
-Janus requires a running Consul instance prior to be started.
+Yorc requires a running Consul instance prior to be started.
 
-Here is how to start a standalone Consul server instance on the same host than Janus:
+Here is how to start a standalone Consul server instance on the same host than Yorc:
 
 .. code-block:: bash
 
@@ -14,14 +14,14 @@ Here is how to start a standalone Consul server instance on the same host than J
 
 .. note:: Wait for the ``agent: Synced service 'consul'`` log message to appear before continuing
 
-Starting Janus
+Starting Yorc
 --------------
 
-Please report to the :ref:`janus_config_section` for an exhaustive list of Janus' configuration options.
+Please report to the :ref:`yorc_config_section` for an exhaustive list of Yorc' configuration options.
 At least OpenStack access configuration files should be provided either by command-line flags, environment variables or configuration elements.
 They are omitted bellow for brevity and considered as provided by a configuration file in one of the default location.
 
-Notice that if you are using a passphrase on your ssh key, you have to start an ssh-agent before launching janus. It is strongly recommended to start one by giving him a socket name.
+Notice that if you are using a passphrase on your ssh key, you have to start an ssh-agent before launching yorc. It is strongly recommended to start one by giving him a socket name.
 
 .. code-block:: bash
 
@@ -29,16 +29,16 @@ Notice that if you are using a passphrase on your ssh key, you have to start an 
 
 So in case of your ssh-agent process die, just restart it with the command above.
 
-If your ssh key does not have a passphrase, **do not start any ssh-agent** before starting janus and make sure that environement variable SSH_AUTH_SOCK is not set.
+If your ssh key does not have a passphrase, **do not start any ssh-agent** before starting yorc and make sure that environement variable SSH_AUTH_SOCK is not set.
 
 .. code-block:: bash
 
     killall ssh-agent
     unset SSH_AUTH_SOCK 
 
-Then start janus
+Then start yorc
 
 .. code-block:: bash
 
-    janus server
+    yorc server
 

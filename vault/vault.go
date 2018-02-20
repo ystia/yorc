@@ -3,7 +3,7 @@ package vault
 import (
 	"fmt"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
+	"github.com/ystia/yorc/config"
 )
 
 // Client is the common interface for Vault clients.
@@ -33,8 +33,8 @@ type Secret interface {
 	Raw() interface{}
 }
 
-// A ClientBuilder builds a Vault client based on Janus configuration
+// A ClientBuilder builds a Vault client based on Yorc configuration
 type ClientBuilder interface {
-	// BuildClient builds a Vault client based on Janus configuration
+	// BuildClient builds a Vault client based on Yorc configuration
 	BuildClient(cfg config.Configuration) (Client, error)
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
 	"regexp"
 	"strings"
 )
@@ -15,7 +15,7 @@ func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV,
 	if err != nil {
 		return err
 	}
-	if nodeType != "janus.nodes.slurm.Compute" {
+	if nodeType != "yorc.nodes.slurm.Compute" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
 	node := &nodeAllocation{instanceName: instanceName}

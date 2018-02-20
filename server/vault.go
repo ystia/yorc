@@ -1,9 +1,9 @@
 package server
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/vault"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/vault"
 )
 
 func buildVaultClient(cfg config.Configuration) (vault.Client, error) {

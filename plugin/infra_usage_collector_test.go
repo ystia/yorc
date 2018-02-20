@@ -5,8 +5,8 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/prov"
 	"testing"
 	"time"
 )

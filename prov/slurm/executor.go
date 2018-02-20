@@ -10,15 +10,15 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 	"golang.org/x/sync/errgroup"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 type defaultExecutor struct {

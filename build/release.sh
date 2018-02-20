@@ -3,7 +3,7 @@ set -x
 set -e
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-componentVersionName="janus_version"
+componentVersionName="yorc_version"
 
 cd ${scriptDir}/..
 

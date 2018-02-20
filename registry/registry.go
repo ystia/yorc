@@ -5,11 +5,11 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/vault"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/vault"
 )
 
-// BuiltinOrigin is the origin for Janus builtin
+// BuiltinOrigin is the origin for Yorc builtin
 const BuiltinOrigin = "builtin"
 
 // Registry holds references to for node types matches to prov.DelegateExecutor

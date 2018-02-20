@@ -8,9 +8,9 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
 func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {

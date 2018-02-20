@@ -8,7 +8,7 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 )
 
 func clientMonitorContextCancellation(ctx context.Context, closeChan chan struct{}, id uint32, broker *plugin.MuxBroker) {

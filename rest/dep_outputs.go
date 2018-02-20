@@ -5,8 +5,8 @@ import (
 	"path"
 
 	"github.com/julienschmidt/httprouter"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/log"
 )
 
 func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {

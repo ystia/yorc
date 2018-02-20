@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 )
 
 type deploymentNotFound struct {

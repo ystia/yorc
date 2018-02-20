@@ -25,10 +25,10 @@ func testGetTypePropertyDataType(t *testing.T, kv *api.KV) {
 		want    string
 		wantErr bool
 	}{
-		{"ValueAssignmentComplexProp", args{"janus.tests.nodes.ValueAssignmentNode", "complex"}, "janus.tests.datatypes.ComplexType", false},
-		{"ValueAssignmentListWithDefaultEntrySchema", args{"janus.tests.nodes.ValueAssignmentNode", "list"}, "list:string", false},
-		{"ComplexTypeMyMap", args{"janus.tests.datatypes.ComplexType", "mymap"}, "map:integer", false},
-		{"SubComplexTypeMyMap", args{"janus.tests.datatypes.SubComplexType", "mymap"}, "map:integer", false},
+		{"ValueAssignmentComplexProp", args{"yorc.tests.nodes.ValueAssignmentNode", "complex"}, "yorc.tests.datatypes.ComplexType", false},
+		{"ValueAssignmentListWithDefaultEntrySchema", args{"yorc.tests.nodes.ValueAssignmentNode", "list"}, "list:string", false},
+		{"ComplexTypeMyMap", args{"yorc.tests.datatypes.ComplexType", "mymap"}, "map:integer", false},
+		{"SubComplexTypeMyMap", args{"yorc.tests.datatypes.SubComplexType", "mymap"}, "map:integer", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -60,17 +60,17 @@ func testGetNestedDataType(t *testing.T, kv *api.KV) {
 		want    string
 		wantErr bool
 	}{
-		{"ComplexTypeMap", args{"janus.tests.datatypes.ComplexType", []string{"mymap"}}, "map:integer", false},
-		{"ComplexTypeMapChild", args{"janus.tests.datatypes.ComplexType", []string{"mymap", "something"}}, "integer", false},
-		{"NestedTypeOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType"}}, "janus.tests.datatypes.NestedType", false},
-		{"NestedTypeListOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "listofstring"}}, "list:string", false},
-		{"NestedTypeListChildOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "listofstring", "0"}}, "string", false},
-		{"NestedTypeSubComplexOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "subcomplex"}}, "janus.tests.datatypes.SubComplexType", false},
-		{"NestedTypeSubComplexLiteralOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "subcomplex", "literal"}}, "integer", false},
-		{"NestedTypeSubComplexMapOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex"}}, "map:janus.tests.datatypes.ComplexType", false},
-		{"NestedTypeSubComplexMapChildOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex", "something"}}, "janus.tests.datatypes.ComplexType", false},
-		{"NestedTypeSubComplexMapOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex", "something", "literal"}}, "integer", false},
-		{"NestedTypeSubComplexMapDoesntExistOnBaseType", args{"janus.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex", "something", "doNotExist"}}, "", false},
+		{"ComplexTypeMap", args{"yorc.tests.datatypes.ComplexType", []string{"mymap"}}, "map:integer", false},
+		{"ComplexTypeMapChild", args{"yorc.tests.datatypes.ComplexType", []string{"mymap", "something"}}, "integer", false},
+		{"NestedTypeOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType"}}, "yorc.tests.datatypes.NestedType", false},
+		{"NestedTypeListOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "listofstring"}}, "list:string", false},
+		{"NestedTypeListChildOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "listofstring", "0"}}, "string", false},
+		{"NestedTypeSubComplexOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "subcomplex"}}, "yorc.tests.datatypes.SubComplexType", false},
+		{"NestedTypeSubComplexLiteralOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "subcomplex", "literal"}}, "integer", false},
+		{"NestedTypeSubComplexMapOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex"}}, "map:yorc.tests.datatypes.ComplexType", false},
+		{"NestedTypeSubComplexMapChildOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex", "something"}}, "yorc.tests.datatypes.ComplexType", false},
+		{"NestedTypeSubComplexMapOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex", "something", "literal"}}, "integer", false},
+		{"NestedTypeSubComplexMapDoesntExistOnBaseType", args{"yorc.tests.datatypes.BaseType", []string{"nestedType", "mapofcomplex", "something", "doNotExist"}}, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/deployments"
+	"github.com/ystia/yorc/commands/deployments"
 )
 
 var workflowsCmd = &cobra.Command{

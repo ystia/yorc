@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 )
 
 // Cmd represents an external command being prepared or run.

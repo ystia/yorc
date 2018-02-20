@@ -9,16 +9,16 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
-	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/helper/tabutil"
+	"github.com/ystia/yorc/rest"
 )
 
 func init() {
 	var getCmd = &cobra.Command{
 		Use:   "info <hostname>",
 		Short: "Get host pool info",
-		Long:  `Gets the description of a host of the hosts pool managed by this Janus cluster.`,
+		Long:  `Gets the description of a host of the hosts pool managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
 			if len(args) != 1 {

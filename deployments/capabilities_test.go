@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 
 	"context"
 	"github.com/hashicorp/consul/api"
@@ -19,28 +19,28 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	log.SetDebug(true)
 
 	srv1.PopulateKV(t, map[string][]byte{
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.1/derived_from": []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.1/name":         []byte("janus.type.1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.2/derived_from": []byte("janus.type.3"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.2/name":         []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.3/name":         []byte("janus.type.3"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/derived_from": []byte("yorc.type.2"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/name":         []byte("yorc.type.1"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/derived_from": []byte("yorc.type.3"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/name":         []byte("yorc.type.2"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.3/name":         []byte("yorc.type.3"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.WithUndefCap/name":                   []byte("janus.type.WithUndefCap"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.WithUndefCap/capabilities/udef/name": []byte("udef"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.WithUndefCap/capabilities/udef/type": []byte("janus.capabilities.Undefined"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.WithUndefCap/name":                   []byte("yorc.type.WithUndefCap"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.WithUndefCap/capabilities/udef/name": []byte("udef"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.WithUndefCap/capabilities/udef/type": []byte("yorc.capabilities.Undefined"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.SuperScalable/name":                   []byte("janus.type.SuperScalable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.SuperScalable/capabilities/sups/name": []byte("sups"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.SuperScalable/capabilities/sups/type": []byte("janus.capabilities.SuperScalable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.SuperScalable/name":                   []byte("yorc.type.SuperScalable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.SuperScalable/capabilities/sups/name": []byte("sups"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.SuperScalable/capabilities/sups/type": []byte("yorc.capabilities.SuperScalable"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.1/capabilities/endpoint/name": []byte("endpoint"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.1/capabilities/endpoint/type": []byte("tosca.capabilities.Endpoint"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/name": []byte("endpoint"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/type": []byte("tosca.capabilities.Endpoint"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.2/capabilities/scalable/name": []byte("scalable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.2/capabilities/scalable/type": []byte("tosca.capabilities.Scalable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/capabilities/scalable/name": []byte("scalable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/capabilities/scalable/type": []byte("tosca.capabilities.Scalable"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.3/capabilities/binding/name": []byte("binding"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.type.3/capabilities/binding/type": []byte("tosca.capabilities.network.Bindable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.3/capabilities/binding/name": []byte("binding"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.3/capabilities/binding/type": []byte("tosca.capabilities.network.Bindable"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.network.Bindable/name":                     []byte("tosca.capabilities.network.Bindable"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.network.Bindable/derived_from":             []byte("tosca.capabilities.Endpoint"),
@@ -53,26 +53,26 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Scalable/properties/max_instances/default":     []byte("100"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/tosca.capabilities.Scalable/properties/default_instances/default": []byte("1"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.capabilities.SuperScalable/name":         []byte("janus.capabilities.SuperScalable"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/types/janus.capabilities.SuperScalable/derived_from": []byte("tosca.capabilities.Scalable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.capabilities.SuperScalable/name":         []byte("yorc.capabilities.SuperScalable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.capabilities.SuperScalable/derived_from": []byte("tosca.capabilities.Scalable"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/name":                                           []byte("node1"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/type":                                           []byte("janus.type.1"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/type":                                           []byte("yorc.type.1"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/scalable/properties/min_instances": []byte("10"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/endpoint/attributes/attr1":         []byte("attr1"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/name":                                               []byte("node2"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/type":                                               []byte("janus.type.2"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/type":                                               []byte("yorc.type.2"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/capabilities/scalable/properties/default_instances": []byte("5"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node3/name": []byte("node3"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node3/type": []byte("janus.type.3"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node3/type": []byte("yorc.type.3"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/SuperScalableNode/name": []byte("SuperScalableNode"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/SuperScalableNode/type": []byte("janus.type.SuperScalable"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/SuperScalableNode/type": []byte("yorc.type.SuperScalable"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/NodeWithUndefCap/name": []byte("NodeWithUndefCap"),
-		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/NodeWithUndefCap/type": []byte("janus.type.WithUndefCap"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/NodeWithUndefCap/type": []byte("yorc.type.WithUndefCap"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address": []byte("0.0.0.0"),
 	})
@@ -142,12 +142,12 @@ func testGetCapabilitiesOfType(t *testing.T, kv *api.KV) {
 		want    []string
 		wantErr bool
 	}{
-		{"TypeScalableWithInheritance", args{kv, "cap1", "janus.type.1", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
-		{"TypeScalableInType", args{kv, "cap1", "janus.type.2", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
-		{"TypeNotFound", args{kv, "cap1", "janus.type.3", "tosca.capabilities.Scalable"}, []string{}, false},
-		{"EndpointWithInheritance", args{kv, "cap1", "janus.type.1", "tosca.capabilities.Endpoint"}, []string{"endpoint", "binding"}, false},
-		{"EndpointSingleWithInheritance", args{kv, "cap1", "janus.type.2", "tosca.capabilities.Endpoint"}, []string{"binding"}, false},
-		{"EndpointSingle", args{kv, "cap1", "janus.type.3", "tosca.capabilities.Endpoint"}, []string{"binding"}, false},
+		{"TypeScalableWithInheritance", args{kv, "cap1", "yorc.type.1", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
+		{"TypeScalableInType", args{kv, "cap1", "yorc.type.2", "tosca.capabilities.Scalable"}, []string{"scalable"}, false},
+		{"TypeNotFound", args{kv, "cap1", "yorc.type.3", "tosca.capabilities.Scalable"}, []string{}, false},
+		{"EndpointWithInheritance", args{kv, "cap1", "yorc.type.1", "tosca.capabilities.Endpoint"}, []string{"endpoint", "binding"}, false},
+		{"EndpointSingleWithInheritance", args{kv, "cap1", "yorc.type.2", "tosca.capabilities.Endpoint"}, []string{"binding"}, false},
+		{"EndpointSingle", args{kv, "cap1", "yorc.type.3", "tosca.capabilities.Endpoint"}, []string{"binding"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -266,8 +266,8 @@ func testGetNodeCapabilityType(t *testing.T, kv *api.KV) {
 		{"CapNotFoundOnNode3", args{kv, "cap1", "node3", "scalable"}, "", false},
 		{"GetEndpointCapTypeOnNode1", args{kv, "cap1", "node1", "endpoint"}, "tosca.capabilities.Endpoint", false},
 		{"GetEndpointCapTypeOnNode2", args{kv, "cap1", "node2", "binding"}, "tosca.capabilities.network.Bindable", false},
-		{"UndefCapOnNodeWithUndefCap", args{kv, "cap1", "NodeWithUndefCap", "udef"}, "janus.capabilities.Undefined", false},
-		{"CapWithInheritance", args{kv, "cap1", "SuperScalableNode", "sups"}, "janus.capabilities.SuperScalable", false},
+		{"UndefCapOnNodeWithUndefCap", args{kv, "cap1", "NodeWithUndefCap", "udef"}, "yorc.capabilities.Undefined", false},
+		{"CapWithInheritance", args{kv, "cap1", "SuperScalableNode", "sups"}, "yorc.capabilities.SuperScalable", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

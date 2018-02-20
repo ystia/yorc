@@ -1,17 +1,17 @@
-resource "openstack_compute_keypair_v2" "janus" {
-  name       = "${var.prefix}janus"
+resource "openstack_compute_keypair_v2" "yorc" {
+  name       = "${var.prefix}yorc"
   public_key = "${file("${var.ssh_key_file}.pub")}"
 }
 
-resource "openstack_networking_network_v2" "janus-admin-net" {
-  name           = "${var.prefix}janus-admin-network"
+resource "openstack_networking_network_v2" "yorc-admin-net" {
+  name           = "${var.prefix}yorc-admin-network"
   admin_state_up = "true"
   region         = "${var.region}"
 }
 
-resource "openstack_networking_subnet_v2" "janus-admin-subnet" {
-  name        = "${var.prefix}janus-admin-subnet"
-  network_id  = "${openstack_networking_network_v2.janus-admin-net.id}"
+resource "openstack_networking_subnet_v2" "yorc-admin-subnet" {
+  name        = "${var.prefix}yorc-admin-subnet"
+  network_id  = "${openstack_networking_network_v2.yorc-admin-net.id}"
   cidr        = "10.0.1.0/24"
   ip_version  = 4
   enable_dhcp = "true"
@@ -20,22 +20,22 @@ resource "openstack_networking_subnet_v2" "janus-admin-subnet" {
   region = "${var.region}"
 }
 
-resource "openstack_networking_router_v2" "janus-admin-router" {
-  name             = "${var.prefix}janus-admin-router"
+resource "openstack_networking_router_v2" "yorc-admin-router" {
+  name             = "${var.prefix}yorc-admin-router"
   admin_state_up   = "true"
   external_gateway = "${var.external_gateway}"
   region           = "${var.region}"
 }
 
-resource "openstack_networking_router_interface_v2" "janus-admin-router-port" {
-  router_id = "${openstack_networking_router_v2.janus-admin-router.id}"
-  subnet_id = "${openstack_networking_subnet_v2.janus-admin-subnet.id}"
+resource "openstack_networking_router_interface_v2" "yorc-admin-router-port" {
+  router_id = "${openstack_networking_router_v2.yorc-admin-router.id}"
+  subnet_id = "${openstack_networking_subnet_v2.yorc-admin-subnet.id}"
   region    = "${var.region}"
 }
 
-resource "openstack_compute_secgroup_v2" "janus-admin-secgroup" {
-  name        = "${var.prefix}janus-admin-secgrp"
-  description = "Janus Admin Openbar"
+resource "openstack_compute_secgroup_v2" "yorc-admin-secgroup" {
+  name        = "${var.prefix}yorc-admin-secgrp"
+  description = "Yorc Admin Openbar"
 
   rule {
     ip_protocol = "tcp"

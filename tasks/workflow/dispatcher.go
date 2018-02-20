@@ -13,10 +13,10 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
 // A Dispatcher is in charge to look for new tasks and dispatch them accross availables workers

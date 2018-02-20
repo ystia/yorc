@@ -16,7 +16,7 @@ import (
 // See consulutil package for more details
 const DefaultConsulPubMaxRoutines int = 500
 
-// DefaultWorkersNumber is the default number of workers in the Janus server
+// DefaultWorkersNumber is the default number of workers in the Yorc server
 const DefaultWorkersNumber int = 3
 
 // DefaultHTTPPort is the default port number for the HTTP REST API
@@ -28,7 +28,7 @@ const DefaultHTTPAddress string = "0.0.0.0"
 // DefaultPluginDir is the default path for the plugin directory
 const DefaultPluginDir = "plugins"
 
-// DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Janus server before exiting
+// DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Yorc server before exiting
 const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 
 //DefaultKeepOperationRemotePath is set to true by default in order to remove path created to store operation artifacts on nodes.

@@ -6,8 +6,8 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/prov"
 )
 
 // OperationExecutor is an extention of prov.OperationExecutor that expose its supported node types

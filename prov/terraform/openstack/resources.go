@@ -1,7 +1,7 @@
 package openstack
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
 const defaultOSRegion = "RegionOne"

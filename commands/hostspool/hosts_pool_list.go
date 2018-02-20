@@ -11,9 +11,9 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
-	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/helper/tabutil"
+	"github.com/ystia/yorc/rest"
 )
 
 func init() {
@@ -21,7 +21,7 @@ func init() {
 	hpListCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List hosts pools",
-		Long:  `Lists hosts of the hosts pool managed by this Janus cluster.`,
+		Long:  `Lists hosts of the hosts pool managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
 			client, err := httputil.GetClient()

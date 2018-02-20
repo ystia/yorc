@@ -7,10 +7,10 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,24 +1,24 @@
 package consulutil
 
-const janusPrefix string = "_janus"
+const yorcPrefix string = "_yorc"
 
 // DeploymentKVPrefix is the prefix in Consul KV store for deployments
-const DeploymentKVPrefix string = janusPrefix + "/deployments"
+const DeploymentKVPrefix string = yorcPrefix + "/deployments"
 
 // TasksPrefix is the prefix in Consul KV store for tasks
-const TasksPrefix = janusPrefix + "/tasks"
+const TasksPrefix = yorcPrefix + "/tasks"
 
 // TasksLocksPrefix is the prefix in Consul KV store for tasks locks
-const TasksLocksPrefix = janusPrefix + "/tasks-locks"
+const TasksLocksPrefix = yorcPrefix + "/tasks-locks"
 
 // WorkflowsPrefix is the prefix in Consul KV store for workflows runtime data
-const WorkflowsPrefix = janusPrefix + "/workflows"
+const WorkflowsPrefix = yorcPrefix + "/workflows"
 
 // EventsPrefix is the prefix in Consul KV store for events concerning all the deployments
-const EventsPrefix = janusPrefix + "/events"
+const EventsPrefix = yorcPrefix + "/events"
 
 // LogsPrefix is the prefix on KV store for logs concerning all the deployments
-const LogsPrefix = janusPrefix + "/logs"
+const LogsPrefix = yorcPrefix + "/logs"
 
 // HostsPoolPrefix is the prefix on KV store for the hosts pool service
-const HostsPoolPrefix = janusPrefix + "/hosts_pool"
+const HostsPoolPrefix = yorcPrefix + "/hosts_pool"

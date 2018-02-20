@@ -1,10 +1,10 @@
 [Unit]
-Description=Janus Server
+Description=Yorc Server
 After=consul.service autofs.service
 Wants=consul.service autofs.service
 
 [Service]
-ExecStart=/usr/local/bin/janus server
+ExecStart=/usr/local/bin/yorc server
 ExecReload=/bin/kill -s HUP $MAINPID
 User=${user}
 WorkingDirectory=/home/${user}

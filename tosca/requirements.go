@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 )
 
 // RequirementDefinitionMap is a map of RequirementDefinition indexed by name

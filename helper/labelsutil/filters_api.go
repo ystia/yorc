@@ -1,6 +1,6 @@
 package labelsutil
 
-import "novaforge.bull.com/starlings-janus/janus/helper/labelsutil/internal"
+import "github.com/ystia/yorc/helper/labelsutil/internal"
 
 // A Warning is an error during the matching process.
 // But it doesn't have the standard Go error semantic as it should be reported but not stop any process.

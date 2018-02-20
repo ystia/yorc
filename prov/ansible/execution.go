@@ -20,17 +20,17 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/provutil"
+	"github.com/ystia/yorc/helper/stringutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 const ansibleConfig = `[defaults]
@@ -288,7 +288,7 @@ func (e *executionCommon) resolveArtifacts() error {
 }
 
 func (e *executionCommon) setEndpointCredentials(kv *api.KV, host, instanceID, capType string, conn *hostConnection) error {
-	hasEndpoint, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, capType, "janus.capabilities.Endpoint.ProvisioningAdmin")
+	hasEndpoint, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, capType, "yorc.capabilities.Endpoint.ProvisioningAdmin")
 	if err != nil {
 		return err
 	}
@@ -669,8 +669,8 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		sshPassword := host.password
 		sshPrivateKey := host.privateKey
 		if sshPrivateKey == "" && sshPassword == "" {
-			sshPrivateKey = "~/.ssh/janus.pem"
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/janus.pem.")
+			sshPrivateKey = "~/.ssh/yorc.pem"
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
 		}
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
 		if sshPrivateKey != "" {

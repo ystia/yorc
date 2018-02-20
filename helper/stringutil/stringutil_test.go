@@ -56,8 +56,8 @@ func TestTimestampedName(t *testing.T) {
 		name string
 		args args
 	}{
-		{name: "TestWithSeparator", args: args{prefix: ".janus_", suffix: ""}},
-		{name: "TestWithSeparator", args: args{prefix: ".janus_", suffix: "_ending"}},
+		{name: "TestWithSeparator", args: args{prefix: ".yorc_", suffix: ""}},
+		{name: "TestWithSeparator", args: args{prefix: ".yorc_", suffix: "_ending"}},
 	}
 
 	for _, tt := range tests {

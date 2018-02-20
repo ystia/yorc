@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
 )
 
 // A k8sGenerator is used to generate the Kubernetes objects for a given TOSCA node

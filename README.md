@@ -1,15 +1,15 @@
-# JANUS Orchestrator
+# Yorc Orchestrator
 
-[![Build Status](http://129.184.11.224/buildStatus/icon?job=Janus-Engine)](http://129.184.11.224/view/Janus%20Engine/job/Janus-Engine/)
+[![Build Status](http://129.184.11.224/buildStatus/icon?job=yorc-Engine)](http://129.184.11.224/view/yorc%20Engine/job/yorc-Engine/)
 
-Janus is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html) orchestrator.
+Yorc is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html) orchestrator.
 
 
-## How to build Janus
+## How to build yorc
 
 Go 1.9+ is required. The easiest way to install it to use follow [the official guide](https://golang.org/doc/install)
 
-Here is how to install and setup the Janus project:
+Here is how to install and setup the Yorc project:
 
     sudo apt-get install build-essential git curl
     # Or
@@ -17,10 +17,10 @@ Here is how to install and setup the Janus project:
     
     # Install GO and set GOPATH
     
-    mkdir -p $GOPATH/src/novaforge.bull.com/starlings-janus
-    cd $GOPATH/src/novaforge.bull.com/starlings-janus
-    git clone ssh://git@novaforge.bull.com:2222/starlings-janus/janus.git
-    cd janus
+    mkdir -p $GOPATH/src/novaforge.bull.com/starlings-yorc
+    cd $GOPATH/src/novaforge.bull.com/starlings-yorc
+    git clone ssh://git@novaforge.bull.com:2222/starlings-yorc/yorc.git
+    cd yorc
 
     # Build 
     make tools

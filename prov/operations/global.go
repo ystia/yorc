@@ -1,7 +1,7 @@
 package operations
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
+	"github.com/ystia/yorc/helper/provutil"
 )
 
 // GetInstanceName returns the built instance name from nodeName and instanceID

@@ -16,10 +16,10 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/labelsutil"
+	"github.com/ystia/yorc/helper/sshutil"
 )
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool

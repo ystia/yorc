@@ -9,15 +9,15 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/executil"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/terraform/commons"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 type defaultExecutor struct {

@@ -21,7 +21,7 @@ func (g *osGenerator) generateFloatingIP(kv *api.KV, url, instanceName string) (
 	if nodeType, err = g.getStringFormConsul(kv, url, "type"); err != nil {
 		return IP{}, err
 	}
-	if nodeType != "janus.nodes.openstack.FloatingIP" {
+	if nodeType != "yorc.nodes.openstack.FloatingIP" {
 		return IP{}, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	nodeName, err := g.getStringFormConsul(kv, url, "name")

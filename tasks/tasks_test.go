@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 
 	"path"
 

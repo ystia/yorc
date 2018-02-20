@@ -3,14 +3,14 @@ GOTOOLS = golang.org/x/tools/cmd/stringer github.com/kardianos/govendor github.c
 VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
-VERSION=$(shell grep "janus_version" versions.yaml | awk '{print $$2}')
+VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 COMMIT_HASH=$(shell git rev-parse HEAD)
 
 buildnformat: build format
 
 build: test
 	@echo "--> Running go build"
-	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags '-X novaforge.bull.com/starlings-janus/janus/commands.version=v$(VERSION) -X novaforge.bull.com/starlings-janus/janus/commands.gitCommit=$(COMMIT_HASH)'
+	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags '-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH)'
 
 generate: checks
 	@go generate ./...
@@ -21,9 +21,9 @@ checks:
 dist: build
 	@rm -rf ./dist && mkdir -p ./dist
 	@echo "--> Creating an archive"
-	@tar czvf janus.tgz janus && echo "TODO: clean this part after CI update" &&  cp janus janus.tgz dist/
-	@cd doc && make html latexpdf && cd _build && cp -r html latex/Janus.pdf ../../dist
-	@cd ./dist && zip -r janus-server-$(VERSION)-documentation.zip html Janus.pdf && zip janus-server-$(VERSION)-distrib.zip janus janus-server-$(VERSION)-documentation.zip
+	@tar czvf yorc.tgz yorc && echo "TODO: clean this part after CI update" &&  cp yorc yorc.tgz dist/
+	@cd doc && make html latexpdf && cd _build && cp -r html latex/yorc.pdf ../../dist
+	@cd ./dist && zip -r yorc-server-$(VERSION)-documentation.zip html yorc.pdf && zip yorc-server-$(VERSION)-distrib.zip yorc yorc-server-$(VERSION)-documentation.zip
 
 test: generate
 ifndef SKIP_TESTS

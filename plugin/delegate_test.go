@@ -8,8 +8,8 @@ import (
 	"errors"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/prov"
 )
 
 type mockDelegateExecutor struct {

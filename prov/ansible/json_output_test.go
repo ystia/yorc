@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 
 	"path"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/testutil"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/stringutil"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/testutil"
 )
 
 func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {

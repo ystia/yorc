@@ -10,7 +10,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
+	"github.com/ystia/yorc/helper/collections"
 )
 
 // FilterFromString generates a Filter from a given input string

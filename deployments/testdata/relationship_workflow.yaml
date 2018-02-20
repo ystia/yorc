@@ -8,7 +8,7 @@ metadata:
 description: ""
 
 imports:
-  - normative-types: <janus-types.yml>
+  - normative-types: <yorc-types.yml>
 
 topology_template:
   node_templates:

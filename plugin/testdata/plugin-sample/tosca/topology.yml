@@ -9,7 +9,7 @@ imports:
 topology_template:
   node_templates:
     Compute:
-      type: janus.my.types.Compute
+      type: yorc.my.types.Compute
       capabilities:
         endpoint:
           properties:
@@ -24,7 +24,7 @@ topology_template:
             default_instances: 2
 
     Soft:
-      type: janus.my.types.Soft
+      type: yorc.my.types.Soft
   workflows:
     install:
       steps:

@@ -6,8 +6,8 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
 )
 
 func setupTelemetry(cfg config.Configuration) error {
@@ -15,7 +15,7 @@ func setupTelemetry(cfg config.Configuration) error {
 	metrics.DefaultInmemSignal(memSink)
 	serviceName := cfg.Telemetry.ServiceName
 	if serviceName == "" {
-		serviceName = "janus"
+		serviceName = "yorc"
 	}
 	metricsConf := metrics.DefaultConfig(serviceName)
 

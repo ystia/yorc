@@ -10,14 +10,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tasks/workflow"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/rest"
+	"github.com/ystia/yorc/tasks/workflow"
 )
 
-// RunServer starts the Janus server
+// RunServer starts the Yorc server
 func RunServer(configuration config.Configuration, shutdownCh chan struct{}) error {
 	err := setupTelemetry(configuration)
 	if err != nil {

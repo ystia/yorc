@@ -3,8 +3,8 @@ package tasks
 import (
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/testutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start

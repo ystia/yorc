@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 
 	"github.com/julienschmidt/httprouter"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 )
 
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eventsCollection := EventsCollection{Events: evts, LastIndex: lastIdx}
-	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
+	w.Header().Add(YorcIndexHeader, strconv.FormatUint(lastIdx, 10))
 	encodeJSONResponse(w, r, eventsCollection)
 }
 
@@ -106,7 +106,7 @@ func (s *Server) pollLogs(w http.ResponseWriter, r *http.Request) {
 	lastIdx = idx
 
 	logCollection := LogsCollection{Logs: logs, LastIndex: lastIdx}
-	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
+	w.Header().Add(YorcIndexHeader, strconv.FormatUint(lastIdx, 10))
 	encodeJSONResponse(w, r, logCollection)
 }
 
@@ -128,7 +128,7 @@ func (s *Server) headEventsIndex(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panic(err)
 	}
-	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
+	w.Header().Add(YorcIndexHeader, strconv.FormatUint(lastIdx, 10))
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -150,6 +150,6 @@ func (s *Server) headLogsEventsIndex(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panic(err)
 	}
-	w.Header().Add(JanusIndexHeader, strconv.FormatUint(lastIdx, 10))
+	w.Header().Add(YorcIndexHeader, strconv.FormatUint(lastIdx, 10))
 	w.WriteHeader(http.StatusOK)
 }

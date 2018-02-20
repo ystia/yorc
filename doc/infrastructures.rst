@@ -1,9 +1,9 @@
-Janus Supported infrastructures
+Yorc Supported infrastructures
 ===============================
 
 This section describes the state of our integration with supported infrastructures and their specificities
 
-.. _janus_infras_hostspool_section:
+.. _yorc_infras_hostspool_section:
 
 Hosts Pool
 ----------
@@ -12,30 +12,30 @@ Hosts Pool
 
    |prod|
 
-The Hosts Pool is a very special kind of infrastructure. It consists in registering existing Compute nodes into a pool managed by Janus.
-Those compute nodes could be physical or virtual machines, containers or whatever as long as Janus can SSH into it. Janus will be responsible to 
-allocate and release hosts for deployments. This is safe to use it concurrently in a Janus cluster, Janus instances will synchronize amongst themselves to 
+The Hosts Pool is a very special kind of infrastructure. It consists in registering existing Compute nodes into a pool managed by Yorc.
+Those compute nodes could be physical or virtual machines, containers or whatever as long as Yorc can SSH into it. Yorc will be responsible to 
+allocate and release hosts for deployments. This is safe to use it concurrently in a Yorc cluster, Yorc instances will synchronize amongst themselves to 
 ensure consistency of the pool.  
 
-To sum up this infrastructure type is really great when you want to use an infrastructure that is not yet supported by Janus.
+To sum up this infrastructure type is really great when you want to use an infrastructure that is not yet supported by Yorc.
 
 Hosts management
 ~~~~~~~~~~~~~~~~
 
-Janus comes with a REST API that allows to manage hosts in the pool and to easily integrate it with other systems. The Janus CLI leverage this REST API 
-to make it user friendly, please refer to :ref:`janus_cli_hostspool_section` for more informations
+Yorc comes with a REST API that allows to manage hosts in the pool and to easily integrate it with other systems. The Yorc CLI leverage this REST API 
+to make it user friendly, please refer to :ref:`yorc_cli_hostspool_section` for more informations
 
 Hosts Pool labels & filters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It is strongly recommended to associate labels to your hosts. Labels allow to filter hosts based on criteria. Labels are just a couple of key/value pair
 
-.. _janus_infras_hostspool_filters_section:
+.. _yorc_infras_hostspool_filters_section:
 
 Filters Grammar
 ^^^^^^^^^^^^^^^
 
-There are four kinds of filters supported by Janus:
+There are four kinds of filters supported by Yorc:
 
   * Filters based on the presence of a label ``label_identifier`` will match if a label with the given name is associated with a host whatever its value is.
   * Filters based on equality to a value ``label_identifier (=|==|!=) value`` will match if the value associated with the given label is equals (``=`` and ``==``) or different (``!=``) to the given value
@@ -64,7 +64,7 @@ Implicit filters & labels
 TOSCA allows to specify `requirements on Compute hardware <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/csd01/TOSCA-Simple-Profile-YAML-v1.2-csd01.html#DEFN_TYPE_CAPABILITIES_COMPUTE>`_
 and `Compute operating system <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/csd01/TOSCA-Simple-Profile-YAML-v1.2-csd01.html#DEFN_TYPE_CAPABILITIES_OPSYS>`_ .
 These are capabilities named ``host`` and ``os`` in the `TOSCA node Compute <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/csd01/TOSCA-Simple-Profile-YAML-v1.2-csd01.html#DEFN_TYPE_NODES_COMPUTE>`_ .
-If those are specified in the topology, Janus will automatically add a filter ``host.<property_name> >= <property_value> <property_unit>`` or ``os.<property_name> = <property_value>``
+If those are specified in the topology, Yorc will automatically add a filter ``host.<property_name> >= <property_value> <property_unit>`` or ``os.<property_name> = <property_value>``
 This will allow to select hosts matching the required criteria.
 
 This means that it is strongly recommended to add the following labels to your hosts:
@@ -89,7 +89,7 @@ Some labels are also automatically exposed as TOSCA Compute instance attributes:
     * ``networks.<idx>.addresses`` as a coma separated list of addresses (ie. ``networks.0.addresses``)
     
 
-.. _janus_infras_slurm_section:
+.. _yorc_infras_slurm_section:
 
 Slurm
 -----
@@ -101,7 +101,7 @@ Slurm
 `Slurm <https://slurm.schedmd.com/>`_ is an open source, fault-tolerant, and highly scalable cluster management and job scheduling system for large and small Linux clusters.
 It is wildly used in High Performance Computing and it is the default scheduler of the `Bull Super Computer Suite <https://atos.net/en/products/high-performance-computing-hpc>`_ .
 
-Janus interacts with Slurm to allocate nodes on its cluster.
+Yorc interacts with Slurm to allocate nodes on its cluster.
 
 Resources based scheduling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,17 +110,17 @@ TOSCA allows to specify `requirements on Compute nodes <http://docs.oasis-open.o
 if specified ``num_cpus`` and  ``mem_size`` requirements are used to allocate only the required resoures on computes. This allows to share a Slurm managed compute
 across several deployments. If not specified a whole compute node will be allocated.
 
-Janus also support `Slurm GRES <https://slurm.schedmd.com/gres.html>`_ based scheduling. This is generally used to request a host with a specific type of resource (consumable or not) 
+Yorc also support `Slurm GRES <https://slurm.schedmd.com/gres.html>`_ based scheduling. This is generally used to request a host with a specific type of resource (consumable or not) 
 such as GPUs.
 
 Future work
 ~~~~~~~~~~~
 
-  * We plan to soon work on modeling Slurm Jobs in TOSCA and execute them thanks to Janus.
+  * We plan to soon work on modeling Slurm Jobs in TOSCA and execute them thanks to Yorc.
   * We also plan to support `Singularity <http://singularity.lbl.gov/>`_ , a container system similar to Docker but designed to integrate well HPC environments.
-    This feature, as it will leverage some Bull HPC proprietary integration with Slurm, will be part of a premium version of Janus.
+    This feature, as it will leverage some Bull HPC proprietary integration with Slurm, will be part of a premium version of Yorc.
 
-.. _janus_infras_aws_section:
+.. _yorc_infras_aws_section:
 
 AWS
 ---
@@ -129,7 +129,7 @@ AWS
 
    |dev|
 
-The AWS integration within Janus allows to provision Compute nodes and Elastic IPs on top of `AWS EC2 <https://aws.amazon.com/ec2/>`_ this part is ready for production
+The AWS integration within Yorc allows to provision Compute nodes and Elastic IPs on top of `AWS EC2 <https://aws.amazon.com/ec2/>`_ this part is ready for production
 but we plan to support soon the following features to make it production-ready:
 
   * Support Elastic Block Store provisioning
@@ -138,10 +138,10 @@ but we plan to support soon the following features to make it production-ready:
 Future work
 ~~~~~~~~~~~
 
-  * We plan to work on modeling `AWS Batch Jobs <https://aws.amazon.com/batch/>`_ in TOSCA and execute them thanks to Janus.
+  * We plan to work on modeling `AWS Batch Jobs <https://aws.amazon.com/batch/>`_ in TOSCA and execute them thanks to Yorc.
   * We plan to work on `AWS ECS <https://aws.amazon.com/ecs>`_ to deploy containers
 
-.. _janus_infras_openstack_section:
+.. _yorc_infras_openstack_section:
 
 OpenStack
 ---------
@@ -150,16 +150,16 @@ OpenStack
 
    |prod|
 
-The `OpenStack <https://www.openstack.org/>`_ integration within Janus is production-ready. We support Compute, Block Storage, Virtual Networks and Floating IPs
+The `OpenStack <https://www.openstack.org/>`_ integration within Yorc is production-ready. We support Compute, Block Storage, Virtual Networks and Floating IPs
 provisioning.
 
 Future work
 ~~~~~~~~~~~
 
-  * We plan to work on modeling `OpenStack Mistral workflows <https://wiki.openstack.org/wiki/Mistral>`_ in TOSCA and execute them thanks to Janus.
+  * We plan to work on modeling `OpenStack Mistral workflows <https://wiki.openstack.org/wiki/Mistral>`_ in TOSCA and execute them thanks to Yorc.
   * We plan to work on `OpenStack Zun <https://wiki.openstack.org/wiki/Zun>`_ to deploy containers directly on top of OpenStack
 
-.. _janus_infras_kubernetes_section:
+.. _yorc_infras_kubernetes_section:
 
 Kubernetes
 ----------

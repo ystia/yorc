@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/events"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 )
 
 // A Generator is used to generate the Terraform infrastructure for a given TOSCA node

@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"path"
 
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 
 	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
+	"github.com/ystia/yorc/commands/httputil"
 )
 
 func init() {
@@ -65,10 +65,10 @@ func init() {
 	DeploymentsCmd.AddCommand(scaleCmd)
 }
 
-func postScalingRequest(client *httputil.JanusClient, deploymentID, nodeName string, instancesDelta int32) (string, error) {
+func postScalingRequest(client *httputil.YorcClient, deploymentID, nodeName string, instancesDelta int32) (string, error) {
 	request, err := client.NewRequest("POST", path.Join("/deployments", deploymentID, "scale", nodeName), nil)
 	if err != nil {
-		httputil.ErrExit(errors.Wrap(err, httputil.JanusAPIDefaultErrorMsg))
+		httputil.ErrExit(errors.Wrap(err, httputil.YorcAPIDefaultErrorMsg))
 	}
 
 	query := request.URL.Query()
@@ -81,14 +81,14 @@ func postScalingRequest(client *httputil.JanusClient, deploymentID, nodeName str
 	response, err := client.Do(request)
 	defer response.Body.Close()
 	if err != nil {
-		httputil.ErrExit(errors.Wrap(err, httputil.JanusAPIDefaultErrorMsg))
+		httputil.ErrExit(errors.Wrap(err, httputil.YorcAPIDefaultErrorMsg))
 	}
 
 	ids := deploymentID + "/" + nodeName
 	httputil.HandleHTTPStatusCode(response, ids, "deployment/node", http.StatusAccepted)
 	location := response.Header.Get("Location")
 	if location == "" {
-		return "", errors.New("No \"Location\" header returned in Janus response")
+		return "", errors.New("No \"Location\" header returned in Yorc response")
 	}
 	return location, nil
 }

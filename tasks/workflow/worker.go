@@ -19,16 +19,16 @@ import (
 
 	"encoding/json"
 	"github.com/armon/go-metrics"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 type worker struct {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 
 	"fmt"
 
@@ -20,13 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/tasks"
 )
 
 // An EnvInput represent a TOSCA operation input
