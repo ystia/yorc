@@ -276,10 +276,15 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
-	configuration.AnsibleUseOpenSSH = viper.GetBool("ansible_use_openssh")
-	configuration.AnsibleDebugExec = viper.GetBool("ansible_debug")
-	configuration.AnsibleConnectionRetries = viper.GetInt("ansible_connection_retries")
-	configuration.OperationRemoteBaseDir = viper.GetString("operation_remote_base_dir")
+	/*  TODO: uncomment when deprecated uses will be forbidden */
+	/* Ansible part
+	configuration.AnsibleUseOpenSSH = viper.GetBool("ansible.use_openssh")
+	configuration.AnsibleDebugExec = viper.GetBool("ansible.debug")
+	configuration.AnsibleConnectionRetries = viper.GetInt("ansible.connection_retries")
+	configuration.OperationRemoteBaseDir = viper.GetString("ansible.operation_remote_base_dir")
+	configuration.KeepOperationRemotePath = viper.GetBool("ansible.keep_operation_remote_path")
+	*/
+	deprecatedConfig(&configuration) //Toremove when deprecated uses will be forbidden
 	configuration.WorkingDirectory = viper.GetString("working_directory")
 	configuration.PluginsDirectory = viper.GetString("plugins_directory")
 	configuration.WorkersNumber = viper.GetInt("workers_number")
@@ -288,20 +293,20 @@ func getConfig() config.Configuration {
 	configuration.CertFile = viper.GetString("cert_file")
 	configuration.KeyFile = viper.GetString("key_file")
 	configuration.ResourcesPrefix = viper.GetString("resources_prefix")
-	configuration.ConsulAddress = viper.GetString("consul_address")
-	configuration.ConsulDatacenter = viper.GetString("consul_datacenter")
-	configuration.ConsulToken = viper.GetString("consul_token")
-	configuration.ConsulPubMaxRoutines = viper.GetInt("consul_publisher_max_routines")
-	configuration.ConsulKey = viper.GetString("consul_key_file")
-	configuration.ConsulCert = viper.GetString("consul_cert_file")
-	configuration.ConsulCA = viper.GetString("consul_ca_cert")
-	configuration.ConsulCAPath = viper.GetString("consul_ca_path")
-	configuration.ConsulSSL = viper.GetBool("consul_ssl")
-	configuration.ConsulSSLVerify = viper.GetBool("consul_ssl_verify")
+	/* Consul part
+	configuration.ConsulAddress = viper.GetString("consul.address")
+	configuration.ConsulDatacenter = viper.GetString("consul.datacenter")
+	configuration.ConsulToken = viper.GetString("consul.token")
+	configuration.ConsulPubMaxRoutines = viper.GetInt("consul.publisher_max_routines")
+	configuration.ConsulKey = viper.GetString("consul.key_file")
+	configuration.ConsulCert = viper.GetString("consul.cert_file")
+	configuration.ConsulCA = viper.GetString("consul.ca_cert")
+	configuration.ConsulCAPath = viper.GetString("consul.ca_path")
+	configuration.ConsulSSL = viper.GetBool("consul.ssl")
+	configuration.ConsulSSLVerify = viper.GetBool("consul.ssl_verify")
+	*/
 	configuration.ServerGracefulShutdownTimeout = viper.GetDuration("server_graceful_shutdown_timeout")
-	configuration.KeepOperationRemotePath = viper.GetBool("keep_operation_remote_path")
 	configuration.WfStepGracefulTerminationTimeout = viper.GetDuration("wf_step_graceful_termination_timeout")
-
 	configuration.Infrastructures = make(map[string]config.DynamicMap)
 	configuration.Vault = make(config.DynamicMap)
 
@@ -319,6 +324,35 @@ func getConfig() config.Configuration {
 	configuration.Telemetry.DisableGoRuntimeMetrics = viper.GetBool("telemetry.disable_go_runtime_metrics")
 
 	return configuration
+}
+
+func deprecatedConfig(cfg *config.Configuration) {
+	/* Ansible part */
+	cfg.AnsibleUseOpenSSH = chooseNew("ansible_use_openssh", "ansible.use_openssh").(bool)
+	cfg.AnsibleDebugExec = chooseNew("ansible_debug", "ansible.debug").(bool)
+	cfg.AnsibleConnectionRetries = int(chooseNew("ansible_connection_retries", "ansible.connection_retries").(float64))
+	cfg.OperationRemoteBaseDir = chooseNew("operation_remote_base_dir", "ansible.operation_remote_base_dir").(string)
+	cfg.AnsibleUseOpenSSH = chooseNew("keep_operation_remote_path", "ansible.keep_operation_remote_path").(bool)
+	/* Consul part */
+	cfg.ConsulAddress = chooseNew("consul_address", "consul.address").(string)
+	cfg.ConsulDatacenter = chooseNew("consul_datacenter", "consul.datacenter").(string)
+	cfg.ConsulToken = chooseNew("consul_token", "consul.token").(string)
+	cfg.ConsulPubMaxRoutines = int(chooseNew("consul_publisher_max_routines", "consul.publisher_max_routines").(float64))
+	cfg.ConsulKey = chooseNew("consul_key_file", "consul.key_file").(string)
+	cfg.ConsulCert = chooseNew("consul_cert_file", "consul.cert_file").(string)
+	cfg.ConsulCA = chooseNew("consul_ca_cert", "consul.ca_cert").(string)
+	cfg.ConsulCAPath = chooseNew("consul_ca_path", "consul.ca_path").(string)
+	cfg.ConsulSSL = chooseNew("consul_ssl", "consul.ssl").(bool)
+	cfg.ConsulSSLVerify = chooseNew("consul_ssl_verify", "consul.ssl_verify").(bool)
+}
+func chooseNew(oldName string, newName string) interface{} {
+	old := viper.Get(oldName)
+	new := viper.Get(newName)
+	if new != "" && new != nil {
+		return new
+	}
+	log.Printf("Warning: You are using deprecated configuration file. Do not use anymore \"%s\" parameter. Refer to the doc for more information.", oldName)
+	return old
 }
 
 func readInfraViperConfig(cfg *config.Configuration) {
