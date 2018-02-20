@@ -120,7 +120,7 @@ Yorc Workers & Tasks metrics
 Yorc Executors metrics
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There is two types of executors in Yorc "delegates executors" and "operations executors". Delegates executors handle the deployment of Yorc natively supported
+There are two types of executors in Yorc "delegates executors" and "operations executors". Delegates executors handle the deployment of Yorc natively supported
 TOSCA nodes (like an Openstack compute for instance) while Operations executors handle implementations of an lifecycle operations provided as part of the TOSCA node
 definition (like a shell script or an ansible playbook).
 

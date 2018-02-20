@@ -168,7 +168,7 @@ Kubernetes
    
    |incubation|
 
-Kubernetes support is in a kind of Proof Of Concept phasis for now. We are currently working on a total refactoring of this part.
+Kubernetes support is in a kind of Proof Of Concept phase for now. We are currently working on a total refactoring of this part.
 
 .. |prod| image:: https://img.shields.io/badge/stability-production%20ready-green.svg
 .. |dev| image:: https://img.shields.io/badge/stability-stable%20but%20some%20features%20missing-yellow.svg

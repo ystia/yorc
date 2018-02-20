@@ -21,7 +21,7 @@ Please report to the :ref:`yorc_config_section` for an exhaustive list of Yorc' 
 At least OpenStack access configuration files should be provided either by command-line flags, environment variables or configuration elements.
 They are omitted bellow for brevity and considered as provided by a configuration file in one of the default location.
 
-Notice that if you are using a passphrase on your ssh key, you have to start an ssh-agent before launching yorc. It is strongly recommended to start one by giving him a socket name.
+Note that if you are using a passphrase on your ssh key, you have to start an ssh-agent before launching yorc. It is strongly recommended to start one by giving him a socket name.
 
 .. code-block:: bash
 
