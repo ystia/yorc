@@ -200,7 +200,11 @@ func (e LogEntry) toFlatMap() map[string]interface{} {
 	flatMap["deploymentId"] = e.deploymentID
 	flatMap["level"] = e.level.String()
 	flatMap["content"] = string(e.content)
-	flatMap["timestamp"] = e.timestamp.Format(time.RFC3339)
+	// Keeping a nanosecond precision for timestamps, as it is done for keys
+	// generation, so that a client application performing a timestamp sort on
+	// a slice of n logs will get exactly the same order as the log insertion
+	// order
+	flatMap["timestamp"] = e.timestamp.Format(time.RFC3339Nano)
 
 	// NewLogEntry additional info
 	for k, v := range e.additionalInfo {
