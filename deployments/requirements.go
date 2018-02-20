@@ -107,7 +107,7 @@ func GetNbRequirementsForNode(kv *api.KV, deploymentID, nodeName string) (int, e
 // If there is no relationship defined for this requirement then an empty string is returned.
 func GetRelationshipForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "relationship"), nil)
-	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it futhermore it can refer to a relationship_template_name instead of a relationship_type_name
+	// TODO: explicit naming of the relationship is optional and there is alternative way to retrieve it furthermore it can refer to a relationship_template_name instead of a relationship_type_name
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -130,7 +130,7 @@ func GetCapabilityForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 // If there is no node defined for this requirement then an empty string is returned.
 func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "node"), nil)
-	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it futhermore it can refer to a node_template_name instead of a node_type_name
+	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it furthermore it can refer to a node_template_name instead of a node_type_name
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -143,7 +143,7 @@ func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requirementName string) (string, error) {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements")
 	kvp, _, err := kv.Keys(reqPath+"/", "/", nil)
-	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it futhermore it can refer to a node_template_name instead of a node_type_name
+	// TODO: explicit naming of the node is optional and there is alternative way to retrieve it furthermore it can refer to a node_template_name instead of a node_type_name
 	if err != nil || kvp == nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

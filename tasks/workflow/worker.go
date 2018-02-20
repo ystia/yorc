@@ -289,7 +289,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
-	case tasks.ScaleUp:
+	case tasks.ScaleOut:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 
@@ -299,7 +299,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
-	case tasks.ScaleDown:
+	case tasks.ScaleIn:
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 		err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
 		if err != nil {

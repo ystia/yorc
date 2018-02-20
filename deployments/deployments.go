@@ -27,7 +27,7 @@ func IsDeploymentNotFoundError(err error) bool {
 
 // DeploymentStatusFromString returns a DeploymentStatus from its textual representation.
 //
-// If ignoreCase is 'true' the given status is uppercased to match the generated status strings.
+// If ignoreCase is 'true' the given status is upper cased to match the generated status strings.
 // If the given status does not match any known status an error is returned
 func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatus, error) {
 	if ignoreCase {

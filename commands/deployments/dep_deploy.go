@@ -25,7 +25,7 @@ func init() {
 		Short: "Deploy an application",
 		Long: `Deploy a file or directory pointed by <csar_path>
 	If <csar_path> point to a valid zip archive it is submitted to Yorc as it.
-	If <csar_path> point to a file or directory it is zipped before beeing submitted to Yorc.
+	If <csar_path> point to a file or directory it is zipped before being submitted to Yorc.
 	If <csar_path> point to a single file it should be TOSCA YAML description.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {

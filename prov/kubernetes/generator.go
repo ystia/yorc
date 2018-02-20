@@ -30,7 +30,7 @@ func newGenerator(kv *api.KV, cfg config.Configuration) *k8sGenerator {
 	return &k8sGenerator{kv: kv, cfg: cfg}
 }
 
-func generateLimitsRessources(cpuLimitStr, memLimitStr string) (v1.ResourceList, error) {
+func generateLimitsResources(cpuLimitStr, memLimitStr string) (v1.ResourceList, error) {
 	if cpuLimitStr == "" && memLimitStr == "" {
 		return nil, nil
 	}
@@ -62,7 +62,7 @@ func generateLimitsRessources(cpuLimitStr, memLimitStr string) (v1.ResourceList,
 
 }
 
-func generateRequestRessources(cpuShareStr, memShareStr string) (v1.ResourceList, error) {
+func generateRequestResources(cpuShareStr, memShareStr string) (v1.ResourceList, error) {
 	if cpuShareStr == "" && memShareStr == "" {
 		return nil, nil
 	}
@@ -123,7 +123,7 @@ func (k8s *k8sGenerator) createNamespaceIfMissing(deploymentID, namespaceName st
 	return nil
 }
 
-// generatePodName by replaceing '_' by '-'
+// generatePodName by replacing '_' by '-'
 func generatePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
 }
@@ -145,14 +145,14 @@ func (k8s *k8sGenerator) generateContainer(nodeName, dockerImage, imagePullPolic
 }
 
 // Generate all the Kubernetes Volumes used by a node
-func (k8s *k8sGenerator) genereateUsedVolumes(deploymentID, nodeName string) ([]v1.Volume, error) {
-	usedVoumeNodeNames, err := getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
+func (k8s *k8sGenerator) generateUsedVolumes(deploymentID, nodeName string) ([]v1.Volume, error) {
+	usedVolumeNodeNames, err := getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	err = nil
 	var usedVolumes []v1.Volume
-	for _, volumeNodeName := range usedVoumeNodeNames {
+	for _, volumeNodeName := range usedVolumeNodeNames {
 		volume, err := k8s.generateVolume(deploymentID, volumeNodeName)
 		if err == nil {
 			usedVolumes = append(usedVolumes, volume)
@@ -245,13 +245,13 @@ func (k8s *k8sGenerator) generateVolumeMount(deploymentID, volumeNodeName string
 
 // Generate the kubernetes VolumeMounts for a node
 func (k8s *k8sGenerator) generateVolumeMounts(deploymentID, nodeName string) ([]v1.VolumeMount, error) {
-	usedVoumeNodeNames, err := getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
+	usedVolumeNodeNames, err := getUsedVolumeNodesNames(k8s.kv, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 	var volumeMounts []v1.VolumeMount
 
-	for _, volumeNodeName := range usedVoumeNodeNames {
+	for _, volumeNodeName := range usedVolumeNodeNames {
 		volumeMount, err := k8s.generateVolumeMount(deploymentID, volumeNodeName)
 		if err != nil {
 			return nil, err
@@ -295,7 +295,7 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 	// not implemented
 	//_, cpuLimitStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "cpu_limit")
 	cpuLimitStr := ""
-	// mem_share does not exist neither in docker nore in K8s
+	// mem_share does not exist neither in docker nor in K8s
 	//_, memShareStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "mem_share")
 	memShareStr := ""
 	_, memLimitStr, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "mem_limit")
@@ -304,14 +304,14 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 	_, dockerRunCmd, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "docker_run_cmd")
 	_, dockerPorts, err := deployments.GetNodeProperty(k8s.kv, deploymentID, nodeName, "docker_ports")
 
-	limits, err := generateLimitsRessources(cpuLimitStr, memLimitStr)
+	limits, err := generateLimitsResources(cpuLimitStr, memLimitStr)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
 	}
 
-	// mem_share does not exist neither in docker nore in K8s
+	// mem_share does not exist neither in docker nor in K8s
 	// maybe should be replaced with mem_requests
-	requests, err := generateRequestRessources(cpuShareStr, memShareStr)
+	requests, err := generateRequestResources(cpuShareStr, memShareStr)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
 	}
@@ -334,7 +334,7 @@ func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, n
 		pullRepo = append(pullRepo, v1.LocalObjectReference{Name: repoName})
 	}
 
-	usedVolumes, err := k8s.genereateUsedVolumes(deploymentID, nodeName)
+	usedVolumes, err := k8s.generateUsedVolumes(deploymentID, nodeName)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
 	}

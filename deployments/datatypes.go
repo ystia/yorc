@@ -13,7 +13,7 @@ import (
 // GetTypePropertyDataType returns the type of a property as defined in its property definition
 //
 // Default value is "string" if not specified.
-// Lists and Maps types have their entry_schema value append seperated by a semicolon (ex "map:string")
+// Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
 func GetTypePropertyDataType(kv *api.KV, deploymentID, typeName, propertyName string) (string, error) {
 	return getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, true)
@@ -22,7 +22,7 @@ func GetTypePropertyDataType(kv *api.KV, deploymentID, typeName, propertyName st
 // GetTypeAttributeDataType returns the type of a attribute as defined in its attribute definition
 //
 // Default value is "string" if not specified.
-// Lists and Maps types have their entry_schema value append seperated by a semicolon (ex "map:string")
+// Lists and Maps types have their entry_schema value append separated by a semicolon (ex "map:string")
 // again if there is specified entry_schema "string" is assumed.
 func GetTypeAttributeDataType(kv *api.KV, deploymentID, typeName, propertyName string) (string, error) {
 	return getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, false)

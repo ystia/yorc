@@ -68,9 +68,9 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Scaling %d instances of node %q", instancesDelta, nodeName)
 	var taskID string
 	if instancesDelta > 0 {
-		taskID, err = s.scaleUp(id, nodeName, uint32(instancesDelta))
+		taskID, err = s.scaleOut(id, nodeName, uint32(instancesDelta))
 	} else {
-		taskID, err = s.scaleDown(id, nodeName, uint32(-instancesDelta))
+		taskID, err = s.scaleIn(id, nodeName, uint32(-instancesDelta))
 	}
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
@@ -87,7 +87,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, error) {
+func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, error) {
 	kv := s.consulClient.KV()
 	maxInstances, err := deployments.GetMaxNbInstancesForNode(kv, id, nodeName)
 	if err != nil {
@@ -115,10 +115,10 @@ func (s *Server) scaleUp(id, nodeName string, instancesDelta uint32) (string, er
 	for scalableNode, nodeInstances := range instancesByNodes {
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
-	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleUp, data)
+	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleOut, data)
 }
 
-func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, error) {
+func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, error) {
 	kv := s.consulClient.KV()
 
 	minInstances, err := deployments.GetMinNbInstancesForNode(kv, id, nodeName)
@@ -148,6 +148,6 @@ func (s *Server) scaleDown(id, nodeName string, instancesDelta uint32) (string, 
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
 
-	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleDown, data)
+	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleIn, data)
 
 }

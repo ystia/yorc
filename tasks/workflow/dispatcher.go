@@ -19,7 +19,7 @@ import (
 	"github.com/ystia/yorc/tasks"
 )
 
-// A Dispatcher is in charge to look for new tasks and dispatch them accross availables workers
+// A Dispatcher is in charge to look for new tasks and dispatch them across available workers
 type Dispatcher struct {
 	client     *api.Client
 	shutdownCh chan struct{}

@@ -738,7 +738,7 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 				}
 			}
 			for _, next := range step.OnSuccess {
-				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSucces_value
+				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSuccess_value
 				consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
 			}
 		}

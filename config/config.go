@@ -80,7 +80,7 @@ type Telemetry struct {
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.
-// This is particularly useful when configration parameters may be defined in a plugin such for infrastructures.
+// This is particularly useful when configuration parameters may be defined in a plugin such for infrastructures.
 //
 // It has methods to automatically cast data to the desired type.
 type DynamicMap map[string]interface{}
@@ -135,7 +135,7 @@ func (dm DynamicMap) GetBool(name string) bool {
 }
 
 // GetStringSlice returns the value of the given key casted into a slice of string.
-// If the corresponding raw value is a string, it is  splited on comas.
+// If the corresponding raw value is a string, it is split on comas.
 // A nil or empty slice is returned if not found.
 func (dm DynamicMap) GetStringSlice(name string) []string {
 	val := dm.Get(name)

@@ -263,7 +263,7 @@ func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, s
 		eventID, err = events.CustomCommandStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
 	case CustomWorkflow:
 		eventID, err = events.WorkflowStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
-	case ScaleDown, ScaleUp:
+	case ScaleIn, ScaleOut:
 		eventID, err = events.ScalingStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
 	}
 	return
