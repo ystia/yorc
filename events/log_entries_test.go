@@ -2,7 +2,9 @@ package events
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
+	"sort"
 	"testing"
 	"time"
 
@@ -87,4 +89,47 @@ func getLogEntryExceptTimestamp(t *testing.T, log string) string {
 	b, err := json.Marshal(data)
 	require.Nil(t, err)
 	return string(b)
+}
+
+// Check sorting by timestamp preserves the order of log entries stored in Consul
+func testLogsSortedByTimestamp(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	// Register log entries in Consul
+	const NumberOfLogs = 100
+	const ContentFormat = "Log id %d"
+	deploymentID := testutil.BuildDeploymentID(t)
+	logEntry := SimpleLogEntry(INFO, deploymentID)
+	for i := 0; i < NumberOfLogs; i++ {
+		logEntry.Registerf(ContentFormat, i)
+	}
+
+	// Retrieve key/value pairs stored in Consul
+	logEntries := make([]map[string]string, NumberOfLogs)
+	logsPrefix := path.Join(consulutil.LogsPrefix, deploymentID)
+	kvps, _, err := kv.List(logsPrefix, nil)
+	require.NoError(t, err, "Failure getting log entries from consul")
+	require.Len(t, kvps, NumberOfLogs, "Got unexpected number of log entries from Consul")
+	for i, kvp := range kvps {
+		err := json.Unmarshal(kvp.Value, &logEntries[i])
+		require.NoError(t, err, "Failure unmarshalling value from consul")
+	}
+
+	// Sort entries by timestamp
+	sort.Slice(logEntries, func(i, j int) bool {
+		firstTime, err := time.Parse(time.RFC3339Nano, logEntries[i]["timestamp"])
+		require.NoError(t, err, "Failure parsing timestamp %s", logEntries[i]["timestamp"])
+		secondTime, err := time.Parse(time.RFC3339Nano, logEntries[j]["timestamp"])
+		require.NoError(t, err, "Failure parsing timestamp %s", logEntries[j]["timestamp"])
+		return firstTime.Before(secondTime)
+	})
+
+	// Check log entries were sorted in the order they were inserted
+	for i := 0; i < NumberOfLogs; i++ {
+		value := -1
+		fmt.Sscanf(logEntries[i]["content"], ContentFormat, &value)
+		require.NoError(t, err, "Failure scanning integer in string %s", logEntries[i]["content"])
+		assert.Equal(t, i, value, "Unexpected log entry at index %d: %s", i, logEntries[i]["content"])
+	}
+
 }
