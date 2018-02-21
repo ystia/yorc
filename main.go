@@ -1,12 +1,12 @@
 package main
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/commands"
-	_ "novaforge.bull.com/starlings-janus/janus/commands/deployments"
-	_ "novaforge.bull.com/starlings-janus/janus/commands/deployments/tasks"
-	_ "novaforge.bull.com/starlings-janus/janus/commands/deployments/workflows"
-	_ "novaforge.bull.com/starlings-janus/janus/commands/hostspool"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/commands"
+	_ "github.com/ystia/yorc/commands/deployments"
+	_ "github.com/ystia/yorc/commands/deployments/tasks"
+	_ "github.com/ystia/yorc/commands/deployments/workflows"
+	_ "github.com/ystia/yorc/commands/hostspool"
+	"github.com/ystia/yorc/log"
 )
 
 func main() {

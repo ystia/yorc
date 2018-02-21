@@ -3,10 +3,10 @@ package rest
 import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tasks"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
 )
 
 func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {

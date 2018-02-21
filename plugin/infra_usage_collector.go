@@ -1,13 +1,13 @@
 package plugin
 
 import (
+	"github.com/ystia/yorc/prov"
 	"net/rpc"
-	"novaforge.bull.com/starlings-janus/janus/prov"
 
 	"context"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
+	"github.com/ystia/yorc/config"
 )
 
 // InfraUsageCollector is an extension of prov.InfraStructureUsageCollector

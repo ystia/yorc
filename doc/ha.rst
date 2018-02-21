@@ -1,14 +1,14 @@
-Run Janus in High Availability (HA) mode
+Run Yorc in High Availability (HA) mode
 ========================================
 
 High level view of a typical HA installation
 --------------------------------------------
 
-The bellow figure illustrates how a typical Janus setup for enabling High Availability looks like.
+The bellow figure illustrates how a typical Yorc setup for enabling High Availability looks like.
 
-.. image:: _static/img/Janus_HA.png
+.. image:: _static/img/Yorc_HA.png
    :align: center 
-   :alt: Typical Janus HA setup
+   :alt: Typical Yorc HA setup
    :scale: 75%
 
 
@@ -16,12 +16,12 @@ This setup is composed by the following main components:
 
   * A POSIX distributed file system (NFS as an example in the figure above) to store deployments recipes (Shell scripts, Ansible recipes, binaries...)
   * A cluster of Consul servers
-  * A cluster of Janus servers each one collocated with a Consul agent and connected to the distributed filesystem
-  * A Alien4Cloud with the Janus plugin collocated with a Consul agent
+  * A cluster of Yorc servers each one collocated with a Consul agent and connected to the distributed filesystem
+  * A Alien4Cloud with the Yorc plugin collocated with a Consul agent
 
 The next sections describes how to setup those components.
 
-Janus HA setup
+Yorc HA setup
 --------------
 
 Distributed File System
@@ -36,10 +36,10 @@ Consul servers
 To setup a cluster of Consul servers please refer to the `Consul online documentation <https://www.consul.io/docs/guides/bootstrapping.html>`_.
 One important thing to note is that you will need 3 or 5 Consul servers to ensure HA.
 
-Janus servers
+Yorc servers
 ~~~~~~~~~~~~~
 
-Each Janus server should be installed on its own host with a local Consul agent and a partition mounted on the Distributed File System.
+Each Yorc server should be installed on its own host with a local Consul agent and a partition mounted on the Distributed File System.
 The Consul agent should run in client mode (by opposition to the server mode).
 Here is how to run a Consul agent in client mode and connect it to a running Consul server cluster.
 
@@ -47,36 +47,36 @@ Here is how to run a Consul agent in client mode and connect it to a running Con
 
     consul agent -config-dir ./consul-conf -data-dir ./consul-data -retry-join <ConsulServer1IP> -retry-join <ConsulServer2IP> -retry-join <ConsulServer3IP>
 
-You should create a Consul service description for each Janus server and store it as a JSON file in the ``consul-conf`` directory
+You should create a Consul service description for each Yorc server and store it as a JSON file in the ``consul-conf`` directory
 
 .. code-block:: json
 
     {
       "service": {
-        "name": "janus",
-        "tags": ["server", "{JANUS_ID}"],
-        "address": "{PUBLIC_JANUS_IP}",
+        "name": "yorc",
+        "tags": ["server", "{YORC_ID}"],
+        "address": "{PUBLIC_YORC_IP}",
         "port": 8800,
         "check": {
           "name": "TCP check on port 8800",
-          "tcp": "{PUBLIC_JANUS_IP}:8800",
+          "tcp": "{PUBLIC_YORC_IP}:8800",
           "interval": "10s"
         }
       }
     }
 
 
-* Replace {JANUS_ID} with an unique ID for each Janus instance (e.g. "server1" and "server2").
-* Replace {PUBLIC_JANUS_IP} with the IP of the current Janus server's host.
+* Replace {YORC_ID} with an unique ID for each Yorc instance (e.g. "server1" and "server2").
+* Replace {PUBLIC_YORC_IP} with the IP of the current Yorc server's host.
 
-When running Janus you should use the :ref:`--working_directory <option_workdir_cmd>` command line flag 
+When running Yorc you should use the :ref:`--working_directory <option_workdir_cmd>` command line flag 
 (or equivalent configuration options or environment variable) to specify a working directory on the 
 Distributed File System.
 
 Alien4Cloud
 ~~~~~~~~~~~
 
-Please refer to the dedicated Janus plugin for Alien4Cloud documentation for its typical installation and configuration.
+Please refer to the dedicated Yorc plugin for Alien4Cloud documentation for its typical installation and configuration.
 
 Install and run Consul agent in client mode.
 
@@ -84,11 +84,11 @@ Install and run Consul agent in client mode.
 
     consul agent -config-dir ./consul-conf -data-dir ./consul-data -retry-join <ConsulServer1IP> -retry-join <ConsulServer2IP> -retry-join <ConsulServer3IP> -recursor <ConsulServer1IP> -recursor <ConsulServer2IP> -recursor <ConsulServer3IP>
 
-`Configure Consul DNS forwarding <https://www.consul.io/docs/guides/forwarding.html>`_ in order to be able to resolve ``janus.service.consul`` DNS domain name.
+`Configure Consul DNS forwarding <https://www.consul.io/docs/guides/forwarding.html>`_ in order to be able to resolve ``yorc.service.consul`` DNS domain name.
 
-In the Janus plugin for Alien4Cloud configuration use ``http://janus.service.consul:8800`` as Janus URL instead of using a IP address.
-This DNS name will be resolved by Consul (using a round-robin algorithm) to available Janus servers.
+In the Yorc plugin for Alien4Cloud configuration use ``http://yorc.service.consul:8800`` as Yorc URL instead of using a IP address.
+This DNS name will be resolved by Consul (using a round-robin algorithm) to available Yorc servers.
 
-If a Janus server becomes unavailable, then Consul will detect it by using the service check and will stop to resolve the DNS requests to this Janus instance, allowing seamless failover.
+If a Yorc server becomes unavailable, then Consul will detect it by using the service check and will stop to resolve the DNS requests to this Yorc instance, allowing seamless failover.
 
 

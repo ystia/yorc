@@ -239,7 +239,7 @@ stop: scripts/stop_server.sh`
 func TestComplexInterfaceWithGobalInputs(t *testing.T) {
 	t.Parallel()
 	inputYaml := `
-type: janus.test.interfaces.MyCustomInterface
+type: yorc.test.interfaces.MyCustomInterface
 inputs:
   Global1: {get_property: [SELF, p1]}
   Global2: "This is a string"
@@ -282,7 +282,7 @@ update_replicas:
 
 	require.Equal(t, "scripts/elasticsearch_updateReplicas.sh", opDef.Implementation.Primary)
 
-	require.Equal(t, "janus.test.interfaces.MyCustomInterface", ifDef.Type)
+	require.Equal(t, "yorc.test.interfaces.MyCustomInterface", ifDef.Type)
 	require.Len(t, ifDef.Inputs, 3)
 	require.Contains(t, ifDef.Inputs, "Global1")
 	require.NotNil(t, ifDef.Inputs["Global1"].ValueAssign)

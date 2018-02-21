@@ -12,10 +12,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tosca"
 )
 
 // IsOperationNotImplemented checks if a given error is an error indicating that an operation is not implemented

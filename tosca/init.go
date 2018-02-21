@@ -1,7 +1,7 @@
 package tosca
 
-import "novaforge.bull.com/starlings-janus/janus/registry"
-import "novaforge.bull.com/starlings-janus/janus/log"
+import "github.com/ystia/yorc/registry"
+import "github.com/ystia/yorc/log"
 
 func init() {
 	reg := registry.GetRegistry()

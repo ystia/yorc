@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 	"path"
 )
 
@@ -21,7 +21,7 @@ func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	// Create a test key/value pair
 	data := make(map[string][]byte)
 	ipURL := "node/NetworkFIP" + indexSuffix
-	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
+	data[ipURL+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
 	data[ipURL+"/properties/floating_network_name"] = []byte("Public_Network")
 
 	srv1.PopulateKV(t, data)
@@ -41,7 +41,7 @@ func testGenerateSingleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	// Create a test key/value pair
 	data := make(map[string][]byte)
 	ipURL := "node/NetworkFIP" + indexSuffix
-	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
+	data[ipURL+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
 	data[ipURL+"/properties/ip"] = []byte("10.0.0.2")
 
 	srv1.PopulateKV(t, data)
@@ -61,7 +61,7 @@ func testGenerateMultipleIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV)
 	// Create a test key/value pair
 	data := make(map[string][]byte)
 	ipURL := "node/NetworkFIP" + indexSuffix
-	data[ipURL+"/type"] = []byte("janus.nodes.openstack.FloatingIP")
+	data[ipURL+"/type"] = []byte("yorc.nodes.openstack.FloatingIP")
 	data[ipURL+"/properties/ip"] = []byte("10.0.0.2,10.0.0.4,10.0.0.5,10.0.0.6")
 
 	srv1.PopulateKV(t, data)

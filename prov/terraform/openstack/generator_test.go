@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
 func Test_addOutput(t *testing.T) {

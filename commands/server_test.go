@@ -7,9 +7,9 @@ import (
 )
 
 // Test the following args:
-// ./janus server --infrastructure_infra1_auth_url http://localhost:5000/v2.0 --infrastructure_infra1_tenant_name validation
+// ./yorc server --infrastructure_infra1_auth_url http://localhost:5000/v2.0 --infrastructure_infra1_tenant_name validation
 func TestServerInitInfraExtraFlagsWithSpaceDelimiter(t *testing.T) {
-	args := []string{"./janus server", "--infrastructure_infra1_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra1_tenant_name", "validation"}
+	args := []string{"./yorc server", "--infrastructure_infra1_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra1_tenant_name", "validation"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 5)
@@ -19,9 +19,9 @@ func TestServerInitInfraExtraFlagsWithSpaceDelimiter(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --infrastructure_infra2_private_network_name=mag3-janus-network --infrastructure_infra2_region=regionOne
+// ./yorc server --infrastructure_infra2_private_network_name=mag3-yorc-network --infrastructure_infra2_region=regionOne
 func TestServerInitInfraExtraFlagsWithEqualDelimiter(t *testing.T) {
-	args := []string{"./janus server", "--infrastructure_infra2_private_network_name=mag3-janus-network", "--infrastructure_infra2_region=regionOne"}
+	args := []string{"./yorc server", "--infrastructure_infra2_private_network_name=mag3-yorc-network", "--infrastructure_infra2_region=regionOne"}
 	serverInitExtraFlags(args)
 	require.Len(t, args, 3)
 	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
@@ -30,9 +30,9 @@ func TestServerInitInfraExtraFlagsWithEqualDelimiter(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --infrastructure_infra3_private_network_name=mag3-janus-network --infrastructure_infra3_region regionOne
+// ./yorc server --infrastructure_infra3_private_network_name=mag3-yorc-network --infrastructure_infra3_region regionOne
 func TestServerInitInfraExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
-	args := []string{"./janus server", "--infrastructure_infra3_private_network_name=mag3-janus-network", "--infrastructure_infra3_region", "regionOne"}
+	args := []string{"./yorc server", "--infrastructure_infra3_private_network_name=mag3-yorc-network", "--infrastructure_infra3_region", "regionOne"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 4)
@@ -42,9 +42,9 @@ func TestServerInitInfraExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_secured --infrastructure_infra4_tenant_name validation
+// ./yorc server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_secured --infrastructure_infra4_tenant_name validation
 func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
-	args := []string{"./janus server", "--infrastructure_infra4_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra4_secured", "--infrastructure_infra4_tenant_name", "validation"}
+	args := []string{"./yorc server", "--infrastructure_infra4_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra4_secured", "--infrastructure_infra4_tenant_name", "validation"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 6)
@@ -55,9 +55,9 @@ func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_tenant_name validation --infrastructure_infra4_secured
+// ./yorc server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_tenant_name validation --infrastructure_infra4_secured
 func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
-	args := []string{"./janus server", "--infrastructure_infra5_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra5_tenant_name", "validation", "--infrastructure_infra5_secured"}
+	args := []string{"./yorc server", "--infrastructure_infra5_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra5_tenant_name", "validation", "--infrastructure_infra5_secured"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 6)
@@ -68,9 +68,9 @@ func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --vault_auth_url http://localhost:5000/v2.0 --vault_tenant_name validation
+// ./yorc server --vault_auth_url http://localhost:5000/v2.0 --vault_tenant_name validation
 func TestServerInitVaultExtraFlagsWithSpaceDelimiter(t *testing.T) {
-	args := []string{"./janus server", "--vault_auth_url", "http://localhost:5000/v2.0", "--vault_tenant_name", "validation"}
+	args := []string{"./yorc server", "--vault_auth_url", "http://localhost:5000/v2.0", "--vault_tenant_name", "validation"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 5)
@@ -80,9 +80,9 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiter(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --vault_private_network_name=mag3-janus-network --vault_region=regionOne
+// ./yorc server --vault_private_network_name=mag3-yorc-network --vault_region=regionOne
 func TestServerInitVaultExtraFlagsWithEqualDelimiter(t *testing.T) {
-	args := []string{"./janus server", "--vault_private_network_name=mag3-janus-network", "--vault_region=regionOne"}
+	args := []string{"./yorc server", "--vault_private_network_name=mag3-yorc-network", "--vault_region=regionOne"}
 	serverInitExtraFlags(args)
 	require.Len(t, args, 3)
 	require.Len(t, resolvedServerExtraParams[1].viperNames, 2)
@@ -91,9 +91,9 @@ func TestServerInitVaultExtraFlagsWithEqualDelimiter(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --vault_public_network_name=mag3-janus-network --vault_region2 regionOne
+// ./yorc server --vault_public_network_name=mag3-yorc-network --vault_region2 regionOne
 func TestServerInitVaultExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
-	args := []string{"./janus server", "--vault_public_network_name=mag3-janus-network", "--vault_region2", "regionOne"}
+	args := []string{"./yorc server", "--vault_public_network_name=mag3-yorc-network", "--vault_region2", "regionOne"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 4)
@@ -103,9 +103,9 @@ func TestServerInitVaultExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --vault_auth_url2 http://localhost:5000/v2.0 --vault_secured2 --vault_tenant_name2 validation
+// ./yorc server --vault_auth_url2 http://localhost:5000/v2.0 --vault_secured2 --vault_tenant_name2 validation
 func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
-	args := []string{"./janus server", "--vault_auth_url2", "http://localhost:5000/v2.0", "--vault_secured2", "--vault_tenant_name2", "validation"}
+	args := []string{"./yorc server", "--vault_auth_url2", "http://localhost:5000/v2.0", "--vault_secured2", "--vault_tenant_name2", "validation"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 6)
@@ -116,9 +116,9 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
 }
 
 // Test the following args:
-// ./janus server --vault_auth_url3 http://localhost:5000/v2.0 --vault_tenant_name3 validation --vault_secured
+// ./yorc server --vault_auth_url3 http://localhost:5000/v2.0 --vault_tenant_name3 validation --vault_secured
 func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
-	args := []string{"./janus server", "--vault_auth_url3", "http://localhost:5000/v2.0", "--vault_tenant_name3", "validation", "--vault_secured3"}
+	args := []string{"./yorc server", "--vault_auth_url3", "http://localhost:5000/v2.0", "--vault_tenant_name3", "validation", "--vault_secured3"}
 	serverInitExtraFlags(args)
 
 	require.Len(t, args, 6)

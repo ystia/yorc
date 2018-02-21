@@ -14,14 +14,14 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tosca"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 // Internal type used to uniquely identify the errorgroup in a context
@@ -738,7 +738,7 @@ func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID s
 				}
 			}
 			for _, next := range step.OnSuccess {
-				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSucces_value
+				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSuccess_value
 				consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
 			}
 		}
@@ -1110,7 +1110,7 @@ func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, 
 			continue
 		}
 
-		res, err := IsTypeDerivedFrom(kv, deploymentID, string(capability.Value), "janus.capabilities.openstack.FIPConnectivity")
+		res, err := IsTypeDerivedFrom(kv, deploymentID, string(capability.Value), "yorc.capabilities.openstack.FIPConnectivity")
 		if err != nil {
 			return false, "", err
 		}

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/log"
 )
 
 func recoverHandler(next http.Handler) http.Handler {

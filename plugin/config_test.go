@@ -7,7 +7,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
+	"github.com/ystia/yorc/config"
 )
 
 type mockConfigManager struct {

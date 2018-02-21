@@ -5,12 +5,12 @@ import (
 	"path"
 	"strings"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/tosca"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 )
 
 type typeMissingError struct {

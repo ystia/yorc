@@ -7,9 +7,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/mathutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/mathutil"
+	"github.com/ystia/yorc/log"
 )
 
 func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, url, instanceName string) (BlockStorageVolume, error) {
@@ -19,7 +19,7 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, u
 	if nodeType, err = g.getStringFormConsul(kv, url, "type"); err != nil {
 		return volume, err
 	}
-	if nodeType != "janus.nodes.openstack.BlockStorage" {
+	if nodeType != "yorc.nodes.openstack.BlockStorage" {
 		return volume, errors.Errorf("Unsupported node type for %s: %s", url, nodeType)
 	}
 	var nodeName string

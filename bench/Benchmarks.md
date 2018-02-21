@@ -10,7 +10,7 @@ New Deployment
 go test -bench=. -benchtime=5s
 BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4         	       1	15171243702 ns/op
 PASS
-ok  	novaforge.bull.com/starlings-janus/janus/bench	17.864s
+ok  	github.com/ystia/yorc/bench	17.864s
 
 ```
 
@@ -20,7 +20,7 @@ ok  	novaforge.bull.com/starlings-janus/janus/bench	17.864s
 go test -bench=. -benchtime=5s
 BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4         	       1	8989072224 ns/op
 PASS
-ok  	novaforge.bull.com/starlings-janus/janus/bench	12.266s
+ok  	github.com/ystia/yorc/bench	12.266s
 ```
 
 #### Results:
@@ -35,7 +35,7 @@ BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4     15171243702     8989072
 go test -bench=. -benchtime=5s
 BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4         	       5	1030761390 ns/op
 PASS
-ok  	novaforge.bull.com/starlings-janus/janus/bench	9.257s
+ok  	github.com/ystia/yorc/bench	9.257s
 ```
 
 

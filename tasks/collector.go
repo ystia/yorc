@@ -10,11 +10,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
-// A Collector is used to register new tasks in Janus
+// A Collector is used to register new tasks in Yorc
 type Collector struct {
 	consulClient *api.Client
 }

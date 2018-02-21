@@ -9,10 +9,10 @@ import (
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
 func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {

@@ -13,11 +13,11 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/deployments"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
-	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/commands/deployments"
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/helper/tabutil"
+	"github.com/ystia/yorc/rest"
+	"github.com/ystia/yorc/tasks"
 )
 
 func init() {
@@ -74,7 +74,7 @@ func init() {
 	tasksCmd.AddCommand(infoTaskCmd)
 }
 
-func displayStepTables(client *httputil.JanusClient, args []string) {
+func displayStepTables(client *httputil.YorcClient, args []string) {
 	colorize := !deployments.NoColor
 	if colorize {
 		commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(commErrorMsg)

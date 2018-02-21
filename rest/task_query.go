@@ -3,9 +3,9 @@ package rest
 import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
 	"path"
 	"strings"
 )

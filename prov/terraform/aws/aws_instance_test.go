@@ -8,9 +8,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/prov/terraform/commons"
 	"strconv"
 )
 
@@ -48,7 +48,7 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 
 	compute, ok := instancesMap["ComputeAWS-0"].(*ComputeInstance)
 	require.True(t, ok, "ComputeAWS-0 is not a ComputeInstance")
-	require.Equal(t, "janus-keypair", compute.KeyName)
+	require.Equal(t, "yorc-keypair", compute.KeyName)
 	require.Equal(t, "ami-16dffe73", compute.ImageID)
 	require.Equal(t, "t2.micro", compute.InstanceType)
 	require.Equal(t, "ComputeAWS-0", compute.Tags.Name)
@@ -56,7 +56,7 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	require.Equal(t, "myPlacement", compute.PlacementGroup)
 	require.Equal(t, true, compute.RootBlockDevice.DeleteOnTermination)
 	require.Len(t, compute.SecurityGroups, 1)
-	require.Contains(t, compute.SecurityGroups, "janus-securityGroup")
+	require.Contains(t, compute.SecurityGroups, "yorc-securityGroup")
 
 	require.Len(t, compute.Provisioners, 0)
 	require.Contains(t, infrastructure.Resource, "null_resource")
@@ -72,7 +72,7 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	require.Equal(t, "centos", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/janus.pem")}`, rex.Connection.PrivateKey)
+	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }

@@ -18,61 +18,61 @@ import (
 	"github.com/goware/urlx"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/rest"
 	"os"
 )
 
-// JanusAPIDefaultErrorMsg is the default communication error message
-const JanusAPIDefaultErrorMsg = "Failed to contact Janus API"
+// YorcAPIDefaultErrorMsg is the default communication error message
+const YorcAPIDefaultErrorMsg = "Failed to contact Yorc API"
 
-// JanusClient is the Janus HTTP client structure
-type JanusClient struct {
+// YorcClient is the Yorc HTTP client structure
+type YorcClient struct {
 	*http.Client
 	baseURL string
 }
 
 // NewRequest returns a new HTTP request
-func (c *JanusClient) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
+func (c *YorcClient) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
 	return http.NewRequest(method, c.baseURL+path, body)
 }
 
 // Get returns a new HTTP request with GET method
-func (c *JanusClient) Get(path string) (*http.Response, error) {
+func (c *YorcClient) Get(path string) (*http.Response, error) {
 	return c.Client.Get(c.baseURL + path)
 }
 
 // Head returns a new HTTP request with HEAD method
-func (c *JanusClient) Head(path string) (*http.Response, error) {
+func (c *YorcClient) Head(path string) (*http.Response, error) {
 	return c.Client.Head(c.baseURL + path)
 }
 
 // Post returns a new HTTP request with Post method
-func (c *JanusClient) Post(path string, contentType string, body io.Reader) (*http.Response, error) {
+func (c *YorcClient) Post(path string, contentType string, body io.Reader) (*http.Response, error) {
 	return c.Client.Post(c.baseURL+path, contentType, body)
 }
 
 // PostForm returns a new HTTP request with Post method and form content
-func (c *JanusClient) PostForm(path string, data url.Values) (*http.Response, error) {
+func (c *YorcClient) PostForm(path string, data url.Values) (*http.Response, error) {
 	return c.Client.PostForm(c.baseURL+path, data)
 }
 
-// GetClient returns a janus HTTP Client
-func GetClient() (*JanusClient, error) {
+// GetClient returns a yorc HTTP Client
+func GetClient() (*YorcClient, error) {
 	tlsEnable := viper.GetBool("secured")
-	janusAPI := viper.GetString("janus_api")
-	janusAPI = strings.TrimRight(janusAPI, "/")
+	yorcAPI := viper.GetString("yorc_api")
+	yorcAPI = strings.TrimRight(yorcAPI, "/")
 	caFile := viper.GetString("ca_file")
 	skipTLSVerify := viper.GetBool("skip_tls_verify")
 	if tlsEnable || skipTLSVerify || caFile != "" {
-		url, err := urlx.Parse(janusAPI)
+		url, err := urlx.Parse(yorcAPI)
 		if err != nil {
-			return nil, errors.Wrap(err, "Malformed Janus URL")
+			return nil, errors.Wrap(err, "Malformed Yorc URL")
 		}
-		janusHost, _, err := urlx.SplitHostPort(url)
+		yorcHost, _, err := urlx.SplitHostPort(url)
 		if err != nil {
-			return nil, errors.Wrap(err, "Malformed Janus URL")
+			return nil, errors.Wrap(err, "Malformed Yorc URL")
 		}
-		tlsConfig := &tls.Config{ServerName: janusHost}
+		tlsConfig := &tls.Config{ServerName: yorcHost}
 		if caFile != "" {
 			certPool := x509.NewCertPool()
 			caCert, err := ioutil.ReadFile(caFile)
@@ -88,20 +88,20 @@ func GetClient() (*JanusClient, error) {
 		tr := &http.Transport{
 			TLSClientConfig: tlsConfig,
 		}
-		return &JanusClient{
-			baseURL: "https://" + janusAPI,
+		return &YorcClient{
+			baseURL: "https://" + yorcAPI,
 			Client:  &http.Client{Transport: tr},
 		}, nil
 	}
 
-	return &JanusClient{
-		baseURL: "http://" + janusAPI,
+	return &YorcClient{
+		baseURL: "http://" + yorcAPI,
 		Client:  &http.Client{},
 	}, nil
 
 }
 
-// HandleHTTPStatusCode handles Janus HTTP status code and displays error if needed
+// HandleHTTPStatusCode handles Yorc HTTP status code and displays error if needed
 func HandleHTTPStatusCode(response *http.Response, resourceID string, resourceType string, expectedStatusCodes ...int) {
 	if len(expectedStatusCodes) == 0 {
 		panic("expected status code parameter is required")
@@ -128,7 +128,7 @@ type cmdRestError struct {
 func (cre cmdRestError) Error() string {
 	var buf bytes.Buffer
 	if len(cre.errs.Errors) > 0 {
-		buf.WriteString("Got errors when interacting with Janus:\n")
+		buf.WriteString("Got errors when interacting with Yorc:\n")
 		for _, e := range cre.errs.Errors {
 			buf.WriteString(fmt.Sprintf("Error: %q: %q\n", e.Title, e.Detail))
 		}
@@ -143,17 +143,17 @@ func ErrExit(msg interface{}) {
 }
 
 // GetJSONEntityFromAtomGetRequest returns JSON entity from AtomLink request
-func GetJSONEntityFromAtomGetRequest(client *JanusClient, atomLink rest.AtomLink, entity interface{}) error {
+func GetJSONEntityFromAtomGetRequest(client *YorcClient, atomLink rest.AtomLink, entity interface{}) error {
 	request, err := client.NewRequest("GET", atomLink.Href, nil)
 	if err != nil {
-		return errors.Wrap(err, JanusAPIDefaultErrorMsg)
+		return errors.Wrap(err, YorcAPIDefaultErrorMsg)
 	}
 	request.Header.Add("Accept", "application/json")
 
 	response, err := client.Do(request)
 	defer response.Body.Close()
 	if err != nil {
-		return errors.Wrap(err, JanusAPIDefaultErrorMsg)
+		return errors.Wrap(err, YorcAPIDefaultErrorMsg)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		// Try to get the reason
@@ -164,9 +164,9 @@ func GetJSONEntityFromAtomGetRequest(client *JanusClient, atomLink rest.AtomLink
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read response from Janus")
+		return errors.Wrap(err, "Failed to read response from Yorc")
 	}
-	return errors.Wrap(json.Unmarshal(body, entity), "Fail to parse JSON response from Janus")
+	return errors.Wrap(json.Unmarshal(body, entity), "Fail to parse JSON response from Yorc")
 }
 
 // okExit allows to exit successfully after printing a message
@@ -189,7 +189,7 @@ func getRestErrors(body io.Reader) rest.Errors {
 
 func printRestErrors(errs rest.Errors) {
 	if len(errs.Errors) > 0 {
-		fmt.Println("Got errors when interacting with Janus:")
+		fmt.Println("Got errors when interacting with Yorc:")
 	}
 	for _, e := range errs.Errors {
 		fmt.Printf("Error: %q: %q\n", e.Title, e.Detail)

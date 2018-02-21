@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/terraform/commons"
+	"github.com/ystia/yorc/tosca"
 )
 
 const infrastructureName = "aws"
@@ -90,7 +90,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	outputs := make(map[string]string)
 	var instances []string
 	switch nodeType {
-	case "janus.nodes.aws.Compute":
+	case "yorc.nodes.aws.Compute":
 		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 		if err != nil {
 			return false, nil, nil, err
@@ -112,7 +112,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 			}
 		}
 
-	case "janus.nodes.aws.PublicNetwork":
+	case "yorc.nodes.aws.PublicNetwork":
 		// Nothing to do
 	default:
 		return false, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)

@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/testutil"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/testutil"
 )
 
 func TestGenerateValue(t *testing.T) {
@@ -38,7 +38,7 @@ func TestGenerateKey(t *testing.T) {
 	logEntry.timestamp = time.Now()
 
 	value := logEntry.generateKey()
-	require.Equal(t, "_janus/logs/my_deploymentID/"+logEntry.timestamp.Format(time.RFC3339Nano), string(value))
+	require.Equal(t, "_yorc/logs/my_deploymentID/"+logEntry.timestamp.Format(time.RFC3339Nano), string(value))
 }
 
 func TestSimpleLogEntry(t *testing.T) {

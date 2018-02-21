@@ -6,11 +6,11 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
-	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
+	"github.com/ystia/yorc/helper/labelsutil"
+	"github.com/ystia/yorc/prov/hostspool"
 
 	"github.com/julienschmidt/httprouter"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 )
 
 func (s *Server) deleteHostInPool(w http.ResponseWriter, r *http.Request) {

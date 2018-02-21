@@ -5,8 +5,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/log"
 	"golang.org/x/sync/errgroup"
-	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 // Internal type used to uniquely identify the errorgroup in a context

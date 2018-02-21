@@ -10,9 +10,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
-	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/prov/hostspool"
+	"github.com/ystia/yorc/rest"
 )
 
 func init() {
@@ -27,7 +27,7 @@ func init() {
 	var addCmd = &cobra.Command{
 		Use:   "add <hostname>",
 		Short: "Add host pool",
-		Long:  `Adds a host to the hosts pool managed by this Janus cluster.`,
+		Long:  `Adds a host to the hosts pool managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))

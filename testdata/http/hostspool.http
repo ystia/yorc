@@ -23,7 +23,7 @@ Content-Type: application/json
 {
     "connection": {
         "user": "ubuntu",
-        "private_key": "janus.pem",
+        "private_key": "yorc.pem",
         "port": 23
     },
     "labels": [
@@ -82,7 +82,7 @@ Content-Type: application/json
     "connection": {
         "user": "cloud-user",
         "host": "10.197.138.127",
-        "private_key": "~/.ssh/janus.pem"
+        "private_key": "~/.ssh/yorc.pem"
     },
     "labels": [
         {"name": "os.type", "value": "linux"},
@@ -101,7 +101,7 @@ Content-Type: application/json
     "connection": {
         "user": "cloud-user",
         "host": "10.197.138.126",
-        "private_key": "~/.ssh/janus.pem"
+        "private_key": "~/.ssh/yorc.pem"
     },
     "labels": [
         {"name": "os.type", "value": "linux"},
@@ -120,7 +120,7 @@ Content-Type: application/json
     "connection": {
         "user": "cloud-user",
         "host": "10.197.138.129",
-        "private_key": "~/.ssh/janus.pem"
+        "private_key": "~/.ssh/yorc.pem"
     },
     "labels": [
         {"name": "os.type", "value": "linux"},

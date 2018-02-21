@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/server"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/server"
 )
 
 func init() {
@@ -57,7 +57,7 @@ func serverInitExtraFlags(args []string) {
 	resolvedServerExtraParams = []*serverExtraParams{
 		&serverExtraParams{
 			argPrefix:   "infrastructure_",
-			envPrefix:   "JANUS_INFRA_",
+			envPrefix:   "YORC_INFRA_",
 			viperPrefix: "infrastructures.",
 			viperNames:  make([]string, 0),
 			subSplit:    1,
@@ -66,7 +66,7 @@ func serverInitExtraFlags(args []string) {
 		},
 		&serverExtraParams{
 			argPrefix:   "vault_",
-			envPrefix:   "JANUS_VAULT_",
+			envPrefix:   "YORC_VAULT_",
 			viperPrefix: "vault.",
 			viperNames:  make([]string, 0),
 			storeFn:     addServerExtraVaultParam,
@@ -138,21 +138,21 @@ func initConfig() {
 
 func setConfig() {
 
-	//Flags definition for Janus server
-	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/janus/config.janus.json)")
-	serverCmd.PersistentFlags().String("plugins_directory", config.DefaultPluginDir, "The name of the plugins directory of the Janus server")
-	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Janus server")
-	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Janus server. If not set the default value will be used")
-	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Janus server. After this delay the server immediately exits.")
+	//Flags definition for Yorc server
+	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/yorc/config.yorc.json)")
+	serverCmd.PersistentFlags().String("plugins_directory", config.DefaultPluginDir, "The name of the plugins directory of the Yorc server")
+	serverCmd.PersistentFlags().StringP("working_directory", "w", "", "The name of the working directory of the Yorc server")
+	serverCmd.PersistentFlags().Int("workers_number", config.DefaultWorkersNumber, "Number of workers in the Yorc server. If not set the default value will be used")
+	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Yorc server. After this delay the server immediately exits.")
 	serverCmd.PersistentFlags().Bool("keep_operation_remote_path", config.DefaultKeepOperationRemotePath, "Define wether the path created to store artifacts on the nodes will be removed at the end of workflow executions.")
 	serverCmd.PersistentFlags().StringP("resources_prefix", "x", "", "Prefix created resources (like Computes and so on)")
 	serverCmd.PersistentFlags().Duration("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout, "Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error.")
 
-	// Flags definition for Janus HTTP REST API
-	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
-	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Janus HTTP REST API.")
-	serverCmd.PersistentFlags().String("key_file", "", "File path to a PEM-encoded private key. The key is used to enable SSL for the Janus HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.")
-	serverCmd.PersistentFlags().String("cert_file", "", "File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Janus HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.")
+	// Flags definition for Yorc HTTP REST API
+	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
+	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Yorc HTTP REST API.")
+	serverCmd.PersistentFlags().String("key_file", "", "File path to a PEM-encoded private key. The key is used to enable SSL for the Yorc HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.")
+	serverCmd.PersistentFlags().String("cert_file", "", "File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Yorc HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.")
 
 	//Flags definition for Consul
 	serverCmd.PersistentFlags().StringP("consul_address", "", "", "Address of the HTTP interface for Consul (format: <host>:<port>)")
@@ -170,7 +170,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("ansible_use_openssh", false, "Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts")
 	serverCmd.PersistentFlags().Bool("ansible_debug", false, "Prints massive debug information from Ansible")
 	serverCmd.PersistentFlags().Int("ansible_connection_retries", 5, "Number of retries in case of Ansible SSH connection failure")
-	serverCmd.PersistentFlags().String("operation_remote_base_dir", ".janus", "Name of the temporary directory used by Ansible on the nodes")
+	serverCmd.PersistentFlags().String("operation_remote_base_dir", ".yorc", "Name of the temporary directory used by Ansible on the nodes")
 
 	//Bind flags for Consul
 	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
@@ -185,7 +185,7 @@ func setConfig() {
 
 	viper.BindPFlag("consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("consul_publisher_max_routines"))
 
-	//Bind Flags for Janus server
+	//Bind Flags for Yorc server
 	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
 	viper.BindPFlag("plugins_directory", serverCmd.PersistentFlags().Lookup("plugins_directory"))
 	viper.BindPFlag("workers_number", serverCmd.PersistentFlags().Lookup("workers_number"))
@@ -194,7 +194,7 @@ func setConfig() {
 	viper.BindPFlag("resources_prefix", serverCmd.PersistentFlags().Lookup("resources_prefix"))
 	viper.BindPFlag("wf_step_graceful_termination_timeout", serverCmd.PersistentFlags().Lookup("wf_step_graceful_termination_timeout"))
 
-	//Bind Flags Janus HTTP REST API
+	//Bind Flags Yorc HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
 	viper.BindPFlag("http_address", serverCmd.PersistentFlags().Lookup("http_address"))
 	viper.BindPFlag("cert_file", serverCmd.PersistentFlags().Lookup("cert_file"))
@@ -206,8 +206,8 @@ func setConfig() {
 	viper.BindPFlag("operation_remote_base_dir", serverCmd.PersistentFlags().Lookup("operation_remote_base_dir"))
 
 	//Environment Variables
-	viper.SetEnvPrefix("janus") // will be uppercased automatically - Become "JANUS_"
-	viper.AutomaticEnv()        // read in environment variables that match
+	viper.SetEnvPrefix("yorc") // will be uppercased automatically - Become "YORC_"
+	viper.AutomaticEnv()       // read in environment variables that match
 	viper.BindEnv("working_directory")
 	viper.BindEnv("plugins_directory")
 	viper.BindEnv("server_graceful_shutdown_timeout")
@@ -239,7 +239,7 @@ func setConfig() {
 	viper.SetDefault("plugins_directory", config.DefaultPluginDir)
 	viper.SetDefault("http_port", config.DefaultHTTPPort)
 	viper.SetDefault("http_address", config.DefaultHTTPAddress)
-	viper.SetDefault("resources_prefix", "janus-")
+	viper.SetDefault("resources_prefix", "yorc-")
 	viper.SetDefault("consul_address", "") // Use consul api default
 	viper.SetDefault("consul_datacenter", "dc1")
 	viper.SetDefault("consul_token", "anonymous")
@@ -251,11 +251,11 @@ func setConfig() {
 	viper.SetDefault("ansible_use_openssh", false)
 	viper.SetDefault("ansible_debug", false)
 	viper.SetDefault("ansible_connection_retries", 5)
-	viper.SetDefault("operation_remote_base_dir", ".janus")
+	viper.SetDefault("operation_remote_base_dir", ".yorc")
 
 	//Configuration file directories
-	viper.SetConfigName("config.janus") // name of config file (without extension)
-	viper.AddConfigPath("/etc/janus/")  // adding home directory as first search path
+	viper.SetConfigName("config.yorc") // name of config file (without extension)
+	viper.AddConfigPath("/etc/yorc/")  // adding home directory as first search path
 	viper.AddConfigPath(".")
 
 }

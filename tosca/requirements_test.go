@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/log"
 	"gopkg.in/yaml.v2"
-	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func TestGroupedRequirementParallel(t *testing.T) {

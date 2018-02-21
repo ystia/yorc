@@ -9,8 +9,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
 )
 
 func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -44,7 +44,7 @@ func testGenerateOSBSVolumeSizeConvert(t *testing.T, srv1 *testutil.TestServer, 
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volURL+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+		data[tt.volURL+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
 		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
@@ -81,7 +81,7 @@ func testGenerateOSBSVolumeSizeConvertError(t *testing.T, srv1 *testutil.TestSer
 		t.Log("Registering Key")
 		// Create a test key/value pair
 		data := make(map[string][]byte)
-		data[tt.volURL+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+		data[tt.volURL+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
 		data[tt.volURL+"/properties/size"] = []byte(tt.inputSize)
 
 		srv1.PopulateKV(t, data)
@@ -105,7 +105,7 @@ func testGenerateOSBSVolumeMissingSize(t *testing.T, srv1 *testutil.TestServer, 
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	data["vol_"+indexSuffix+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+	data["vol_"+indexSuffix+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
 
 	srv1.PopulateKV(t, data)
 	_, err := g.generateOSBSVolume(kv, cfg, "vol_"+indexSuffix, "0")
@@ -151,7 +151,7 @@ func testGenerateOSBSVolumeCheckOptionalValues(t *testing.T, srv1 *testutil.Test
 	t.Log("Registering Key")
 	// Create a test key/value pair
 	data := make(map[string][]byte)
-	data["vol_"+indexSuffix+"/type"] = []byte("janus.nodes.openstack.BlockStorage")
+	data["vol_"+indexSuffix+"/type"] = []byte("yorc.nodes.openstack.BlockStorage")
 	data["vol_"+indexSuffix+"/properties/size"] = []byte("1 GB")
 	data["vol_"+indexSuffix+"/properties/availability_zone"] = []byte("az1")
 	data["vol_"+indexSuffix+"/properties/region"] = []byte("Region2")

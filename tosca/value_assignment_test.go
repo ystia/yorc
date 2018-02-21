@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/log"
 	yaml "gopkg.in/yaml.v2"
-	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func TestValueAssignment_GetLiteral(t *testing.T) {

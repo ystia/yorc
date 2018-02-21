@@ -1,6 +1,6 @@
 package tosca
 
-import "novaforge.bull.com/starlings-janus/janus/log"
+import "github.com/ystia/yorc/log"
 
 // An Input is the representation of the input part of a TOSCA Operation Definition
 //

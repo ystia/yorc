@@ -7,8 +7,8 @@ import (
 
 	"github.com/antonholmquist/jason"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 )
 
 func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, error) {

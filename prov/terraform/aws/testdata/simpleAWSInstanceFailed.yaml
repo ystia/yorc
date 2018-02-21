@@ -8,17 +8,17 @@ metadata:
 description: ""
 
 imports:
-  - path: <janus-aws-types.yml>
+  - path: <yorc-aws-types.yml>
 topology_template:
   node_templates:
     ComputeAWS:
-      type: janus.nodes.aws.Compute
+      type: yorc.nodes.aws.Compute
       properties:
         image_id: "ami-16dffe73"
         instance_type:
-        key_name: "janus-keypair"
+        key_name: "yorc-keypair"
         user: centos
-        security_groups: "janus-securityGroup"
+        security_groups: "yorc-securityGroup"
       capabilities:
         scalable:
           properties:

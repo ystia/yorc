@@ -1,6 +1,6 @@
 package ansible
 
-import "novaforge.bull.com/starlings-janus/janus/registry"
+import "github.com/ystia/yorc/registry"
 
 const (
 	implementationArtifactBash    = "tosca.artifacts.Implementation.Bash"

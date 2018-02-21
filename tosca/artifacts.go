@@ -2,7 +2,7 @@ package tosca
 
 import (
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 )
 
 // ArtifactDefMap is a map of ArtifactDefinition

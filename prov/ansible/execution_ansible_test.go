@@ -7,7 +7,7 @@ import (
 	"text/template"
 
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/prov"
 )
 
 func TestAnsibleTemplate(t *testing.T) {
@@ -18,7 +18,7 @@ func TestAnsibleTemplate(t *testing.T) {
 		Artifacts:           map[string]string{"scripts": "my_scripts", "s2": "somepath/sdq"},
 		OverlayPath:         "/some/local/path",
 		VarInputsNames:      []string{"INSTANCE", "PORT"},
-		OperationRemotePath: ".janus/path/on/remote",
+		OperationRemotePath: ".yorc/path/on/remote",
 	}
 
 	e := &executionAnsible{

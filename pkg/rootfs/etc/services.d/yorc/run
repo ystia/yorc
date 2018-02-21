@@ -9,5 +9,5 @@ do
     consul_started="$?"
 done
 
-cd /var/janus
-exec s6-setuidgid janus env HOME=/var/janus /bin/bash --login -c "/usr/local/bin/janus server";
+cd /var/yorc
+exec s6-setuidgid yorc env HOME=/var/yorc /bin/bash --login -c "/usr/local/bin/yorc server";

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
+	"github.com/ystia/yorc/config"
 )
 
 // DelegateExecutor is the interface that wraps the ExecDelegate method

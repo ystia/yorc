@@ -6,7 +6,7 @@
   "wf_step_graceful_termination_timeout": "2m",
   "http_port": 8800,
   "http_address": "0.0.0.0",
-  "resources_prefix": "JANUS-",
+  "resources_prefix": "yorc-",
   "telemetry":{
     "statsd_address": "127.0.0.1:8125",
     "expose_prometheus_endpoint": true
@@ -16,11 +16,11 @@
     "address": "http://127.0.0.1:8200",
     "max_retries": "5",
     "timeout": "5m",
-    "ca_cert": "/etc/pki/janus/vault/ca/ca.pem",
-    "ca_path": "/etc/pki/janus/vault/ca/",
-    "client_cert": "/etc/pki/janus/vault/client/client.pem",
-    "client_key": "/etc/pki/janus/vault/client/client.key",
-    "tls_server_name": "vault.janus.rocks",
+    "ca_cert": "/etc/pki/yorc/vault/ca/ca.pem",
+    "ca_path": "/etc/pki/yorc/vault/ca/",
+    "client_cert": "/etc/pki/yorc/vault/client/client.pem",
+    "client_key": "/etc/pki/yorc/vault/client/client.key",
+    "tls_server_name": "vault.yorc.rocks",
     "tls_skip_verify": false,
     "token": "blabla"
   },
@@ -29,8 +29,8 @@
       "auth_url": "http://openstack:5000/v2.0",
       "tenant_name": "Tname",
       "tenant_id": "use_tid_or_tname",
-      "user_name": "{{with (secret \"/secret/janus/mysecret\").Raw}}{{.Data.value}}{{end}}",
-      "password": "{{secret \"/secret/janus/mysecret\" \"data=value\" | print}}",
+      "user_name": "{{with (secret \"/secret/yorc/mysecret\").Raw}}{{.Data.value}}{{end}}",
+      "password": "{{secret \"/secret/yorc/mysecret\" \"data=value\" | print}}",
       "region": "RegionOne",
       "private_network_name": "private-test",
       "public_network_name": "not_supported",
@@ -38,9 +38,9 @@
     },
     "kubernetes": {
       "master_url": "https://kube:6443",
-      "cert_file": "/etc/pki/janus/k8s-client.crt",
-      "key_file": "/etc/pki/janus/k8s-client.key",
-      "ca_file": "/etc/pki/janus/k8s-ca.crt"
+      "cert_file": "/etc/pki/yorc/k8s-client.crt",
+      "key_file": "/etc/pki/yorc/k8s-client.key",
+      "ca_file": "/etc/pki/yorc/k8s-ca.crt"
     },
     "aws":{
       "region": "us-east-2"

@@ -1,20 +1,20 @@
-tosca_definitions_version: janus_tosca_simple_yaml_1_0
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: janus-openstack-types
-template_author: Janus
+template_name: yorc-openstack-types
+template_author: yorc
 template_version: 1.0.0
 
 imports:
-  - janus: <janus-types.yml>
+  - yorc: <yorc-types.yml>
 
 capability_types:
   # NOTE: Alien specific
-  janus.capabilities.openstack.FIPConnectivity:
+  yorc.capabilities.openstack.FIPConnectivity:
     derived_from: tosca.capabilities.Connectivity
 
 node_types:
-  janus.nodes.openstack.Compute:
-    derived_from: janus.nodes.Compute
+  yorc.nodes.openstack.Compute:
+    derived_from: yorc.nodes.Compute
     properties:
       image:
         type: string
@@ -56,7 +56,7 @@ node_types:
           Coma separated list of security groups to add to the Compute
         required: false
 
-  janus.nodes.openstack.BlockStorage:
+  yorc.nodes.openstack.BlockStorage:
     derived_from: tosca.nodes.BlockStorage
     properties:
       availability_zone:
@@ -75,7 +75,7 @@ node_types:
         required: false
         default: false
 
-  janus.nodes.openstack.FloatingIP:
+  yorc.nodes.openstack.FloatingIP:
     derived_from: tosca.nodes.Root
     properties:
       ip:
@@ -88,9 +88,9 @@ node_types:
         required: false
     capabilities:
       connection:
-        type: janus.capabilities.openstack.FIPConnectivity
+        type: yorc.capabilities.openstack.FIPConnectivity
 
-  janus.nodes.openstack.Network:
+  yorc.nodes.openstack.Network:
     # NOTE Alien specific
     derived_from: tosca.nodes.Network
     properties:

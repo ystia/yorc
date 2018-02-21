@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 
 	"path"
 
@@ -174,8 +174,8 @@ func testGetTaskType(t *testing.T, kv *api.KV) {
 	}{
 		{"TypeDeploy", args{kv, "t1"}, Deploy, false},
 		{"TypeUnDeploy", args{kv, "t2"}, UnDeploy, false},
-		{"TypeScaleUp", args{kv, "t3"}, ScaleUp, false},
-		{"TypeScaleDown", args{kv, "t4"}, ScaleDown, false},
+		{"TypeScaleOut", args{kv, "t3"}, ScaleOut, false},
+		{"TypeScaleIn", args{kv, "t4"}, ScaleIn, false},
 		{"TypePurge", args{kv, "t5"}, Purge, false},
 		{"TypeCustomCommand", args{kv, "t6"}, CustomCommand, false},
 		{"TypeDoesntExist", args{kv, "t7"}, Deploy, true},

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/tosca"
 )
 
 func testReadComplexVA(t *testing.T, kv *api.KV) {
@@ -33,7 +33,7 @@ func testReadComplexVA(t *testing.T, kv *api.KV) {
 		wantErr bool
 	}{
 		{"ReadComplexVASimpleCase", args{tosca.ValueAssignmentMap, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/VANode1/properties/map"), "map:string", nil}, map[string]interface{}{"one": "1", "two": "2"}, false},
-		{"ReadComplexVAAllSet", args{tosca.ValueAssignmentMap, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/VANode1/properties/complex"), "janus.tests.datatypes.ComplexType", nil}, map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"}, false},
+		{"ReadComplexVAAllSet", args{tosca.ValueAssignmentMap, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes/VANode1/properties/complex"), "yorc.tests.datatypes.ComplexType", nil}, map[string]interface{}{"literal": "11", "literalDefault": "VANode1LitDef"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

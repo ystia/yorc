@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ystia/yorc/log"
 	yaml "gopkg.in/yaml.v2"
-	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 func TestFunctionParsing(t *testing.T) {

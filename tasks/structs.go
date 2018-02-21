@@ -15,10 +15,10 @@ const (
 	Deploy TaskType = iota
 	// UnDeploy defines a Task of type "undeploy"
 	UnDeploy
-	// ScaleUp defines a Task of type "scale-up"
-	ScaleUp
-	// ScaleDown defines a Task of type "scale-down"
-	ScaleDown
+	// ScaleOut defines a Task of type "scale-out"
+	ScaleOut
+	// ScaleIn defines a Task of type "scale-in"
+	ScaleIn
 	// Purge defines a Task of type "purge"
 	Purge
 	// CustomCommand defines a Task of type "custom-command"

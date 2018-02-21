@@ -6,8 +6,8 @@ import (
 	"path"
 	"time"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 //go:generate stringer -type=LogLevel -output=log_level_string.go

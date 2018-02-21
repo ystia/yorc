@@ -16,12 +16,12 @@ func init() {
 
 		Use:   "version",
 		Short: "Print the version",
-		Long:  `The version of Janus`,
+		Long:  `The version of Yorc`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if quiet {
 				fmt.Println(version)
 			} else {
-				fmt.Println("Janus Server", version)
+				fmt.Println("Yorc Server", version)
 				fmt.Printf("Revision: %q\n", gitCommit)
 			}
 

@@ -1,6 +1,6 @@
-# Janus HTTP (REST) API
+# Yorc HTTP (REST) API
 
-Janus runs an HTTP server that exposes an API in a restful manner.
+yorc runs an HTTP server that exposes an API in a restful manner.
 Currently supported urls are:
 
 ## Deployments
@@ -11,7 +11,7 @@ Adding the 'pretty' url parameter to your requests allow to generate an indented
 
 Creates a new deployment by uploading a CSAR. 'Content-Type' header should be set to 'application/zip'.
 
-There are two ways to submit a new deployment, you can let Janus generate a unique deployment ID or you can specify it.
+There are two ways to submit a new deployment, you can let yorc generate a unique deployment ID or you can specify it.
 
 #### Auto-generated deployment ID
 
@@ -66,7 +66,7 @@ Content-Type: application/json
 
 ### Undeploy  an active deployment <a name="undeploy"></a>
 
-Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the Janus database at the end of the undeployment. A successful call to this endpoint results in a HTTP status code 202 with a 'Location' header relative to the base URI indicating the task URI handling the undeployment process.
+Undeploy a deployment. By adding the optional 'purge' url parameter to your request you will suppress any reference to this deployment from the yorc database at the end of the undeployment. A successful call to this endpoint results in a HTTP status code 202 with a 'Location' header relative to the base URI indicating the task URI handling the undeployment process.
 
 `DELETE /deployments/<deployment_id>[?purge]`
 
@@ -306,12 +306,12 @@ already published), a _1_ value will wait for at least one event.
 A critical note is that the return of these endpoints has no guarantee of new events. It is possible that the timeout was reached before
 a new event was published.
 
-Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
+Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-yorc-Index`.
 
 ```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
-X-Janus-Index: 1812
+X-yorc-Index: 1812
 ```
 
 ```json
@@ -341,7 +341,7 @@ or
 
 `HEAD    /events`
 
-The latest index is returned as an HTTP Header called `X-Janus-Index`.
+The latest index is returned as an HTTP Header called `X-yorc-Index`.
 
 **Response**:
 
@@ -349,7 +349,7 @@ As per an HTTP `HEAD` request the response as no body.
 
 ```HTTP
 HTTP/1.1 200 OK
-X-Janus-Index: 1812
+X-yorc-Index: 1812
 ```
 
 ### Get deployment logs <a name="list-logs"></a>
@@ -364,7 +364,7 @@ This value can be specified in the form of "10s" or "5m" (i.e., 10 seconds or 5 
 polling for events newer that this index. A _0_ value will always returns with all currently known logs (possibly none if none were
 already published), a _1_ value will wait for at least one log.
 
-On optional `filter` parameter allows to filters logs by type. Currently available filters are `engine` for Janus deployment logs,
+On optional `filter` parameter allows to filters logs by type. Currently available filters are `engine` for yorc deployment logs,
 `infrastructure`  for infrastructure provisioning logs and `software` for software provisioning logs. This parameter accepts a coma
 separated list of values.
 
@@ -376,14 +376,14 @@ separated list of values.
 
 `GET    /logs?index=1&wait=5m&filter=[software, engine, infrastructure]`
 
-Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-Janus-Index`.
+Note that the latest index is returned in the JSON structure and as an HTTP Header called `X-yorc-Index`.
 
 **Response**:
 
 ```HTTP
 HTTP/1.1 200 OK
 Content-Type: application/json
-X-Janus-Index: 1781
+X-yorc-Index: 1781
 ```
 
 ```json
@@ -406,7 +406,7 @@ or
 
 `HEAD    /logs`
 
-The latest index is returned as an HTTP Header called `X-Janus-Index`.
+The latest index is returned as an HTTP Header called `X-yorc-Index`.
 
 **Response**:
 
@@ -414,7 +414,7 @@ As per an HTTP `HEAD` request the response as no body.
 
 ```HTTP
 HTTP/1.1 200 OK
-X-Janus-Index: 1812
+X-yorc-Index: 1812
 ```
 
 ### Get an output <a name="output-value"></a>
@@ -685,7 +685,7 @@ Content-Type: application/json
 
 ### Get TOSCA Definitions <a name="registry-definitions"></a>
 
-Retrieves the list of the embedded TOSCA definitions and their origins. The origin parameter cloud be `builtin` for Janus builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
+Retrieves the list of the embedded TOSCA definitions and their origins. The origin parameter cloud be `builtin` for yorc builtin definitions or for definitions coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -703,15 +703,15 @@ Content-Type: application/json
   "definitions": [
     {"name": "my-custom-types.yml", "origin": "my-custom-plugin"},
     {"name": "normative-types.yml", "origin": "builtin"},
-    {"name": "janus-types.yml", "origin": "builtin"},
-    {"name": "janus-openstack-types.yml", "origin": "builtin"}
+    {"name": "yorc-types.yml", "origin": "builtin"},
+    {"name": "yorc-openstack-types.yml", "origin": "builtin"}
   ]
 }
 ```
 
 ### Get Delegates Executors <a name="registry-delegates"></a>
 
-Retrieves the list of delegates executors and their origins. The origin parameter cloud be `builtin` for Janus builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
+Retrieves the list of delegates executors and their origins. The origin parameter cloud be `builtin` for yorc builtin delegates or for delegates coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -727,15 +727,15 @@ Content-Type: application/json
 ```json
 {
   "delegates": [
-    {"node_type": "janus\\.nodes\\.myCustomTypes\\..*", "origin": "my-custom-plugin"},
-    {"node_type": "janus\\.nodes\\.openstack\\..*", "origin": "builtin"}
+    {"node_type": "yorc\\.nodes\\.myCustomTypes\\..*", "origin": "my-custom-plugin"},
+    {"node_type": "yorc\\.nodes\\.openstack\\..*", "origin": "builtin"}
   ]
 }
 ```
 
 ### Get Implementations Executors <a name="registry-implementations"></a>
 
-Retrieves the list of implementations executors and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+Retrieves the list of implementations executors and their origins. The origin parameter cloud be `builtin` for yorc builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -761,7 +761,7 @@ Content-Type: application/json
 
 ### Get infrastructure usage collectors <a name="registry-infra"></a>
 
-Retrieves the list of infrastructure usage collectors and their origins. The origin parameter cloud be `builtin` for Janus builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
+Retrieves the list of infrastructure usage collectors and their origins. The origin parameter cloud be `builtin` for yorc builtin implementations or for implementations coming from a plugin it is the name of the plugin binary.
 
 'Accept' header should be set to 'application/json'.
 
@@ -789,7 +789,7 @@ Content-Type: application/json
 
 ### Add a Host to the pool <a name="hostspool-add"></a>
 
-Adds a host to the hosts pool managed by this Janus cluster.
+Adds a host to the hosts pool managed by this yorc cluster.
 The connection object of the JSON request is mandatory while the labels list is optional.
 This labels list should be composed with elements with the "op" parameter set to "add" but it could be omitted.
 
@@ -825,7 +825,7 @@ Other possible response response codes are `400` if a host with the same `<hostn
 
 ### Update a Host of the pool <a name="hostspool-update"></a>
 
-Updates labels list or connection of a host of the hosts pool managed by this Janus cluster.
+Updates labels list or connection of a host of the hosts pool managed by this yorc cluster.
 
 Both connection and labels list object of the JSON request are optional.
 This labels list should be composed with elements with the "op" parameter set to "add" or "remove" but defaults to "add" if omitted. *Adding* a tag that already exists replace its value.
@@ -858,7 +858,7 @@ Other possible response response codes are `404` if the host doesn't exist in th
 
 ### Delete a Host from the pool <a name="hostspool-delete"></a>
 
-Deletes a host from the hosts pool managed by this Janus cluster.
+Deletes a host from the hosts pool managed by this yorc cluster.
 
 `DELETE /hosts_pool/<hostname>`
 
@@ -872,7 +872,7 @@ Other possible response response codes are `404` if the host doesn't exist in th
 
 ### List Hosts in the pool <a name="hostspool-list"></a>
 
-Lists hosts of the hosts pool managed by this Janus cluster.
+Lists hosts of the hosts pool managed by this yorc cluster.
 
 'Accept' header should be set to 'application/json'.
 
@@ -897,7 +897,7 @@ Content-Type: application/json
 
 ### Get Host in the pool <a name="hostspool-get"></a>
 
-Gets the description of a host of the hosts pool managed by this Janus cluster.
+Gets the description of a host of the hosts pool managed by this yorc cluster.
 
 'Accept' header should be set to 'application/json'.
 
