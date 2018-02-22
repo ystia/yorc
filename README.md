@@ -15,7 +15,7 @@ this means that it doesn't contain any hard-coded lifecycle logic. This allows t
 Yorc is designed for large-scale, it is built with a tasks / stateless workers model in mind allowing to scale it
 horizontally easily.
 
-Finally, while you can easily interact with Yorc directly thanks to its comprehensible REST API and a modern CLI,
+Finally, while you can easily interact with Yorc directly thanks to its comprehensive REST API and a modern CLI,
 the recommended way to use Yorc is to model your applications in a powerful TOSCA designer called [alien4cloud](https://alien4cloud.github.io) and to use it to deploy and interact with your application at runtime. To do it
 we developed an [Alien4Cloud plugin for Yorc](https://github.com/ystia/yorc-a4c-plugin)
 
