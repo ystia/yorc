@@ -6,7 +6,7 @@ import (
 	"os/exec"
 
 	gplugin "github.com/hashicorp/go-plugin"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 )
 
 // NewClient returns a properly configured plugin client for a given plugin path

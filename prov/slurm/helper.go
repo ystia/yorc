@@ -4,11 +4,72 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/log"
+	"golang.org/x/crypto/ssh"
 	"io"
-	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
 	"regexp"
+	"strconv"
 	"strings"
 )
+
+// GetSSHClient returns a SSH client with slurm configuration credentials usage
+func GetSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
+	// Check slurm configuration
+	if err := checkInfraConfig(cfg); err != nil {
+		log.Printf("Unable to provide SSH client due to:%+v", err)
+		return nil, err
+	}
+
+	// Get SSH client
+	SSHConfig := &ssh.ClientConfig{
+		User: cfg.Infrastructures[infrastructureName].GetString("user_name"),
+		Auth: []ssh.AuthMethod{
+			ssh.Password(cfg.Infrastructures[infrastructureName].GetString("password")),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
+	if err != nil {
+		wrapErr := errors.Wrap(err, "slurm configuration port is not a valid port")
+		log.Printf("Unable to provide SSH client due to:%+v", wrapErr)
+		return nil, err
+	}
+
+	return &sshutil.SSHClient{
+		Config: SSHConfig,
+		Host:   cfg.Infrastructures[infrastructureName].GetString("url"),
+		Port:   port,
+	}, nil
+}
+
+// checkInfraConfig checks infrastructure mandatory configuration parameters
+func checkInfraConfig(cfg config.Configuration) error {
+	_, exist := cfg.Infrastructures[infrastructureName]
+	if !exist {
+		return errors.New("no slurm infrastructure configuration found")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("user_name"), "") == "" {
+		return errors.New("slurm infrastructure user_name is not set")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "") == "" {
+		return errors.New("slurm infrastructure password is not set")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("url"), "") == "" {
+		return errors.New("slurm infrastructure url is not set")
+	}
+
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("port"), "") == "" {
+		return errors.New("slurm infrastructure port is not set")
+	}
+
+	return nil
+}
 
 // getAttribute allows to return an attribute with defined key from specific treatment
 func getAttribute(client sshutil.Client, key string, jobID, nodeName string) (string, error) {

@@ -1,29 +1,29 @@
-resource "openstack_networking_floatingip_v2" "janus-admin-fp-alien" {
+resource "openstack_networking_floatingip_v2" "yorc-admin-fp-alien" {
   region = "${var.region}"
   pool   = "${var.public_network_name}"
 
   depends_on = [
-    "openstack_networking_router_interface_v2.janus-admin-router-port",
+    "openstack_networking_router_interface_v2.yorc-admin-router-port",
   ]
 }
 
 resource "openstack_compute_instance_v2" "alien-server" {
   region          = "${var.region}"
   name            = "${var.prefix}alien-server"
-  image_id        = "${var.janus_compute_image_id}"
-  flavor_id       = "${var.janus_compute_flavor_id}"
-  key_pair        = "${openstack_compute_keypair_v2.janus.name}"
-  security_groups = ["${openstack_compute_secgroup_v2.janus-admin-secgroup.name}"]
+  image_id        = "${var.yorc_compute_image_id}"
+  flavor_id       = "${var.yorc_compute_flavor_id}"
+  key_pair        = "${openstack_compute_keypair_v2.yorc.name}"
+  security_groups = ["${openstack_compute_secgroup_v2.yorc-admin-secgroup.name}"]
 
-  availability_zone = "${var.janus_compute_manager_availability_zone}"
+  availability_zone = "${var.yorc_compute_manager_availability_zone}"
 
   network {
-    uuid = "${openstack_networking_network_v2.janus-admin-net.id}"
+    uuid = "${openstack_networking_network_v2.yorc-admin-net.id}"
   }
 }
 
 resource "openstack_compute_floatingip_associate_v2" "alien-server-fip" {
-  floating_ip = "${element(openstack_networking_floatingip_v2.janus-admin-fp-alien.*.address, count.index)}"
+  floating_ip = "${element(openstack_networking_floatingip_v2.yorc-admin-fp-alien.*.address, count.index)}"
   instance_id = "${openstack_compute_instance_v2.alien-server.id}"
 }
 
@@ -49,7 +49,7 @@ data "template_file" "consul-agent-4alien-config" {
   vars {
     ip_address     = "${openstack_compute_instance_v2.alien-server.network.0.fixed_ip_v4}"
     consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
-    statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    statsd_ip      = "${openstack_compute_instance_v2.yorc-monitoring-server.network.0.fixed_ip_v4}"
     consul_ui      = "false"
   }
 }

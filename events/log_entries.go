@@ -2,11 +2,12 @@ package events
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
 	"time"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 //go:generate stringer -type=LogLevel -output=log_level_string.go
@@ -155,6 +156,14 @@ func (e LogEntry) RegisterAsString(content string) {
 	e.Register([]byte(content))
 }
 
+// Registerf allows to register a log entry with formats
+// according to a format specifier.
+//
+// This is basically a convenient function around RegisterAsString(fmt.Sprintf()).
+func (e LogEntry) Registerf(format string, a ...interface{}) {
+	e.RegisterAsString(fmt.Sprintf(format, a...))
+}
+
 // RunBufferedRegistration allows to run a registration with a buffered writer
 func (e LogEntry) RunBufferedRegistration(buf BufferedLogEntryWriter, quit chan bool) {
 	if e.deploymentID == "" {
@@ -191,7 +200,11 @@ func (e LogEntry) toFlatMap() map[string]interface{} {
 	flatMap["deploymentId"] = e.deploymentID
 	flatMap["level"] = e.level.String()
 	flatMap["content"] = string(e.content)
-	flatMap["timestamp"] = e.timestamp.Format(time.RFC3339)
+	// Keeping a nanosecond precision for timestamps, as it is done for keys
+	// generation, so that a client application performing a timestamp sort on
+	// a slice of n logs will get exactly the same order as the log insertion
+	// order
+	flatMap["timestamp"] = e.timestamp.Format(time.RFC3339Nano)
 
 	// NewLogEntry additional info
 	for k, v := range e.additionalInfo {

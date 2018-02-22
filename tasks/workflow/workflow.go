@@ -10,16 +10,16 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 	"strconv"
 )
 
@@ -142,7 +142,7 @@ func (s *step) isRelationshipTargetNodeRelated() (bool, error) {
 // isRunnable Checks if a step should be run or bypassed
 //
 // It first checks if the step is not already done in this workflow instance
-// And for ScaleUp and ScaleDown it checks if the node or the target node in case of an operation running on the target node is part of the operation
+// And for ScaleOut and ScaleDown it checks if the node or the target node in case of an operation running on the target node is part of the operation
 func (s *step) isRunnable() (bool, error) {
 	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), nil)
 	if err != nil {
@@ -162,7 +162,7 @@ func (s *step) isRunnable() (bool, error) {
 		}
 	}
 
-	if s.t.TaskType == tasks.ScaleUp || s.t.TaskType == tasks.ScaleDown {
+	if s.t.TaskType == tasks.ScaleOut || s.t.TaskType == tasks.ScaleIn {
 		isNodeTargetTask, err := tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
 		if err != nil {
 			return false, err

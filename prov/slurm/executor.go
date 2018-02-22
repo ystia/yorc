@@ -3,7 +3,6 @@ package slurm
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"sync"
@@ -11,16 +10,15 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 	"golang.org/x/sync/errgroup"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
 )
 
 type defaultExecutor struct {
@@ -38,31 +36,6 @@ const reSallocGranted = `^salloc: Granted job allocation (\d+)`
 
 func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
-}
-
-func (e *defaultExecutor) checkInfraConfig(cfg config.Configuration) error {
-	_, exist := cfg.Infrastructures[infrastructureName]
-	if !exist {
-		return errors.New("no slurm infrastructure configuration found")
-	}
-
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("user_name"), "") == "" {
-		return errors.New("slurm infrastructure user_name is not set")
-	}
-
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "") == "" {
-		return errors.New("slurm infrastructure password is not set")
-	}
-
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("url"), "") == "" {
-		return errors.New("slurm infrastructure url is not set")
-	}
-
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("port"), "") == "" {
-		return errors.New("slurm infrastructure port is not set")
-	}
-
-	return nil
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -85,31 +58,10 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		events.OperationName: delegateOperation,
 	}
 
-	// Check slurm configuration
-	if err = e.checkInfraConfig(cfg); err != nil {
+	e.client, err = GetSSHClient(cfg)
+	if err != nil {
 		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
 		return err
-	}
-
-	// Get SSH client
-	SSHConfig := &ssh.ClientConfig{
-		User: cfg.Infrastructures[infrastructureName].GetString("user_name"),
-		Auth: []ssh.AuthMethod{
-			ssh.Password(cfg.Infrastructures[infrastructureName].GetString("password")),
-		},
-	}
-
-	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
-	if err != nil {
-		wrappErr := errors.Wrap(err, "slurm configuration port is not a valid port")
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(wrappErr.Error())
-		return wrappErr
-	}
-
-	e.client = &sshutil.SSHClient{
-		Config: SSHConfig,
-		Host:   cfg.Infrastructures[infrastructureName].GetString("url"),
-		Port:   port,
 	}
 
 	operation := strings.ToLower(delegateOperation)
@@ -293,15 +245,16 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	//TODO: use getAttribute function (modify it to be able to add more than one attribute)
 	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N,%%P\"", nodeAlloc.jobName, allocResponse.jobID)
 	squeueOutput, err := e.client.RunCommand(squeueCmd)
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve Slurm node name/partition")
+	}
 	split := strings.Split(squeueOutput, ",")
 	if len(split) != 2 {
 		return errors.New("Malformed command : " + squeueCmd)
 	}
 	slurmNodeName := strings.Trim(split[0], "\" \t\n")
 	slurmPartition := strings.Trim(split[1], "\" \t\n")
-	if err != nil {
-		return errors.Wrapf(err, "Failed to retrieve Slurm node name: %q:", slurmNodeName)
-	}
+
 	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", slurmNodeName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)

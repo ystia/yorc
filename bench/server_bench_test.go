@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/testutil"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/server"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/ziputil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/server"
 )
 
 const defaultWorkingDirectory string = "work"

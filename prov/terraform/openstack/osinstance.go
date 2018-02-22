@@ -11,11 +11,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
 func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
@@ -23,7 +23,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	if err != nil {
 		return err
 	}
-	if nodeType != "janus.nodes.openstack.Compute" {
+	if nodeType != "yorc.nodes.openstack.Compute" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
 	instance := ComputeInstance{}
@@ -121,7 +121,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	}
 
 	var user string
-	if _, user, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "user"); err != nil {
+	if _, user, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "endpoint", "credentials", "user"); err != nil {
 		return err
 	} else if user == "" {
 		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
@@ -223,7 +223,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 		var isFip bool
 		if capability != "" {
-			isFip, err = deployments.IsTypeDerivedFrom(kv, deploymentID, capability, "janus.capabilities.openstack.FIPConnectivity")
+			isFip, err = deployments.IsTypeDerivedFrom(kv, deploymentID, capability, "yorc.capabilities.openstack.FIPConnectivity")
 			if err != nil {
 				return err
 			}
@@ -311,7 +311,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	nullResource := commons.Resource{}
 	// Do this in order to be sure that ansible will be able to log on the instance
 	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("~/.ssh/yorc.pem")}`}}
 	var accessIP string
 	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
 		// Use Floating IP for provisioning

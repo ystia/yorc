@@ -10,8 +10,8 @@ import (
 func TestGroupedAssetsParallel(t *testing.T) {
 	t.Run("groupAssets", func(t *testing.T) {
 		t.Run("TestAssetNormativeParsing", assetNormativeParsing)
-		t.Run("TestAssetJanusOpenStackParsing", assetJanusOpenStackParsing)
-		t.Run("TestAssetJanusAwsParsing", assetJanusAwsParsing)
+		t.Run("TestAssetYorcOpenStackParsing", assetYorcOpenStackParsing)
+		t.Run("TestAssetYorcAwsParsing", assetYorcAwsParsing)
 	})
 }
 
@@ -26,24 +26,24 @@ func assetNormativeParsing(t *testing.T) {
 	assert.Nil(t, err, "Can't parse normative types")
 }
 
-func assetJanusOpenStackParsing(t *testing.T) {
+func assetYorcOpenStackParsing(t *testing.T) {
 	t.Parallel()
-	data, err := Asset("janus-openstack-types.yml")
-	assert.Nil(t, err, "Can't load janus openstack types")
-	assert.NotNil(t, data, "Can't load janus openstack types")
+	data, err := Asset("yorc-openstack-types.yml")
+	assert.Nil(t, err, "Can't load yorc openstack types")
+	assert.NotNil(t, data, "Can't load yorc openstack types")
 	var topo Topology
 
 	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse janus openstack types")
+	assert.Nil(t, err, "Can't parse yorc openstack types")
 }
 
-func assetJanusAwsParsing(t *testing.T) {
+func assetYorcAwsParsing(t *testing.T) {
 	t.Parallel()
-	data, err := Asset("janus-aws-types.yml")
-	assert.Nil(t, err, "Can't load janus aws types")
-	assert.NotNil(t, data, "Can't load janus aws types")
+	data, err := Asset("yorc-aws-types.yml")
+	assert.Nil(t, err, "Can't load yorc aws types")
+	assert.NotNil(t, data, "Can't load yorc aws types")
 	var topo Topology
 
 	err = yaml.Unmarshal(data, &topo)
-	assert.Nil(t, err, "Can't parse janus aws types")
+	assert.Nil(t, err, "Can't parse yorc aws types")
 }

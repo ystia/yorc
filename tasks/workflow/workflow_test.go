@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/log"
 )
 
 func testReadStepFromConsulFailing(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {

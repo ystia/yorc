@@ -4,8 +4,8 @@ import (
 	"github.com/hashicorp/consul/api"
 
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/prov"
 )
 
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it

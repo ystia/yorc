@@ -10,10 +10,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tosca"
 
 	"vbom.ml/util/sortorder"
 )
@@ -152,7 +152,7 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		// Is this relationship an HostedOn?
+		// Is this "HostedOn" relationship ?
 		if kvp.Value != nil {
 			if ok, err := IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
 				return "", err
@@ -331,11 +331,10 @@ func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string,
 }
 
 // SetNodeInstanceAttribute sets an attribute value to a node instance
+//
+// Deprecated: Use SetInstanceAttribute
 func SetNodeInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName, attributeValue string) error {
-	keyPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	kvp := &api.KVPair{Key: keyPath, Value: []byte(attributeValue)}
-	_, err := kv.Put(kvp, nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return SetInstanceAttribute(deploymentID, nodeName, instanceName, attributeName, attributeValue)
 }
 
 // GetNodes returns the names of the different nodes for a given deployment.
@@ -492,7 +491,7 @@ func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "janus.capabilities.openstack.FIPConnectivity" {
+		if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "yorc.capabilities.openstack.FIPConnectivity" {
 			// Not a floating ip see next
 			continue
 		}

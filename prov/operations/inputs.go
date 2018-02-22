@@ -5,11 +5,11 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/provutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
 )
 
 // An EnvInput represent a TOSCA operation input
@@ -25,7 +25,7 @@ func (ei EnvInput) String() string {
 	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q]", ei.Name, ei.Value, ei.InstanceName)
 }
 
-//
+// ResolveInputs allows to resolve inputs for an operation
 func ResolveInputs(kv *api.KV, deploymentID, nodeName, taskID string, operation prov.Operation) ([]*EnvInput, []string, error) {
 	sourceInstances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {

@@ -17,16 +17,18 @@ import (
 
 	"time"
 
+	"encoding/json"
 	"github.com/armon/go-metrics"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 type worker struct {
@@ -287,7 +289,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
-	case tasks.ScaleUp:
+	case tasks.ScaleOut:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 
@@ -297,7 +299,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
-	case tasks.ScaleDown:
+	case tasks.ScaleIn:
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 		err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
 		if err != nil {
@@ -339,6 +341,61 @@ func (w worker) handleTask(t *task) {
 		}
 		err = w.runWorkflows(ctx, t, strings.Split(wfName, ","), bypassErrors)
 		if err != nil {
+			return
+		}
+	case tasks.Query:
+		split := strings.Split(t.TargetID, ":")
+		if len(split) != 2 {
+			log.Printf("Query Task (id: %q): unexpected format for targetID: %q", t.ID, t.TargetID)
+			t.WithStatus(tasks.FAILED)
+			return
+		}
+		query := split[0]
+		target := split[1]
+
+		switch query {
+		case "infra_usage":
+			var reg = registry.GetRegistry()
+			collector, err := reg.GetInfraUsageCollector(target)
+			if err != nil {
+				log.Printf("Query Task id: %q Failed to retrieve target type: %v", t.ID, err)
+				log.Debugf("%+v", err)
+				t.WithStatus(tasks.FAILED)
+				return
+			}
+			res, err := collector.GetUsageInfo(ctx, w.cfg, t.ID, target)
+			if err != nil {
+				log.Printf("Query Task id: %q Failed to run query: %v", t.ID, err)
+				log.Debugf("%+v", err)
+				t.WithStatus(tasks.FAILED)
+				return
+			}
+
+			// store resultSet as a JSON
+			resultPrefix := path.Join(consulutil.TasksPrefix, t.ID, "resultSet")
+			if res != nil {
+				jsonRes, err := json.Marshal(res)
+				if err != nil {
+					log.Printf("Failed to marshal infra usage info [%+v]: due to error:%+v", res, err)
+					log.Debugf("%+v", err)
+					t.WithStatus(tasks.FAILED)
+					return
+				}
+				kvPair := &api.KVPair{Key: resultPrefix, Value: jsonRes}
+				if _, err := kv.Put(kvPair, nil); err != nil {
+					log.Printf("Query Task id: %q Failed to store result: %v", t.ID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
+					log.Debugf("%+v", err)
+					t.WithStatus(tasks.FAILED)
+					return
+				}
+			}
+		default:
+			mess := fmt.Sprintf("Unknown query: %q for Task with id %q", query, t.ID)
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(mess)
+			log.Printf(mess)
+			if t.Status() == tasks.RUNNING {
+				t.WithStatus(tasks.FAILED)
+			}
 			return
 		}
 	default:

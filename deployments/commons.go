@@ -9,8 +9,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/tosca"
 	"vbom.ml/util/sortorder"
 )
 

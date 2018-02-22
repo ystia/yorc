@@ -6,17 +6,17 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform"
-	"novaforge.bull.com/starlings-janus/janus/registry"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/terraform"
+	"github.com/ystia/yorc/registry"
 )
 
 func init() {
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`janus\.nodes\.openstack\..*`}, terraform.NewExecutor(&osGenerator{}, preDestroyInfraCallback), registry.BuiltinOrigin)
+	reg.RegisterDelegates([]string{`yorc\.nodes\.openstack\..*`}, terraform.NewExecutor(&osGenerator{}, preDestroyInfraCallback), registry.BuiltinOrigin)
 }
 
 func preDestroyInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, logOptFields events.LogOptionalFields) (bool, error) {
@@ -25,7 +25,7 @@ func preDestroyInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configu
 		return false, err
 	}
 	// TODO  consider making this generic: references to OpenStack should not be found here.
-	if nodeType == "janus.nodes.openstack.BlockStorage" {
+	if nodeType == "yorc.nodes.openstack.BlockStorage" {
 		var deletable string
 		var found bool
 		found, deletable, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "deletable")

@@ -3,8 +3,8 @@ package tasks
 import (
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/testutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
@@ -63,6 +63,15 @@ func TestRunConsulTasksPackageTests(t *testing.T) {
 		})
 		t.Run("testResumeTask", func(t *testing.T) {
 			testResumeTask(t, kv)
+		})
+		t.Run("testGetTaskResultSet", func(t *testing.T) {
+			testGetTaskResultSet(t, kv)
+		})
+		t.Run("testDeleteTask", func(t *testing.T) {
+			testDeleteTask(t, kv)
+		})
+		t.Run("testGetQueryTaskIDs", func(t *testing.T) {
+			testGetQueryTaskIDs(t, kv)
 		})
 	})
 }

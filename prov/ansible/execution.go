@@ -20,17 +20,17 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/provutil"
+	"github.com/ystia/yorc/helper/stringutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 const ansibleConfig = `[defaults]
@@ -72,6 +72,8 @@ type hostConnection struct {
 	host       string
 	user       string
 	instanceID string
+	privateKey string
+	password   string
 }
 
 type execution interface {
@@ -285,6 +287,39 @@ func (e *executionCommon) resolveArtifacts() error {
 	return nil
 }
 
+func (e *executionCommon) setEndpointCredentials(kv *api.KV, host, instanceID, capType string, conn *hostConnection) error {
+	hasEndpoint, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, capType, "yorc.capabilities.Endpoint.ProvisioningAdmin")
+	if err != nil {
+		return err
+	}
+	if hasEndpoint {
+		found, user, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "user")
+		if err != nil {
+			return nil
+		}
+		if found {
+			conn.user = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.user", user).(string)
+		} else {
+			// TODO log it
+		}
+		found, password, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "token")
+		if err != nil {
+			return nil
+		}
+		if found && password != "" {
+			conn.password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.password", password).(string)
+		}
+		found, privateKey, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "keys", "0")
+		if err != nil {
+			return nil
+		}
+		if found && privateKey != "" {
+			conn.privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.privateKey", privateKey).(string)
+		}
+	}
+	return nil
+}
+
 func (e *executionCommon) resolveHosts(nodeName string) error {
 	// Resolve hosts from the hostedOn hierarchy from bottom to top by finding the first node having a capability
 	// named endpoint and derived from "tosca.capabilities.Endpoint"
@@ -334,16 +369,10 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 					return err
 				}
 				if found && ipAddress != "" {
+					ipAddress = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := hostConnection{host: ipAddress, instanceID: instance}
-					var user string
-					found, user, err = deployments.GetNodeProperty(e.kv, e.deploymentID, host, "user")
-					if err != nil {
-						return err
-					}
-					if found {
-						hostConn.user = user
-					}
+					e.setEndpointCredentials(e.kv, host, instance, capType, &hostConn)
 					hosts[instanceName] = hostConn
 				}
 			}
@@ -519,7 +548,7 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) error {
 	op := strings.ToLower(operationName)
 	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") {
-		// Do not call the call the operation several time for an HostedOn relationship (makes no sense till we scale at compute level)
+		// Do not call the call the operation several time for a "HostedOn" relationship (makes no sense till we scale at compute level)
 		if hostedOn, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn"); err != nil || hostedOn {
 			e.isPerInstanceOperation = false
 			return err
@@ -633,11 +662,27 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		buffer.WriteString(host.host)
 		sshUser := host.user
 		if sshUser == "" {
-			// Thinking: should we have a default user
-			return errors.Errorf("DeploymentID: %q, NodeName: %q, Missing ssh user information", e.deploymentID, e.NodeName)
+			// Use root as default user
+			sshUser = "root"
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
 		}
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_private_key_file=~/.ssh/janus.pem ansible_ssh_common_args=\"-o ConnectionAttempts=20\"\n", sshUser))
-
+		sshPassword := host.password
+		sshPrivateKey := host.privateKey
+		if sshPrivateKey == "" && sshPassword == "" {
+			sshPrivateKey = "~/.ssh/yorc.pem"
+			events.WithOptionalFields(logOptFields).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
+		}
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
+		if sshPrivateKey != "" {
+			// TODO if not a path store it somewhere
+			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshPrivateKey))
+		}
+		if sshPassword != "" {
+			// TODO use vault
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
+		}
+		buffer.WriteString("\n")
 		var perInstanceInputsBuffer bytes.Buffer
 		for _, varInput := range e.VarInputsNames {
 			if varInput == "INSTANCE" {

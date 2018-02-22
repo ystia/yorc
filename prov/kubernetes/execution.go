@@ -4,34 +4,32 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"path"
 	"strings"
 	"time"
-
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-
-	"fmt"
-
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/tasks"
 )
 
-const deploymentResourceType string = "janus.nodes.kubernetes.api.types.DeploymentResource"
-const serviceResourceType string = "janus.nodes.kubernetes.api.types.ServiceResource"
+const deploymentResourceType string = "yorc.nodes.kubernetes.api.types.DeploymentResource"
+const serviceResourceType string = "yorc.nodes.kubernetes.api.types.ServiceResource"
 
 // An EnvInput represent a TOSCA operation input
 //
@@ -105,9 +103,9 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
 	case "standard.start":
-		if e.taskType == tasks.ScaleUp {
+		if e.taskType == tasks.ScaleOut {
 			log.Println("##### Scale up node !")
-			err = e.scaleNode(ctx, tasks.ScaleUp, nbInstances)
+			err = e.scaleNode(ctx, tasks.ScaleOut, nbInstances)
 		} else {
 			log.Println("##### Deploy node !")
 			err = e.deployNode(ctx, nbInstances)
@@ -117,9 +115,9 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		}
 		return e.checkNode(ctx)
 	case "standard.stop":
-		if e.taskType == tasks.ScaleDown {
+		if e.taskType == tasks.ScaleIn {
 			log.Println("##### Scale down node !")
-			return e.scaleNode(ctx, tasks.ScaleDown, nbInstances)
+			return e.scaleNode(ctx, tasks.ScaleIn, nbInstances)
 		}
 		return e.uninstallNode(ctx)
 	case "standard.delete":
@@ -289,9 +287,9 @@ func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskTyp
 	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
 	replica := *deployment.Spec.Replicas
-	if scaleType == tasks.ScaleUp {
+	if scaleType == tasks.ScaleOut {
 		replica = replica + nbInstances
-	} else if scaleType == tasks.ScaleDown {
+	} else if scaleType == tasks.ScaleIn {
 		replica = replica - nbInstances
 	}
 
@@ -380,7 +378,7 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 	}
 
 	// TODO this is very bad but we need to add a hook in order to undeploy our pods we the tosca node stops
-	// It will be better if we have a Kubernetes node type with a default stop implementation that will be inhereted by
+	// It will be better if we have a Kubernetes node type with a default stop implementation that will be inherited by
 	// sub components.
 	// So let's add an implementation of the stop operation in the node type
 	return e.setUnDeployHook()

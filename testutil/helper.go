@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/consulutil"
 )
 
 // NewTestConsulInstance allows to :
@@ -17,7 +17,9 @@ import (
 //  - starts a Consul Publisher
 // Warning: You need to defer the server stop command in the caller
 func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
-	srv1, err := testutil.NewTestServer()
+	srv1, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
+		c.Args = []string{"-ui"}
+	})
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
 	}
@@ -33,7 +35,7 @@ func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 	return srv1, client
 }
 
-// Create a deploymentID from the test name value
+// BuildDeploymentID allows to create a deploymentID from the test name value
 func BuildDeploymentID(t *testing.T) string {
 	return strings.Replace(t.Name(), "/", "_", -1)
 }

@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -18,12 +18,12 @@ func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	srv1.PopulateKV(t, map[string][]byte{
 		// Test testIsNodeTypeDerivedFrom
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.1/name":                         []byte("janus.type.1"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.2/derived_from":                 []byte("janus.type.3"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.2/name":                         []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.3/derived_from":                 []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/janus.type.3/name":                         []byte("janus.type.3"),
+		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.1/derived_from":                  []byte("yorc.type.2"),
+		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.1/name":                          []byte("yorc.type.1"),
+		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.2/derived_from":                  []byte("yorc.type.3"),
+		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.2/name":                          []byte("yorc.type.2"),
+		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.3/derived_from":                  []byte("tosca.relationships.HostedOn"),
+		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/yorc.type.3/name":                          []byte("yorc.type.3"),
 		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn/name":         []byte("tosca.relationships.HostedOn"),
 		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
 		consulutil.DeploymentKVPrefix + "/testIsNodeTypeDerivedFrom/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
@@ -43,12 +43,12 @@ func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/max_instances":     []byte("-15"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Compute3/capabilities/scalable/properties/min_instances":     []byte("-15"),
 		// Case Node Hosted on another node
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/derived_from":                 []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.1/name":                         []byte("janus.type.1"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.2/derived_from":                 []byte("janus.type.3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.2/name":                         []byte("janus.type.2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.3/derived_from":                 []byte("tosca.relationships.HostedOn"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.3/name":                         []byte("janus.type.3"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.1/derived_from":                  []byte("yorc.type.2"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.1/name":                          []byte("yorc.type.1"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.2/derived_from":                  []byte("yorc.type.3"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.2/name":                          []byte("yorc.type.2"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.3/derived_from":                  []byte("tosca.relationships.HostedOn"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.3/name":                          []byte("yorc.type.3"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/name":         []byte("tosca.relationships.HostedOn"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.HostedOn/derived_from": []byte("tosca.relationships.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.relationships.Root/name":             []byte("tosca.relationships.Root"),
@@ -60,19 +60,19 @@ func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.capabilities.Scalable/name": []byte("tosca.capabilities.Scalable"),
 
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/derived_from": []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC1/name":         []byte("janus.type.DerivedSC1"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC1/derived_from": []byte("tosca.nodes.SoftwareComponent"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC1/name":         []byte("yorc.type.DerivedSC1"),
 
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC2/derived_from":            []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC2/name":                    []byte("janus.type.DerivedSC2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC2/attributes/dsc2/default": []byte("janus.type.DerivedSC2"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2/derived_from":            []byte("tosca.nodes.SoftwareComponent"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2/name":                    []byte("yorc.type.DerivedSC2"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC2/attributes/dsc2/default": []byte("yorc.type.DerivedSC2"),
 
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC3/derived_from": []byte("janus.type.DerivedSC2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC3/name":         []byte("janus.type.DerivedSC3"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC3/derived_from": []byte("yorc.type.DerivedSC2"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC3/name":         []byte("yorc.type.DerivedSC3"),
 
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC4/derived_from":            []byte("janus.type.DerivedSC3"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC4/name":                    []byte("janus.type.DerivedSC4"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/janus.type.DerivedSC4/attributes/dsc4/default": []byte("janus.type.DerivedSC4"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4/derived_from":            []byte("yorc.type.DerivedSC3"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4/name":                    []byte("yorc.type.DerivedSC4"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/yorc.type.DerivedSC4/attributes/dsc4/default": []byte("yorc.type.DerivedSC4"),
 
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.Root/name":                                           []byte("tosca.nodes.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/types/tosca.nodes.SoftwareComponent/properties/parenttypeprop/default": []byte("RootComponentTypeProp"),
@@ -88,7 +88,7 @@ func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/0/name":         []byte("req1"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/1/relationship": []byte("tosca.relationships.Root"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/1/name":         []byte("req2"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/2/relationship": []byte("janus.type.1"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/2/relationship": []byte("yorc.type.1"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/2/node":         []byte("Node2"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/2/name":         []byte("req3"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node1/requirements/3/relationship": []byte("tosca.relationships.Root"),
@@ -105,7 +105,7 @@ func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node2/properties/recurse":          []byte("Node2"),
 
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/type":                        []byte("tosca.nodes.SoftwareComponent"),
-		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/requirements/0/relationship": []byte("janus.type.3"),
+		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/requirements/0/relationship": []byte("yorc.type.3"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/requirements/0/node":         []byte("Compute2"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/requirements/0/name":         []byte("req1"),
 		consulutil.DeploymentKVPrefix + "/testGetNbInstancesForNode/topology/nodes/Node3/attributes/simple":           []byte("simple"),
@@ -205,15 +205,15 @@ func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
-	ok, err := IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.HostedOn")
+	ok, err := IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "yorc.type.1", "tosca.relationships.HostedOn")
 	require.Nil(t, err)
 	require.True(t, ok)
 
-	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "tosca.relationships.ConnectsTo")
+	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "yorc.type.1", "tosca.relationships.ConnectsTo")
 	require.Nil(t, err)
 	require.False(t, ok)
 
-	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "janus.type.1", "janus.type.1")
+	ok, err = IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "yorc.type.1", "yorc.type.1")
 	require.Nil(t, err)
 	require.True(t, ok)
 }
@@ -458,7 +458,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "id")
 	require.Contains(t, attrNames, "type")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC1")
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC1")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 2)
@@ -466,7 +466,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "id")
 	require.Contains(t, attrNames, "type")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC2")
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC2")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 3)
@@ -475,7 +475,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 	require.Contains(t, attrNames, "dsc2")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC3")
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC3")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 3)
@@ -484,7 +484,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 	require.Contains(t, attrNames, "type")
 	require.Contains(t, attrNames, "dsc2")
 
-	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "janus.type.DerivedSC4")
+	attrNames, err = GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "yorc.type.DerivedSC4")
 	require.Nil(t, err)
 	require.NotNil(t, attrNames)
 	require.Len(t, attrNames, 4)

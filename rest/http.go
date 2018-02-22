@@ -12,9 +12,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/hostspool"
+	"github.com/ystia/yorc/tasks"
 )
 
 type router struct {
@@ -37,14 +38,22 @@ func (r *router) Delete(path string, handler http.Handler) {
 	r.DELETE(path, wrapHandler(handler))
 }
 
+func (r *router) Patch(path string, handler http.Handler) {
+	r.PATCH(path, wrapHandler(handler))
+}
+
 func (r *router) Head(path string, handler http.Handler) {
 	r.HEAD(path, wrapHandler(handler))
 }
 
+type contextKey int8
+
+const paramsLookupKey contextKey = 1
+
 func wrapHandler(h http.Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		ctx := r.Context()
-		h.ServeHTTP(w, r.WithContext(context.WithValue(ctx, "params", ps)))
+		h.ServeHTTP(w, r.WithContext(context.WithValue(ctx, paramsLookupKey, ps)))
 	}
 }
 
@@ -52,13 +61,14 @@ func newRouter() *router {
 	return &router{httprouter.New()}
 }
 
-// A Server is an HTTP server that runs the Janus REST API
+// A Server is an HTTP server that runs the Yorc REST API
 type Server struct {
 	router         *router
 	listener       net.Listener
 	consulClient   *api.Client
 	tasksCollector *tasks.Collector
 	config         config.Configuration
+	hostsPoolMgr   hostspool.Manager
 }
 
 // Shutdown stops the HTTP server
@@ -96,6 +106,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		consulClient:   client,
 		tasksCollector: tasks.NewCollector(client),
 		config:         configuration,
+		hostsPoolMgr:   hostspool.NewManager(client),
 	}
 
 	httpServer.registerHandlers()
@@ -146,6 +157,18 @@ func (s *Server) registerHandlers() {
 	s.router.Get("/registry/implementations", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryImplementationsHandler))
 	s.router.Get("/registry/definitions", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listRegistryDefinitionsHandler))
 	s.router.Get("/registry/vaults", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listVaultsBuilderHandler))
+	s.router.Get("/registry/infra_usage_collectors", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listInfraHandler))
+
+	s.router.Post("/infra_usage/:infraName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postInfraUsageHandler))
+	s.router.Get("/infra_usage/:infraName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
+	s.router.Delete("/infra_usage/:infraName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
+	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
+
+	s.router.Put("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
+	s.router.Patch("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
+	s.router.Delete("/hosts_pool/:host", commonHandlers.ThenFunc(s.deleteHostInPool))
+	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
+	s.router.Get("/hosts_pool/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
 
 	if s.config.Telemetry.PrometheusEndpoint {
 		s.router.Get("/metrics", commonHandlers.Then(promhttp.Handler()))

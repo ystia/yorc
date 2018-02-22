@@ -1,12 +1,15 @@
 package main
 
 import (
-	"novaforge.bull.com/starlings-janus/janus/commands"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/commands"
+	_ "github.com/ystia/yorc/commands/deployments"
+	_ "github.com/ystia/yorc/commands/deployments/tasks"
+	_ "github.com/ystia/yorc/commands/deployments/workflows"
+	_ "github.com/ystia/yorc/commands/hostspool"
+	"github.com/ystia/yorc/log"
 )
 
 func main() {
-
 	if err := commands.RootCmd.Execute(); err != nil {
 		log.Fatal(err)
 	}

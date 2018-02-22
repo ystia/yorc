@@ -1,0 +1,80 @@
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
+
+template_name: yorc-kubernetes-types
+template_author: yorc
+template_version: 1.0.0
+
+imports:
+  - normative: <yorc-docker-types.yml>
+
+artifact_types:
+  tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes:
+    description: Docker Container Image to be deployed by Kubernetes
+    derived_from: tosca.artifacts.Deployment.Image.Container.Docker
+
+  yorc.artifacts.Deployment.Kubernetes:
+    description: Docker deployment descriptor
+    derived_from: tosca.artifacts.Deployment
+
+node_types:
+  yorc.nodes.kubernetes.api.types.DeploymentResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.DeploymentResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embeded"
+            type: yorc.artifacts.Deployment.Kubernetes
+
+  yorc.nodes.kubernetes.api.types.ServiceResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.ServiceResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embeded"
+            type: yorc.artifacts.Deployment.Kubernetes
+
+  yorc.nodes.KubernetesVolume:
+    derived_from: yorc.nodes.DockerVolume
+    properties:
+      name:
+        type: string
+        required: true
+        description: >
+          The volume name
+    capabilities:
+      mount:
+        type: yorc.capabilities.KubernetesVolume
+
+  yorc.nodes.KubernetesVolume.EmptyDir:
+    derived_from: yorc.nodes.KubernetesVolume
+    properties:
+      volume_type:
+        type: string
+        required: true
+        description: >
+          Specifies the volume type. Must be one of the supported kubernetes volume types.
+          For ex, emptyDir, hostPath, secret, etc.
+        default: emptyDir
+      medium:
+        type: string
+        description: >
+          What type of storage medium should back this directory. The default is "" which means to use the node's default medium.
+          Must be an empty string (default) or Memory.
+        required: false
+
+capability_types:
+  yorc.capabilities.KubernetesVolume:
+    derived_from: yorc.capabilities.DockerVolume
+    description: >
+      Capability to mount a Kubernetes volume
+    properties:
+      read_only:
+        type: boolean
+        required: false
+        description: Mounted read-only if true, read-write otherwise (false or unspecified). Defaults to false.
+      sub_path:
+        type: string
+        required: false
+        description:  Path within the volume from which the container's volume should be mounted. Defaults to "" (volume's root).

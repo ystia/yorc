@@ -13,12 +13,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/terraform/commons"
+	"github.com/ystia/yorc/tosca"
 )
 
 type osGenerator struct {
@@ -135,13 +135,13 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 		}
 
 		switch nodeType {
-		case "janus.nodes.openstack.Compute":
+		case "yorc.nodes.openstack.Compute":
 			err = g.generateOSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, err
 			}
 
-		case "janus.nodes.openstack.BlockStorage":
+		case "yorc.nodes.openstack.BlockStorage":
 			var bsIds []string
 			var volumeID string
 			if volumeID, err = g.getStringFormConsul(kv, nodeKey, "properties/volume_id"); err != nil {
@@ -169,7 +169,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 				commons.AddResource(&infrastructure, "consul_keys", name, &consulKeys)
 			}
 
-		case "janus.nodes.openstack.FloatingIP":
+		case "yorc.nodes.openstack.FloatingIP":
 			var ip IP
 			ip, err = g.generateFloatingIP(kv, nodeKey, instanceName)
 
@@ -216,7 +216,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{consulKey}}
 			commons.AddResource(&infrastructure, "consul_keys", ip.Name, &consulKeys)
 
-		case "janus.nodes.openstack.Network":
+		case "yorc.nodes.openstack.Network":
 			var networkID string
 			networkID, err = g.getStringFormConsul(kv, nodeKey, "properties/network_id")
 			if err != nil {

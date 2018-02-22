@@ -7,16 +7,16 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 
@@ -37,7 +37,7 @@ func (s *Server) getNodeHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 	instanceID := params.ByName("instanceId")
@@ -71,7 +71,7 @@ func (s *Server) getNodeInstanceHandler(w http.ResponseWriter, r *http.Request) 
 func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 	instanceID := params.ByName("instanceId")
@@ -100,7 +100,7 @@ func (s *Server) getNodeInstanceAttributesListHandler(w http.ResponseWriter, r *
 func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 	nodeName := params.ByName("nodeName")
 	instanceID := params.ByName("instanceId")

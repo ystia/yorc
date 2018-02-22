@@ -4,10 +4,12 @@ import (
 	"reflect"
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 
 	"path"
 
+	"encoding/json"
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"strconv"
@@ -57,8 +59,43 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 		consulutil.WorkflowsPrefix + "/t10/step1": []byte("status1"),
 		consulutil.WorkflowsPrefix + "/t11/step1": []byte("status1"),
 
-		consulutil.TasksPrefix + "/t12/status": []byte("3"),
+		consulutil.TasksPrefix + "/t12/status":    []byte("3"),
+		consulutil.TasksPrefix + "/t12/type":      []byte("5"),
+		consulutil.TasksPrefix + "/t12/targetId":  []byte("id"),
+		consulutil.TasksPrefix + "/t13/resultSet": buildResultset(),
+		consulutil.TasksPrefix + "/t13/targetId":  []byte("id"),
+		consulutil.TasksPrefix + "/t13/type":      []byte("5"),
+		consulutil.TasksPrefix + "/t13/status":    []byte("3"),
+		consulutil.TasksPrefix + "/t14/status":    []byte("3"),
+		consulutil.TasksPrefix + "/t14/type":      []byte("5"),
+
+		consulutil.TasksPrefix + "/t15/targetId": []byte("xxx"),
+		consulutil.TasksPrefix + "/t15/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t15/type":     []byte("2"),
+
+		consulutil.TasksPrefix + "/t16/targetId": []byte("infra_usage:slurm"),
+		consulutil.TasksPrefix + "/t16/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t16/type":     []byte("7"),
+		consulutil.TasksPrefix + "/t17/targetId": []byte("infra_usage:bbb"),
+		consulutil.TasksPrefix + "/t17/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t17/type":     []byte("7"),
+		consulutil.TasksPrefix + "/t18/targetId": []byte("infra_usage:slurm"),
+		consulutil.TasksPrefix + "/t18/status":   []byte("2"),
+		consulutil.TasksPrefix + "/t18/type":     []byte("7"),
 	})
+}
+
+func buildResultset() []byte {
+	m := make(map[string]interface{})
+	m["key1"] = "value1"
+	m["key2"] = "value2"
+	m["key3"] = "value3"
+
+	res, err := json.Marshal(m)
+	if err != nil {
+		fmt.Printf("Failed to marshal map [%+v]: due to error:%+v", m, err)
+	}
+	return res
 }
 
 func testGetTasksIdsForTarget(t *testing.T, kv *api.KV) {
@@ -137,8 +174,8 @@ func testGetTaskType(t *testing.T, kv *api.KV) {
 	}{
 		{"TypeDeploy", args{kv, "t1"}, Deploy, false},
 		{"TypeUnDeploy", args{kv, "t2"}, UnDeploy, false},
-		{"TypeScaleUp", args{kv, "t3"}, ScaleUp, false},
-		{"TypeScaleDown", args{kv, "t4"}, ScaleDown, false},
+		{"TypeScaleOut", args{kv, "t3"}, ScaleOut, false},
+		{"TypeScaleIn", args{kv, "t4"}, ScaleIn, false},
 		{"TypePurge", args{kv, "t5"}, Purge, false},
 		{"TypeCustomCommand", args{kv, "t6"}, CustomCommand, false},
 		{"TypeDoesntExist", args{kv, "t7"}, Deploy, true},
@@ -574,6 +611,99 @@ func testResumeTask(t *testing.T, kv *api.KV) {
 			if TaskStatus(status) != INITIAL {
 				t.Errorf("status not set to \"INITIAL\" but to:%s", TaskStatus(status))
 				return
+			}
+		})
+	}
+}
+
+func testGetTaskResultSet(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"taskWithResultSet", args{kv, "t13"}, "{\"key1\":\"value1\",\"key2\":\"value2\",\"key3\":\"value3\"}", false},
+		{"taskWithoutResultSet", args{kv, "t14"}, "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetTaskResultSet(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTaskStatus() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetTaskStatus() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testDeleteTask(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"taskToDelete", args{kv, "t15"}, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := DeleteTask(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			got, err := TaskExists(tt.args.kv, tt.args.taskID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteTask() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("DeleteTask() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
+	type args struct {
+		kv     *api.KV
+		taskID string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{"taskWithTypeQueryAndInfraUsage", args{kv, "t13"}, []string{"t16", "t18"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetQueryTaskIDs(kv, Query, "infra_usage", "slurm")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetQueryTaskIDs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetQueryTaskIDs() = %v, want %v", got, tt.want)
 			}
 		})
 	}

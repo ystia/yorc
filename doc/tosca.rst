@@ -1,22 +1,22 @@
-TOSCA support in Janus
+TOSCA support in Yorc
 ======================
 
 TOSCA stands for Topology and Orchestration Specification for Cloud Applications. It is an 
-`OASIS <https://www.oasis-open.org/>`_ standard specification. Currently Janus implements the version
+`OASIS <https://www.oasis-open.org/>`_ standard specification. Currently Yorc implements the version
 `TOSCA Simple Profile in YAML Version 1.2 <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html>`_ 
 of this specification.
 
-Janus is a TOSCA based orchestrator, meaning that it consumes TOSCA definitions and services templates to perform applications deployments 
+Yorc is a TOSCA based orchestrator, meaning that it consumes TOSCA definitions and services templates to perform applications deployments 
 and lifecycle management. 
 
-Janus is also workflow driven meaning that it will execute workflows defined in a TOSCA service template to perform a deployment.
-The easiest way to generate valid TOSCA definitions for Janus is to use a TOSCA web composer called `Alien4Cloud <http://alien4cloud.github.io/>`_.
+Yorc is also workflow driven meaning that it will execute workflows defined in a TOSCA service template to perform a deployment.
+The easiest way to generate valid TOSCA definitions for Yorc is to use a TOSCA web composer called `Alien4Cloud <http://alien4cloud.github.io/>`_.
 
-Janus provides an Alien4Cloud (A4C) plugin that allows A4C to interact with Janus.
+Yorc provides an Alien4Cloud (A4C) plugin that allows A4C to interact with Yorc.
 
 Alien4Cloud provides `a great documentation on writing TOSCA components <http://alien4cloud.github.io/#/documentation/1.4.0/devops_guide/dev_ops_guide.html>`_.
 
-Bellow are the specificities of Janus
+Bellow are the specificities of Yorc
 
 TOSCA Operations
 ----------------
@@ -24,13 +24,13 @@ TOSCA Operations
 Supported Operations implementations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Currently Janus supports as builtin implementations for operations:
+Currently Yorc supports as builtin implementations for operations:
 
 * Bash scripts
 * Python scripts
 * Ansible Playbooks
 
-New implementations can be plugged into Janus using its plugin mechanism.
+New implementations can be plugged into Yorc using its plugin mechanism.
 
 .. todo:
     Document the plugin mechanism and reference it here
@@ -49,7 +49,7 @@ a ``bash -l`` command meaning that the login profile of the user used to connect
 Injected Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When operation scripts are called, some environment variables are injected by Janus.
+When operation scripts are called, some environment variables are injected by Yorc.
 
 - For Python and Bash scripts those variables are injected as environment variables.
 - For Python scripts they are also injected as global variables of the script and can be used directly. 
@@ -59,7 +59,7 @@ Operation outputs
 ~~~~~~~~~~~~~~~~~
 
 TOSCA `defines a function called get_operation_output <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/csd01/TOSCA-Simple-Profile-YAML-v1.2-csd01.html#DEFN_FUNCTION_GET_OPERATION_OUTPUT>`_,
-this function instructs Janus to retrieve a value at the end of a operation. In order to allow Janus to retrieve those values you should depending on your operation 
+this function instructs Yorc to retrieve a value at the end of a operation. In order to allow Yorc to retrieve those values you should depending on your operation 
 implementation:
 
 * in Bash scripts you should export a variable named as the output variable (case sensitively)

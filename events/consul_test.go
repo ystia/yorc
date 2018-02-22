@@ -3,7 +3,7 @@ package events
 import (
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/testutil"
+	"github.com/ystia/yorc/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
@@ -48,6 +48,9 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 		})
 		t.Run("TestRegisterLogsInConsul", func(t *testing.T) {
 			testRegisterLogsInConsul(t, kv)
+		})
+		t.Run("TestLogsSortedByTimestamp", func(t *testing.T) {
+			testLogsSortedByTimestamp(t, kv)
 		})
 	})
 }

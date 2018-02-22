@@ -1,0 +1,34 @@
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
+
+template_name: yorc-slurm-types
+template_author: yorc
+template_version: 1.0.0
+
+imports:
+  - yorc: <yorc-types.yml>
+
+node_types:
+  yorc.nodes.slurm.Compute:
+    derived_from: yorc.nodes.Compute
+    properties:
+      gres:
+        type: string
+        required: false
+      partition:
+        type: string
+        required: false
+        description: Slurm partition where the nodes will be deployed
+      job_name:
+        type: string
+        required: false
+        description: Specify a name for the job allocation. The specified name will appear along with the job id.
+    attributes:
+      cuda_visible_devices:
+        type: string
+        description: Coma separated list of visibles GPU devices for the compute.
+      job_id:
+        type: string
+        description: The ID of the job allocation.
+      partition:
+        type: string
+        description: Slurm partition where the nodes are deployed.

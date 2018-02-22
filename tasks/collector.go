@@ -10,11 +10,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
-// A Collector is used to register new tasks in Janus
+// A Collector is used to register new tasks in Yorc
 type Collector struct {
 	consulClient *api.Client
 }
@@ -24,7 +24,7 @@ func NewCollector(consulClient *api.Client) *Collector {
 	return &Collector{consulClient: consulClient}
 }
 
-// RegisterTaskWithData register an new Task of a given type with some data
+// RegisterTaskWithData register a new Task of a given type with some data
 //
 // The task id is returned.
 func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, data map[string]string) (string, error) {
@@ -38,7 +38,7 @@ func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, dat
 	return taskID, nil
 }
 
-// RegisterTask register an new Task of a given type.
+// RegisterTask register a new Task of a given type.
 //
 // The task id is returned.
 // Basically this is a shorthand for RegisterTaskWithData(targetID, taskType, nil)

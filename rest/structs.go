@@ -1,11 +1,15 @@
 package rest
 
-import "novaforge.bull.com/starlings-janus/janus/events"
-import "novaforge.bull.com/starlings-janus/janus/tosca"
+//go:generate go-enum -f=structs.go --lower
+
 import (
+	"bytes"
 	"encoding/json"
 
-	"novaforge.bull.com/starlings-janus/janus/registry"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/prov/hostspool"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tosca"
 )
 
 const (
@@ -25,20 +29,22 @@ const (
 	LinkRelAttribute string = "attribute"
 	// LinkRelWorkflow defines the AtomLink Rel attribute for relationships of the "attribute"
 	LinkRelWorkflow string = "workflow"
+	// LinkRelHost defines the AtomLink Rel attribute for relationships of the "host" (for hostspool)
+	LinkRelHost string = "host"
 )
 
 const (
-	// JanusIndexHeader is the name of the HTTP header containing the last index for long polling endpoints
-	JanusIndexHeader string = "X-Janus-Index"
+	// YorcIndexHeader is the name of the HTTP header containing the last index for long polling endpoints
+	YorcIndexHeader string = "X-Yorc-Index"
 )
 
 const (
-	// JanusDeploymentIDPattern is the allowed pattern for Janus deployments IDs
-	JanusDeploymentIDPattern string = "^[-_0-9a-zA-Z]+$"
+	// YorcDeploymentIDPattern is the allowed pattern for Yorc deployments IDs
+	YorcDeploymentIDPattern string = "^[-_0-9a-zA-Z]+$"
 
 	// Disable this for now as it doesn't have a concrete impact for now
-	// JanusDeploymentIDMaxLength is the maximum allowed length for Janus deployments IDs
-	//JanusDeploymentIDMaxLength int = 36
+	// YorcDeploymentIDMaxLength is the maximum allowed length for Yorc deployments IDs
+	//YorcDeploymentIDMaxLength int = 36
 )
 
 // An AtomLink is defined in the Atom specification (https://tools.ietf.org/html/rfc4287#section-4.2.7) it allows to reference REST endpoints
@@ -53,7 +59,7 @@ func newAtomLink(rel, href string) AtomLink {
 	return AtomLink{Rel: rel, Href: href, LinkType: "application/json"}
 }
 
-// Deployment is the representation of a Janus deployment
+// Deployment is the representation of a Yorc deployment
 //
 // Deployment's links may be of type LinkRelSelf, LinkRelNode, LinkRelTask, LinkRelOutput.
 type Deployment struct {
@@ -109,12 +115,18 @@ type OutputsCollection struct {
 	Outputs []AtomLink `json:"outputs,omitempty"`
 }
 
-// Task is the representation of a Janus' task
+// Task is the representation of a Yorc' task
 type Task struct {
-	ID       string `json:"id"`
-	TargetID string `json:"target_id"`
-	Type     string `json:"type"`
-	Status   string `json:"status"`
+	ID        string          `json:"id"`
+	TargetID  string          `json:"target_id"`
+	Type      string          `json:"type"`
+	Status    string          `json:"status"`
+	ResultSet json.RawMessage `json:"result_set,omitempty"`
+}
+
+// TasksCollection is the collection of task's links
+type TasksCollection struct {
+	Tasks []AtomLink `json:"tasks,omitempty"`
 }
 
 // TaskRequest is the representation of a request to process a new task
@@ -153,22 +165,86 @@ type Workflow struct {
 	tosca.Workflow
 }
 
-// RegistryDelegatesCollection is the collection of Delegates executors registered in the Janus registry
+// MapEntryOperation is an enumeration of valid values for a MapEntry.Op field
+// ENUM(
+// Add,
+// Remove
+// )
+type MapEntryOperation int
+
+// MarshalJSON is used to represent this enumeration as a string instead of an int
+func (o MapEntryOperation) MarshalJSON() ([]byte, error) {
+	buffer := bytes.NewBufferString(`"`)
+	buffer.WriteString(o.String())
+	buffer.WriteString(`"`)
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalJSON is used to read this enumeration from a string
+func (o *MapEntryOperation) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*o, err = ParseMapEntryOperation(s)
+	return err
+}
+
+// A MapEntry allows to manipulate a Map collection by performing operations (Op) on entries.
+// It is inspired (with many simplifications) by the JSON Patch RFC https://tools.ietf.org/html/rfc6902
+type MapEntry struct {
+	// Op is the operation for this entry. The default if omitted is "add". An "add" operation acts like a remplace if the entry already exists
+	Op MapEntryOperation `json:"op,omitempty"`
+	// Name is the map entry key name
+	Name string `json:"name"`
+	// Value is the value of the map entry. Optional for a "remove" operation
+	Value string `json:"value,omitempty"`
+}
+
+// HostRequest represents a request for creating or updating a host in the hosts pool
+type HostRequest struct {
+	Connection *hostspool.Connection `json:"connection,omitempty"`
+	Labels     []MapEntry            `json:"labels,omitempty"`
+}
+
+// HostsCollection is a collection of hosts registered in the host pool links
+//
+// Links are all of type LinkRelHost.
+type HostsCollection struct {
+	Hosts    []AtomLink `json:"hosts"`
+	Warnings []string   `json:"warnings,omitempty"`
+}
+
+// Host is a host in the host pool representation
+//
+// Links are all of type LinkRelSelf.
+type Host struct {
+	hostspool.Host
+	Links []AtomLink `json:"links"`
+}
+
+// RegistryDelegatesCollection is the collection of Delegates executors registered in the Yorc registry
 type RegistryDelegatesCollection struct {
 	Delegates []registry.DelegateMatch `json:"delegates"`
 }
 
-// RegistryImplementationsCollection is the collection of Operation executors registered in the Janus registry
+// RegistryImplementationsCollection is the collection of Operation executors registered in the Yorc registry
 type RegistryImplementationsCollection struct {
 	Implementations []registry.OperationExecMatch `json:"implementations"`
 }
 
-// RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Janus registry
+// RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Yorc registry
 type RegistryDefinitionsCollection struct {
 	Definitions []registry.Definition `json:"definitions"`
 }
 
-// RegistryVaultsCollection is the collection of Vaults Clients Builders registered in the Janus registry
+// RegistryVaultsCollection is the collection of Vaults Clients Builders registered in the Yorc registry
 type RegistryVaultsCollection struct {
 	VaultClientBuilders []registry.VaultClientBuilder `json:"vaults"`
+}
+
+// RegistryInfraUsageCollectorsCollection is the collection of infrastructure usage collectors registered in the Yorc registry
+type RegistryInfraUsageCollectorsCollection struct {
+	InfraUsageCollectors []registry.InfraUsageCollector `json:"infrastructure_usage_collectors"`
 }

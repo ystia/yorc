@@ -1,6 +1,6 @@
 package hashivault
 
-import "novaforge.bull.com/starlings-janus/janus/registry"
+import "github.com/ystia/yorc/registry"
 
 func init() {
 	registry.GetRegistry().RegisterVaultClientBuilder("hashicorp", &clientBuilder{}, registry.BuiltinOrigin)

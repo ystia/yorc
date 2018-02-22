@@ -1,0 +1,28 @@
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
+
+template_name: yorc-hostspool-types
+template_author: yorc
+template_version: 1.0.0
+
+imports:
+  - yorc: <yorc-types.yml>
+
+node_types:
+  yorc.nodes.hostspool.Compute:
+    derived_from: yorc.nodes.Compute
+    properties:
+      filters:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+    attributes:
+      hostname:
+        type: string
+        description: The hostname as known in the hosts pool
+    capabilities:
+      endpoint:
+        type: yorc.capabilities.Endpoint.ProvisioningAdmin
+        properties:
+          credentials:
+            user: "not significant, will be set by yorc itself"

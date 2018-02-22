@@ -8,18 +8,17 @@ metadata:
 description: ""
 
 imports:
-  - path: <janus-aws-types.yml>
+  - path: <yorc-aws-types.yml>
 
 topology_template:
   node_templates:
     ComputeAWS:
-      type: janus.nodes.aws.Compute
+      type: yorc.nodes.aws.Compute
       properties:
         image_id: "ami-16dffe73"
         instance_type: "t2.micro"
-        key_name: "janus-keypair"
-        user: centos
-        security_groups: "janus-securityGroup"
+        key_name: "yorc-keypair"
+        security_groups: "yorc-securityGroup"
       requirements:
         - network:
             node: EIPNetwork
@@ -37,7 +36,8 @@ topology_template:
             protocol: tcp
             network_name: PRIVATE
             initiator: source
+            credentials: {user: centos}
     EIPNetwork:
-      type: janus.nodes.aws.PublicNetwork
+      type: yorc.nodes.aws.PublicNetwork
       properties:
         ip_version: 4

@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/consulutil"
 )
 
 // HasScalableCapability check if the given nodeName in the specified deployment, has in this capabilities a Key named scalable

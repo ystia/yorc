@@ -9,10 +9,10 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
 func loadTestYaml(t *testing.T, kv *api.KV) string {
@@ -46,7 +46,7 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 
 	compute, ok := instancesMap["Compute-0"].(*ComputeInstance)
 	require.True(t, ok, "Compute-0 is not a ComputeInstance")
-	require.Equal(t, "janus", compute.KeyPair)
+	require.Equal(t, "yorc", compute.KeyPair)
 	require.Equal(t, "4bde6002-649d-4868-a5cb-fcd36d5ffa63", compute.ImageID)
 	require.Equal(t, "nova", compute.AvailabilityZone)
 	require.Equal(t, "2", compute.FlavorID)
@@ -69,7 +69,7 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	require.Equal(t, "cloud-user", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/janus.pem")}`, rex.Connection.PrivateKey)
+	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 }
 
@@ -99,7 +99,7 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 
 	compute, ok := instancesMap["Compute-0"].(*ComputeInstance)
 	require.True(t, ok, "Compute-0 is not a ComputeInstance")
-	require.Equal(t, "janus", compute.KeyPair)
+	require.Equal(t, "yorc", compute.KeyPair)
 	require.Equal(t, "4bde6002-649d-4868-a5cb-fcd36d5ffa63", compute.ImageID)
 	require.Equal(t, "nova", compute.AvailabilityZone)
 	require.Equal(t, "2", compute.FlavorID)
@@ -124,7 +124,7 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	require.True(t, ok)
 	require.True(t, ok, "expecting remote-exec to be a RemoteExec")
 	require.Equal(t, "cloud-user", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/janus.pem")}`, rex.Connection.PrivateKey)
+	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
 	require.Equal(t, `${openstack_compute_floatingip_associate_v2.FIPCompute-0.floating_ip}`, rex.Connection.Host)
 }
 
@@ -154,7 +154,7 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 
 	compute, ok := instancesMap["Compute-0"].(*ComputeInstance)
 	require.True(t, ok, "Compute-0 is not a ComputeInstance")
-	require.Equal(t, "janus", compute.KeyPair)
+	require.Equal(t, "yorc", compute.KeyPair)
 	require.Equal(t, "4bde6002-649d-4868-a5cb-fcd36d5ffa63", compute.ImageID)
 	require.Equal(t, "nova", compute.AvailabilityZone)
 	require.Equal(t, "2", compute.FlavorID)
@@ -179,6 +179,6 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	require.True(t, ok)
 	require.True(t, ok, "expecting remote-exec to be a RemoteExec")
 	require.Equal(t, "cloud-user", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/janus.pem")}`, rex.Connection.PrivateKey)
+	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 }

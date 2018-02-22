@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
+	"github.com/ystia/yorc/config"
 )
 
 // DelegateExecutor is the interface that wraps the ExecDelegate method
@@ -64,4 +64,11 @@ func (ro RelationshipOperation) String() string {
 // The given ctx may be used to check for cancellation, conf is the server Configuration.
 type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
+}
+
+// InfraUsageCollector is the interface for collecting information about infrastructure usage
+//
+// GetUsageInfo returns data about infrastructure usage for defined infrastructure
+type InfraUsageCollector interface {
+	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error)
 }

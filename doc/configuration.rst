@@ -1,9 +1,9 @@
-.. _janus_config_section:
+.. _yorc_config_section:
 
-Janus Server Configuration
+Yorc Server Configuration
 ==========================
 
-Janus has various configuration options that could be specified either by command-line flags, configuration file or environment variables.
+Yorc has various configuration options that could be specified either by command-line flags, configuration file or environment variables.
 
 If an option is specified several times using flags, environment and config file, command-line flag will have the precedence then the environment variable and finally the value defined in the configuration file. 
 
@@ -28,7 +28,7 @@ Globals Command-line options
 
 .. _option_config_cmd:
 
-  * ``--config`` or ``-c``: Specify an alternative configuration file. By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory.
+  * ``--config`` or ``-c``: Specify an alternative configuration file. By default Yorc will look for a file named config.yorc.json in ``/etc/yorc`` directory then if not found in the current directory.
 
 .. _option_consul_addr_cmd:
 
@@ -72,7 +72,7 @@ Globals Command-line options
 
 .. _option_shut_timeout_cmd:
 
-  * ``--graceful_shutdown_timeout``: Timeout to wait for a graceful shutdown of the Janus server. After this delay the server immediately exits. The default is ``5m``.
+  * ``--graceful_shutdown_timeout``: Timeout to wait for a graceful shutdown of the Yorc server. After this delay the server immediately exits. The default is ``5m``.
 
 .. _option_wf_step_termination_timeout_cmd:
 
@@ -80,11 +80,11 @@ Globals Command-line options
 
 .. _option_http_addr_cmd:
 
-  * ``--http_address``: Restrict the listening interface for the Janus HTTP REST API. By default Janus listens on all available interfaces
+  * ``--http_address``: Restrict the listening interface for the Yorc HTTP REST API. By default Yorc listens on all available interfaces
 
 .. _option_http_port_cmd:
 
-  * ``--http_port``: Port number for the Janus HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.
+  * ``--http_port``: Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.
 
 .. _option_keep_remote_path_cmd:
 
@@ -92,36 +92,36 @@ Globals Command-line options
 
 .. _option_keyfile_cmd:
 
-  * ``--key_file``: File path to a PEM-encoded private key. The key is used to enable SSL for the Janus HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.
+  * ``--key_file``: File path to a PEM-encoded private key. The key is used to enable SSL for the Yorc HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.
 
 .. _option_certfile_cmd:
 
-  * ``--cert_file``: File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Janus HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.
+  * ``--cert_file``: File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Yorc HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.
 
 .. _option_pluginsdir_cmd:
 
-  * ``--plugins_directory``: The name of the plugins directory of the Janus server. The default is to use a directory named *plugins* in the current directory.
+  * ``--plugins_directory``: The name of the plugins directory of the Yorc server. The default is to use a directory named *plugins* in the current directory.
 
 .. _option_resources_prefix_cmd:
 
-  * ``--resources_prefix``: Specify a prefix that will be used for names when creating resources such as Compute instances or volumes. Defaults to ``janus-``.
+  * ``--resources_prefix``: Specify a prefix that will be used for names when creating resources such as Compute instances or volumes. Defaults to ``yorc-``.
 
 .. _option_workers_cmd:
 
-  * ``--workers_number``: Janus instances use a pool of workers to handle deployment tasks. This option defines the size of this pool. If not set the default value of `3` will be used.
+  * ``--workers_number``: Yorc instances use a pool of workers to handle deployment tasks. This option defines the size of this pool. If not set the default value of `3` will be used.
 
 .. _option_workdir_cmd: 
 
-  * ``--working_directory`` or ``-w``: Specify an alternative working directory for Janus. The default is to use a directory named *work* in the current directory.
+  * ``--working_directory`` or ``-w``: Specify an alternative working directory for Yorc. The default is to use a directory named *work* in the current directory.
 
 
-.. _janus_config_file_section:
+.. _yorc_config_file_section:
 
 Configuration files
 -------------------
 
 Configuration files are JSON-formatted as a single JSON object containing the following configuration options. 
-By default Janus will look for a file named config.janus.json in ``/etc/janus`` directory then if not found in the current directory. 
+By default Yorc will look for a file named config.yorc.json in ``/etc/yorc`` directory then if not found in the current directory. 
 The :ref:`--config <option_config_cmd>` command line flag allows to specify an alternative configuration file.
 
 Below is an example of configuration file.
@@ -129,7 +129,7 @@ Below is an example of configuration file.
 .. code-block:: JSON
     
     {
-      "resources_prefix": "janus1-",
+      "resources_prefix": "yorc1-",
       "infrastructures": {
         "openstack": {
           "auth_url": "http://your-openstack:5000/v2.0",
@@ -148,9 +148,9 @@ Below is an example of configuration file with TLS enable.
 .. code-block:: JSON
     
     {
-      "resources_prefix": "janus1-",
-      "key_file": "/etc/pki/tls/private/janus.key",
-      "cert_file": "/etc/pki/tls/certs/janus.crt",
+      "resources_prefix": "yorc1-",
+      "key_file": "/etc/pki/tls/private/yorc.key",
+      "cert_file": "/etc/pki/tls/certs/yorc.crt",
       "infrastructures": {
         "openstack": {
           "auth_url": "http://your-openstack:5000/v2.0",
@@ -264,21 +264,21 @@ Below is an example of configuration file with TLS enable.
 
   * ``working_directory``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
 
-.. _janus_config_file_telemetry_section:
+.. _yorc_config_file_telemetry_section:
 
 Telemetry configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Telemetry configuration can only be done via the configuration file.
 By default telemetry data are only stored in memory.
-See :ref:`janus_telemetry_section` for more information about telemetry.
+See :ref:`yorc_telemetry_section` for more information about telemetry.
 
 Below is an example of configuration file with telemetry metrics forwarded to a ``Statsd`` instance and with a ``Prometheus`` HTTP endpoint exposed.
 
 .. code-block:: JSON
     
     {
-      "resources_prefix": "janus1-",
+      "resources_prefix": "yorc1-",
       "infrastructures": {
         "openstack": {
           "auth_url": "http://your-openstack:5000/v2.0",
@@ -299,7 +299,7 @@ All available configuration options for telemetry are:
 
 .. _option_telemetry_srvname_cfg:
 
-  * ``service_name``: Metrics keys prefix, defaults to ``janus``.
+  * ``service_name``: Metrics keys prefix, defaults to ``yorc``.
 
 .. _option_telemetry_disHostName_cfg:
 
@@ -327,121 +327,121 @@ Environment variables
 
 .. _option_ansible_ssh_env:
 
-  * ``JANUS_ANSIBLE_USE_OPENSSH``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
+  * ``YORC_ANSIBLE_USE_OPENSSH``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
 
 .. _option_ansible_debug_env:
 
-  * ``JANUS_ANSIBLE_DEBUG``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
+  * ``YORC_ANSIBLE_DEBUG``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
 
 .. _option_ansible_connection_retries_env:
 
-  * ``JANUS_ANSIBLE_CONNECTION_RETRIES``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+  * ``YORC_ANSIBLE_CONNECTION_RETRIES``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
 
 .. _option_operation_remote_base_dir_env:
 
-  * ``JANUS_OPERATION_REMOTE_BASE_DIR``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
+  * ``YORC_OPERATION_REMOTE_BASE_DIR``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
 
 .. _option_consul_addr_env:
 
-  * ``JANUS_CONSUL_ADDRESS``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
+  * ``YORC_CONSUL_ADDRESS``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
 
 .. _option_consul_token_env:
 
-  * ``JANUS_CONSUL_TOKEN``: Equivalent to :ref:`--consul_token <option_consul_token_cmd>` command-line flag.
+  * ``YORC_CONSUL_TOKEN``: Equivalent to :ref:`--consul_token <option_consul_token_cmd>` command-line flag.
 
 .. _option_consul_dc_env:
 
-  * ``JANUS_CONSUL_DATACENTER``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
+  * ``YORC_CONSUL_DATACENTER``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
 
 .. _option_consul_key_file_env:
 
-  * ``JANUS_CONSUL_KEY_FILE``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
+  * ``YORC_CONSUL_KEY_FILE``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
 
 .. _option_consul_cert_file_env:
 
-  * ``JANUS_CONSUL_CERT_FILE``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
+  * ``YORC_CONSUL_CERT_FILE``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
 
 .. _option_consul_ca_cert_env:
 
-  * ``JANUS_CONSUL_CA_CERT``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
+  * ``YORC_CONSUL_CA_CERT``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
 
 .. _option_consul_ca_path_env:
 
-  * ``JANUS_CONSUL_CA_PATH``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
+  * ``YORC_CONSUL_CA_PATH``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
 
 .. _option_consul_ssl_env:
 
-  * ``JANUS_CONSUL_SSL``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
+  * ``YORC_CONSUL_SSL``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
 
 .. _option_consul_ssl_verify_env:
 
-  * ``JANUS_CONSUL_SSL_VERIFY``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
+  * ``YORC_CONSUL_SSL_VERIFY``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
 
 .. _option_pub_routines_env:
 
-  * ``JANUS_CONSUL_PUBLISHER_MAX_ROUTINES``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
+  * ``YORC_CONSUL_PUBLISHER_MAX_ROUTINES``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
 .. _option_shut_timeout_env:
 
-  * ``JANUS_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
+  * ``YORC_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
 
 .. _option_wf_step_termination_timeout_env:
 
-  * ``JANUS_WF_STEP_GRACEFUL_TERMINATION_TIMEOUT``: Equivalent to :ref:`--wf_step_graceful_termination_timeout <option_wf_step_termination_timeout_cmd>` command-line flag.
+  * ``YORC_WF_STEP_GRACEFUL_TERMINATION_TIMEOUT``: Equivalent to :ref:`--wf_step_graceful_termination_timeout <option_wf_step_termination_timeout_cmd>` command-line flag.
 
 .. _option_http_addr_env:
 
-  * ``JANUS_HTTP_ADDRESS``: Equivalent to :ref:`--http_address <option_http_addr_cmd>` command-line flag.
+  * ``YORC_HTTP_ADDRESS``: Equivalent to :ref:`--http_address <option_http_addr_cmd>` command-line flag.
 
 .. _option_http_port_env:
 
-  * ``JANUS_HTTP_PORT``: Equivalent to :ref:`--http_port <option_http_port_cmd>` command-line flag.
+  * ``YORC_HTTP_PORT``: Equivalent to :ref:`--http_port <option_http_port_cmd>` command-line flag.
 
 .. _option_keep_remote_path_env:
 
-  * ``JANUS_KEEP_OPERATION_REMOTE_PATH``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
+  * ``YORC_KEEP_OPERATION_REMOTE_PATH``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
 
 .. _option_keyfile_env:
 
-  * ``JANUS_KEY_FILE``: Equivalent to :ref:`--key_file <option_keyfile_cmd>` command-line flag.
+  * ``YORC_KEY_FILE``: Equivalent to :ref:`--key_file <option_keyfile_cmd>` command-line flag.
 
 .. _option_certfile_env:
 
-  * ``JANUS_CERT_FILE``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
+  * ``YORC_CERT_FILE``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
 
 .. _option_plugindir_env:
 
-  * ``JANUS_PLUGIN_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+  * ``YORC_PLUGIN_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
 
 .. _option_resources_prefix_env:
 
-  * ``JANUS_RESOURCES_PREFIX``: Equivalent to :ref:`--resources_prefix <option_resources_prefix_cmd>` command-line flag.
+  * ``YORC_RESOURCES_PREFIX``: Equivalent to :ref:`--resources_prefix <option_resources_prefix_cmd>` command-line flag.
 
 .. _option_workers_env:
 
-  * ``JANUS_WORKERS_NUMBER``: Equivalent to :ref:`--workers_number <option_workers_cmd>` command-line flag.
+  * ``YORC_WORKERS_NUMBER``: Equivalent to :ref:`--workers_number <option_workers_cmd>` command-line flag.
 
 .. _option_workdir_env: 
 
-  * ``JANUS_WORKING_DIRECTORY``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
+  * ``YORC_WORKING_DIRECTORY``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
 
 .. _option_log_env: 
 
-  * ``JANUS_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Janus.
+  * ``YORC_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Yorc.
 
 .. _option_aws_access_key:
 
-  * ``JANUS_INFRA_AWS_ACCESS_KEY``: The AWS access key credential.
+  * ``YORC_INFRA_AWS_ACCESS_KEY``: The AWS access key credential.
 
 .. _option_aws_secret_key:
 
-  * ``JANUS_INFRA_AWS_SECRET_KEY``: The AWS secret key credential.
+  * ``YORC_INFRA_AWS_SECRET_KEY``: The AWS secret key credential.
  
 
 Infrastructures configuration
 -----------------------------
 
-Due to the pluggable nature of infrastructures support in Janus their configuration differ from other configurable options.
+Due to the pluggable nature of infrastructures support in Yorc their configuration differ from other configurable options.
 An infrastructure configuration option could be specified by either a its configuration placeholder in the configuration file, a command line flag
 or an environment variable.
 
@@ -457,7 +457,7 @@ The general principle is for a configurable option ``option_1`` for infrastructu
       }
     }
   
-Similarly a command line flag with the name ``--infrastructure_infra1_option_1`` and an environment variable with the name ``JANUS_INFRA_INFRA1_OPTION_1`` will be
+Similarly a command line flag with the name ``--infrastructure_infra1_option_1`` and an environment variable with the name ``YORC_INFRA_INFRA1_OPTION_1`` will be
 automatically supported and recognized. The default order of precedence apply here.
 
 Builtin infrastructures configuration
@@ -492,11 +492,11 @@ OpenStack infrastructure key name is ``openstack`` in lower case.
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``region``                        | Specify the OpenStack region to use                                                                                 | string    | no                                                 | ``RegionOne`` |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-| ``private_network_name``          | Specify the name of private network to use as primary adminstration network between Janus and Compute               | string    | Required to use the ``PRIVATE`` keyword for TOSCA  |               |
-|                                   | instances. It should be a private network accessible by this instance of Janus.                                     |           | admin networks                                     |               |
+| ``private_network_name``          | Specify the name of private network to use as primary adminstration network between Yorc and Compute               | string    | Required to use the ``PRIVATE`` keyword for TOSCA  |               |
+|                                   | instances. It should be a private network accessible by this instance of Yorc.                                     |           | admin networks                                     |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``provisioning_over_fip_allowed`` | This allows to perform the provisioning of a Compute over the associated floating IP if it exists. This is useful   | boolean   | no                                                 | ``false``     |
-|                                   | when Janus is not deployed on the same private network than the provisioned Compute.                                |           |                                                    |               |
+|                                   | when Yorc is not deployed on the same private network than the provisioned Compute.                                |           |                                                    |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``default_security_groups``       | Default security groups to be used when creating a Compute instance. It should be a comma-separated list of         | list of   | no                                                 |               |
 |                                   | security group names                                                                                                | strings   |                                                    |               |
@@ -587,7 +587,7 @@ Slurm infrastructure key name is ``slurm`` in lower case.
 Vault configuration
 -------------------
 
-Due to the pluggable nature of vaults support in Janus their configuration differ from other configurable options.
+Due to the pluggable nature of vaults support in Yorc their configuration differ from other configurable options.
 A vault configuration option could be specified by either its configuration placeholder in the configuration file, a command line flag
 or an environment variable.
 
@@ -602,7 +602,7 @@ The general principle is for a configurable option ``option_1`` it should be spe
       }
     }
   
-Similarly a command line flag with the name ``--vault_option_1`` and an environment variable with the name ``JANUS_VAULT_OPTION_1`` will be
+Similarly a command line flag with the name ``--vault_option_1`` and an environment variable with the name ``YORC_VAULT_OPTION_1`` will be
 automatically supported and recognized. The default order of precedence apply here.
 
 ``type`` is the only mandatory option for all vaults configurations, it allows to select the vault implementation by specifying it's ID. If the

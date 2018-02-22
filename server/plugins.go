@@ -3,19 +3,21 @@ package server
 // Initialization imports
 import (
 	// Registering AWS delegate executor in the registry
-	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/aws"
+	_ "github.com/ystia/yorc/prov/terraform/aws"
 	// Registering openstack delegate executor in the registry
-	_ "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack"
+	_ "github.com/ystia/yorc/prov/terraform/openstack"
 	// Registering ansible operation executor in the registry
-	_ "novaforge.bull.com/starlings-janus/janus/prov/ansible"
+	_ "github.com/ystia/yorc/prov/ansible"
 	// Registering kubernetes operation executor in the registry
-	_ "novaforge.bull.com/starlings-janus/janus/prov/kubernetes"
+	_ "github.com/ystia/yorc/prov/kubernetes"
 	// Registering slurm delegate executor in the registry
-	_ "novaforge.bull.com/starlings-janus/janus/prov/slurm"
+	_ "github.com/ystia/yorc/prov/slurm"
+	// Registering hosts pool delegate executor in the registry
+	_ "github.com/ystia/yorc/prov/hostspool"
 	// Registering builtin Tosca definition files
-	_ "novaforge.bull.com/starlings-janus/janus/tosca"
+	_ "github.com/ystia/yorc/tosca"
 	// Registering builtin HashiCorp Vault Client Builder
-	_ "novaforge.bull.com/starlings-janus/janus/vault/hashivault"
+	_ "github.com/ystia/yorc/vault/hashivault"
 )
 
 import (
@@ -25,10 +27,10 @@ import (
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/plugin"
-	"novaforge.bull.com/starlings-janus/janus/registry"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/plugin"
+	"github.com/ystia/yorc/registry"
 )
 
 type pluginManager struct {
@@ -157,6 +159,26 @@ func (pm *pluginManager) loadPlugins(cfg config.Configuration) error {
 			}
 		} else {
 			log.Printf("[Warning] Can't retrieve TOSCA definitions from plugin %q: %v. This is likely due to a outdated plugin.", pluginID, err)
+			log.Debugf("%+v", err)
+		}
+
+		// Request the infra usage collector plugin
+		raw, err = rpcClient.Dispense(plugin.InfraUsageCollectorPluginName)
+		if err == nil {
+			infraUsageCollectorPlugin := raw.(plugin.InfraUsageCollector)
+			infras, err := infraUsageCollectorPlugin.GetSupportedInfras()
+			if err != nil {
+				log.Printf("[Warning] Failed to retrieve supported infrastructure for plugin %q.", pluginID)
+				log.Debugf("%+v", err)
+			}
+			if len(infras) > 0 {
+				for _, infra := range infras {
+					log.Debugf("Registering infrastructure usage collector %q into registry for plugin %q", infra, pluginID)
+					reg.RegisterInfraUsageCollector(infra, infraUsageCollectorPlugin, pluginID)
+				}
+			}
+		} else {
+			log.Printf("[Warning] Can't get collector supported infra from plugin %q: %v. This is likely due to a outdated plugin.", pluginID, err)
 			log.Debugf("%+v", err)
 		}
 

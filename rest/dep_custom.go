@@ -11,16 +11,16 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
 func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request) {
 	var params httprouter.Params
 	ctx := r.Context()
-	params = ctx.Value("params").(httprouter.Params)
+	params = ctx.Value(paramsLookupKey).(httprouter.Params)
 	id := params.ByName("id")
 
 	dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)
@@ -63,7 +63,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.CustomCommand, data)
 	if err != nil {
-		if tasks.IsAnotherLivingTaskAlreadyExistsError(err) {
+		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}

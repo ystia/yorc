@@ -4,10 +4,10 @@ import (
 	"context"
 	"log"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/plugin"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/plugin"
+	"github.com/ystia/yorc/prov"
 )
 
 type myDelegateExecutor struct{}
@@ -51,26 +51,26 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 }
 
 func main() {
-	def := []byte(`tosca_definitions_version: janus_tosca_simple_yaml_1_0
+	def := []byte(`tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: janus-my-types
-template_author: Janus
+template_name: yorc-my-types
+template_author: Yorc
 template_version: 1.0.0
 
 imports:
-  - janus: <janus-types.yml>
+  - yorc: <yorc-types.yml>
 
 artifact_types:
-  janus.artifacts.Implementation.MyImplementation:
+  yorc.artifacts.Implementation.MyImplementation:
     derived_from: tosca.artifacts.Implementation
     description: My dummy implementation artifact
     file_ext: [ "myext" ]
 
 node_types:
-  janus.my.types.Compute:
+  yorc.my.types.Compute:
     derived_from: tosca.nodes.Compute
 
-  janus.my.types.Soft:
+  yorc.my.types.Soft:
     derived_from: tosca.nodes.SoftwareComponent
     interfaces:
       Standard:
@@ -82,13 +82,13 @@ node_types:
 		DelegateFunc: func() prov.DelegateExecutor {
 			return new(myDelegateExecutor)
 		},
-		DelegateSupportedTypes: []string{`janus\.my\.types\..*`},
+		DelegateSupportedTypes: []string{`yorc\.my\.types\..*`},
 		Definitions: map[string][]byte{
 			"my-def.yaml": def,
 		},
 		OperationFunc: func() prov.OperationExecutor {
 			return new(myOperationExecutor)
 		},
-		OperationSupportedArtifactTypes: []string{"janus.artifacts.Implementation.MyImplementation"},
+		OperationSupportedArtifactTypes: []string{"yorc.artifacts.Implementation.MyImplementation"},
 	})
 }

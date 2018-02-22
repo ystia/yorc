@@ -57,7 +57,7 @@ func parsing(t *testing.T) {
 	compute := topologyTemplate.NodeTemplates["Compute"]
 	assert.NotNil(t, compute)
 
-	assert.Equal(t, "janus.nodes.openstack.Compute", compute.Type)
+	assert.Equal(t, "yorc.nodes.openstack.Compute", compute.Type)
 
 	// Check node's properties
 	assert.Len(t, compute.Properties, 4)

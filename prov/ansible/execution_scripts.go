@@ -13,11 +13,11 @@ import (
 
 	"strings"
 
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/executil"
+	"github.com/ystia/yorc/helper/stringutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
 const scriptCustomWrapper = `#!/usr/bin/env bash
@@ -25,10 +25,10 @@ const scriptCustomWrapper = `#!/usr/bin/env bash
 # basically it prevent double quotes to be changed into single quotes
 # by prefixing the value by a space
 # https://stackoverflow.com/questions/31969872/why-ansible-always-replaces-double-quotes-with-single-quotes-in-templates
-# We remove this space here. Obviously becomes a reserved keyword janus_escape_workaround
-for janus_escape_workaround in [[[StringsJoin .VarInputsNames " "]]] ;
+# We remove this space here. Obviously becomes a reserved keyword yorc_escape_workaround
+for yorc_escape_workaround in [[[StringsJoin .VarInputsNames " "]]] ;
 do
-  eval "[[ \"\${${janus_escape_workaround}}\" == \" \"* ]] && { export ${janus_escape_workaround}=\${${janus_escape_workaround}:1};}"
+  eval "[[ \"\${${yorc_escape_workaround}}\" == \" \"* ]] && { export ${yorc_escape_workaround}=\${${yorc_escape_workaround}:1};}"
 done
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Outputs -]]]
@@ -52,7 +52,7 @@ home = expanduser("~")
 # basically it prevent double quotes to be changed into single quotes
 # by prefixing the value by a space
 # https://stackoverflow.com/questions/31969872/why-ansible-always-replaces-double-quotes-with-single-quotes-in-templates
-# We remove this space here. Obviously becomes a reserved keyword janus_escape_workaround
+# We remove this space here. Obviously becomes a reserved keyword yorc_escape_workaround
 gVar = {}
 names=[ [[[qJoin .VarInputsNames]]] ]
 

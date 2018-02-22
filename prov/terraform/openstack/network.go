@@ -6,10 +6,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
+	"github.com/ystia/yorc/config"
 )
 
-const openstackNetworkType = "janus.nodes.openstack.Network"
+const openstackNetworkType = "yorc.nodes.openstack.Network"
 
 func (g *osGenerator) generateNetwork(kv *api.KV, cfg config.Configuration, url, deploymentID string) (Network, error) {
 	nodeType, err := g.getStringFormConsul(kv, url, "type")

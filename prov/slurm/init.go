@@ -1,8 +1,8 @@
 package slurm
 
-import "novaforge.bull.com/starlings-janus/janus/registry"
+import "github.com/ystia/yorc/registry"
 
 func init() {
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`janus\.nodes\.slurm\..*`}, newExecutor(&slurmGenerator{}), registry.BuiltinOrigin)
+	reg.RegisterDelegates([]string{`yorc\.nodes\.slurm\..*`}, newExecutor(&slurmGenerator{}), registry.BuiltinOrigin)
 }

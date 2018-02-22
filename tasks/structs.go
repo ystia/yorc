@@ -15,16 +15,18 @@ const (
 	Deploy TaskType = iota
 	// UnDeploy defines a Task of type "undeploy"
 	UnDeploy
-	// ScaleUp defines a Task of type "scale-up"
-	ScaleUp
-	// ScaleDown defines a Task of type "scale-down"
-	ScaleDown
+	// ScaleOut defines a Task of type "scale-out"
+	ScaleOut
+	// ScaleIn defines a Task of type "scale-in"
+	ScaleIn
 	// Purge defines a Task of type "purge"
 	Purge
 	// CustomCommand defines a Task of type "custom-command"
 	CustomCommand
 	// CustomWorkflow defines a Task of type "CustomWorkflow"
 	CustomWorkflow
+	// Query defines a Task of type "Query"
+	Query
 	// NOTE: if a new task type should be added then change validity check on GetTaskType
 )
 
@@ -71,7 +73,11 @@ func (e anotherLivingTaskAlreadyExistsError) Error() string {
 }
 
 // IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
-func IsAnotherLivingTaskAlreadyExistsError(err error) bool {
-	_, ok := err.(anotherLivingTaskAlreadyExistsError)
-	return ok
+// If true, it returns the taskID of the currently running task
+func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
+	e, ok := err.(anotherLivingTaskAlreadyExistsError)
+	if ok {
+		return ok, e.taskID
+	}
+	return ok, ""
 }

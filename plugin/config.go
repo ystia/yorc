@@ -6,8 +6,8 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/consulutil"
 )
 
 // ConfigManager allows to send configuration to the plugin

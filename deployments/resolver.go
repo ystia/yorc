@@ -5,13 +5,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/log"
 	yaml "gopkg.in/yaml.v2"
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/log"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/tosca"
 )
 
 const funcKeywordSELF string = "SELF"

@@ -1,12 +1,12 @@
-Run Janus in Secured mode
+Run Yorc in Secured mode
 =========================
 
-To run Janus in secured mode, the following issues have to be addressed:
+To run Yorc in secured mode, the following issues have to be addressed:
 
 * Setup a secured Consul cluster
 * Setup a secured OpenStack cloud
-* Setup a secured Janus server and configure it to use a secured Consul client and the secured OpenStack
-* Setup Alien4Cloud security and configure it to use the secured Janus server
+* Setup a secured Yorc server and configure it to use a secured Consul client and the secured OpenStack
+* Setup Alien4Cloud security and configure it to use the secured Yorc server
 
 To secure the components listed above, and enable TLS, Multi-Domain (SAN) certificates need to be generated.
 A short list of commands based on openSSL is provided below.
@@ -23,7 +23,7 @@ You might already have one, otherwise, create it using OpenSSL commands below:
 
 Generate certificates signed by your CA
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You need to generate certificates for all the software component to be secured (Consul, Janus, Alien4Cloud).
+You need to generate certificates for all the software component to be secured (Consul, Yorc, Alien4Cloud).
 
 Use the commands below for each component instance (where <FIP> represents host's IP address):
 
@@ -40,7 +40,7 @@ Secured Consul cluster Setup
 Create a ``consul.key`` and ``consul.pem`` for all the Consul agents within the Consul cluster you setup:
 
  * the server (you may need 3 servers for HA),
- * and the client (you need one client on each host where a Janus server is running).
+ * and the client (you need one client on each host where a Yorc server is running).
 
 Use the above commands and replace <FIP> by the host's IP address.
 
@@ -98,12 +98,12 @@ Secured OpenStack
 
 Configuring OpenStack to run in SSL mode is out of the scope of this document. Please refer to the OpenStack documentation to do so.
 
-However, there are several configuration parameters in Janus that allow to interact with an OpenStack using SSL. Please refer to 
+However, there are several configuration parameters in Yorc that allow to interact with an OpenStack using SSL. Please refer to 
 :ref:`the OpenStack configuration section <option_infra_os>` for more information.
 
-Secured Janus Setup
+Secured Yorc Setup
 -------------------
-Create a ``janus-server.key`` and ``janus-server.pem`` using the above commands and replace <FIP> by the host's IP address.
+Create a ``yorc-server.key`` and ``yorc-server.pem`` using the above commands and replace <FIP> by the host's IP address.
 
 Bellow is an example of configuration file with TLS enabled and using the collocated and secured Consul client.
 
@@ -115,9 +115,9 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
         "consul_key_file": "{PATH_TO_CONSUL_CLIENT_KEY}",
         "consul_cert_file": "{PATH_TO_CONSUL_CLIENT_PEM}",
         "consul_address": "127.0.0.1:8080",
-        "resources_prefix": "janus1-",
-        "key_file": "{PATH_TO_JANUS_SERVER_KEY}",
-        "cert_file": "{PATH_TO_JANUS_SERVER_PEM}",
+        "resources_prefix": "yorc1-",
+        "key_file": "{PATH_TO_YORC_SERVER_KEY}",
+        "cert_file": "{PATH_TO_YORC_SERVER_PEM}",
         "infrastructures" : {
             "openstack": {
                 "auth_url": "https://your-openstack:{OPENSTACK_PORT}/v2.0",
