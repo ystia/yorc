@@ -17,7 +17,6 @@ topology_template:
         image_id: "ami-16dffe73"
         instance_type:
         key_name: "yorc-keypair"
-        user: centos
         security_groups: "yorc-securityGroup"
       capabilities:
         scalable:
@@ -31,4 +30,5 @@ topology_template:
             protocol: tcp
             network_name: PRIVATE
             initiator: source
+            credentials: {user: centos}
 

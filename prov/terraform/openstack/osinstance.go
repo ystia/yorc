@@ -121,7 +121,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	}
 
 	var user string
-	if _, user, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "user"); err != nil {
+	if _, user, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "endpoint", "credentials", "user"); err != nil {
 		return err
 	} else if user == "" {
 		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)

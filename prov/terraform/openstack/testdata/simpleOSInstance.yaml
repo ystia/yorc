@@ -12,7 +12,6 @@ topology_template:
     Compute:
       type: yorc.nodes.openstack.Compute
       properties:
-        user: cloud-user
         flavor: 2
         image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         availability_zone: nova
@@ -25,6 +24,7 @@ topology_template:
             initiator: source
             secure: true
             network_name: PRIVATE
+            credentials: {user: cloud-user}
         scalable:
           properties:
             max_instances: 1
