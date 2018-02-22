@@ -28,6 +28,7 @@ func GetSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(cfg.Infrastructures[infrastructureName].GetString("password")),
 		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
