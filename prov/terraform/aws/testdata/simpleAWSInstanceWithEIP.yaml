@@ -18,7 +18,6 @@ topology_template:
         image_id: "ami-16dffe73"
         instance_type: "t2.micro"
         key_name: "yorc-keypair"
-        user: centos
         security_groups: "yorc-securityGroup"
       requirements:
         - network:
@@ -37,6 +36,7 @@ topology_template:
             protocol: tcp
             network_name: PRIVATE
             initiator: source
+            credentials: {user: centos}
     EIPNetwork:
       type: yorc.nodes.aws.PublicNetwork
       properties:
