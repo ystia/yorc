@@ -12,9 +12,9 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/rest"
 )
 
 func init() {
@@ -52,7 +52,7 @@ func init() {
 }
 
 // StreamsLogs allows to stream logs
-func StreamsLogs(client *httputil.JanusClient, deploymentID string, colorize, fromBeginning, stop bool) {
+func StreamsLogs(client *httputil.YorcClient, deploymentID string, colorize, fromBeginning, stop bool) {
 	if colorize {
 		defer color.Unset()
 	}
@@ -72,7 +72,7 @@ func StreamsLogs(client *httputil.JanusClient, deploymentID string, colorize, fr
 		}
 
 		// Get last index
-		idxHd := response.Header.Get(rest.JanusIndexHeader)
+		idxHd := response.Header.Get(rest.YorcIndexHeader)
 		if idxHd != "" {
 			lastIdx, err = strconv.ParseUint(idxHd, 10, 64)
 			if err != nil {
@@ -80,7 +80,7 @@ func StreamsLogs(client *httputil.JanusClient, deploymentID string, colorize, fr
 			}
 			fmt.Println("Streaming new logs...")
 		} else {
-			fmt.Fprint(os.Stderr, "Failed to get latest log index from Janus, logs will appear from the beginning.")
+			fmt.Fprint(os.Stderr, "Failed to get latest log index from Yorc, logs will appear from the beginning.")
 		}
 	}
 	var filtersParam string

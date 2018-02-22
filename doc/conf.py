@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Janus documentation build configuration file, created by
+# Yorc documentation build configuration file, created by
 # sphinx-quickstart on Mon Mar 20 16:47:58 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -53,7 +53,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Janus'
+project = u'Yorc'
 copyright=str(date.today().year)
 copyright += u', Atos BDS R&D'
 author = u'Atos BDS R&D'
@@ -129,7 +129,7 @@ html_theme = 'alabaster'
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
-#html_title = u'Janus v0.1.0'
+#html_title = u'Yorc v0.1.0'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -211,7 +211,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Janusdoc'
+htmlhelp_basename = 'Yorcdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -233,7 +233,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Janus.tex', u'Janus Documentation',
+    (master_doc, 'Yorc.tex', u'Yorc Documentation',
      u'Atos BDS R\\&D', 'manual'),
 ]
 
@@ -263,7 +263,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'janus', u'Janus Documentation',
+    (master_doc, 'yorc', u'Yorc Documentation',
      [author], 1)
 ]
 
@@ -277,8 +277,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'Janus', u'Janus Documentation',
-     author, 'Janus', 'One line description of project.',
+    (master_doc, 'Yorc', u'Yorc Documentation',
+     author, 'Yorc', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -304,7 +304,7 @@ if os.path.exists('../versions.yaml'):
     rst_epilog = ''
     for product in versions_file:
         rst_epilog += ".. |" + product + "| replace:: " + versions_file[product] + "\n"
-    m = re.search(r"^(([0-9.]+)[^.]+)$", versions_file['janus_version'])
+    m = re.search(r"^(([0-9.]+)[^.]+)$", versions_file['yorc_version'])
     if m:
         release = m.group(1)
         version = m.group(2)

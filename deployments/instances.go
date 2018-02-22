@@ -6,9 +6,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/tosca"
 )
 
 // SetInstanceStateString stores the state of a given node instance and publishes a status change event

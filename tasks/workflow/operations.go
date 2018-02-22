@@ -2,9 +2,9 @@ package workflow
 
 import (
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/registry"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/registry"
 )
 
 func getOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.OperationExecutor, error) {

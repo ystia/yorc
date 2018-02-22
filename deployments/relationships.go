@@ -7,8 +7,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/helper/collections"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/helper/consulutil"
 )
 
 // GetRelationshipPropertyFromRequirement returns the value of a relationship's property identified by a requirement index on a node

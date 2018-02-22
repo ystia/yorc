@@ -1,7 +1,7 @@
-tosca_definitions_version: janus_tosca_simple_yaml_1_0
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: janus-types
-template_author: Janus
+template_name: yorc-types
+template_author: yorc
 template_version: 1.0.0
 
 imports:
@@ -16,7 +16,7 @@ artifact_types:
     file_ext: [ yml, yaml ]
 
 data_types:
-  janus.datatypes.ProvisioningCredential:
+  yorc.datatypes.ProvisioningCredential:
     derived_from: tosca.datatypes.Credential
     properties:
       # Token is optional if keys are provided
@@ -31,12 +31,12 @@ data_types:
         description: The user (name or ID) used as a credential for authorization or access to a networked resource.
 
 capability_types:
-  janus.capabilities.Endpoint.ProvisioningAdmin:
+  yorc.capabilities.Endpoint.ProvisioningAdmin:
     derived_from: tosca.capabilities.Endpoint.Admin
     properties:
       # Adds credentials to the admin endpoint used for provisioning
       credentials:
-        type: janus.datatypes.ProvisioningCredential
+        type: yorc.datatypes.ProvisioningCredential
         description: Credentials used to provision the resource
         required: false
     # # Not supported by alien
@@ -52,14 +52,14 @@ capability_types:
     #     description: The port of the endpoint.
     #     default: 22
     #   credentials:
-    #     type: janus.datatypes.ProvisioningCredential
+    #     type: yorc.datatypes.ProvisioningCredential
     #     description: Credentials used to provision the resource
     #     required: false
 
 node_types:
-  janus.nodes.Compute:
+  yorc.nodes.Compute:
     derived_from: tosca.nodes.Compute
     # specialize our admin endpoint
     capabilities:
       endpoint:
-        type: janus.capabilities.Endpoint.ProvisioningAdmin
+        type: yorc.capabilities.Endpoint.ProvisioningAdmin

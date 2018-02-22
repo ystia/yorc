@@ -9,12 +9,12 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/terraform/commons"
 	"net"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/terraform/commons"
 	"strconv"
 )
 
@@ -23,7 +23,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	if err != nil {
 		return err
 	}
-	if nodeType != "janus.nodes.aws.Compute" {
+	if nodeType != "yorc.nodes.aws.Compute" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
 	instance := ComputeInstance{}
@@ -184,7 +184,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	// Check the connection in order to be sure that ansible will be able to log on the instance
 	nullResource := commons.Resource{}
 	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: `${file("~/.ssh/janus.pem")}`}}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: `${file("~/.ssh/yorc.pem")}`}}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re
@@ -212,7 +212,7 @@ func isElasticIPPRequired(kv *api.KV, deploymentID, nodeName string) (bool, erro
 		}
 
 		if capability != "" {
-			is, err := deployments.IsNodeDerivedFrom(kv, deploymentID, networkNodeName, "janus.nodes.aws.PublicNetwork")
+			is, err := deployments.IsNodeDerivedFrom(kv, deploymentID, networkNodeName, "yorc.nodes.aws.PublicNetwork")
 			if err != nil {
 				return false, err
 			} else if is {

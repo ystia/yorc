@@ -12,10 +12,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/hostspool"
+	"github.com/ystia/yorc/tasks"
 )
 
 type router struct {
@@ -61,7 +61,7 @@ func newRouter() *router {
 	return &router{httprouter.New()}
 }
 
-// A Server is an HTTP server that runs the Janus REST API
+// A Server is an HTTP server that runs the Yorc REST API
 type Server struct {
 	router         *router
 	listener       net.Listener
@@ -162,6 +162,7 @@ func (s *Server) registerHandlers() {
 	s.router.Post("/infra_usage/:infraName", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.postInfraUsageHandler))
 	s.router.Get("/infra_usage/:infraName/tasks/:taskId", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getTaskQueryHandler))
 	s.router.Delete("/infra_usage/:infraName/tasks/:taskId", commonHandlers.ThenFunc(s.deleteTaskQueryHandler))
+	s.router.Get("/infra_usage", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listTaskQueryHandler))
 
 	s.router.Put("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
 	s.router.Patch("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))

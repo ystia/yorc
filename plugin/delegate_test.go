@@ -8,8 +8,8 @@ import (
 	"errors"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/prov"
 )
 
 type mockDelegateExecutor struct {
@@ -126,9 +126,9 @@ func TestDelegateGetSupportedTypes(t *testing.T) {
 	defer client.Close()
 	raw, err := client.Dispense(DelegatePluginName)
 	require.Nil(t, err)
-	delagateExec := raw.(DelegateExecutor)
+	delegateExec := raw.(DelegateExecutor)
 
-	supportedTypes, err := delagateExec.GetSupportedTypes()
+	supportedTypes, err := delegateExec.GetSupportedTypes()
 	require.Nil(t, err)
 	require.Len(t, supportedTypes, 2)
 	require.Contains(t, supportedTypes, "tosca.my.types")

@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"strings"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/labelsutil"
+	"github.com/ystia/yorc/helper/labelsutil"
 
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 type defaultExecutor struct{}

@@ -7,10 +7,10 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/vault"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/vault"
 )
 
 const (
@@ -32,7 +32,7 @@ const (
 // directory. It is a UX feature, not a security feature.
 var HandshakeConfig = plugin.HandshakeConfig{
 	ProtocolVersion:  2,
-	MagicCookieKey:   "JANUS_PLUG_API",
+	MagicCookieKey:   "YORC_PLUG_API",
 	MagicCookieValue: "a3292e718f7c96578aae47e92b7475394e72e6da3de3455554462ba15dde56d1b3187ad0e5f809f50767e0d10ca6944fdf4c6c412380d3aa083b9e8951f7101e",
 }
 
@@ -61,7 +61,7 @@ type ServeOpts struct {
 func Serve(opts *ServeOpts) {
 	SetupPluginCommunication()
 
-	// As a plugin configure janus logs to go to stderr in order to be show in the parent process
+	// As a plugin configure yorc logs to go to stderr in order to be show in the parent process
 	log.SetOutput(os.Stderr)
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: HandshakeConfig,
@@ -85,7 +85,7 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 // SetupPluginCommunication makes mandatory actions to allow RPC calls btw server and plugins
 // This must be called both by serve and each plugin
 func SetupPluginCommunication() {
-	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config from janus server to plugins
+	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config from yorc server to plugins
 	gob.Register(make(map[string]interface{}, 0))
 	gob.Register(make([]interface{}, 0))
 	gob.Register(make([]string, 0))

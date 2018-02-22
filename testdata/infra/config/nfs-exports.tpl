@@ -1,1 +1,1 @@
-/mountedStorageNFS/janus-server/work ${nfs-exports}
+/mountedStorageNFS/yorc-server/work ${nfs-exports}

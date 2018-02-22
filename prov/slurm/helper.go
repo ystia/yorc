@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
 	"io"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,6 +28,7 @@ func GetSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(cfg.Infrastructures[infrastructureName].GetString("password")),
 		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))

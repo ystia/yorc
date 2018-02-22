@@ -6,12 +6,12 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/rest"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/tmc/dot"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
+	"github.com/ystia/yorc/commands/httputil"
 )
 
 func init() {
@@ -19,7 +19,7 @@ func init() {
 	var horizontal bool
 	var wfGraphCmd = &cobra.Command{
 		Use:   "graph <id>",
-		Long:  "Generate a GraphViz Dot format representation of a given workflow. The output can be easily converted to an image by making use of the dot command provided by GraphViz:\n\tjanus deployments workflows graph <id> | dot -Tpng > graph.png",
+		Long:  "Generate a GraphViz Dot format representation of a given workflow. The output can be easily converted to an image by making use of the dot command provided by GraphViz:\n\tyorc deployments workflows graph <id> | dot -Tpng > graph.png",
 		Short: "Generate a GraphViz Dot format representation of a given workflow",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {

@@ -6,10 +6,10 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/prov/hostspool"
-	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/prov/hostspool"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tosca"
 )
 
 const (
@@ -34,17 +34,17 @@ const (
 )
 
 const (
-	// JanusIndexHeader is the name of the HTTP header containing the last index for long polling endpoints
-	JanusIndexHeader string = "X-Janus-Index"
+	// YorcIndexHeader is the name of the HTTP header containing the last index for long polling endpoints
+	YorcIndexHeader string = "X-Yorc-Index"
 )
 
 const (
-	// JanusDeploymentIDPattern is the allowed pattern for Janus deployments IDs
-	JanusDeploymentIDPattern string = "^[-_0-9a-zA-Z]+$"
+	// YorcDeploymentIDPattern is the allowed pattern for Yorc deployments IDs
+	YorcDeploymentIDPattern string = "^[-_0-9a-zA-Z]+$"
 
 	// Disable this for now as it doesn't have a concrete impact for now
-	// JanusDeploymentIDMaxLength is the maximum allowed length for Janus deployments IDs
-	//JanusDeploymentIDMaxLength int = 36
+	// YorcDeploymentIDMaxLength is the maximum allowed length for Yorc deployments IDs
+	//YorcDeploymentIDMaxLength int = 36
 )
 
 // An AtomLink is defined in the Atom specification (https://tools.ietf.org/html/rfc4287#section-4.2.7) it allows to reference REST endpoints
@@ -59,7 +59,7 @@ func newAtomLink(rel, href string) AtomLink {
 	return AtomLink{Rel: rel, Href: href, LinkType: "application/json"}
 }
 
-// Deployment is the representation of a Janus deployment
+// Deployment is the representation of a Yorc deployment
 //
 // Deployment's links may be of type LinkRelSelf, LinkRelNode, LinkRelTask, LinkRelOutput.
 type Deployment struct {
@@ -115,13 +115,18 @@ type OutputsCollection struct {
 	Outputs []AtomLink `json:"outputs,omitempty"`
 }
 
-// Task is the representation of a Janus' task
+// Task is the representation of a Yorc' task
 type Task struct {
 	ID        string          `json:"id"`
 	TargetID  string          `json:"target_id"`
 	Type      string          `json:"type"`
 	Status    string          `json:"status"`
 	ResultSet json.RawMessage `json:"result_set,omitempty"`
+}
+
+// TasksCollection is the collection of task's links
+type TasksCollection struct {
+	Tasks []AtomLink `json:"tasks,omitempty"`
 }
 
 // TaskRequest is the representation of a request to process a new task
@@ -219,27 +224,27 @@ type Host struct {
 	Links []AtomLink `json:"links"`
 }
 
-// RegistryDelegatesCollection is the collection of Delegates executors registered in the Janus registry
+// RegistryDelegatesCollection is the collection of Delegates executors registered in the Yorc registry
 type RegistryDelegatesCollection struct {
 	Delegates []registry.DelegateMatch `json:"delegates"`
 }
 
-// RegistryImplementationsCollection is the collection of Operation executors registered in the Janus registry
+// RegistryImplementationsCollection is the collection of Operation executors registered in the Yorc registry
 type RegistryImplementationsCollection struct {
 	Implementations []registry.OperationExecMatch `json:"implementations"`
 }
 
-// RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Janus registry
+// RegistryDefinitionsCollection is the collection of TOSCA Definitions registered in the Yorc registry
 type RegistryDefinitionsCollection struct {
 	Definitions []registry.Definition `json:"definitions"`
 }
 
-// RegistryVaultsCollection is the collection of Vaults Clients Builders registered in the Janus registry
+// RegistryVaultsCollection is the collection of Vaults Clients Builders registered in the Yorc registry
 type RegistryVaultsCollection struct {
 	VaultClientBuilders []registry.VaultClientBuilder `json:"vaults"`
 }
 
-// RegistryInfraUsageCollectorsCollection is the collection of infrastructure usage collectors registered in the Janus registry
+// RegistryInfraUsageCollectorsCollection is the collection of infrastructure usage collectors registered in the Yorc registry
 type RegistryInfraUsageCollectorsCollection struct {
 	InfraUsageCollectors []registry.InfraUsageCollector `json:"infrastructure_usage_collectors"`
 }

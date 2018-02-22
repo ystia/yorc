@@ -1,52 +1,52 @@
-resource "openstack_networking_floatingip_v2" "janus-monitoring-fp-janus" {
+resource "openstack_networking_floatingip_v2" "yorc-monitoring-fp-yorc" {
   region = "${var.region}"
   pool   = "${var.public_network_name}"
 
   depends_on = [
-    "openstack_networking_router_interface_v2.janus-admin-router-port",
+    "openstack_networking_router_interface_v2.yorc-admin-router-port",
   ]
 }
 
-resource "openstack_compute_instance_v2" "janus-monitoring-server" {
+resource "openstack_compute_instance_v2" "yorc-monitoring-server" {
   region          = "${var.region}"
-  name            = "${var.prefix}janus-monitoring"
-  image_id        = "${var.janus_compute_image_id}"
-  flavor_id       = "${var.janus_compute_flavor_id}"
-  key_pair        = "${openstack_compute_keypair_v2.janus.name}"
-  security_groups = ["${openstack_compute_secgroup_v2.janus-admin-secgroup.name}"]
+  name            = "${var.prefix}yorc-monitoring"
+  image_id        = "${var.yorc_compute_image_id}"
+  flavor_id       = "${var.yorc_compute_flavor_id}"
+  key_pair        = "${openstack_compute_keypair_v2.yorc.name}"
+  security_groups = ["${openstack_compute_secgroup_v2.yorc-admin-secgroup.name}"]
 
-  availability_zone = "${var.janus_compute_manager_availability_zone}"
+  availability_zone = "${var.yorc_compute_manager_availability_zone}"
 
   network {
-    uuid = "${openstack_networking_network_v2.janus-admin-net.id}"
+    uuid = "${openstack_networking_network_v2.yorc-admin-net.id}"
   }
 }
 
-resource "openstack_compute_floatingip_associate_v2" "janus-monitoring-fip" {
-  floating_ip = "${openstack_networking_floatingip_v2.janus-monitoring-fp-janus.address}"
-  instance_id = "${openstack_compute_instance_v2.janus-monitoring-server.id}"
+resource "openstack_compute_floatingip_associate_v2" "yorc-monitoring-fip" {
+  floating_ip = "${openstack_networking_floatingip_v2.yorc-monitoring-fp-yorc.address}"
+  instance_id = "${openstack_compute_instance_v2.yorc-monitoring-server.id}"
 }
 
-data "template_file" "janus-monitoring-consul-agent-config" {
+data "template_file" "yorc-monitoring-consul-agent-config" {
   template = "${file("../config/consul-agent.config.json.tpl")}"
 
   vars {
-    ip_address     = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    ip_address     = "${openstack_compute_instance_v2.yorc-monitoring-server.network.0.fixed_ip_v4}"
     consul_servers = "${jsonencode(openstack_compute_instance_v2.consul-server.*.network.0.fixed_ip_v4)}"
-    statsd_ip      = "${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}"
+    statsd_ip      = "${openstack_compute_instance_v2.yorc-monitoring-server.network.0.fixed_ip_v4}"
     consul_ui      = "true"
   }
 }
 
-resource "null_resource" "janus-monitoring-provisioning-install-consul" {
+resource "null_resource" "yorc-monitoring-provisioning-install-consul" {
   connection {
     user        = "${var.ssh_manager_user}"
-    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    host        = "${openstack_compute_floatingip_associate_v2.yorc-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
   }
 
   provisioner "file" {
-    content     = "${data.template_file.janus-monitoring-consul-agent-config.rendered}"
+    content     = "${data.template_file.yorc-monitoring-consul-agent-config.rendered}"
     destination = "/tmp/consul-agent.config.json"
   }
 
@@ -70,12 +70,12 @@ resource "null_resource" "janus-monitoring-provisioning-install-consul" {
   }
 }
 
-resource "null_resource" "janus-monitoring-provisioning-install-docker" {
-  depends_on = ["null_resource.janus-monitoring-provisioning-install-consul"]
+resource "null_resource" "yorc-monitoring-provisioning-install-docker" {
+  depends_on = ["null_resource.yorc-monitoring-provisioning-install-consul"]
 
   connection {
     user        = "${var.ssh_manager_user}"
-    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    host        = "${openstack_compute_floatingip_associate_v2.yorc-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
   }
 
@@ -100,7 +100,7 @@ resource "null_resource" "janus-monitoring-provisioning-install-docker" {
   }
 }
 
-data "template_file" "janus-monitoring-docker-config" {
+data "template_file" "yorc-monitoring-docker-config" {
   count    = "${var.http_proxy != "" ? 1 : 0 }"
   template = "${file("../config/docker-systemd-proxy.conf.tpl")}"
 
@@ -113,22 +113,22 @@ data "template_file" "prometheus-config" {
   template = "${file("../config/prometheus.yml.tpl")}"
 
   vars {
-    janus_targets = "${join(", ", formatlist("'%s:8800'", openstack_compute_instance_v2.janus-server.*.network.0.fixed_ip_v4))}"
+    yorc_targets = "${join(", ", formatlist("'%s:8800'", openstack_compute_instance_v2.yorc-server.*.network.0.fixed_ip_v4))}"
   }
 }
 
-resource "null_resource" "janus-monitoring-provisioning-config-docker" {
-  depends_on = ["null_resource.janus-monitoring-provisioning-install-docker"]
+resource "null_resource" "yorc-monitoring-provisioning-config-docker" {
+  depends_on = ["null_resource.yorc-monitoring-provisioning-install-docker"]
   count      = "${var.http_proxy != "" ? 1 : 0 }"
 
   connection {
     user        = "${var.ssh_manager_user}"
-    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    host        = "${openstack_compute_floatingip_associate_v2.yorc-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
   }
 
   provisioner "file" {
-    content     = "${data.template_file.janus-monitoring-docker-config.rendered}"
+    content     = "${data.template_file.yorc-monitoring-docker-config.rendered}"
     destination = "/tmp/docker-proxy.conf"
   }
 
@@ -142,12 +142,12 @@ resource "null_resource" "janus-monitoring-provisioning-config-docker" {
   }
 }
 
-resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-grafana" {
-  depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
+resource "null_resource" "yorc-monitoring-provisioning-start-monitoring-statsd-grafana" {
+  depends_on = ["null_resource.yorc-monitoring-provisioning-config-docker"]
 
   connection {
     user        = "${var.ssh_manager_user}"
-    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    host        = "${openstack_compute_floatingip_associate_v2.yorc-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
   }
 
@@ -164,17 +164,17 @@ resource "null_resource" "janus-monitoring-provisioning-start-monitoring-statsd-
       "while [[ \"$(curl --noproxy 127.0.0.1 -s -I http://admin:admin@127.0.0.1/ | head -n 1|cut -d' ' -f2)\" != \"200\" ]]; do echo 'Waiting for Grafana to finish to startup' && sleep 5; done",
       "set -x",
       "curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/datasources -H 'Content-type: application/json' -X POST -d '{\"Name\":\"graphite\",\"Type\":\"graphite\",\"IsDefault\":true,\"Url\":\"http://localhost:8000\",\"Access\":\"proxy\",\"BasicAuth\":false}'",
-      "curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/datasources -H 'Content-type: application/json' -X POST -d '{\"Name\":\"prometheus\",\"Type\":\"prometheus\",\"IsDefault\":false,\"Url\":\"http://${openstack_compute_instance_v2.janus-monitoring-server.network.0.fixed_ip_v4}:9090\",\"Access\":\"proxy\",\"BasicAuth\":false}'",
+      "curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/datasources -H 'Content-type: application/json' -X POST -d '{\"Name\":\"prometheus\",\"Type\":\"prometheus\",\"IsDefault\":false,\"Url\":\"http://${openstack_compute_instance_v2.yorc-monitoring-server.network.0.fixed_ip_v4}:9090\",\"Access\":\"proxy\",\"BasicAuth\":false}'",
       "for g in $$(find /tmp/grafana_dashboards -type f -name '*.json'); do curl --noproxy 127.0.0.1 http://admin:admin@127.0.0.1/api/dashboards/db -H 'Content-type: application/json' -X POST -d @$${g}; done",
     ]
   }
 }
-resource "null_resource" "janus-monitoring-provisioning-start-monitoring-prometheus" {
-  depends_on = ["null_resource.janus-monitoring-provisioning-config-docker"]
+resource "null_resource" "yorc-monitoring-provisioning-start-monitoring-prometheus" {
+  depends_on = ["null_resource.yorc-monitoring-provisioning-config-docker"]
 
   connection {
     user        = "${var.ssh_manager_user}"
-    host        = "${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+    host        = "${openstack_compute_floatingip_associate_v2.yorc-monitoring-fip.floating_ip}"
     private_key = "${file("${var.ssh_key_file}")}"
   }
 
@@ -191,6 +191,6 @@ resource "null_resource" "janus-monitoring-provisioning-start-monitoring-prometh
   }
 }
 
-output "janus-monitoring" {
-  value = "http://${openstack_compute_floatingip_associate_v2.janus-monitoring-fip.floating_ip}"
+output "yorc-monitoring" {
+  value = "http://${openstack_compute_floatingip_associate_v2.yorc-monitoring-fip.floating_ip}"
 }

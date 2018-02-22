@@ -4,11 +4,11 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tosca"
 	"path"
 )
 
@@ -32,7 +32,7 @@ func (g *slurmGenerator) generateInfrastructure(ctx context.Context, kv *api.KV,
 	}
 
 	switch nodeType {
-	case "janus.nodes.slurm.Compute":
+	case "yorc.nodes.slurm.Compute":
 		var instances []string
 		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
 		if err != nil {

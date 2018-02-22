@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/consulutil"
 )
 
 // NewTestConsulInstance allows to :

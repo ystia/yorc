@@ -9,10 +9,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/testutil"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/testutil"
+	"github.com/ystia/yorc/tosca"
 )
 
 func testResolver(t *testing.T, kv *api.KV) {
@@ -116,7 +116,7 @@ func testResolveComplex(t *testing.T, kv *api.KV) {
 		wantErr bool
 		want    string
 	}{
-		{"ResolveGetPropertyListAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, list]}`}, false, `["http://","janus",".io"]`},
+		{"ResolveGetPropertyListAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, list]}`}, false, `["http://","yorc",".io"]`},
 		{"ResolveGetPropertyListIndex0", context{"VANode1", "", ""}, args{`{get_property: [SELF, list, 0]}`}, false, `http://`},
 		{"ResolveGetPropertyListIndex0Alien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "list[0]"]}`}, false, `http://`},
 		{"ResolveGetPropertyMapAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, `{"one":"1","two":"2"}`},

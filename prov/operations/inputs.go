@@ -5,11 +5,11 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/provutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/provutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
 )
 
 // An EnvInput represent a TOSCA operation input

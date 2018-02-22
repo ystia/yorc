@@ -8,7 +8,7 @@ imports:
   - tosca-normative-types: <normative-types.yml>
 
 node_types:
-  janus.types.A:
+  yorc.types.A:
     derived_from: tosca.nodes.SoftwareComponent
     properties:
       document_root:
@@ -32,11 +32,11 @@ node_types:
             A3: {get_property: [SELF, empty]}
             A4: {get_property: [SELF, optionalEmpty]}
           implementation: /tmp/create.sh
-  janus.types.B:
+  yorc.types.B:
     derived_from: tosca.nodes.SoftwareComponent
 
 relationship_types:
-  janus.types.Rel:
+  yorc.types.Rel:
     derived_from: tosca.relationships.Root
     interfaces:
       Configure:
@@ -58,7 +58,7 @@ relationship_types:
 topology_template:
   node_templates:
     NodeA:
-      type: janus.types.A
+      type: yorc.types.A
       properties:
         document_root: /var/www
         empty: ""
@@ -69,10 +69,10 @@ topology_template:
             relationship: tosca.relationships.HostedOn
         - connect:
             node: NodeB
-            relationship: janus.types.Rel
+            relationship: yorc.types.Rel
 
     NodeB:
-      type: janus.types.B
+      type: yorc.types.B
       requirements:
         - host:
             node: ComputeB

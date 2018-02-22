@@ -8,9 +8,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/vault"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/vault"
 )
 
 type clientBuilder struct {

@@ -13,11 +13,11 @@ import (
 
 	"strings"
 
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/executil"
-	"novaforge.bull.com/starlings-janus/janus/helper/stringutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/executil"
+	"github.com/ystia/yorc/helper/stringutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
 const ansiblePlaybook = `

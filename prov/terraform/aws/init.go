@@ -1,9 +1,9 @@
 package aws
 
-import "novaforge.bull.com/starlings-janus/janus/registry"
-import "novaforge.bull.com/starlings-janus/janus/prov/terraform"
+import "github.com/ystia/yorc/registry"
+import "github.com/ystia/yorc/prov/terraform"
 
 func init() {
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`janus\.nodes\.aws\..*`}, terraform.NewExecutor(&awsGenerator{}, nil), registry.BuiltinOrigin)
+	reg.RegisterDelegates([]string{`yorc\.nodes\.aws\..*`}, terraform.NewExecutor(&awsGenerator{}, nil), registry.BuiltinOrigin)
 }

@@ -16,7 +16,7 @@ import (
 // See consulutil package for more details
 const DefaultConsulPubMaxRoutines int = 500
 
-// DefaultWorkersNumber is the default number of workers in the Janus server
+// DefaultWorkersNumber is the default number of workers in the Yorc server
 const DefaultWorkersNumber int = 3
 
 // DefaultHTTPPort is the default port number for the HTTP REST API
@@ -28,7 +28,7 @@ const DefaultHTTPAddress string = "0.0.0.0"
 // DefaultPluginDir is the default path for the plugin directory
 const DefaultPluginDir = "plugins"
 
-// DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Janus server before exiting
+// DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Yorc server before exiting
 const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 
 //DefaultKeepOperationRemotePath is set to true by default in order to remove path created to store operation artifacts on nodes.
@@ -80,7 +80,7 @@ type Telemetry struct {
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.
-// This is particularly useful when configration parameters may be defined in a plugin such for infrastructures.
+// This is particularly useful when configuration parameters may be defined in a plugin such for infrastructures.
 //
 // It has methods to automatically cast data to the desired type.
 type DynamicMap map[string]interface{}
@@ -135,7 +135,7 @@ func (dm DynamicMap) GetBool(name string) bool {
 }
 
 // GetStringSlice returns the value of the given key casted into a slice of string.
-// If the corresponding raw value is a string, it is  splited on comas.
+// If the corresponding raw value is a string, it is split on comas.
 // A nil or empty slice is returned if not found.
 func (dm DynamicMap) GetStringSlice(name string) []string {
 	val := dm.Get(name)

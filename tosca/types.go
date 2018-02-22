@@ -91,6 +91,6 @@ type ArtifactType struct {
 type DataType struct {
 	Type       `yaml:",inline"`
 	Properties map[string]PropertyDefinition `yaml:"properties,omitempty"`
-	// Constraints not enforced in Janus so we don't parse them
+	// Constraints not enforced in Yorc so we don't parse them
 	// Constraints []ConstraintClause
 }

@@ -5,8 +5,8 @@ import (
 	"path"
 	"testing"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/prov"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/prov"
 
 	"strings"
 
@@ -74,7 +74,7 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
 	// First test operation outputs detection
-	vaTypePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/janus.tests.nodes.ValueAssignmentNode")
+	vaTypePrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types/yorc.tests.nodes.ValueAssignmentNode")
 	kvp, _, err := kv.Get(path.Join(vaTypePrefix, "interfaces/standard/create/outputs/SELF/CREATE_OUTPUT/expression"), nil)
 	require.Nil(t, err)
 	require.NotNil(t, kvp)
@@ -99,13 +99,13 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}{
 		{"TestEmptyProp", nodePropArgs{"VANode1", "empty", nil}, false, true, ``},
 		{"TestList0", nodePropArgs{"VANode1", "list", []string{"0"}}, false, true, `http://`},
-		{"TestList1", nodePropArgs{"VANode1", "list", []string{"1"}}, false, true, `janus`},
+		{"TestList1", nodePropArgs{"VANode1", "list", []string{"1"}}, false, true, `yorc`},
 		{"TestList2", nodePropArgs{"VANode1", "list", []string{"2"}}, false, true, `.io`},
-		{"TestListComplex", nodePropArgs{"VANode1", "list", nil}, false, true, `["http://","janus",".io"]`},
+		{"TestListComplex", nodePropArgs{"VANode1", "list", nil}, false, true, `["http://","yorc",".io"]`},
 		{"TestListExt0", nodePropArgs{"VANode2", "list", []string{"0"}}, false, true, `http://`},
-		{"TestListExt1", nodePropArgs{"VANode2", "list", []string{"1"}}, false, true, `janus`},
+		{"TestListExt1", nodePropArgs{"VANode2", "list", []string{"1"}}, false, true, `yorc`},
 		{"TestListExt2", nodePropArgs{"VANode2", "list", []string{"2"}}, false, true, `.io`},
-		{"TestListExtComplex", nodePropArgs{"VANode2", "list", nil}, false, true, `["http://","janus",".io"]`},
+		{"TestListExtComplex", nodePropArgs{"VANode2", "list", nil}, false, true, `["http://","yorc",".io"]`},
 		{"TestMap0", nodePropArgs{"VANode1", "map", []string{"one"}}, false, true, `1`},
 		{"TestMap1", nodePropArgs{"VANode1", "map", []string{"two"}}, false, true, `2`},
 		{"TestMapComplex", nodePropArgs{"VANode1", "map", nil}, false, true, `{"one":"1","two":"2"}`},
@@ -731,7 +731,7 @@ func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
 
 	results, err := GetOperationInput(kv, deploymentID, "ValueAssignmentNode2", prov.Operation{
 		Name:                   "tosca.interfaces.relationship.configure.pre_configure_target",
-		ImplementedInType:      "janus.tests.relationships.ValueAssignmentConnectsTo",
+		ImplementedInType:      "yorc.tests.relationships.ValueAssignmentConnectsTo",
 		ImplementationArtifact: "",
 		RelOp: prov.RelationshipOperation{
 			IsRelationshipOperation: true,
@@ -771,7 +771,7 @@ func testGlobalInputs(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 
 	nodeName := "GI"
-	giType := "janus.tests.nodes.GlobalInputs"
+	giType := "yorc.tests.nodes.GlobalInputs"
 	operationName := "tosca.interfaces.nodes.lifecycle.standard.create"
 
 	err = SetInstanceAttribute(deploymentID, nodeName, "0", "state", "initial")

@@ -19,16 +19,16 @@ import (
 
 	"encoding/json"
 	"github.com/armon/go-metrics"
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/metricsutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	"novaforge.bull.com/starlings-janus/janus/registry"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 type worker struct {
@@ -289,7 +289,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
-	case tasks.ScaleUp:
+	case tasks.ScaleOut:
 		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 
@@ -299,7 +299,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
-	case tasks.ScaleDown:
+	case tasks.ScaleIn:
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 		err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
 		if err != nil {

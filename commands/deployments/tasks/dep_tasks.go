@@ -7,23 +7,23 @@ import (
 	"os"
 	"path"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/helper/tabutil"
+	"github.com/ystia/yorc/rest"
 
 	"net/http"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/deployments"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
+	"github.com/ystia/yorc/commands/deployments"
+	"github.com/ystia/yorc/commands/httputil"
 )
 
 func init() {
 	deployments.DeploymentsCmd.AddCommand(tasksCmd)
 }
 
-var commErrorMsg = httputil.JanusAPIDefaultErrorMsg
+var commErrorMsg = httputil.YorcAPIDefaultErrorMsg
 var tasksCmd = &cobra.Command{
 	Use:   "tasks <DeploymentId>",
 	Short: "List tasks of a deployment",

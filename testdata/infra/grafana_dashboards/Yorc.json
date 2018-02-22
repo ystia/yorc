@@ -1,8 +1,8 @@
 {
   "dashboard": {
     "id": null,
-    "title": "Janus",
-    "originalTitle": "Janus",
+    "title": "Yorc",
+    "originalTitle": "Yorc",
     "tags": [],
     "style": "dark",
     "timezone": "browser",
@@ -54,7 +54,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "sumSeries(stats.counters.janus.http.*.*.*.count)"
+                "target": "sumSeries(stats.counters.yorc.http.*.*.*.count)"
               }
             ],
             "timeFrom": null,
@@ -127,7 +127,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "averageSeries(stats.timers.janus.http.*.*.mean)"
+                "target": "averageSeries(stats.timers.yorc.http.*.*.mean)"
               }
             ],
             "timeFrom": null,
@@ -211,7 +211,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "stats.gauges.janus.*.workers.free"
+                "target": "stats.gauges.yorc.*.workers.free"
               }
             ],
             "timeFrom": null,
@@ -287,7 +287,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "sumSeries(stats.gauges.janus.*.workers.free)"
+                "target": "sumSeries(stats.gauges.yorc.*.workers.free)"
               }
             ],
             "thresholds": "",
@@ -346,7 +346,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "stats.timers.janus.tasks.maxBlockTimeMs.upper"
+                "target": "stats.timers.yorc.tasks.maxBlockTimeMs.upper"
               }
             ],
             "thresholds": "",
@@ -406,7 +406,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "sumSeries(stats.gauges.janus.*.tasks.nbWaiting)",
+                "target": "sumSeries(stats.gauges.yorc.*.tasks.nbWaiting)",
                 "textEditor": true
               }
             ],
@@ -464,12 +464,12 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "stats.timers.janus.tasks.wait.mean"
+                "target": "stats.timers.yorc.tasks.wait.mean"
               }
             ],
             "timeFrom": null,
             "timeShift": null,
-            "title": "Janus Tasks Wait Time Avg",
+            "title": "Yorc Tasks Wait Time Avg",
             "tooltip": {
               "msResolution": false,
               "shared": true,
@@ -546,7 +546,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "averageSeries(stats.timers.janus.executor.delegate.*.*.*.mean)"
+                "target": "averageSeries(stats.timers.yorc.executor.delegate.*.*.*.mean)"
               }
             ],
             "timeFrom": null,
@@ -619,7 +619,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "averageSeries(stats.timers.janus.executor.operation.*.*.*.mean)"
+                "target": "averageSeries(stats.timers.yorc.executor.operation.*.*.*.mean)"
               }
             ],
             "timeFrom": null,
@@ -694,13 +694,13 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "asPercent(integral(transformNull(sumSeries(stats.counters.janus.executor.delegate.*.*.*.failures.count), 0)), #B)",
+                "target": "asPercent(integral(transformNull(sumSeries(stats.counters.yorc.executor.delegate.*.*.*.failures.count), 0)), #B)",
                 "textEditor": true
               },
               {
                 "hide": true,
                 "refId": "B",
-                "target": "integral(transformNull(sumSeries(stats.counters.janus.executor.delegate.*.*.*.*.count), 0))"
+                "target": "integral(transformNull(sumSeries(stats.counters.yorc.executor.delegate.*.*.*.*.count), 0))"
               }
             ],
             "thresholds": "25,50",
@@ -757,13 +757,13 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "asPercent(integral(transformNull(sumSeries(stats.counters.janus.executor.operation.*.*.*.failures.count), 0)), #B)",
+                "target": "asPercent(integral(transformNull(sumSeries(stats.counters.yorc.executor.operation.*.*.*.failures.count), 0)), #B)",
                 "textEditor": true
               },
               {
                 "hide": true,
                 "refId": "B",
-                "target": "integral(transformNull(sumSeries(stats.counters.janus.executor.operation.*.*.*.*.count), 0))"
+                "target": "integral(transformNull(sumSeries(stats.counters.yorc.executor.operation.*.*.*.*.count), 0))"
               }
             ],
             "thresholds": "25,50",
@@ -829,7 +829,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "stats.gauges.janus.*.runtime.num_goroutines"
+                "target": "stats.gauges.yorc.*.runtime.num_goroutines"
               }
             ],
             "timeFrom": null,
@@ -902,7 +902,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "stats.timers.janus.runtime.gc_pause_ns.mean"
+                "target": "stats.timers.yorc.runtime.gc_pause_ns.mean"
               }
             ],
             "timeFrom": null,
@@ -975,7 +975,7 @@
             "targets": [
               {
                 "refId": "A",
-                "target": "stats.gauges.janus.*.runtime.alloc_bytes"
+                "target": "stats.gauges.yorc.*.runtime.alloc_bytes"
               }
             ],
             "timeFrom": null,

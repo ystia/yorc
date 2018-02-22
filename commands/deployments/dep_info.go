@@ -18,13 +18,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
-	"novaforge.bull.com/starlings-janus/janus/helper/tabutil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/helper/tabutil"
+	"github.com/ystia/yorc/rest"
+	"github.com/ystia/yorc/tosca"
 )
 
-var commErrorMsg = httputil.JanusAPIDefaultErrorMsg
+var commErrorMsg = httputil.YorcAPIDefaultErrorMsg
 
 func init() {
 	var detailedInfo bool
@@ -44,7 +44,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 			}
 			colorize := !NoColor
 			if colorize {
-				commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(httputil.JanusAPIDefaultErrorMsg)
+				commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(httputil.YorcAPIDefaultErrorMsg)
 			}
 			request, err := client.NewRequest("GET", "/deployments/"+args[0], nil)
 			if err != nil {
@@ -92,7 +92,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 	DeploymentsCmd.AddCommand(infoCmd)
 }
 
-func tableBasedDeploymentRendering(client *httputil.JanusClient, dep rest.Deployment, colorize bool) []error {
+func tableBasedDeploymentRendering(client *httputil.YorcClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	nodesTable := tabutil.NewTable()
 	nodesTable.AddHeaders("Node", "Statuses")
@@ -172,7 +172,7 @@ func tableBasedDeploymentRendering(client *httputil.JanusClient, dep rest.Deploy
 	return errs
 }
 
-func detailedDeploymentRendering(client *httputil.JanusClient, dep rest.Deployment, colorize bool) []error {
+func detailedDeploymentRendering(client *httputil.YorcClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	var err error
 	nodesList := []string{"Nodes:"}

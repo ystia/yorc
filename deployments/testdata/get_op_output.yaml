@@ -5,17 +5,17 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
-  - normative-types: <janus-types.yml>
+  - normative-types: <yorc-types.yml>
 
 node_types:
-  janus.tests.nodes.GetOPOutputs:
+  yorc.tests.nodes.GetOPOutputs:
     derived_from: tosca.nodes.Root
     attributes:
       partition_name: { get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] } # this is a hack to specifies that the attribute is filled from a relationship.
     requirements:
       - partition: 
           capability: tosca.capabilities.Node
-          relationship: janus.tests.relationships.GetOPOutputsRel
+          relationship: yorc.tests.relationships.GetOPOutputsRel
           occurrences: [ 1, 1]
     interfaces:
       Standard:
@@ -26,7 +26,7 @@ node_types:
           implementation: scripts/start.sh
 
 relationship_types:
-  janus.tests.relationships.GetOPOutputsRel:
+  yorc.tests.relationships.GetOPOutputsRel:
     derived_from: tosca.relationships.DependsOn
     attributes:
       partition_name: { get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }
@@ -56,25 +56,25 @@ topology_template:
             secure: true
             network_name: PRIVATE
     GetOPOutputsNode:
-      type: janus.tests.nodes.GetOPOutputs
+      type: yorc.tests.nodes.GetOPOutputs
       requirements:
         - partition:
             node: BS
             capability: tosca.capabilities.Node
-            relationship: janus.tests.relationships.GetOPOutputsRel
+            relationship: yorc.tests.relationships.GetOPOutputsRel
     GetOPOutputsNodeFirstReq:
-      type: janus.tests.nodes.GetOPOutputs
+      type: yorc.tests.nodes.GetOPOutputs
       requirements:
         - partition:
             node: BS
             capability: tosca.capabilities.Node
-            relationship: janus.tests.relationships.GetOPOutputsRel
+            relationship: yorc.tests.relationships.GetOPOutputsRel
         - host:
             node: Compute
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     GetOPOutputsNodeSecondReq:
-      type: janus.tests.nodes.GetOPOutputs
+      type: yorc.tests.nodes.GetOPOutputs
       requirements:
         - host:
             node: Compute
@@ -83,7 +83,7 @@ topology_template:
         - partition:
             node: BS
             capability: tosca.capabilities.Node
-            relationship: janus.tests.relationships.GetOPOutputsRel
+            relationship: yorc.tests.relationships.GetOPOutputsRel
     BS:
       type: tosca.nodes.Root
 

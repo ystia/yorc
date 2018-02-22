@@ -1,15 +1,15 @@
-tosca_definitions_version: janus_tosca_simple_yaml_1_0
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: janus-hostspool-types
-template_author: Janus
+template_name: yorc-hostspool-types
+template_author: yorc
 template_version: 1.0.0
 
 imports:
-  - janus: <janus-types.yml>
+  - yorc: <yorc-types.yml>
 
 node_types:
-  janus.nodes.hostspool.Compute:
-    derived_from: janus.nodes.Compute
+  yorc.nodes.hostspool.Compute:
+    derived_from: yorc.nodes.Compute
     properties:
       filters:
         type: list
@@ -22,7 +22,7 @@ node_types:
         description: The hostname as known in the hosts pool
     capabilities:
       endpoint:
-        type: janus.capabilities.Endpoint.ProvisioningAdmin
+        type: yorc.capabilities.Endpoint.ProvisioningAdmin
         properties:
           credentials:
-            user: "not significant, will be set by Janus itself"
+            user: "not significant, will be set by yorc itself"

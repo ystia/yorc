@@ -1,15 +1,15 @@
-tosca_definitions_version: janus_tosca_simple_yaml_1_0
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: janus-aws-types
-template_author: Janus
+template_name: yorc-aws-types
+template_author: yorc
 template_version: 1.0.0
 
 imports:
-  - janus: <janus-types.yml>
+  - yorc: <yorc-types.yml>
 
 node_types:
-  janus.nodes.aws.Compute:
-    derived_from: janus.nodes.Compute
+  yorc.nodes.aws.Compute:
+    derived_from: yorc.nodes.Compute
     properties:
       image_id:
         type: string
@@ -50,5 +50,5 @@ node_types:
         type: string
         description: The public DNS name assigned to the instance.
 
-  janus.nodes.aws.PublicNetwork:
+  yorc.nodes.aws.PublicNetwork:
     derived_from: tosca.nodes.Network

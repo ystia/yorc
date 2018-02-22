@@ -1,8 +1,8 @@
 variable "ssh_key_file" {
-  default = "~/.ssh/janus.pem"
+  default = "~/.ssh/yorc.pem"
 }
 
-variable "janus_instances" {
+variable "yorc_instances" {
   default = 1
 }
 
@@ -28,10 +28,10 @@ variable "keystone_password" {}
 variable "keystone_tenant" {}
 variable "keystone_url" {}
 
-variable "janus_compute_image_id" {}
-variable "janus_compute_flavor_id" {}
+variable "yorc_compute_image_id" {}
+variable "yorc_compute_flavor_id" {}
 
-variable "janus_compute_manager_availability_zone" {
+variable "yorc_compute_manager_availability_zone" {
   default = ""
 }
 

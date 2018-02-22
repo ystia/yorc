@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/api"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/helper/sshutil"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/sshutil"
 )
 
 var dummySSHkey = `-----BEGIN RSA PRIVATE KEY-----

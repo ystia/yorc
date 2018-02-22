@@ -9,7 +9,7 @@ imports:
 
 
 node_types:
-  janus.tests.nodes.GlobalInputs:
+  yorc.tests.nodes.GlobalInputs:
     derived_from: tosca.nodes.Root
     properties:
       p1:
@@ -50,7 +50,7 @@ topology_template:
             secure: true
             network_name: PRIVATE
     GI:
-      type: janus.tests.nodes.GlobalInputs
+      type: yorc.tests.nodes.GlobalInputs
       properties:
         p1: "Value1"
       requirements:

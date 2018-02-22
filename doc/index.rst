@@ -1,10 +1,10 @@
-.. Janus documentation master file, created by
+.. Yorc documentation master file, created by
    sphinx-quickstart on Mon Mar 20 16:47:58 2017.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 =============================
-Janus |release| Documentation
+Yorc |release| Documentation
 =============================
 
 .. toctree::

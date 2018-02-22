@@ -10,10 +10,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"novaforge.bull.com/starlings-janus/janus/events"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tosca"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tosca"
 
 	"vbom.ml/util/sortorder"
 )
@@ -491,7 +491,7 @@ func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "janus.capabilities.openstack.FIPConnectivity" {
+		if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "yorc.capabilities.openstack.FIPConnectivity" {
 			// Not a floating ip see next
 			continue
 		}

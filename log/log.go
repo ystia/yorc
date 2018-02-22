@@ -15,7 +15,7 @@ var (
 )
 
 func init() {
-	switch strings.ToUpper(os.Getenv("JANUS_LOG")) {
+	switch strings.ToUpper(os.Getenv("YORC_LOG")) {
 	case "DEBUG":
 		debug = true
 	case "1":

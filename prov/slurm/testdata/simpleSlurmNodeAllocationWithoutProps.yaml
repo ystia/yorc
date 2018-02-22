@@ -8,12 +8,12 @@ metadata:
 description: ""
 
 imports:
-  - path: <janus-slurm-types.yml>
+  - path: <yorc-slurm-types.yml>
 
 topology_template:
   node_templates:
     Compute:
-      type: janus.nodes.slurm.Compute
+      type: yorc.nodes.slurm.Compute
       capabilities:
         scalable:
           properties:

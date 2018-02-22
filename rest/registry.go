@@ -1,8 +1,8 @@
 package rest
 
 import (
+	"github.com/ystia/yorc/registry"
 	"net/http"
-	"novaforge.bull.com/starlings-janus/janus/registry"
 )
 
 var reg = registry.GetRegistry()

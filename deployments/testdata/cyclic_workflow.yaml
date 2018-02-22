@@ -8,7 +8,7 @@ metadata:
 description: This template contains tests of inline workflow activity
 
 imports:
-  - normative-types: <janus-types.yml>
+  - normative-types: <yorc-types.yml>
 
 topology_template:
   node_templates:

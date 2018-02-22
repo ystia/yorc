@@ -5,18 +5,18 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
-  - openstack-types: <janus-openstack-types.yml>
+  - openstack-types: <yorc-openstack-types.yml>
 
 topology_template:
   node_templates:
     Compute:
-      type: janus.nodes.openstack.Compute
+      type: yorc.nodes.openstack.Compute
       properties:
         user: cloud-user
         flavor: 2
         image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63
         availability_zone: nova
-        key_pair: janus
+        key_pair: yorc
         security_groups: openbar,default
       capabilities:
         endpoint:

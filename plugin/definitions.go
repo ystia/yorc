@@ -9,7 +9,7 @@ import (
 
 // Definitions is the interface that allows a plugin to export TOSCA definitions
 type Definitions interface {
-	// GetDefinitions retruns a map of definition names / definition content
+	// GetDefinitions returns a map of definition names / definition content
 	GetDefinitions() (map[string][]byte, error)
 }
 

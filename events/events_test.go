@@ -16,8 +16,8 @@ import (
 
 	"encoding/json"
 
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/testutil"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/testutil"
 )
 
 func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {

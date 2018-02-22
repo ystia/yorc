@@ -17,10 +17,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/log"
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
 func extractFile(f *zip.File, path string) {
@@ -53,17 +53,17 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Panicf("%v", errors.Wrapf(err, "Failed to unescape given deployment id %q", id))
 		}
-		matched, err := regexp.MatchString(JanusDeploymentIDPattern, id)
+		matched, err := regexp.MatchString(YorcDeploymentIDPattern, id)
 		if err != nil {
 			log.Panicf("%v", errors.Wrapf(err, "Failed to parse given deployment id %q", id))
 		}
 		if !matched {
-			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should respect the following format: %q", JanusDeploymentIDPattern)))
+			writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should respect the following format: %q", YorcDeploymentIDPattern)))
 			return
 		}
 		// Do not impose a max id length as it doesn't have a concrete impact for now
-		// if len(id) > JanusDeploymentIDMaxLength {
-		// 	writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", JanusDeploymentIDMaxLength, len(id))))
+		// if len(id) > YorcDeploymentIDMaxLength {
+		// 	writeError(w, r, newBadRequestError(errors.Errorf("Deployment id should be less than %d characters (actual size %d)", YorcDeploymentIDMaxLength, len(id))))
 		// 	return
 		// }
 		dExits, err := deployments.DoesDeploymentExists(s.consulClient.KV(), id)

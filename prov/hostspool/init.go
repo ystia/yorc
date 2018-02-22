@@ -1,8 +1,8 @@
 package hostspool
 
-import "novaforge.bull.com/starlings-janus/janus/registry"
+import "github.com/ystia/yorc/registry"
 
 func init() {
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`janus\.nodes\.hostspool\..*`}, &defaultExecutor{}, registry.BuiltinOrigin)
+	reg.RegisterDelegates([]string{`yorc\.nodes\.hostspool\..*`}, &defaultExecutor{}, registry.BuiltinOrigin)
 }

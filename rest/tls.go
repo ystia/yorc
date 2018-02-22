@@ -6,7 +6,7 @@ import (
 	"crypto/tls"
 
 	"github.com/pkg/errors"
-	"novaforge.bull.com/starlings-janus/janus/config"
+	"github.com/ystia/yorc/config"
 )
 
 func wrapListenerTLS(listener net.Listener, cfg config.Configuration) (net.Listener, error) {

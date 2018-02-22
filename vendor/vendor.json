@@ -1386,169 +1386,169 @@
 		},
 		{
 			"checksumSHA1": "0mQ2D0dwFstGgC62nyP4M2mAPcY=",
-			"path": "novaforge.bull.com/starlings-janus/janus",
+			"path": "github.com/ystia/yorc",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "1aojZNZdQ5nI1zYlInbqAfXUWyY=",
-			"path": "novaforge.bull.com/starlings-janus/janus/bench",
+			"path": "github.com/ystia/yorc/bench",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "U98RMCoJ2wQaCbrW5SGfN8wIVwY=",
-			"path": "novaforge.bull.com/starlings-janus/janus/commands",
+			"path": "github.com/ystia/yorc/commands",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "zLTjcd3A0Haszh3/xfGem2YJPdQ=",
-			"path": "novaforge.bull.com/starlings-janus/janus/config",
+			"path": "github.com/ystia/yorc/config",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "1CQ/LXcI02ZrysdZrqKFLp27kr8=",
-			"path": "novaforge.bull.com/starlings-janus/janus/deployments",
+			"path": "github.com/ystia/yorc/deployments",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "wWF2CayIHqx2llDvqxM1PizLqy4=",
-			"path": "novaforge.bull.com/starlings-janus/janus/events",
+			"path": "github.com/ystia/yorc/events",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "BPaRm/SwVCrbAVgJzHwbaNbLDHY=",
-			"path": "novaforge.bull.com/starlings-janus/janus/helper/collections",
+			"path": "github.com/ystia/yorc/helper/collections",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "FM9vqAiEjizZZyx6s0bYd1EOD3A=",
-			"path": "novaforge.bull.com/starlings-janus/janus/helper/consulutil",
+			"path": "github.com/ystia/yorc/helper/consulutil",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "f1dsyZluRS/pVuS+7MJJX0LZKoo=",
-			"path": "novaforge.bull.com/starlings-janus/janus/helper/executil",
+			"path": "github.com/ystia/yorc/helper/executil",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "B3DdrrgjfIeEVTPvqW/nxqBWCqc=",
-			"path": "novaforge.bull.com/starlings-janus/janus/helper/mathutil",
+			"path": "github.com/ystia/yorc/helper/mathutil",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "iaEZRDkTwJ/4VZ7Ue3/iH8M4p8k=",
-			"path": "novaforge.bull.com/starlings-janus/janus/helper/provutil",
+			"path": "github.com/ystia/yorc/helper/provutil",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "+HLDP1qCIvzbUi6MYtok0H70zPc=",
-			"path": "novaforge.bull.com/starlings-janus/janus/helper/tabutil",
+			"path": "github.com/ystia/yorc/helper/tabutil",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "sJChodeY80FwrqO5/HvAtWKJmrc=",
-			"path": "novaforge.bull.com/starlings-janus/janus/helper/ziputil",
+			"path": "github.com/ystia/yorc/helper/ziputil",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "Y3YyukBdCmUSRerSStyvL1z0dGE=",
-			"path": "novaforge.bull.com/starlings-janus/janus/log",
+			"path": "github.com/ystia/yorc/log",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "f0Bnr0/y7gLK/g1BP1AmOYLQOk4=",
-			"path": "novaforge.bull.com/starlings-janus/janus/plugin",
+			"path": "github.com/ystia/yorc/plugin",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "1tIaqOmMBf9yMRRASNUw3vR7jik=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov",
+			"path": "github.com/ystia/yorc/prov",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "nSv/akM8j+cTIdWKaol/EHLLoMM=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/ansible",
+			"path": "github.com/ystia/yorc/prov/ansible",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "OlElsDSD3vQga1BxUDsuj7dhyTM=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/kubernetes",
+			"path": "github.com/ystia/yorc/prov/kubernetes",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "ACvGhr0iZBq35yWMS6LVm3EvruA=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/operations",
+			"path": "github.com/ystia/yorc/prov/operations",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "8V2tYco02aBFjQ96t0Zp4P614xs=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/terraform",
+			"path": "github.com/ystia/yorc/prov/terraform",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "ZghuHj3xpfZg/59svBsfq3Vlyzk=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/terraform/commons",
+			"path": "github.com/ystia/yorc/prov/terraform/commons",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "xMkFi5OrNS8IPBXKgAB9Idj+/dM=",
-			"path": "novaforge.bull.com/starlings-janus/janus/prov/terraform/openstack",
+			"path": "github.com/ystia/yorc/prov/terraform/openstack",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "71DokfLhIZpcB1S5EG/HnMyDxxw=",
-			"path": "novaforge.bull.com/starlings-janus/janus/registry",
+			"path": "github.com/ystia/yorc/registry",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "ZNs8l40zNxkS15ucYYV3v2cvdq4=",
-			"path": "novaforge.bull.com/starlings-janus/janus/rest",
+			"path": "github.com/ystia/yorc/rest",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "D6iRXSN9CBq8rC68ImbO5zvCYMI=",
-			"path": "novaforge.bull.com/starlings-janus/janus/server",
+			"path": "github.com/ystia/yorc/server",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "rG5X5Rt8DFcCz0JoeDGwdAk7Cac=",
-			"path": "novaforge.bull.com/starlings-janus/janus/tasks",
+			"path": "github.com/ystia/yorc/tasks",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "AdZ/gtiTdYCLv+A6ul/vS3K2poM=",
-			"path": "novaforge.bull.com/starlings-janus/janus/tasks/workflow",
+			"path": "github.com/ystia/yorc/tasks/workflow",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
 		{
 			"checksumSHA1": "+jISaN8KFCsDY5IK2g/rwrYvXNA=",
-			"path": "novaforge.bull.com/starlings-janus/janus/tosca",
+			"path": "github.com/ystia/yorc/tosca",
 			"revision": "47fdeadfd08ebc6057c22fecf20cead052cda34c",
 			"revisionTime": "2017-07-06T12:00:39Z"
 		},
@@ -1559,5 +1559,5 @@
 			"revisionTime": "2016-01-21T19:25:42Z"
 		}
 	],
-	"rootPath": "novaforge.bull.com/starlings-janus/janus"
+	"rootPath": "github.com/ystia/yorc"
 }

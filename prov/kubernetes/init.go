@@ -1,6 +1,6 @@
 package kubernetes
 
-import "novaforge.bull.com/starlings-janus/janus/registry"
+import "github.com/ystia/yorc/registry"
 
 const (
 	kubernetesArtifactImplementation = "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes"

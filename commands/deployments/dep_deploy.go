@@ -11,9 +11,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"novaforge.bull.com/starlings-janus/janus/commands/httputil"
-	"novaforge.bull.com/starlings-janus/janus/helper/ziputil"
-	"novaforge.bull.com/starlings-janus/janus/rest"
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/helper/ziputil"
+	"github.com/ystia/yorc/rest"
 )
 
 func init() {
@@ -24,8 +24,8 @@ func init() {
 		Use:   "deploy <csar_path>",
 		Short: "Deploy an application",
 		Long: `Deploy a file or directory pointed by <csar_path>
-	If <csar_path> point to a valid zip archive it is submitted to Janus as it.
-	If <csar_path> point to a file or directory it is zipped before beeing submitted to Janus.
+	If <csar_path> point to a valid zip archive it is submitted to Yorc as it.
+	If <csar_path> point to a file or directory it is zipped before being submitted to Yorc.
 	If <csar_path> point to a single file it should be TOSCA YAML description.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
@@ -94,12 +94,12 @@ func init() {
 	deployCmd.PersistentFlags().BoolVarP(&shouldStreamLogs, "stream-logs", "l", false, "Stream logs after deploying the CSAR. In this mode logs can't be filtered, to use this feature see the \"log\" command.")
 	deployCmd.PersistentFlags().BoolVarP(&shouldStreamEvents, "stream-events", "e", false, "Stream events after deploying the CSAR.")
 	// Do not impose a max id length as it doesn't have a concrete impact for now
-	//deployCmd.PersistentFlags().StringVarP(&deploymentID, "id", "", "", fmt.Sprintf("Specify a id for this deployment. This id should not already exists, should respect the following format: %q and should be less than %d characters long", rest.JanusDeploymentIDPattern, rest.JanusDeploymentIDMaxLength))
-	deployCmd.PersistentFlags().StringVarP(&deploymentID, "id", "", "", fmt.Sprintf("Specify a id for this deployment. This id should not already exists, should respect the following format: %q", rest.JanusDeploymentIDPattern))
+	//deployCmd.PersistentFlags().StringVarP(&deploymentID, "id", "", "", fmt.Sprintf("Specify a id for this deployment. This id should not already exists, should respect the following format: %q and should be less than %d characters long", rest.YorcDeploymentIDPattern, rest.YorcDeploymentIDMaxLength))
+	deployCmd.PersistentFlags().StringVarP(&deploymentID, "id", "", "", fmt.Sprintf("Specify a id for this deployment. This id should not already exists, should respect the following format: %q", rest.YorcDeploymentIDPattern))
 	DeploymentsCmd.AddCommand(deployCmd)
 }
 
-func submitCSAR(csarZip []byte, client *httputil.JanusClient, deploymentID string) (string, error) {
+func submitCSAR(csarZip []byte, client *httputil.YorcClient, deploymentID string) (string, error) {
 	var request *http.Request
 	var err error
 	if deploymentID != "" {
@@ -124,5 +124,5 @@ func submitCSAR(csarZip []byte, client *httputil.JanusClient, deploymentID strin
 	if location := response.Header.Get("Location"); location != "" {
 		return location, nil
 	}
-	return "", errors.New("No \"Location\" header returned in Janus response")
+	return "", errors.New("No \"Location\" header returned in Yorc response")
 }

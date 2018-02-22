@@ -15,12 +15,12 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
-	"novaforge.bull.com/starlings-janus/janus/config"
-	"novaforge.bull.com/starlings-janus/janus/deployments"
-	"novaforge.bull.com/starlings-janus/janus/helper/consulutil"
-	"novaforge.bull.com/starlings-janus/janus/prov"
-	"novaforge.bull.com/starlings-janus/janus/prov/operations"
-	janus_testutil "novaforge.bull.com/starlings-janus/janus/testutil"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/operations"
+	yorc_testutil "github.com/ystia/yorc/testutil"
 )
 
 // From now only WorkingDirectory is necessary for those tests
@@ -39,7 +39,7 @@ func TestTemplates(t *testing.T) {
 		Artifacts:              map[string]string{"scripts": "my_scripts"},
 		OverlayPath:            "/some/local/path",
 		VarInputsNames:         []string{"INSTANCE", "PORT"},
-		OperationRemoteBaseDir: ".janus/path/on/remote",
+		OperationRemoteBaseDir: ".yorc/path/on/remote",
 	}
 
 	e := &executionScript{
@@ -62,7 +62,7 @@ func TestTemplates(t *testing.T) {
 }
 
 func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	deploymentID := janus_testutil.BuildDeploymentID(t)
+	deploymentID := yorc_testutil.BuildDeploymentID(t)
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/execTemplate.yml")
 	require.NoError(t, err, "Can't store deployment definition")
 	nodeAName := "NodeA"
@@ -92,7 +92,7 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	})
 
 	t.Run("testExecutionResolveInputsOnNode", func(t *testing.T) {
-		testExecutionResolveInputsOnNode(t, kv, deploymentID, nodeAName, "janus.types.A", "tosca.interfaces.node.lifecycle.standard.create")
+		testExecutionResolveInputsOnNode(t, kv, deploymentID, nodeAName, "yorc.types.A", "tosca.interfaces.node.lifecycle.standard.create")
 	})
 	t.Run("testExecutionGenerateOnNode", func(t *testing.T) {
 		testExecutionGenerateOnNode(t, kv, deploymentID, nodeAName, "tosca.interfaces.node.lifecycle.standard.create")
@@ -103,7 +103,7 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	}
 	for i, operation := range operationTestCases {
 		t.Run("testExecutionResolveInputsOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionResolveInputsOnRelationshipSource(t, kv, deploymentID, nodeAName, nodeBName, operation, "janus.types.Rel", "connect", "SOURCE")
+			testExecutionResolveInputsOnRelationshipSource(t, kv, deploymentID, nodeAName, nodeBName, operation, "yorc.types.Rel", "connect", "SOURCE")
 		})
 		t.Run("testExecutionGenerateOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
 			testExecutionGenerateOnRelationshipSource(t, kv, deploymentID, nodeAName, operation, "connect", "SOURCE")
@@ -116,7 +116,7 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	for i, operation := range operationTestCases {
 		t.Run("testExecutionResolveInputOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
-			testExecutionResolveInputOnRelationshipTarget(t, kv, deploymentID, nodeAName, nodeBName, operation, "janus.types.Rel", "connect", "TARGET")
+			testExecutionResolveInputOnRelationshipTarget(t, kv, deploymentID, nodeAName, nodeBName, operation, "yorc.types.Rel", "connect", "TARGET")
 		})
 
 		t.Run("testExecutionGenerateOnRelationshipTarget-"+strconv.Itoa(i), func(t *testing.T) {
@@ -228,16 +228,16 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
-	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-  - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
-  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.janus/wrapper"
+  - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
 
       environment:
         NodeA_0_A1: "/var/www"
@@ -370,17 +370,17 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
-	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-  - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
+  - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
 
-  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.janus/wrapper"
+  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"
@@ -499,17 +499,17 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	require.Nil(t, err)
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
-	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".janus")
+	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
 
 	expectedResult := `- name: Executing script {{ script_to_run }}
   hosts: all
   strategy: free
   tasks:
-  - file: path="{{ ansible_env.HOME}}/tmp/.janus" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.janus/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.janus" mode=0744
+  - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
+  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
 
-  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.janus/wrapper"
+  - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:
         NodeA_0_A1: "/var/www"
         NodeA_1_A1: "/var/www"

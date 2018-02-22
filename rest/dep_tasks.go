@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"novaforge.bull.com/starlings-janus/janus/tasks"
+	"github.com/ystia/yorc/tasks"
 )
 
 func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskID string) bool {

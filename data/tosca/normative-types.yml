@@ -1,11 +1,11 @@
-tosca_definitions_version: janus_tosca_simple_yaml_1_0
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
 template_name: tosca-normative-types
 template_author: TOSCA TC
 template_version: 1.0.0
 
 description: >
-  Contains the normative types definition as currently supported in Janus.
+  Contains the normative types definition as currently supported in yorc.
 
 data_types:
   tosca.datatypes.Root:
@@ -942,7 +942,7 @@ node_types:
         type: tosca.capabilities.Connectivity
 
 
-# NOTE: Not yet supported in Janus
+# NOTE: Not yet supported in yorc
 group_types:
   tosca.groups.Root:
     description: The TOSCA Group Type all other TOSCA Group Types derive from
@@ -959,7 +959,7 @@ group_types:
         delete:
           description: Standard lifecycle delete operation.
 
-# NOTE: Not yet supported in Janus
+# NOTE: Not yet supported in yorc
 policy_types:
   tosca.policies.Root:
     description: The TOSCA Policy Type all other TOSCA Policy Types derive from

@@ -5,7 +5,7 @@ template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
 imports:
-  - normative-types: <janus-types.yml>
+  - normative-types: <yorc-types.yml>
 
 artifact_types:
   duplicating_bash:

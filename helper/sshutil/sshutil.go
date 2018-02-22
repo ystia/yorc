@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 	"io"
-	"novaforge.bull.com/starlings-janus/janus/log"
 )
 
 // Client is interface allowing running command
