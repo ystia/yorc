@@ -72,5 +72,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testGetCapabilityProperties", func(t *testing.T) {
 			testGetCapabilityProperties(t, kv)
 		})
+		t.Run("testImportTopologyTemplate", func(t *testing.T) {
+			testImportTopologyTemplate(t, kv)
+		})
 	})
 }

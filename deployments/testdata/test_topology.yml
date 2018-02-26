@@ -1,0 +1,188 @@
+tosca_definitions_version: alien_dsl_2_0_0
+metadata: {template_name: topotest-Environment, template_version: 0.1.0-SNAPSHOT, template_author: yorcTester}
+description: ''
+imports:
+- {file: test_container.yml}
+- {file: <yorc-openstack-types.yml>}
+- {file: test_module.yml}
+- {file: test_component.yml}
+- {file: <yorc-types.yml>}
+topology_template:
+  node_templates:
+    TestCompute:
+      type: yorc.nodes.openstack.Compute
+      properties: {image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63, flavor: 2}
+      requirements:
+      - network: {node: Network, capability: tosca.capabilities.Connectivity, relationship: tosca.relationships.Network}
+      capabilities:
+        endpoint:
+          properties:
+            credentials: {user: my-user}
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        os:
+          properties: {architecture: x86_64, type: linux, distribution: ubuntu}
+        scalable:
+          properties: {min_instances: 1, max_instances: 1, default_instances: 1}
+    TestComponent:
+      type: yorc.test.nodes.TestComponent
+      requirements:
+      - host: {node: TestContainer, capability: yorc.test.capabilities.TestContainerCapability, relationship: yorc.test.relationships.TestComponentOnContainer}
+      - testmodule: {node: TestModule, capability: yorc.test.capabilities.TestModuleCapability, relationship: yorc.test.relationships.TestComponentConnectsToModule}
+    TestContainer:
+      type: yorc.test.nodes.TestContainer
+      properties: {component_version: 1.0, port: 80, document_root: /var/www}
+      requirements:
+      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+      capabilities:
+        data_endpoint:
+          properties: {protocol: tcp, secure: false, network_name: PRIVATE, initiator: source}
+        admin_endpoint:
+          properties: {secure: true, protocol: tcp, network_name: PRIVATE, initiator: source}
+    Network:
+      type: yorc.nodes.openstack.Network
+      properties: {ip_version: 4}
+    TestModule:
+      type: yorc.test.nodes.TestModule
+      properties: {component_version: 1.0}
+      requirements:
+      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+  outputs:
+    TestComponent_url:
+      value:
+        get_attribute: [Test, url]
+  workflows:
+    install:
+      steps:
+        TestContainer_created:
+          target: TestContainer
+          activities:
+          - {set_state: created}
+          on_success: [TestContainer_configuring]
+        TestComponent_create:
+          target: TestComponent 
+          activities:
+          - {call_operation: Standard.create}
+          on_success: [TestComponent_created]
+        TestContainer_started:
+          target: TestContainer
+          activities:
+          - {set_state: started}
+          on_success: [TestComponent_initial]
+        TestContainer_configured:
+          target: TestContainer
+          activities:
+          - {set_state: configured}
+          on_success: [TestContainer_starting]
+        TestComponent_initial:
+          target: TestComponent 
+          activities:
+          - {set_state: initial}
+          on_success: [TestComponent_creating]
+        TestCompute_install:
+          target: TestCompute
+          activities:
+          - {delegate: install}
+          on_success: [TestContainer_initial, TestModule_initial]
+        TestContainer_starting:
+          target: TestContainer
+          activities:
+          - {set_state: starting}
+          on_success: [TestContainer_start]
+        TestContainer_start:
+          target: TestContainer
+          activities:
+          - {call_operation: Standard.start}
+          on_success: [TestContainer_started]
+        TestComponent_configured:
+          target: TestComponent 
+          activities:
+          - {set_state: configured}
+          on_success: [TestComponent_starting]
+        TestComponent_creating:
+          target: TestComponent 
+          activities:
+          - {set_state: creating}
+          on_success: [TestComponent_create]
+        TestModule_created:
+          target: TestModule
+          activities:
+          - {set_state: created}
+          on_success: [TestModule_configuring]
+        TestModule_started:
+          target: TestModule
+          activities:
+          - {set_state: started}
+          on_success: [TestComponent_initial]
+        TestContainer_create:
+          target: TestContainer
+          activities:
+          - {call_operation: Standard.create}
+          on_success: [TestContainer_created]
+        Network_install:
+          target: Network
+          activities:
+          - {delegate: install}
+          on_success: [TestCompute_install]
+        TestModule_initial:
+          target: TestModule
+          activities:
+          - {set_state: initial}
+          on_success: [TestModule_creating]
+        TestModule_creating:
+          target: TestModule
+          activities:
+          - {set_state: creating}
+          on_success: [TestModule_create]
+        TestContainer_initial:
+          target: TestContainer
+          activities:
+          - {set_state: initial}
+          on_success: [TestContainer_creating]
+        TestComponent_created:
+          target: TestComponent 
+          activities:
+          - {set_state: created}
+          on_success: [TestComponent_configuring]
+        TestContainer_configuring:
+          target: TestContainer
+          activities:
+          - {set_state: configuring}
+          on_success: [TestContainer_configured]
+        TestModule_create:
+          target: TestModule
+          activities:
+          - {call_operation: Standard.create}
+          on_success: [TestModule_created]
+        TestModule_configuring:
+          target: TestModule
+          activities:
+          - {set_state: configuring}
+          on_success: [TestModule_configured]
+        TestModule_configured:
+          target: TestModule
+          activities:
+          - {set_state: configured}
+          on_success: [TestModule_starting]
+        TestContainer_creating:
+          target: TestContainer
+          activities:
+          - {set_state: creating}
+          on_success: [TestContainer_create]
+        TestComponent_start:
+          target: TestComponent 
+          activities:
+          - {call_operation: Standard.start}
+          on_success: [TestComponent_started]
+        TestComponent_starting:
+          target: TestComponent 
+          activities:
+          - {set_state: starting}
+          on_success: [TestComponent_start]
+        TestModule_starting:
+          target: TestModule
+          activities:
+          - {set_state: starting}
+          on_success: [TestModule_started]

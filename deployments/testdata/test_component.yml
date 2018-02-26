@@ -1,0 +1,83 @@
+tosca_definitions_version: alien_dsl_2_0_0
+metadata: {template_name: test-component, template_version: 2.0.0-SNAPSHOT, template_author: yorcTester}
+imports: []
+description: |
+  Test Component definition. Contains types as well as a template definition
+data_types:
+yorc.test.ComplexDataType:
+    derived_from: tosca.datatypes.Root
+    properties:
+      nested: {type: string}
+      nested_array:
+        type: list
+        entry_schema: {type: string}
+      nested_map:
+        type: map
+        entry_schema: {type: string}
+node_types:
+  yorc.test.nodes.TestComponent:
+    description: |
+      Test component
+    derived_from: tosca.nodes.SoftwareComponent
+    attributes:
+      host:
+        get_attribute: [HOST, ip_address]
+      port:
+        get_property: [HOST, port]
+      url:
+        concat:
+        - http://
+        - get_attribute: [HOST, public_ip_address]
+        - ':'
+        - get_property: [HOST, port]
+    requirements:
+    - host: {capability: yorc.test.capabilities.TestContainerCapability, relationship: yorc.test.relationships.TestComponentOnContainer}
+    - php: {capability: yorc.test.capabilities.TestModuleCapability, relationship: yorc.test.relationships.TestComponentConnectsToModule}
+    interfaces:
+      Standard: {create: scripts/create.sh, start: scripts/start.sh}
+    artifacts:
+    - utils_scripts: {file: test, type: tosca.artifacts.File}
+relationship_types:
+  yorc.test.relationships.TestComponentOnContainer:
+    derived_from: tosca.relationships.HostedOn
+    valid_target_types: [yorc.test.capabilities.TestContainerCapability]
+  yorc.test.relationships.TestComponentConnectsToModule:
+    derived_from: tosca.relationships.ConnectsTo
+    valid_target_types: [yorc.test.capabilities.TestModuleCapability]
+capability_types:
+  yorc.test.capabilities.GenericCapability: {derived_from: tosca.capabilities.Root}
+topology_template:
+  description: |
+    A compute hosting a Test Container, a Test module and a Test Component
+  node_templates:
+    TestCompute:
+      type: tosca.nodes.Compute
+      requirements:
+      - network: {node: Network, capability: tosca.capabilities.Connectivity, relationship: tosca.relationships.Network}
+      capabilities:
+        os:
+          properties: {type: linux, architecture: x86_64, distribution: ubuntu}
+    TestComponent:
+      type: yorc.test.nodes.TestComponent
+      requirements:
+      - host: {node: TestContainer, capability: yorc.test.capabilities.TestContainerCapability,
+          relationship: yorc.test.relationships.TestComponentOnContainer}
+      - testmodule: {node: TestModule, capability: yorc.test.capabilities.TestModuleCapability, relationship: yorc.test.relationships.TestComponentConnectsToModule}
+    TestContainer:
+      type: yorc.test.nodes.TestContainer
+      properties: {component_version: 1.0, port: 80, document_root: /var/www}
+      requirements:
+      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+    Network:
+      type: tosca.nodes.Network
+      properties: {ip_version: 4}
+    TestModule:
+      type: yorc.test.nodes.TestModule
+      properties: {component_version: 1.0}
+      requirements:
+      - host: {node: TestCompute, capability: tosca.capabilities.Container, relationship: tosca.relationships.HostedOn}
+  outputs:
+    TestComponent_url:
+      description: The URL
+      value:
+        get_attribute: [Test, url]

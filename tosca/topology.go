@@ -24,7 +24,7 @@ type Topology struct {
 	Version      string `yaml:"template_version"`
 	Author       string `yaml:"template_author"`
 
-	Imports []ImportMap `yaml:"imports,omitempty"`
+	Imports []ImportDefinition `yaml:"imports,omitempty"`
 
 	Repositories map[string]Repository `yaml:"repositories,omitempty"`
 

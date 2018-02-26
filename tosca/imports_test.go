@@ -15,41 +15,76 @@
 package tosca
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+	"testing"
 )
 
-type ImportMapInterface map[string][]map[string]ImportDefinition
+type ImportsMap map[string][]ImportDefinition
 
 func TestGroupedImportsParallel(t *testing.T) {
 	t.Run("groupImports", func(t *testing.T) {
-		t.Run("TestimportDefinitionConcreteUnmarshalYAMLSimpleGrammar", importDefinitionConcreteUnmarshalYAMLSimpleGrammar)
+		t.Run("TestimportDefinitionConcreteUnmarshalYAMLGrammar", importDefinitionConcreteUnmarshalYAMLGrammar)
+		t.Run("TestimportWrongDefinitionUnmarshalYAMLGrammar", importWrongDefinitionUnmarshalYAMLGrammar)
 	})
 }
 
-func importDefinitionConcreteUnmarshalYAMLSimpleGrammar(t *testing.T) {
+func importDefinitionConcreteUnmarshalYAMLGrammar(t *testing.T) {
 	t.Parallel()
 	var data = `
 imports:
-  - some_definition_file: path1/path2/some_defs.yaml
+  - some_definition_file: path0/some_defs.yaml
   - another_definition_file:
-      file: path1/path2/file2.yaml
+      file: path1/file2.yaml
       repository: my_service_catalog
       namespace_uri: http://mycompany.com/tosca/1.0/platform
       namespace_prefix: mycompany
+  - file: path2/some_defs.yaml
+  - file: path3/some_defs.yaml
+    repository: mySecondRepository
+    namespace_prefix: mySecondNamespace
+  - path4/some_defs.yml
+  - {file: path5/some_defs.yml}
+  - path6/some_defs.yml
 `
-	importMap := ImportMapInterface{}
+	importMap := ImportsMap{}
 	err := yaml.Unmarshal([]byte(data), &importMap)
-	if err == nil {
-		assert.Len(t, importMap, 1)
-		assert.Contains(t, importMap, "imports")
-		importDef := importMap["imports"]
-		assert.Len(t, importDef, 2)
-		importDefMap := importDef[0]
-		assert.Contains(t, importDefMap, "some_definition_file")
-		importDefMap = importDef[1]
-		assert.Contains(t, importDefMap, "another_definition_file")
-	}
+	require.NoError(t, err, "Failure umarshalling %s", data)
+	assert.Len(t, importMap, 1)
+	assert.Contains(t, importMap, "imports")
+	imports := importMap["imports"]
+	assert.Len(t, imports, 7)
+
+	assert.Contains(t, imports[0].File, "path0")
+
+	assert.Contains(t, imports[1].File, "path1")
+	assert.Equal(t, imports[1].Repository, "my_service_catalog")
+	assert.Equal(t, imports[1].NamespacePrefix, "mycompany")
+
+	assert.Contains(t, imports[2].File, "path2")
+
+	assert.Contains(t, imports[3].File, "path3")
+	assert.Equal(t, imports[3].Repository, "mySecondRepository")
+	assert.Equal(t, imports[3].NamespacePrefix, "mySecondNamespace")
+
+	assert.Contains(t, imports[4].File, "path4")
+
+	assert.Contains(t, imports[5].File, "path5")
+
+	assert.Contains(t, imports[6].File, "path6")
+}
+
+func importWrongDefinitionUnmarshalYAMLGrammar(t *testing.T) {
+	t.Parallel()
+	var typoInFileKeyData = `
+imports:
+  - fail: path0/some_defs.yaml
+    repository: mySecondRepository
+    namespace_prefix: mySecondNamespace
+`
+	importMap := ImportsMap{}
+	err := yaml.Unmarshal([]byte(typoInFileKeyData), &importMap)
+	require.Error(t, err, "Failed to detect missing key 'file' in imports")
+	assert.Contains(t, err.Error(), "Missing required key")
 }
