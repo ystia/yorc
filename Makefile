@@ -21,7 +21,7 @@ VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
 VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 COMMIT_HASH=$(shell git rev-parse HEAD)
 
-buildnformat: build format header
+buildnformat: build header format
 
 build: test
 	@echo "--> Running go build"

@@ -45,9 +45,9 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	new_ctx := context.WithValue(ctx, "clientset", e.clientset)
+	newCtx := context.WithValue(ctx, "clientset", e.clientset)
 
-	return exec.execute(new_ctx)
+	return exec.execute(newCtx)
 }
 
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
