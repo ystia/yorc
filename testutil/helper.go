@@ -15,6 +15,7 @@
 package testutil
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -31,8 +32,14 @@ import (
 //  - starts a Consul Publisher
 // Warning: You need to defer the server stop command in the caller
 func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
+	logLevel := "debug"
+	if isCI, ok := os.LookupEnv("CI"); ok && isCI == "true" {
+		logLevel = "warn"
+	}
+
 	srv1, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
 		c.Args = []string{"-ui"}
+		c.LogLevel = logLevel
 	})
 	if err != nil {
 		t.Fatalf("Failed to create consul server: %v", err)
