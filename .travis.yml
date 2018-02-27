@@ -4,3 +4,6 @@ go:
 
 install:
 - make tools
+
+script:
+- make goveralls
