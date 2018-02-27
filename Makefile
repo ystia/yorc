@@ -82,6 +82,6 @@ restoredeps: checks
 
 goveralls: generate
 	@echo "--> Running goverall tests"
-	@export PATH=$$PWD/build:$$PATH; $$HOME/gopath/bin/goveralls -service=travis-ci $(TESTARGS) -p 1
+	@export PATH=$$PWD/build:$$PATH; $$HOME/gopath/bin/goveralls -service=travis-ci -flags "$(TESTARGS) -p 1"
 
 .PHONY: buildnformat build cov checks test cover format vet tools dist goveralls
