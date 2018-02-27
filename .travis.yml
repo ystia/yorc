@@ -6,4 +6,9 @@ install:
 - make tools
 
 script:
-- make goveralls
+- make generate header format
+- ./build/coverage.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
