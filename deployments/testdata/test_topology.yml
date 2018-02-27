@@ -2,11 +2,11 @@ tosca_definitions_version: alien_dsl_2_0_0
 metadata: {template_name: topotest-Environment, template_version: 0.1.0-SNAPSHOT, template_author: yorcTester}
 description: ''
 imports:
-- {file: test_container.yml}
-- {file: <yorc-openstack-types.yml>}
-- {file: test_module.yml}
-- {file: test_component.yml}
-- {file: <yorc-types.yml>}
+- file: test_container.yml
+- file: <yorc-openstack-types.yml>
+- file: test_module.yml
+- file: test_component.yml
+- file: <yorc-types.yml>
 topology_template:
   node_templates:
     TestCompute:
