@@ -1,0 +1,44 @@
+tosca_definitions_version: alien_dsl_2_0_0
+metadata: {template_name: testcontainer-type, template_version: 2.0.0-SNAPSHOT, template_author: yorcTester}
+description: This archive contains a containe tosca node type used in tests
+imports: []
+node_types:
+  yorc.test.nodes.TestContainer:
+    derived_from: tosca.nodes.WebServer
+    description: |
+      Test Container definition
+    capabilities: {host: yorc.test.capabilities.TestContainerCapability}
+    attributes:
+      apache_url:
+        concat:
+        - http://
+        - get_attribute: [HOST, public_ip_address]
+        - ':'
+        - get_property: [SELF, port]
+        - /
+    metadata: {icon: /images/testContainer.png}
+    properties:
+      component_version:
+        type: version
+        default: 1.0
+        constraints:
+        - {equal: 1.0}
+      port:
+        type: integer
+        description: Port for the Test Container
+        default: 80
+        constraints:
+        - {greater_or_equal: 1}
+      document_root: {type: string, default: /var/www}
+    interfaces:
+      Standard:
+        create:
+          inputs:
+            PORT:
+              get_property: [SELF, port]
+            DOC_ROOT:
+              get_property: [SELF, document_root]
+          implementation: scripts/install_testcontainer.sh
+        start: scripts/start_testcontainer.sh
+capability_types:
+  yorc.test.capabilities.TestContainerCapability: {derived_from: tosca.capabilities.Container}
