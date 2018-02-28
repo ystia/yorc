@@ -1,13 +1,15 @@
 language: go
 go:
-- '1.x'
+  - '1.x'
 
 install:
-- make tools
+  - make tools
+  - pip install --user sphinx
+  - pip install --user semantic-version
 
 script:
-- make generate header format
-- ./build/coverage.sh
+  - make dist
+  - ./build/coverage.sh
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
