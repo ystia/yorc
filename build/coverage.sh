@@ -20,7 +20,7 @@ pkgs=$(go list ./...)
 pkgsList=$(echo "${pkgs}" | tr '\n' ',' | sed -e 's@^\(.*\),$@\1@')
 rm -f coverage.txt
 for d in ${pkgs}; do
-    go test -coverprofile=${scriptDir}/profile.out -covermode=atomic -coverpkg="${pkgsList}" $d 2>&1 | grep -v "warning: no packages being tested depend on"
+    go test -coverprofile=${scriptDir}/profile.out -covermode=atomic $d 2>&1 | grep -v "warning: no packages being tested depend on"
     if [ -f ${scriptDir}/profile.out ]; then
         cat ${scriptDir}/profile.out >> coverage.txt
         rm ${scriptDir}/profile.out
