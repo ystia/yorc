@@ -492,11 +492,11 @@ OpenStack infrastructure key name is ``openstack`` in lower case.
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``region``                        | Specify the OpenStack region to use                                                                                 | string    | no                                                 | ``RegionOne`` |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
-| ``private_network_name``          | Specify the name of private network to use as primary adminstration network between Yorc and Compute               | string    | Required to use the ``PRIVATE`` keyword for TOSCA  |               |
-|                                   | instances. It should be a private network accessible by this instance of Yorc.                                     |           | admin networks                                     |               |
+| ``private_network_name``          | Specify the name of private network to use as primary adminstration network between Yorc and Compute                | string    | Required to use the ``PRIVATE`` keyword for TOSCA  |               |
+|                                   | instances. It should be a private network accessible by this instance of Yorc.                                      |           | admin networks                                     |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``provisioning_over_fip_allowed`` | This allows to perform the provisioning of a Compute over the associated floating IP if it exists. This is useful   | boolean   | no                                                 | ``false``     |
-|                                   | when Yorc is not deployed on the same private network than the provisioned Compute.                                |           |                                                    |               |
+|                                   | when Yorc is not deployed on the same private network than the provisioned Compute.                                 |           |                                                    |               |
 +-----------------------------------+---------------------------------------------------------------------------------------------------------------------+-----------+----------------------------------------------------+---------------+
 | ``default_security_groups``       | Default security groups to be used when creating a Compute instance. It should be a comma-separated list of         | list of   | no                                                 |               |
 |                                   | security group names                                                                                                | strings   |                                                    |               |
@@ -568,20 +568,20 @@ Slurm
 
 Slurm infrastructure key name is ``slurm`` in lower case.
 
-+---------------------+---------------------------------------------------------------+-----------+----------+---------+
-|  Option Name        |                          Description                          | Data Type | Required | Default |
-|                     |                                                               |           |          |         |
-+=====================+===============================================================+===========+==========+=========+
-| ``user_name``       | SSH Username to be used to connect to the Slurm Client's node | string    | yes      |         |
-+---------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``password``        | SSH Password to be used to connect to the Slurm Client's node | string    | yes      |         |
-+---------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``url``             | IP address of the Slurm Client's node                         | string    | yes      |         |
-+---------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``port``            | SSH Port to be used to connect to the Slurm Client's node     | string    | yes      |         |
-+---------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``default_job_name``| Default name for the job allocation.                          | string    | no       |         |
-+---------------------+---------------------------------------------------------------+-----------+----------+---------+
++----------------------+---------------------------------------------------------------+-----------+----------+---------+
+|     Option Name      |                          Description                          | Data Type | Required | Default |
+|                      |                                                               |           |          |         |
++======================+===============================================================+===========+==========+=========+
+| ``user_name``        | SSH Username to be used to connect to the Slurm Client's node | string    | yes      |         |
++----------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``password``         | SSH Password to be used to connect to the Slurm Client's node | string    | yes      |         |
++----------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``url``              | IP address of the Slurm Client's node                         | string    | yes      |         |
++----------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``port``             | SSH Port to be used to connect to the Slurm Client's node     | string    | yes      |         |
++----------------------+---------------------------------------------------------------+-----------+----------+---------+
+| ``default_job_name`` | Default name for the job allocation.                          | string    | no       |         |
++----------------------+---------------------------------------------------------------+-----------+----------+---------+
 
 
 Vault configuration
