@@ -7,7 +7,7 @@ install:
 
 script:
 - make generate header format
-- export PATH="$PWD/build:$PATH"; ./build/coverage.sh
+- ./build/coverage.sh
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

@@ -15,14 +15,17 @@
 
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd ${scriptDir}/..
+export PATH=${scriptDir}:$PATH
 
 pkgs=$(go list ./...)
 pkgsList=$(echo "${pkgs}" | tr '\n' ',' | sed -e 's@^\(.*\),$@\1@')
-rm -f coverage.txt
+profDir="${scriptDir}/coverprofiles"
+rm -rf ${profDir}
+
+echo "mode: atomic" > coverage.txt
 for d in ${pkgs}; do
-    go test -coverprofile=${scriptDir}/profile.out -covermode=atomic $d 2>&1 | grep -v "warning: no packages being tested depend on"
-    if [ -f ${scriptDir}/profile.out ]; then
-        cat ${scriptDir}/profile.out >> coverage.txt
-        rm ${scriptDir}/profile.out
-    fi
+    pOutName="${profDir}/profile-$(echo "$d" | tr '/' '-').out"
+    go test -coverprofile=${pOutName} -covermode=atomic -coverpkg="${pkgsList}" $d 2>&1 | grep -v "warning: no packages being tested depend on"
 done
+
+gocovermerge -output coverage.txt ${profDir}/*.out

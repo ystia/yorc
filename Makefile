@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOTOOLS = golang.org/x/tools/cmd/stringer github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... github.com/abice/go-enum github.com/google/addlicense github.com/mattn/goveralls
+GOTOOLS = github.com/ystia/gocovermerge golang.org/x/tools/cmd/stringer github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... github.com/abice/go-enum github.com/google/addlicense
 
 VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
@@ -79,9 +79,4 @@ savedeps: checks
 restoredeps: checks
 	@godep restore -v
 
-
-goveralls: generate
-	@echo "--> Running goverall tests"
-	@export PATH=$$PWD/build:$$PATH; $$GOPATH/bin/goveralls -service=travis-ci -debug -v
-
-.PHONY: buildnformat build cov checks test cover format vet tools dist goveralls
+.PHONY: buildnformat build cov checks test cover format vet tools dist
