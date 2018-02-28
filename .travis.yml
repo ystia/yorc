@@ -4,8 +4,7 @@ go:
 
 install:
   - make tools
-  - pip install --user sphinx
-  - pip install --user semantic-version
+  - pip install --user sphinx semantic-version requests
 
 script:
   - make dist
@@ -14,3 +13,8 @@ script:
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
+addons:
+  apt:
+    packages:
+    - latexmk
+    
