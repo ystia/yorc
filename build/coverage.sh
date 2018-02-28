@@ -21,11 +21,14 @@ pkgs=$(go list ./...)
 pkgsList=$(echo "${pkgs}" | tr '\n' ',' | sed -e 's@^\(.*\),$@\1@')
 profDir="${scriptDir}/coverprofiles"
 rm -rf ${profDir}
+mkdir -p ${profDir}
 
-echo "mode: atomic" > coverage.txt
 for d in ${pkgs}; do
     pOutName="${profDir}/profile-$(echo "$d" | tr '/' '-').out"
     go test -coverprofile=${pOutName} -covermode=atomic -coverpkg="${pkgsList}" $d 2>&1 | grep -v "warning: no packages being tested depend on"
+    if [[ "$?" != "0" ]] ; then 
+        exit $?
+    fi
 done
 
 gocovermerge -output coverage.txt ${profDir}/*.out

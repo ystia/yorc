@@ -23,6 +23,7 @@ build/consul
 /doc/_build/*
 /dist
 /plugin/testdata/plugin-sample/plugin-sample
+build/coverprofiles/*
 
 # Terraform infra
 /testdata/infra/yorc
