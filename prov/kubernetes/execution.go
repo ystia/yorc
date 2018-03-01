@@ -31,6 +31,13 @@ import (
 const deploymentResourceType string = "yorc.nodes.kubernetes.api.types.DeploymentResource"
 const serviceResourceType string = "yorc.nodes.kubernetes.api.types.ServiceResource"
 
+type k8sResourceOperation int
+
+const (
+	k8sCreateOperation k8sResourceOperation = iota
+	k8sDeleteOperation
+)
+
 // An EnvInput represent a TOSCA operation input
 //
 // This element is exported in order to be used by text.Template but should be consider as internal
@@ -121,8 +128,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		}
 		return e.uninstallNode(ctx)
 	case "standard.delete":
-		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
-		return nil
+		return e.deleteKubernetesResource(ctx)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
@@ -136,16 +142,31 @@ func (e *executionCommon) createKubernetesResource(ctx context.Context) (err err
 
 	switch nodeType {
 	case deploymentResourceType:
-		return e.createDeploymentResource(ctx)
+		return e.manageDeploymentResource(ctx, k8sCreateOperation)
 	case serviceResourceType:
-		return e.createServiceResource(ctx)
+		return e.manageServiceResource(ctx, k8sCreateOperation)
 	default:
 		return errors.Errorf("Unsupported k8s resource type %q", nodeType)
 	}
-
 }
 
-func (e *executionCommon) createDeploymentResource(ctx context.Context) (err error) {
+func (e *executionCommon) deleteKubernetesResource(ctx context.Context) (err error) {
+	nodeType, err := deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete k8s resource")
+	}
+
+	switch nodeType {
+	case deploymentResourceType:
+		return e.manageDeploymentResource(ctx, k8sDeleteOperation)
+	case serviceResourceType:
+		return e.manageServiceResource(ctx, k8sDeleteOperation)
+	default:
+		return errors.Errorf("Unsupported k8s resource type %q", nodeType)
+	}
+}
+
+func (e *executionCommon) manageDeploymentResource(ctx context.Context, operationType k8sResourceOperation) (err error) {
 	var deploymentRepr v1beta1.Deployment
 
 	if found, result, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec"); err != nil {
@@ -155,7 +176,7 @@ func (e *executionCommon) createDeploymentResource(ctx context.Context) (err err
 	} else {
 		// Unmarshal JSON to k8s data structs
 		if err = json.Unmarshal([]byte(result), &deploymentRepr); err != nil {
-			log.Printf("Try to create k8S resource %s", result)
+			log.Printf("Try to manage k8S resource %s", result)
 			return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 		}
 	}
@@ -169,17 +190,34 @@ func (e *executionCommon) createDeploymentResource(ctx context.Context) (err err
 	//namespace := deploymentRepresentation.ObjectMeta.Namespace
 	namespace := "default"
 
-	// Crete a deployment based on the provided representation and return's the k8s server's representation of the created deployment
-	deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Create(&deploymentRepr)
-	if err != nil {
-		return err
+	switch operationType {
+	case k8sCreateOperation:
+		// Create Deployment k8s resource
+		deployment, err := (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Create(&deploymentRepr)
+		if err != nil {
+			return err
+		}
+		log.Printf("k8s Deployment %s created", deployment.Name)
+	case k8sDeleteOperation:
+		// Delete Deployment k8s resource
+		var deploymentName string
+		deploymentName = deploymentRepr.Name
+		log.Printf("Delete k8s Deployment %s", deploymentName)
+
+		err = (clientset.(*kubernetes.Clientset)).ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, nil)
+		if err != nil {
+			return err
+		}
+		log.Printf("k8s Deployment %s deleted", deploymentName)
+	default:
+		return errors.Errorf("Unsupported operation on k8s resource")
 	}
-	log.Printf("$$$$$ k8s Deployment %s created", deployment.Name)
 
 	return nil
 }
 
-func (e *executionCommon) createServiceResource(ctx context.Context) (err error) {
+func (e *executionCommon) manageServiceResource(ctx context.Context, operationType k8sResourceOperation) (err error) {
+
 	var serviceRepr v1.Service
 
 	if found, result, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec"); err != nil {
@@ -189,7 +227,7 @@ func (e *executionCommon) createServiceResource(ctx context.Context) (err error)
 	} else {
 		// Unmarshal JSON to k8s data structs
 		if err = json.Unmarshal([]byte(result), &serviceRepr); err != nil {
-			log.Printf("Try to create k8s resource %s", result)
+			log.Printf("Try to manage k8s resource %s", result)
 			return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 		}
 	}
@@ -197,14 +235,30 @@ func (e *executionCommon) createServiceResource(ctx context.Context) (err error)
 	clientset := ctx.Value("clientset")
 	namespace := "default"
 
-	// Crete a service based on a provided representation and return's the k8s server's representation of the created service
-	service, err := (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&serviceRepr)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create service")
+	switch operationType {
+	case k8sCreateOperation:
+		// Create Service k8s resource
+		service, err := (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Create(&serviceRepr)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create service")
+		}
+
+		log.Printf("k8s Service %s created", service.Name)
+	case k8sDeleteOperation:
+		// Delete Deployment k8s resource
+		var serviceName string
+		serviceName = serviceRepr.Name
+		log.Printf("Delete k8s Service %s", serviceName)
+
+		err = (clientset.(*kubernetes.Clientset)).CoreV1().Services(namespace).Delete(serviceName, nil)
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete service")
+		}
+
+		log.Printf("k8s Service %s deleted", serviceName)
+	default:
+		return errors.Errorf("Unsupported operation on k8s resource")
 	}
-
-	log.Printf("$$$$$ k8s Service %s created", service.Name)
-
 	return nil
 }
 

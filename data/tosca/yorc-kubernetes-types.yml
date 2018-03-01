@@ -25,12 +25,20 @@ node_types:
           implementation:
             file: "embeded"
             type: yorc.artifacts.Deployment.Kubernetes
+        delete:
+          implementation:
+            file: "embeded"
+            type: yorc.artifacts.Deployment.Kubernetes
 
   yorc.nodes.kubernetes.api.types.ServiceResource:
     derived_from: org.alien4cloud.kubernetes.api.types.ServiceResource
     interfaces:
       Standard:
         create:
+          implementation:
+            file: "embeded"
+            type: yorc.artifacts.Deployment.Kubernetes
+        delete:
           implementation:
             file: "embeded"
             type: yorc.artifacts.Deployment.Kubernetes
