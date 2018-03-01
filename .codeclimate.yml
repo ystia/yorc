@@ -1,0 +1,45 @@
+version: "2"         # required to adjust maintainability checks
+checks:
+  argument-count:
+    config:
+      threshold: 8
+  complex-logic:
+    config:
+      threshold: 10
+  file-lines:
+    config:
+      threshold: 500
+  method-complexity:
+    config:
+      threshold: 10
+  method-count:
+    config:
+      threshold: 40
+  method-lines:
+    config:
+      threshold: 50
+  nested-control-flow:
+    config:
+      threshold: 8
+  return-statements:
+    config:
+      threshold: 10
+  # similar-code:
+  #   config:
+  #     threshold: # language-specific defaults. an override will affect all languages.
+  # identical-code:
+  #   config:
+  #     threshold: # language-specific defaults. an override will affect all languages.
+plugins:
+  gofmt:
+    enabled: true
+  golint:
+    enabled: true
+  govet:
+    enabled: true
+  markdownlint:
+    enabled: true
+  shellcheck:
+    enabled: true
+  fixme:
+    enabled: true
