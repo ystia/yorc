@@ -24,6 +24,28 @@ fi
 tf_version=$(grep terraform_version ${script_dir}/versions.yaml | awk '{print $2}')
 ansible_version=$(grep ansible_version ${script_dir}/versions.yaml | awk '{print $2}')
 
+if [[ "${TRAVIS}" == "true" ]]; then
+    if [[ "${TRAVIS_PULL_REQUEST}" == "false" ]] ; then
+        if [[ -n "${TRAVIS_TAG}" ]] ; then
+            DOCKER_TAG="${TRAVIS_TAG}"
+        else
+            case ${TRAVIS_BRANCH} in
+            develop) 
+                DOCKER_TAG="latest";;
+            *) 
+                # Do not build a container for other branches
+                exit 0;;
+            esac
+        fi
+    else 
+        DOCKER_TAG="PR-${TRAVIS_PULL_REQUEST}"
+    fi
+fi
+
 cp ${script_dir}/yorc ${script_dir}/pkg/
 cd ${script_dir}/pkg
 docker build ${BUILD_ARGS} --build-arg "TERRAFORM_VERSION=${tf_version}" --build-arg "ANSIBLE_VERSION=${ansible_version}" -t "ystia/yorc:${DOCKER_TAG:-latest}" .
+
+if [[ "${TRAVIS}" == "true" ]]; then
+    docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
+fi
