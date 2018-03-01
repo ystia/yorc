@@ -34,20 +34,18 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	if err != nil {
 		return err
 	}
-	kv := consulClient.KV()
-	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
-	if err != nil {
-		return err
-	}
 
 	e.clientset, err = initClientSet(conf)
 	if err != nil {
 		return err
 	}
+	kv := consulClient.KV()
+	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation, e.clientset)
+	if err != nil {
+		return err
+	}
 
-	newCtx := context.WithValue(ctx, "clientset", e.clientset)
-
-	return exec.execute(newCtx)
+	return exec.execute(ctx)
 }
 
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
