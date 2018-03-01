@@ -48,4 +48,5 @@ docker build ${BUILD_ARGS} --build-arg "TERRAFORM_VERSION=${tf_version}" --build
 
 if [[ "${TRAVIS}" == "true" ]]; then
     docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
+    ls -lh docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
 fi
