@@ -1,0 +1,37 @@
+language: go
+go:
+  - 1.x
+
+env:
+  global:
+    secure: "iyv/cQh7z/PjRyEySKELsd3L69AdRVlCnZrtozvM/Z+poeSnGtQIRLWgOw/Pe5ueNa/v7Wq2BKw1DHeTrgSnvNNt/uoTUWLY5UcHkPHQYm67DeB7CffSELgr8l6K7eBOqTn2Hu6mzPlmU6l3v8CBHg8uSJT6wv/XKqn2Ut74OBA7wCYRQyEXcnr26C7ytnN/XaaR/RPzXYyxoB6/l6aH1/PK9rt+btdBu4TPo5zZm6KVA8pp85KG7xfGjq6kNG+kDwFiaj6/DJmnxYKxsiyv/AsEtLmElxGKQQqCnOefbNwqSsdYDDqy5AikZ+ZfJQLRrLJzcHDzgREaiPCF0QVfGttcuX5AXpPkrBlKeixku91Dir4hebYAN7SWWwKktu8hqKTtQjc8eJMEbQVKTtk3yeRKqC4I8lUK6TBrJA7tnQpgq8w67Vm81P18UPPjKm6Wf6aCJEKSvrnVSwLvIrEN8q/ybrCupvvcze0l9nsQhJG/79BQX31mjZkqT9MdskgYgD3wrB2LexLYkw4BeyKOV1/fTyz7q82ocfEdNMHTnPKD4B2bXtl1Alx8wluIFjwOvy8QZ9Hopz+cNnfN/dOJcQn7hPQbjqIP7uumUTP2vVk3mtwPDKLYqfCeO1ZLwHClXog6Q2k8gb6mkEfVx6ygq/JxM5LkSnTdfyowLLTp7W0="
+
+install:
+  - make tools
+  - pip install --user --upgrade sphinx semantic-version requests urllib3[secure]
+
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64  > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - "./cc-test-reporter before-build"
+
+script:
+  # Go1.10 is required to have proper use of coverprofile for multiple packages
+  - TESTARGS="-coverprofile coverage.txt" make dist
+  - cp coverage.txt c.out
+
+after_script:
+  - "./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT"
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+addons:
+  apt:
+    packages:
+    - latexmk
+    - texlive-binaries
+    - texlive-fonts-recommended
+    - texlive-latex-base
+    - texlive-latex-extra
+    - texlive-latex-recommended

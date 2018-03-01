@@ -29,7 +29,7 @@ Metric Types
 ~~~~~~~~~~~~~~~~~~
 
 +---------+---------------------------------------------------------------------------------------------------------------------+-----------+
-| Type    | Description                                                                                                         | Quantiles |
+|  Type   |                                                     Description                                                     | Quantiles |
 +=========+=====================================================================================================================+===========+
 | Gauge   | Gauge types report an absolute number at the end of the aggregation interval.                                       | false     |
 +---------+---------------------------------------------------------------------------------------------------------------------+-----------+
@@ -47,61 +47,61 @@ Go Runtime metrics
    http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
 .. tabularcolumns:: |p{0.20\textwidth}|p{0.55\textwidth}|p{0.10\textwidth}|p{0.05\textwidth}|
 
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
-| Metric Name                         | Description                                                                                      | Unit              | Metric Type |
-|                                     |                                                                                                  |                   |             |
-+=====================================+==================================================================================================+===================+=============+
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
+|            Metric Name             |                                           Description                                            |       Unit        | Metric Type |
+|                                    |                                                                                                  |                   |             |
++====================================+==================================================================================================+===================+=============+
 | ``yorc.runtime.num_goroutines``    | This tracks the number of running goroutines and is a general load pressure                      | number            | gauge       |
-|                                     | indicator. This may burst from time to time but should return to a steady                        | of                |             |
-|                                     | state value.                                                                                     | goroutines        |             |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
-| ``yorc.runtime.alloc_bytes``       | This measures the number of bytes allocated by the Yorc process. This may                       | bytes             | gauge       |
-|                                     | burst from time to time but should return to a steady state value.                               |                   |             |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
+|                                    | indicator. This may burst from time to time but should return to a steady                        | of                |             |
+|                                    | state value.                                                                                     | goroutines        |             |
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
+| ``yorc.runtime.alloc_bytes``       | This measures the number of bytes allocated by the Yorc process. This may                        | bytes             | gauge       |
+|                                    | burst from time to time but should return to a steady state value.                               |                   |             |
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``yorc.runtime.heap_objects``      | This measures the number of objects allocated on the heap and is a general memory                |                   |             |
-|                                     | pressure indicator. This may burst from time to time but should return to a steady state value.  | number of objects | gauge       |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
+|                                    | pressure indicator. This may burst from time to time but should return to a steady state value.  | number of objects | gauge       |
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``yorc.runtime.sys``               | Sys is the total bytes of memory obtained from the OS.Sys measures the virtual address space     |                   |             |
-|                                     | reserved by the Go runtime for the  heap, stacks, and other                                      | bytes             | gauge       |
-|                                     | internal data structures. It's likely that not all of the virtual address space is backed        |                   |             |
-|                                     | by physical memory at any given moment, though in general it all was at some point.              |                   |             |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
+|                                    | reserved by the Go runtime for the  heap, stacks, and other                                      | bytes             | gauge       |
+|                                    | internal data structures. It's likely that not all of the virtual address space is backed        |                   |             |
+|                                    | by physical memory at any given moment, though in general it all was at some point.              |                   |             |
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``yorc.runtime.malloc_count``      | Mallocs is the cumulative count of heap objects allocated. The number of live objects is         | number of Mallocs | gauge       |
-|                                     | Mallocs - Frees.                                                                                 |                   |             |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
+|                                    | Mallocs - Frees.                                                                                 |                   |             |
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``yorc.runtime.free_count``        | Frees is the cumulative count of heap objects freed.                                             | number of frees   | gauge       |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``yorc.runtime.total_gc_pause_ns`` | PauseTotalNs is the cumulative nanoseconds in GC stop-the-world pauses since the program         | nanoseconds       | gauge       |
-|                                     | started.                                                                                         |                   |             |
-|                                     | During a stop-the-world pause, all goroutines are paused and only the garbage collector can run. |                   |             |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
+|                                    | started.                                                                                         |                   |             |
+|                                    | During a stop-the-world pause, all goroutines are paused and only the garbage collector can run. |                   |             |
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``yorc.runtime.total_gc_runs``     | Gc runs is the number of completed GC cycles.                                                    | number of cycles  | gauge       |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 | ``yorc.runtime.gc_pause_ns``       | Latest GC run stop-the-world pause duration.                                                     | nanoseconds       | timer       |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
++------------------------------------+--------------------------------------------------------------------------------------------------+-------------------+-------------+
 
 Yorc REST API metrics
 ~~~~~~~~~~~~~~~~~~~~~~
 
-+-----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
-| Metric Name                             | Description                                                                         | Unit               | Metric Type |
-|                                         |                                                                                     |                    |             |
-+=========================================+=====================================================================================+====================+=============+
++----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
+|              Metric Name               |                                     Description                                     |        Unit        | Metric Type |
+|                                        |                                                                                     |                    |             |
++========================================+=====================================================================================+====================+=============+
 | ``yorc.http.<Method>.<Path>``          | This measures the duration of an API call. <Method> is the HTTP verb and <Path> the | milliseconds       | timer       |
-|                                         | Path part of the URL where slashes are replaced by dashes.                          |                    |             |
-+-----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
+|                                        | Path part of the URL where slashes are replaced by dashes.                          |                    |             |
++----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
 | ``yorc.http.<Status>.<Method>.<Path>`` | This counts the number of API calls by HTTP status codes (ie: 200, 404, 500, ...)   | number of requests | counter     |
-|                                         | , HTTP verb and URL path as described above.                                        |                    |             |
-+-----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
+|                                        | , HTTP verb and URL path as described above.                                        |                    |             |
++----------------------------------------+-------------------------------------------------------------------------------------+--------------------+-------------+
 
 Yorc Workers & Tasks metrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
-| Metric Name                           | Description                                                              | Unit            | Metric Type |
+|              Metric Name              |                               Description                                |      Unit       | Metric Type |
 |                                       |                                                                          |                 |             |
 +=======================================+==========================================================================+=================+=============+
-| ``yorc.workers.free``                | This tracks the number of free Yorc workers.                            | number of free  | gauge       |
+| ``yorc.workers.free``                 | This tracks the number of free Yorc workers.                             | number of free  | gauge       |
 |                                       |                                                                          | workers         |             |
 +---------------------------------------+--------------------------------------------------------------------------+-----------------+-------------+
 | ``tasks.maxBlockTimeMs``              | This measures the highest duration since creation for all waiting tasks. | milliseconds    | timer       |
@@ -127,15 +127,15 @@ definition (like a shell script or an ansible playbook).
 In the below table <ExecType> is the executor type, <DepID> the deployment ID, <NodeType> the fully qualified TOSCA node type where dots where replaced by
 dashes and <OpName> the TOSCA operation name where dots where replaced by dashes.
 
-+---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
-| Metric Name                                                         | Description                                      | Unit                | Metric Type |
-|                                                                     |                                                  |                     |             |
-+=====================================================================+==================================================+=====================+=============+
++--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
+|                            Metric Name                             |                   Description                    |        Unit         | Metric Type |
+|                                                                    |                                                  |                     |             |
++====================================================================+==================================================+=====================+=============+
 | ``yorc.executor.<ExecType>.<DepID>.<NodeType>.<OpName>``           | This measures the duration of an execution.      | milliseconds        | timer       |
-+---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
++--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
 | ``yorc.executor.<ExecType>.<DepID>.<NodeType>.<OpName>.failures``  | This counts the number of failed executions.     | number of failures  | counter     |
-+---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
++--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
 | ``yorc.executor.<ExecType>.<DepID>.<NodeType>.<OpName>.successes`` | This counts the number of successful executions. | number of successes | counter     |
-+---------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
++--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
  
 

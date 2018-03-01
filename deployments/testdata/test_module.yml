@@ -1,0 +1,36 @@
+tosca_definitions_version: alien_dsl_2_0_0
+metadata: {template_name: testmodule-type, template_version: 2.0.0-SNAPSHOT, template_author: yorcTester}
+description: Test Module
+imports: []
+node_types:
+  yorc.test.nodes.TestModule:
+    derived_from: tosca.nodes.SoftwareComponent
+    description: Test Module
+    metadata: {icon: /images/testModule.png}
+    properties:
+      component_version:
+        type: version
+        default: 1.0
+        constraints:
+        - {equal: 1.0}
+    capabilities:
+      attachWebsite: {type: yorc.test.capabilities.TestModuleCapability}
+    requirements:
+    - host:
+        capability: tosca.capabilities.Container
+        node: tosca.nodes.Compute
+        relationship: tosca.relationships.HostedOn
+        occurrences: [1, 1]
+        node_filter:
+          capabilities:
+          - tosca.capabilities.OperatingSystem:
+              properties:
+              - type: {equal: linux}
+              - architecture: {equal: x86_64}
+              - distribution:
+                  valid_values: [debian, ubuntu]
+    interfaces:
+      Standard: {create: scripts/install_testmodule.sh}
+capability_types:
+  yorc.test.capabilities.TestModuleCapability: {derived_from: tosca.capabilities.Root,
+    description: Provides Test Module services}

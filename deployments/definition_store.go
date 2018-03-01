@@ -1,3 +1,17 @@
+// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package deployments
 
 import (
@@ -98,9 +112,17 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	}
 	storeRepositories(ctx, topology, topologyPrefix)
 	storeDataTypes(ctx, topology, topologyPrefix)
-	storeInputs(ctx, topology, topologyPrefix)
-	storeOutputs(ctx, topology, topologyPrefix)
-	storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
+
+	// There is no need to parse a topology template if this topology template
+	// is declared in an import.
+	// Parsing only the topology template declared in the root topology file
+	isRootTopologyTemplate := (importPrefix == "")
+	if isRootTopologyTemplate {
+		storeInputs(ctx, topology, topologyPrefix)
+		storeOutputs(ctx, topology, topologyPrefix)
+		storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
+	}
+
 	if err := storeTypes(ctx, topology, topologyPrefix, importPath); err != nil {
 		return err
 	}
@@ -114,7 +136,10 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	if err := checkNestedWorkflows(topology); err != nil {
 		return err
 	}
-	storeWorkflows(ctx, topology, deploymentID)
+
+	if isRootTopologyTemplate {
+		storeWorkflows(ctx, topology, deploymentID)
+	}
 	return nil
 }
 
@@ -178,46 +203,46 @@ func storeDataTypes(ctx context.Context, topology tosca.Topology, topologyPrefix
 // storeImports parses and store imports.
 func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, topologyPrefix, importPath, rootDefPath string) error {
 	errGroup := ctx.Value(errGrpKey).(*errgroup.Group)
-	for _, element := range topology.Imports {
-		for importName, value := range element {
-			importedTopology := tosca.Topology{}
-			importValue := strings.Trim(value.File, " \t")
-			if strings.HasPrefix(importValue, "<") && strings.HasSuffix(importValue, ">") {
-				// Internal import
-				importValue = strings.Trim(importValue, "<>")
-				var defBytes []byte
-				var err error
-				if defBytes, err = reg.GetToscaDefinition(importValue); err != nil {
-					return errors.Errorf("Failed to import internal definition %s: %v", importValue, err)
-				}
-				if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
-					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
-				}
-				errGroup.Go(func() error {
-					return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importName), "", rootDefPath)
-				})
-			} else {
-				uploadFile := filepath.Join(rootDefPath, filepath.FromSlash(importPath), filepath.FromSlash(value.File))
+	for i, element := range topology.Imports {
 
-				definition, err := os.Open(uploadFile)
-				if err != nil {
-					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
-				}
+		importURI := strings.Trim(element.File, " \t")
+		importPrefix := strconv.Itoa(i)
+		importedTopology := tosca.Topology{}
 
-				defBytes, err := ioutil.ReadAll(definition)
-				if err != nil {
-					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
-				}
+		if strings.HasPrefix(importURI, "<") && strings.HasSuffix(importURI, ">") {
+			// Internal import
+			importURI = strings.Trim(importURI, "<>")
+			var defBytes []byte
+			var err error
+			if defBytes, err = reg.GetToscaDefinition(importURI); err != nil {
+				return errors.Errorf("Failed to import internal definition %s: %v", importURI, err)
+			}
+			if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
+				return errors.Errorf("Failed to parse internal definition %s: %v", importURI, err)
+			}
+			errGroup.Go(func() error {
+				return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importPrefix), "", rootDefPath)
+			})
+		} else {
+			uploadFile := filepath.Join(rootDefPath, filepath.FromSlash(importPath), filepath.FromSlash(importURI))
 
-				if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
-					return errors.Errorf("Failed to parse internal definition %s: %v", importValue, err)
-				}
-
-				errGroup.Go(func() error {
-					return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importPath, importName), path.Dir(path.Join(importPath, value.File)), rootDefPath)
-				})
+			definition, err := os.Open(uploadFile)
+			if err != nil {
+				return errors.Errorf("Failed to parse internal definition %s: %v", importURI, err)
 			}
 
+			defBytes, err := ioutil.ReadAll(definition)
+			if err != nil {
+				return errors.Errorf("Failed to parse internal definition %s: %v", importURI, err)
+			}
+
+			if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
+				return errors.Errorf("Failed to parse internal definition %s: %v", importURI, err)
+			}
+
+			errGroup.Go(func() error {
+				return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importPath, importPrefix), path.Dir(path.Join(importPath, importURI)), rootDefPath)
+			})
 		}
 	}
 	return nil

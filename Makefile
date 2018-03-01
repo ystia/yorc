@@ -1,4 +1,19 @@
-GOTOOLS = golang.org/x/tools/cmd/stringer github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... github.com/abice/go-enum
+#!/usr/bin/env bash
+# Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+GOTOOLS = github.com/ystia/gocovermerge golang.org/x/tools/cmd/stringer github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... github.com/abice/go-enum github.com/google/addlicense
 
 VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
@@ -6,7 +21,7 @@ VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
 VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 COMMIT_HASH=$(shell git rev-parse HEAD)
 
-buildnformat: build format
+buildnformat: build header format
 
 build: test
 	@echo "--> Running go build"
@@ -17,6 +32,10 @@ generate: checks
 
 checks:
 	@./build/checks.sh $(GOTOOLS)
+
+header:
+	@echo "--> Adding licensing headers if necessary"
+	@./build/header.sh
 
 dist: build
 	@rm -rf ./dist && mkdir -p ./dist
@@ -59,6 +78,5 @@ savedeps: checks
 
 restoredeps: checks
 	@godep restore -v
-
 
 .PHONY: buildnformat build cov checks test cover format vet tools dist
