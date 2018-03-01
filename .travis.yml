@@ -4,7 +4,7 @@ go:
 
 install:
   - make tools
-  - pip install --user sphinx semantic-version requests
+  - pip install --user --upgrade sphinx semantic-version requests urllib3secure
 
 script:
   - make dist
@@ -17,4 +17,8 @@ addons:
   apt:
     packages:
     - latexmk
-    
+    - texlive-binaries
+    - texlive-fonts-recommended
+    - texlive-latex-base
+    - texlive-latex-extra
+    - texlive-latex-recommended
