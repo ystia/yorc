@@ -5,6 +5,10 @@ coverage:
   range: 50...80      # custom range of coverage colors from red -> yellow -> green
 
   status:
+    project:
+      default:
+        threshold: 2%          # allowed to drop X% and still result in a "success" commit status
+
     patch:                     # pull requests only: this commit status will measure the
                                # entire pull requests Coverage Diff. Checking if the lines
                                # adjusted are covered at least X%.
