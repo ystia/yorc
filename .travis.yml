@@ -4,7 +4,7 @@ go:
 
 install:
   - make tools
-  - pip install --user --upgrade sphinx semantic-version requests urllib3secure
+  - pip install --user --upgrade sphinx semantic-version requests urllib3[secure]
 
 script:
   - make dist
