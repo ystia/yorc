@@ -1,14 +1,27 @@
 language: go
 go:
-  - '1.x'
+  - 1.x
+
+env:
+  global:
+    secure: nhcu+V6TPfgW+kQj5D4FyXsidgaiUrTb6qUYOJ/T+9tV1LoZRZ1t1UaEEFTmbZsXlVJZ5WBUp0GDDIjkAopVd+bpTxklbMAes/3kxo6wyrdAM3NMmkVNGgKWdzOkfaSwitqWmgXcOmIl7huwr5HdErqzY67wCNRjk+Z+V4k2VhYQYwZW/jXaVZ2G7oY4ZzFFJg8EA1qHVPGO/4+ma5m3Usde6dX7/8u4ibT9dooCzJV43K+X/QaVKH/4RMMzmnypRzrLyCD9yjzJJPrWCQLWQ/gs61ngqi0T1o/qBKY6QYW22B9Sspo16JyKMm7pkehd3ohCO/zJflRd8IbgxcVUj35M3L21Ff4o/NWZMO+IOhYlmraDfS6GUq9hW+5sfxKkPtNKT2UqwAnpEuSJAzy3yNv0MtkTYbasb27ZFmENXbjHfe7IKscOHEvb/QhslgLfkptVs6UkFdqCIpOqgykWdcCqOfjmcS88HiAVt7YvPC/HgXgmtOKRNtfnAHTl9IV6eLVodbJZ0QWuFmbJnJDgPs3j6nQ+B8rpTtY/8P+FtKTk6NflAvghbhcyeOiEyOaXNp69fVyoszf/E2yw1fEvb8FlprB4Jzk8/lo79PPlxMPa3xjRXsFa7uJQ3J0/tL6PqsxyM8QblJcQ7dtzKyXw4StP06d7/OX23XunhCc9N4I=
 
 install:
   - make tools
   - pip install --user --upgrade sphinx semantic-version requests urllib3[secure]
 
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64  > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - "./cc-test-reporter before-build"
+
 script:
-  - make dist
-  - ./build/coverage.sh
+  # Go1.10 is required to have proper use of coverprofile for multiple packages
+  - TESTARGS="-coverprofile coverage.txt" make dist
+  - cp coverage.txt c.out
+
+after_script:
+  - "./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT"
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
