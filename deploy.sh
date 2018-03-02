@@ -36,7 +36,7 @@
 #### Bintray Variables
 bintray_base_url="https://api.bintray.com/content"
 bintray_api_user="stebenoist"
-bintray_repo_distrib="ystia/yorc/distributions"
+bintray_repo_distrib="ystia/yorc-engine/distributions"
 
 bintray_releases_path="releases"
 bintray_snapshots_pr_path="snapshots/@BRANCH@/pr/@PR_ID@"

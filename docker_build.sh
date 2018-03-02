@@ -21,7 +21,7 @@ script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 #### Bintray Variables
 bintray_api_user="stebenoist"
-bintray_docker_registry="ystia-docker-yorc-docker.bintray.io"
+bintray_docker_registry="ystia-docker-yorc.bintray.io"
 bintray_docker_repo="ystia/yorc"
 
 #### Test variables
