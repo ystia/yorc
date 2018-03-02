@@ -52,9 +52,8 @@ func setupServer(b *testing.B) (*testutil.TestServer, chan struct{}) {
 	b.Fatalf("Failed to setup consul server: %v", err)
 
 	configuration := config.Configuration{
-		WorkingDirectory:     defaultWorkingDirectory,
-		ConsulAddress:        srv1.HTTPAddr,
-		ConsulPubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		WorkingDirectory: defaultWorkingDirectory,
+		Consul:           config.Consul{Address: srv1.HTTPAddr, PubMaxRoutines: config.DefaultConsulPubMaxRoutines},
 	}
 	shutdownCh := make(chan struct{})
 	go func() {

@@ -34,7 +34,7 @@ func (m *mockConfigManager) SetupConfig(cfg config.Configuration) error {
 	m.setupConfigCalled = true
 	m.conf = cfg
 
-	if m.conf.ConsulAddress == "testFailure" {
+	if m.conf.Consul.Address == "testFailure" {
 		return NewRPCError(errors.New("a failure occurred during plugin exec operation"))
 	}
 	return nil
@@ -53,11 +53,11 @@ func TestConfigManagerSetupConfig(t *testing.T) {
 
 	cm := raw.(ConfigManager)
 
-	err = cm.SetupConfig(config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"})
+	err = cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}})
 	require.Nil(t, err)
 	require.True(t, mock.setupConfigCalled)
-	require.Equal(t, "test", mock.conf.ConsulAddress)
-	require.Equal(t, "testdc", mock.conf.ConsulDatacenter)
+	require.Equal(t, "test", mock.conf.Consul.Address)
+	require.Equal(t, "testdc", mock.conf.Consul.Datacenter)
 }
 
 func TestConfigManagerSetupConfigWithFailure(t *testing.T) {
@@ -73,6 +73,6 @@ func TestConfigManagerSetupConfigWithFailure(t *testing.T) {
 
 	cm := raw.(ConfigManager)
 
-	err = cm.SetupConfig(config.Configuration{ConsulAddress: "testFailure", ConsulDatacenter: "testdc"})
+	err = cm.SetupConfig(config.Configuration{Consul: config.Consul{Address: "testFailure", Datacenter: "testdc"}})
 	require.Error(t, err, "An error was expected during executing plugin operation")
 }

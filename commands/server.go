@@ -277,21 +277,21 @@ func setConfig() {
 
 	// Consul configuration default settings
 	// TODO: uncomment this block
-/*
-	viper.SetDefault("consul.address", "") // Use consul api default
-	viper.SetDefault("consul.datacenter", "dc1")
-	viper.SetDefault("consul.token", "anonymous")
-	viper.SetDefault("consul.ssl_verify", true)
-	viper.SetDefault("consul.publisher_max_routines", config.DefaultConsulPubMaxRoutines)
+	/*
+		viper.SetDefault("consul.address", "") // Use consul api default
+		viper.SetDefault("consul.datacenter", "dc1")
+		viper.SetDefault("consul.token", "anonymous")
+		viper.SetDefault("consul.ssl_verify", true)
+		viper.SetDefault("consul.publisher_max_routines", config.DefaultConsulPubMaxRoutines)
 
-	// Ansible configuration default settings
+		// Ansible configuration default settings
 
-	viper.SetDefault("ansible.use_openssh", false)
-	viper.SetDefault("ansible.debug", false)
-	viper.SetDefault("ansible.connection_retries", 5)
-	viper.SetDefault("ansible.operation_remote_base_dir", ".yorc")
-	viper.SetDefault("ansible.keep_operation_remote_path", config.DefaultKeepOperationRemotePath)
-*/
+		viper.SetDefault("ansible.use_openssh", false)
+		viper.SetDefault("ansible.debug", false)
+		viper.SetDefault("ansible.connection_retries", 5)
+		viper.SetDefault("ansible.operation_remote_base_dir", ".yorc")
+		viper.SetDefault("ansible.keep_operation_remote_path", config.DefaultKeepOperationRemotePath)
+	*/
 	//Configuration file directories
 	viper.SetConfigName("config.yorc") // name of config file (without extension)
 	viper.AddConfigPath("/etc/yorc/")  // adding home directory as first search path
