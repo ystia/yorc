@@ -47,6 +47,7 @@ deploy:
     file:
       - dist/yorc.tgz
       - dist/yorc-server-*-distrib.zip
+      - pkg/docker-ystia-yorc-*.tgz
     skip_cleanup: true
     on:
       tags: true

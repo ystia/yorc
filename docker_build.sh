@@ -14,7 +14,22 @@
 # limitations under the License.
 
 
+#set -x
+#set -e
+
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+#### Bintray Variables
+bintray_api_user="stebenoist"
+bintray_docker_registry="ystia-docker-yorc-docker.bintray.io"
+bintray_docker_repo="ystia/yorc"
+
+#### Test variables
+#TRAVIS=true
+#TRAVIS_TAG="3.0.0-RC1"
+#TRAVIS_PULL_REQUEST=false
+#TRAVIS_BRANCH="develop"
+#BINTRAY_API_KEY=AHAHHAHAAH
 
 if [[ ! -e ${script_dir}/yorc ]]; then
     cd ${script_dir}
@@ -34,6 +49,7 @@ if [[ "${TRAVIS}" == "true" ]]; then
                 DOCKER_TAG="latest";;
             *) 
                 # Do not build a container for other branches
+                echo "No container is built for other branches than develop."
                 exit 0;;
             esac
         fi
@@ -49,4 +65,9 @@ docker build ${BUILD_ARGS} --build-arg "TERRAFORM_VERSION=${tf_version}" --build
 if [[ "${TRAVIS}" == "true" ]]; then
     docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
     ls -lh docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
+
+    ## Push Image on Bintray Docker Registry
+    docker login -u ${bintray_api_user} -p $BINTRAY_API_KEY ${bintray_docker_registry}
+    docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+    docker push ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
 fi
