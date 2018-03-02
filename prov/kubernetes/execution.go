@@ -111,14 +111,10 @@ func (e *execution) execute(ctx context.Context) error {
 		return nil
 	}
 	nbInstances := int32(len(instances))
-	nodeType, err := deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
-	if err != nil {
-		return err
-	}
 
 	switch strings.ToLower(e.Operation.Name) {
 	case "standard.create":
-		return e.createKubernetesResource(ctx, nodeType)
+		return e.manageKubernetesResource(ctx, k8sCreateOperation)
 	case "standard.configure":
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
@@ -141,47 +137,36 @@ func (e *execution) execute(ctx context.Context) error {
 		}
 		return e.uninstallNode(ctx)
 	case "standard.delete":
-		return e.deleteKubernetesResource(ctx, nodeType)
+		return e.manageKubernetesResource(ctx, k8sDeleteOperation)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
 }
 
-func (e *execution) createKubernetesResource(ctx context.Context, nodeType string) (err error) {
-	switch nodeType {
-	case deploymentResourceType:
-		return e.manageDeploymentResource(ctx, k8sCreateOperation)
-	case serviceResourceType:
-		return e.manageServiceResource(ctx, k8sCreateOperation)
-	default:
-		return errors.Errorf("Unsupported k8s resource type %q", nodeType)
-	}
-}
-
-func (e *execution) deleteKubernetesResource(ctx context.Context, nodeType string) (err error) {
-	switch nodeType {
-	case deploymentResourceType:
-		return e.manageDeploymentResource(ctx, k8sDeleteOperation)
-	case serviceResourceType:
-		return e.manageServiceResource(ctx, k8sDeleteOperation)
-	default:
-		return errors.Errorf("Unsupported k8s resource type %q", nodeType)
-	}
-}
-
-func (e *execution) manageDeploymentResource(ctx context.Context, operationType k8sResourceOperation) (err error) {
-	var deploymentRepr v1beta1.Deployment
-
-	if found, result, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec"); err != nil {
+func (e *execution) manageKubernetesResource(ctx context.Context, op k8sResourceOperation) error {
+	_, rSpec, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec")
+	if err != nil {
 		return err
-	} else if !found {
+	}
+	switch e.NodeType {
+	case deploymentResourceType:
+		return e.manageDeploymentResource(ctx, op, rSpec)
+	case serviceResourceType:
+		return e.manageServiceResource(ctx, op, rSpec)
+	default:
+		return errors.Errorf("Unsupported k8s resource type %q", e.NodeType)
+	}
+}
+
+func (e *execution) manageDeploymentResource(ctx context.Context, operationType k8sResourceOperation, rSpec string) (err error) {
+	var deploymentRepr v1beta1.Deployment
+	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
-	} else {
-		// Unmarshal JSON to k8s data structs
-		if err = json.Unmarshal([]byte(result), &deploymentRepr); err != nil {
-			log.Printf("Try to manage k8S resource %s", result)
-			return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
-		}
+	}
+	// Unmarshal JSON to k8s data structs
+	if err = json.Unmarshal([]byte(rSpec), &deploymentRepr); err != nil {
+		log.Printf("Try to manage k8S resource %s", rSpec)
+		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
 	// TODO manage Namespace creation
@@ -217,20 +202,16 @@ func (e *execution) manageDeploymentResource(ctx context.Context, operationType 
 	return nil
 }
 
-func (e *execution) manageServiceResource(ctx context.Context, operationType k8sResourceOperation) (err error) {
+func (e *execution) manageServiceResource(ctx context.Context, operationType k8sResourceOperation, rSpec string) (err error) {
 
 	var serviceRepr v1.Service
-
-	if found, result, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec"); err != nil {
-		return err
-	} else if !found {
+	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
-	} else {
-		// Unmarshal JSON to k8s data structs
-		if err = json.Unmarshal([]byte(result), &serviceRepr); err != nil {
-			log.Printf("Try to manage k8s resource %s", result)
-			return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
-		}
+	}
+	// Unmarshal JSON to k8s data structs
+	if err = json.Unmarshal([]byte(rSpec), &serviceRepr); err != nil {
+		log.Printf("Try to manage k8s resource %s", rSpec)
+		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
 	namespace := "default"
