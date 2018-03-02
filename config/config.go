@@ -53,10 +53,7 @@ const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
-	AnsibleUseOpenSSH                bool
-	AnsibleDebugExec                 bool
-	AnsibleConnectionRetries         int
-	OperationRemoteBaseDir           string
+	Ansible                			 Ansible
 	PluginsDirectory                 string
 	WorkingDirectory                 string
 	WorkersNumber                    int
@@ -65,22 +62,35 @@ type Configuration struct {
 	HTTPAddress                      string
 	KeyFile                          string
 	CertFile                         string
-	KeepOperationRemotePath          bool
 	ResourcesPrefix                  string
-	ConsulToken                      string
-	ConsulDatacenter                 string
-	ConsulAddress                    string
-	ConsulKey                        string
-	ConsulCert                       string
-	ConsulCA                         string
-	ConsulCAPath                     string
-	ConsulSSL                        bool
-	ConsulSSLVerify                  bool
-	ConsulPubMaxRoutines             int
+	Consul							 Consul
 	Telemetry                        Telemetry
 	Infrastructures                  map[string]DynamicMap
 	Vault                            DynamicMap
 	WfStepGracefulTerminationTimeout time.Duration
+}
+
+// Ansible configuration
+type Ansible struct {
+	UseOpenSSH				bool
+	DebugExec				bool
+	ConnectionRetries		int
+	OperationRemoteBaseDir	string
+	KeepOperationRemotePath	bool
+}
+
+// Consul configuration
+type Consul struct {
+	Token           string
+	Datacenter      string
+	Address         string
+	Key             string
+	Cert            string
+	CA              string
+	CAPath          string
+	SSL             bool
+	SSLVerify       bool
+	PubMaxRoutines	int
 }
 
 // Telemetry holds the configuration for the telemetry service

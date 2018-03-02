@@ -64,24 +64,24 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	infrastructure := commons.Infrastructure{}
 
 	consulAddress := "127.0.0.1:8500"
-	if cfg.ConsulAddress != "" {
-		consulAddress = cfg.ConsulAddress
+	if cfg.Consul.Address != "" {
+		consulAddress = cfg.Consul.Address
 	}
 	consulScheme := "http"
-	if cfg.ConsulSSL {
+	if cfg.Consul.SSL {
 		consulScheme = "https"
 	}
 	consulCA := ""
-	if cfg.ConsulCA != "" {
-		consulCA = cfg.ConsulCA
+	if cfg.Consul.CA != "" {
+		consulCA = cfg.Consul.CA
 	}
 	consulKey := ""
-	if cfg.ConsulKey != "" {
-		consulKey = cfg.ConsulKey
+	if cfg.Consul.Key != "" {
+		consulKey = cfg.Consul.Key
 	}
 	consulCert := ""
-	if cfg.ConsulCert != "" {
-		consulCert = cfg.ConsulCert
+	if cfg.Consul.Cert != "" {
+		consulCert = cfg.Consul.Cert
 	}
 
 	log.Debugf("Generating infrastructure for deployment with node %s", nodeName)
