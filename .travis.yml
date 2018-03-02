@@ -32,6 +32,24 @@ after_script:
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
+deploy:
+  - provider: script
+    script: bash deploy.sh
+    on:
+      all_branches: true
+    skip_cleanup: true
+
+  - provider: releases
+    overwrite: true
+    api_key:
+      secure: ZHIdTaOa3MbxENL2spVhKk3P3DatNXZ5hjg+4oe0hCdZsr1feb0WnC4jsfMeU5rQcaiwJEWknrvdq66RUQvbcOtEr/SIrPUplc/qjWiH6i81lELX1OVp41M1YSkjEKnjCUqyW1lcBCS8KgwaiNCRd6BI6BbPhNy4bO0ssQXnT8wuaWaPExgjo8qck9qsB7n+Ta0gwkHd9Ly3FdH1I4DmcwB1T0kB9MRjmJk5WeX8uBN7vJjcrsy8VbDwLxTRhjAbLSz7Pa7fUBtA4ssXJQbbAxpXaaa8FkkBPLXCf+zsq6+Cqnhj/Y8O360iu92A6hgNKUkCCNqXJHxYP6L6ETY/wh+6XlnWKWPSCy3/z5KFJYptVDD70EStKhHj3Gwjyh0mXGGt4UpgMBZlTzj2I0uReS6BCGcJ3t0/ny3L0x4LhnQpNGsgzm/2CiLfr0PUcBgAI4b6jUpzfZlG9H7DfiwHJdhU1yTbelBjf4nYEAG2oQVijD9wSiMyTShWt6Hh4Vw1WsGemd14TzOdDP6eAbECqjAb6OIpe8edeiD/fdwXoXFCdmMHuq19XXGloCOgJpfExxByagZhN8SsFxsr5mUdnSSuXUZ3XtcoRhCum7J7ZsTIJ6nhS6DrvVjI9Hwiq2d3IK10JgQ6K48C/c0qW+TvOUJvgmeQCHpSF+gLJWQlodY=
+    file:
+      - dist/yorc.tgz
+      - dist/yorc-server-*-distrib.zip
+    skip_cleanup: true
+    on:
+      tags: true
+
 addons:
   apt:
     packages:
@@ -41,3 +59,8 @@ addons:
     - texlive-latex-base
     - texlive-latex-extra
     - texlive-latex-recommended
+
+env:
+  global:
+    secure: UYRcG6VFZrs26zy+L3p6AgfAfIjCU9VTHHeaTqDZ7mYSKl7ijn4Av/tYna/gblftq9k5Lh1pPW54q2pkdl0d9KPA6fDbsi1AGpBg3smVZ3znzC+N6Y/MUZvyI6UkmjC00tCwCBouB2E8mQ/7xLBfX/bY4QqZBiOWr86eTULBhW1og0PbATBggPLdrHXouC3NVB8/MrhWBssoGNYnBxeHDmmPklhwx1tHEfEIh+QKsDOmm4AVLVb/ZFLziIr/eQ0k8vqU9/nRKZY1ZQ4gOmnWZ/74AC7e2EwcYWcjVK62rE4ePE86LL3zpqfnFFgu/v5d5l8m8yoMTOYx09pL/6Zbw280ahit/P7oDUtSyx+Vejv3hPDkupmKcxqeTEpkRxmDWNu6dYOeuMGo3P3uVbKA7SaqZTjxNDhxAvaMxwUg4rR44o1Vxwz6VVAZPIcMdoYlN/LDn1oJCx4bWL9p+P0MIPZp4H0NnE5N//MgZLoy2GueBGSVrx7c272H8FaC+er7ZzItCm3qUKAKR4CYoogdDK9avuhw+Wy180FfVE1dUZzNKkEZfDKxz33AXqwnsaCtcmMkv/qccpVtTJ1NnVuvaHRReMT2bLZhQLBk73/380lrbc6XPlJJh1l7YzP0IarChWVxynA4qb5qIXTiuoXifSfV5xcDNT8UkKuh5Vw1bXM=
+
