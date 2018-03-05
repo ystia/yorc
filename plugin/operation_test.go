@@ -80,11 +80,14 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 			TargetNodeName:          "AnotherNode",
 		},
 	}
-	err = plugin.ExecOperation(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "TestDepID", "TestNodeName", op)
+	err = plugin.ExecOperation(
+		context.Background(),
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestTaskID", "TestDepID", "TestNodeName", op)
 	require.Nil(t, err)
 	require.True(t, mock.execoperationCalled)
-	require.Equal(t, "test", mock.conf.ConsulAddress)
-	require.Equal(t, "testdc", mock.conf.ConsulDatacenter)
+	require.Equal(t, "test", mock.conf.Consul.Address)
+	require.Equal(t, "testdc", mock.conf.Consul.Datacenter)
 	require.Equal(t, "TestTaskID", mock.taskID)
 	require.Equal(t, "TestDepID", mock.deploymentID)
 	require.Equal(t, "TestNodeName", mock.nodeName)
@@ -114,7 +117,10 @@ func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 			TargetNodeName:          "AnotherNode",
 		},
 	}
-	err = plugin.ExecOperation(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "TestFailure", "TestNodeName", op)
+	err = plugin.ExecOperation(
+		context.Background(),
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestTaskID", "TestFailure", "TestNodeName", op)
 	require.Error(t, err, "An error was expected during executing plugin operation")
 }
 
@@ -135,7 +141,10 @@ func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
 	ctx := context.Background()
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
-		err = plugin.ExecOperation(ctx, config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "TestCancel", "TestNodeName", prov.Operation{})
+		err = plugin.ExecOperation(
+			ctx,
+			config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+			"TestTaskID", "TestCancel", "TestNodeName", prov.Operation{})
 		require.Nil(t, err)
 	}()
 	cancelF()

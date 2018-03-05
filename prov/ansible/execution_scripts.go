@@ -247,10 +247,10 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
-	if e.cfg.AnsibleDebugExec {
+	if e.cfg.Ansible.DebugExec {
 		cmd.Args = append(cmd.Args, "-vvvvv")
 	}
-	if e.cfg.AnsibleUseOpenSSH {
+	if e.cfg.Ansible.UseOpenSSH {
 		cmd.Args = append(cmd.Args, "-c", "ssh")
 	} else {
 		cmd.Args = append(cmd.Args, "-c", "paramiko")

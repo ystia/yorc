@@ -54,7 +54,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		return errors.Wrap(err, "Can't connect to Consul")
 	}
 
-	maxConsulPubRoutines := configuration.ConsulPubMaxRoutines
+	maxConsulPubRoutines := configuration.Consul.PubMaxRoutines
 	if maxConsulPubRoutines <= 0 {
 		maxConsulPubRoutines = config.DefaultConsulPubMaxRoutines
 	}

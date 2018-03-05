@@ -41,15 +41,17 @@ func TestConfiguration_GetConsulClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Configuration{
-				ConsulToken:      tt.fields.ConsulToken,
-				ConsulDatacenter: tt.fields.ConsulDatacenter,
-				ConsulAddress:    tt.fields.ConsulAddress,
-				ConsulKey:        tt.fields.ConsulKey,
-				ConsulCert:       tt.fields.ConsulCert,
-				ConsulCA:         tt.fields.ConsulCA,
-				ConsulCAPath:     tt.fields.ConsulCAPath,
-				ConsulSSL:        tt.fields.ConsulSSL,
-				ConsulSSLVerify:  tt.fields.ConsulSSLVerify,
+				Consul: Consul{
+					Token:      tt.fields.ConsulToken,
+					Datacenter: tt.fields.ConsulDatacenter,
+					Address:    tt.fields.ConsulAddress,
+					Key:        tt.fields.ConsulKey,
+					Cert:       tt.fields.ConsulCert,
+					CA:         tt.fields.ConsulCA,
+					CAPath:     tt.fields.ConsulCAPath,
+					SSL:        tt.fields.ConsulSSL,
+					SSLVerify:  tt.fields.ConsulSSLVerify,
+				},
 			}
 			got, err := cfg.GetConsulClient()
 			if (err != nil) != tt.wantErr {

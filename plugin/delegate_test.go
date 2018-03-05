@@ -72,11 +72,14 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 
 	delegate := raw.(prov.DelegateExecutor)
 
-	err = delegate.ExecDelegate(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "TestDepID", "TestNodeName", "TestDelegateOP")
+	err = delegate.ExecDelegate(
+		context.Background(),
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestTaskID", "TestDepID", "TestNodeName", "TestDelegateOP")
 	require.Nil(t, err)
 	require.True(t, mock.execDelegateCalled)
-	require.Equal(t, "test", mock.conf.ConsulAddress)
-	require.Equal(t, "testdc", mock.conf.ConsulDatacenter)
+	require.Equal(t, "test", mock.conf.Consul.Address)
+	require.Equal(t, "testdc", mock.conf.Consul.Datacenter)
 	require.Equal(t, "TestTaskID", mock.taskID)
 	require.Equal(t, "TestDepID", mock.deploymentID)
 	require.Equal(t, "TestNodeName", mock.nodeName)
@@ -98,7 +101,10 @@ func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
 
 	delegate := raw.(prov.DelegateExecutor)
 
-	err = delegate.ExecDelegate(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "TestFailure", "TestNodeName", "TestDelegateOP")
+	err = delegate.ExecDelegate(
+		context.Background(),
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestTaskID", "TestFailure", "TestNodeName", "TestDelegateOP")
 	require.Error(t, err, "An error was expected during executing plugin operation")
 }
 
@@ -119,7 +125,10 @@ func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
 	ctx := context.Background()
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
-		err = delegate.ExecDelegate(ctx, config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "TestCancel", "TestNodeName", "TestDelegateOP")
+		err = delegate.ExecDelegate(
+			ctx,
+			config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+			"TestTaskID", "TestCancel", "TestNodeName", "TestDelegateOP")
 		require.Nil(t, err)
 	}()
 	cancelF()
