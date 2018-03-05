@@ -395,8 +395,9 @@ func deprecateFlatKeys(configuration map[string]interface{}, configurationName s
 	for key, defaultValue := range configuration {
 		deprecatedKey := toFlatKey(key)
 		if value := viper.Get(deprecatedKey); value != nil {
+			subkeys := strings.SplitN(key, ".", 2)
 			deprecatedMsg += fmt.Sprintf(msgFlatKeyFormat, deprecatedKey, defaultValue)
-			newValueMsg += fmt.Sprintf(msgNestedKeyFormat, key, defaultValue)
+			newValueMsg += fmt.Sprintf(msgNestedKeyFormat, subkeys[1], defaultValue)
 			// Let viper manage the nested key as the primary key,
 			// and the flat key as an alias
 			viper.RegisterAlias(deprecatedKey, key)
