@@ -15,6 +15,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -35,6 +36,31 @@ func init() {
 	serverInitExtraFlags(args)
 	setConfig()
 	cobra.OnInitialize(initConfig)
+}
+
+const (
+	environmentVariablePrefix = "YORC"
+)
+
+var ansibleConfiguration = map[string]interface{}{
+	"ansible.use_openssh":                false,
+	"ansible.debug":                      false,
+	"ansible.connection_retries":         5,
+	"ansible.operation_remote_base_dir":  ".yorc",
+	"ansible.keep_operation_remote_path": config.DefaultKeepOperationRemotePath,
+}
+
+var consulConfiguration = map[string]interface{}{
+	"consul.address":                "",
+	"consul.token":                  "anonymous",
+	"consul.datacenter":             "dc1",
+	"consul.key_file":               "",
+	"consul.cert_file":              "",
+	"consul.ca_cert":                "",
+	"consul.ca_path":                "",
+	"consul.ssl":                    false,
+	"consul.ssl_verify":             true,
+	"consul.publisher_max_routines": config.DefaultConsulPubMaxRoutines,
 }
 
 var cfgFile string
@@ -148,27 +174,14 @@ func initConfig() {
 	} else {
 		log.Println("Can't use config file:", err)
 	}
+
+	// Deprecate Ansible and Consul flat keys if they are defined in
+	// configuration
+	deprecateFlatKeys(ansibleConfiguration, "ansible")
+	deprecateFlatKeys(consulConfiguration, "consul")
 }
 
 func setConfig() {
-
-	// Register aliases to manage indifferently flat data (for backward compatibility)
-	// or structured data in config files
-	viper.RegisterAlias("ansible.use_openssh", "ansible_use_openssh")
-	viper.RegisterAlias("ansible.debug", "ansible_debug")
-	viper.RegisterAlias("ansible.connection_retries", "ansible_connection_retries")
-	viper.RegisterAlias("ansible.operation_remote_base_dir", "operation_remote_base_dir")
-	viper.RegisterAlias("ansible.keep_operation_remote_path", "keep_operation_remote_path")
-	viper.RegisterAlias("consul.address", "consul_address")
-	viper.RegisterAlias("consul.token", "consul_token")
-	viper.RegisterAlias("consul.datacenter", "consul_datacenter")
-	viper.RegisterAlias("consul.key_file", "consul_key_file")
-	viper.RegisterAlias("consul.cert_file", "consul_cert_file")
-	viper.RegisterAlias("consul.ca_cert", "consul_ca_cert")
-	viper.RegisterAlias("consul.ca_path", "consul_ca_path")
-	viper.RegisterAlias("consul.ssl", "consul_ssl")
-	viper.RegisterAlias("consul.ssl_verify", "consul_ssl_verify")
-	viper.RegisterAlias("consul.publisher_max_routines", "consul_publisher_max_routines")
 
 	//Flags definition for Yorc server
 	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/yorc/config.yorc.json)")
@@ -204,18 +217,10 @@ func setConfig() {
 	serverCmd.PersistentFlags().String("operation_remote_base_dir", ".yorc", "Name of the temporary directory used by Ansible on the nodes")
 	serverCmd.PersistentFlags().Bool("keep_operation_remote_path", config.DefaultKeepOperationRemotePath, "Define wether the path created to store artifacts on the nodes will be removed at the end of workflow executions.")
 
-	//Bind flags for Consul
-	viper.BindPFlag("consul_address", serverCmd.PersistentFlags().Lookup("consul_address"))
-	viper.BindPFlag("consul_token", serverCmd.PersistentFlags().Lookup("consul_token"))
-	viper.BindPFlag("consul_datacenter", serverCmd.PersistentFlags().Lookup("consul_datacenter"))
-	viper.BindPFlag("consul_key_file", serverCmd.PersistentFlags().Lookup("consul_key_file"))
-	viper.BindPFlag("consul_cert_file", serverCmd.PersistentFlags().Lookup("consul_cert_file"))
-	viper.BindPFlag("consul_ca_cert", serverCmd.PersistentFlags().Lookup("consul_ca_cert"))
-	viper.BindPFlag("consul_ca_path", serverCmd.PersistentFlags().Lookup("consul_ca_path"))
-	viper.BindPFlag("consul_ssl", serverCmd.PersistentFlags().Lookup("consul_ssl"))
-	viper.BindPFlag("consul_ssl_verify", serverCmd.PersistentFlags().Lookup("consul_ssl_verify"))
-
-	viper.BindPFlag("consul_publisher_max_routines", serverCmd.PersistentFlags().Lookup("consul_publisher_max_routines"))
+	//Bind Consul persistent flags
+	for key := range consulConfiguration {
+		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
+	}
 
 	//Bind Flags for Yorc server
 	viper.BindPFlag("working_directory", serverCmd.PersistentFlags().Lookup("working_directory"))
@@ -231,15 +236,14 @@ func setConfig() {
 	viper.BindPFlag("cert_file", serverCmd.PersistentFlags().Lookup("cert_file"))
 	viper.BindPFlag("key_file", serverCmd.PersistentFlags().Lookup("key_file"))
 
-	viper.BindPFlag("ansible_use_openssh", serverCmd.PersistentFlags().Lookup("ansible_use_openssh"))
-	viper.BindPFlag("ansible_debug", serverCmd.PersistentFlags().Lookup("ansible_debug"))
-	viper.BindPFlag("ansible_connection_retries", serverCmd.PersistentFlags().Lookup("ansible_connection_retries"))
-	viper.BindPFlag("operation_remote_base_dir", serverCmd.PersistentFlags().Lookup("operation_remote_base_dir"))
-	viper.BindPFlag("keep_operation_remote_path", serverCmd.PersistentFlags().Lookup("keep_operation_remote_path"))
+	//Bind Ansible persistent flags
+	for key := range ansibleConfiguration {
+		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
+	}
 
 	//Environment Variables
-	viper.SetEnvPrefix("yorc") // will be uppercased automatically - Become "YORC_"
-	viper.AutomaticEnv()       // read in environment variables that match
+	viper.SetEnvPrefix(environmentVariablePrefix)
+	viper.AutomaticEnv() // read in environment variables that match
 	viper.BindEnv("working_directory")
 	viper.BindEnv("plugins_directory")
 	viper.BindEnv("server_graceful_shutdown_timeout")
@@ -249,21 +253,18 @@ func setConfig() {
 	viper.BindEnv("key_file")
 	viper.BindEnv("cert_file")
 	viper.BindEnv("resources_prefix")
-	viper.BindEnv("consul_publisher_max_routines")
-	viper.BindEnv("consul_address")
-	viper.BindEnv("consul_key_file")
-	viper.BindEnv("consul_cert_file")
-	viper.BindEnv("consul_ca_cert")
-	viper.BindEnv("consul_ca_path")
-	viper.BindEnv("consul_ssl")
-	viper.BindEnv("consul_ssl_verify")
+
+	//Bind Consul environment variables flags
+	for key := range consulConfiguration {
+		viper.BindEnv(key, toEnvVar(key))
+	}
+
 	viper.BindEnv("wf_step_graceful_termination_timeout")
 
-	viper.BindEnv("ansible_use_openssh")
-	viper.BindEnv("ansible_debug")
-	viper.BindEnv("ansible_connection_retries")
-	viper.BindEnv("operation_remote_base_dir")
-	viper.BindEnv("keep_operation_remote_path")
+	//Bind Ansible environment variables flags
+	for key := range ansibleConfiguration {
+		viper.BindEnv(key, toEnvVar(key))
+	}
 
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
@@ -276,22 +277,15 @@ func setConfig() {
 	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
 
 	// Consul configuration default settings
-	// TODO: uncomment this block
-	/*
-		viper.SetDefault("consul.address", "") // Use consul api default
-		viper.SetDefault("consul.datacenter", "dc1")
-		viper.SetDefault("consul.token", "anonymous")
-		viper.SetDefault("consul.ssl_verify", true)
-		viper.SetDefault("consul.publisher_max_routines", config.DefaultConsulPubMaxRoutines)
+	for key, value := range consulConfiguration {
+		viper.SetDefault(key, value)
+	}
 
-		// Ansible configuration default settings
+	// Ansible configuration default settings
+	for key, value := range ansibleConfiguration {
+		viper.SetDefault(key, value)
+	}
 
-		viper.SetDefault("ansible.use_openssh", false)
-		viper.SetDefault("ansible.debug", false)
-		viper.SetDefault("ansible.connection_retries", 5)
-		viper.SetDefault("ansible.operation_remote_base_dir", ".yorc")
-		viper.SetDefault("ansible.keep_operation_remote_path", config.DefaultKeepOperationRemotePath)
-	*/
 	//Configuration file directories
 	viper.SetConfigName("config.yorc") // name of config file (without extension)
 	viper.AddConfigPath("/etc/yorc/")  // adding home directory as first search path
@@ -386,4 +380,64 @@ func addServerExtraVaultParam(cfg *config.Configuration, vaultParam string) {
 	paramParts := strings.Split(vaultParam, ".")
 	value := viper.Get(vaultParam)
 	cfg.Vault.Set(paramParts[1], value)
+}
+
+// Deprecate keys still using an old format in viper configuration by defining
+// an alias to the new key, and logging a message describing which keys are
+// deprecated as well as the new format to use.
+func deprecateFlatKeys(configuration map[string]interface{}, configurationName string) {
+
+	var deprecatedMsg string
+	var newValueMsg string
+	msgFlatKeyFormat := "\t%q: %T,\n"
+	msgNestedKeyFormat := "\t" + msgFlatKeyFormat
+
+	for key, defaultValue := range configuration {
+		deprecatedKey := toFlatKey(key)
+		if value := viper.Get(deprecatedKey); value != nil {
+			deprecatedMsg += fmt.Sprintf(msgFlatKeyFormat, deprecatedKey, defaultValue)
+			newValueMsg += fmt.Sprintf(msgNestedKeyFormat, key, defaultValue)
+			// Let viper manage the nested key as the primary key,
+			// and the flat key as an alias
+			viper.RegisterAlias(deprecatedKey, key)
+		}
+	}
+
+	if deprecatedMsg != "" {
+		log.Printf("Deprecated values are used in configuration file. The following lines:\n%sshould now have this format:\n\t%s{\n%s\t}",
+			deprecatedMsg,
+			configurationName,
+			newValueMsg)
+	}
+
+}
+
+// Returns the flat key corresponding to a nested key.
+// For example, for a nested key consul.token, this function will return
+// consul_token
+func toFlatKey(nestedKey string) string {
+
+	var flatKey string
+
+	// Specific code for keys that don't follow the naming scheme
+	if nestedKey == "ansible.operation_remote_base_dir" ||
+		nestedKey == "ansible.keep_operation_remote_path" {
+
+		flatKey = strings.Replace(nestedKey, "ansible.", "", 1)
+	} else {
+		flatKey = strings.Replace(nestedKey, ".", "_", 1)
+	}
+
+	return flatKey
+
+}
+
+// Returns the name of the environment variable corresponding to a viper
+// nested key. For example, using the prefix yorc,
+// nested key consul.token will be associated to YORC_CONSUL_TOKEN environment
+// variable
+func toEnvVar(key string) string {
+
+	name := environmentVariablePrefix + "_" + toFlatKey(key)
+	return strings.ToUpper(name)
 }

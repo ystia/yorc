@@ -147,9 +147,9 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 	require.Equal(t, resolvedServerExtraParams[1].viperNames[2], "vault.secured3")
 }
 
-// Tests Ansible and Consul Config Values:
-// - using a configuration file with flat data (backwrd compatibility)
-// - using a configuration file with structured data
+// Tests configuration values:
+// - using a configuration file with deprecated values (backward compatibility check)
+// - using a configuration file with the expected format
 func TestConfigFile(t *testing.T) {
 
 	fileToExpectedValues := []struct {
@@ -203,67 +203,95 @@ func TestConfigFile(t *testing.T) {
 
 		testResetConfig()
 		setConfig()
-		testLoadConfigFile(t, fileToExpectedValue.FileName)
+		viper.SetConfigFile(fileToExpectedValue.FileName)
+		initConfig()
 		testConfig := getConfig()
 
 		assert.Equal(t, fileToExpectedValue.AnsibleConfig, testConfig.Ansible, "Ansible configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
 		assert.Equal(t, fileToExpectedValue.ConsulConfig, testConfig.Consul, "Consul configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
 	}
-
 }
 
-// Tests Ansible and Consul default values
-func TestDefaultValues(t *testing.T) {
+// Tests Ansible configuration default values
+func TestAnsibleDefaultValues(t *testing.T) {
 
-	// TODO: uncomment this block
-	/*
-		expectedAnsibleConfig := config.Ansible {
-			UseOpenSSH: 				false,
-			DebugExec: 					false,
-			ConnectionRetries: 			5,
-			OperationRemoteBaseDir:		".yorc",
-			KeepOperationRemotePath:	false,
-		}
+	expectedAnsibleConfig := config.Ansible{
+		UseOpenSSH:              false,
+		DebugExec:               false,
+		ConnectionRetries:       5,
+		OperationRemoteBaseDir:  ".yorc",
+		KeepOperationRemotePath: false,
+	}
 
-		expectedConsulConfig := config.Consul {
-			Token: 			"anonymous",
-			Datacenter: 	"dc1",
-			Address: 		"",
-			Key: 			"",
-			Cert: 			"",
-			CA: 			"",
-			CAPath: 		"",
-			SSL: 			false,
-			SSLVerify: 		true,
-			PubMaxRoutines:	config.DefaultConsulPubMaxRoutines,
-		}
+	testResetConfig()
+	setConfig()
+	initConfig()
+	testConfig := getConfig()
 
-		testResetConfig()
-		// No Configuration file specified here to check default values
-		setConfig()
-		initConfig()
-		TODO : uncomment this block
-		testConfig := getConfig()
-
-		assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected default configuration")
-		assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from expected default configuration")
-		viper.Debug()
-	*/
-
+	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected default configuration")
 }
 
-// Tests Ansible and Consul configuration using environment variables
-func TestEnvVariables(t *testing.T) {
+// Tests Consul configuration default values
+func TestConsulDefaultValues(t *testing.T) {
+
+	expectedConsulConfig := config.Consul{
+		Token:          "anonymous",
+		Datacenter:     "dc1",
+		Address:        "",
+		Key:            "",
+		Cert:           "",
+		CA:             "",
+		CAPath:         "",
+		SSL:            false,
+		SSLVerify:      true,
+		PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+	}
+
+	testResetConfig()
+	setConfig()
+	initConfig()
+	testConfig := getConfig()
+
+	assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from expected default configuration")
+}
+
+// Tests Ansible configuration using environment variables
+func TestAnsibleEnvVariables(t *testing.T) {
 	expectedAnsibleConfig := config.Ansible{
 		UseOpenSSH:              true,
 		DebugExec:               true,
 		ConnectionRetries:       12,
-		OperationRemoteBaseDir:  ".yorctestEnv",
+		OperationRemoteBaseDir:  "testEnvBaseDir",
 		KeepOperationRemotePath: true,
 	}
 
+	// Set Ansible configuration environment ariables
+	os.Setenv("YORC_ANSIBLE_USE_OPENSSH", strconv.FormatBool(expectedAnsibleConfig.UseOpenSSH))
+	os.Setenv("YORC_ANSIBLE_DEBUG", strconv.FormatBool(expectedAnsibleConfig.DebugExec))
+	os.Setenv("YORC_ANSIBLE_CONNECTION_RETRIES", strconv.Itoa(expectedAnsibleConfig.ConnectionRetries))
+	os.Setenv("YORC_OPERATION_REMOTE_BASE_DIR", expectedAnsibleConfig.OperationRemoteBaseDir)
+	os.Setenv("YORC_KEEP_OPERATION_REMOTE_PATH", strconv.FormatBool(expectedAnsibleConfig.KeepOperationRemotePath))
+
+	testResetConfig()
+	setConfig()
+	initConfig()
+	testConfig := getConfig()
+
+	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected environment configuration")
+
+	// cleanup env
+	os.Unsetenv("YORC_ANSIBLE_USE_OPENSSH")
+	os.Unsetenv("YORC_ANSIBLE_DEBUG")
+	os.Unsetenv("YORC_ANSIBLE_CONNECTION_RETRIES")
+	os.Unsetenv("YORC_OPERATION_REMOTE_BASE_DIR")
+	os.Unsetenv("YORC_KEEP_OPERATION_REMOTE_PATH")
+}
+
+// Tests Consul configuration using environment variables
+func TestConsulEnvVariables(t *testing.T) {
+
 	expectedConsulConfig := config.Consul{
-		Token:          "testTokenEnv",
+		Token:          "testEnvToken",
 		Datacenter:     "testEnvDC",
 		Address:        "testEnvAddress",
 		Key:            "testEnvKey",
@@ -274,13 +302,6 @@ func TestEnvVariables(t *testing.T) {
 		SSLVerify:      false,
 		PubMaxRoutines: 125,
 	}
-
-	// Set Ansible configuration environment ariables
-	os.Setenv("YORC_ANSIBLE_USE_OPENSSH", strconv.FormatBool(expectedAnsibleConfig.UseOpenSSH))
-	os.Setenv("YORC_ANSIBLE_DEBUG", strconv.FormatBool(expectedAnsibleConfig.DebugExec))
-	os.Setenv("YORC_ANSIBLE_CONNECTION_RETRIES", strconv.Itoa(expectedAnsibleConfig.ConnectionRetries))
-	os.Setenv("YORC_OPERATION_REMOTE_BASE_DIR", expectedAnsibleConfig.OperationRemoteBaseDir)
-	os.Setenv("YORC_KEEP_OPERATION_REMOTE_PATH", strconv.FormatBool(expectedAnsibleConfig.KeepOperationRemotePath))
 
 	// Set Consul configuration environment variables
 	os.Setenv("YORC_CONSUL_ADDRESS", expectedConsulConfig.Address)
@@ -295,27 +316,107 @@ func TestEnvVariables(t *testing.T) {
 	os.Setenv("YORC_CONSUL_PUBLISHER_MAX_ROUTINES", strconv.Itoa(expectedConsulConfig.PubMaxRoutines))
 
 	testResetConfig()
-	// No Configuration file specified here. Just checking environment variables.
 	setConfig()
 	initConfig()
 	testConfig := getConfig()
 
-	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected environment configuration")
 	assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from expected environment configuration")
+
+	// cleanup env
+	os.Unsetenv("YORC_CONSUL_ADDRESS")
+	os.Unsetenv("YORC_CONSUL_TOKEN")
+	os.Unsetenv("YORC_CONSUL_DATACENTER")
+	os.Unsetenv("YORC_CONSUL_KEY_FILE")
+	os.Unsetenv("YORC_CONSUL_CERT_FILE")
+	os.Unsetenv("YORC_CONSUL_CA_CERT")
+	os.Unsetenv("YORC_CONSUL_CA_PATH")
+	os.Unsetenv("YORC_CONSUL_SSL")
+	os.Unsetenv("YORC_CONSUL_SSL_VERIFY")
+	os.Unsetenv("YORC_CONSUL_PUBLISHER_MAX_ROUTINES")
+}
+
+// Tests Ansible configuration using persistent flags
+func TestAnsiblePersistentFlags(t *testing.T) {
+
+	expectedAnsibleConfig := config.Ansible{
+		UseOpenSSH:              true,
+		DebugExec:               true,
+		ConnectionRetries:       15,
+		OperationRemoteBaseDir:  "testPFlagBaseDir",
+		KeepOperationRemotePath: true,
+	}
+
+	ansiblePFlagConfiguration := map[string]string{
+		"ansible_use_openssh":        strconv.FormatBool(expectedAnsibleConfig.UseOpenSSH),
+		"ansible_debug":              strconv.FormatBool(expectedAnsibleConfig.DebugExec),
+		"ansible_connection_retries": strconv.Itoa(expectedAnsibleConfig.ConnectionRetries),
+		"operation_remote_base_dir":  expectedAnsibleConfig.OperationRemoteBaseDir,
+		"keep_operation_remote_path": strconv.FormatBool(expectedAnsibleConfig.KeepOperationRemotePath),
+	}
+
+	testResetConfig()
+	// No Configuration file specified here. Just checking environment variables.
+	setConfig()
+	initConfig()
+
+	// Set persistent flags
+	for key, value := range ansiblePFlagConfiguration {
+		err := serverCmd.PersistentFlags().Set(key, value)
+		require.NoError(t, err, "Could not set persistent flag %s", key)
+	}
+
+	testConfig := getConfig()
+
+	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from persistent flags settings")
+}
+
+// Tests Consul configuration using persistent flags
+func TestConsulPersistentFlags(t *testing.T) {
+
+	expectedConsulConfig := config.Consul{
+		Token:          "testPFlagToken",
+		Datacenter:     "testPFlagDC",
+		Address:        "testPFlagAddress",
+		Key:            "testPFlagKey",
+		Cert:           "testPFlagCert",
+		CA:             "testPFlagCA",
+		CAPath:         "testEnvCAPath",
+		SSL:            true,
+		SSLVerify:      false,
+		PubMaxRoutines: 123,
+	}
+
+	consulPFlagConfiguration := map[string]string{
+		"consul_token":                  expectedConsulConfig.Token,
+		"consul_datacenter":             expectedConsulConfig.Datacenter,
+		"consul_address":                expectedConsulConfig.Address,
+		"consul_key_file":               expectedConsulConfig.Key,
+		"consul_cert_file":              expectedConsulConfig.Cert,
+		"consul_ca_cert":                expectedConsulConfig.CA,
+		"consul_ca_path":                expectedConsulConfig.CAPath,
+		"consul_ssl":                    strconv.FormatBool(expectedConsulConfig.SSL),
+		"consul_ssl_verify":             strconv.FormatBool(expectedConsulConfig.SSLVerify),
+		"consul_publisher_max_routines": strconv.Itoa(expectedConsulConfig.PubMaxRoutines),
+	}
+
+	testResetConfig()
+	// No Configuration file specified here. Just checking environment variables.
+	setConfig()
+	initConfig()
+
+	// Set persistent flags
+	for key, value := range consulPFlagConfiguration {
+		err := serverCmd.PersistentFlags().Set(key, value)
+		require.NoError(t, err, "Could not set persistent flag %s", key)
+	}
+
+	testConfig := getConfig()
+
+	assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from persistent flags settings")
 }
 
 // Test utility resetting the Orchestrator config
 func testResetConfig() {
 	viper.Reset()
 	serverCmd.ResetFlags()
-}
-
-// Test utility loading the content of a config file
-func testLoadConfigFile(t *testing.T, fileName string) {
-
-	viper.SetConfigFile(fileName)
-	err := viper.ReadInConfig()
-	require.NoError(t, err, "Failure reading Config file %s", fileName)
-
-	initConfig()
 }
