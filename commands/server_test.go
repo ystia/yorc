@@ -157,7 +157,7 @@ func TestConfigFile(t *testing.T) {
 		AnsibleConfig config.Ansible
 		ConsulConfig  config.Consul
 	}{
-		{FileName: "testData/config_flat.yorc.json",
+		{FileName: "testdata/config_flat.yorc.json",
 			AnsibleConfig: config.Ansible{
 				UseOpenSSH:              true,
 				DebugExec:               true,
@@ -176,7 +176,7 @@ func TestConfigFile(t *testing.T) {
 				SSLVerify:      false,
 				PubMaxRoutines: 1234},
 		},
-		{FileName: "testData/config_structured.yorc.json",
+		{FileName: "testdata/config_structured.yorc.json",
 			AnsibleConfig: config.Ansible{
 				UseOpenSSH:              true,
 				DebugExec:               true,
