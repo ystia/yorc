@@ -535,7 +535,7 @@ Environment variables
 
 .. _option_plugindir_env:
 
-  * ``YORC_PLUGIN_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+  * ``YORC_PLUGINS_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
 
 .. _option_resources_prefix_env:
 
