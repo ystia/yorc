@@ -404,7 +404,7 @@ func deprecateFlatKeys(configuration map[string]interface{}, configurationName s
 	}
 
 	if deprecatedMsg != "" {
-		log.Printf("Deprecated values are used in configuration file. The following lines:\n%sshould now have this format:\n\t%s{\n%s\t}",
+		log.Printf("Deprecated values are used in configuration file. The following lines:\n%sshould now have this format:\n\t%q:{\n%s\t}",
 			deprecatedMsg,
 			configurationName,
 			newValueMsg)
