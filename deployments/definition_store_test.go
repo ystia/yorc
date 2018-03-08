@@ -17,16 +17,16 @@ package deployments
 import (
 	"context"
 	"path"
-	"testing"
-
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/prov"
-
 	"strings"
+	"testing"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/testutil"
 )
 
 func testDefinitionStore(t *testing.T, kv *api.KV) {
@@ -39,6 +39,9 @@ func testDefinitionStore(t *testing.T, kv *api.KV) {
 		})
 		t.Run("TestValueAssignments", func(t *testing.T) {
 			testValueAssignments(t, kv)
+		})
+		t.Run("TestOperationImplementationArtifact(", func(t *testing.T) {
+			testOperationImplementationArtifact(t, kv)
 		})
 	})
 }
@@ -688,36 +691,36 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 		wantFound bool
 		want      string
 	}{
-		// {"OutputValueLiteral", topoOutputArgs{"literal", nil}, false, true, `literalOutput`},
-		// {"OutputValueLiteralDefault", topoOutputArgs{"literalDefault", nil}, false, true, `1`},
-		// {"OutputValueComplexDTLiteral", topoOutputArgs{"complex", []string{"literal"}}, false, true, `11`},
-		// {"OutputValueComplexDTLiteral", topoOutputArgs{"complex", []string{"literalDefault"}}, false, true, `OutputLitDef`},
-		// {"OutputValueComplexDTLiteralDefault", topoOutputArgs{"complex", []string{"literalDefault"}}, false, true, `OutputLitDef`},
-		// {"OutputValueComplexDTAll", topoOutputArgs{"complex", []string{}}, false, true, `{"literal":"11","literalDefault":"OutputLitDef"}`},
-		// {"OutputValueComplexDefaultDTAll", topoOutputArgs{"complexDef", nil}, false, true, `{"literal":"1","literalDefault":"ComplexDataTypeDefault"}`},
-		// {"OutputValueComplexDefaultFromDT", topoOutputArgs{"complexDef", []string{"literalDefault"}}, false, true, `ComplexDataTypeDefault`},
-		// {"OutputValueBaseComplexDTNestedListOfString", topoOutputArgs{"baseComplex", []string{"nestedType", "listofstring"}}, false, true, `["OutputL1","OutputL2"]`},
-		// {"OutputValueBaseComplexDTNestedSubComplexLiteral", topoOutputArgs{"baseComplex", []string{"nestedType", "subcomplex", "literal"}}, false, true, `2`},
-		// {"OutputValueBaseComplexDTNestedSubComplexLiteralDefault", topoOutputArgs{"baseComplex", []string{"nestedType", "subcomplex", "literalDefault"}}, false, true, `ComplexDataTypeDefault`},
-		// {"OutputValueBaseComplexDTNestedSubComplexAll", topoOutputArgs{"baseComplex", []string{"nestedType", "subcomplex"}}, false, true, `{"literal":"2","literalDefault":"ComplexDataTypeDefault"}`},
-		// {"OutputValueBaseComplexDTNestedListOfComplex0Literal", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "0", "literal"}}, false, true, `2`},
-		// {"OutputValueBaseComplexDTNestedListOfComplex0MyMap", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "0", "mymap"}}, false, true, `{"Output":"1"}`},
-		// {"OutputValueBaseComplexDTNestedListOfComplex0All", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "0"}}, false, true, `{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}}`},
-		// {"OutputValueBaseComplexDTNestedListOfComplex1Literal", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "1", "literal"}}, false, true, `3`},
-		// {"OutputValueBaseComplexDTNestedListOfComplex1MyMap", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "1", "mymap"}}, false, true, `{"Output":"2"}`},
-		// {"OutputValueBaseComplexDTNestedListOfComplex1All", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "1"}}, false, true, `{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}`},
-		// {"OutputValueBaseComplexDTNestedListOfComplexAll", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex"}}, false, true, `[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}]`},
-		// {"OutputValueBaseComplexDTNestedMapOfComplex1Literal", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex", "m1", "literal"}}, false, true, `4`},
-		// {"OutputValueBaseComplexDTNestedMapOfComplex1MyMap", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex", "m1", "mymap"}}, false, true, `{"Output":"3"}`},
-		// {"OutputValueBaseComplexDTNestedMapOfComplex1All", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex", "m1"}}, false, true, `{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}`},
-		// {"OutputValueBaseComplexDTNestedMapOfComplexAll", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex"}}, false, true, `{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}}`},
-		// {"OutputValueBaseComplexDTNestedAll", topoOutputArgs{"baseComplex", []string{"nestedType"}}, false, true, `{"listofcomplex":[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}],"listofstring":["OutputL1","OutputL2"],"mapofcomplex":{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}},"subcomplex":{"literal":"2","literalDefault":"ComplexDataTypeDefault"}}`},
-		// {"OutputValueBaseComplexDTAll", topoOutputArgs{"baseComplex", nil}, false, true, `{"nestedType":{"listofcomplex":[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}],"listofstring":["OutputL1","OutputL2"],"mapofcomplex":{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}},"subcomplex":{"literal":"2","literalDefault":"ComplexDataTypeDefault"}}}`},
+		{"OutputValueLiteral", topoOutputArgs{"literal", nil}, false, true, `literalOutput`},
+		{"OutputValueLiteralDefault", topoOutputArgs{"literalDefault", nil}, false, true, `1`},
+		{"OutputValueComplexDTLiteral", topoOutputArgs{"complex", []string{"literal"}}, false, true, `11`},
+		{"OutputValueComplexDTLiteral", topoOutputArgs{"complex", []string{"literalDefault"}}, false, true, `OutputLitDef`},
+		{"OutputValueComplexDTLiteralDefault", topoOutputArgs{"complex", []string{"literalDefault"}}, false, true, `OutputLitDef`},
+		{"OutputValueComplexDTAll", topoOutputArgs{"complex", []string{}}, false, true, `{"literal":"11","literalDefault":"OutputLitDef"}`},
+		{"OutputValueComplexDefaultDTAll", topoOutputArgs{"complexDef", nil}, false, true, `{"literal":"1","literalDefault":"ComplexDataTypeDefault"}`},
+		{"OutputValueComplexDefaultFromDT", topoOutputArgs{"complexDef", []string{"literalDefault"}}, false, true, `ComplexDataTypeDefault`},
+		{"OutputValueBaseComplexDTNestedListOfString", topoOutputArgs{"baseComplex", []string{"nestedType", "listofstring"}}, false, true, `["OutputL1","OutputL2"]`},
+		{"OutputValueBaseComplexDTNestedSubComplexLiteral", topoOutputArgs{"baseComplex", []string{"nestedType", "subcomplex", "literal"}}, false, true, `2`},
+		{"OutputValueBaseComplexDTNestedSubComplexLiteralDefault", topoOutputArgs{"baseComplex", []string{"nestedType", "subcomplex", "literalDefault"}}, false, true, `ComplexDataTypeDefault`},
+		{"OutputValueBaseComplexDTNestedSubComplexAll", topoOutputArgs{"baseComplex", []string{"nestedType", "subcomplex"}}, false, true, `{"literal":"2","literalDefault":"ComplexDataTypeDefault"}`},
+		{"OutputValueBaseComplexDTNestedListOfComplex0Literal", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "0", "literal"}}, false, true, `2`},
+		{"OutputValueBaseComplexDTNestedListOfComplex0MyMap", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "0", "mymap"}}, false, true, `{"Output":"1"}`},
+		{"OutputValueBaseComplexDTNestedListOfComplex0All", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "0"}}, false, true, `{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}}`},
+		{"OutputValueBaseComplexDTNestedListOfComplex1Literal", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "1", "literal"}}, false, true, `3`},
+		{"OutputValueBaseComplexDTNestedListOfComplex1MyMap", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "1", "mymap"}}, false, true, `{"Output":"2"}`},
+		{"OutputValueBaseComplexDTNestedListOfComplex1All", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex", "1"}}, false, true, `{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}`},
+		{"OutputValueBaseComplexDTNestedListOfComplexAll", topoOutputArgs{"baseComplex", []string{"nestedType", "listofcomplex"}}, false, true, `[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}]`},
+		{"OutputValueBaseComplexDTNestedMapOfComplex1Literal", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex", "m1", "literal"}}, false, true, `4`},
+		{"OutputValueBaseComplexDTNestedMapOfComplex1MyMap", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex", "m1", "mymap"}}, false, true, `{"Output":"3"}`},
+		{"OutputValueBaseComplexDTNestedMapOfComplex1All", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex", "m1"}}, false, true, `{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}`},
+		{"OutputValueBaseComplexDTNestedMapOfComplexAll", topoOutputArgs{"baseComplex", []string{"nestedType", "mapofcomplex"}}, false, true, `{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}}`},
+		{"OutputValueBaseComplexDTNestedAll", topoOutputArgs{"baseComplex", []string{"nestedType"}}, false, true, `{"listofcomplex":[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}],"listofstring":["OutputL1","OutputL2"],"mapofcomplex":{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}},"subcomplex":{"literal":"2","literalDefault":"ComplexDataTypeDefault"}}`},
+		{"OutputValueBaseComplexDTAll", topoOutputArgs{"baseComplex", nil}, false, true, `{"nestedType":{"listofcomplex":[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"2"}}],"listofstring":["OutputL1","OutputL2"],"mapofcomplex":{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"Output":"3"}}},"subcomplex":{"literal":"2","literalDefault":"ComplexDataTypeDefault"}}}`},
 
 		// Test functions
-		// {"OutputFunctionLiteral", topoOutputArgs{"node1Lit", nil}, false, true, `myLiteral`},
+		{"OutputFunctionLiteral", topoOutputArgs{"node1Lit", nil}, false, true, `myLiteral`},
 		{"OutputFunctionNode2BaseComplexPropAll", topoOutputArgs{"node2BaseComplexPropAll", nil}, false, true, `{"nestedType":{"listofcomplex":[{"literal":"2","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"1"}},{"literal":"3","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"2"}}],"listofstring":["VANode2L1","VANode2L2"],"mapofcomplex":{"m1":{"literal":"4","literalDefault":"ComplexDataTypeDefault","mymap":{"VANode2":"3"}}},"subcomplex":{"literal":"2","literalDefault":"ComplexDataTypeDefault"}}}`},
-		// {"OutputFunctionNode2BaseComplexPropNestedSubComplexLiteral", topoOutputArgs{"node2BaseComplexPropNestedSubComplexLiteral", nil}, false, true, `2`},
+		{"OutputFunctionNode2BaseComplexPropNestedSubComplexLiteral", topoOutputArgs{"node2BaseComplexPropNestedSubComplexLiteral", nil}, false, true, `2`},
 	}
 	for _, tt := range topoOutputTests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -921,4 +924,39 @@ func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
 		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
 	}
+}
+
+func testOperationImplementationArtifact(t *testing.T, kv *api.KV) {
+	deploymentID := testutil.BuildDeploymentID(t)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/operation_implementation_artifact.yaml")
+	require.NoError(t, err, "Failed to store test topology deployment definition")
+
+	type args struct {
+		typeName  string
+		operation string
+	}
+	type checks struct {
+		implementationType string
+		primary            string
+	}
+	oiaTests := []struct {
+		name string
+		args args
+		want checks
+	}{
+		{"TestBashOnNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "scripts/create.sh"}},
+		{"TestBashOnRelType", args{"yorc.tests.relationships.OpImplementationArtifact", "configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "something"}},
+	}
+
+	for _, tt := range oiaTests {
+		t.Run(tt.name, func(t *testing.T) {
+			implType, err := GetOperationImplementationType(kv, deploymentID, tt.args.typeName, tt.args.operation)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want.implementationType, implType)
+			_, primary, err := GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, tt.args.typeName, tt.args.operation)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want.primary, primary)
+		})
+	}
+
 }

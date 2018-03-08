@@ -1,0 +1,35 @@
+tosca_definitions_version: alien_dsl_2_0_0
+description: Alien4Cloud generated service template
+template_name: GetOpOutputTest2
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - <normative-types.yml>
+
+node_types:
+  yorc.tests.nodes.OpImplementationArtifact:
+    derived_from: tosca.nodes.Root
+    properties:
+      p1:
+        type: string
+        default: "Val1"
+    interfaces:
+      Standard:
+        create:
+          inputs:
+            L1: 1
+            L2: {get_property: [SELF, p1]}
+          implementation: 
+            file: scripts/create.sh
+            type: tosca.artifacts.Implementation.Bash
+
+relationship_types:
+  yorc.tests.relationships.OpImplementationArtifact:
+    derived_from: tosca.relationships.Root
+    interfaces:
+      Configure:
+        pre_configure_source:
+          implementation:
+            file: something
+            type: tosca.artifacts.Implementation.Bash
