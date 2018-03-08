@@ -38,11 +38,26 @@ func GetSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
 
 	// Get SSH client
 	SSHConfig := &ssh.ClientConfig{
-		User: cfg.Infrastructures[infrastructureName].GetString("user_name"),
-		Auth: []ssh.AuthMethod{
-			ssh.Password(cfg.Infrastructures[infrastructureName].GetString("password")),
-		},
+		User:            cfg.Infrastructures[infrastructureName].GetString("user_name"),
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	// Set an authentication method. At least one authentication method
+	// has to be set, private/public key or password.
+	// The function checkInfraConfig called above ensures at least one of the
+	// configuration options, private_key or password, has been defined.
+	privateKey := cfg.Infrastructures[infrastructureName].GetString("private_key")
+	if privateKey != "" {
+		keyAuth, err := sshutil.ReadPrivateKey(privateKey)
+		if err != nil {
+			return nil, err
+		}
+		SSHConfig.Auth = append(SSHConfig.Auth, keyAuth)
+	}
+
+	password := cfg.Infrastructures[infrastructureName].GetString("password")
+	if password != "" {
+		SSHConfig.Auth = append(SSHConfig.Auth, ssh.Password(password))
 	}
 
 	port, err := strconv.Atoi(cfg.Infrastructures[infrastructureName].GetString("port"))
@@ -70,8 +85,10 @@ func checkInfraConfig(cfg config.Configuration) error {
 		return errors.New("slurm infrastructure user_name is not set")
 	}
 
-	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "") == "" {
-		return errors.New("slurm infrastructure password is not set")
+	// Check an authentication method was specified
+	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("password"), "") == "" &&
+		strings.Trim(cfg.Infrastructures[infrastructureName].GetString("private_key"), "") == "" {
+		return errors.New("slurm infrastructure missing authentication details, password or private_key should be set")
 	}
 
 	if strings.Trim(cfg.Infrastructures[infrastructureName].GetString("url"), "") == "" {
