@@ -28,6 +28,7 @@ import (
 
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tosca"
 )
@@ -107,25 +108,11 @@ func getOperationPath(deploymentID, nodeType, operationName string) string {
 
 // This function return the path for a given operation and the path of its interface
 func getOperationAndInterfacePath(deploymentID, nodeType, operationName string) (string, string) {
-	var op string
-	if idx := strings.Index(operationName, "configure."); idx >= 0 {
-		op = operationName[idx:]
-	} else if idx := strings.Index(operationName, "standard."); idx >= 0 {
-		op = operationName[idx:]
-	} else if idx := strings.Index(operationName, "custom."); idx >= 0 {
-		op = operationName[idx:]
-	} else {
-		op = strings.TrimPrefix(operationName, "tosca.interfaces.node.lifecycle.")
-		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
-		op = strings.TrimPrefix(op, "tosca.interfaces.node.lifecycle.")
-		op = strings.TrimPrefix(op, "tosca.interfaces.relationship.")
-	}
-	opPaths := strings.Split(op, ".")
-	operationPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", path.Join(opPaths...))
-	interfacePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", opPaths[0])
-
+	opShortName := stringutil.GetLastElement(operationName, ".")
+	interfaceName := stringutil.GetAllExceptLastElement(operationName, ".")
+	operationPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", interfaceName, opShortName)
+	interfacePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces", interfaceName)
 	return operationPath, interfacePath
-
 }
 
 // GetRelationshipTypeImplementingAnOperation  returns the first (bottom-up) type in the type hierarchy of a given relationship that implements a given operation

@@ -748,7 +748,7 @@ func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
 	// First test operation outputs detection
 
 	results, err := GetOperationInput(kv, deploymentID, "ValueAssignmentNode2", prov.Operation{
-		Name:                   "tosca.interfaces.relationship.configure.pre_configure_target",
+		Name:                   "configure.pre_configure_target",
 		ImplementedInType:      "yorc.tests.relationships.ValueAssignmentConnectsTo",
 		ImplementationArtifact: "",
 		RelOp: prov.RelationshipOperation{
@@ -790,7 +790,7 @@ func testGlobalInputs(t *testing.T, kv *api.KV) {
 
 	nodeName := "GI"
 	giType := "yorc.tests.nodes.GlobalInputs"
-	operationName := "tosca.interfaces.nodes.lifecycle.standard.create"
+	operationName := "standard.create"
 
 	err = SetInstanceAttribute(deploymentID, nodeName, "0", "state", "initial")
 	require.Nil(t, err)
