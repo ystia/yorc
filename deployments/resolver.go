@@ -32,6 +32,7 @@ const funcKeywordSELF string = "SELF"
 const funcKeywordHOST string = "HOST"
 const funcKeywordSOURCE string = "SOURCE"
 const funcKeywordTARGET string = "TARGET"
+const funcKeywordRTARGET string = "R_TARGET"
 const funcKeywordREQTARGET string = "REQ_TARGET"
 
 // functionResolver is used to resolve TOSCA functions
@@ -152,7 +153,7 @@ func (fr *functionResolver) resolveGetOperationOutput(operands []string) (string
 		}
 		// Workaround to be backward compatible lets look at relationships
 		return getOperationOutputForRequirements(fr.kv, fr.deploymentID, fr.nodeName, fr.instanceName, ifName, opName, varName)
-	case funcKeywordTARGET:
+	case funcKeywordTARGET, funcKeywordRTARGET:
 		if fr.requirementIndex != "" {
 			return "", errors.Errorf("Keyword %q not supported for an node expression (only supported in relationships)", funcKeywordTARGET)
 		}
@@ -190,7 +191,7 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 
 	if entity == funcKeywordHOST && fr.requirementIndex != "" {
 		return "", errors.Errorf(`Can't resolve %q %s keyword is not supported in the context of a relationship`, funcString, funcKeywordHOST)
-	} else if fr.requirementIndex == "" && (entity == funcKeywordSOURCE || entity == funcKeywordTARGET) {
+	} else if fr.requirementIndex == "" && (entity == funcKeywordSOURCE || entity == funcKeywordTARGET || entity == funcKeywordRTARGET) {
 		return "", errors.Errorf(`Can't resolve %q %s keyword is supported only in the context of a relationship`, funcString, entity)
 	}
 	// First get the node on which we should resolve the get_property
@@ -205,7 +206,7 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 		if err != nil {
 			return "", err
 		}
-	case funcKeywordTARGET:
+	case funcKeywordTARGET, funcKeywordRTARGET:
 		actualNode, err = GetTargetNodeForRequirement(fr.kv, fr.deploymentID, fr.nodeName, fr.requirementIndex)
 		if err != nil {
 			return "", err
