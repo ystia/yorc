@@ -4,12 +4,8 @@ template_name: GetOpOutputTest2
 template_version: 0.1.0-SNAPSHOT
 template_author: admin
 
-imports:
-  - <normative-types.yml>
-  - imports/operation_implementation_artifact.yaml
-
 node_types:
-  yorc.tests.nodes.OpImplementationArtifact:
+  yorc.tests.nodes.imports.OpImplementationArtifact:
     derived_from: tosca.nodes.Root
     properties:
       p1:
@@ -26,7 +22,7 @@ node_types:
             type: tosca.artifacts.Implementation.Bash
 
 relationship_types:
-  yorc.tests.relationships.OpImplementationArtifact:
+  yorc.tests.relationships.imports.OpImplementationArtifact:
     derived_from: tosca.relationships.Root
     interfaces:
       Configure:

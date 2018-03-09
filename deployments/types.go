@@ -279,3 +279,15 @@ func isTypePropOrAttrRequired(kv *api.KV, deploymentID, typeName, originalTypeNa
 	// Not required only if explicitly set to false
 	return !(strings.ToLower(string(kvp.Value)) == "false"), nil
 }
+
+// GetTypeImportPath returns the import path relative to the root of a CSAR of a given TOSCA type.
+//
+// This is particulary useful for resolving artifacts and implementation
+func GetTypeImportPath(kv *api.KV, deploymentID, typeName string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, "importPath"), nil)
+	if err != nil || kvp == nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	// Can be empty if type is definied into the root topology
+	return string(kvp.Value), nil
+}
