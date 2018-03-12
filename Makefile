@@ -37,7 +37,7 @@ header:
 	@echo "--> Adding licensing headers if necessary"
 	@./build/header.sh
 
-dist: build
+dist: buildnformat
 	@rm -rf ./dist && mkdir -p ./dist
 	@echo "--> Creating an archive"
 	@tar czvf yorc.tgz yorc && echo "TODO: clean this part after CI update" &&  cp yorc yorc.tgz dist/
