@@ -32,6 +32,8 @@ const funcKeywordSELF string = "SELF"
 const funcKeywordHOST string = "HOST"
 const funcKeywordSOURCE string = "SOURCE"
 const funcKeywordTARGET string = "TARGET"
+
+// R_TARGET has a special meaning for A4C but we just consider it as an alias for TARGET
 const funcKeywordRTARGET string = "R_TARGET"
 const funcKeywordREQTARGET string = "REQ_TARGET"
 

@@ -472,7 +472,7 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		var hasAttrOnSrcOrSelf bool
 		for _, ga := range f.GetFunctionsByOperator(tosca.GetAttributeOperator) {
 			switch ga.Operands[0].String() {
-			case funcKeywordTARGET:
+			case funcKeywordTARGET, funcKeywordRTARGET:
 				hasAttrOnTarget = true
 			case funcKeywordSELF, funcKeywordSOURCE, funcKeywordHOST:
 				hasAttrOnSrcOrSelf = true
