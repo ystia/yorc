@@ -17,11 +17,13 @@ package sshutil
 import (
 	"bytes"
 	"fmt"
+	"github.com/bramvdbogaerde/go-scp"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 	"io"
+	"path"
 )
 
 // Client is interface allowing running command
@@ -118,4 +120,31 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 
 	err := sw.Session.Run(cmd)
 	return err
+}
+
+// CopyFile allows to copy a reader over SSH with defined remote path and specific permissions
+func (client *SSHClient) CopyFile(source io.Reader, remotePath, permissions string) error {
+	// Create a new SCP client
+	scpHostPort := fmt.Sprintf("%s:%d", client.Host, client.Port)
+	scpClient := scp.NewClient(scpHostPort, client.Config)
+
+	// Connect to the remote server
+	err := scpClient.Connect()
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't establish a connection to the remote host:%q", scpHostPort)
+	}
+	defer scpClient.Session.Close()
+
+	// Create the remote directory
+	remoteDir := path.Dir(remotePath)
+	mkdirCmd := fmt.Sprintf("mkdir -p %s", remoteDir)
+	_, err = client.RunCommand(mkdirCmd)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't create the remote directory:%q", remoteDir)
+	}
+
+	// Finally, copy the reader over SSH
+	log.Debugf("Copy source over SSH to remote path:%s", remotePath)
+	scpClient.CopyFile(source, remotePath, permissions)
+	return nil
 }

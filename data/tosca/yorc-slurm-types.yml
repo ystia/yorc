@@ -11,6 +11,9 @@ artifact_types:
   yorc.artifacts.Deployment.SlurmJob:
     description: Slurm Job deployment descriptor
     derived_from: tosca.artifacts.Deployment
+  yorc.artifacts.Deployment.SlurmJobScript:
+    description: Slurm Job Script deployment descriptor
+    derived_from: yorc.artifacts.Deployment.SlurmJob
 
 node_types:
   yorc.nodes.slurm.Compute:

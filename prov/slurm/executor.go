@@ -66,8 +66,8 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 
 	// Execute operation
 	err = exec.execute(ctx)
-	if err == nil {
-		return nil
+	if err != nil {
+		return err
 	}
 
 	return nil

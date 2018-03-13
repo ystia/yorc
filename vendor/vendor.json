@@ -58,6 +58,12 @@
 			"revisionTime": "2016-08-04T10:47:26Z"
 		},
 		{
+			"checksumSHA1": "L8dGGeIbMgYJDz15yH7SL66Kw6s=",
+			"path": "github.com/bramvdbogaerde/go-scp",
+			"revision": "e1fc87afa32536b6f2a58fc9cf937432aeff91e7",
+			"revisionTime": "2017-09-19T17:59:37Z"
+		},
+		{
 			"checksumSHA1": "5rPfda8jFccr3A6heL+JAmi9K9g=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
 			"path": "github.com/davecgh/go-spew/spew",
