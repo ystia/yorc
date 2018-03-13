@@ -342,7 +342,7 @@ func getConfig() config.Configuration {
 func readInfraViperConfig(cfg *config.Configuration) {
 	infras := viper.GetStringMap("infrastructures")
 	for infraName, infraConf := range infras {
-		infraConfMap, ok := infraConf.(map[string]interface{})
+		infraConfMap, ok := infraConf.(map[interface{}]interface{})
 		if !ok {
 			log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
 		}
@@ -350,7 +350,7 @@ func readInfraViperConfig(cfg *config.Configuration) {
 			cfg.Infrastructures[infraName] = make(config.DynamicMap)
 		}
 		for k, v := range infraConfMap {
-			cfg.Infrastructures[infraName].Set(k, v)
+			cfg.Infrastructures[infraName].Set(fmt.Sprint(k), v)
 		}
 	}
 }
