@@ -16,7 +16,12 @@ package sshutil
 
 import (
 	"bytes"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
+	"os"
+
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
@@ -118,4 +123,44 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 
 	err := sw.Session.Run(cmd)
 	return err
+}
+
+// ReadPrivateKey returns an authentication method relying on private/public key pairs
+// The argument is :
+// - either a path to the private key file,
+// - or the content or this private key file
+func ReadPrivateKey(pk string) (ssh.AuthMethod, error) {
+	var p []byte
+	// check if pk is a path
+	keyPath, err := homedir.Expand(pk)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to expand key path")
+	}
+	if _, err := os.Stat(keyPath); err == nil {
+		p, err = ioutil.ReadFile(keyPath)
+		if err != nil {
+			p = []byte(pk)
+		}
+	} else {
+		p = []byte(pk)
+	}
+
+	// We parse the private key on our own first so that we can
+	// show a nicer error if the private key has a password.
+	block, _ := pem.Decode(p)
+	if block == nil {
+		return nil, errors.Errorf("Failed to read key %q: no key found", pk)
+	}
+	if block.Headers["Proc-Type"] == "4,ENCRYPTED" {
+		return nil, errors.Errorf(
+			"Failed to read key %q: password protected keys are\n"+
+				"not supported. Please decrypt the key prior to use.", pk)
+	}
+
+	signer, err := ssh.ParsePrivateKey(p)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse key file %q", pk)
+	}
+
+	return ssh.PublicKeys(signer), nil
 }
