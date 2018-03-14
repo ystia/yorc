@@ -17,6 +17,7 @@ package hostspool
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/helper/sshutil"
 )
 
@@ -501,4 +503,185 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")
 	err = cm.releaseWait("concurrent_host1", 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
+}
+
+func testConsulManagerApply(t *testing.T, cc *api.Client) {
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool []Host
+
+	for i := 0; i < 3; i++ {
+		suffix := strconv.Itoa(i)
+		hostpool = append(hostpool, Host{
+			Name: "host" + suffix,
+			Connection: Connection{
+				User:     "testuser" + suffix,
+				Password: "testpwd" + suffix,
+				Host:     "testhost" + suffix,
+				Port:     uint64(i + 1),
+			},
+			Labels: map[string]string{
+				"label1": "value1" + suffix,
+				"label2": "value2" + suffix,
+				"label3": "value3" + suffix,
+			},
+		})
+	}
+
+	// Apply this definition
+	err := cm.Apply(hostpool)
+	require.NoError(t, err, "Unexpected failure applying host pool definition")
+
+	// Check the pool now
+	hosts, warnings, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 3)
+	for i := 0; i < 3; i++ {
+		suffix := strconv.Itoa(i)
+		hostname := "host" + suffix
+		assert.Contains(t, hosts, hostname)
+		host, err := cm.GetHost(hostname)
+		require.NoError(t, err, "Could not get host %s", hostname)
+		assert.Equal(t, hostpool[i].Connection, host.Connection,
+			"Unexpected connection value for host %s", hostname)
+		assert.Equal(t, hostpool[i].Labels, host.Labels,
+			"Unexpected labels for host %s", hostname)
+	}
+
+	// Allocate host1
+	allocationMsg := "For tests purposes"
+	filterLabel := "label2"
+	filter, err := labelsutil.CreateFilter(
+		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
+	require.NoError(t, err, "Unexpected error creating a filter")
+	allocatedName, warnings, err := cm.Allocate(allocationMsg, filter)
+	assert.Equal(t, hostpool[1].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err := cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	assert.Equal(t, allocationMsg, allocatedHost.Message,
+		"Unexpected allocation message for allocated host")
+
+	// Change the pool definition by :
+	// - changing connection settings of host0
+	// - changing labels of host1
+	// - removing host2
+	// - adding host3 and host4
+	hostpool[0].Connection = Connection{
+		User:       "newUser",
+		PrivateKey: dummySSHkey,
+		Host:       "testhost0.example.com",
+		Port:       123,
+	}
+
+	hostpool[1].Labels = map[string]string{
+		"newlabel1": "newvalue1",
+		"newlabel2": "newvalue2",
+		"label2":    hostpool[1].Labels[filterLabel],
+		"label3":    "value32",
+	}
+
+	// Removing host2
+	removedHostname := hostpool[len(hostpool)-1].Name
+	hostpool = hostpool[:len(hostpool)-1]
+
+	// Adding new hosts
+	for i := 3; i < 5; i++ {
+		suffix := strconv.Itoa(i)
+		hostpool = append(hostpool, Host{
+			Name: "host" + suffix,
+			Connection: Connection{
+				User:     "testuser" + suffix,
+				Password: "testpwd" + suffix,
+				Host:     "testhost" + suffix,
+				Port:     uint64(i + 1),
+			},
+			Labels: map[string]string{
+				"label1": "value1" + suffix,
+				"label2": "value2" + suffix,
+				"label3": "value3" + suffix,
+			},
+		})
+	}
+
+	// Apply this new definition
+	err = cm.Apply(hostpool)
+	require.NoError(t, err,
+		"Unexpected failure applying new host pool definition")
+
+	// Check the pool now
+	hosts, warnings, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 4)
+	assert.NotContains(t, hosts, removedHostname)
+	for i := 0; i < 4; i++ {
+		var suffix string
+		if i < 2 {
+			suffix = strconv.Itoa(i)
+		} else {
+			suffix = strconv.Itoa(i + 1)
+		}
+
+		hostname := "host" + suffix
+		assert.Contains(t, hosts, hostname)
+		host, err := cm.GetHost(hostname)
+		require.NoError(t, err, "Could not get host %s", hostname)
+		assert.Equal(t, hostpool[i].Connection, host.Connection,
+			"Unexpected connection value for host %s", hostname)
+		assert.Equal(t, hostpool[i].Labels, host.Labels,
+			"Unexpected labels for host %s", hostname)
+	}
+
+	// Check the allocated status of host1 didn't change
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	assert.Equal(t, allocationMsg, allocatedHost.Message)
+	assert.Equal(t, allocationMsg, allocatedHost.Message,
+		"Unexpected alloc message for allocated host after Pool redefinition")
+	assert.Equal(t, HostStatusAllocated, allocatedHost.Status,
+		"Unexpected status for an allocated host after Pool redefinition")
+
+	// Error case: entry with no name
+	oldName := hostpool[0].Name
+	hostpool[0].Name = "newName"
+	hostpool = append(hostpool, hostpool[0])
+	hostpool[len(hostpool)-1].Name = ""
+	err = cm.Apply(hostpool)
+	assert.Error(t, err, "Expected an error adding a host with no name")
+
+	// Check the new definition wasn't applied after this error
+	hosts, warnings, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 4)
+	assert.Contains(t, hosts, oldName,
+		"Hosts Pool unexpectedly changed after an apply error using empty name")
+	assert.NotContains(t, hosts, "newName")
+
+	// Error case: duplicate names
+	hostpool[len(hostpool)-1].Name = hostpool[0].Name
+	err = cm.Apply(hostpool)
+	assert.Error(t, err,
+		"Expected an error applying a hosts pool with duplicate names")
+
+	// Check the new definition wasn't applied after this error
+	hosts, warnings, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 4)
+	assert.Contains(t, hosts, oldName,
+		"Hosts Pool unexpectedly changed after an apply error using duplicates")
+
+	// Error case : attempt to delete an allocated host
+	hostpool = hostpool[:1]
+	err = cm.Apply(hostpool)
+	assert.Error(t, err, "Expected an error deleting an allocated host")
+	hosts, warnings, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 4)
+
 }
