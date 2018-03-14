@@ -14,7 +14,15 @@
 # limitations under the License.
 
 
+#set -x
+#set -e
+
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+#### Bintray Variables
+bintray_api_user="stebenoist"
+bintray_docker_registry="ystia-docker-yorc.bintray.io"
+bintray_docker_repo="ystia/yorc"
 
 if [[ ! -e ${script_dir}/yorc ]]; then
     cd ${script_dir}
@@ -27,13 +35,14 @@ ansible_version=$(grep ansible_version ${script_dir}/versions.yaml | awk '{print
 if [[ "${TRAVIS}" == "true" ]]; then
     if [[ "${TRAVIS_PULL_REQUEST}" == "false" ]] ; then
         if [[ -n "${TRAVIS_TAG}" ]] ; then
-            DOCKER_TAG="${TRAVIS_TAG}"
+            DOCKER_TAG="$(echo "${TRAVIS_TAG}" | sed -e 's/^v\(.*\)$/\1/')"
         else
             case ${TRAVIS_BRANCH} in
             develop) 
                 DOCKER_TAG="latest";;
             *) 
                 # Do not build a container for other branches
+                echo "No container is built for other branches than develop."
                 exit 0;;
             esac
         fi
@@ -49,4 +58,15 @@ docker build ${BUILD_ARGS} --build-arg "TERRAFORM_VERSION=${tf_version}" --build
 if [[ "${TRAVIS}" == "true" ]]; then
     docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
     ls -lh docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
+
+    if [[ -n "${TRAVIS_TAG}" ]] && [[ "${DOCKER_TAG}" != *"-"* ]] ; then
+        ## Push Image to the Docker hub
+        docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
+        docker push "ystia/yorc:${DOCKER_TAG:-latest}"
+    else
+        ## Push Image on Bintray Docker Registry
+        docker login -u ${bintray_api_user} -p $BINTRAY_API_KEY ${bintray_docker_registry}
+        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+        docker push ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+    fi
 fi

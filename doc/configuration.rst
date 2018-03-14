@@ -143,7 +143,7 @@ Below is an example of configuration file.
     }
 
 
-Below is an example of configuration file with TLS enable.
+Below is an example of configuration file with TLS enabled.
 
 .. code-block:: JSON
     
@@ -163,63 +163,6 @@ Below is an example of configuration file with TLS enable.
       }
     }
 
-.. _option_ansible_ssh_cfg:
-
-  * ``ansible_use_openssh``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
-
-.. _option_ansible_debug_cfg:
-
-  * ``ansible_debug``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
-
-.. _option_ansible_connection_retries_cfg:
-
-  * ``ansible_connection_retries``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
-
-.. _option_operation_remote_base_dir_cfg:
-
-  * ``operation_remote_base_dir``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
-
-.. _option_consul_addr_cfg:
-
-  * ``consul_address``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
-
-.. _option_consul_token_cfg:
-
-  * ``consul_token``: Equivalent to :ref:`--consul_token <option_consul_token_cmd>` command-line flag.
-
-.. _option_consul_dc_cfg:
-
-  * ``consul_datacenter``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
-
-.. _option_consul_key_cfg:
-
-  * ``consul_key_file``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
-
-.. _option_consul_cert_cfg:
-
-  * ``consul_cert_file``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
-
-.. _option_consul_ca_cert_cfg:
-
-  * ``consul_ca_cert``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
-
-.. _option_consul_ca_path_cfg:
-
-  * ``consul_ca_path``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
-
-.. _option_consul_ssl_cfg:
-
-  * ``consul_ssl``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
-
-.. _option_consul_ssl_verify_cfg:
-
-  * ``consul_ssl_verify``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
-
-
-.. _option_pub_routines_cfg:
-
-  * ``consul_publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
-
 .. _option_shut_timeout_cfg:
 
   * ``server_graceful_shutdown_timeout``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
@@ -235,10 +178,6 @@ Below is an example of configuration file with TLS enable.
 .. _option_http_port_cfg:
 
   * ``http_port``: Equivalent to :ref:`--http_port <option_http_port_cmd>` command-line flag.
-
-.. _option_keep_remote_path_cfg:
-
-  * ``keep_operation_remote_path``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
 
 .. _option_keyfile_cfg:
 
@@ -263,6 +202,125 @@ Below is an example of configuration file with TLS enable.
 .. _option_workdir_cfg: 
 
   * ``working_directory``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
+
+.. _yorc_config_file_ansible_section:
+
+Ansible configuration
+~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of configuration file with Ansible configuration options.
+
+.. code-block:: JSON
+    
+    {
+      "resources_prefix": "yorc1-",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      },
+      "ansible": {
+        "use_openssh": true,
+        "connection_retries": 3
+      }
+    }
+
+All available configuration options for Ansible are:
+
+.. _option_ansible_ssh_cfg:
+
+  * ``use_openssh``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
+
+.. _option_ansible_debug_cfg:
+
+  * ``debug``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
+
+.. _option_ansible_connection_retries_cfg:
+
+  * ``connection_retries``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+
+.. _option_operation_remote_base_dir_cfg:
+
+  * ``operation_remote_base_dir``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
+
+.. _option_keep_remote_path_cfg:
+
+  * ``keep_operation_remote_path``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
+
+.. _yorc_config_file_consul_section:
+
+Consul configuration
+~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of configuration file with Consul configuration options.
+
+.. code-block:: JSON
+    
+    {
+      "resources_prefix": "yorc1-",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      },
+      "consul": {
+        "address": "http://consul-host:8500",
+        "datacenter": "dc1",
+        "publisher_max_routines": 500
+      }
+    }
+
+All available configuration options for Consul are:
+
+.. _option_consul_addr_cfg:
+
+  * ``address``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
+
+.. _option_consul_token_cfg:
+
+  * ``token``: Equivalent to :ref:`--consul_token <option_consul_token_cmd>` command-line flag.
+
+.. _option_consul_dc_cfg:
+
+  * ``datacenter``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
+
+.. _option_consul_key_cfg:
+
+  * ``key_file``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
+
+.. _option_consul_cert_cfg:
+
+  * ``cert_file``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_cert_cfg:
+
+  * ``ca_cert``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
+
+.. _option_consul_ca_path_cfg:
+
+  * ``ca_path``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
+
+.. _option_consul_ssl_cfg:
+
+  * ``ssl``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
+
+.. _option_consul_ssl_verify_cfg:
+
+  * ``ssl_verify``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
+
+.. _option_pub_routines_cfg:
+
+  * ``publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
 .. _yorc_config_file_telemetry_section:
 
@@ -321,6 +379,72 @@ All available configuration options for telemetry are:
 .. _option_telemetry_prom_cfg:
 
   * ``expose_prometheus_endpoint``: Specify if an HTTP Prometheus endpoint should be exposed allowing Prometheus to scrape metrics.
+
+.. _yorc_config_file_deprecated_section:
+
+Deprecated configuration options
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 3.0.0
+.. _option_deprecated_ansible_ssh_cfg:
+
+  * ``ansible_use_openssh``: Equivalent to :ref:`--ansible_use_openssh <option_ansible_ssh_cmd>` command-line flag.
+
+.. _option_deprecated_ansible_debug_cfg:
+
+  * ``ansible_debug``: Equivalent to :ref:`--ansible_debug <option_ansible_debug_cmd>` command-line flag.
+
+.. _option_deprecated_ansible_connection_retries_cfg:
+
+  * ``ansible_connection_retries``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+
+.. _option_deprecated_operation_remote_base_dir_cfg:
+
+  * ``operation_remote_base_dir``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
+
+.. _option_deprecated_keep_remote_path_cfg:
+
+  * ``keep_operation_remote_path``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
+
+.. _option_deprecated_consul_addr_cfg:
+
+  * ``consul_address``: Equivalent to :ref:`--consul_address <option_consul_addr_cmd>` command-line flag.
+
+.. _option_deprecated_consul_token_cfg:
+
+  * ``consul_token``: Equivalent to :ref:`--consul_token <option_consul_token_cmd>` command-line flag.
+
+.. _option_deprecated_consul_dc_cfg:
+
+  * ``consul_datacenter``: Equivalent to :ref:`--consul_datacenter <option_consul_dc_cmd>` command-line flag.
+
+.. _option_deprecated_consul_key_cfg:
+
+  * ``consul_key_file``: Equivalent to :ref:`--consul_key_file <option_consul_key_cmd>` command-line flag.
+
+.. _option_deprecated_consul_cert_cfg:
+
+  * ``consul_cert_file``: Equivalent to :ref:`--consul_cert_file <option_consul_cert_cmd>` command-line flag.
+
+.. _option_deprecated_consul_ca_cert_cfg:
+
+  * ``consul_ca_cert``: Equivalent to :ref:`--consul_ca_cert <option_consul_ca_cert_cmd>` command-line flag.
+
+.. _option_deprecated_consul_ca_path_cfg:
+
+  * ``consul_ca_path``: Equivalent to :ref:`--consul_ca_path <option_consul_ca_path_cmd>` command-line flag.
+
+.. _option_deprecated_consul_ssl_cfg:
+
+  * ``consul_ssl``: Equivalent to :ref:`--consul_ssl <option_consul_ssl_cmd>` command-line flag.
+
+.. _option_deprecated_consul_ssl_verify_cfg:
+
+  * ``consul_ssl_verify``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
+
+.. _option_deprecated_pub_routines_cfg:
+
+  * ``consul_publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
 Environment variables
 ---------------------
@@ -411,7 +535,7 @@ Environment variables
 
 .. _option_plugindir_env:
 
-  * ``YORC_PLUGIN_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
+  * ``YORC_PLUGINS_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
 
 .. _option_resources_prefix_env:
 
@@ -568,20 +692,22 @@ Slurm
 
 Slurm infrastructure key name is ``slurm`` in lower case.
 
-+----------------------+---------------------------------------------------------------+-----------+----------+---------+
-|     Option Name      |                          Description                          | Data Type | Required | Default |
-|                      |                                                               |           |          |         |
-+======================+===============================================================+===========+==========+=========+
-| ``user_name``        | SSH Username to be used to connect to the Slurm Client's node | string    | yes      |         |
-+----------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``password``         | SSH Password to be used to connect to the Slurm Client's node | string    | yes      |         |
-+----------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``url``              | IP address of the Slurm Client's node                         | string    | yes      |         |
-+----------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``port``             | SSH Port to be used to connect to the Slurm Client's node     | string    | yes      |         |
-+----------------------+---------------------------------------------------------------+-----------+----------+---------+
-| ``default_job_name`` | Default name for the job allocation.                          | string    | no       |         |
-+----------------------+---------------------------------------------------------------+-----------+----------+---------+
++----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+|     Option Name      |                          Description                             | Data Type |                     Required                      | Default |
+|                      |                                                                  |           |                                                   |         |
++======================+==================================================================+===========+===================================================+=========+
+| ``user_name``        | SSH Username to be used to connect to the Slurm Client's node    | string    | yes                                               |         |
++----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``password``         | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
++----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``private_key``      | SSH Private key to be used to connect to the Slurm Client's node | string    | Either this or ``password`` should be provided    |         |
++----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``url``              | IP address of the Slurm Client's node                            | string    | yes                                               |         |
++----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``port``             | SSH Port to be used to connect to the Slurm Client's node        | string    | yes                                               |         |
++----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``default_job_name`` | Default name for the job allocation.                             | string    | no                                                |         |
++----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 
 Vault configuration

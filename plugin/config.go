@@ -42,7 +42,7 @@ func (cm *defaultConfigManager) SetupConfig(cfg config.Configuration) error {
 		return err
 	}
 	kv := cClient.KV()
-	maxPubSub := cfg.ConsulPubMaxRoutines
+	maxPubSub := cfg.Consul.PubMaxRoutines
 	if maxPubSub == 0 {
 		maxPubSub = config.DefaultConsulPubMaxRoutines
 	}

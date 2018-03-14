@@ -266,8 +266,8 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	if len(split) != 2 {
 		return errors.New("Malformed command : " + squeueCmd)
 	}
-	slurmNodeName := strings.Trim(split[0], "\" \t\n")
-	slurmPartition := strings.Trim(split[1], "\" \t\n")
+	slurmNodeName := strings.Trim(split[0], "\" \t\n\x00")
+	slurmPartition := strings.Trim(split[1], "\" \t\n\x00")
 
 	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", slurmNodeName)
 	if err != nil {

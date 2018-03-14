@@ -1,10 +1,6 @@
 # Ystia Orchestrator
 
-<!--
-TODO: add badges (travis/gocodereport/...)
--->
-[![Build Status](https://travis-ci.org/ystia/yorc.svg?branch=develop)](https://travis-ci.org/ystia/yorc) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest)
-  [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![Build Status](https://travis-ci.org/ystia/yorc.svg?branch=develop)](https://travis-ci.org/ystia/yorc) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest) [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![license](https://img.shields.io/github/license/ystia/yorc.svg)](https://github.com/ystia/yorc/blob/develop/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 Yorc is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html) orchestrator.
 
@@ -29,11 +25,9 @@ Yorc releases can be downloaded from the [github project releases page](https://
 We warmly welcome any kind of contribution from feedbacks and constructive criticism to code changes.
 Please read our [contribution guidelines](CONTRIBUTING.md) for more information.
 
-<!--
-TODO: link to readthedoc.org
-
 ## Documentation
--->
+
+The project documentation is available on [readthedocs](http://yorc.readthedocs.io/en/latest/)
 
 ## Project History
 

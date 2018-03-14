@@ -73,11 +73,14 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 
 	plugin := raw.(prov.InfraUsageCollector)
 
-	info, err := plugin.GetUsageInfo(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestTaskID", "myInfra")
+	info, err := plugin.GetUsageInfo(
+		context.Background(),
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestTaskID", "myInfra")
 	require.Nil(t, err)
 	require.True(t, mock.getUsageInfoCalled)
-	require.Equal(t, "test", mock.conf.ConsulAddress)
-	require.Equal(t, "testdc", mock.conf.ConsulDatacenter)
+	require.Equal(t, "test", mock.conf.Consul.Address)
+	require.Equal(t, "testdc", mock.conf.Consul.Datacenter)
 	require.Equal(t, "TestTaskID", mock.taskID)
 	require.Equal(t, "myInfra", mock.infraName)
 	require.Equal(t, 3, len(info))
@@ -110,7 +113,10 @@ func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 
 	plugin := raw.(prov.InfraUsageCollector)
 
-	_, err = plugin.GetUsageInfo(context.Background(), config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestFailure", "myInfra")
+	_, err = plugin.GetUsageInfo(
+		context.Background(),
+		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+		"TestFailure", "myInfra")
 	require.Error(t, err, "An error was expected during executing plugin infra usage collector")
 }
 
@@ -132,7 +138,10 @@ func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
 	ctx := context.Background()
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
-		_, err = plugin.GetUsageInfo(ctx, config.Configuration{ConsulAddress: "test", ConsulDatacenter: "testdc"}, "TestCancel", "myInfra")
+		_, err = plugin.GetUsageInfo(
+			ctx,
+			config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
+			"TestCancel", "myInfra")
 		require.Nil(t, err)
 	}()
 	cancelF()

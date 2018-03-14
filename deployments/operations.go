@@ -81,6 +81,15 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return operationPath, string(kvp.Value), nil
 	}
 
+	// then check operation file
+	kvp, _, err = kv.Get(path.Join(operationPath, "implementation/file"), nil)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		return operationPath, string(kvp.Value), nil
+	}
+
 	// Not found here check the type hierarchy
 	parentType, err := GetParentType(kv, deploymentID, nodeType)
 	if err != nil || parentType == "" {

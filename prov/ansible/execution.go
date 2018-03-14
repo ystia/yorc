@@ -140,7 +140,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		deploymentID: deploymentID,
 		NodeName:     nodeName,
 		//KeepOperationRemotePath property is required to be public when resolving templates.
-		KeepOperationRemotePath: cfg.KeepOperationRemotePath,
+		KeepOperationRemotePath: cfg.Ansible.KeepOperationRemotePath,
 		operation:               operation,
 		VarInputsNames:          make([]string, 0),
 		EnvInputs:               make([]*operations.EnvInput, 0),
@@ -777,7 +777,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
-	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(e.cfg.OperationRemoteBaseDir+"_", "")
+	e.OperationRemoteBaseDir = stringutil.UniqueTimestampedName(e.cfg.Ansible.OperationRemoteBaseDir+"_", "")
 	if e.operation.RelOp.IsRelationshipOperation {
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.relationshipType, e.operation.Name)
 	} else {
