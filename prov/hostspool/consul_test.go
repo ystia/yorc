@@ -50,4 +50,7 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("TestConsulManagerGetHost", func(t *testing.T) {
 		testConsulManagerGetHost(t, client)
 	})
+	t.Run("TestConsulManagerApply", func(t *testing.T) {
+		testConsulManagerApply(t, client)
+	})
 }

@@ -35,6 +35,7 @@ import (
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(hostname string, connection Connection, labels map[string]string) error
+	Apply(pool []Host) error
 	Remove(hostname string) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
@@ -79,12 +80,47 @@ func (cm *consulManager) Add(hostname string, conn Connection, labels map[string
 	return cm.addWait(hostname, conn, labels, 45*time.Second)
 }
 func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
+
+	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, "")
+	if err != nil {
+		return err
+	}
+	_, cleanupFn, err := cm.lockKey(hostname, "creation", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			if e.OpIndex == 0 {
+				return errors.WithStack(hostAlreadyExistError{})
+			}
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
+	}
+
+	err = cm.checkConnection(hostname)
+	if err != nil {
+		cm.setHostStatusWithMessage(hostname, HostStatusError, "can't connect to host")
+	}
+	return err
+}
+
+func getAddOperations(hostname string, conn Connection, labels map[string]string, status HostStatus, message string) (api.KVTxnOps, error) {
 	if hostname == "" {
-		return errors.WithStack(badRequestError{`"hostname" missing`})
+		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
 
 	if conn.Password == "" && conn.PrivateKey == "" {
-		return errors.WithStack(badRequestError{`at least "password" or "private_key" is required for a host pool connection`})
+		return nil, errors.WithStack(badRequestError{`at least "password" or "private_key" is required for a host pool connection`})
 	}
 
 	user := conn.User
@@ -101,7 +137,7 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 	}
 
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
-	ops := api.KVTxnOps{
+	addOps := api.KVTxnOps{
 		&api.KVTxnOp{
 			Verb: api.KVCheckNotExists,
 			Key:  path.Join(hostKVPrefix, "status"),
@@ -109,7 +145,7 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(hostKVPrefix, "status"),
-			Value: []byte(HostStatusFree.String()),
+			Value: []byte(status.String()),
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -138,45 +174,28 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 		},
 	}
 
+	if message != "" {
+
+		addOps = append(addOps, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "message"),
+			Value: []byte(message),
+		})
+	}
+
 	for k, v := range labels {
 		k = url.PathEscape(k)
 		if k == "" {
-			return errors.WithStack(badRequestError{"empty labels are not allowed"})
+			return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
 		}
-		ops = append(ops, &api.KVTxnOp{
+		addOps = append(addOps, &api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(hostKVPrefix, "labels", k),
 			Value: []byte(v),
 		})
 	}
 
-	_, cleanupFn, err := cm.lockKey(hostname, "creation", maxWaitTime)
-	if err != nil {
-		return err
-	}
-	defer cleanupFn()
-
-	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !ok {
-		// Check the response
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			if e.OpIndex == 0 {
-				return errors.WithStack(hostAlreadyExistError{})
-			}
-			errs = append(errs, e.What)
-		}
-		return errors.Errorf("Failed to register host %q: %s", hostname, strings.Join(errs, ", "))
-	}
-
-	err = cm.checkConnection(hostname)
-	if err != nil {
-		cm.setHostStatusWithMessage(hostname, HostStatusError, "can't connect to host")
-	}
-	return err
+	return addOps, nil
 }
 
 func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {
@@ -251,7 +270,7 @@ func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWai
 		})
 	}
 
-	_, cleanupFn, err := cm.lockKey(hostname, "creation", maxWaitTime)
+	_, cleanupFn, err := cm.lockKey(hostname, "update", maxWaitTime)
 	if err != nil {
 		return err
 	}
@@ -288,8 +307,10 @@ func (cm *consulManager) Remove(hostname string) error {
 	return cm.removeWait(hostname, 45*time.Second)
 }
 func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) error {
-	if hostname == "" {
-		return errors.WithStack(badRequestError{`"hostname" missing`})
+
+	ops, err := cm.getRemoveOperations(hostname, true)
+	if err != nil {
+		return err
 	}
 
 	lockCh, cleanupFn, err := cm.lockKey(hostname, "deletion", maxWaitTime)
@@ -298,33 +319,56 @@ func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) 
 	}
 	defer cleanupFn()
 
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
-
-	kv := cm.cc.KV()
-
-	status, err := cm.GetHostStatus(hostname)
-	if err != nil {
-		return err
-	}
-	switch status {
-	case HostStatusFree, HostStatusError:
-		// Ok go ahead
-	default:
-		return errors.WithStack(badRequestError{fmt.Sprintf("can't delete host %q with status %q", hostname, status.String())})
-	}
-
 	select {
 	case <-lockCh:
 		return errors.Errorf("admin lock lost on hosts pool for host %q deletion", hostname)
 	default:
 	}
 
-	_, err = kv.DeleteTree(hostKVPrefix, nil)
+	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete host %q", hostname)
 	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to delete host %q: %s", hostname, strings.Join(errs, ", "))
+	}
 
 	return nil
+}
+
+func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) (api.KVTxnOps, error) {
+	if hostname == "" {
+		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+
+	if checkStatus {
+		status, err := cm.GetHostStatus(hostname)
+		if err != nil {
+			return nil, err
+		}
+		switch status {
+		case HostStatusFree, HostStatusError:
+			// Ok go ahead
+		default:
+			return nil, errors.WithStack(badRequestError{fmt.Sprintf("can't delete host %q with status %q", hostname, status.String())})
+		}
+	}
+
+	rmOps := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb: api.KVDeleteTree,
+			Key:  hostKVPrefix,
+		},
+	}
+
+	return rmOps, nil
 }
 
 func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {
@@ -864,4 +908,123 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 		conf.Auth = append(conf.Auth, ssh.Password(conn.Password))
 	}
 	return conf, nil
+}
+
+func (cm *consulManager) Apply(pool []Host) error {
+	return cm.applyWait(pool, 45*time.Second)
+}
+
+func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error {
+
+	// First, checkint the pool definition to verify there is no host with an
+	// empty name or a duplicate name, or wrong connection definition, and
+	// provide an error message referencing indexes in the definition to help
+	// the user identify which definition is erroneous
+	hostIndexDefinition := make(map[string]int)
+	for i, host := range pool {
+		if host.Name == "" {
+			return errors.WithStack(badRequestError{
+				fmt.Sprintf("A non-empty Name should be provided for Host number %d, defined with connection %q",
+					i+1, host.Connection)})
+		}
+
+		// Check if the name has already been used. It must me unique in the Hosts Pool
+		if index, ok := hostIndexDefinition[host.Name]; ok {
+			return errors.WithStack(badRequestError{
+				fmt.Sprintf("Name value %q must be unique but is re-used in host number %d when first used in host number %d",
+					host.Name, i+1, index+1)})
+		}
+		hostIndexDefinition[host.Name] = i
+	}
+
+	lockCh, cleanupFn, err := cm.lockKey("", "apply", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	// Get all hosts currently registered to find which ones will have to be
+	// unregistered or updated.
+	// Attempting to unregister a host that is still allocated is illegal
+	registeredHosts, _, err := cm.List()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get list of registered hosts")
+	}
+	hostsToUnregisterCheckAllocatedStatus := make(map[string]bool)
+	for _, registeredHost := range registeredHosts {
+		hostsToUnregisterCheckAllocatedStatus[registeredHost] = true
+	}
+
+	// Manage new hosts pool definition
+	var addOps api.KVTxnOps
+	for _, host := range pool {
+
+		found := hostsToUnregisterCheckAllocatedStatus[host.Name]
+		if found {
+			// No need to check the status of this host at unrgistration time,
+			// it will be recreated with the same status
+			hostsToUnregisterCheckAllocatedStatus[host.Name] = false
+
+			status, err := cm.GetHostStatus(host.Name)
+			if err != nil {
+				return err
+			}
+			message, err := cm.GetHostMessage(host.Name)
+			if err != nil {
+				return err
+			}
+			ops, err := getAddOperations(host.Name, host.Connection, host.Labels, status, message)
+			if err != nil {
+				return err
+			}
+
+			addOps = append(addOps, ops...)
+
+		} else {
+			// Host is new, creating it
+			ops, err := getAddOperations(host.Name, host.Connection, host.Labels, HostStatusFree, "")
+			if err != nil {
+				return err
+			}
+			addOps = append(addOps, ops...)
+		}
+	}
+
+	// Now manage hosts to delete
+	var ops api.KVTxnOps
+	for host, checkStatus := range hostsToUnregisterCheckAllocatedStatus {
+		removeOps, err := cm.getRemoveOperations(host, checkStatus)
+		if err != nil {
+			return err
+		}
+		ops = append(ops, removeOps...)
+	}
+
+	ops = append(ops, addOps...)
+
+	// Execute operations in a transaction
+
+	select {
+	case <-lockCh:
+		return errors.Errorf("admin lock lost on hosts pool for apply operation")
+	default:
+	}
+
+	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to apply new Hosts Pool definition")
+	}
+
+	if !ok {
+		// Check the response
+		var errs []string
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		err = errors.Errorf("Failed to apply new Hosts Pool definition: %s", strings.Join(errs, ", "))
+	}
+
+	// TODO: check connections, add logs
+
+	return err
 }
