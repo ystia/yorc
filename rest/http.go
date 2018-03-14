@@ -181,6 +181,7 @@ func (s *Server) registerHandlers() {
 	s.router.Put("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.newHostInPool))
 	s.router.Patch("/hosts_pool/:host", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.updateHostInPool))
 	s.router.Delete("/hosts_pool/:host", commonHandlers.ThenFunc(s.deleteHostInPool))
+	s.router.Post("/hosts_pool", commonHandlers.Append(contentTypeHandler("application/json")).ThenFunc(s.applyHostsPool))
 	s.router.Get("/hosts_pool", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.listHostsInPool))
 	s.router.Get("/hosts_pool/:host", commonHandlers.Append(acceptHandler("application/json")).ThenFunc(s.getHostInPool))
 

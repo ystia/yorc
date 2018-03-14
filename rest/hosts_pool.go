@@ -226,3 +226,36 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 
 	encodeJSONResponse(w, r, hostsCol)
 }
+
+func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	var poolRequest HostsPoolRequest
+	err = json.Unmarshal(body, &poolRequest)
+	if err != nil {
+		writeError(w, r, newBadRequestError(err))
+		return
+	}
+
+	pool := make([]hostspool.Host, len(poolRequest.Hosts))
+	for i, host := range poolRequest.Hosts {
+		pool[i] = hostspool.Host{
+			Name:       host.Name,
+			Connection: host.Connection,
+			Labels:     host.Labels,
+		}
+	}
+
+	err = s.hostsPoolMgr.Apply(pool)
+	if err != nil {
+		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
+			writeError(w, r, newBadRequestError(err))
+			return
+		}
+		log.Panic(err)
+	}
+	w.WriteHeader(http.StatusCreated)
+}
