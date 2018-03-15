@@ -60,7 +60,8 @@ type Connection struct {
 	// The Password that we should use for the connection. One of Password or PrivateKey is required. PrivateKey takes the precedence.
 	Password string `json:"password,omitempty"`
 	// The SSH Private Key that we should use for the connection. One of Password or PrivateKey is required. PrivateKey takes the precedence.
-	PrivateKey string `json:"private_key,omitempty"`
+	// The mapstructure tag is needed for viper unmarshalling
+	PrivateKey string `json:"private_key,omitempty" mapstructure:"private_key"`
 	// The address of the Host to connect to. Defaults to the hostname specified during the registration.
 	Host string `json:"host,omitempty"`
 	// The Port to connect to. Defaults to 22 if set to 0.

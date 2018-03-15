@@ -257,5 +257,5 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Panic(err)
 	}
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 }
