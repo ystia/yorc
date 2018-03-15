@@ -26,7 +26,6 @@ import (
 
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/testutil"
 )
 
 func testDefinitionStore(t *testing.T, kv *api.KV) {
@@ -39,9 +38,6 @@ func testDefinitionStore(t *testing.T, kv *api.KV) {
 		})
 		t.Run("TestValueAssignments", func(t *testing.T) {
 			testValueAssignments(t, kv)
-		})
-		t.Run("TestOperationImplementationArtifact(", func(t *testing.T) {
-			testOperationImplementationArtifact(t, kv)
 		})
 	})
 }
@@ -924,39 +920,4 @@ func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
 		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
 	}
-}
-
-func testOperationImplementationArtifact(t *testing.T, kv *api.KV) {
-	deploymentID := testutil.BuildDeploymentID(t)
-	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/operation_implementation_artifact.yaml")
-	require.NoError(t, err, "Failed to store test topology deployment definition")
-
-	type args struct {
-		typeName  string
-		operation string
-	}
-	type checks struct {
-		implementationType string
-		primary            string
-	}
-	oiaTests := []struct {
-		name string
-		args args
-		want checks
-	}{
-		{"TestBashOnNodeType", args{"yorc.tests.nodes.OpImplementationArtifact", "standard.create"}, checks{"tosca.artifacts.Implementation.Bash", "scripts/create.sh"}},
-		{"TestBashOnRelType", args{"yorc.tests.relationships.OpImplementationArtifact", "configure.pre_configure_source"}, checks{"tosca.artifacts.Implementation.Bash", "something"}},
-	}
-
-	for _, tt := range oiaTests {
-		t.Run(tt.name, func(t *testing.T) {
-			implType, err := GetOperationImplementationType(kv, deploymentID, tt.args.typeName, tt.args.operation)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want.implementationType, implType)
-			_, primary, err := GetOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, tt.args.typeName, tt.args.operation)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want.primary, primary)
-		})
-	}
-
 }
