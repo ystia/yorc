@@ -43,6 +43,36 @@ node_types:
 
   yorc.nodes.slurm.Job:
     derived_from: org.alien4cloud.nodes.Job
+    properties:
+      name:
+        type: string
+        description: The job name.
+        required: false
+      tasks:
+        description: Number of tasks to run in parallel.
+        type: integer
+        required: false
+        default: 1
+      nodes:
+        description: Minimum number of nodes allocated to the job
+        type: integer
+        required: false
+        default: 1
+      cpus:
+        description: >
+          Number of cpus allocated per task. Depending upon system configuration, cpu can be either a core or a thread.
+        type: integer
+        required: false
+      mem:
+        type: integer
+        description: The memory per node in GB required to the job.
+        required: false
+      extra_job_options:
+        type: list
+        description: Extra job options.
+        required: false
+        entry_schema:
+          type: string
     interfaces:
       tosca.interfaces.node.lifecycle.Runnable:
         run:

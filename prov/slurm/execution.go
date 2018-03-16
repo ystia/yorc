@@ -17,6 +17,7 @@ package slurm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -36,6 +37,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -135,7 +137,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 			return err
 		}
 		// Run the command
-		out, err := e.runScript(ctx)
+		out, err := e.runCommand(ctx)
 		if err != nil {
 			events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(err.Error())
 			return err
@@ -147,6 +149,88 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
 	return nil
+}
+
+func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
+	var opts string
+	// Get main properties from node
+	found, jobName, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "job_name")
+	if err != nil {
+		return "", err
+	}
+	if !found || jobName == "" {
+		jobName = e.cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+		if jobName == "" {
+			jobName = e.deploymentID
+		}
+	}
+	opts += fmt.Sprintf(" --job-name=%s", jobName)
+
+	var tasks = 0
+	if _, ts, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "tasks"); err != nil {
+		return "", err
+	} else if ts != "" {
+		if tasks, err = strconv.Atoi(ts); err != nil {
+			return "", err
+		}
+	}
+	if tasks > 1 {
+		opts += fmt.Sprintf(" --ntasks=%d", tasks)
+	}
+
+	var nodes = 1
+	if _, ns, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "nodes"); err != nil {
+		return "", err
+	} else if ns != "" {
+		if nodes, err = strconv.Atoi(ns); err != nil {
+			return "", err
+		}
+	}
+	opts += fmt.Sprintf(" --nodes=%d", nodes)
+
+	var mem = 0
+	if _, m, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "mem"); err != nil {
+		return "", err
+	} else if m != "" {
+		if mem, err = strconv.Atoi(m); err != nil {
+			return "", err
+		}
+	}
+	if mem != 0 {
+		opts += fmt.Sprintf(" --mem=%dG", mem)
+	}
+
+	var cpus = 0
+	if _, c, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "cpus"); err != nil {
+		return "", err
+	} else if c != "" {
+		if cpus, err = strconv.Atoi(c); err != nil {
+			return "", err
+		}
+	}
+	if cpus != 0 {
+		opts += fmt.Sprintf(" --cpus-per-task=%d", cpus)
+	}
+
+	if _, extra, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "extra_job_options"); err != nil {
+		return "", err
+	} else if extra != "" {
+		log.Debugf("extras=%q", extra)
+		var extraOpts []string
+		err = json.Unmarshal([]byte(extra), &extraOpts)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
+	cmd := fmt.Sprintf("srun %s %s", opts, execFile)
+	output, err := e.client.RunCommand(cmd)
+	if err != nil {
+		log.Debugf("stderr:%q", output)
+		return "", errors.Wrap(err, output)
+	}
+	return output, nil
 }
 
 func (e *executionCommon) cleanUp() error {
@@ -224,15 +308,8 @@ func (e *executionCommon) handleFile(ctx context.Context, pathFile, artifactBase
 	}
 
 	remotePath := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, relPath)
-	return e.uploadFile(ctx, bytes.NewReader(e.substituteInputs(source)), remotePath)
-}
-
-func (e *executionCommon) substituteInputs(input []byte) []byte {
-	log.Debugf("Substitute input var in artifact files")
-	for _, envInput := range e.EnvInputs {
-		input = bytes.Replace(input, []byte("${"+envInput.Name+"}"), []byte(envInput.Value), -1)
-	}
-	return input
+	// FIXME need to add env var for inputs
+	return e.uploadFile(ctx, bytes.NewReader(source), remotePath)
 }
 
 func (e *executionCommon) uploadFile(ctx context.Context, source io.Reader, remotePath string) error {
