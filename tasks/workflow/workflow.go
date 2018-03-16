@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"strconv"
+
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -34,7 +36,6 @@ import (
 	"github.com/ystia/yorc/registry"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-	"strconv"
 )
 
 const wfDelegateActivity = "delegate"
@@ -222,17 +223,6 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		}
 	}
 
-	// First: we check if step is runnable
-	if runnable, err := s.isRunnable(); err != nil {
-		return err
-	} else if !runnable {
-		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
-		s.setStatus(tasks.TaskStepStatusDONE)
-		s.notifyNext()
-		return nil
-	}
-
 	s.setStatus(tasks.TaskStepStatusINITIAL)
 	haveErr := false
 	for i := 0; i < len(s.Previous); i++ {
@@ -257,6 +247,17 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		}
 	BR:
 	}
+	// First: we check if step is runnable
+	if runnable, err := s.isRunnable(); err != nil {
+		return err
+	} else if !runnable {
+		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
+		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
+		s.setStatus(tasks.TaskStepStatusDONE)
+		s.notifyNext()
+		return nil
+	}
+
 	s.setStatus(tasks.TaskStepStatusRUNNING)
 
 	// Create a new context to handle gracefully current step termination when an error occurred during another step
