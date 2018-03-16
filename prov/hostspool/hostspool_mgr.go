@@ -18,8 +18,10 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -916,7 +918,7 @@ func (cm *consulManager) Apply(pool []Host) error {
 
 func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error {
 
-	// First, checkint the pool definition to verify there is no host with an
+	// First, checking the pool definition to verify there is no host with an
 	// empty name or a duplicate name, or wrong connection definition, and
 	// provide an error message referencing indexes in the definition to help
 	// the user identify which definition is erroneous
@@ -937,6 +939,8 @@ func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error
 		hostIndexDefinition[host.Name] = i
 	}
 
+	// Take the lock to have a consistent view while computing needed
+	// configuration changes
 	lockCh, cleanupFn, err := cm.lockKey("", "apply", maxWaitTime)
 	if err != nil {
 		return err
@@ -955,13 +959,29 @@ func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error
 		hostsToUnregisterCheckAllocatedStatus[registeredHost] = true
 	}
 
-	// Manage new hosts pool definition
+	// Compare  new hosts pool definition to the runtime to compute changes
+	var hostChanged []string
 	var addOps api.KVTxnOps
 	for _, host := range pool {
 
 		found := hostsToUnregisterCheckAllocatedStatus[host.Name]
 		if found {
-			// No need to check the status of this host at unrgistration time,
+
+			// Host already in pool, check if an update is needed
+			oldHost, _ := cm.GetHost(host.Name)
+			if oldHost.Connection == host.Connection &&
+				reflect.DeepEqual(oldHost.Labels, host.Labels) {
+
+				// No config change, no update needed, ignoring this host
+				delete(hostsToUnregisterCheckAllocatedStatus, host.Name)
+				continue
+			}
+
+			// A config change is request for this already known host.
+			hostChanged = append(hostChanged, host.Name)
+
+			// This host will be unregistered then registered again.
+			// No need to check the status of this host at unregistration time,
 			// it will be recreated with the same status
 			hostsToUnregisterCheckAllocatedStatus[host.Name] = false
 
@@ -982,6 +1002,7 @@ func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error
 
 		} else {
 			// Host is new, creating it
+			hostChanged = append(hostChanged, host.Name)
 			ops, err := getAddOperations(host.Name, host.Connection, host.Labels, HostStatusFree, "")
 			if err != nil {
 				return err
@@ -1024,7 +1045,39 @@ func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error
 		err = errors.Errorf("Failed to apply new Hosts Pool definition: %s", strings.Join(errs, ", "))
 	}
 
-	// TODO: check connections, add logs
+	// TODO: add logs
+
+	// Update the connection status for each updated/created host
+	var waitGroup sync.WaitGroup
+	for _, name := range hostChanged {
+		waitGroup.Add(1)
+		go cm.updateConnectionStatus(name, &waitGroup)
+	}
+	waitGroup.Wait()
 
 	return err
+}
+
+// Go routine checking a Host connection and updating the Host status
+func (cm *consulManager) updateConnectionStatus(name string, waitGroup *sync.WaitGroup) {
+	defer waitGroup.Done()
+	status, err := cm.GetHostStatus(name)
+	if err != nil {
+		// No such host anymore
+		return
+	}
+
+	err = cm.checkConnection(name)
+	if err != nil {
+		if status != HostStatusError {
+			cm.backupHostStatus(name)
+			cm.setHostStatusWithMessage(name, HostStatusError, "failed to connect to host")
+		}
+		return
+	}
+	// Connection is up now. If it was previsouly down, restoring the status as
+	// it was before the failure (free, allocated)
+	if status == HostStatusError {
+		cm.restoreHostStatus(name)
+	}
 }

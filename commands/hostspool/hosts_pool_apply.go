@@ -43,6 +43,7 @@ const (
 )
 
 func init() {
+	var autoApprove bool
 	var applyCmd = &cobra.Command{
 		Use:   "apply <path to Hosts Pool description>",
 		Short: "Apply a Hosts Pool description",
@@ -191,46 +192,49 @@ func init() {
 			}
 
 			fmt.Println("\nThe following changes will be applied.")
-			if deletion {
-				fmt.Println("\n- Hosts to be deleted :")
+			if creation {
+				fmt.Println("\n- Hosts to be created :")
 				fmt.Println("")
-				fmt.Println(hostsToDeleteTable.Render())
+				fmt.Println(hostsToCreateTable.Render())
 			}
 			if update {
 				fmt.Println("\n- Hosts to be updated :")
 				fmt.Println("")
 				fmt.Println(hostsToUpdateTable.Render())
 			}
-			if creation {
-				fmt.Println("\n- Hosts to be created :")
+			if deletion {
+				fmt.Println("\n- Hosts to be deleted :")
 				fmt.Println("")
-				fmt.Println(hostsToCreateTable.Render())
+				fmt.Println(hostsToDeleteTable.Render())
 			}
 
-			// Ask for confirmation
-			badAnswer := true
-			var answer string
-			for badAnswer {
-				fmt.Printf("\nApply these settings [y/N]: ")
-				var inputText string
-				reader := bufio.NewReader(os.Stdin)
-				inputText, err := reader.ReadString('\n')
-				badAnswer = err != nil
-				if !badAnswer {
-					answer = strings.ToLower(strings.TrimSpace(inputText))
-					badAnswer = answer != "" &&
-						answer != "n" && answer != "no" &&
-						answer != "y" && answer != "yes"
+			if !autoApprove {
+
+				// Ask for confirmation
+				badAnswer := true
+				var answer string
+				for badAnswer {
+					fmt.Printf("\nApply these settings [y/N]: ")
+					var inputText string
+					reader := bufio.NewReader(os.Stdin)
+					inputText, err := reader.ReadString('\n')
+					badAnswer = err != nil
+					if !badAnswer {
+						answer = strings.ToLower(strings.TrimSpace(inputText))
+						badAnswer = answer != "" &&
+							answer != "n" && answer != "no" &&
+							answer != "y" && answer != "yes"
+					}
+
+					if badAnswer {
+						fmt.Println("Unexpected input. Please enter y or n.")
+					}
 				}
 
-				if badAnswer {
-					fmt.Println("Unexpected input. Please enter y or n.")
+				if answer != "y" && answer != "yes" {
+					fmt.Println("Changes not applied.")
+					return nil
 				}
-			}
-
-			if answer != "y" && answer != "yes" {
-				fmt.Println("Changes not applied.")
-				return nil
 			}
 
 			// Proceed to the change
@@ -254,6 +258,8 @@ func init() {
 			return nil
 		},
 	}
+	applyCmd.PersistentFlags().BoolVarP(&autoApprove, "auto-approve", "", false,
+		"Skip interactive approval before applying this new Hosts Pool description.")
 	hostsPoolCmd.AddCommand(applyCmd)
 }
 
