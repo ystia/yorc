@@ -440,7 +440,7 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 		t.Fatal(err)
 	}
 
-	hosts, warnings, err := cm.List()
+	hosts, warnings, version, err := cm.List()
 	require.NoError(t, err)
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
@@ -448,6 +448,17 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 	assert.Contains(t, hosts, "list_host2")
 	assert.Contains(t, hosts, "list_host3")
 	assert.Contains(t, hosts, "list_host4")
+
+	// Check version increase
+	err = cm.Add("list_host5", Connection{PrivateKey: dummySSHkey}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hosts, warnings, version2, err := cm.List()
+	require.NoError(t, err)
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 5)
+	assert.NotEqual(t, version, version2, "Expected a version change after update")
 
 }
 
@@ -530,14 +541,15 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	}
 
 	// Apply this definition
-	err := cm.Apply(hostpool)
+	var version uint64
+	err := cm.Apply(hostpool, &version)
 	require.NoError(t, err, "Unexpected failure applying host pool definition")
-
 	// Check the pool now
-	hosts, warnings, err := cm.List()
+	hosts, warnings, version, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 3)
+	assert.NotEqual(t, 0, version)
 	for i := 0; i < 3; i++ {
 		suffix := strconv.Itoa(i)
 		hostname := "host" + suffix
@@ -607,15 +619,16 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	}
 
 	// Apply this new definition
-	err = cm.Apply(hostpool)
+	err = cm.Apply(hostpool, &version)
 	require.NoError(t, err,
 		"Unexpected failure applying new host pool definition")
 
 	// Check the pool now
-	hosts, warnings, err = cm.List()
+	hosts, warnings, version2, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
+	assert.NotEqual(t, version, version2, "Expected a version change")
 	assert.NotContains(t, hosts, removedHostname)
 	for i := 0; i < 4; i++ {
 		var suffix string
@@ -649,39 +662,41 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	hostpool[0].Name = "newName"
 	hostpool = append(hostpool, hostpool[0])
 	hostpool[len(hostpool)-1].Name = ""
-	err = cm.Apply(hostpool)
+	err = cm.Apply(hostpool, &version2)
 	assert.Error(t, err, "Expected an error adding a host with no name")
 
 	// Check the new definition wasn't applied after this error
-	hosts, warnings, err = cm.List()
+	hosts, warnings, version3, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
+	assert.Equal(t, version2, version3, "Expected no version change after name error")
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using empty name")
 	assert.NotContains(t, hosts, "newName")
 
 	// Error case: duplicate names
 	hostpool[len(hostpool)-1].Name = hostpool[0].Name
-	err = cm.Apply(hostpool)
+	err = cm.Apply(hostpool, &version3)
 	assert.Error(t, err,
 		"Expected an error applying a hosts pool with duplicate names")
 
 	// Check the new definition wasn't applied after this error
-	hosts, warnings, err = cm.List()
+	hosts1, warnings, version4, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
-	assert.Len(t, hosts, 4)
+	assert.Len(t, hosts1, 4)
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using duplicates")
+	assert.Equal(t, version3, version4, "Expected no version change after duplicate error")
 
 	// Error case : attempt to delete an allocated host
 	hostpool = hostpool[:1]
-	err = cm.Apply(hostpool)
+	err = cm.Apply(hostpool, &version4)
 	assert.Error(t, err, "Expected an error deleting an allocated host")
-	hosts, warnings, err = cm.List()
+	hosts2, warnings, version, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
-
+	assert.Equal(t, hosts1, hosts2, "Expected no change in hosts pool after deletion error")
 }

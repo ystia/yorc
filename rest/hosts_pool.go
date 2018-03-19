@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/prov/hostspool"
@@ -200,7 +201,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	hostsNames, warnings, err := s.hostsPoolMgr.List(filters...)
+	hostsNames, warnings, version, err := s.hostsPoolMgr.List(filters...)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -211,6 +212,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hostsCol := HostsCollection{}
+	hostsCol.Version = version
 	if len(hostsNames) > 0 {
 		hostsCol.Hosts = make([]AtomLink, len(hostsNames))
 	}
@@ -232,6 +234,16 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panic(err)
 	}
+	var hostsPoolVersion *uint64
+	var value uint64
+	if strValue, ok := r.URL.Query()["version"]; ok {
+		if value, err = strconv.ParseUint(strValue[0], 10, 64); err == nil {
+			hostsPoolVersion = &value
+		} else {
+			writeError(w, r, newBadRequestError(err))
+			return
+		}
+	}
 
 	var poolRequest HostsPoolRequest
 	err = json.Unmarshal(body, &poolRequest)
@@ -249,7 +261,7 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = s.hostsPoolMgr.Apply(pool)
+	err = s.hostsPoolMgr.Apply(pool, hostsPoolVersion)
 	if err != nil {
 		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(err))

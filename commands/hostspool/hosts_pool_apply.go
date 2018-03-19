@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
@@ -32,6 +34,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/commands/httputil"
 	"github.com/ystia/yorc/helper/tabutil"
+	"github.com/ystia/yorc/prov/hostspool"
 	"github.com/ystia/yorc/rest"
 )
 
@@ -40,6 +43,8 @@ const (
 	hostDeletion = iota
 	hostUpdate
 	hostCreation
+	hostError
+	hostNoOperation
 )
 
 func init() {
@@ -104,19 +109,28 @@ func init() {
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			httputil.HandleHTTPStatusCode(response, "", "Hosts Pool", http.StatusOK)
+			httputil.HandleHTTPStatusCode(response, "", "Hosts Pool",
+				http.StatusOK, http.StatusNoContent)
+
+			// Unmarshal response content if any
 			var hostsColl rest.HostsCollection
-			body, err := ioutil.ReadAll(response.Body)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			err = json.Unmarshal(body, &hostsColl)
-			if err != nil {
-				httputil.ErrExit(err)
+			var version uint64
+			if response.StatusCode != http.StatusNoContent {
+				body, err := ioutil.ReadAll(response.Body)
+				if err != nil {
+					httputil.ErrExit(err)
+				}
+				err = json.Unmarshal(body, &hostsColl)
+				if err != nil {
+					httputil.ErrExit(err)
+				}
+				version = hostsColl.Version
 			}
 
 			// Find which hosts will be deleted, updated, created
+
 			var deletion, update, creation bool
+			var hostsImpacted []string
 			hostsToDeleteTable := tabutil.NewTable()
 			hostsToDeleteTable.AddHeaders(
 				"Name", "Connection", "Status", "Message", "Labels")
@@ -143,21 +157,15 @@ func init() {
 						if host.Connection != newDef.Connection ||
 							!reflect.DeepEqual(host.Labels, newDef.Labels) {
 							update = true
-							addRow(hostsToUpdateTable, colorize, hostUpdate,
-								"old",
+							hostsImpacted = append(hostsImpacted, host.Name)
+							addUpdateRows(hostsToUpdateTable, colorize,
 								host.Name,
-								host.Connection.String(),
-								host.Status.String(),
+								host.Connection,
+								host.Status,
 								host.Message,
-								toPrintableLabels(host.Labels))
-
-							addRow(hostsToUpdateTable, colorize, hostUpdate,
-								"new",
-								newDef.Name,
-								newDef.Connection.String(),
-								host.Status.String(),
-								host.Message,
-								toPrintableLabels(newDef.Labels))
+								host.Labels,
+								newDef.Connection,
+								newDef.Labels)
 						}
 
 						// This host is now computed, removing it from the map
@@ -168,10 +176,10 @@ func init() {
 						deletion = true
 						addRow(hostsToDeleteTable, colorize, hostDeletion,
 							host.Name,
-							host.Connection.String(),
-							host.Status.String(),
-							host.Message,
-							toPrintableLabels(host.Labels))
+							host.Connection,
+							&host.Status,
+							&host.Message,
+							host.Labels)
 					}
 
 				}
@@ -180,10 +188,9 @@ func init() {
 			// Hosts left in newPoolMap are hosts to create
 			for _, host := range newPoolMap {
 				creation = true
+				hostsImpacted = append(hostsImpacted, host.Name)
 				addRow(hostsToCreateTable, colorize, hostCreation,
-					host.Name,
-					host.Connection.String(),
-					toPrintableLabels(host.Labels))
+					host.Name, host.Connection, nil, nil, host.Labels)
 			}
 
 			if !deletion && !update && !creation {
@@ -247,6 +254,14 @@ func init() {
 			}
 			request.Header.Add("Content-Type", "application/json")
 
+			// Specify the version that was returned by the 'hosts pool list'
+			// request above, to ensure there was no change between the
+			// Hosts Pool that was returned by this request
+			// and the Hosts Pool to which changes will be applied
+			query := request.URL.Query()
+			query.Set("version", strconv.FormatUint(version, 10))
+			request.URL.RawQuery = query.Encode()
+
 			response, err = client.Do(request)
 			defer response.Body.Close()
 			if err != nil {
@@ -255,6 +270,55 @@ func init() {
 
 			httputil.HandleHTTPStatusCode(
 				response, args[0], "host pool", http.StatusOK)
+
+			// Verify the status of each updated/new host and log
+			// connection failures
+			connectionFailure := false
+			hostsTable := tabutil.NewTable()
+			hostsTable.AddHeaders(
+				"Name", "Connection", "Status", "Message")
+			for _, name := range hostsImpacted {
+
+				request, err := client.NewRequest("GET", "/hosts_pool/"+name, nil)
+				request.Header.Add("Accept", "application/json")
+				if err != nil {
+					httputil.ErrExit(err)
+				}
+
+				response, err := client.Do(request)
+				defer response.Body.Close()
+				if err != nil {
+					httputil.ErrExit(err)
+				}
+
+				httputil.HandleHTTPStatusCode(response, name, "host pool", http.StatusOK)
+				var host rest.Host
+				body, err := ioutil.ReadAll(response.Body)
+				if err != nil {
+					httputil.ErrExit(err)
+				}
+				err = json.Unmarshal(body, &host)
+				if err != nil {
+					httputil.ErrExit(err)
+				}
+
+				if host.Status == hostspool.HostStatusError {
+					connectionFailure = true
+					addRow(hostsTable, colorize, hostError,
+						host.Name,
+						host.Connection,
+						&host.Status,
+						&host.Message,
+						nil)
+				}
+			}
+			fmt.Println("New hosts pool definition applied successfully.")
+			if connectionFailure {
+				fmt.Println("Connection failures occured for the following hosts:")
+				fmt.Println("")
+				fmt.Println(hostsTable.Render())
+			}
+
 			return nil
 		},
 	}
@@ -268,12 +332,20 @@ func toPrintableLabels(labels map[string]string) string {
 	var labelsList string
 	for k, v := range labels {
 		if labelsList != "" {
-			labelsList += ", "
+			labelsList += ","
 		}
-		labelsList += fmt.Sprintf("%s:%s", k, v)
+		labelsList += fmt.Sprintf("%s: %s", k, v)
 	}
 
 	return labelsList
+}
+
+// Returns a printable value of a connection, including empty fields
+func toPrintableConnection(connection hostspool.Connection) string {
+
+	return "user: " + connection.User + ",password: " + connection.Password +
+		",private key:" + connection.PrivateKey + ",host: " +
+		connection.Host + ",port: " + strconv.FormatUint(connection.Port, 10)
 }
 
 // getColoredText returns a text colored accroding to the operation in
@@ -292,18 +364,203 @@ func getColoredText(colorize bool, text string, operation int) string {
 		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(text)
 	case hostDeletion:
 		return color.New(color.FgHiRed, color.Bold).SprintFunc()(text)
+	case hostError:
+		return color.New(color.FgHiRed, color.Bold).SprintFunc()(text)
 	default:
 		return text
 	}
 }
 
-// Add a row to a table, with text colored according to the operation
-func addRow(table tabutil.Table, colorize bool, operation int, columns ...string) {
+// padSlices is padding as necessary slices in arguments so that both slices
+// have the same number of elements
+func padSlices(slice1 []string, slice2 []string) ([]string, []string) {
+	slice1Size := len(slice1)
+	slice2Size := len(slice2)
 
-	coloredColumns := make([]interface{}, len(columns))
-	for i, text := range columns {
-		coloredColumns[i] = getColoredText(colorize, text, operation)
+	if slice1Size > slice2Size {
+		for i := 0; i < slice1Size-slice2Size; i++ {
+			slice2 = append(slice2, "")
+		}
+	} else {
+		for i := 0; i < slice2Size-slice1Size; i++ {
+			slice1 = append(slice1, "")
+		}
 	}
 
-	table.AddRow(coloredColumns...)
+	return slice1, slice2
+}
+
+// Add a row to a table, with text colored according to the operation
+func addRow(table tabutil.Table, colorize bool, operation int,
+	name string,
+	connection hostspool.Connection,
+	status *hostspool.HostStatus,
+	message *string,
+	labels map[string]string) {
+
+	colNumber := 2
+	statusString := ""
+	if status != nil {
+		colNumber++
+		statusString = status.String()
+	}
+	messageString := ""
+	if message != nil {
+		colNumber++
+		messageString = *message
+	}
+	if labels != nil {
+		colNumber++
+	}
+
+	connectionSubRows := strings.Split(connection.String(), ",")
+	var labelSubRows []string
+	if labels != nil {
+		labelSubRows = strings.Split(toPrintableLabels(labels), ",")
+		sort.Strings(labelSubRows)
+	}
+
+	connectionSubRows, labelSubRows = padSlices(connectionSubRows, labelSubRows)
+	subRowsNumber := len(connectionSubRows)
+
+	// Add rows, one for each sub-column
+	for i := 0; i < subRowsNumber; i++ {
+		coloredColumns := make([]interface{}, colNumber)
+		coloredColumns[0] = getColoredText(colorize, name, operation)
+		coloredColumns[1] = getColoredText(colorize,
+			strings.TrimSpace(connectionSubRows[i]), operation)
+		j := 2
+		if status != nil {
+			coloredColumns[j] = getColoredText(colorize, statusString, operation)
+			j++
+		}
+		if message != nil {
+			coloredColumns[j] = getColoredText(colorize, messageString, operation)
+			j++
+		}
+		if labels != nil {
+			coloredColumns[j] = getColoredText(colorize,
+				strings.TrimSpace(labelSubRows[i]), operation)
+		}
+
+		table.AddRow(coloredColumns...)
+		if i == 0 {
+			// Don't repeat single column values in sub-columns
+			name = ""
+			statusString = ""
+			messageString = ""
+		}
+	}
+}
+
+// Add rows to a table, for both old and new values
+// with colored text for changed values
+func addUpdateRows(table tabutil.Table, colorize bool,
+	name string,
+	oldConnection hostspool.Connection,
+	status hostspool.HostStatus,
+	message string,
+	oldLabels map[string]string,
+	newConnection hostspool.Connection,
+	newLabels map[string]string) {
+
+	// Sorting lables for an easier comparison between old and new labels
+	oldLabelsSlice := strings.Split(toPrintableLabels(oldLabels), ",")
+	newLabelsSlice := strings.Split(toPrintableLabels(newLabels), ",")
+	sort.Strings(oldLabelsSlice)
+	sort.Strings(newLabelsSlice)
+
+	// Padding columns in the same row
+	oldConnectionSubRows, oldLabelSubRows := padSlices(
+		strings.Split(toPrintableConnection(oldConnection), ","),
+		oldLabelsSlice)
+	newConnectionSubRows, newLabelSubRows := padSlices(
+		strings.Split(toPrintableConnection(newConnection), ","),
+		newLabelsSlice)
+
+	// Add rows for old values, one row for each sub-column
+	colNumber := 6
+	oldSubRowsNumber := len(oldLabelSubRows)
+	newSubRowsNumber := len(newLabelSubRows)
+	version, nameValue, statusValue, messageValue :=
+		"old", name, status.String(), message
+	for i := 0; i < oldSubRowsNumber; i++ {
+		coloredColumns := make([]interface{}, colNumber)
+		coloredColumns[0] = getColoredText(colorize, version, hostUpdate)
+		coloredColumns[1] = nameValue
+
+		// Connection, a field with no change has no specific color
+		operation := hostNoOperation
+		if i >= newSubRowsNumber ||
+			oldConnectionSubRows[i] != newConnectionSubRows[i] {
+			operation = hostUpdate
+		}
+		coloredColumns[2] = getColoredText(colorize,
+			strings.TrimSpace(oldConnectionSubRows[i]), operation)
+
+		coloredColumns[3] = statusValue
+		coloredColumns[4] = messageValue
+
+		operation = hostNoOperation
+		if oldLabelSubRows[i] != "" {
+			key := strings.Split(oldLabelSubRows[i], ":")[0]
+			newValue, ok := newLabels[key]
+			if !ok || newValue != oldLabels[key] {
+				operation = hostUpdate
+			}
+		}
+		coloredColumns[5] = getColoredText(colorize,
+			strings.TrimSpace(oldLabelSubRows[i]), operation)
+
+		table.AddRow(coloredColumns...)
+		if i == 0 {
+			// Don't repeat single column values in sub-columns
+			version = ""
+			nameValue = ""
+			statusValue = ""
+			messageValue = ""
+		}
+	}
+
+	// Add rows for new values, one row for each sub-column
+	version, nameValue, statusValue, messageValue =
+		"new", name, status.String(), message
+	for i := 0; i < newSubRowsNumber; i++ {
+		coloredColumns := make([]interface{}, colNumber)
+		coloredColumns[0] = getColoredText(colorize, version, hostUpdate)
+		coloredColumns[1] = nameValue
+
+		// Connection, a field with no change has no specific color
+		operation := hostNoOperation
+		if i >= oldSubRowsNumber ||
+			oldConnectionSubRows[i] != newConnectionSubRows[i] {
+			operation = hostUpdate
+		}
+		coloredColumns[2] = getColoredText(colorize,
+			strings.TrimSpace(newConnectionSubRows[i]), operation)
+
+		coloredColumns[3] = statusValue
+		coloredColumns[4] = messageValue
+
+		operation = hostNoOperation
+		if newLabelSubRows[i] != "" {
+			key := strings.Split(newLabelSubRows[i], ":")[0]
+			oldValue, ok := oldLabels[key]
+			if !ok || oldValue != newLabels[key] {
+				operation = hostUpdate
+			}
+		}
+		coloredColumns[5] = getColoredText(colorize,
+			strings.TrimSpace(newLabelSubRows[i]), operation)
+
+		table.AddRow(coloredColumns...)
+		if i == 0 {
+			// Don't repeat single column values in sub-columns
+			version = ""
+			nameValue = ""
+			statusValue = ""
+			messageValue = ""
+		}
+	}
+
 }

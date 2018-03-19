@@ -238,6 +238,7 @@ type HostRequest struct {
 //
 // Links are all of type LinkRelHost.
 type HostsCollection struct {
+	Version  uint64     `json:"warnings,omitempty"`
 	Hosts    []AtomLink `json:"hosts"`
 	Warnings []string   `json:"warnings,omitempty"`
 }
