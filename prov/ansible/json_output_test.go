@@ -16,6 +16,7 @@ package ansible
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 
@@ -270,7 +271,8 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 		events.OperationName: stringutil.GetLastElement(ec.operation.Name, "."),
 		events.InterfaceName: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),
 	}
-	err := ea.logAnsibleOutputInConsul(&buf, logOptFields)
+	ctx := events.NewContext(context.Background(), logOptFields)
+	err := ea.logAnsibleOutputInConsul(ctx, &buf)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 

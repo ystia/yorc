@@ -16,6 +16,7 @@ package ansible
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strconv"
 
@@ -75,7 +76,7 @@ func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, []string, error)
 	return v, failedHosts, nil
 }
 
-func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer, logOptionalFields events.LogOptionalFields) error {
+func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -128,20 +129,20 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer, logOpti
 				if std, err := obj.GetString("stderr"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					events.WithOptionalFields(logOptionalFields).NewLogEntry(stdErrLogLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
+					events.WithContextOptionalFields(ctx).NewLogEntry(stdErrLogLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
 				}
 				//Check if a stdout field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("stdout"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.WithOptionalFields(logOptionalFields).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
+					events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
 				}
 
 				//Check if a msg field is present (The stdout field is exported for shell tasks on ansible)
 				if std, err := obj.GetString("msg"); err == nil && std != "" {
 					//Display it and store it in consul
 					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.WithOptionalFields(logOptionalFields).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
+					events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
 				}
 			}
 		}
@@ -151,7 +152,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(output *bytes.Buffer, logOpti
 	return nil
 }
 
-func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer, logOptionalFields events.LogOptionalFields) error {
+func (e *executionAnsible) logAnsibleOutputInConsul(ctx context.Context, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -286,6 +287,6 @@ func (e *executionAnsible) logAnsibleOutputInConsul(output *bytes.Buffer, logOpt
 	}
 
 	// Register log entry
-	events.WithOptionalFields(logOptionalFields).NewLogEntry(logLevel, e.deploymentID).Register(buf.Bytes())
+	events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).Register(buf.Bytes())
 	return nil
 }
