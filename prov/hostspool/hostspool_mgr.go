@@ -37,12 +37,12 @@ import (
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(hostname string, connection Connection, labels map[string]string) error
-	Apply(pool []Host) error
+	Apply(pool []Host, version *uint64) error
 	Remove(hostname string) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
 	UpdateConnection(hostname string, connection Connection) error
-	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, error)
+	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(hostname string) (Host, error)
 	Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
 	Release(hostname string) error
@@ -532,10 +532,10 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 	return
 }
 
-func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, error) {
-	hosts, _, err := cm.cc.KV().Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
+func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error) {
+	hosts, metadata, err := cm.cc.KV().Keys(consulutil.HostsPoolPrefix+"/", "/", nil)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return nil, nil, 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	warnings := make([]labelsutil.Warning, 0)
 	results := hosts[:0]
@@ -546,7 +546,7 @@ func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsu
 		host = path.Base(host)
 		labels, err := cm.GetHostLabels(host)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, 0, err
 		}
 		ok, warn := labelsutil.MatchesAll(labels, filters...)
 		if warn != nil {
@@ -555,7 +555,7 @@ func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsu
 			results = append(results, host)
 		}
 	}
-	return results, warnings, nil
+	return results, warnings, metadata.LastIndex, nil
 }
 
 func (cm *consulManager) backupHostStatus(hostname string) error {
@@ -797,7 +797,7 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 	}
 	defer cleanupFn()
 
-	hosts, warnings, err := cm.List(filters...)
+	hosts, warnings, _, err := cm.List(filters...)
 	if err != nil {
 		return "", warnings, err
 	}
@@ -912,11 +912,14 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 	return conf, nil
 }
 
-func (cm *consulManager) Apply(pool []Host) error {
-	return cm.applyWait(pool, 45*time.Second)
+func (cm *consulManager) Apply(pool []Host, version *uint64) error {
+	return cm.applyWait(pool, version, 45*time.Second)
 }
 
-func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error {
+func (cm *consulManager) applyWait(
+	pool []Host,
+	version *uint64,
+	maxWaitTime time.Duration) error {
 
 	// First, checking the pool definition to verify there is no host with an
 	// empty name or a duplicate name, or wrong connection definition, and
@@ -950,10 +953,19 @@ func (cm *consulManager) applyWait(pool []Host, maxWaitTime time.Duration) error
 	// Get all hosts currently registered to find which ones will have to be
 	// unregistered or updated.
 	// Attempting to unregister a host that is still allocated is illegal
-	registeredHosts, _, err := cm.List()
+	registeredHosts, _, runtimeVersion, err := cm.List()
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get list of registered hosts")
 	}
+
+	// Check version, no change done if the current version is greater than
+	// the version in argument (another Hosts Pool change happened since)
+	if version != nil && *version > runtimeVersion {
+		return errors.WithStack(badRequestError{
+			fmt.Sprintf("Runtime version of Hosts Pool: %d greater than expected version %d",
+				runtimeVersion, *version)})
+	}
+
 	hostsToUnregisterCheckAllocatedStatus := make(map[string]bool)
 	for _, registeredHost := range registeredHosts {
 		hostsToUnregisterCheckAllocatedStatus[registeredHost] = true
