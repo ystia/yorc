@@ -75,7 +75,11 @@ func init() {
 					if err != nil {
 						httputil.ErrExit(err)
 					}
-
+					// If no label was defined, define an empty map
+					// to still consider there is a column to display
+					if host.Labels == nil {
+						host.Labels = map[string]string{}
+					}
 					addRow(hostsTable, colorize, hostList,
 						host.Name,
 						host.Connection,
