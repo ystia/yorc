@@ -1069,8 +1069,6 @@ func (cm *consulManager) applyWait(
 		}
 	}
 
-	// TODO: add logs
-
 	// Update the connection status for each updated/created host
 	var waitGroup sync.WaitGroup
 	for _, name := range hostChanged {

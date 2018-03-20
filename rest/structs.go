@@ -218,9 +218,9 @@ type MapEntry struct {
 
 // HostInPool represents a host in the Hosts Pool
 type HostInPool struct {
-	Name       string               `json:"name"`
-	Connection hostspool.Connection `json:"connection"`
-	Labels     map[string]string    `json:"labels,omitempty"`
+	Name       string
+	Connection hostspool.Connection `json:"connection,omitempty" yaml:"connection,omitempty"`
+	Labels     map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
 // HostsPoolRequest represents a request for applying a Hosts Pool definition
