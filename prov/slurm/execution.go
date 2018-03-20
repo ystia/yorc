@@ -56,15 +56,15 @@ type operationNotImplemented struct {
 }
 
 type jobInfo struct {
-	ID     string
-	name   string
-	state  string
-	tasks  int
-	cpus   int
-	nodes  int
-	mem    int
-	opts   []string
-	params []string
+	ID       string
+	name     string
+	state    string
+	tasks    int
+	cpus     int
+	nodes    int
+	mem      int
+	opts     []string
+	execArgs []string
 }
 
 func (oni operationNotImplemented) Error() string {
@@ -92,6 +92,7 @@ type executionCommon struct {
 	nodeInstances          []string
 	jobInfo                *jobInfo
 	lof                    events.LogOptionalFields
+	jobInfoPolling         time.Duration
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
@@ -105,6 +106,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		EnvInputs:              make([]*operations.EnvInput, 0),
 		taskID:                 taskID,
 		OperationRemoteBaseDir: ".yorc",
+		jobInfoPolling:         5 * time.Second,
 	}
 
 	if err := execCommon.resolveOperation(); err != nil {
@@ -199,7 +201,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 }
 
 func (e *executionCommon) poolJobInformation(ctx context.Context, chEnd chan struct{}, chErr chan error) {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(e.jobInfoPolling)
 	go func() {
 		for range ticker.C {
 			e.getJobInformation(ctx, chErr)
@@ -243,7 +245,7 @@ func (e *executionCommon) getJobInformation(ctx context.Context, chErr chan erro
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	job := jobInfo{}
 	// Get main properties from node
-	found, jobName, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "job_name")
+	found, jobName, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "name")
 	if err != nil {
 		return err
 	}
@@ -276,7 +278,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	job.nodes = nodes
 
 	var mem = 0
-	if _, m, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "mem"); err != nil {
+	if _, m, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "mem_per_node"); err != nil {
 		return err
 	} else if m != "" {
 		if mem, err = strconv.Atoi(m); err != nil {
@@ -286,7 +288,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	job.mem = mem
 
 	var cpus = 0
-	if _, c, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "cpus"); err != nil {
+	if _, c, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "cpus_per_task"); err != nil {
 		return err
 	} else if c != "" {
 		if cpus, err = strconv.Atoi(c); err != nil {
@@ -296,27 +298,24 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	job.cpus = cpus
 
 	var extraOpts []string
-	if _, extra, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "extra_job_options"); err != nil {
+	if _, extra, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
 		return err
 	} else if extra != "" {
-		log.Debugf("extras=%q", extra)
-		err = json.Unmarshal([]byte(extra), &extraOpts)
-		if err != nil {
+		if err = json.Unmarshal([]byte(extra), &extraOpts); err != nil {
 			return err
 		}
 	}
 	job.opts = extraOpts
 
-	params := make([]string, 0)
-	params = append(params, "world")
+	var args []string
 	for _, input := range e.EnvInputs {
-		log.Debugf("Input name=%q", input.Name)
-		log.Debugf("Input value=%q", input.Value)
-		if input.Name == "name" {
-			params[0] = input.Value
+		if input.Name == "args" {
+			if err = json.Unmarshal([]byte(input.Value), &args); err != nil {
+				return err
+			}
 		}
 	}
-	job.params = params
+	job.execArgs = args
 	e.jobInfo = &job
 	return nil
 }
@@ -336,9 +335,15 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 	if e.jobInfo.cpus != 0 {
 		opts += fmt.Sprintf(" --cpus-per-task=%d", e.jobInfo.cpus)
 	}
+	if e.jobInfo.opts != nil && len(e.jobInfo.opts) > 0 {
+		for _, opt := range e.jobInfo.opts {
+			opts += fmt.Sprintf(" --%s", opt)
+		}
+	}
 
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
-	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.params, " "))
+	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
+	events.WithOptionalFields(e.lof).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)

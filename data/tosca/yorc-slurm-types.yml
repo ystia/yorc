@@ -46,30 +46,38 @@ node_types:
     properties:
       name:
         type: string
-        description: The job name.
+        description: The slurm job name.
         required: false
       tasks:
-        description: Number of tasks to run in parallel.
+        description: Number of tasks to run.
         type: integer
         required: false
         default: 1
       nodes:
-        description: Minimum number of nodes allocated to the job
+        description: Number of nodes allocated to the job.
         type: integer
         required: false
         default: 1
-      cpus:
-        description: >
-          Number of cpus allocated per task. Depending upon system configuration, cpu can be either a core or a thread.
+      cpus_per_task:
+        description: Number of cpus allocated per task.
         type: integer
         required: false
-      mem:
+        default: 1
+      mem_per_node:
         type: integer
         description: The memory per node in GB required to the job.
         required: false
-      extra_job_options:
+      extra_options:
         type: list
-        description: Extra job options.
+        description: >
+         This define all other slurm job options with the format opt=value (ex: mpi=pmi2 or partition=MyPartition).
+        required: false
+        entry_schema:
+          type: string
+      exec_args:
+        type: list
+        description: >
+         This define all arguments passed to the executable run by the job.
         required: false
         entry_schema:
           type: string
