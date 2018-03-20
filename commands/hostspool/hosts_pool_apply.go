@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -36,15 +35,6 @@ import (
 	"github.com/ystia/yorc/helper/tabutil"
 	"github.com/ystia/yorc/prov/hostspool"
 	"github.com/ystia/yorc/rest"
-)
-
-// Internal constants for operations on hosts pool
-const (
-	hostDeletion = iota
-	hostUpdate
-	hostCreation
-	hostError
-	hostNoOperation
 )
 
 func init() {
@@ -346,111 +336,6 @@ func toPrintableConnection(connection hostspool.Connection) string {
 	return "user: " + connection.User + ",password: " + connection.Password +
 		",private key:" + connection.PrivateKey + ",host: " +
 		connection.Host + ",port: " + strconv.FormatUint(connection.Port, 10)
-}
-
-// getColoredText returns a text colored accroding to the operation in
-// argument :
-// - red for a deletion
-// - yellow for an update (bold for the new version, regular for the old one)
-// - green for a creation
-func getColoredText(colorize bool, text string, operation int) string {
-	if !colorize {
-		return text
-	}
-	switch operation {
-	case hostCreation:
-		return color.New(color.FgHiGreen, color.Bold).SprintFunc()(text)
-	case hostUpdate:
-		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(text)
-	case hostDeletion:
-		return color.New(color.FgHiRed, color.Bold).SprintFunc()(text)
-	case hostError:
-		return color.New(color.FgHiRed, color.Bold).SprintFunc()(text)
-	default:
-		return text
-	}
-}
-
-// padSlices is padding as necessary slices in arguments so that both slices
-// have the same number of elements
-func padSlices(slice1 []string, slice2 []string) ([]string, []string) {
-	slice1Size := len(slice1)
-	slice2Size := len(slice2)
-
-	if slice1Size > slice2Size {
-		for i := 0; i < slice1Size-slice2Size; i++ {
-			slice2 = append(slice2, "")
-		}
-	} else {
-		for i := 0; i < slice2Size-slice1Size; i++ {
-			slice1 = append(slice1, "")
-		}
-	}
-
-	return slice1, slice2
-}
-
-// Add a row to a table, with text colored according to the operation
-func addRow(table tabutil.Table, colorize bool, operation int,
-	name string,
-	connection hostspool.Connection,
-	status *hostspool.HostStatus,
-	message *string,
-	labels map[string]string) {
-
-	colNumber := 2
-	statusString := ""
-	if status != nil {
-		colNumber++
-		statusString = status.String()
-	}
-	messageString := ""
-	if message != nil {
-		colNumber++
-		messageString = *message
-	}
-	if labels != nil {
-		colNumber++
-	}
-
-	connectionSubRows := strings.Split(connection.String(), ",")
-	var labelSubRows []string
-	if labels != nil {
-		labelSubRows = strings.Split(toPrintableLabels(labels), ",")
-		sort.Strings(labelSubRows)
-	}
-
-	connectionSubRows, labelSubRows = padSlices(connectionSubRows, labelSubRows)
-	subRowsNumber := len(connectionSubRows)
-
-	// Add rows, one for each sub-column
-	for i := 0; i < subRowsNumber; i++ {
-		coloredColumns := make([]interface{}, colNumber)
-		coloredColumns[0] = getColoredText(colorize, name, operation)
-		coloredColumns[1] = getColoredText(colorize,
-			strings.TrimSpace(connectionSubRows[i]), operation)
-		j := 2
-		if status != nil {
-			coloredColumns[j] = getColoredText(colorize, statusString, operation)
-			j++
-		}
-		if message != nil {
-			coloredColumns[j] = getColoredText(colorize, messageString, operation)
-			j++
-		}
-		if labels != nil {
-			coloredColumns[j] = getColoredText(colorize,
-				strings.TrimSpace(labelSubRows[i]), operation)
-		}
-
-		table.AddRow(coloredColumns...)
-		if i == 0 {
-			// Don't repeat single column values in sub-columns
-			name = ""
-			statusString = ""
-			messageString = ""
-		}
-	}
 }
 
 // Add rows to a table, for both old and new values
