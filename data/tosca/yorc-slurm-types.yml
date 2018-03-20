@@ -73,6 +73,10 @@ node_types:
         required: false
         entry_schema:
           type: string
+    attributes:
+      job_id:
+        type: string
+        description: The ID of the job allocation.
     interfaces:
       tosca.interfaces.node.lifecycle.Runnable:
         run:

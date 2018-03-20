@@ -31,6 +31,7 @@ import (
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 	"golang.org/x/sync/errgroup"
 	"io"
 	"io/ioutil"
@@ -39,9 +40,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
-//FIXME need to put code in common with ansible execution
+// FIXME need to put code in common with ansible execution
 
 type execution interface {
 	resolveExecution() error
@@ -50,6 +53,18 @@ type execution interface {
 
 type operationNotImplemented struct {
 	msg string
+}
+
+type jobInfo struct {
+	ID     string
+	name   string
+	state  string
+	tasks  int
+	cpus   int
+	nodes  int
+	mem    int
+	opts   []string
+	params []string
 }
 
 func (oni operationNotImplemented) Error() string {
@@ -74,6 +89,9 @@ type executionCommon struct {
 	NodeTypePath           string
 	OperationPath          string
 	Primary                string
+	nodeInstances          []string
+	jobInfo                *jobInfo
+	lof                    events.LogOptionalFields
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
@@ -115,7 +133,7 @@ func (e *executionCommon) resolveOperation() error {
 	}
 	e.Primary = strings.TrimSpace(e.Primary)
 	log.Debugf("Operation Path: %q, primary implementation: %q", e.OperationPath, e.Primary)
-	return nil
+	return e.resolveInstances()
 }
 
 func (e *executionCommon) execute(ctx context.Context) (err error) {
@@ -123,7 +141,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
+	e.lof = events.LogOptionalFields{
 		events.WorkFlowID:    wfName,
 		events.NodeID:        e.NodeName,
 		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
@@ -136,14 +154,43 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		if err := e.uploadArtifacts(ctx); err != nil {
 			return err
 		}
-		// Run the command
-		out, err := e.runCommand(ctx)
-		if err != nil {
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(err.Error())
+
+		// Build Job Information
+		if err := e.buildJobInfo(ctx); err != nil {
 			return err
 		}
-		log.Debugf("output:%q", out)
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
+
+		// Run the command asynchronously
+		var wg sync.WaitGroup
+		wg.Add(1)
+		chEnd := make(chan struct{})
+		chErr := make(chan error)
+
+		// Pool JobInformation
+		go e.poolJobInformation(ctx, chEnd, chErr)
+
+		go func() {
+			defer wg.Done()
+			// Run the command
+			out, err := e.runCommand(ctx)
+			if err != nil {
+				events.WithOptionalFields(e.lof).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+				return
+			}
+			events.WithOptionalFields(e.lof).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
+			log.Debugf("output:%q", out)
+		}()
+
+		// Wait until the job is done
+		wg.Wait()
+		close(chEnd)
+		close(chErr)
+
+		// Set Attributes
+		if err = deployments.SetInstanceState(e.kv, e.deploymentID, e.NodeName, e.nodeInstances[0], tosca.NodeStateCreated); err != nil {
+			return err
+		}
+
 		return e.cleanUp()
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
@@ -151,12 +198,54 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	return nil
 }
 
-func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
-	var opts string
+func (e *executionCommon) poolJobInformation(ctx context.Context, chEnd chan struct{}, chErr chan error) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	go func() {
+		for range ticker.C {
+			e.getJobInformation(ctx, chErr)
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		case <-chEnd:
+			ticker.Stop()
+			return
+		case <-chErr:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (e *executionCommon) getJobInformation(ctx context.Context, chErr chan error) {
+	cmd := fmt.Sprintf("squeue --noheader --name=%s -o \"%%A,%%T\"", e.jobInfo.name)
+	output, err := e.client.RunCommand(cmd)
+	if err != nil {
+		log.Debugf("stderr:%q", output)
+		chErr <- errors.Wrap(err, output)
+	}
+	out := strings.Trim(output, "\" \t\n\x00")
+	if out != "" {
+		d := strings.Split(out, ",")
+		if len(d) != 2 {
+			chErr <- errors.Errorf("Unexpected format job information:%q", out)
+		}
+		e.jobInfo.ID = d[0]
+		e.jobInfo.state = d[1]
+		log.Debugf("Job ID:%s, Job State:%s", e.jobInfo.ID, e.jobInfo.state)
+		events.WithOptionalFields(e.lof).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
+	}
+}
+
+func (e *executionCommon) buildJobInfo(ctx context.Context) error {
+	job := jobInfo{}
 	// Get main properties from node
 	found, jobName, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "job_name")
 	if err != nil {
-		return "", err
+		return err
 	}
 	if !found || jobName == "" {
 		jobName = e.cfg.Infrastructures[infrastructureName].GetString("default_job_name")
@@ -164,67 +253,92 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 			jobName = e.deploymentID
 		}
 	}
-	opts += fmt.Sprintf(" --job-name=%s", jobName)
+	job.name = jobName
 
-	var tasks = 0
+	var tsks = 0
 	if _, ts, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "tasks"); err != nil {
-		return "", err
+		return err
 	} else if ts != "" {
-		if tasks, err = strconv.Atoi(ts); err != nil {
-			return "", err
+		if tsks, err = strconv.Atoi(ts); err != nil {
+			return err
 		}
 	}
-	if tasks > 1 {
-		opts += fmt.Sprintf(" --ntasks=%d", tasks)
-	}
+	job.tasks = tsks
 
 	var nodes = 1
 	if _, ns, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "nodes"); err != nil {
-		return "", err
+		return err
 	} else if ns != "" {
 		if nodes, err = strconv.Atoi(ns); err != nil {
-			return "", err
+			return err
 		}
 	}
-	opts += fmt.Sprintf(" --nodes=%d", nodes)
+	job.nodes = nodes
 
 	var mem = 0
 	if _, m, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "mem"); err != nil {
-		return "", err
+		return err
 	} else if m != "" {
 		if mem, err = strconv.Atoi(m); err != nil {
-			return "", err
+			return err
 		}
 	}
-	if mem != 0 {
-		opts += fmt.Sprintf(" --mem=%dG", mem)
-	}
+	job.mem = mem
 
 	var cpus = 0
 	if _, c, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "cpus"); err != nil {
-		return "", err
+		return err
 	} else if c != "" {
 		if cpus, err = strconv.Atoi(c); err != nil {
-			return "", err
+			return err
 		}
 	}
-	if cpus != 0 {
-		opts += fmt.Sprintf(" --cpus-per-task=%d", cpus)
-	}
+	job.cpus = cpus
 
+	var extraOpts []string
 	if _, extra, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "extra_job_options"); err != nil {
-		return "", err
+		return err
 	} else if extra != "" {
 		log.Debugf("extras=%q", extra)
-		var extraOpts []string
 		err = json.Unmarshal([]byte(extra), &extraOpts)
 		if err != nil {
-			return "", err
+			return err
 		}
+	}
+	job.opts = extraOpts
+
+	params := make([]string, 0)
+	params = append(params, "world")
+	for _, input := range e.EnvInputs {
+		log.Debugf("Input name=%q", input.Name)
+		log.Debugf("Input value=%q", input.Value)
+		if input.Name == "name" {
+			params[0] = input.Value
+		}
+	}
+	job.params = params
+	e.jobInfo = &job
+	return nil
+}
+
+func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
+	var opts string
+	opts += fmt.Sprintf(" --job-name=%s", e.jobInfo.name)
+
+	if e.jobInfo.tasks > 1 {
+		opts += fmt.Sprintf(" --ntasks=%d", e.jobInfo.tasks)
+	}
+	opts += fmt.Sprintf(" --nodes=%d", e.jobInfo.nodes)
+
+	if e.jobInfo.mem != 0 {
+		opts += fmt.Sprintf(" --mem=%dG", e.jobInfo.mem)
+	}
+	if e.jobInfo.cpus != 0 {
+		opts += fmt.Sprintf(" --cpus-per-task=%d", e.jobInfo.cpus)
 	}
 
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
-	cmd := fmt.Sprintf("srun %s %s", opts, execFile)
+	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.params, " "))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
@@ -241,19 +355,6 @@ func (e *executionCommon) cleanUp() error {
 		return err
 	}
 	return nil
-}
-
-func (e *executionCommon) runScript(ctx context.Context) (string, error) {
-	scriptPath := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
-	dirToRunCmd := path.Dir(scriptPath)
-	script := path.Base(scriptPath)
-	cmd := fmt.Sprintf("cd %s && source %s", dirToRunCmd, script)
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		log.Debugf("stderr:%q", output)
-		return "", errors.Wrap(err, output)
-	}
-	return output, nil
 }
 
 func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
@@ -315,6 +416,14 @@ func (e *executionCommon) handleFile(ctx context.Context, pathFile, artifactBase
 func (e *executionCommon) uploadFile(ctx context.Context, source io.Reader, remotePath string) error {
 	if err := e.client.CopyFile(source, remotePath, "0755"); err != nil {
 		log.Debugf("an error occurred:%+v", err)
+		return err
+	}
+	return nil
+}
+
+func (e *executionCommon) resolveInstances() error {
+	var err error
+	if e.nodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName); err != nil {
 		return err
 	}
 	return nil
