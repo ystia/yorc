@@ -18,10 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-
 	"net/http"
-
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -73,21 +70,18 @@ func init() {
 			for _, hostLink := range hostsColl.Hosts {
 				if hostLink.Rel == rest.LinkRelHost {
 					var host rest.Host
-					var labelsList string
 
 					err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &host)
 					if err != nil {
 						httputil.ErrExit(err)
 					}
 
-					for k, v := range host.Labels {
-						if labelsList != "" {
-							labelsList += ", "
-						}
-						labelsList += fmt.Sprintf("%s:%s", k, v)
-					}
-
-					hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), host.Message, labelsList)
+					addRow(hostsTable, colorize, hostList,
+						host.Name,
+						host.Connection,
+						&host.Status,
+						&host.Message,
+						host.Labels)
 				}
 			}
 			if colorize {
@@ -100,18 +94,4 @@ func init() {
 	}
 	hpListCmd.Flags().StringSliceVarP(&filters, "filter", "f", nil, "Filter hosts based on their labels. May be specified several time, filters are joined by a logical 'and'. See the documentation for the filters grammar.")
 	hostsPoolCmd.AddCommand(hpListCmd)
-}
-
-func getColoredHostStatus(colorize bool, status string) string {
-	if !colorize {
-		return status
-	}
-	switch {
-	case strings.ToLower(status) == "free":
-		return color.New(color.FgHiGreen, color.Bold).SprintFunc()(status)
-	case strings.ToLower(status) == "allocated":
-		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(status)
-	default:
-		return color.New(color.FgHiRed, color.Bold).SprintFunc()(status)
-	}
 }
