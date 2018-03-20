@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/vault"
@@ -101,6 +102,7 @@ func getPlugins(opts *ServeOpts) map[string]plugin.Plugin {
 func SetupPluginCommunication() {
 	// As we have type []interface{} in the config.Configuration structure, we need to register it before sending config from yorc server to plugins
 	gob.Register(make(map[string]interface{}, 0))
+	gob.Register(make(events.LogOptionalFields, 0))
 	gob.Register(make([]interface{}, 0))
 	gob.Register(make([]string, 0))
 	gob.RegisterName("DynamicMap", &config.DynamicMap{})

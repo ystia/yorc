@@ -42,13 +42,16 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(cc.KV(), taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.NodeID:        nodeName,
-		events.WorkFlowID:    wfName,
-		events.InterfaceName: "delegate",
-		events.OperationName: delegateOperation,
+	logOptFields, ok := events.FromContext(ctx)
+	if !ok {
+		return errors.New("Missing contextual log optionnal fields")
 	}
+	logOptFields[events.NodeID] = nodeName
+	logOptFields[events.ExecutionID] = taskID
+	logOptFields[events.OperationName] = delegateOperation
+	logOptFields[events.InterfaceName] = "delegate"
+	ctx = events.NewContext(ctx, logOptFields)
+
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -58,7 +61,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		for _, instance := range instances {
 			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		}
-		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName, logOptFields)
+		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -70,7 +73,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		for _, instance := range instances {
 			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		}
-		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName, logOptFields)
+		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -82,7 +85,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	return errors.Errorf("operation %q not supported", delegateOperation)
 }
 
-func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string) error {
 	hpManager := NewManager(cc)
 
 	_, jsonProp, err := deployments.GetNodeProperty(cc.KV(), deploymentID, nodeName, "filters")
@@ -113,10 +116,12 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 		return err
 	}
 	for _, instance := range instances {
+		logOptFields, _ := events.FromContext(originalCtx)
 		logOptFields[events.InstanceID] = instance
+		ctx := events.NewContext(originalCtx, logOptFields)
 		hostname, warnings, err := hpManager.Allocate(fmt.Sprintf(`allocated for node instance "%s-%s" in deployment %q`, nodeName, instance, deploymentID), filters...)
 		for _, warn := range warnings {
-			events.WithOptionalFields(logOptFields).
+			events.WithContextOptionalFields(ctx).
 				NewLogEntry(events.WARN, deploymentID).Registerf(`%v`, warn)
 		}
 		if err != nil {
@@ -149,7 +154,7 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 		privateAddress, ok := host.Labels["private_address"]
 		if !ok {
 			privateAddress = host.Connection.Host
-			events.WithOptionalFields(logOptFields).
+			events.WithContextOptionalFields(ctx).
 				NewLogEntry(events.WARN, deploymentID).Registerf(`no "private_address" label for host %q, we will use the address from the connection section`, hostname)
 		}
 		err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "ip_address", privateAddress)
@@ -184,7 +189,6 @@ func (e *defaultExecutor) hostsPoolCreate(ctx context.Context, cc *api.Client, c
 			}
 		}
 	}
-	delete(logOptFields, events.InstanceID)
 
 	return nil
 }
@@ -242,7 +246,7 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 	return filters, nil
 }
 
-func (e *defaultExecutor) hostsPoolDelete(ctx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string) error {
 	hpManager := NewManager(cc)
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
@@ -250,13 +254,15 @@ func (e *defaultExecutor) hostsPoolDelete(ctx context.Context, cc *api.Client, c
 	}
 	var errs error
 	for _, instance := range instances {
+		logOptFields, _ := events.FromContext(originalCtx)
 		logOptFields[events.InstanceID] = instance
+		ctx := events.NewContext(originalCtx, logOptFields)
 		found, hostname, err := deployments.GetInstanceAttribute(cc.KV(), deploymentID, nodeName, instance, "hostname")
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
 		if !found {
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.WARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
 			continue
 		}
 		err = hpManager.Release(hostname)
@@ -264,7 +270,6 @@ func (e *defaultExecutor) hostsPoolDelete(ctx context.Context, cc *api.Client, c
 			errs = multierror.Append(errs, err)
 		}
 	}
-	delete(logOptFields, events.InstanceID)
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
 }
 

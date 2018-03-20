@@ -16,13 +16,15 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -33,6 +35,7 @@ type mockOperationExecutor struct {
 	taskID, deploymentID, nodeName string
 	operation                      prov.Operation
 	contextCancelled               bool
+	lof                            events.LogOptionalFields
 }
 
 func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
@@ -43,6 +46,7 @@ func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.C
 	m.deploymentID = deploymentID
 	m.nodeName = nodeName
 	m.operation = operation
+	m.lof, _ = events.FromContext(ctx)
 
 	go func() {
 		<-m.ctx.Done()
@@ -80,8 +84,14 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 			TargetNodeName:          "AnotherNode",
 		},
 	}
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	err = plugin.ExecOperation(
-		context.Background(),
+		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestDepID", "TestNodeName", op)
 	require.Nil(t, err)
@@ -92,6 +102,7 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 	require.Equal(t, "TestDepID", mock.deploymentID)
 	require.Equal(t, "TestNodeName", mock.nodeName)
 	require.Equal(t, op, mock.operation)
+	assert.Equal(t, lof, mock.lof)
 }
 
 func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
@@ -117,11 +128,18 @@ func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 			TargetNodeName:          "AnotherNode",
 		},
 	}
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	err = plugin.ExecOperation(
-		context.Background(),
+		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestFailure", "TestNodeName", op)
 	require.Error(t, err, "An error was expected during executing plugin operation")
+	require.EqualError(t, err, "a failure occurred during plugin exec operation")
 }
 
 func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
@@ -138,7 +156,12 @@ func TestOperationExecutorExecOperationWithCancel(t *testing.T) {
 	require.Nil(t, err)
 
 	plugin := raw.(prov.OperationExecutor)
-	ctx := context.Background()
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
 		err = plugin.ExecOperation(

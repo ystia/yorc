@@ -20,7 +20,9 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -67,6 +69,10 @@ type OperationExecutorClient struct {
 // ExecOperation is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (c *OperationExecutorClient) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+	lof, ok := events.FromContext(ctx)
+	if !ok {
+		return errors.New("Missing contextual log optionnal fields")
+	}
 	id := c.Broker.NextId()
 	closeChan := make(chan struct{}, 0)
 	defer close(closeChan)
@@ -74,12 +80,13 @@ func (c *OperationExecutorClient) ExecOperation(ctx context.Context, conf config
 
 	var resp OperationExecutorExecOperationResponse
 	args := &OperationExecutorExecOperationArgs{
-		ChannelID:    id,
-		Conf:         conf,
-		TaskID:       taskID,
-		DeploymentID: deploymentID,
-		NodeName:     nodeName,
-		Operation:    operation,
+		ChannelID:         id,
+		Conf:              conf,
+		TaskID:            taskID,
+		DeploymentID:      deploymentID,
+		NodeName:          nodeName,
+		Operation:         operation,
+		LogOptionalFields: lof,
 	}
 	err := c.Client.Call("Plugin.ExecOperation", args, &resp)
 	if err != nil {
@@ -99,12 +106,13 @@ type OperationExecutorServer struct {
 // OperationExecutorExecOperationArgs is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type OperationExecutorExecOperationArgs struct {
-	ChannelID    uint32
-	Conf         config.Configuration
-	TaskID       string
-	DeploymentID string
-	NodeName     string
-	Operation    prov.Operation
+	ChannelID         uint32
+	Conf              config.Configuration
+	TaskID            string
+	DeploymentID      string
+	NodeName          string
+	Operation         prov.Operation
+	LogOptionalFields events.LogOptionalFields
 }
 
 // OperationExecutorExecOperationResponse is public for use by reflexion and should be considered as private to this package.
@@ -117,7 +125,7 @@ type OperationExecutorExecOperationResponse struct {
 // Please do not use it directly.
 func (s *OperationExecutorServer) ExecOperation(args *OperationExecutorExecOperationArgs, reply *OperationExecutorExecOperationResponse) error {
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(events.NewContext(context.Background(), args.LogOptionalFields))
 	defer cancelFunc()
 
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
