@@ -21,11 +21,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/prov/hostspool"
-
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/hostspool"
 )
 
 func (s *Server) deleteHostInPool(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +201,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	hostsNames, warnings, version, err := s.hostsPoolMgr.List(filters...)
+	hostsNames, warnings, checkpoint, err := s.hostsPoolMgr.List(filters...)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -212,7 +212,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hostsCol := HostsCollection{}
-	hostsCol.Version = version
+	hostsCol.Checkpoint = checkpoint
 	if len(hostsNames) > 0 {
 		hostsCol.Hosts = make([]AtomLink, len(hostsNames))
 	}
@@ -234,13 +234,18 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Panic(err)
 	}
-	var hostsPoolVersion *uint64
+	var hostsPoolCheckpoint *uint64
 	var value uint64
-	if strValue, ok := r.URL.Query()["version"]; ok {
-		if value, err = strconv.ParseUint(strValue[0], 10, 64); err == nil {
-			hostsPoolVersion = &value
+	if r.Method == http.MethodPost {
+		if strValue, ok := r.URL.Query()["checkpoint"]; ok {
+			if value, err = strconv.ParseUint(strValue[0], 10, 64); err == nil {
+				hostsPoolCheckpoint = &value
+			} else {
+				writeError(w, r, newBadRequestError(err))
+				return
+			}
 		} else {
-			writeError(w, r, newBadRequestError(err))
+			writeError(w, r, newBadRequestError(errors.Errorf("Missing query parameter checkpoint")))
 			return
 		}
 	}
@@ -261,7 +266,7 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = s.hostsPoolMgr.Apply(pool, hostsPoolVersion)
+	err = s.hostsPoolMgr.Apply(pool, hostsPoolCheckpoint)
 	if err != nil {
 		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(err))
@@ -269,5 +274,10 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Panic(err)
 	}
-	w.WriteHeader(http.StatusOK)
+
+	if r.Method == http.MethodPost {
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }

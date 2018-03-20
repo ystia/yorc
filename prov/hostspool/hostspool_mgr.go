@@ -37,7 +37,7 @@ import (
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(hostname string, connection Connection, labels map[string]string) error
-	Apply(pool []Host, version *uint64) error
+	Apply(pool []Host, checkpoint *uint64) error
 	Remove(hostname string) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
@@ -71,7 +71,10 @@ func NewManagerWithSSHFactory(cc *api.Client, sshClientFactory SSHClientFactory)
 	return &consulManager{cc: cc, getSSHClient: sshClientFactory}
 }
 
-const kvLockKey = consulutil.HostsPoolPrefix + "/.mgrLock"
+// Lock key is not under HostsPoolPrefix so that taking the lock and releasing
+// without any change to the Hosts Pool will not update the last index of the
+// Hosts Pool list
+const kvLockKey = consulutil.YorcManagementPrefix + "/hosts_pool/lock"
 
 type consulManager struct {
 	cc           *api.Client
@@ -540,9 +543,6 @@ func (cm *consulManager) List(filters ...labelsutil.Filter) ([]string, []labelsu
 	warnings := make([]labelsutil.Warning, 0)
 	results := hosts[:0]
 	for _, host := range hosts {
-		if host == kvLockKey {
-			continue
-		}
 		host = path.Base(host)
 		labels, err := cm.GetHostLabels(host)
 		if err != nil {
@@ -912,13 +912,13 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 	return conf, nil
 }
 
-func (cm *consulManager) Apply(pool []Host, version *uint64) error {
-	return cm.applyWait(pool, version, 45*time.Second)
+func (cm *consulManager) Apply(pool []Host, checkpoint *uint64) error {
+	return cm.applyWait(pool, checkpoint, 45*time.Second)
 }
 
 func (cm *consulManager) applyWait(
 	pool []Host,
-	version *uint64,
+	checkpoint *uint64,
 	maxWaitTime time.Duration) error {
 
 	// First, checking the pool definition to verify there is no host with an
@@ -953,17 +953,20 @@ func (cm *consulManager) applyWait(
 	// Get all hosts currently registered to find which ones will have to be
 	// unregistered or updated.
 	// Attempting to unregister a host that is still allocated is illegal
-	registeredHosts, _, runtimeVersion, err := cm.List()
+	registeredHosts, _, runtimeCheckpoint, err := cm.List()
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get list of registered hosts")
 	}
 
-	// Check version, no change done if the current version is greater than
-	// the version in argument (another Hosts Pool change happened since)
-	if version != nil && *version > runtimeVersion {
+	// Verify checkpoint, no change done if the checkpoint in argument is
+	// lower than the current checkpoint, as it means that another Hosts Pool
+	// change happened since
+	if checkpoint != nil &&
+		((*checkpoint == 0 && len(registeredHosts) > 0) ||
+			(*checkpoint > 0 && *checkpoint < runtimeCheckpoint)) {
 		return errors.WithStack(badRequestError{
-			fmt.Sprintf("Runtime version of Hosts Pool: %d greater than expected version %d",
-				runtimeVersion, *version)})
+			fmt.Sprintf("Checkpoint for Hosts Pool: %d greater than expected checkpoint %d",
+				runtimeCheckpoint, *checkpoint)})
 	}
 
 	hostsToUnregisterCheckAllocatedStatus := make(map[string]bool)
@@ -1055,6 +1058,15 @@ func (cm *consulManager) applyWait(
 			errs = append(errs, e.What)
 		}
 		err = errors.Errorf("Failed to apply new Hosts Pool definition: %s", strings.Join(errs, ", "))
+	}
+
+	// Not using querymeta.LastIndex from KV().Txn() as it doesn't work the same
+	// way as in KV().Keys used in cm.List(). The new checkpoint value corresponds
+	// to the highest modifyIndex of results in the transaction
+	for _, kvpair := range response.Results {
+		if kvpair.ModifyIndex > *checkpoint {
+			*checkpoint = kvpair.ModifyIndex
+		}
 	}
 
 	// TODO: add logs

@@ -440,7 +440,7 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 		t.Fatal(err)
 	}
 
-	hosts, warnings, version, err := cm.List()
+	hosts, warnings, checkpoint, err := cm.List()
 	require.NoError(t, err)
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
@@ -449,16 +449,16 @@ func testConsulManagerList(t *testing.T, cc *api.Client) {
 	assert.Contains(t, hosts, "list_host3")
 	assert.Contains(t, hosts, "list_host4")
 
-	// Check version increase
+	// Check checkpoint increase
 	err = cm.Add("list_host5", Connection{PrivateKey: dummySSHkey}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	hosts, warnings, version2, err := cm.List()
+	hosts, warnings, checkpoint2, err := cm.List()
 	require.NoError(t, err)
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 5)
-	assert.NotEqual(t, version, version2, "Expected a version change after update")
+	assert.NotEqual(t, checkpoint, checkpoint2, "Expected a checkpoint change after update")
 
 }
 
@@ -541,15 +541,18 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	}
 
 	// Apply this definition
-	var version uint64
-	err := cm.Apply(hostpool, &version)
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool definition")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 	// Check the pool now
-	hosts, warnings, version, err := cm.List()
+	hosts, warnings, newCkpt, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 3)
-	assert.NotEqual(t, 0, version)
+	assert.NotEqual(t, uint64(0), newCkpt)
+	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
+
 	for i := 0; i < 3; i++ {
 		suffix := strconv.Itoa(i)
 		hostname := "host" + suffix
@@ -618,17 +621,23 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 		})
 	}
 
+	_, _, checkpoint, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+
 	// Apply this new definition
-	err = cm.Apply(hostpool, &version)
+	oldcheckpoint := checkpoint
+	err = cm.Apply(hostpool, &checkpoint)
 	require.NoError(t, err,
 		"Unexpected failure applying new host pool definition")
 
+	assert.NotEqual(t, oldcheckpoint, checkpoint, "Expected a checkpoint change")
+
 	// Check the pool now
-	hosts, warnings, version2, err := cm.List()
+	hosts, warnings, ckpt2, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
-	assert.NotEqual(t, version, version2, "Expected a version change")
+	assert.Equal(t, checkpoint, ckpt2, "Expected same checkpoint from apply (updated by apply) and list")
 	assert.NotContains(t, hosts, removedHostname)
 	for i := 0; i < 4; i++ {
 		var suffix string
@@ -662,41 +671,50 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	hostpool[0].Name = "newName"
 	hostpool = append(hostpool, hostpool[0])
 	hostpool[len(hostpool)-1].Name = ""
-	err = cm.Apply(hostpool, &version2)
+	err = cm.Apply(hostpool, &ckpt2)
 	assert.Error(t, err, "Expected an error adding a host with no name")
 
 	// Check the new definition wasn't applied after this error
-	hosts, warnings, version3, err := cm.List()
+	hosts, warnings, ckpt3, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
-	assert.Equal(t, version2, version3, "Expected no version change after name error")
+	assert.Equal(t, ckpt2, ckpt3, "Expected no checkpoint change after name error")
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using empty name")
 	assert.NotContains(t, hosts, "newName")
 
 	// Error case: duplicate names
 	hostpool[len(hostpool)-1].Name = hostpool[0].Name
-	err = cm.Apply(hostpool, &version3)
+	err = cm.Apply(hostpool, &ckpt3)
 	assert.Error(t, err,
 		"Expected an error applying a hosts pool with duplicate names")
 
 	// Check the new definition wasn't applied after this error
-	hosts1, warnings, version4, err := cm.List()
+	hosts1, warnings, ckpt4, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts1, 4)
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using duplicates")
-	assert.Equal(t, version3, version4, "Expected no version change after duplicate error")
+	assert.Equal(t, ckpt3, ckpt4, "Expected no checkpoint change after duplicate error")
 
 	// Error case : attempt to delete an allocated host
 	hostpool = hostpool[:1]
-	err = cm.Apply(hostpool, &version4)
+	err = cm.Apply(hostpool, &ckpt4)
 	assert.Error(t, err, "Expected an error deleting an allocated host")
-	hosts2, warnings, version, err := cm.List()
+	hosts2, warnings, checkpoint, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts, 4)
 	assert.Equal(t, hosts1, hosts2, "Expected no change in hosts pool after deletion error")
+	assert.Equal(t, ckpt3, ckpt4, "Expected no checkpoint change after deletion error")
+	assert.Equal(t, ckpt4, checkpoint, "Expected no checkpoint diff between apply and list")
+
+	// Error case : outdated checkpoint
+	hostpool[0].Labels["label1"] = "newValues"
+	checkpoint = checkpoint - 1
+	err = cm.Apply(hostpool, &checkpoint)
+	assert.Error(t, err, "Expected an error doing an apply with outdated checkpoint")
+
 }

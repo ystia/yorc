@@ -114,7 +114,7 @@ func init() {
 
 			// Unmarshal response content if any
 			var hostsColl rest.HostsCollection
-			var version uint64
+			var checkpoint uint64
 			if response.StatusCode != http.StatusNoContent {
 				body, err := ioutil.ReadAll(response.Body)
 				if err != nil {
@@ -124,7 +124,7 @@ func init() {
 				if err != nil {
 					httputil.ErrExit(err)
 				}
-				version = hostsColl.Version
+				checkpoint = hostsColl.Checkpoint
 			}
 
 			// Find which hosts will be deleted, updated, created
@@ -247,19 +247,19 @@ func init() {
 			// Proceed to the change
 
 			bArray, err := json.Marshal(&hostsPoolRequest)
-			request, err = client.NewRequest("PUT", "/hosts_pool",
+			request, err = client.NewRequest("POST", "/hosts_pool",
 				bytes.NewBuffer(bArray))
 			if err != nil {
 				httputil.ErrExit(err)
 			}
 			request.Header.Add("Content-Type", "application/json")
 
-			// Specify the version that was returned by the 'hosts pool list'
+			// Specify the checkpoint that was returned by the 'hosts pool list'
 			// request above, to ensure there was no change between the
 			// Hosts Pool that was returned by this request
 			// and the Hosts Pool to which changes will be applied
 			query := request.URL.Query()
-			query.Set("version", strconv.FormatUint(version, 10))
+			query.Set("checkpoint", strconv.FormatUint(checkpoint, 10))
 			request.URL.RawQuery = query.Encode()
 
 			response, err = client.Do(request)
@@ -269,7 +269,7 @@ func init() {
 			}
 
 			httputil.HandleHTTPStatusCode(
-				response, args[0], "host pool", http.StatusOK)
+				response, args[0], "host pool", http.StatusOK, http.StatusCreated)
 
 			// Verify the status of each updated/new host and log
 			// connection failures

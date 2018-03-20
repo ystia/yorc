@@ -36,3 +36,7 @@ const LogsPrefix = yorcPrefix + "/logs"
 
 // HostsPoolPrefix is the prefix on KV store for the hosts pool service
 const HostsPoolPrefix = yorcPrefix + "/hosts_pool"
+
+// YorcManagementPrefix is the prefix on KV store for the orchestrator
+// own management
+const YorcManagementPrefix = yorcPrefix + "/.yorc_management"
