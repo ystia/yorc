@@ -26,6 +26,7 @@ import (
 
 // GetArtifactsForType returns a map of artifact name / artifact file for the given type.
 //
+// The returned artifacts paths are relative to root of the deployment archive.
 // It traverse the 'derived_from' relations to support inheritance of artifacts. Parent artifacts are fetched first and may be overridden by child types
 func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]string, error) {
 	parentType, err := GetParentType(kv, deploymentID, typeName)
@@ -42,13 +43,17 @@ func GetArtifactsForType(kv *api.KV, deploymentID, typeName string) (map[string]
 		artifacts = make(map[string]string)
 	}
 	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, "artifacts")
-
-	err = updateArtifactsFromPath(kv, artifacts, artifactsPath)
+	importPath, err := GetTypeImportPath(kv, deploymentID, typeName)
+	if err != nil {
+		return nil, err
+	}
+	err = updateArtifactsFromPath(kv, artifacts, artifactsPath, importPath)
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for type: %q", typeName)
 }
 
 // GetArtifactsForNode returns a map of artifact name / artifact file for the given node.
 //
+// The returned artifacts paths are relative to root of the deployment archive.
 // It will first fetch artifacts from it node type and its parents and fetch artifacts for the node template itself.
 // This way artifacts from a parent type may be overridden by child types and artifacts from node type may be overridden by the node template
 func GetArtifactsForNode(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
@@ -61,13 +66,13 @@ func GetArtifactsForNode(kv *api.KV, deploymentID, nodeName string) (map[string]
 		return nil, err
 	}
 	artifactsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "artifacts")
-
-	err = updateArtifactsFromPath(kv, artifacts, artifactsPath)
+	// No importPath for node templates as they will be CSAR root relative
+	err = updateArtifactsFromPath(kv, artifacts, artifactsPath, "")
 	return artifacts, errors.Wrapf(err, "Failed to get artifacts for node: %q", nodeName)
 }
 
 // updateArtifactsFromPath returns a map of artifact name / artifact file for the given node or type denoted by the given artifactsPath.
-func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsPath string) error {
+func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsPath, importPath string) error {
 	kvps, _, err := kv.Keys(artifactsPath+"/", "/", nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -90,7 +95,7 @@ func updateArtifactsFromPath(kv *api.KV, artifacts map[string]string, artifactsP
 			return errors.Errorf("Missing mandatory attribute \"file\" for artifact %q", path.Base(artifactPath))
 		}
 		// TODO path is relative to the type and may not be the same as a child type
-		artifacts[artifactName] = string(kvp.Value)
+		artifacts[artifactName] = path.Join(importPath, string(kvp.Value))
 	}
 	return nil
 }

@@ -15,11 +15,18 @@
 package slurm
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/config"
 )
 
 // MockSSHSession allows to mock an SSH session
@@ -185,4 +192,57 @@ func TestParseSallocResponseWithExpectedRevokedAllocation(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		require.Fail(t, "No response received")
 	}
+}
+
+// Tests the definition of a private key in configuration
+func TestPrivateKey(t *testing.T) {
+
+	// First generate a valid private key content
+	priv, err := rsa.GenerateKey(rand.Reader, 1024)
+	bArray := pem.EncodeToMemory(&pem.Block{"RSA PRIVATE KEY", nil, x509.MarshalPKCS1PrivateKey(priv)})
+	privateKeyContent := string(bArray)
+
+	// Config to test
+	cfg := config.Configuration{
+		Infrastructures: map[string]config.DynamicMap{
+			"slurm": config.DynamicMap{
+				"user_name":   "jdoe",
+				"url":         "127.0.0.1",
+				"port":        22,
+				"private_key": privateKeyContent}},
+	}
+
+	err = checkInfraConfig(cfg)
+	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
+	_, err = GetSSHClient(cfg)
+	assert.NoError(t, err, "Unexpected error getting a ssh client using a configuration with private key")
+
+	// Remove the private key.
+	// As there is no password defined either, check an error is returned
+	cfg.Infrastructures["slurm"].Set("private_key", "")
+	err = checkInfraConfig(cfg)
+	assert.Error(t, err, "Expected an error parsing a wrong configuration with no private key and no password defined")
+	_, err = GetSSHClient(cfg)
+	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with no private key and no password defined")
+
+	// Setting a wrong private key path
+	// Check the attempt to use this key for the authentication method is failing
+	cfg.Infrastructures["slurm"].Set("private_key", "invalid_path_to_key.pem")
+	err = checkInfraConfig(cfg)
+	assert.NoError(t, err, "Unexpected error parsing a configuration with private key")
+	_, err = GetSSHClient(cfg)
+	assert.Error(t, err, "Expected an error getting a ssh client using a configuration with bad private key and no password defined")
+
+	// Slurm Configuration with no private key but a password, the config should be valid
+	cfg.Infrastructures["slurm"] = config.DynamicMap{
+		"user_name": "jdoe",
+		"url":       "127.0.0.1",
+		"port":      22,
+		"password":  "test",
+	}
+
+	err = checkInfraConfig(cfg)
+	assert.NoError(t, err, "Unexpected error parsing a configuration with password")
+	_, err = GetSSHClient(cfg)
+	assert.NoError(t, err, "Unexpected error getting a ssh client using a configuration with password")
 }

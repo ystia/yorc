@@ -74,12 +74,16 @@ const implementationArtifactsExtensionsPath = "implementation_artifacts_extensio
 func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentID, nodeType, operationName string) (string, string, error) {
 	// First check if operation exists in current nodeType
 	operationPath := getOperationPath(deploymentID, nodeType, operationName)
+	importPath, err := GetTypeImportPath(kv, deploymentID, nodeType)
+	if err != nil {
+		return "", "", err
+	}
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/primary"), nil)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
-		return operationPath, string(kvp.Value), nil
+		return operationPath, path.Join(importPath, string(kvp.Value)), nil
 	}
 
 	// then check operation file
@@ -88,7 +92,7 @@ func GetOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
-		return operationPath, string(kvp.Value), nil
+		return operationPath, path.Join(importPath, string(kvp.Value)), nil
 	}
 
 	// Not found here check the type hierarchy
@@ -204,6 +208,8 @@ func GetOperationImplementationType(kv *api.KV, deploymentID, nodeType, operatio
 }
 
 // GetOperationImplementationFile allows you when the implementation of an operation is an artifact to retrieve the file of this artifact
+//
+// The returned file is the raw value. To have a file with a path relative to the root of the deployment use GetOperationImplementationFileWithRelativePath()
 func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
 	operationPath := getOperationPath(deploymentID, nodeType, operationName)
 	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/file"), nil)
@@ -216,6 +222,19 @@ func GetOperationImplementationFile(kv *api.KV, deploymentID, nodeType, operatio
 	}
 
 	return string(kvp.Value), nil
+}
+
+// GetOperationImplementationFileWithRelativePath allows you when the implementation of an operation
+// is an artifact to retrieve the file of this artifact
+//
+// The returned file is relative to the root of the deployment. To have the raw value use GetOperationImplementationFile()
+func GetOperationImplementationFileWithRelativePath(kv *api.KV, deploymentID, nodeType, operationName string) (string, error) {
+	file, err := GetOperationImplementationFile(kv, deploymentID, nodeType, operationName)
+	if err != nil {
+		return file, err
+	}
+	importPath, err := GetTypeImportPath(kv, deploymentID, nodeType)
+	return path.Join(importPath, file), err
 }
 
 // GetOperationImplementationRepository allows you when the implementation of an operation is an artifact to retrieve the repository of this artifact
@@ -440,7 +459,7 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		var hasAttrOnSrcOrSelf bool
 		for _, ga := range f.GetFunctionsByOperator(tosca.GetAttributeOperator) {
 			switch ga.Operands[0].String() {
-			case funcKeywordTARGET:
+			case funcKeywordTARGET, funcKeywordRTARGET:
 				hasAttrOnTarget = true
 			case funcKeywordSELF, funcKeywordSOURCE, funcKeywordHOST:
 				hasAttrOnSrcOrSelf = true

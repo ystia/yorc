@@ -24,13 +24,6 @@ bintray_api_user="stebenoist"
 bintray_docker_registry="ystia-docker-yorc.bintray.io"
 bintray_docker_repo="ystia/yorc"
 
-#### Test variables
-#TRAVIS=true
-#TRAVIS_TAG="3.0.0-RC1"
-#TRAVIS_PULL_REQUEST=false
-#TRAVIS_BRANCH="develop"
-#BINTRAY_API_KEY=AHAHHAHAAH
-
 if [[ ! -e ${script_dir}/yorc ]]; then
     cd ${script_dir}
     make
@@ -42,7 +35,7 @@ ansible_version=$(grep ansible_version ${script_dir}/versions.yaml | awk '{print
 if [[ "${TRAVIS}" == "true" ]]; then
     if [[ "${TRAVIS_PULL_REQUEST}" == "false" ]] ; then
         if [[ -n "${TRAVIS_TAG}" ]] ; then
-            DOCKER_TAG="${TRAVIS_TAG}"
+            DOCKER_TAG="$(echo "${TRAVIS_TAG}" | sed -e 's/^v\(.*\)$/\1/')"
         else
             case ${TRAVIS_BRANCH} in
             develop) 
@@ -66,8 +59,14 @@ if [[ "${TRAVIS}" == "true" ]]; then
     docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
     ls -lh docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
 
-    ## Push Image on Bintray Docker Registry
-    docker login -u ${bintray_api_user} -p $BINTRAY_API_KEY ${bintray_docker_registry}
-    docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
-    docker push ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+    if [[ -n "${TRAVIS_TAG}" ]] && [[ "${DOCKER_TAG}" != *"-"* ]] ; then
+        ## Push Image to the Docker hub
+        docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
+        docker push "ystia/yorc:${DOCKER_TAG:-latest}"
+    else
+        ## Push Image on Bintray Docker Registry
+        docker login -u ${bintray_api_user} -p $BINTRAY_API_KEY ${bintray_docker_registry}
+        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+        docker push ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+    fi
 fi

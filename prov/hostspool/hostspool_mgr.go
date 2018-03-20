@@ -15,18 +15,14 @@
 package hostspool
 
 import (
-	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net/url"
-	"os"
 	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
@@ -857,7 +853,7 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 	}
 
 	if conn.PrivateKey != "" {
-		keyAuth, err := readPrivateKey(conn.PrivateKey)
+		keyAuth, err := sshutil.ReadPrivateKey(conn.PrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -868,40 +864,4 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 		conf.Auth = append(conf.Auth, ssh.Password(conn.Password))
 	}
 	return conf, nil
-}
-
-func readPrivateKey(pk string) (ssh.AuthMethod, error) {
-	var p []byte
-	// check if pk is a path
-	keyPath, err := homedir.Expand(pk)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to expand key path")
-	}
-	if _, err := os.Stat(keyPath); err == nil {
-		p, err = ioutil.ReadFile(keyPath)
-		if err != nil {
-			p = []byte(pk)
-		}
-	} else {
-		p = []byte(pk)
-	}
-
-	// We parse the private key on our own first so that we can
-	// show a nicer error if the private key has a password.
-	block, _ := pem.Decode(p)
-	if block == nil {
-		return nil, errors.Errorf("Failed to read key %q: no key found", pk)
-	}
-	if block.Headers["Proc-Type"] == "4,ENCRYPTED" {
-		return nil, errors.Errorf(
-			"Failed to read key %q: password protected keys are\n"+
-				"not supported. Please decrypt the key prior to use.", pk)
-	}
-
-	signer, err := ssh.ParsePrivateKey(p)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse key file %q", pk)
-	}
-
-	return ssh.PublicKeys(signer), nil
 }

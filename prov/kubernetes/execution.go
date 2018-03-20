@@ -389,14 +389,6 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 }
 
 func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.NodeID:        e.NodeName,
-		events.WorkFlowID:    wfName,
-		events.InterfaceName: "delegate",
-		events.OperationName: e.Operation.Name,
-	}
 	clientset := ctx.Value("clientset")
 
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
@@ -422,7 +414,7 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 				if reason != latestReason {
 					latestReason = reason
 					log.Printf(pod.Name + " : " + string(pod.Status.Phase) + "->" + reason)
-					events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Pod status : " + pod.Name + " : " + string(pod.Status.Phase) + " -> " + reason)
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Pod status : " + pod.Name + " : " + string(pod.Status.Phase) + " -> " + reason)
 				}
 			}
 
@@ -451,7 +443,7 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 					message = pod.Status.ContainerStatuses[0].State.Terminated.Message
 				}
 
-				events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Pod status : " + pod.Name + " : " + string(pod.Status.Phase) + " (" + state + ")")
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Pod status : " + pod.Name + " : " + string(pod.Status.Phase) + " (" + state + ")")
 				if reason == "RunContainerError" {
 					logs, err := (clientset.(*kubernetes.Clientset)).CoreV1().Pods(namespace).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
 					if err != nil {

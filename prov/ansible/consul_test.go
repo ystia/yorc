@@ -31,4 +31,7 @@ func TestRunConsulAnsiblePackageTests(t *testing.T) {
 	t.Run("TestExecution", func(t *testing.T) {
 		testExecution(t, srv, kv)
 	})
+	t.Run("TestLogAnsibleOutputInConsul", func(t *testing.T) {
+		testLogAnsibleOutputInConsul(t, kv)
+	})
 }
