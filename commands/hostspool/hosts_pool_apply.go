@@ -302,7 +302,7 @@ func init() {
 						nil)
 				}
 			}
-			fmt.Println("New hosts pool definition applied successfully.")
+			fmt.Println("New hosts pool configuration applied successfully.")
 			if connectionFailure {
 				fmt.Println("Connection failures occured for the following hosts:")
 				fmt.Println("")

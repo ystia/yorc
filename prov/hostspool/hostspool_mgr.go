@@ -1096,7 +1096,7 @@ func (cm *consulManager) applyWait(
 
 	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
 	if err != nil {
-		return errors.Wrap(err, "Failed to apply new Hosts Pool definition")
+		return errors.Wrap(err, "Failed to apply new Hosts Pool configuration")
 	}
 
 	if !ok {
@@ -1105,7 +1105,7 @@ func (cm *consulManager) applyWait(
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		err = errors.Errorf("Failed to apply new Hosts Pool definition: %s", strings.Join(errs, ", "))
+		err = errors.Errorf("Failed to apply new Hosts Pool configuration: %s", strings.Join(errs, ", "))
 	}
 
 	// Update the connection status for each updated/created host

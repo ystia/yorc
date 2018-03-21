@@ -548,7 +548,7 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	// Apply this definition
 	var checkpoint uint64
 	err := cm.Apply(hostpool, &checkpoint)
-	require.NoError(t, err, "Unexpected failure applying host pool definition")
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 	// Check the pool now
 	hosts, warnings, newCkpt, err := cm.List()
@@ -633,7 +633,7 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	oldcheckpoint := checkpoint
 	err = cm.Apply(hostpool, &checkpoint)
 	require.NoError(t, err,
-		"Unexpected failure applying new host pool definition")
+		"Unexpected failure applying new host pool configuration")
 
 	assert.NotEqual(t, oldcheckpoint, checkpoint, "Expected a checkpoint change")
 
