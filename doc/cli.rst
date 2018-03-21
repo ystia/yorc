@@ -399,7 +399,7 @@ YAML and JSON formats are accepted. The following properties are supported :
      - ``labels``: key/value pairs (see :ref:`yorc_infras_hostspool_filters_section` for more details on labels)
 
 
-Exanple of a YAML Hosts Pool configuration file :
+Example of a YAML Hosts Pool configuration file :
 
 .. code-block:: YAML
 
