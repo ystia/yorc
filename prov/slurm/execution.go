@@ -301,7 +301,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 
 	var args []string
 	for _, input := range e.EnvInputs {
-		if input.Name == "args" {
+		if input.Name == "args" && input.Value != "" {
 			if err = json.Unmarshal([]byte(input.Value), &args); err != nil {
 				return err
 			}
@@ -358,7 +358,7 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 	log.Debugf("Upload artifacts to remote host")
 	var g errgroup.Group
 	for _, artPath := range e.Artifacts {
-		log.Debugf("handle artifact with path:%q", artPath)
+		log.Debugf("hh:%q", artPath)
 		func(artPath string) {
 			g.Go(func() error {
 				sourcePath := path.Join(e.OverlayPath, artPath)
