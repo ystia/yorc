@@ -935,7 +935,7 @@ Content-Type: application/json
   ]
 }
 ```
-### Apply Hosts Pool configuration in the pool <a name="hostspool-apply"></a>
+### Apply Hosts Pool configuration <a name="hostspool-apply"></a>
 
 Applies a Hosts Pool configuration. The checkpoint query parameter value is provided in the result of a previous call to the [Hosts Pool List API](#hostspool-list).
 
@@ -988,7 +988,7 @@ Content-Length: 0
 
 ```
 
-To bypass checkpoint verification, the following request can be performed :
+To bypass checkpoint verification, the following request can be executed:
 
 'Content-Type' header should be set to 'application/json'.
 
