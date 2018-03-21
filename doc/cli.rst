@@ -434,7 +434,7 @@ Exports a Hosts Pool configuration as a YAML or JSON representation, to the stan
 
 .. code-block:: bash
 
-     yorc hostspool export [<filename>]
+     yorc hostspool export
 
 Flags:
   * ``--output`` or ``-o``: Output format, ``yaml`` or ``json`` (default ``yaml``)
