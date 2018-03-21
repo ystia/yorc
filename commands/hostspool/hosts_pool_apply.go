@@ -40,9 +40,9 @@ import (
 func init() {
 	var autoApprove bool
 	var applyCmd = &cobra.Command{
-		Use:   "apply <path to Hosts Pool description>",
-		Short: "Apply a Hosts Pool description",
-		Long: `Apply a Hosts Pool description provided in the file passed in argument
+		Use:   "apply <path to Hosts Pool configuration>",
+		Short: "Apply a Hosts Pool configuration",
+		Long: `Apply a Hosts Pool configuration provided in the file passed in argument
 	This file should contain a YAML or a JSON description.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
@@ -313,7 +313,7 @@ func init() {
 		},
 	}
 	applyCmd.PersistentFlags().BoolVarP(&autoApprove, "auto-approve", "", false,
-		"Skip interactive approval before applying this new Hosts Pool description.")
+		"Skip interactive approval before applying this new Hosts Pool configuration.")
 	hostsPoolCmd.AddCommand(applyCmd)
 }
 

@@ -32,8 +32,8 @@ func init() {
 	var filePath string
 	hpExportCmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export hosts pool",
-		Long:  `Export hosts pool as a YAML or JSON representation`,
+		Short: "Export hosts pool configuration",
+		Long:  `Export hosts pool configuration as a YAML or JSON representation`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := httputil.GetClient()
 			if err != nil {
@@ -83,7 +83,7 @@ func init() {
 			outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
 			var bSlice []byte
 			if outputFormat == "json" {
-				bSlice, err = json.Marshal(pool)
+				bSlice, err = json.MarshalIndent(pool, "", "    ")
 			} else {
 				bSlice, err = yaml.Marshal(pool)
 			}

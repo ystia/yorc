@@ -21,15 +21,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/ssh"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/helper/sshutil"
+	"golang.org/x/crypto/ssh"
 )
 
 var dummySSHkey = `-----BEGIN RSA PRIVATE KEY-----
@@ -60,14 +59,20 @@ WSPb8a8DvmtjA0/IyWLtRhiKDPo0ultXa3DHINOC2+sZ5qJpsycNaqV4ObcmCJCc
 h5pSY3nqKgmTiTW5EGnhLxUnEmS0MMvVT59ldx2pZhzgDyxYWO09
 -----END RSA PRIVATE KEY-----`
 
-type mockSSHClient struct{}
+type mockSSHClient struct {
+	config *ssh.ClientConfig
+}
 
 func (m *mockSSHClient) RunCommand(string) (string, error) {
+	if m.config != nil && m.config.User == "fail" {
+		return "", errors.Errorf("Failed to connect")
+	}
+
 	return "ok", nil
 }
 
 var mockSSHClientFactory = func(config *ssh.ClientConfig, conn Connection) sshutil.Client {
-	return &mockSSHClient{}
+	return &mockSSHClient{config}
 }
 
 func cleanupHostsPool(t *testing.T, cc *api.Client) {
@@ -698,23 +703,69 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using duplicates")
 	assert.Equal(t, ckpt3, ckpt4, "Expected no checkpoint change after duplicate error")
+	hostpool = hostpool[:(len(hostpool) - 1)]
 
 	// Error case : attempt to delete an allocated host
-	hostpool = hostpool[:1]
-	err = cm.Apply(hostpool, &ckpt4)
+	hostpool1 := hostpool[:1]
+	err = cm.Apply(hostpool1, &ckpt4)
 	assert.Error(t, err, "Expected an error deleting an allocated host")
 	hosts2, warnings, checkpoint, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
-	assert.Len(t, hosts, 4)
+	assert.Len(t, hosts2, 4)
 	assert.Equal(t, hosts1, hosts2, "Expected no change in hosts pool after deletion error")
 	assert.Equal(t, ckpt3, ckpt4, "Expected no checkpoint change after deletion error")
 	assert.Equal(t, ckpt4, checkpoint, "Expected no checkpoint diff between apply and list")
 
 	// Error case : outdated checkpoint
 	hostpool[0].Labels["label1"] = "newValues"
-	checkpoint = checkpoint - 1
-	err = cm.Apply(hostpool, &checkpoint)
+	oldcheckpoint = checkpoint - 1
+	err = cm.Apply(hostpool, &oldcheckpoint)
 	assert.Error(t, err, "Expected an error doing an apply with outdated checkpoint")
+
+	// Check an apply with one host having bad coonection settings
+	_, _, checkpoint, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	newHost := Host{
+		Name: "testhost",
+		Connection: Connection{
+			User:     "fail",
+			Password: "testpwd",
+			Host:     "testhost",
+		},
+	}
+
+	hostpool = append(hostpool, newHost)
+	err = cm.Apply(hostpool, &checkpoint)
+	assert.NoError(t, err, "Expected no error apply a configuration containing a host with bad credentials")
+
+	// Check host status
+	hostInPool, err := cm.GetHost(newHost.Name)
+	require.NoError(t, err, "Unexpected error attempting to get host %s", newHost.Name)
+	assert.Equal(t, HostStatusError.String(), hostInPool.Status.String(),
+		"Expected a status error for host with bad credentials")
+
+	// Check a backup status exists
+	backupStatus, err := cm.getStatus(newHost.Name, true)
+	assert.NoError(t, err, "Expected to have a backup status")
+	assert.Equal(t, backupStatus.String(), HostStatusFree.String(), "Unexpected backup status")
+
+	// Fixing bad credentials
+	hostpool[len(hostpool)-1].Connection.User = "test"
+	err = cm.Apply(hostpool, &checkpoint)
+	assert.NoError(t, err,
+		"Expected no error apply a configuration with host credentials fixed ")
+
+	// Verify there is no connection failure anymore
+	err = cm.checkConnection(newHost.Name)
+	require.NoError(t, err,
+		"Unexpected connection error after credentials fix")
+
+	// Check host status change
+	hostInPool, err = cm.GetHost(newHost.Name)
+	require.NoError(t, err,
+		"Unexpected error attempting to get host %s after apply", newHost.Name)
+	assert.Equal(t, HostStatusFree.String(), hostInPool.Status.String(),
+		"Expected status error fixed for host with correct credentials")
 
 }

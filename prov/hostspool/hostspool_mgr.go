@@ -119,7 +119,13 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 	return err
 }
 
-func getAddOperations(hostname string, conn Connection, labels map[string]string, status HostStatus, message string) (api.KVTxnOps, error) {
+func getAddOperations(
+	hostname string,
+	conn Connection,
+	labels map[string]string,
+	status HostStatus,
+	message string) (api.KVTxnOps, error) {
+
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
@@ -629,10 +635,19 @@ func (cm *consulManager) setHostStatusWithMessage(hostname string, status HostSt
 }
 
 func (cm *consulManager) GetHostStatus(hostname string) (HostStatus, error) {
+	return cm.getStatus(hostname, false)
+}
+
+func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, error) {
 	if hostname == "" {
 		return HostStatus(0), errors.WithStack(badRequestError{`"hostname" missing`})
 	}
-	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "status"), nil)
+	keyname := "status"
+	if backup {
+		keyname = ".statusBackup"
+	}
+
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, keyname), nil)
 	if err != nil {
 		return HostStatus(0), errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -641,8 +656,9 @@ func (cm *consulManager) GetHostStatus(hostname string) (HostStatus, error) {
 	}
 	status, err := ParseHostStatus(string(kvp.Value))
 	if err != nil {
-		return HostStatus(0), errors.Wrapf(err, "failed to retrieve status for host %q", hostname)
+		return HostStatus(0), errors.Wrapf(err, "failed to retrieve %s for host %q", keyname, hostname)
 	}
+
 	return status, nil
 }
 
@@ -713,15 +729,26 @@ func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) 
 }
 
 func (cm *consulManager) GetHostMessage(hostname string) (string, error) {
+	return cm.getMessage(hostname, false)
+}
+
+func (cm *consulManager) getMessage(hostname string, backup bool) (string, error) {
 	if hostname == "" {
 		return "", errors.WithStack(badRequestError{`"hostname" missing`})
 	}
+
 	// check if host exists
 	_, err := cm.GetHostStatus(hostname)
 	if err != nil {
 		return "", err
 	}
-	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "message"), nil)
+
+	keyname := "message"
+	if backup {
+		keyname = ".messageBackup"
+	}
+
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, keyname), nil)
 	if err != nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -912,6 +939,15 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 	return conf, nil
 }
 
+// Apply a Hosts Pool configuration.
+// If checkpoint is not nil, it should point to a value returned by a previous
+// call to the List() function described above. A checkpoint verification will
+// be done to ensure that the Hosts Pool was not changed between the call to
+// List() and the current call to Apply(). Once the Hosts Pool configuration
+// has been applied, checkpoint will point to the new Hosts Pool checkpoint
+// value.
+// If checkpoint is nil, the Hosts Pool configuration will be applied without
+// checkpoint verification.
 func (cm *consulManager) Apply(pool []Host, checkpoint *uint64) error {
 	return cm.applyWait(pool, checkpoint, 45*time.Second)
 }
@@ -965,8 +1001,8 @@ func (cm *consulManager) applyWait(
 		((*checkpoint == 0 && len(registeredHosts) > 0) ||
 			(*checkpoint > 0 && *checkpoint < runtimeCheckpoint)) {
 		return errors.WithStack(badRequestError{
-			fmt.Sprintf("Checkpoint for Hosts Pool: %d greater than expected checkpoint %d",
-				runtimeCheckpoint, *checkpoint)})
+			fmt.Sprintf("Checkpoint for Hosts Pool: value provided %d lower than expected checkpoint %d",
+				*checkpoint, runtimeCheckpoint)})
 	}
 
 	hostsToUnregisterCheckAllocatedStatus := make(map[string]bool)
@@ -1008,7 +1044,18 @@ func (cm *consulManager) applyWait(
 			if err != nil {
 				return err
 			}
-			ops, err := getAddOperations(host.Name, host.Connection, host.Labels, status, message)
+
+			// Backup status and message if defined are restored at re-creation,
+			// the connection check will be performed afterwards
+			if status == HostStatusError {
+				backupStatus, err := cm.getStatus(host.Name, true)
+				if err == nil {
+					status = backupStatus
+					message, _ = cm.getMessage(host.Name, true)
+				}
+			}
+			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
+				status, message)
 			if err != nil {
 				return err
 			}
@@ -1018,7 +1065,8 @@ func (cm *consulManager) applyWait(
 		} else {
 			// Host is new, creating it
 			hostChanged = append(hostChanged, host.Name)
-			ops, err := getAddOperations(host.Name, host.Connection, host.Labels, HostStatusFree, "")
+			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
+				HostStatusFree, "")
 			if err != nil {
 				return err
 			}
@@ -1060,15 +1108,6 @@ func (cm *consulManager) applyWait(
 		err = errors.Errorf("Failed to apply new Hosts Pool definition: %s", strings.Join(errs, ", "))
 	}
 
-	// Not using querymeta.LastIndex from KV().Txn() as it doesn't work the same
-	// way as in KV().Keys used in cm.List(). The new checkpoint value corresponds
-	// to the highest modifyIndex of results in the transaction
-	for _, kvpair := range response.Results {
-		if kvpair.ModifyIndex > *checkpoint {
-			*checkpoint = kvpair.ModifyIndex
-		}
-	}
-
 	// Update the connection status for each updated/created host
 	var waitGroup sync.WaitGroup
 	for _, name := range hostChanged {
@@ -1076,6 +1115,22 @@ func (cm *consulManager) applyWait(
 		go cm.updateConnectionStatus(name, &waitGroup)
 	}
 	waitGroup.Wait()
+
+	// Updating the checkpoint value
+	// Not using querymeta.LastIndex from KV().Txn() as it doesn't work the same
+	// way as in KV().Keys used in cm.List().
+	if checkpoint != nil {
+		_, _, newCheckpoint, errCkpt := cm.List()
+		if errCkpt != nil {
+			// If the apply didn't fail, return this error, else the apply error
+			// takes precedence
+			if err == nil {
+				err = errors.Wrapf(errCkpt, "Failed to get list of registered hosts")
+			}
+		} else {
+			*checkpoint = newCheckpoint
+		}
+	}
 
 	return err
 }
