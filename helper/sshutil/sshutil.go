@@ -21,8 +21,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/bramvdbogaerde/go-scp"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"

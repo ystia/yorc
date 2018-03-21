@@ -40,7 +40,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -143,12 +142,14 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	e.lof = events.LogOptionalFields{
+	logOptFields := events.LogOptionalFields{
 		events.WorkFlowID:    wfName,
 		events.NodeID:        e.NodeName,
 		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
 		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
 	}
+	ctx = events.NewContext(ctx, logOptFields)
+
 	switch strings.ToLower(e.operation.Name) {
 	case "tosca.interfaces.node.lifecycle.runnable.run":
 		log.Printf("Running the job: %s", e.operation.Name)
@@ -162,34 +163,24 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 			return err
 		}
 
-		// Run the command asynchronously
-		var wg sync.WaitGroup
-		wg.Add(1)
 		chEnd := make(chan struct{})
 		chErr := make(chan error)
-
 		// Pool JobInformation
 		go e.poolJobInformation(ctx, chEnd, chErr)
 
-		go func() {
-			defer wg.Done()
-			// Run the command
-			out, err := e.runCommand(ctx)
-			if err != nil {
-				events.WithOptionalFields(e.lof).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
-				return
-			}
-			events.WithOptionalFields(e.lof).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
-			log.Debugf("output:%q", out)
-		}()
-
-		// Wait until the job is done
-		wg.Wait()
+		// Run the command
+		out, err := e.runCommand(ctx)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
+		log.Debugf("output:%q", out)
 		close(chEnd)
 		close(chErr)
 
 		// Set Attributes
-		if err = deployments.SetInstanceState(e.kv, e.deploymentID, e.NodeName, e.nodeInstances[0], tosca.NodeStateCreated); err != nil {
+		if err := deployments.SetInstanceState(e.kv, e.deploymentID, e.NodeName, e.nodeInstances[0], tosca.NodeStateCreated); err != nil {
 			return err
 		}
 
@@ -237,8 +228,9 @@ func (e *executionCommon) getJobInformation(ctx context.Context, chErr chan erro
 		}
 		e.jobInfo.ID = d[0]
 		e.jobInfo.state = d[1]
-		log.Debugf("Job ID:%s, Job State:%s", e.jobInfo.ID, e.jobInfo.state)
-		events.WithOptionalFields(e.lof).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
+		mess := fmt.Sprintf("Job ID:%s, Job State:%s", e.jobInfo.ID, e.jobInfo.state)
+		log.Debugf(mess)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(mess)
 	}
 }
 
@@ -343,7 +335,7 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
 	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
-	events.WithOptionalFields(e.lof).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
@@ -375,9 +367,9 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 					return err
 				}
 				if fileInfo.IsDir() {
-					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, path.Dir(sourcePath))
+					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, e.OverlayPath)
 				}
-				return e.handleFile(ctx, sourcePath, sourcePath)
+				return e.handleFile(ctx, sourcePath, e.OverlayPath)
 			})
 		}(artPath)
 	}
