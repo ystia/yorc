@@ -72,7 +72,7 @@ func init() {
 			}
 
 			// Organizing data per host name for easier use below
-			newPoolMap := make(map[string]rest.HostInPool)
+			newPoolMap := make(map[string]rest.HostConfig)
 			for i, host := range hostsPoolRequest.Hosts {
 				if host.Name == "" {
 					return errors.Errorf("A non-empty Name should be provided for Host number %d, defined with connection %q",

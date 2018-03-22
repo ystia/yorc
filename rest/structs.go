@@ -216,16 +216,16 @@ type MapEntry struct {
 	Value string `json:"value,omitempty"`
 }
 
-// HostInPool represents a host in the Hosts Pool
-type HostInPool struct {
+// HostConfig represents the configuration of a host in the Hosts Pool
+type HostConfig struct {
 	Name       string
 	Connection hostspool.Connection `json:"connection,omitempty" yaml:"connection,omitempty"`
 	Labels     map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
-// HostsPoolRequest represents a request for applying a Hosts Pool definition
+// HostsPoolRequest represents a request for applying a Hosts Pool configuration
 type HostsPoolRequest struct {
-	Hosts []HostInPool `json:"hosts"`
+	Hosts []HostConfig `json:"hosts"`
 }
 
 // HostRequest represents a request for creating or updating a host in the hosts pool

@@ -70,7 +70,7 @@ func init() {
 						httputil.ErrExit(err)
 					}
 
-					host := rest.HostInPool{
+					host := rest.HostConfig{
 						Name:       restHost.Name,
 						Connection: restHost.Connection,
 						Labels:     restHost.Labels,
