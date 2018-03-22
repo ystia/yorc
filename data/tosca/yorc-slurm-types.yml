@@ -11,8 +11,8 @@ artifact_types:
   yorc.artifacts.Deployment.SlurmJob:
     description: Slurm Job deployment descriptor
     derived_from: tosca.artifacts.Deployment
-  yorc.artifacts.Deployment.SlurmJobScript:
-    description: Slurm Job Script deployment descriptor
+  yorc.artifacts.Deployment.SlurmJobBin:
+    description: Slurm Job binary deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
 
 node_types:
@@ -66,6 +66,12 @@ node_types:
       mem_per_node:
         type: integer
         description: The memory per node in GB required to the job.
+        required: false
+      time:
+        type: string
+        description: >
+          Set a limit on the total run time of the job allocation.
+          Time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
         required: false
       extra_options:
         type: list

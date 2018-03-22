@@ -17,7 +17,7 @@ package slurm
 import "github.com/ystia/yorc/registry"
 
 const (
-	artifactImplementation = "yorc.artifacts.Deployment.SlurmJobScript"
+	artifactImplementation = "yorc.artifacts.Deployment.SlurmJobBin"
 )
 
 func init() {

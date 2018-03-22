@@ -31,9 +31,7 @@ import (
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tosca"
 	"golang.org/x/sync/errgroup"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -54,6 +52,7 @@ type operationNotImplemented struct {
 	msg string
 }
 
+// This describes relative slurm job information
 type jobInfo struct {
 	ID       string
 	name     string
@@ -62,6 +61,7 @@ type jobInfo struct {
 	cpus     int
 	nodes    int
 	mem      int
+	maxTime  string
 	opts     []string
 	execArgs []string
 }
@@ -85,7 +85,6 @@ type executionCommon struct {
 	EnvInputs              []*operations.EnvInput
 	VarInputsNames         []string
 	NodePath               string
-	NodeTypePath           string
 	OperationPath          string
 	Primary                string
 	nodeInstances          []string
@@ -95,7 +94,6 @@ type executionCommon struct {
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
-
 	execCommon := &executionCommon{kv: kv,
 		cfg:                    cfg,
 		deploymentID:           deploymentID,
@@ -107,11 +105,9 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		OperationRemoteBaseDir: ".yorc",
 		jobInfoPolling:         5 * time.Second,
 	}
-
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
-
 	return execCommon, execCommon.resolveExecution()
 }
 
@@ -122,8 +118,6 @@ func (e *executionCommon) resolveOperation() error {
 	if err != nil {
 		return err
 	}
-	e.NodeTypePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType)
-
 	operationNodeType := e.NodeType
 	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.deploymentID, operationNodeType, e.operation.Name)
 	if err != nil {
@@ -155,35 +149,34 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
-			return err
+			return errors.Wrap(err, "failed to upload artifact")
+		}
+
+		// Copy the operation implementation
+		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
+			return errors.Wrap(err, "failed to upload operation implementation")
 		}
 
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
-			return err
+			return errors.Wrap(err, "failed to build job information")
 		}
 
+		// Pool JobInformation
 		chEnd := make(chan struct{})
 		chErr := make(chan error)
-		// Pool JobInformation
 		go e.poolJobInformation(ctx, chEnd, chErr)
 
 		// Run the command
 		out, err := e.runCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
-			return err
+			return errors.Wrap(err, "failed to run command")
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
 		log.Debugf("output:%q", out)
 		close(chEnd)
 		close(chErr)
-
-		// Set Attributes
-		if err := deployments.SetInstanceState(e.kv, e.deploymentID, e.NodeName, e.nodeInstances[0], tosca.NodeStateCreated); err != nil {
-			return err
-		}
-
 		return e.cleanUp()
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
@@ -201,12 +194,15 @@ func (e *executionCommon) poolJobInformation(ctx context.Context, chEnd chan str
 	for {
 		select {
 		case <-ctx.Done():
+			log.Debug("Stop 1")
 			ticker.Stop()
 			return
 		case <-chEnd:
+			log.Debug("Stop 2")
 			ticker.Stop()
 			return
-		case <-chErr:
+		case m := <-chErr:
+			log.Debugf("Unblocking error occurred retrieving job information due to:%s", m)
 			ticker.Stop()
 			return
 		}
@@ -224,6 +220,7 @@ func (e *executionCommon) getJobInformation(ctx context.Context, chErr chan erro
 	if out != "" {
 		d := strings.Split(out, ",")
 		if len(d) != 2 {
+			log.Debugf("Unexpected format job information:%q", out)
 			chErr <- errors.Errorf("Unexpected format job information:%q", out)
 		}
 		e.jobInfo.ID = d[0]
@@ -289,6 +286,10 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 	job.cpus = cpus
 
+	if _, job.maxTime, err = deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "time"); err != nil {
+		return err
+	}
+
 	var extraOpts []string
 	if _, extra, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
 		return err
@@ -327,6 +328,9 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 	if e.jobInfo.cpus != 0 {
 		opts += fmt.Sprintf(" --cpus-per-task=%d", e.jobInfo.cpus)
 	}
+	if e.jobInfo.maxTime != "" {
+		opts += fmt.Sprintf(" --time=%s", e.jobInfo.maxTime)
+	}
 	if e.jobInfo.opts != nil && len(e.jobInfo.opts) > 0 {
 		for _, opt := range e.jobInfo.opts {
 			opts += fmt.Sprintf(" --%s", opt)
@@ -349,7 +353,7 @@ func (e *executionCommon) cleanUp() error {
 	cmd := fmt.Sprintf("rm -rf %s", e.OperationRemoteBaseDir)
 	_, err := e.client.RunCommand(cmd)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to cleanup remote base directory")
 	}
 	return nil
 }
@@ -358,7 +362,7 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 	log.Debugf("Upload artifacts to remote host")
 	var g errgroup.Group
 	for _, artPath := range e.Artifacts {
-		log.Debugf("hh:%q", artPath)
+		log.Debugf("handle artifact path:%q", artPath)
 		func(artPath string) {
 			g.Go(func() error {
 				sourcePath := path.Join(e.OverlayPath, artPath)
@@ -369,7 +373,7 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 				if fileInfo.IsDir() {
 					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, e.OverlayPath)
 				}
-				return e.handleFile(ctx, sourcePath, e.OverlayPath)
+				return e.uploadFile(ctx, sourcePath, e.OverlayPath)
 			})
 		}(artPath)
 	}
@@ -387,31 +391,27 @@ func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath st
 		}
 		log.Debugf("Walk path:%s", pathFile)
 		if !info.IsDir() {
-			return e.handleFile(ctx, pathFile, artifactBaseDir)
+			return e.uploadFile(ctx, pathFile, artifactBaseDir)
 		}
 		return nil
 	})
 }
 
-func (e *executionCommon) handleFile(ctx context.Context, pathFile, artifactBaseDir string) error {
-	log.Debugf("handle file with path:%q", pathFile)
+func (e *executionCommon) uploadFile(ctx context.Context, pathFile, artifactBaseDir string) error {
 	relPath, err := filepath.Rel(artifactBaseDir, pathFile)
 	if err != nil {
 		return err
 	}
 
+	// Read file in bytes
 	source, err := ioutil.ReadFile(pathFile)
 	if err != nil {
 		return err
 	}
 
 	remotePath := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, relPath)
-	// FIXME need to add env var for inputs
-	return e.uploadFile(ctx, bytes.NewReader(source), remotePath)
-}
-
-func (e *executionCommon) uploadFile(ctx context.Context, source io.Reader, remotePath string) error {
-	if err := e.client.CopyFile(source, remotePath, "0755"); err != nil {
+	log.Debugf("uploadFile file from source path:%q to remote relative path:%q", pathFile, remotePath)
+	if err := e.client.CopyFile(bytes.NewReader(source), remotePath, "0755"); err != nil {
 		log.Debugf("an error occurred:%+v", err)
 		return err
 	}
