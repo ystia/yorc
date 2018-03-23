@@ -344,7 +344,14 @@ func readInfraViperConfig(cfg *config.Configuration) {
 	for infraName, infraConf := range infras {
 		infraConfMap, ok := infraConf.(map[string]interface{})
 		if !ok {
-			log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
+			tmpInfraMap, ok := infraConf.(map[interface{}]interface{})
+			if !ok {
+				log.Fatalf("Invalid configuration format for infrastructure %q", infraName)
+			}
+			infraConfMap = make(map[string]interface{})
+			for k, v := range tmpInfraMap {
+				infraConfMap[fmt.Sprint(k)] = v
+			}
 		}
 		if cfg.Infrastructures[infraName] == nil {
 			cfg.Infrastructures[infraName] = make(config.DynamicMap)

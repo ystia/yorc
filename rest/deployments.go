@@ -160,7 +160,10 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("ERROR: %+v", err)
 		log.Panic(err)
 	}
-	taskID, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy)
+	data := map[string]string{
+		"workflowName": "install",
+	}
+	taskID, err := s.tasksCollector.RegisterTaskWithData(uid, tasks.Deploy, data)
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
@@ -206,8 +209,10 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-
-	if taskID, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
+	data := map[string]string{
+		"workflowName": "uninstall",
+	}
+	if taskID, err := s.tasksCollector.RegisterTaskWithData(id, taskType, data); err != nil {
 		log.Debugln("register task err" + err.Error())
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			log.Debugln("another task is living")

@@ -16,16 +16,15 @@ package ansible
 
 import (
 	"bytes"
+	"context"
 	"testing"
+	"time"
 
 	"github.com/ystia/yorc/log"
-
-	"path"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/testutil"
@@ -272,14 +271,13 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 		events.OperationName: stringutil.GetLastElement(ec.operation.Name, "."),
 		events.InterfaceName: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),
 	}
-	err := ea.logAnsibleOutputInConsul(&buf, logOptFields)
+	ctx := events.NewContext(context.Background(), logOptFields)
+	err := ea.logAnsibleOutputInConsul(ctx, &buf)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 
-	kvps, _, err := kv.List(path.Join(consulutil.DeploymentKVPrefix, ec.deploymentID, "logs"), nil)
+	logs, _, err := events.LogsEvents(kv, deploymentID, 0, 5*time.Millisecond)
 	require.Nil(t, err)
-	require.Len(t, kvps, 1)
-
-	t.Log(string(kvps[0].Value))
+	require.Len(t, logs, 1)
 
 }

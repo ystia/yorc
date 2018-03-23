@@ -31,6 +31,7 @@ func testArtifacts(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	srv1.PopulateKV(t, map[string][]byte{
 
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/derived_from":        []byte("yorc.types.ParentA"),
+		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/importPath":          []byte("path/to/typeA"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art1/name": []byte("art1"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art1/file": []byte("TypeA"),
 		consulutil.DeploymentKVPrefix + "/t1/topology/types/yorc.types.A/artifacts/art2/name": []byte("art2"),
@@ -77,11 +78,11 @@ func testGetArtifactsForType(t *testing.T, kv *api.KV) {
 	require.NotNil(t, artifacts)
 	require.Len(t, artifacts, 5)
 	require.Contains(t, artifacts, "art1")
-	require.Equal(t, "TypeA", artifacts["art1"])
+	require.Equal(t, "path/to/typeA/TypeA", artifacts["art1"])
 	require.Contains(t, artifacts, "art2")
-	require.Equal(t, "TypeA", artifacts["art2"])
+	require.Equal(t, "path/to/typeA/TypeA", artifacts["art2"])
 	require.Contains(t, artifacts, "art6")
-	require.Equal(t, "TypeA", artifacts["art6"])
+	require.Equal(t, "path/to/typeA/TypeA", artifacts["art6"])
 	require.Contains(t, artifacts, "art3")
 	require.Equal(t, "ParentA", artifacts["art3"])
 	require.Contains(t, artifacts, "art5")
@@ -121,7 +122,7 @@ func testGetArtifactsForNode(t *testing.T, kv *api.KV) {
 	require.Contains(t, artifacts, "art5")
 	require.Equal(t, "ParentA", artifacts["art5"])
 	require.Contains(t, artifacts, "art6")
-	require.Equal(t, "TypeA", artifacts["art6"])
+	require.Equal(t, "path/to/typeA/TypeA", artifacts["art6"])
 
 	artifacts, err = GetArtifactsForNode(kv, "t1", "NodeB")
 	require.Nil(t, err)

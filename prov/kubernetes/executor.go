@@ -22,6 +22,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -36,9 +38,17 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	}
 
 	e.clientset, err = initClientSet(conf)
-	if err != nil {
-		return err
+
+	logOptFields, ok := events.FromContext(ctx)
+	if !ok {
+		return errors.New("Missing contextual log optionnal fields")
 	}
+	logOptFields[events.NodeID] = nodeName
+	logOptFields[events.OperationName] = stringutil.GetLastElement(operation.Name, ".")
+	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operation.Name, ".")
+
+	ctx = events.NewContext(ctx, logOptFields)
+
 	kv := consulClient.KV()
 	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation, e.clientset)
 	if err != nil {

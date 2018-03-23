@@ -15,6 +15,7 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -121,6 +122,8 @@ func SimpleLogEntry(level LogLevel, deploymentID string) *LogEntry {
 }
 
 // WithOptionalFields allows to return a LogEntry instance with additional fields
+//
+// Deprecated: Use events.WithContextOptionalFields() instead
 func WithOptionalFields(fields LogOptionalFields) *LogEntryDraft {
 	info := make(LogOptionalFields, len(fields))
 	fle := &LogEntryDraft{additionalInfo: info}
@@ -129,6 +132,12 @@ func WithOptionalFields(fields LogOptionalFields) *LogEntryDraft {
 	}
 
 	return fle
+}
+
+// WithContextOptionalFields allows to return a LogEntry instance with additional fields comming from the context
+func WithContextOptionalFields(ctx context.Context) *LogEntryDraft {
+	lof, _ := FromContext(ctx)
+	return WithOptionalFields(lof)
 }
 
 // NewLogEntry allows to build a log entry from a draft
@@ -244,4 +253,31 @@ func FormatLog(flat map[string]interface{}) string {
 
 	}
 	return str
+}
+
+// contextKey is an unexported type for keys defined in this package.
+// This prevents collisions with keys defined in other packages.
+type contextKey int
+
+// logOptFieldsKey is the key for events.LogOptionalFields values in Contexts. It is
+// unexported; clients use events.NewContext and events.FromContext
+// instead of using this key directly.
+var logOptFieldsKey contextKey
+
+// NewContext returns a new Context that carries value logOptFields.
+func NewContext(ctx context.Context, logOptFields LogOptionalFields) context.Context {
+	return context.WithValue(ctx, logOptFieldsKey, logOptFields)
+}
+
+// FromContext returns a copy of the LogOptionalFields value stored in ctx, if any.
+func FromContext(ctx context.Context) (LogOptionalFields, bool) {
+	var result LogOptionalFields
+	lof, ok := ctx.Value(logOptFieldsKey).(LogOptionalFields)
+	if ok {
+		result = make(LogOptionalFields, len(lof))
+		for k, v := range lof {
+			result[k] = v
+		}
+	}
+	return result, ok
 }

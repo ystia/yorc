@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"encoding/json"
+
 	"github.com/armon/go-metrics"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
@@ -75,12 +76,7 @@ func (w worker) setDeploymentStatus(deploymentID string, status deployments.Depl
 }
 
 func (w worker) processWorkflow(ctx context.Context, workflowName string, wfSteps []*step, deploymentID string, bypassErrors bool) error {
-	// Fill log optional fields for log registration
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID: workflowName,
-	}
-
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Start processing workflow %q", workflowName))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Start processing workflow %q", workflowName))
 	uninstallerrc := make(chan error)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -113,16 +109,16 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 	errs := <-faninErrCh
 
 	if err != nil {
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
 		return err
 	}
 
 	if len(errs) > 0 {
 		uninstallerr := errors.Errorf("%s", strings.Join(errs, " ; "))
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
 		log.Printf("DeploymentID %q One or more error appear workflow %q, please check : %v", deploymentID, workflowName, uninstallerr)
 	} else {
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Workflow %q ended without error", workflowName))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Workflow %q ended without error", workflowName))
 		log.Printf("DeploymentID %q Workflow %q ended without error", deploymentID, workflowName)
 	}
 	return nil
@@ -138,10 +134,14 @@ func (w worker) handleTask(t *task) {
 	// Fill log optional fields for log registration
 	wfName, _ := tasks.GetTaskData(kv, t.ID, "workflowName")
 	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID: wfName,
+		events.WorkFlowID:  wfName,
+		events.ExecutionID: t.ID,
 	}
 	bgCtx := context.Background()
 	ctx, cancelFunc := context.WithCancel(bgCtx)
+
+	ctx = events.NewContext(ctx, logOptFields)
+
 	defer t.releaseLock()
 	defer cancelFunc()
 	w.monitorTaskForCancellation(ctx, cancelFunc, t)
@@ -304,7 +304,6 @@ func (w worker) handleTask(t *task) {
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
 	case tasks.ScaleOut:
-		//eventPub := events.NewPublisher(task.kv, task.TargetId)
 		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 
 		err := w.runWorkflows(ctx, t, []string{"install"}, false)
@@ -405,7 +404,7 @@ func (w worker) handleTask(t *task) {
 			}
 		default:
 			mess := fmt.Sprintf("Unknown query: %q for Task with id %q", query, t.ID)
-			events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(mess)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(mess)
 			log.Printf(mess)
 			if t.Status() == tasks.RUNNING {
 				t.WithStatus(tasks.FAILED)
@@ -413,7 +412,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 	default:
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", t.TaskType, t.TaskType.String(), t.ID))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", t.TaskType, t.TaskType.String(), t.ID))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", t.TaskType, t.TaskType.String(), t.ID, t.TargetID)
 		if t.Status() == tasks.RUNNING {
 			t.WithStatus(tasks.FAILED)
@@ -507,9 +506,16 @@ func (w worker) monitorTaskForCancellation(ctx context.Context, cancelFunc conte
 	}()
 }
 
-func (w worker) runWorkflows(ctx context.Context, t *task, workflows []string, bypassErrors bool) error {
+func (w worker) runWorkflows(rootCtx context.Context, t *task, workflows []string, bypassErrors bool) error {
 	kv := w.consulClient.KV()
 	for _, workflow := range workflows {
+		lof, ok := events.FromContext(rootCtx)
+		if !ok {
+			lof = make(events.LogOptionalFields)
+		}
+		lof[events.WorkFlowID] = workflow
+		ctx := events.NewContext(rootCtx, lof)
+
 		wf, err := readWorkFlowFromConsul(kv, path.Join(consulutil.DeploymentKVPrefix, t.TargetID, path.Join("workflows", workflow)))
 		if err != nil {
 			if t.Status() == tasks.RUNNING {

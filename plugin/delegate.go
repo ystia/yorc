@@ -21,6 +21,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -66,6 +67,11 @@ type DelegateExecutorClient struct {
 // ExecDelegate is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (c *DelegateExecutorClient) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
+	lof, ok := events.FromContext(ctx)
+	if !ok {
+		return errors.New("Missing contextual log optionnal fields")
+	}
+
 	id := c.Broker.NextId()
 	closeChan := make(chan struct{}, 0)
 	defer close(closeChan)
@@ -79,6 +85,7 @@ func (c *DelegateExecutorClient) ExecDelegate(ctx context.Context, conf config.C
 		DeploymentID:      deploymentID,
 		NodeName:          nodeName,
 		DelegateOperation: delegateOperation,
+		LogOptionalFields: lof,
 	}
 	err := c.Client.Call("Plugin.ExecDelegate", args, &resp)
 	if err != nil {
@@ -104,6 +111,7 @@ type DelegateExecutorExecDelegateArgs struct {
 	DeploymentID      string
 	NodeName          string
 	DelegateOperation string
+	LogOptionalFields events.LogOptionalFields
 }
 
 // DelegateExecutorExecDelegateResponse is public for use by reflexion and should be considered as private to this package.
@@ -115,7 +123,7 @@ type DelegateExecutorExecDelegateResponse struct {
 // ExecDelegate is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (s *DelegateExecutorServer) ExecDelegate(args *DelegateExecutorExecDelegateArgs, reply *DelegateExecutorExecDelegateResponse) error {
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(events.NewContext(context.Background(), args.LogOptionalFields))
 	defer cancelFunc()
 
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})
