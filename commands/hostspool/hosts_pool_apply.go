@@ -258,8 +258,17 @@ func init() {
 				httputil.ErrExit(err)
 			}
 
-			httputil.HandleHTTPStatusCode(
-				response, args[0], "host pool", http.StatusOK, http.StatusCreated)
+			// Handle the response
+			// This is a generic response management, except from the case where
+			// a checkpoint issue was detected.
+			// In this case, the REST API error message is overriden by a
+			// user-friendly message
+			customizedErrorMessages := map[string]string{
+				hostspool.CheckpointError: "New Hosts Pool configuration not applied, as a change occured since the above diff. Please re-apply your configuration to see actual changes.",
+			}
+
+			httputil.HandleHTTPStatusCodeWithCustomizedErrorMessage(
+				response, args[0], "host pool", customizedErrorMessages, http.StatusOK, http.StatusCreated)
 
 			// Verify the status of each updated/new host and log
 			// connection failures

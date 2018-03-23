@@ -117,6 +117,24 @@ func GetClient() (*YorcClient, error) {
 
 // HandleHTTPStatusCode handles Yorc HTTP status code and displays error if needed
 func HandleHTTPStatusCode(response *http.Response, resourceID string, resourceType string, expectedStatusCodes ...int) {
+	HandleHTTPStatusCodeWithCustomizedErrorMessage(
+		response,
+		resourceID,
+		resourceType,
+		nil, // no customized error message
+		expectedStatusCodes...)
+}
+
+// HandleHTTPStatusCodeWithCustomizedErrorMessage handles Yorc HTTP status
+// code and in case of error, can display a customized error message instead of
+// the source error if this source error contains a given string provided as
+// key in the map argument customizedErrorMessages
+func HandleHTTPStatusCodeWithCustomizedErrorMessage(
+	response *http.Response,
+	resourceID string,
+	resourceType string,
+	customizedErrorMessages map[string]string,
+	expectedStatusCodes ...int) {
 	if len(expectedStatusCodes) == 0 {
 		panic("expected status code parameter is required")
 	}
@@ -129,10 +147,33 @@ func HandleHTTPStatusCode(response *http.Response, resourceID string, resourceTy
 			// same point as above
 			okExit(fmt.Sprintf("No %s", resourceType))
 		default:
-			PrintErrors(response.Body)
-			ErrExit(errors.Errorf("Expecting HTTP Status code in %d but got %d, reason %q", expectedStatusCodes, response.StatusCode, response.Status))
+			errs := getRestErrors(response.Body)
+			errMsg := getCustomizedErrorMessage(errs, customizedErrorMessages)
+			if errMsg == "" {
+				// No error message to customize
+				printRestErrors(errs)
+				errMsg = fmt.Sprintf("Expecting HTTP Status code in %d but got %d, reason %q",
+					expectedStatusCodes, response.StatusCode, response.Status)
+			}
+			ErrExit(errors.Errorf(errMsg))
 		}
 	}
+}
+
+func getCustomizedErrorMessage(
+	errs rest.Errors,
+	customizedErrorMessages map[string]string) string {
+
+	if customizedErrorMessages != nil {
+		for _, e := range errs.Errors {
+			for key, value := range customizedErrorMessages {
+				if strings.Contains(e.Detail, key) {
+					return value
+				}
+			}
+		}
+	}
+	return ""
 }
 
 type cmdRestError struct {

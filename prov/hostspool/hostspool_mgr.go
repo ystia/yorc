@@ -34,6 +34,10 @@ import (
 	"github.com/ystia/yorc/helper/sshutil"
 )
 
+const (
+	CheckpointError = "Checkpoint for Hosts Pool error"
+)
+
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
 	Add(hostname string, connection Connection, labels map[string]string) error
@@ -1001,8 +1005,8 @@ func (cm *consulManager) applyWait(
 		((*checkpoint == 0 && len(registeredHosts) > 0) ||
 			(*checkpoint > 0 && *checkpoint < runtimeCheckpoint)) {
 		return errors.WithStack(badRequestError{
-			fmt.Sprintf("Checkpoint for Hosts Pool: value provided %d lower than expected checkpoint %d",
-				*checkpoint, runtimeCheckpoint)})
+			fmt.Sprintf("%s: value provided %d lower than expected checkpoint %d",
+				CheckpointError, *checkpoint, runtimeCheckpoint)})
 	}
 
 	hostsToUnregisterCheckAllocatedStatus := make(map[string]bool)
