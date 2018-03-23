@@ -887,6 +887,7 @@ Content-Type: application/json
 
 ```json
 {
+  "checkpoint": 123,
   "hosts": [
     {"rel":"host","href":"/hosts_pool/host1","type":"application/json"},
     {"rel":"host","href":"/hosts_pool/host2","type":"application/json"}
@@ -934,6 +935,110 @@ Content-Type: application/json
   ]
 }
 ```
+### Apply Hosts Pool configuration <a name="hostspool-apply"></a>
+
+Applies a Hosts Pool configuration. The checkpoint query parameter value is provided in the result of a previous call to the [Hosts Pool List API](#hostspool-list).
+
+'Content-Type' header should be set to 'application/json'.
+
+`POST /hosts_pool?checkpoint=<uint64>`
+
+**Request body**:
+
+```json
+{
+    "hosts": [
+        {
+            "Name": "host1",
+            "connection": {
+                "user": "test",
+                "private_key": "/path/to/secrets/id_rsa",
+                "host": "host1.example.com",
+                "port": 22
+            },
+            "labels": {
+                "environment": "dev",
+                "host.cpu_frequency": "3 GHz",
+                "host.disk_size": "150 GB",
+                "host.mem_size": "4GB",
+                "host.num_cpus": "8",
+                "os.architecture": "x86_64",
+                "os.distribution": "ubuntu",
+                "os.type": "linux",
+                "os.version": "17.1"
+            }
+        },
+        {
+            "Name": "host2",
+            "connection": {
+                "user": "test",
+                "private_key": "/path/to/secrets/id_rsa",
+                "host": "host2.example.com"
+            }
+        }
+    ]
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 201 Created
+Content-Length: 0
+
+```
+
+To bypass checkpoint verification, the following request can be executed:
+
+'Content-Type' header should be set to 'application/json'.
+
+`PUT /hosts_pool`
+
+**Request body**:
+
+```json
+{
+    "hosts": [
+        {
+            "Name": "host1",
+            "connection": {
+                "user": "test",
+                "private_key": "/path/to/secrets/id_rsa",
+                "host": "host1.example.com",
+                "port": 22
+            },
+            "labels": {
+                "environment": "dev",
+                "host.cpu_frequency": "3 GHz",
+                "host.disk_size": "150 GB",
+                "host.mem_size": "4GB",
+                "host.num_cpus": "8",
+                "os.architecture": "x86_64",
+                "os.distribution": "ubuntu",
+                "os.type": "linux",
+                "os.version": "17.1"
+            }
+        },
+        {
+            "Name": "host2",
+            "connection": {
+                "user": "test",
+                "private_key": "/path/to/secrets/id_rsa",
+                "host": "host2.example.com"
+            }
+        }
+    ]
+}
+```
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 OK
+Content-Length: 0
+```
+
+Another possible response response code is `400` if the requets body is not correct.
 
 ## Infrastructure Usage
 

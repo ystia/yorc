@@ -216,6 +216,18 @@ type MapEntry struct {
 	Value string `json:"value,omitempty"`
 }
 
+// HostConfig represents the configuration of a host in the Hosts Pool
+type HostConfig struct {
+	Name       string
+	Connection hostspool.Connection `json:"connection,omitempty" yaml:"connection,omitempty"`
+	Labels     map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`
+}
+
+// HostsPoolRequest represents a request for applying a Hosts Pool configuration
+type HostsPoolRequest struct {
+	Hosts []HostConfig `json:"hosts"`
+}
+
 // HostRequest represents a request for creating or updating a host in the hosts pool
 type HostRequest struct {
 	Connection *hostspool.Connection `json:"connection,omitempty"`
@@ -226,8 +238,9 @@ type HostRequest struct {
 //
 // Links are all of type LinkRelHost.
 type HostsCollection struct {
-	Hosts    []AtomLink `json:"hosts"`
-	Warnings []string   `json:"warnings,omitempty"`
+	Checkpoint uint64     `json:"checkpoint,omitempty"`
+	Hosts      []AtomLink `json:"hosts"`
+	Warnings   []string   `json:"warnings,omitempty"`
 }
 
 // Host is a host in the host pool representation

@@ -56,15 +56,16 @@ func (hs *HostStatus) UnmarshalJSON(b []byte) error {
 // A Connection holds info used to connect to a host using SSH
 type Connection struct {
 	// The User that we should use for the connection. Defaults to root.
-	User string `json:"user,omitempty"`
+	User string `json:"user,omitempty" yaml:"user,omitempty"`
 	// The Password that we should use for the connection. One of Password or PrivateKey is required. PrivateKey takes the precedence.
-	Password string `json:"password,omitempty"`
+	Password string `json:"password,omitempty" yaml:"password,omitempty"`
 	// The SSH Private Key that we should use for the connection. One of Password or PrivateKey is required. PrivateKey takes the precedence.
-	PrivateKey string `json:"private_key,omitempty"`
+	// The mapstructure tag is needed for viper unmarshalling
+	PrivateKey string `json:"private_key,omitempty"  yaml:"private_key,omitempty" mapstructure:"private_key"`
 	// The address of the Host to connect to. Defaults to the hostname specified during the registration.
-	Host string `json:"host,omitempty"`
+	Host string `json:"host,omitempty" yaml:"host,omitempty"`
 	// The Port to connect to. Defaults to 22 if set to 0.
-	Port uint64 `json:"port,omitempty"`
+	Port uint64 `json:"port,omitempty" yaml:"port,omitempty"`
 }
 
 // String allows to stringify a connection
