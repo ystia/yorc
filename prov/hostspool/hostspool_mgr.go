@@ -35,6 +35,8 @@ import (
 )
 
 const (
+	// CheckpointError is an error of checkpoint between the current Hosts Pool
+	// and an apply change request
 	CheckpointError = "Checkpoint for Hosts Pool error"
 )
 
