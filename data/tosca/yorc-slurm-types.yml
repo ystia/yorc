@@ -62,7 +62,6 @@ node_types:
         description: Number of cpus allocated per task.
         type: integer
         required: false
-        default: 1
       mem_per_node:
         type: integer
         description: The memory per node in GB required to the job.
