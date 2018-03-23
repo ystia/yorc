@@ -54,18 +54,18 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 		testConsulManagerApply(t, client)
 	})
 	t.Run("testConsulManagerApplyErrorNoName", func(t *testing.T) {
-		testConsulManagerApply(t, client)
+		testConsulManagerApplyErrorNoName(t, client)
 	})
 	t.Run("testConsulManagerApplyErrorDuplicateName", func(t *testing.T) {
-		testConsulManagerApply(t, client)
+		testConsulManagerApplyErrorDuplicateName(t, client)
 	})
 	t.Run("testConsulManagerApplyErrorDeleteAllocatedHost", func(t *testing.T) {
-		testConsulManagerApply(t, client)
+		testConsulManagerApplyErrorDeleteAllocatedHost(t, client)
 	})
 	t.Run("testConsulManagerApplyErrorOutdatedCheckpoint", func(t *testing.T) {
-		testConsulManagerApply(t, client)
+		testConsulManagerApplyErrorOutdatedCheckpoint(t, client)
 	})
 	t.Run("testConsulManagerApplyBadConnection", func(t *testing.T) {
-		testConsulManagerApply(t, client)
+		testConsulManagerApplyBadConnection(t, client)
 	})
 }

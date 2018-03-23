@@ -684,6 +684,12 @@ func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
 
 	var hostpool = createHosts(3)
 
+	// Apply this definition
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+
 	// Error case: entry with no name
 	oldName := hostpool[0].Name
 	hostpool[0].Name = "newName"
@@ -714,6 +720,12 @@ func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
 
 	var hostpool = createHosts(3)
 
+	// Apply this definition
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+
 	// Error case: duplicate names
 	oldName := hostpool[len(hostpool)-1].Name
 	hostpool[len(hostpool)-1].Name = hostpool[0].Name
@@ -728,7 +740,7 @@ func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
 	hosts, warnings, ckpt2, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
-	assert.Len(t, hosts, 4)
+	assert.Len(t, hosts, 3)
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using duplicates")
 	assert.Equal(t, ckpt1, ckpt, "Expected no checkpoint change after apply error")
@@ -772,7 +784,7 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	hosts2, warnings, ckpt2, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
-	assert.Len(t, hosts2, 4)
+	assert.Len(t, hosts2, 3)
 	assert.Equal(t, hosts1, hosts2, "Expected no change in hosts pool after deletion error")
 	assert.Equal(t, checkpoint, ckpt2, "Expected no checkpoint change after deletion error")
 }
