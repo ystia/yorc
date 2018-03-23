@@ -521,15 +521,12 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
 }
 
-func testConsulManagerApply(t *testing.T, cc *api.Client) {
-	cleanupHostsPool(t, cc)
-	cm := &consulManager{cc, mockSSHClientFactory}
+func createHosts(hostsNumber int) []Host {
 
-	var hostpool []Host
-
-	for i := 0; i < 3; i++ {
+	var hostpool = make([]Host, hostsNumber)
+	for i := 0; i < hostsNumber; i++ {
 		suffix := strconv.Itoa(i)
-		hostpool = append(hostpool, Host{
+		hostpool[i] = Host{
 			Name: "host" + suffix,
 			Connection: Connection{
 				User:     "testuser" + suffix,
@@ -542,8 +539,16 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 				"label2": "value2" + suffix,
 				"label3": "value3" + suffix,
 			},
-		})
+		}
 	}
+
+	return hostpool
+}
+func testConsulManagerApply(t *testing.T, cc *api.Client) {
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(3)
 
 	// Apply this definition
 	var checkpoint uint64
@@ -670,60 +675,140 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 		"Unexpected alloc message for allocated host after Pool redefinition")
 	assert.Equal(t, HostStatusAllocated, allocatedHost.Status,
 		"Unexpected status for an allocated host after Pool redefinition")
+}
+
+func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
+
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(3)
 
 	// Error case: entry with no name
 	oldName := hostpool[0].Name
 	hostpool[0].Name = "newName"
 	hostpool = append(hostpool, hostpool[0])
 	hostpool[len(hostpool)-1].Name = ""
-	err = cm.Apply(hostpool, &ckpt2)
+	_, _, ckpt1, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool before test")
+	ckpt := ckpt1
+	err = cm.Apply(hostpool, &ckpt)
 	assert.Error(t, err, "Expected an error adding a host with no name")
 
 	// Check the new definition wasn't applied after this error
-	hosts, warnings, ckpt3, err := cm.List()
+	hosts, warnings, ckpt2, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
-	assert.Len(t, hosts, 4)
-	assert.Equal(t, ckpt2, ckpt3, "Expected no checkpoint change after name error")
+	assert.Len(t, hosts, 3)
+	assert.Equal(t, ckpt1, ckpt, "Expected no checkpoint change after apply error")
+	assert.Equal(t, ckpt1, ckpt2, "Expected no checkpoint change")
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using empty name")
 	assert.NotContains(t, hosts, "newName")
+}
+
+func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
+
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(3)
 
 	// Error case: duplicate names
+	oldName := hostpool[len(hostpool)-1].Name
 	hostpool[len(hostpool)-1].Name = hostpool[0].Name
-	err = cm.Apply(hostpool, &ckpt3)
+	_, _, ckpt1, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool before test")
+	ckpt := ckpt1
+	err = cm.Apply(hostpool, &ckpt)
 	assert.Error(t, err,
 		"Expected an error applying a hosts pool with duplicate names")
 
 	// Check the new definition wasn't applied after this error
-	hosts1, warnings, ckpt4, err := cm.List()
+	hosts, warnings, ckpt2, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
-	assert.Len(t, hosts1, 4)
+	assert.Len(t, hosts, 4)
 	assert.Contains(t, hosts, oldName,
 		"Hosts Pool unexpectedly changed after an apply error using duplicates")
-	assert.Equal(t, ckpt3, ckpt4, "Expected no checkpoint change after duplicate error")
-	hostpool = hostpool[:(len(hostpool) - 1)]
+	assert.Equal(t, ckpt1, ckpt, "Expected no checkpoint change after apply error")
+	assert.Equal(t, ckpt1, ckpt2, "Expected no checkpoint change after duplicate error")
+}
+
+func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client) {
+
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(3)
+
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+
+	// Allocate host1
+	allocationMsg := "For tests purposes"
+	filterLabel := "label2"
+	filter, err := labelsutil.CreateFilter(
+		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
+	require.NoError(t, err, "Unexpected error creating a filter")
+	allocatedName, warnings, err := cm.Allocate(allocationMsg, filter)
+	assert.Equal(t, hostpool[1].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err := cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	assert.Equal(t, allocationMsg, allocatedHost.Message,
+		"Unexpected allocation message for allocated host")
+
+	hosts1, _, checkpoint, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting the hosts pool")
 
 	// Error case : attempt to delete an allocated host
 	hostpool1 := hostpool[:1]
-	err = cm.Apply(hostpool1, &ckpt4)
+	var ckpt uint64
+	err = cm.Apply(hostpool1, &ckpt)
 	assert.Error(t, err, "Expected an error deleting an allocated host")
-	hosts2, warnings, checkpoint, err := cm.List()
+	hosts2, warnings, ckpt2, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	assert.Len(t, warnings, 0)
 	assert.Len(t, hosts2, 4)
 	assert.Equal(t, hosts1, hosts2, "Expected no change in hosts pool after deletion error")
-	assert.Equal(t, ckpt3, ckpt4, "Expected no checkpoint change after deletion error")
-	assert.Equal(t, ckpt4, checkpoint, "Expected no checkpoint diff between apply and list")
+	assert.Equal(t, checkpoint, ckpt2, "Expected no checkpoint change after deletion error")
+}
+
+func testConsulManagerApplyErrorOutdatedCheckpoint(t *testing.T, cc *api.Client) {
+
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(3)
+
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 
 	// Error case : outdated checkpoint
 	hostpool[0].Labels["label1"] = "newValues"
-	oldcheckpoint = checkpoint - 1
+	oldcheckpoint := checkpoint - 1
 	err = cm.Apply(hostpool, &oldcheckpoint)
 	assert.Error(t, err, "Expected an error doing an apply with outdated checkpoint")
+}
 
-	// Check an apply with one host having bad coonection settings
+func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
+
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(3)
+
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+
+	// Check an apply with one host having bad connection settings
 	_, _, checkpoint, err = cm.List()
 	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
 	newHost := Host{
