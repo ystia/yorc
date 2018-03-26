@@ -237,7 +237,7 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
 	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -379,7 +379,7 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
 	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
@@ -509,7 +509,7 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
 	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
 	require.Nil(t, err)
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
