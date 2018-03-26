@@ -45,6 +45,7 @@ import (
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
+	"strconv"
 )
 
 const ansibleConfig = `[defaults]
@@ -84,6 +85,7 @@ func (oni operationNotImplemented) Error() string {
 
 type hostConnection struct {
 	host       string
+	port       int
 	user       string
 	instanceID string
 	privateKey string
@@ -329,6 +331,17 @@ func (e *executionCommon) setEndpointCredentials(kv *api.KV, host, instanceID, c
 		}
 		if found && privateKey != "" {
 			conn.privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.privateKey", privateKey).(string)
+		}
+
+		found, port, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "port")
+		if err != nil {
+			log.Debugf("[Warning] failed to get port attribute from capability endpoint with error: %+v", err)
+		}
+		if found && port != "" {
+			conn.port, err = strconv.Atoi(port)
+			if err != nil {
+				log.Debugf("[Warning] failed to convert port value:%q to int with error: %+v", port, err)
+			}
 		}
 	}
 	return nil
@@ -692,6 +705,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		if sshPassword != "" {
 			// TODO use vault
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
+		}
+
+		// Specify SSH port when different than default 22
+		if host.port != 0 && host.port != 22 {
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_port=%d", host.port))
 		}
 		buffer.WriteString("\n")
 		var perInstanceInputsBuffer bytes.Buffer
