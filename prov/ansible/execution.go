@@ -45,6 +45,7 @@ import (
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
+	"strconv"
 )
 
 const ansibleConfig = `[defaults]
@@ -84,6 +85,7 @@ func (oni operationNotImplemented) Error() string {
 
 type hostConnection struct {
 	host       string
+	port       int
 	user       string
 	instanceID string
 	privateKey string
@@ -101,6 +103,7 @@ type ansibleRunner interface {
 type executionCommon struct {
 	kv                       *api.KV
 	cfg                      config.Configuration
+	ctx                      context.Context
 	deploymentID             string
 	taskID                   string
 	NodeName                 string
@@ -134,9 +137,10 @@ type executionCommon struct {
 	targetNodeInstances      []string
 }
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		cfg:          cfg,
+		ctx:          ctx,
 		deploymentID: deploymentID,
 		NodeName:     nodeName,
 		//KeepOperationRemotePath property is required to be public when resolving templates.
@@ -301,7 +305,7 @@ func (e *executionCommon) resolveArtifacts() error {
 	return nil
 }
 
-func (e *executionCommon) setEndpointCredentials(kv *api.KV, host, instanceID, capType string, conn *hostConnection) error {
+func (e *executionCommon) setHostConnection(kv *api.KV, host, instanceID, capType string, conn *hostConnection) error {
 	hasEndpoint, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, capType, "yorc.capabilities.Endpoint.ProvisioningAdmin")
 	if err != nil {
 		return err
@@ -309,26 +313,39 @@ func (e *executionCommon) setEndpointCredentials(kv *api.KV, host, instanceID, c
 	if hasEndpoint {
 		found, user, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "user")
 		if err != nil {
-			return nil
+			return err
 		}
 		if found {
 			conn.user = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.user", user).(string)
 		} else {
-			// TODO log it
+			mess := fmt.Sprintf("[Warning] No user set for connection:%+v", conn)
+			log.Printf(mess)
+			events.WithContextOptionalFields(e.ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString(mess)
 		}
 		found, password, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "token")
 		if err != nil {
-			return nil
+			return err
 		}
 		if found && password != "" {
 			conn.password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.password", password).(string)
 		}
 		found, privateKey, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "keys", "0")
 		if err != nil {
-			return nil
+			return err
 		}
 		if found && privateKey != "" {
 			conn.privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.privateKey", privateKey).(string)
+		}
+
+		found, port, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "port")
+		if err != nil {
+			return err
+		}
+		if found && port != "" {
+			conn.port, err = strconv.Atoi(port)
+			if err != nil {
+				return errors.Wrapf(err,"Failed to convert port value:%q to int", port)
+			}
 		}
 	}
 	return nil
@@ -386,7 +403,12 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 					ipAddress = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := hostConnection{host: ipAddress, instanceID: instance}
-					e.setEndpointCredentials(e.kv, host, instance, capType, &hostConn)
+					if err := e.setHostConnection(e.kv, host, instance, capType, &hostConn); err != nil {
+						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
+						log.Debug(mess)
+						events.WithContextOptionalFields(e.ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(mess)
+						return err
+					}
 					hosts[instanceName] = hostConn
 				}
 			}
@@ -692,6 +714,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		if sshPassword != "" {
 			// TODO use vault
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
+		}
+
+		// Specify SSH port when different than default 22
+		if host.port != 0 && host.port != 22 {
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_port=%d", host.port))
 		}
 		buffer.WriteString("\n")
 		var perInstanceInputsBuffer bytes.Buffer

@@ -32,6 +32,7 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
+	"strconv"
 )
 
 type defaultExecutor struct{}
@@ -168,6 +169,12 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 
 		if publicAddress, ok := host.Labels["public_address"]; ok {
 			err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "public_address", publicAddress)
+			if err != nil {
+				return err
+			}
+		}
+		if host.Connection.Port != 0 {
+			err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, instance, "endpoint", "port", strconv.FormatUint(host.Connection.Port, 10))
 			if err != nil {
 				return err
 			}

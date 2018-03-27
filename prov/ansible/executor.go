@@ -53,7 +53,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operation.Name, ".")
 	ctx = events.NewContext(ctx, logOptFields)
 
-	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+	exec, err := newExecution(ctx, kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
 			log.Debugf("Voluntary bypassing error: %s.", err.Error())
