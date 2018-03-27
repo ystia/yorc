@@ -126,10 +126,10 @@ func submitCSAR(csarZip []byte, client *httputil.YorcClient, deploymentID string
 	}
 	request.Header.Add("Content-Type", "application/zip")
 	response, err := client.Do(request)
-	defer response.Body.Close()
 	if err != nil {
 		return "", err
 	}
+	defer response.Body.Close()
 	if response.StatusCode != 201 {
 		// Try to get the reason
 		httputil.PrintErrors(response.Body)

@@ -93,10 +93,10 @@ func postScalingRequest(client *httputil.YorcClient, deploymentID, nodeName stri
 	log.Debugf("POST: %s", request.URL.String())
 
 	response, err := client.Do(request)
-	defer response.Body.Close()
 	if err != nil {
 		httputil.ErrExit(errors.Wrap(err, httputil.YorcAPIDefaultErrorMsg))
 	}
+	defer response.Body.Close()
 
 	ids := deploymentID + "/" + nodeName
 	httputil.HandleHTTPStatusCode(response, ids, "deployment/node", http.StatusAccepted)

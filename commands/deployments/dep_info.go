@@ -66,10 +66,10 @@ It prints the deployment status and the status of all the nodes contained in thi
 			}
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 			httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
 			var dep rest.Deployment
 			body, err := ioutil.ReadAll(response.Body)

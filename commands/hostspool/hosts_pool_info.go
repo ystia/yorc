@@ -50,10 +50,10 @@ func init() {
 			}
 
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 
 			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
 			var host rest.Host

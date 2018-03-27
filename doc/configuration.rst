@@ -98,6 +98,14 @@ Globals Command-line options
 
   * ``--cert_file``: File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Yorc HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.
 
+.. _option_ca_file_cmd:
+
+  * ``--ca_file``: If set to true, enable TLS certificate checking. Must be provided with cert_file ; key_file and ca_file. Disabled by default.
+
+.. _option_ssl_verify_cmd:
+
+  * ``--ssl_verify``: If set to true, enable TLS certificate checking. Must be provided with cert_file ; key_file and ca_file. Disabled by default.
+
 .. _option_pluginsdir_cmd:
 
   * ``--plugins_directory``: The name of the plugins directory of the Yorc server. The default is to use a directory named *plugins* in the current directory.
@@ -186,6 +194,14 @@ Below is an example of configuration file with TLS enabled.
 .. _option_certfile_cfg:
 
   * ``cert_file``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
+
+.. _option_sslverify_cfg:
+
+  * ``ssl_verify``: Equivalent to :ref:`--ssl_verify <option_sslverify_cmd>` command-line flag.
+
+.. _option_cafile_cfg:
+
+  * ``ca_file``: Equivalent to :ref:`--ca_file <option_cafile_cmd>` command-line flag.
 
 .. _option_plugindir_cfg:
 
@@ -532,6 +548,14 @@ Environment variables
 .. _option_certfile_env:
 
   * ``YORC_CERT_FILE``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
+
+.. _option_sslverify_env:
+
+  * ``YORC_CERT_FILE``: Equivalent to :ref:`--ssl_verify <option_sslverify_cmd>` command-line flag.
+
+.. _option_cafile_env:
+
+  * ``YORC_CA_FILE``: Equivalent to :ref:`--ca_file <option_cafile_cmd>` command-line flag.
 
 .. _option_plugindir_env:
 

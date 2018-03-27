@@ -174,10 +174,10 @@ func GetJSONEntityFromAtomGetRequest(client *YorcClient, atomLink rest.AtomLink,
 	request.Header.Add("Accept", "application/json")
 
 	response, err := client.Do(request)
-	defer response.Body.Close()
 	if err != nil {
 		return errors.Wrap(err, YorcAPIDefaultErrorMsg)
 	}
+	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		// Try to get the reason
 		errs := getRestErrors(response.Body)

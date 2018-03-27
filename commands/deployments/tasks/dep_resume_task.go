@@ -49,10 +49,10 @@ var resumeTaskCmd = &cobra.Command{
 
 		//request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
-		defer response.Body.Close()
 		if err != nil {
 			httputil.ErrExit(err)
 		}
+		defer response.Body.Close()
 		ids := args[0] + "/" + args[1]
 		httputil.HandleHTTPStatusCode(response, ids, "deployment/task", http.StatusAccepted)
 		return nil
