@@ -62,6 +62,8 @@ type Configuration struct {
 	HTTPAddress                      string
 	KeyFile                          string
 	CertFile                         string
+	CAFile                           string
+	SSLVerify                        bool
 	ResourcesPrefix                  string
 	Consul                           Consul
 	Telemetry                        Telemetry

@@ -196,7 +196,9 @@ func setConfig() {
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
 	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Yorc HTTP REST API.")
 	serverCmd.PersistentFlags().String("key_file", "", "File path to a PEM-encoded private key. The key is used to enable SSL for the Yorc HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.")
+	serverCmd.PersistentFlags().String("ca_file", "", "File path to a PEM-encoded CA certificate.")
 	serverCmd.PersistentFlags().String("cert_file", "", "File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Yorc HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.")
+	serverCmd.PersistentFlags().Bool("ssl_verify", false, "Enable certificate checking by the rest API")
 
 	//Flags definition for Consul
 	serverCmd.PersistentFlags().StringP("consul_address", "", "", "Address of the HTTP interface for Consul (format: <host>:<port>)")
@@ -235,6 +237,8 @@ func setConfig() {
 	viper.BindPFlag("http_address", serverCmd.PersistentFlags().Lookup("http_address"))
 	viper.BindPFlag("cert_file", serverCmd.PersistentFlags().Lookup("cert_file"))
 	viper.BindPFlag("key_file", serverCmd.PersistentFlags().Lookup("key_file"))
+	viper.BindPFlag("ca_file", serverCmd.PersistentFlags().Lookup("ca_file"))
+	viper.BindPFlag("ssl_verify", serverCmd.PersistentFlags().Lookup("ssl_verify"))
 
 	//Bind Ansible persistent flags
 	for key := range ansibleConfiguration {
@@ -251,7 +255,9 @@ func setConfig() {
 	viper.BindEnv("http_port")
 	viper.BindEnv("http_address")
 	viper.BindEnv("key_file")
+	viper.BindEnv("ca_file")
 	viper.BindEnv("cert_file")
+	viper.BindEnv("SSL_verify")
 	viper.BindEnv("resources_prefix")
 
 	//Bind Consul environment variables flags
@@ -307,6 +313,8 @@ func getConfig() config.Configuration {
 	configuration.HTTPAddress = viper.GetString("http_address")
 	configuration.CertFile = viper.GetString("cert_file")
 	configuration.KeyFile = viper.GetString("key_file")
+	configuration.CAFile = viper.GetString("ca_file")
+	configuration.SSLVerify = viper.GetBool("ssl_verify")
 	configuration.ResourcesPrefix = viper.GetString("resources_prefix")
 	configuration.Consul.Address = viper.GetString("consul.address")
 	configuration.Consul.Datacenter = viper.GetString("consul.datacenter")

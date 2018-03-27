@@ -19,6 +19,7 @@ import (
 
 	"crypto/tls"
 
+	"github.com/hashicorp/go-rootcerts"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 )
@@ -30,6 +31,15 @@ func wrapListenerTLS(listener net.Listener, cfg config.Configuration) (net.Liste
 	}
 	tlsConf := &tls.Config{
 		Certificates: []tls.Certificate{cert},
+	}
+
+	if cfg.SSLVerify {
+		certPool, err := rootcerts.LoadCAFile(cfg.CAFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to load CA certificate")
+		}
+		tlsConf.ClientCAs = certPool
+		tlsConf.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 
 	return tls.NewListener(listener, tlsConf), nil

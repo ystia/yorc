@@ -75,7 +75,9 @@ func GetClient() (*YorcClient, error) {
 	tlsEnable := viper.GetBool("secured")
 	yorcAPI := viper.GetString("yorc_api")
 	yorcAPI = strings.TrimRight(yorcAPI, "/")
-	caFile := viper.GetString("ca_file")
+	caFile := viper.GetString("cli_ca_file")
+	certFile := viper.GetString("cli_certFile")
+	keyFile := viper.GetString("cli_keyFile")
 	skipTLSVerify := viper.GetBool("skip_tls_verify")
 	if tlsEnable || skipTLSVerify || caFile != "" {
 		url, err := urlx.Parse(yorcAPI)
@@ -87,6 +89,13 @@ func GetClient() (*YorcClient, error) {
 			return nil, errors.Wrap(err, "Malformed Yorc URL")
 		}
 		tlsConfig := &tls.Config{ServerName: yorcHost}
+		if certFile != "" && keyFile != "" {
+			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to load TLS certificates")
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
 		if caFile != "" {
 			certPool := x509.NewCertPool()
 			caCert, err := ioutil.ReadFile(caFile)
