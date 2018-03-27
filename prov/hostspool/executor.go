@@ -45,7 +45,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	// Fill log optional fields for log registration
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {
-		return errors.New("Missing contextual log optionnal fields")
+		return errors.New("Missing contextual log optional fields")
 	}
 	logOptFields[events.NodeID] = nodeName
 	logOptFields[events.ExecutionID] = taskID

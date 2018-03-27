@@ -895,8 +895,18 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 		hs, err := cm.GetHostStatus(h)
 		if err != nil {
 			lastErr = err
-		} else if hs == HostStatusFree {
-			freeHosts = append(freeHosts, h)
+		} else {
+			if hs == HostStatusFree {
+				freeHosts = append(freeHosts, h)
+			} else if hs == HostStatusAllocated {
+				shareable, err := cm.GetHostShareableProp(h)
+				if err != nil {
+					lastErr = err
+				}
+				if shareable {
+					freeHosts = append(freeHosts, h)
+				}
+			}
 		}
 	}
 
