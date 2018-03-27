@@ -79,7 +79,7 @@ func (s *Server) newHostInPool(w http.ResponseWriter, r *http.Request) {
 		labels[entry.Name] = entry.Value
 	}
 
-	err = s.hostsPoolMgr.Add(hostname, *host.Connection, labels)
+	err = s.hostsPoolMgr.Add(hostname, *host.Connection, host.Shareable, labels)
 	if err != nil {
 		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
 			writeError(w, r, newBadRequestError(err))
@@ -110,7 +110,7 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if host.Connection != nil {
-		err = s.hostsPoolMgr.UpdateConnection(hostname, *host.Connection)
+		err = s.hostsPoolMgr.UpdateHost(hostname, *host.Connection, host.Shareable)
 		if err != nil {
 			if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))
@@ -263,6 +263,7 @@ func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
 			Name:       host.Name,
 			Connection: host.Connection,
 			Labels:     host.Labels,
+			Shareable:  host.Shareable,
 		}
 	}
 

@@ -42,12 +42,12 @@ const (
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
-	Add(hostname string, connection Connection, labels map[string]string) error
+	Add(hostname string, connection Connection, shareable bool, labels map[string]string) error
 	Apply(pool []Host, checkpoint *uint64) error
 	Remove(hostname string) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
-	UpdateConnection(hostname string, connection Connection) error
+	UpdateHost(hostname string, connection Connection, shareable bool) error
 	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(hostname string) (Host, error)
 	Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
@@ -87,12 +87,12 @@ type consulManager struct {
 	getSSHClient SSHClientFactory
 }
 
-func (cm *consulManager) Add(hostname string, conn Connection, labels map[string]string) error {
-	return cm.addWait(hostname, conn, labels, 45*time.Second)
+func (cm *consulManager) Add(hostname string, conn Connection, shareable bool, labels map[string]string) error {
+	return cm.addWait(hostname, conn, shareable, labels, 45*time.Second)
 }
-func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
+func (cm *consulManager) addWait(hostname string, conn Connection, shareable bool, labels map[string]string, maxWaitTime time.Duration) error {
 
-	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, "")
+	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, shareable, "")
 	if err != nil {
 		return err
 	}
@@ -130,6 +130,7 @@ func getAddOperations(
 	conn Connection,
 	labels map[string]string,
 	status HostStatus,
+	shareable bool,
 	message string) (api.KVTxnOps, error) {
 
 	if hostname == "" {
@@ -163,6 +164,11 @@ func getAddOperations(
 			Verb:  api.KVSet,
 			Key:   path.Join(hostKVPrefix, "status"),
 			Value: []byte(status.String()),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "shareable"),
+			Value: []byte(strconv.FormatBool(shareable)),
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -215,10 +221,10 @@ func getAddOperations(
 	return addOps, nil
 }
 
-func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {
-	return cm.updateConnWait(hostname, conn, 45*time.Second)
+func (cm *consulManager) UpdateHost(hostname string, conn Connection, shareable bool) error {
+	return cm.updateHostWait(hostname, conn, shareable, 45*time.Second)
 }
-func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWaitTime time.Duration) error {
+func (cm *consulManager) updateHostWait(hostname string, conn Connection, shareable bool, maxWaitTime time.Duration) error {
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
@@ -231,6 +237,11 @@ func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWai
 
 	ops := make(api.KVTxnOps, 0)
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	ops = append(ops, &api.KVTxnOp{
+		Verb:  api.KVSet,
+		Key:   path.Join(hostKVPrefix, "shareable"),
+		Value: []byte(strconv.FormatBool(shareable)),
+	})
 	if conn.User != "" {
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -668,6 +679,35 @@ func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, er
 	return status, nil
 }
 
+func (cm *consulManager) GetHostShareableProp(hostname string) (bool, error) {
+	return cm.getShareableProp(hostname, false)
+}
+
+func (cm *consulManager) getShareableProp(hostname string, backup bool) (bool, error) {
+	if hostname == "" {
+		return false, errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	keyname := "shareable"
+	if backup {
+		keyname = ".shareableBackup"
+	}
+
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, keyname), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return false, errors.WithStack(hostNotFoundError{})
+	}
+	shareableStr := string(kvp.Value)
+	shareable, err := strconv.ParseBool(shareableStr)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to parse boolean from value %s for host %q", shareableStr, hostname)
+	}
+
+	return shareable, nil
+}
+
 func (cm *consulManager) DoesHostHasConnectionPrivateKey(hostname string) (bool, error) {
 	c, err := cm.GetHostConnection(hostname)
 	if err != nil {
@@ -812,6 +852,10 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	}
 
 	host.Connection, err = cm.GetHostConnection(hostname)
+	if err != nil {
+		return host, err
+	}
+	host.Shareable, err = cm.GetHostShareableProp(hostname)
 	if err != nil {
 		return host, err
 	}
@@ -1027,7 +1071,8 @@ func (cm *consulManager) applyWait(
 			// Host already in pool, check if an update is needed
 			oldHost, _ := cm.GetHost(host.Name)
 			if oldHost.Connection == host.Connection &&
-				reflect.DeepEqual(oldHost.Labels, host.Labels) {
+				reflect.DeepEqual(oldHost.Labels, host.Labels) &&
+				oldHost.Shareable == host.Shareable {
 
 				// No config change, no update needed, ignoring this host
 				delete(hostsToUnregisterCheckAllocatedStatus, host.Name)
@@ -1061,7 +1106,7 @@ func (cm *consulManager) applyWait(
 				}
 			}
 			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				status, message)
+				status, host.Shareable, message)
 			if err != nil {
 				return err
 			}
@@ -1072,7 +1117,7 @@ func (cm *consulManager) applyWait(
 			// Host is new, creating it
 			hostChanged = append(hostChanged, host.Name)
 			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				HostStatusFree, "")
+				HostStatusFree, host.Shareable, "")
 			if err != nil {
 				return err
 			}
@@ -1158,7 +1203,7 @@ func (cm *consulManager) updateConnectionStatus(name string, waitGroup *sync.Wai
 		}
 		return
 	}
-	// Connection is up now. If it was previsouly down, restoring the status as
+	// Connection is up now. If it was previously down, restoring the status as
 	// it was before the failure (free, allocated)
 	if status == HostStatusError {
 		cm.restoreHostStatus(name)

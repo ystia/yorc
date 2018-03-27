@@ -221,6 +221,7 @@ type HostConfig struct {
 	Name       string
 	Connection hostspool.Connection `json:"connection,omitempty" yaml:"connection,omitempty"`
 	Labels     map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Shareable  bool                 `json:"shareable"`
 }
 
 // HostsPoolRequest represents a request for applying a Hosts Pool configuration
@@ -232,6 +233,7 @@ type HostsPoolRequest struct {
 type HostRequest struct {
 	Connection *hostspool.Connection `json:"connection,omitempty"`
 	Labels     []MapEntry            `json:"labels,omitempty"`
+	Shareable  bool                  `json:"shareable"`
 }
 
 // HostsCollection is a collection of hosts registered in the host pool links

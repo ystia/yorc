@@ -37,6 +37,7 @@ func init() {
 	var host string
 	var port uint64
 	var labels []string
+	var shareable bool
 
 	var addCmd = &cobra.Command{
 		Use:   "add <hostname>",
@@ -70,6 +71,8 @@ func init() {
 					}
 					hostRequest.Labels = append(hostRequest.Labels, me)
 				}
+				log.Printf("shareable=%t", shareable)
+				hostRequest.Shareable = shareable
 				tmp, err := json.Marshal(hostRequest)
 				if err != nil {
 					log.Panic(err)
@@ -102,6 +105,7 @@ func init() {
 	addCmd.Flags().StringVarP(&privateKey, "key", "k", "", "Need to provide a private key or a password for the host pool")
 	addCmd.Flags().StringVarP(&password, "password", "p", "", "Need to provide a private key or a password for the host pool")
 	addCmd.Flags().StringSliceVarP(&labels, "label", "", nil, "Label in form 'key=value' to add to the host. May be specified several time.")
+	addCmd.Flags().BoolVarP(&shareable, "shareable", "m", false, "Specify if the host can be shared by several applications. Default is false")
 
 	hostsPoolCmd.AddCommand(addCmd)
 }

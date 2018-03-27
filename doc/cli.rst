@@ -1,5 +1,5 @@
 Yorc Command Line Interface
-============================
+===========================
 
 You can interact with a Yorc server using a command line interface (CLI). The same binary as for running a Yorc server is used for the CLI.
 
@@ -139,7 +139,7 @@ The task should be in status "INITIAL" or "RUNNING" to be canceled.
      yorc deployments tasks cancel <DeploymentId> <TaskId> [flags]
 
 Resume a deployment task
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Resume a task specifying the deployment id and the task id.
 The task should be in status "FAILED" to be resumed.
@@ -244,7 +244,7 @@ Flags:
 .. _yorc_cli_hostspool_section:
 
 CLI Commands related to hosts pool
------------------------------------
+----------------------------------
 
 All hosts pool related commands are sub-commands of a command named ``hostspool``.
 In practice that means that the commands starts with
@@ -275,6 +275,8 @@ Flags:
   * ``--label``: Label in form ``key=value`` to add to the host. May be specified several time.
   * ``--port``: Port used to connect to the host. (default 22)
   * ``--user``: User used to connect to the host (default "root")
+  * ``--shareable`` or ``-m`` : Specify if the host can be shared by several applications. Default is false.
+
 
 
 Host pool (JSON):
@@ -292,7 +294,8 @@ Host pool (JSON):
       "labels": [
         {"name": "os.type", "value": "linux"},
         {"op": "add", "name": "host.mem_size", "value": "4G"}
-      ]
+      ],
+      "shareable": true
     }
 
 Update a host pool
@@ -316,6 +319,7 @@ Flags:
   * ``--port``: Port used to connect to the host. (defaults to the hostname in the hosts pool) (default 22)
   * ``--remove-label``: Remove a label from the host. May be specified several time.
   * ``--user``: User used to connect to the host (default "root")
+  * ``--shareable`` or ``-m`` : Specify if the host can be shared by several applications. Default is false.
 
 Host pool (JSON):
 
@@ -333,7 +337,8 @@ Host pool (JSON):
         {"name": "os.type", "value": "linux"},
         {"op": "add", "name": "host.mem_size", "value": "4G"},
         {"op": "remove", "name": "host.disk_size"}
-      ]
+      ],
+      "shareable": true
     }
 
 Delete a host pool
@@ -396,6 +401,7 @@ YAML and JSON formats are accepted. The following properties are supported :
         + ``password``: either a password or a private key should be provided
         + ``private_key``: Path to a private key file (or private key file content), either a password or a private key should be provided
         + ``port``: Port used to connect to the host (default 22)
+     - ``shareable``: Specify if the host can be shared by several applications (default is false)
      - ``labels``: key/value pairs (see :ref:`yorc_infras_hostspool_filters_section` for more details on labels)
 
 
@@ -405,6 +411,7 @@ Example of a YAML Hosts Pool configuration file :
 
     hosts:
     - name: host1
+      shareable: true
       connection:
         host: host1.example.com
         user: test
@@ -422,6 +429,7 @@ Example of a YAML Hosts Pool configuration file :
         os.type: linux
         os.version: "17.1"
     - name: host2
+      shareable: false
       connection:
         host: host2.example.com
         user: test

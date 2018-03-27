@@ -123,12 +123,12 @@ func init() {
 			var hostsImpacted []string
 			hostsToDeleteTable := tabutil.NewTable()
 			hostsToDeleteTable.AddHeaders(
-				"Name", "Connection", "Status", "Message", "Labels")
+				"Name", "Connection", "Status", "Shareable", "Message", "Labels")
 			hostsToCreateTable := tabutil.NewTable()
-			hostsToCreateTable.AddHeaders("Name", "Connection", "Labels")
+			hostsToCreateTable.AddHeaders("Name", "Connection", "Shareable", "Labels")
 			hostsToUpdateTable := tabutil.NewTable()
 			hostsToUpdateTable.AddHeaders(
-				"Version", "Name", "Connection", "Status", "Message", "Labels")
+				"Version", "Name", "Connection", "Status", "Shareable", "Message", "Labels")
 
 			for _, hostLink := range hostsColl.Hosts {
 				if hostLink.Rel == rest.LinkRelHost {
@@ -145,13 +145,16 @@ func init() {
 						//  Check if there is any change before registering the
 						// need to update
 						if host.Connection != newDef.Connection ||
-							!reflect.DeepEqual(host.Labels, newDef.Labels) {
+							!reflect.DeepEqual(host.Labels, newDef.Labels) ||
+							host.Shareable != newDef.Shareable {
 							update = true
 							hostsImpacted = append(hostsImpacted, host.Name)
 							addUpdateRows(hostsToUpdateTable, colorize,
 								host.Name,
 								host.Connection,
 								host.Status,
+								host.Shareable,
+								newDef.Shareable,
 								host.Message,
 								host.Labels,
 								newDef.Connection,
@@ -168,6 +171,7 @@ func init() {
 							host.Name,
 							host.Connection,
 							&host.Status,
+							host.Shareable,
 							&host.Message,
 							host.Labels)
 					}
@@ -180,7 +184,7 @@ func init() {
 				creation = true
 				hostsImpacted = append(hostsImpacted, host.Name)
 				addRow(hostsToCreateTable, colorize, hostCreation,
-					host.Name, host.Connection, nil, nil, host.Labels)
+					host.Name, host.Connection, nil, host.Shareable, nil, host.Labels)
 			}
 
 			if !deletion && !update && !creation {
@@ -307,6 +311,7 @@ func init() {
 						host.Name,
 						host.Connection,
 						&host.Status,
+						host.Shareable,
 						&host.Message,
 						nil)
 				}
@@ -353,12 +358,14 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 	name string,
 	oldConnection hostspool.Connection,
 	status hostspool.HostStatus,
+	oldShareable bool,
+	newShareable bool,
 	message string,
 	oldLabels map[string]string,
 	newConnection hostspool.Connection,
 	newLabels map[string]string) {
 
-	// Sorting lables for an easier comparison between old and new labels
+	// Sorting labels for an easier comparison between old and new labels
 	oldLabelsSlice := strings.Split(toPrintableLabels(oldLabels), ",")
 	newLabelsSlice := strings.Split(toPrintableLabels(newLabels), ",")
 	sort.Strings(oldLabelsSlice)
@@ -373,11 +380,11 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 		newLabelsSlice)
 
 	// Add rows for old values, one row for each sub-column
-	colNumber := 6
+	colNumber := 7
 	oldSubRowsNumber := len(oldLabelSubRows)
 	newSubRowsNumber := len(newLabelSubRows)
-	version, nameValue, statusValue, messageValue :=
-		"old", name, status.String(), message
+	version, nameValue, statusValue, shareableValue, messageValue :=
+		"old", name, status.String(), strconv.FormatBool(oldShareable), message
 	for i := 0; i < oldSubRowsNumber; i++ {
 		coloredColumns := make([]interface{}, colNumber)
 		coloredColumns[0] = getColoredText(colorize, version, hostUpdate)
@@ -393,7 +400,14 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 			strings.TrimSpace(oldConnectionSubRows[i]), operation)
 
 		coloredColumns[3] = statusValue
-		coloredColumns[4] = messageValue
+
+		if oldShareable != newShareable {
+			coloredColumns[4] = getColoredText(colorize, shareableValue, hostUpdate)
+		} else {
+			coloredColumns[4] = shareableValue
+		}
+
+		coloredColumns[5] = messageValue
 
 		operation = hostNoOperation
 		if oldLabelSubRows[i] != "" {
@@ -403,7 +417,7 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 				operation = hostUpdate
 			}
 		}
-		coloredColumns[5] = getColoredText(colorize,
+		coloredColumns[6] = getColoredText(colorize,
 			strings.TrimSpace(oldLabelSubRows[i]), operation)
 
 		table.AddRow(coloredColumns...)
@@ -412,13 +426,14 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 			version = ""
 			nameValue = ""
 			statusValue = ""
+			shareableValue = ""
 			messageValue = ""
 		}
 	}
 
 	// Add rows for new values, one row for each sub-column
-	version, nameValue, statusValue, messageValue =
-		"new", name, status.String(), message
+	version, nameValue, statusValue, shareableValue, messageValue =
+		"new", name, status.String(), strconv.FormatBool(newShareable), message
 	for i := 0; i < newSubRowsNumber; i++ {
 		coloredColumns := make([]interface{}, colNumber)
 		coloredColumns[0] = getColoredText(colorize, version, hostUpdate)
@@ -434,7 +449,12 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 			strings.TrimSpace(newConnectionSubRows[i]), operation)
 
 		coloredColumns[3] = statusValue
-		coloredColumns[4] = messageValue
+		if oldShareable != newShareable {
+			coloredColumns[4] = getColoredText(colorize, shareableValue, hostUpdate)
+		} else {
+			coloredColumns[4] = shareableValue
+		}
+		coloredColumns[5] = messageValue
 
 		operation = hostNoOperation
 		if newLabelSubRows[i] != "" {
@@ -444,7 +464,7 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 				operation = hostUpdate
 			}
 		}
-		coloredColumns[5] = getColoredText(colorize,
+		coloredColumns[6] = getColoredText(colorize,
 			strings.TrimSpace(newLabelSubRows[i]), operation)
 
 		table.AddRow(coloredColumns...)
@@ -453,6 +473,7 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 			version = ""
 			nameValue = ""
 			statusValue = ""
+			shareableValue = ""
 			messageValue = ""
 		}
 	}

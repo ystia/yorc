@@ -25,6 +25,7 @@ import (
 	"github.com/ystia/yorc/commands"
 	"github.com/ystia/yorc/helper/tabutil"
 	"github.com/ystia/yorc/prov/hostspool"
+	"strconv"
 )
 
 // Internal constants for operations on hosts pool
@@ -79,7 +80,7 @@ func setHostsPoolConfig() {
 	viper.SetDefault("skip_tls_verify", false)
 }
 
-// getColoredText returns a text colored accroding to the operation in
+// getColoredText returns a text colored according to the operation in
 // argument :
 // - red for a deletion
 // - yellow for an update (bold for the new version, regular for the old one)
@@ -137,16 +138,18 @@ func padSlices(slice1 []string, slice2 []string) ([]string, []string) {
 	return slice1, slice2
 }
 
-// AaddRow adds a row to a table, with text colored according to the operation
+// AddRow adds a row to a table, with text colored according to the operation
 func addRow(table tabutil.Table, colorize bool, operation int,
 	name string,
 	connection hostspool.Connection,
 	status *hostspool.HostStatus,
+	shareable bool,
 	message *string,
 	labels map[string]string) {
 
-	colNumber := 2
+	colNumber := 3
 	statusString := ""
+	shareableString := strconv.FormatBool(shareable)
 	if status != nil {
 		colNumber++
 		statusString = status.String()
@@ -187,6 +190,8 @@ func addRow(table tabutil.Table, colorize bool, operation int,
 
 			j++
 		}
+		coloredColumns[j] = getColoredText(colorize, shareableString, operation)
+		j++
 		if message != nil {
 			coloredColumns[j] = getColoredText(colorize, messageString, operation)
 			j++
@@ -201,6 +206,7 @@ func addRow(table tabutil.Table, colorize bool, operation int,
 			// Don't repeat single column values in sub-columns
 			name = ""
 			statusString = ""
+			shareableString = ""
 			messageString = ""
 		}
 	}
