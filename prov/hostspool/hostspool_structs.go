@@ -83,10 +83,18 @@ func (conn Connection) String() string {
 
 // An Host holds information on an Host as it is known by the hostspool
 type Host struct {
-	Name       string            `json:"name,omitempty"`
-	Connection Connection        `json:"connection"`
-	Status     HostStatus        `json:"status"`
-	Shareable  bool              `json:"shareable"`
-	Message    string            `json:"reason,omitempty"`
-	Labels     map[string]string `json:"labels,omitempty"`
+	Name          string            `json:"name,omitempty"`
+	Connection    Connection        `json:"connection"`
+	Status        HostStatus        `json:"status"`
+	Shareable     bool              `json:"shareable"`
+	Message       string            `json:"reason,omitempty"`
+	Labels        map[string]string `json:"labels,omitempty"`
+	AllocationsNb int               `json:"allocations_nb,omitempty"`
+}
+
+// hostResources represents host main resources (cpus, disk, ram)
+type hostResources struct {
+	cpus     int64
+	memSize  int64
+	diskSize int64
 }

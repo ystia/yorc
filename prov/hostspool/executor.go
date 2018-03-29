@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/dustin/go-humanize"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
@@ -35,7 +36,9 @@ import (
 	"strconv"
 )
 
-type defaultExecutor struct{}
+type defaultExecutor struct {
+	allocatedResources *hostResources
+}
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	cc, err := cfg.GetConsulClient()
@@ -56,6 +59,10 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
+	}
+	e.allocatedResources, err = e.getAllocatedResourcesFromHostCapabilities(cc.KV(), deploymentID, nodeName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q", nodeName, deploymentID)
 	}
 	switch strings.ToLower(delegateOperation) {
 	case "install":
@@ -195,9 +202,57 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 				return err
 			}
 		}
+
+		labels, err := updateHostResourcesLabels(&host, e.allocatedResources, true)
+		if err != nil {
+			return errors.Wrapf(err, "failed updating labels for hostname:%q", host.Name)
+		}
+		if err := saveLabels(host.Name, labels, hpManager); err != nil {
+			return errors.Wrapf(err, "failed saving labels for hostname:%q", host.Name)
+		}
 	}
 
 	return nil
+}
+
+func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (*hostResources, error) {
+	res := &hostResources{}
+	found, p, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "num_cpus")
+	if err != nil {
+		return nil, err
+	}
+	if found && p != "" {
+		c, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, err
+		}
+		res.cpus = int64(c)
+	}
+
+	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "mem_size")
+	if err != nil {
+		return nil, err
+	}
+	if found && p != "" {
+		c, err := humanize.ParseBytes(p)
+		if err != nil {
+			return nil, err
+		}
+		res.memSize = int64(c)
+	}
+
+	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "disk_size")
+	if err != nil {
+		return nil, err
+	}
+	if found && p != "" {
+		c, err := humanize.ParseBytes(p)
+		if err != nil {
+			return nil, err
+		}
+		res.diskSize = int64(c)
+	}
+	return res, nil
 }
 
 func appendCapabilityFilter(kv *api.KV, deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
@@ -276,6 +331,21 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
+
+		host, err := hpManager.GetHost(hostname)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+		if &host != nil {
+			labels, err := updateHostResourcesLabels(&host, e.allocatedResources, false)
+			if err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(err, "failed updating labels for hostname:%q", host.Name))
+			}
+			if err := saveLabels(host.Name, labels, hpManager); err != nil {
+				errs = multierror.Append(errs, errors.Wrapf(err, "failed saving labels for hostname:%q", host.Name))
+			}
+		}
+
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
 }
@@ -289,4 +359,99 @@ func setAttributeFromLabel(deploymentID, nodeName, instance, label string, value
 		}
 	}
 	return nil
+}
+
+func updateHostResourcesLabels(host *Host, allocResources *hostResources, allocate bool) (map[string]string, error) {
+	labels := make(map[string]string)
+
+	// Host Resources Labels can only be updated when deployment resources requirement is described
+	if allocResources.cpus != 0 {
+		if cpusNbStr, ok := host.Labels["host.num_cpus"]; ok {
+			cpus, err := strconv.Atoi(cpusNbStr)
+			if err != nil {
+				return nil, err
+			}
+
+			res := allocOrRelease(int64(cpus), int64(allocResources.cpus), allocate)
+			if allocate && res < 0 {
+				return nil, errors.Errorf("Illegal allocation : not enough cpus for host:%q", host.Name)
+			}
+			labels["host.num_cpus"] = strconv.Itoa(int(res))
+		}
+	}
+
+	if allocResources.memSize != 0 {
+		if memSizeStr, ok := host.Labels["host.mem_size"]; ok {
+			memSize, err := humanize.ParseBytes(memSizeStr)
+			if err != nil {
+				return nil, err
+			}
+
+			res := allocOrRelease(int64(memSize), allocResources.memSize, allocate)
+			if allocate && res < 0 {
+				return nil, errors.Errorf("Illegal allocation : not enough memory for host:%q", host.Name)
+			}
+			labels["host.mem_size"] = formatBytes(res, isIECformat(memSizeStr))
+		}
+	}
+
+	if allocResources.diskSize != 0 {
+		if diskSizeStr, ok := host.Labels["host.disk_size"]; ok {
+			diskSize, err := humanize.ParseBytes(diskSizeStr)
+			if err != nil {
+				return nil, err
+			}
+
+			res := allocOrRelease(int64(diskSize), allocResources.diskSize, allocate)
+			if allocate && res < 0 {
+				return nil, errors.Errorf("Illegal allocation : not enough disk space for host:%q", host.Name)
+			}
+			labels["host.disk_size"] = formatBytes(res, isIECformat(diskSizeStr))
+		}
+	}
+
+	return labels, nil
+}
+
+func allocOrRelease(valA int64, valB int64, alloc bool) int64 {
+	var res int64
+	if alloc {
+		res = valA - valB
+	} else {
+		res = valA + valB
+	}
+	return res
+}
+
+func saveLabels(hostname string, labels map[string]string, hpManager Manager) error {
+	keys := make([]string, 0)
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+
+	// Maybe updating labels is a better solution...
+	if err := hpManager.RemoveLabels(hostname, keys); err != nil {
+		return err
+	}
+	if err := hpManager.AddLabels(hostname, labels); err != nil {
+		return err
+	}
+	return nil
+}
+
+func formatBytes(value int64, isIEC bool) string {
+	if isIEC {
+		return humanize.IBytes(uint64(value))
+	}
+	return humanize.Bytes(uint64(value))
+}
+
+func isIECformat(value string) bool {
+	if value != "" && strings.HasSuffix(value, "iB") {
+		return true
+	}
+	return false
 }

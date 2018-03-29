@@ -679,20 +679,11 @@ func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, er
 	return status, nil
 }
 
-func (cm *consulManager) GetHostShareableProp(hostname string) (bool, error) {
-	return cm.getShareableProp(hostname, false)
-}
-
-func (cm *consulManager) getShareableProp(hostname string, backup bool) (bool, error) {
+func (cm *consulManager) isShareableHost(hostname string) (bool, error) {
 	if hostname == "" {
 		return false, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
-	keyname := "shareable"
-	if backup {
-		keyname = ".shareableBackup"
-	}
-
-	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, keyname), nil)
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "shareable"), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -706,6 +697,53 @@ func (cm *consulManager) getShareableProp(hostname string, backup bool) (bool, e
 	}
 
 	return shareable, nil
+}
+
+func (cm *consulManager) setAllocationsNb(hostname string, allocNb int) error {
+	_, err := cm.cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, hostname, "allocationsNb"), Value: []byte(strconv.Itoa(allocNb))}, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return nil
+}
+
+func (cm *consulManager) increaseAllocationNb(hostname string) error {
+	nbAlloc, err := cm.getAllocationsNb(hostname)
+	if err != nil {
+		return err
+	}
+	return cm.setAllocationsNb(hostname, nbAlloc+1)
+}
+
+func (cm *consulManager) decreaseAllocationNb(hostname string) error {
+	nbAlloc, err := cm.getAllocationsNb(hostname)
+	if err != nil {
+		return err
+	}
+	if nbAlloc <= 0 {
+		return errors.Errorf("Failed to decrease allocations nb for the hostname:%q because it has no allocations.", hostname)
+	}
+	return cm.setAllocationsNb(hostname, nbAlloc-1)
+}
+
+func (cm *consulManager) getAllocationsNb(hostname string) (int, error) {
+	if hostname == "" {
+		return 0, errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "allocationsNb"), nil)
+	if err != nil {
+		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return 0, errors.WithStack(hostNotFoundError{})
+	}
+	alloc := string(kvp.Value)
+	allocNb, err := strconv.Atoi(alloc)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse int from value %s for host %q", alloc, hostname)
+	}
+
+	return allocNb, nil
 }
 
 func (cm *consulManager) DoesHostHasConnectionPrivateKey(hostname string) (bool, error) {
@@ -855,7 +893,7 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
-	host.Shareable, err = cm.GetHostShareableProp(hostname)
+	host.Shareable, err = cm.isShareableHost(hostname)
 	if err != nil {
 		return host, err
 	}
@@ -878,7 +916,7 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 	if err != nil {
 		return "", warnings, err
 	}
-	// Filters only free and connectable hosts but try to bypass errors if we can allocate an host
+	// Filters only free or shareable hosts (and always connectable) but try to bypass errors if we can allocate an host
 	var lastErr error
 	freeHosts := hosts[:0]
 	for _, h := range hosts {
@@ -899,7 +937,7 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 			if hs == HostStatusFree {
 				freeHosts = append(freeHosts, h)
 			} else if hs == HostStatusAllocated {
-				shareable, err := cm.GetHostShareableProp(h)
+				shareable, err := cm.isShareableHost(h)
 				if err != nil {
 					lastErr = err
 				}
@@ -923,11 +961,36 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 		return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
 	default:
 	}
+
+	if err := cm.handleAllocations(hostname, true); err != nil {
+		return "", warnings, err
+	}
 	return hostname, warnings, cm.setHostStatusWithMessage(hostname, HostStatusAllocated, message)
 }
+
+func (cm *consulManager) handleAllocations(hostname string, allocate bool) error {
+	shareable, err := cm.isShareableHost(hostname)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve shareable property for hostname:%q", hostname)
+	}
+	if shareable {
+		if allocate {
+			if err := cm.increaseAllocationNb(hostname); err != nil {
+				return errors.Wrapf(err, "failed to add allocation for hostname:%q", hostname)
+			}
+		} else {
+			if err := cm.increaseAllocationNb(hostname); err != nil {
+				return errors.Wrapf(err, "failed to remove allocation for hostname:%q", hostname)
+			}
+		}
+	}
+	return nil
+}
+
 func (cm *consulManager) Release(hostname string) error {
 	return cm.releaseWait(hostname, 45*time.Second)
 }
+
 func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration) error {
 	_, cleanupFn, err := cm.lockKey(hostname, "release", maxWaitTime)
 	if err != nil {
@@ -951,7 +1014,8 @@ func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration)
 		cm.backupHostStatus(hostname)
 		cm.setHostStatusWithMessage(hostname, HostStatusError, "failed to connect to host")
 	}
-	return nil
+
+	return cm.handleAllocations(hostname, false)
 }
 
 func resolveTemplatesInConnection(conn *Connection) {
