@@ -37,8 +37,12 @@ import (
 const (
 	// CheckpointError is an error of checkpoint between the current Hosts Pool
 	// and an apply change request
-	CheckpointError    = "Checkpoint for Hosts Pool error"
-	maxWaitTimeSeconds = 45
+	CheckpointError = "Checkpoint for Hosts Pool error"
+	// maxWaitTimeSeconds is the max time to wait for a lock on write operations
+	maxWaitTimeSeconds = 120
+	// maxNbTransactionOps is the maximum number of operations within a transaction
+	// supported by Consul (limit hard-coded in Consul implementation)
+	maxNbTransactionOps = 64
 )
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
@@ -514,7 +518,7 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 		LockWaitTime:   lockWaitTime,
 		// Not setting LockTryOnce to true to workaround this Consul issue:
 		// https://github.com/hashicorp/consul/issues/4003
-		LockTryOnce: false,
+		// LockTryOnce: true,
 		SessionName: sessionName,
 		SessionTTL:  lockWaitTime.String(),
 		SessionOpts: &api.SessionEntry{
@@ -527,7 +531,8 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 	}
 
 	// To workaround Consul issue https://github.com/hashicorp/consul/issues/4003
-	// LockTryOnce was set to false.
+	// LockTryOnce is false (default value) which means lock.Lock() will be
+	// blocking.
 	// Now to avoid being blocked forever attempting to get the lock, arming a
 	// timer and closing a stopChannel if this timer expires to go out of the
 	// call to lock.Lock(stopChannel) below
@@ -535,8 +540,10 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 	timerWaitLock := time.NewTimer(lockWaitTime)
 	go func() {
 		<-timerWaitLock.C
-		// Timer expired, closing stop channel to stop the blocking lovk below
-		close(stopChannel)
+		// Timer expired, closing stop channel to stop the blocking lock below
+		if lockCh == nil {
+			close(stopChannel)
+		}
 	}()
 	lockCh, err = lock.Lock(stopChannel)
 	timerWaitLock.Stop()
@@ -1117,12 +1124,11 @@ func (cm *consulManager) applyWait(
 	default:
 	}
 
-	// Need to split the transaction if there are more than 64 operations
-	// (hardcoded max value within Consul)
-	maxNbOps := 64
+	// Need to split the transaction if there are more than the max number of
+	// operations in a transaction supported by Consul
 	opsLength := len(ops)
-	for begin := 0; begin < opsLength; begin += maxNbOps {
-		end := begin + maxNbOps
+	for begin := 0; begin < opsLength; begin += maxNbTransactionOps {
+		end := begin + maxNbTransactionOps
 		if end > opsLength {
 			end = opsLength
 		}
