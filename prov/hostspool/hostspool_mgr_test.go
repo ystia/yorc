@@ -524,9 +524,9 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 	err = cm.updateHostWait("concurrent_host1", Connection{}, false, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
-	_, _, err = cm.allocateWait(500*time.Millisecond, "test message")
+	_, _, err = cm.allocateWait(500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"})
 	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")
-	err = cm.releaseWait("concurrent_host1", 500*time.Millisecond)
+	err = cm.releaseWait("concurrent_host1", &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
 }
 
@@ -585,18 +585,20 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	}
 
 	// Allocate host1
-	allocationMsg := "For tests purposes"
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(allocationMsg, filter)
+	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
 	allocatedHost, err := cm.GetHost(allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
-	assert.Equal(t, allocationMsg, allocatedHost.Message,
-		"Unexpected allocation message for allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 
 	// Change the pool definition by :
 	// - changing connection settings of host0
@@ -679,9 +681,6 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	// Check the allocated status of host1 didn't change
 	allocatedHost, err = cm.GetHost(allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
-	assert.Equal(t, allocationMsg, allocatedHost.Message)
-	assert.Equal(t, allocationMsg, allocatedHost.Message,
-		"Unexpected alloc message for allocated host after Pool redefinition")
 	assert.Equal(t, HostStatusAllocated, allocatedHost.Status,
 		"Unexpected status for an allocated host after Pool redefinition")
 }
@@ -769,18 +768,20 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
 
 	// Allocate host1
-	allocationMsg := "For tests purposes"
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(allocationMsg, filter)
+	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
 	allocatedHost, err := cm.GetHost(allocatedName)
 	require.NoError(t, err, "Unexpected error getting allocated host")
-	assert.Equal(t, allocationMsg, allocatedHost.Message,
-		"Unexpected allocation message for allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
 
 	hosts1, _, checkpoint, err := cm.List()
 	require.NoError(t, err, "Unexpected error getting the hosts pool")

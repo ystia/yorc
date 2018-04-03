@@ -50,8 +50,8 @@ type Manager interface {
 	UpdateHost(hostname string, connection Connection, shareable bool) error
 	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(hostname string) (Host, error)
-	Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
-	Release(hostname string) error
+	Allocate(allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
+	Release(hostname string, allocation *Allocation) error
 }
 
 // SSHClientFactory is a that could be called to customize the client used to check the connection.
@@ -699,51 +699,64 @@ func (cm *consulManager) isShareableHost(hostname string) (bool, error) {
 	return shareable, nil
 }
 
-func (cm *consulManager) setAllocationsNb(hostname string, allocNb int) error {
-	_, err := cm.cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, hostname, "allocationsNb"), Value: []byte(strconv.Itoa(allocNb))}, nil)
-	if err != nil {
+func (cm *consulManager) addAllocation(hostname string, allocation *Allocation) error {
+	prefix := path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID)
+	if err := consulutil.StoreConsulKeyAsString(prefix+"/node_name", allocation.NodeName); err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if err := consulutil.StoreConsulKeyAsString(prefix+"/instance", allocation.Instance); err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if err := consulutil.StoreConsulKeyAsString(prefix+"/deployment_id", allocation.DeploymentID); err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return nil
 }
 
-func (cm *consulManager) increaseAllocationNb(hostname string) error {
-	nbAlloc, err := cm.getAllocationsNb(hostname)
-	if err != nil {
-		return err
-	}
-	return cm.setAllocationsNb(hostname, nbAlloc+1)
+func (cm *consulManager) removeAllocation(hostname string, allocation *Allocation) error {
+	_, err := cm.cc.KV().DeleteTree(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
-func (cm *consulManager) decreaseAllocationNb(hostname string) error {
-	nbAlloc, err := cm.getAllocationsNb(hostname)
-	if err != nil {
-		return err
-	}
-	if nbAlloc <= 0 {
-		return errors.Errorf("Failed to decrease allocations nb for the hostname:%q because it has no allocations.", hostname)
-	}
-	return cm.setAllocationsNb(hostname, nbAlloc-1)
-}
-
-func (cm *consulManager) getAllocationsNb(hostname string) (int, error) {
+func (cm *consulManager) GetAllocations(hostname string) ([]Allocation, error) {
+	allocations := make([]Allocation, 0)
 	if hostname == "" {
-		return 0, errors.WithStack(badRequestError{`"hostname" missing`})
+		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
-	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "allocationsNb"), nil)
+	keys, _, err := cm.cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations"), "/", nil)
 	if err != nil {
-		return 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return 0, errors.WithStack(hostNotFoundError{})
-	}
-	alloc := string(kvp.Value)
-	allocNb, err := strconv.Atoi(alloc)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse int from value %s for host %q", alloc, hostname)
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
-	return allocNb, nil
+	for _, key := range keys {
+		alloc := Allocation{}
+		kvp, _, err := cm.cc.KV().Get(path.Join(key, "node_name"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && len(kvp.Value) > 0 {
+			alloc.NodeName = string(kvp.Value)
+		}
+
+		kvp, _, err = cm.cc.KV().Get(path.Join(key, "instance"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && len(kvp.Value) > 0 {
+			alloc.Instance = string(kvp.Value)
+		}
+
+		kvp, _, err = cm.cc.KV().Get(path.Join(key, "deployment_id"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && len(kvp.Value) > 0 {
+			alloc.DeploymentID = string(kvp.Value)
+		}
+
+		allocations = append(allocations, alloc)
+	}
+	return allocations, nil
 }
 
 func (cm *consulManager) DoesHostHasConnectionPrivateKey(hostname string) (bool, error) {
@@ -897,15 +910,19 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
+	host.Allocations, err = cm.GetAllocations(hostname)
+	if err != nil {
+		return host, err
+	}
 
 	host.Labels, err = cm.GetHostLabels(hostname)
 	return host, err
 }
 
-func (cm *consulManager) Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
-	return cm.allocateWait(45*time.Second, message, filters...)
+func (cm *consulManager) Allocate(allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
+	return cm.allocateWait(45*time.Second, allocation, filters...)
 }
-func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
+func (cm *consulManager) allocateWait(maxWaitTime time.Duration, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
 	lockCh, cleanupFn, err := cm.lockKey("", "allocation", maxWaitTime)
 	if err != nil {
 		return "", nil, err
@@ -962,36 +979,18 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string,
 	default:
 	}
 
-	if err := cm.handleAllocations(hostname, true); err != nil {
-		return "", warnings, err
+	if err := cm.addAllocation(hostname, allocation); err != nil {
+		return "", warnings, errors.Wrapf(err, "failed to add allocation for hostname:%q", hostname)
 	}
-	return hostname, warnings, cm.setHostStatusWithMessage(hostname, HostStatusAllocated, message)
+
+	return hostname, warnings, cm.setHostStatus(hostname, HostStatusAllocated)
 }
 
-func (cm *consulManager) handleAllocations(hostname string, allocate bool) error {
-	shareable, err := cm.isShareableHost(hostname)
-	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve shareable property for hostname:%q", hostname)
-	}
-	if shareable {
-		if allocate {
-			if err := cm.increaseAllocationNb(hostname); err != nil {
-				return errors.Wrapf(err, "failed to add allocation for hostname:%q", hostname)
-			}
-		} else {
-			if err := cm.increaseAllocationNb(hostname); err != nil {
-				return errors.Wrapf(err, "failed to remove allocation for hostname:%q", hostname)
-			}
-		}
-	}
-	return nil
+func (cm *consulManager) Release(hostname string, allocation *Allocation) error {
+	return cm.releaseWait(hostname, allocation, 45*time.Second)
 }
 
-func (cm *consulManager) Release(hostname string) error {
-	return cm.releaseWait(hostname, 45*time.Second)
-}
-
-func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration) error {
+func (cm *consulManager) releaseWait(hostname string, allocation *Allocation, maxWaitTime time.Duration) error {
 	_, cleanupFn, err := cm.lockKey(hostname, "release", maxWaitTime)
 	if err != nil {
 		return err
@@ -1014,8 +1013,7 @@ func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration)
 		cm.backupHostStatus(hostname)
 		cm.setHostStatusWithMessage(hostname, HostStatusError, "failed to connect to host")
 	}
-
-	return cm.handleAllocations(hostname, false)
+	return cm.removeAllocation(hostname, allocation)
 }
 
 func resolveTemplatesInConnection(conn *Connection) {

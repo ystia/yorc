@@ -45,6 +45,10 @@ func TestUpdateHostResourcesLabels(t *testing.T) {
 		{"testSimpleAllocWithMiB", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GiB", "host.mem_size": "20 GiB"}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, true}, false, map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 B"}},
 		{"testSimpleRelease", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GB", "host.mem_size": "0 GB"}}, &hostResources{diskSize: int64(Test50GB), memSize: int64(Test20GB), cpus: int64(8)}, false}, false, map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GB", "host.mem_size": "20 GB"}},
 		{"testSimpleReleaseWithMiB", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, false}, false, map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GiB", "host.mem_size": "20 GiB"}},
+		{"testSimpleAllocWithoutHostResources", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}}, &hostResources{}, true}, false, map[string]string{}},
+		{"testSimpleAllocWithoutHostResources", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}}, &hostResources{}, false}, false, map[string]string{}},
+		{"testSimpleAllocWithoutLabels", args{&Host{Name: "host1", Labels: map[string]string{}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, true}, false, map[string]string{}},
+		{"testSimpleReleaseWithoutLabels", args{&Host{Name: "host1", Labels: map[string]string{}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, false}, false, map[string]string{}},
 	}
 
 	for _, tt := range tests {

@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"net/url"
 )
 
 // HostStatus x ENUM(
@@ -83,13 +84,13 @@ func (conn Connection) String() string {
 
 // An Host holds information on an Host as it is known by the hostspool
 type Host struct {
-	Name          string            `json:"name,omitempty"`
-	Connection    Connection        `json:"connection"`
-	Status        HostStatus        `json:"status"`
-	Shareable     bool              `json:"shareable"`
-	Message       string            `json:"reason,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
-	AllocationsNb int               `json:"allocations_nb,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Connection  Connection        `json:"connection"`
+	Status      HostStatus        `json:"status"`
+	Shareable   bool              `json:"shareable"`
+	Message     string            `json:"reason,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Allocations []Allocation      `json:"allocations,omitempty"`
 }
 
 // hostResources represents host main resources (cpus, disk, ram)
@@ -97,4 +98,23 @@ type hostResources struct {
 	cpus     int64
 	memSize  int64
 	diskSize int64
+}
+
+// An Allocation describes the related allocation associated to a host pool
+type Allocation struct {
+	ID           string `json:"id"`
+	NodeName     string `json:"node_name"`
+	Instance     string `json:"instance"`
+	DeploymentID string `json:"deployment_id"`
+}
+
+// NewAllocation allows to create a new allocation
+func NewAllocation(nodeName, instance, deploymentID string) (*Allocation, error) {
+	if nodeName == "" || instance == "" || deploymentID == "" {
+		return nil, errors.New("Node name, instance and deployment ID must be set for creating new allocation")
+	}
+
+	alloc := &Allocation{NodeName: nodeName, DeploymentID: deploymentID, Instance: instance}
+	alloc.ID = url.QueryEscape(strings.Join([]string{alloc.DeploymentID, alloc.NodeName, alloc.Instance}, "-"))
+	return alloc, nil
 }

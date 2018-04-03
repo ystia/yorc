@@ -17,7 +17,6 @@ package hostspool
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/ystia/yorc/helper/labelsutil"
@@ -127,7 +126,12 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		logOptFields, _ := events.FromContext(originalCtx)
 		logOptFields[events.InstanceID] = instance
 		ctx := events.NewContext(originalCtx, logOptFields)
-		hostname, warnings, err := hpManager.Allocate(fmt.Sprintf(`allocated for node instance "%s-%s" in deployment %q`, nodeName, instance, deploymentID), filters...)
+
+		allocation, err := NewAllocation(nodeName, instance, deploymentID)
+		if err != nil {
+			return err
+		}
+		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
 				NewLogEntry(events.WARN, deploymentID).Registerf(`%v`, warn)
@@ -327,7 +331,11 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
 			continue
 		}
-		err = hpManager.Release(hostname)
+		allocation, err := NewAllocation(nodeName, instance, deploymentID)
+		if err != nil {
+			return err
+		}
+		err = hpManager.Release(hostname, allocation)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
