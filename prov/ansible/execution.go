@@ -344,7 +344,7 @@ func (e *executionCommon) setHostConnection(kv *api.KV, host, instanceID, capTyp
 		if found && port != "" {
 			conn.port, err = strconv.Atoi(port)
 			if err != nil {
-				return errors.Wrapf(err,"Failed to convert port value:%q to int", port)
+				return errors.Wrapf(err, "Failed to convert port value:%q to int", port)
 			}
 		}
 	}
