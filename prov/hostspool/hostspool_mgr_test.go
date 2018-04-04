@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -554,6 +555,7 @@ func createHosts(hostsNumber int, shareable bool) []Host {
 
 	return hostpool
 }
+
 func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
@@ -950,4 +952,78 @@ func testConsulManagerAllocateShareableHost(t *testing.T, cc *api.Client) {
 	require.NotNil(t, allocatedHost)
 	require.Equal(t, 0, len(allocatedHost.Allocations))
 	require.Equal(t, HostStatusFree, allocatedHost.Status)
+}
+
+func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
+
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	numberOfHosts := 50
+
+	// Configure a Hosts Pool
+	var hostpool = createHosts(numberOfHosts)
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	// Check the pool now
+	hosts, warnings, _, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, numberOfHosts)
+
+	results := make(chan string, numberOfHosts)
+	errors := make(chan error, numberOfHosts)
+
+	var waitGroup sync.WaitGroup
+	for i := 0; i < numberOfHosts; i++ {
+		waitGroup.Add(1)
+		go routineAllocate(i, cm, &waitGroup, results, errors)
+	}
+	waitGroup.Wait()
+
+	// Check no error occured attempting to allocate a host
+	select {
+	case err := <-errors:
+		require.NoError(t, err, "Unexpected error allocating hosts in parallel")
+	default:
+	}
+
+	close(results)
+	close(errors)
+
+	// Check all hosts are allocated
+	hosts, _, _, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool after allocation")
+
+	for _, hostname := range hosts {
+		host, err := cm.GetHost(hostname)
+		require.NoError(t, err, "Failed to get host %s", hostname)
+		assert.Equal(t, HostStatusAllocated.String(), host.Status.String(),
+			"Unexpected status for host %s", hostname)
+	}
+
+}
+
+func routineAllocate(
+	id int,
+	cm *consulManager,
+	waitGroup *sync.WaitGroup,
+	results chan<- string,
+	errors chan<- error) {
+
+	defer waitGroup.Done()
+
+	allocateMessage := "Message" + strconv.Itoa(id)
+
+	fmt.Println("Attempting to allocate a host in routine", id)
+	hostname, _, err := cm.Allocate(allocateMessage)
+	if err != nil {
+		fmt.Println("Failed to allocate a host in routine", id)
+		errors <- err
+	} else {
+		fmt.Println("Allocated host", hostname, "in routine", id)
+		results <- hostname
+	}
+
 }

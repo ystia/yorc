@@ -38,6 +38,11 @@ const (
 	// CheckpointError is an error of checkpoint between the current Hosts Pool
 	// and an apply change request
 	CheckpointError = "Checkpoint for Hosts Pool error"
+	// maxWaitTimeSeconds is the max time to wait for a lock on write operations
+	maxWaitTimeSeconds = 120
+	// maxNbTransactionOps is the maximum number of operations within a transaction
+	// supported by Consul (limit hard-coded in Consul implementation)
+	maxNbTransactionOps = 64
 )
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
@@ -88,7 +93,7 @@ type consulManager struct {
 }
 
 func (cm *consulManager) Add(hostname string, conn Connection, shareable bool, labels map[string]string) error {
-	return cm.addWait(hostname, conn, shareable, labels, 45*time.Second)
+	return cm.addWait(hostname, conn, shareable, labels, maxWaitTimeSeconds*time.Second)
 }
 func (cm *consulManager) addWait(hostname string, conn Connection, shareable bool, labels map[string]string, maxWaitTime time.Duration) error {
 
@@ -222,7 +227,7 @@ func getAddOperations(
 }
 
 func (cm *consulManager) UpdateHost(hostname string, conn Connection, shareable bool) error {
-	return cm.updateHostWait(hostname, conn, shareable, 45*time.Second)
+	return cm.updateHostWait(hostname, conn, shareable, maxWaitTimeSeconds*time.Second)
 }
 func (cm *consulManager) updateHostWait(hostname string, conn Connection, shareable bool, maxWaitTime time.Duration) error {
 	if hostname == "" {
@@ -332,7 +337,7 @@ func (cm *consulManager) updateHostWait(hostname string, conn Connection, sharea
 }
 
 func (cm *consulManager) Remove(hostname string) error {
-	return cm.removeWait(hostname, 45*time.Second)
+	return cm.removeWait(hostname, maxWaitTimeSeconds*time.Second)
 }
 func (cm *consulManager) removeWait(hostname string, maxWaitTime time.Duration) error {
 
@@ -400,7 +405,7 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 }
 
 func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {
-	return cm.addLabelsWait(hostname, labels, 45*time.Second)
+	return cm.addLabelsWait(hostname, labels, maxWaitTimeSeconds*time.Second)
 }
 func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string, maxWaitTime time.Duration) error {
 	if hostname == "" {
@@ -456,7 +461,7 @@ func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string
 }
 
 func (cm *consulManager) RemoveLabels(hostname string, labels []string) error {
-	return cm.removeLabelsWait(hostname, labels, 45*time.Second)
+	return cm.removeLabelsWait(hostname, labels, maxWaitTimeSeconds*time.Second)
 }
 func (cm *consulManager) removeLabelsWait(hostname string, labels []string, maxWaitTime time.Duration) error {
 	if hostname == "" {
@@ -522,9 +527,11 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 		Value:          []byte(fmt.Sprintf("locked for %s", sessionName)),
 		MonitorRetries: 2,
 		LockWaitTime:   lockWaitTime,
-		LockTryOnce:    true,
-		SessionName:    sessionName,
-		SessionTTL:     lockWaitTime.String(),
+		// Not setting LockTryOnce to true to workaround this Consul issue:
+		// https://github.com/hashicorp/consul/issues/4003
+		// LockTryOnce: true,
+		SessionName: sessionName,
+		SessionTTL:  lockWaitTime.String(),
 		SessionOpts: &api.SessionEntry{
 			Behavior: api.SessionBehaviorDelete,
 		},
@@ -534,19 +541,36 @@ func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Dura
 		return
 	}
 
-	lockCh, err = lock.Lock(nil)
+	// To workaround Consul issue https://github.com/hashicorp/consul/issues/4003
+	// LockTryOnce is false (default value) which means lock.Lock() will be
+	// blocking.
+	// Now to avoid being blocked forever attempting to get the lock, arming a
+	// timer and closing a stopChannel if this timer expires to go out of the
+	// call to lock.Lock(stopChannel) below
+	stopChannel := make(chan struct{})
+	timerWaitLock := time.NewTimer(lockWaitTime)
+	go func() {
+		<-timerWaitLock.C
+		// Timer expired, closing stop channel to stop the blocking lock below
+		if lockCh == nil {
+			close(stopChannel)
+		}
+	}()
+	lockCh, err = lock.Lock(stopChannel)
+	timerWaitLock.Stop()
+
 	if err != nil {
-		err = errors.Wrapf(err, "failed to acquire admin lock on hosts pool for host %q deletion", hostname)
+		err = errors.Wrapf(err, "failed to acquire admin lock on hosts pool for %s", sessionName)
 		return
 	}
 	if lockCh == nil {
-		err = errors.Errorf("failed to acquire admin lock on hosts pool for host %q deletion", hostname)
+		err = errors.Errorf("failed to acquire admin lock on Hosts Pool for %s", sessionName)
 		return
 	}
 
 	select {
 	case <-lockCh:
-		err = errors.Errorf("admin lock lost on hosts pool for host %q deletion", hostname)
+		err = errors.Errorf("admin lock lost on hosts pool for %s", sessionName)
 		return
 	default:
 	}
@@ -921,7 +945,7 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 }
 
 func (cm *consulManager) Allocate(allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
-	return cm.allocateWait(45*time.Second, allocation, filters...)
+	return cm.allocateWait(maxWaitTimeSeconds*time.Second, allocation, filters...)
 }
 func (cm *consulManager) allocateWait(maxWaitTime time.Duration, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
 	// Build allocationID
@@ -991,9 +1015,8 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, allocation *All
 
 	return hostname, warnings, cm.setHostStatus(hostname, HostStatusAllocated)
 }
-
 func (cm *consulManager) Release(hostname string, allocation *Allocation) error {
-	return cm.releaseWait(hostname, allocation, 45*time.Second)
+	return cm.releaseWait(hostname, allocation, maxWaitTimeSeconds*time.Second)
 }
 
 func (cm *consulManager) releaseWait(hostname string, allocation *Allocation, maxWaitTime time.Duration) error {
@@ -1087,7 +1110,7 @@ func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
 // If checkpoint is nil, the Hosts Pool configuration will be applied without
 // checkpoint verification.
 func (cm *consulManager) Apply(pool []Host, checkpoint *uint64) error {
-	return cm.applyWait(pool, checkpoint, 45*time.Second)
+	return cm.applyWait(pool, checkpoint, maxWaitTimeSeconds*time.Second)
 }
 
 func (cm *consulManager) applyWait(
@@ -1233,18 +1256,28 @@ func (cm *consulManager) applyWait(
 	default:
 	}
 
-	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
-	if err != nil {
-		return errors.Wrap(err, "Failed to apply new Hosts Pool configuration")
-	}
-
-	if !ok {
-		// Check the response
-		var errs []string
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
+	// Need to split the transaction if there are more than the max number of
+	// operations in a transaction supported by Consul
+	opsLength := len(ops)
+	for begin := 0; begin < opsLength; begin += maxNbTransactionOps {
+		end := begin + maxNbTransactionOps
+		if end > opsLength {
+			end = opsLength
 		}
-		err = errors.Errorf("Failed to apply new Hosts Pool configuration: %s", strings.Join(errs, ", "))
+
+		ok, response, _, err := cm.cc.KV().Txn(ops[begin:end], nil)
+		if err != nil {
+			return errors.Wrap(err, "Failed to apply new Hosts Pool configuration")
+		}
+
+		if !ok {
+			// Check the response
+			var errs []string
+			for _, e := range response.Errors {
+				errs = append(errs, e.What)
+			}
+			err = errors.Errorf("Failed to apply new Hosts Pool configuration: %s", strings.Join(errs, ", "))
+		}
 	}
 
 	// Update the connection status for each updated/created host
