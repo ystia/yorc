@@ -962,7 +962,7 @@ func testConsulManagerAllocateConcurrency(t *testing.T, cc *api.Client) {
 	numberOfHosts := 50
 
 	// Configure a Hosts Pool
-	var hostpool = createHosts(numberOfHosts)
+	var hostpool = createHosts(numberOfHosts, false)
 	var checkpoint uint64
 	err := cm.Apply(hostpool, &checkpoint)
 	require.NoError(t, err, "Unexpected failure applying host pool configuration")
@@ -1013,11 +1013,8 @@ func routineAllocate(
 	errors chan<- error) {
 
 	defer waitGroup.Done()
-
-	allocateMessage := "Message" + strconv.Itoa(id)
-
 	fmt.Println("Attempting to allocate a host in routine", id)
-	hostname, _, err := cm.Allocate(allocateMessage)
+	hostname, _, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "dep_test"})
 	if err != nil {
 		fmt.Println("Failed to allocate a host in routine", id)
 		errors <- err
