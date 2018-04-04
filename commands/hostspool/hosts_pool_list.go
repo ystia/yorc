@@ -66,11 +66,10 @@ func init() {
 			}
 
 			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Shareable", "Message", "Labels")
+			hostsTable.AddHeaders("Name", "Connection", "Status", "Shareable", "Allocations", "Message", "Labels")
 			for _, hostLink := range hostsColl.Hosts {
 				if hostLink.Rel == rest.LinkRelHost {
 					var host rest.Host
-
 					err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &host)
 					if err != nil {
 						httputil.ErrExit(err)
@@ -80,13 +79,7 @@ func init() {
 					if host.Labels == nil {
 						host.Labels = map[string]string{}
 					}
-					addRow(hostsTable, colorize, hostList,
-						host.Name,
-						host.Connection,
-						&host.Status,
-						host.Shareable,
-						&host.Message,
-						host.Labels)
+					addRow(hostsTable, colorize, hostList, &host, true)
 				}
 			}
 			if colorize {

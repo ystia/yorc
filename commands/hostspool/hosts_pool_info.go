@@ -67,17 +67,8 @@ func init() {
 			}
 
 			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Shareable", "Message", "Labels")
-			var labelsList string
-			for k, v := range host.Labels {
-				if labelsList != "" {
-					labelsList += ", "
-				}
-				labelsList += fmt.Sprintf("%s:%s", k, v)
-			}
-
-			hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), host.Shareable, host.Message, labelsList)
-
+			hostsTable.AddHeaders("Name", "Connection", "Status", "Shareable", "Allocations", "Message", "Labels")
+			addRow(hostsTable, colorize, hostList, &host, true)
 			if colorize {
 				defer color.Unset()
 			}

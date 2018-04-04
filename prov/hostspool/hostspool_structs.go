@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"fmt"
 	"github.com/pkg/errors"
 	"net/url"
 )
@@ -108,13 +109,16 @@ type Allocation struct {
 	DeploymentID string `json:"deployment_id"`
 }
 
-// NewAllocation allows to create a new allocation
-func NewAllocation(nodeName, instance, deploymentID string) (*Allocation, error) {
-	if nodeName == "" || instance == "" || deploymentID == "" {
-		return nil, errors.New("Node name, instance and deployment ID must be set for creating new allocation")
-	}
+func (alloc *Allocation) String() string {
+	return fmt.Sprintf(`node-instance: "%s-%s" in deployment: %q`, alloc.NodeName, alloc.Instance, alloc.DeploymentID)
+}
 
-	alloc := &Allocation{NodeName: nodeName, DeploymentID: deploymentID, Instance: instance}
-	alloc.ID = url.QueryEscape(strings.Join([]string{alloc.DeploymentID, alloc.NodeName, alloc.Instance}, "-"))
-	return alloc, nil
+func (alloc *Allocation) buildID() error {
+	if alloc.NodeName == "" || alloc.Instance == "" || alloc.DeploymentID == "" {
+		return errors.New("Node name, instance and deployment ID must be set")
+	}
+	if alloc.ID == "" {
+		alloc.ID = url.QueryEscape(strings.Join([]string{alloc.DeploymentID, alloc.NodeName, alloc.Instance}, "-"))
+	}
+	return nil
 }
