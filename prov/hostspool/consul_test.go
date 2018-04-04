@@ -68,4 +68,8 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("testConsulManagerApplyBadConnection", func(t *testing.T) {
 		testConsulManagerApplyBadConnection(t, client)
 	})
+	t.Run("testConsulManagerAllocateShareableHost", func(t *testing.T) {
+		testConsulManagerAllocateShareableHost(t, client)
+	})
+
 }

@@ -723,13 +723,14 @@ func (cm *consulManager) GetAllocations(hostname string) ([]Allocation, error) {
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
 	}
-	keys, _, err := cm.cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations"), "/", nil)
+	keys, _, err := cm.cc.KV().Keys(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations")+"/", "/", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 
 	for _, key := range keys {
 		alloc := Allocation{}
+		alloc.ID = path.Base(key)
 		kvp, _, err := cm.cc.KV().Get(path.Join(key, "node_name"), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -923,6 +924,11 @@ func (cm *consulManager) Allocate(allocation *Allocation, filters ...labelsutil.
 	return cm.allocateWait(45*time.Second, allocation, filters...)
 }
 func (cm *consulManager) allocateWait(maxWaitTime time.Duration, allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
+	// Build allocationID
+	if err := allocation.buildID(); err != nil {
+		return "", nil, err
+	}
+
 	lockCh, cleanupFn, err := cm.lockKey("", "allocation", maxWaitTime)
 	if err != nil {
 		return "", nil, err
@@ -991,29 +997,39 @@ func (cm *consulManager) Release(hostname string, allocation *Allocation) error 
 }
 
 func (cm *consulManager) releaseWait(hostname string, allocation *Allocation, maxWaitTime time.Duration) error {
+	// Build allocationID
+	if err := allocation.buildID(); err != nil {
+		return err
+	}
 	_, cleanupFn, err := cm.lockKey(hostname, "release", maxWaitTime)
 	if err != nil {
 		return err
 	}
 	defer cleanupFn()
 
-	status, err := cm.GetHostStatus(hostname)
+	if err := cm.removeAllocation(hostname, allocation); err != nil {
+		return errors.Wrapf(err, "failed to remove allocation with ID:%q and hostname:%q", allocation.ID, hostname)
+	}
+
+	host, err := cm.GetHost(hostname)
 	if err != nil {
 		return err
 	}
-	if status != HostStatusAllocated {
-		return errors.WithStack(badRequestError{fmt.Sprintf("unexpected status %q when releasing host %q", status.String(), hostname)})
+	// Set the host status to free for unshareable host or for shareable host with no allocations
+	if host.Shareable && host.Status != HostStatusAllocated {
+		return errors.WithStack(badRequestError{fmt.Sprintf("unexpected status %q when releasing host %q", host.Status.String(), hostname)})
 	}
-	err = cm.setHostStatus(hostname, HostStatusFree)
-	if err != nil {
-		return err
+	if !host.Shareable || len(host.Allocations) == 0 {
+		if err = cm.setHostStatus(hostname, HostStatusFree); err != nil {
+			return err
+		}
 	}
 	err = cm.checkConnection(hostname)
 	if err != nil {
 		cm.backupHostStatus(hostname)
 		cm.setHostStatusWithMessage(hostname, HostStatusError, "failed to connect to host")
 	}
-	return cm.removeAllocation(hostname, allocation)
+	return nil
 }
 
 func resolveTemplatesInConnection(conn *Connection) {

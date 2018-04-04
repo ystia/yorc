@@ -530,13 +530,14 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
 }
 
-func createHosts(hostsNumber int) []Host {
+func createHosts(hostsNumber int, shareable bool) []Host {
 
 	var hostpool = make([]Host, hostsNumber)
 	for i := 0; i < hostsNumber; i++ {
 		suffix := strconv.Itoa(i)
 		hostpool[i] = Host{
-			Name: "host" + suffix,
+			Name:      "host" + suffix,
+			Shareable: shareable,
 			Connection: Connection{
 				User:     "testuser" + suffix,
 				Password: "testpwd" + suffix,
@@ -557,7 +558,7 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
-	var hostpool = createHosts(3)
+	var hostpool = createHosts(3, false)
 
 	// Apply this definition
 	var checkpoint uint64
@@ -690,7 +691,7 @@ func testConsulManagerApplyErrorNoName(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
-	var hostpool = createHosts(3)
+	var hostpool = createHosts(3, false)
 
 	// Apply this definition
 	var checkpoint uint64
@@ -726,7 +727,7 @@ func testConsulManagerApplyErrorDuplicateName(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
-	var hostpool = createHosts(3)
+	var hostpool = createHosts(3, false)
 
 	// Apply this definition
 	var checkpoint uint64
@@ -760,7 +761,7 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
-	var hostpool = createHosts(3)
+	var hostpool = createHosts(3, false)
 
 	var checkpoint uint64
 	err := cm.Apply(hostpool, &checkpoint)
@@ -804,7 +805,7 @@ func testConsulManagerApplyErrorOutdatedCheckpoint(t *testing.T, cc *api.Client)
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
-	var hostpool = createHosts(3)
+	var hostpool = createHosts(3, false)
 
 	var checkpoint uint64
 	err := cm.Apply(hostpool, &checkpoint)
@@ -823,7 +824,7 @@ func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := &consulManager{cc, mockSSHClientFactory}
 
-	var hostpool = createHosts(3)
+	var hostpool = createHosts(3, false)
 
 	var checkpoint uint64
 	err := cm.Apply(hostpool, &checkpoint)
@@ -875,4 +876,78 @@ func testConsulManagerApplyBadConnection(t *testing.T, cc *api.Client) {
 	assert.Equal(t, HostStatusFree.String(), hostInPool.Status.String(),
 		"Expected status error fixed for host with correct credentials")
 
+}
+
+func testConsulManagerAllocateShareableHost(t *testing.T, cc *api.Client) {
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+
+	var hostpool = createHosts(1, true)
+
+	// Apply this definition
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+	// Check the pool now
+	hosts, warnings, newCkpt, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 1)
+	assert.NotEqual(t, uint64(0), newCkpt)
+	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
+
+	// Allocate host1: first allocation
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1"}
+	filterLabel := "label2"
+	filter, err := labelsutil.CreateFilter(
+		fmt.Sprintf("%s=%s", filterLabel, hostpool[0].Labels[filterLabel]))
+	require.NoError(t, err, "Unexpected error creating a filter")
+	allocatedName, warnings, err := cm.Allocate(alloc1, filter)
+	assert.Equal(t, hostpool[0].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err := cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test1", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test1", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test1", allocatedHost.Allocations[0].NodeName)
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+
+	// Allocate host1: 2nd allocation
+	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2"}
+	filterLabel = "label2"
+	filter, err = labelsutil.CreateFilter(
+		fmt.Sprintf("%s=%s", filterLabel, hostpool[0].Labels[filterLabel]))
+	require.NoError(t, err, "Unexpected error creating a filter")
+	allocatedName, warnings, err = cm.Allocate(alloc2, filter)
+	assert.Equal(t, hostpool[0].Name, allocatedName,
+		"Unexpected host allocated")
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 2, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test2", allocatedHost.Allocations[1].Instance)
+	require.Equal(t, "test2", allocatedHost.Allocations[1].DeploymentID)
+	require.Equal(t, "node_test2", allocatedHost.Allocations[1].NodeName)
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+
+	// Release 2nd allocation
+	err = cm.Release(hostpool[0].Name, alloc2)
+	require.NoError(t, err, "Unexpected error releasing host allocation1")
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
+
+	// Release 1st allocation
+	err = cm.Release(hostpool[0].Name, alloc1)
+	require.NoError(t, err, "Unexpected error releasing host allocation2")
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 0, len(allocatedHost.Allocations))
+	require.Equal(t, HostStatusFree, allocatedHost.Status)
 }

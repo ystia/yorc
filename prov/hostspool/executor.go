@@ -127,10 +127,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		logOptFields[events.InstanceID] = instance
 		ctx := events.NewContext(originalCtx, logOptFields)
 
-		allocation, err := NewAllocation(nodeName, instance, deploymentID)
-		if err != nil {
-			return err
-		}
+		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID}
 		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
@@ -331,10 +328,7 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
 			continue
 		}
-		allocation, err := NewAllocation(nodeName, instance, deploymentID)
-		if err != nil {
-			return err
-		}
+		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID}
 		err = hpManager.Release(hostname, allocation)
 		if err != nil {
 			errs = multierror.Append(errs, err)
