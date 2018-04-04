@@ -30,6 +30,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
 	"strconv"
@@ -426,6 +427,7 @@ func allocOrRelease(valA int64, valB int64, alloc bool) int64 {
 }
 
 func saveLabels(hostname string, labels map[string]string, hpManager Manager) error {
+	log.Debugf("Prepare to update host resources labels:%+v", labels)
 	keys := make([]string, 0)
 	for k := range labels {
 		keys = append(keys, k)
