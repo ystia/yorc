@@ -119,6 +119,16 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		filters = append(filters, f)
 	}
 
+	shareable := false
+	if _, s, err := deployments.GetNodeProperty(cc.KV(), deploymentID, nodeName, "shareable"); err != nil {
+		return err
+	} else if s != "" {
+		shareable, err = strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+	}
+
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -128,7 +138,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		logOptFields[events.InstanceID] = instance
 		ctx := events.NewContext(originalCtx, logOptFields)
 
-		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID}
+		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable}
 		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
@@ -440,10 +450,7 @@ func saveLabels(hostname string, labels map[string]string, hpManager Manager) er
 	if err := hpManager.RemoveLabels(hostname, keys); err != nil {
 		return err
 	}
-	if err := hpManager.AddLabels(hostname, labels); err != nil {
-		return err
-	}
-	return nil
+	return hpManager.AddLabels(hostname, labels)
 }
 
 func formatBytes(value int64, isIEC bool) string {

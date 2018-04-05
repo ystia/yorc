@@ -734,6 +734,9 @@ func (cm *consulManager) addAllocation(hostname string, allocation *Allocation) 
 	if err := consulutil.StoreConsulKeyAsString(prefix+"/deployment_id", allocation.DeploymentID); err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	if err := consulutil.StoreConsulKeyAsString(prefix+"/shareable", strconv.FormatBool(allocation.Shareable)); err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
 	return nil
 }
 
@@ -777,6 +780,17 @@ func (cm *consulManager) GetAllocations(hostname string) ([]Allocation, error) {
 		}
 		if kvp != nil && len(kvp.Value) > 0 {
 			alloc.DeploymentID = string(kvp.Value)
+		}
+
+		kvp, _, err = cm.cc.KV().Get(path.Join(key, "shareable"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && len(kvp.Value) > 0 {
+			alloc.Shareable, err = strconv.ParseBool(string(kvp.Value))
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to parse boolean from value:%q", string(kvp.Value))
+			}
 		}
 
 		allocations = append(allocations, alloc)
@@ -983,12 +997,22 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, allocation *All
 		} else {
 			if hs == HostStatusFree {
 				freeHosts = append(freeHosts, h)
-			} else if hs == HostStatusAllocated {
+			} else if hs == HostStatusAllocated && allocation.Shareable {
 				shareable, err := cm.isShareableHost(h)
 				if err != nil {
 					lastErr = err
+					continue
 				}
 				if shareable {
+					allocations, err := cm.GetAllocations(h)
+					if err != nil {
+						lastErr = err
+						continue
+					}
+					// Check the host allocation is not unshareable
+					if len(allocations) == 1 && !allocations[0].Shareable {
+						continue
+					}
 					freeHosts = append(freeHosts, h)
 				}
 			}

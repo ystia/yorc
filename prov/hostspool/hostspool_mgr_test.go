@@ -525,9 +525,9 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 	err = cm.updateHostWait("concurrent_host1", Connection{}, false, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
-	_, _, err = cm.allocateWait(500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"})
+	_, _, err = cm.allocateWait(500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false})
 	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")
-	err = cm.releaseWait("concurrent_host1", &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"}, 500*time.Millisecond)
+	err = cm.releaseWait("concurrent_host1", &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for releaseWait()")
 }
 
@@ -592,7 +592,7 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"}, filter)
+	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
 	allocatedHost, err := cm.GetHost(allocatedName)
@@ -775,7 +775,7 @@ func testConsulManagerApplyErrorDeleteAllocatedHost(t *testing.T, cc *api.Client
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, hostpool[1].Labels[filterLabel]))
 	require.NoError(t, err, "Unexpected error creating a filter")
-	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test"}, filter)
+	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false}, filter)
 	assert.Equal(t, hostpool[1].Name, allocatedName,
 		"Unexpected host allocated")
 	allocatedHost, err := cm.GetHost(allocatedName)
@@ -900,7 +900,7 @@ func testConsulManagerAllocateShareableHost(t *testing.T, cc *api.Client) {
 	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
 
 	// Allocate host1: first allocation
-	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1"}
+	alloc1 := &Allocation{NodeName: "node_test1", Instance: "instance_test1", DeploymentID: "test1", Shareable: true}
 	filterLabel := "label2"
 	filter, err := labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, hostpool[0].Labels[filterLabel]))
@@ -918,7 +918,7 @@ func testConsulManagerAllocateShareableHost(t *testing.T, cc *api.Client) {
 	require.Equal(t, HostStatusAllocated, allocatedHost.Status)
 
 	// Allocate host1: 2nd allocation
-	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2"}
+	alloc2 := &Allocation{NodeName: "node_test2", Instance: "instance_test2", DeploymentID: "test2", Shareable: true}
 	filterLabel = "label2"
 	filter, err = labelsutil.CreateFilter(
 		fmt.Sprintf("%s=%s", filterLabel, hostpool[0].Labels[filterLabel]))
@@ -1014,7 +1014,7 @@ func routineAllocate(
 
 	defer waitGroup.Done()
 	fmt.Println("Attempting to allocate a host in routine", id)
-	hostname, _, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "dep_test"})
+	hostname, _, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "dep_test", Shareable: false})
 	if err != nil {
 		fmt.Println("Failed to allocate a host in routine", id)
 		errors <- err

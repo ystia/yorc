@@ -107,6 +107,7 @@ type Allocation struct {
 	NodeName     string `json:"node_name"`
 	Instance     string `json:"instance"`
 	DeploymentID string `json:"deployment_id"`
+	Shareable    bool   `json:"shareable"`
 }
 
 func (alloc *Allocation) String() string {
