@@ -74,7 +74,6 @@ func init() {
 						Name:       restHost.Name,
 						Connection: restHost.Connection,
 						Labels:     restHost.Labels,
-						Shareable:  restHost.Shareable,
 					}
 					pool.Hosts = append(pool.Hosts, host)
 				}

@@ -71,8 +71,8 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("testConsulManagerAllocateConcurrency", func(t *testing.T) {
 		testConsulManagerAllocateConcurrency(t, client)
 	})
-	t.Run("testConsulManagerAllocateShareableHost", func(t *testing.T) {
-		testConsulManagerAllocateShareableHost(t, client)
+	t.Run("testConsulManagerAllocateShareableCompute", func(t *testing.T) {
+		testConsulManagerAllocateShareableCompute(t, client)
 	})
 
 }

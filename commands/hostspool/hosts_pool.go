@@ -26,7 +26,6 @@ import (
 	"github.com/ystia/yorc/helper/sliceutil"
 	"github.com/ystia/yorc/helper/tabutil"
 	"github.com/ystia/yorc/rest"
-	"strconv"
 )
 
 // Internal constants for operations on hosts pool
@@ -142,13 +141,12 @@ func padSlices(slice1 []string, slice2 []string) ([]string, []string) {
 // AddRow adds a row to a table, with text colored according to the operation
 // longTable specifies table with all headers
 func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, fullTable bool) {
-	colNumber := 4
+	colNumber := 3
 	if fullTable {
-		colNumber = 7
+		colNumber = 6
 	}
 
 	statusString := ""
-	shareableString := strconv.FormatBool(host.Shareable)
 	if &host.Status != nil {
 		statusString = host.Status.String()
 	}
@@ -184,8 +182,6 @@ func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, 
 			}
 			j++
 		}
-		coloredColumns[j] = getColoredText(colorize, shareableString, operation)
-		j++
 
 		if fullTable {
 			coloredColumns[j] = getColoredText(colorize,
@@ -204,7 +200,6 @@ func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, 
 			// Don't repeat single column values in sub-columns
 			host.Name = ""
 			statusString = ""
-			shareableString = ""
 			host.Message = ""
 		}
 	}

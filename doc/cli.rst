@@ -275,7 +275,6 @@ Flags:
   * ``--label``: Label in form ``key=value`` to add to the host. May be specified several time.
   * ``--port``: Port used to connect to the host. (default 22)
   * ``--user``: User used to connect to the host (default "root")
-  * ``--shareable`` or ``-m`` : Specify if the host can be shared by several applications. Default is false.
 
 
 
@@ -294,8 +293,7 @@ Host pool (JSON):
       "labels": [
         {"name": "os.type", "value": "linux"},
         {"op": "add", "name": "host.mem_size", "value": "4G"}
-      ],
-      "shareable": true
+      ]
     }
 
 Update a host pool
@@ -319,7 +317,6 @@ Flags:
   * ``--port``: Port used to connect to the host. (defaults to the hostname in the hosts pool) (default 22)
   * ``--remove-label``: Remove a label from the host. May be specified several time.
   * ``--user``: User used to connect to the host (default "root")
-  * ``--shareable`` or ``-m`` : Specify if the host can be shared by several applications. Default is false.
 
 Host pool (JSON):
 
@@ -337,8 +334,7 @@ Host pool (JSON):
         {"name": "os.type", "value": "linux"},
         {"op": "add", "name": "host.mem_size", "value": "4G"},
         {"op": "remove", "name": "host.disk_size"}
-      ],
-      "shareable": true
+      ]
     }
 
 Delete a host pool
@@ -401,7 +397,6 @@ YAML and JSON formats are accepted. The following properties are supported :
         + ``password``: either a password or a private key should be provided
         + ``private_key``: Path to a private key file (or private key file content), either a password or a private key should be provided
         + ``port``: Port used to connect to the host (default 22)
-     - ``shareable``: Specify if the host can be shared by several applications (default is false)
      - ``labels``: key/value pairs (see :ref:`yorc_infras_hostspool_filters_section` for more details on labels)
 
 
@@ -411,7 +406,6 @@ Example of a YAML Hosts Pool configuration file :
 
     hosts:
     - name: host1
-      shareable: true
       connection:
         host: host1.example.com
         user: test
@@ -429,7 +423,6 @@ Example of a YAML Hosts Pool configuration file :
         os.type: linux
         os.version: "17.1"
     - name: host2
-      shareable: false
       connection:
         host: host2.example.com
         user: test

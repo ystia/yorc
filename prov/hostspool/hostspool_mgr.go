@@ -47,12 +47,12 @@ const (
 
 // A Manager is in charge of creating/updating/deleting hosts from the pool
 type Manager interface {
-	Add(hostname string, connection Connection, shareable bool, labels map[string]string) error
+	Add(hostname string, connection Connection, labels map[string]string) error
 	Apply(pool []Host, checkpoint *uint64) error
 	Remove(hostname string) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
-	UpdateHost(hostname string, connection Connection, shareable bool) error
+	UpdateHost(hostname string, connection Connection) error
 	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(hostname string) (Host, error)
 	Allocate(allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
@@ -92,12 +92,12 @@ type consulManager struct {
 	getSSHClient SSHClientFactory
 }
 
-func (cm *consulManager) Add(hostname string, conn Connection, shareable bool, labels map[string]string) error {
-	return cm.addWait(hostname, conn, shareable, labels, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) Add(hostname string, conn Connection, labels map[string]string) error {
+	return cm.addWait(hostname, conn, labels, maxWaitTimeSeconds*time.Second)
 }
-func (cm *consulManager) addWait(hostname string, conn Connection, shareable bool, labels map[string]string, maxWaitTime time.Duration) error {
+func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
 
-	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, shareable, "")
+	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, "")
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,6 @@ func getAddOperations(
 	conn Connection,
 	labels map[string]string,
 	status HostStatus,
-	shareable bool,
 	message string) (api.KVTxnOps, error) {
 
 	if hostname == "" {
@@ -169,11 +168,6 @@ func getAddOperations(
 			Verb:  api.KVSet,
 			Key:   path.Join(hostKVPrefix, "status"),
 			Value: []byte(status.String()),
-		},
-		&api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "shareable"),
-			Value: []byte(strconv.FormatBool(shareable)),
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -226,10 +220,10 @@ func getAddOperations(
 	return addOps, nil
 }
 
-func (cm *consulManager) UpdateHost(hostname string, conn Connection, shareable bool) error {
-	return cm.updateHostWait(hostname, conn, shareable, maxWaitTimeSeconds*time.Second)
+func (cm *consulManager) UpdateHost(hostname string, conn Connection) error {
+	return cm.updateHostWait(hostname, conn, maxWaitTimeSeconds*time.Second)
 }
-func (cm *consulManager) updateHostWait(hostname string, conn Connection, shareable bool, maxWaitTime time.Duration) error {
+func (cm *consulManager) updateHostWait(hostname string, conn Connection, maxWaitTime time.Duration) error {
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
 	}
@@ -242,11 +236,6 @@ func (cm *consulManager) updateHostWait(hostname string, conn Connection, sharea
 
 	ops := make(api.KVTxnOps, 0)
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
-	ops = append(ops, &api.KVTxnOp{
-		Verb:  api.KVSet,
-		Key:   path.Join(hostKVPrefix, "shareable"),
-		Value: []byte(strconv.FormatBool(shareable)),
-	})
 	if conn.User != "" {
 		ops = append(ops, &api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -703,26 +692,6 @@ func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, er
 	return status, nil
 }
 
-func (cm *consulManager) isShareableHost(hostname string) (bool, error) {
-	if hostname == "" {
-		return false, errors.WithStack(badRequestError{`"hostname" missing`})
-	}
-	kvp, _, err := cm.cc.KV().Get(path.Join(consulutil.HostsPoolPrefix, hostname, "shareable"), nil)
-	if err != nil {
-		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return false, errors.WithStack(hostNotFoundError{})
-	}
-	shareableStr := string(kvp.Value)
-	shareable, err := strconv.ParseBool(shareableStr)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to parse boolean from value %s for host %q", shareableStr, hostname)
-	}
-
-	return shareable, nil
-}
-
 func (cm *consulManager) addAllocation(hostname string, allocation *Allocation) error {
 	prefix := path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID)
 	if err := consulutil.StoreConsulKeyAsString(prefix+"/node_name", allocation.NodeName); err != nil {
@@ -945,10 +914,6 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
-	host.Shareable, err = cm.isShareableHost(hostname)
-	if err != nil {
-		return host, err
-	}
 	host.Allocations, err = cm.GetAllocations(hostname)
 	if err != nil {
 		return host, err
@@ -977,7 +942,7 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, allocation *All
 	if err != nil {
 		return "", warnings, err
 	}
-	// Filters only free or shareable hosts (and always connectable) but try to bypass errors if we can allocate an host
+	// Filters only free or allocated hosts in case of shareable allocation
 	var lastErr error
 	freeHosts := hosts[:0]
 	for _, h := range hosts {
@@ -998,23 +963,16 @@ func (cm *consulManager) allocateWait(maxWaitTime time.Duration, allocation *All
 			if hs == HostStatusFree {
 				freeHosts = append(freeHosts, h)
 			} else if hs == HostStatusAllocated && allocation.Shareable {
-				shareable, err := cm.isShareableHost(h)
+				allocations, err := cm.GetAllocations(h)
 				if err != nil {
 					lastErr = err
 					continue
 				}
-				if shareable {
-					allocations, err := cm.GetAllocations(h)
-					if err != nil {
-						lastErr = err
-						continue
-					}
-					// Check the host allocation is not unshareable
-					if len(allocations) == 1 && !allocations[0].Shareable {
-						continue
-					}
-					freeHosts = append(freeHosts, h)
+				// Check the host allocation is not unshareable
+				if len(allocations) == 1 && !allocations[0].Shareable {
+					continue
 				}
+				freeHosts = append(freeHosts, h)
 			}
 		}
 	}
@@ -1062,11 +1020,8 @@ func (cm *consulManager) releaseWait(hostname string, allocation *Allocation, ma
 	if err != nil {
 		return err
 	}
-	// Set the host status to free for unshareable host or for shareable host with no allocations
-	if host.Shareable && host.Status != HostStatusAllocated {
-		return errors.WithStack(badRequestError{fmt.Sprintf("unexpected status %q when releasing host %q", host.Status.String(), hostname)})
-	}
-	if !host.Shareable || len(host.Allocations) == 0 {
+	// Set the host status to free only for host with no allocations
+	if len(host.Allocations) == 0 {
 		if err = cm.setHostStatus(hostname, HostStatusFree); err != nil {
 			return err
 		}
@@ -1206,8 +1161,7 @@ func (cm *consulManager) applyWait(
 			// Host already in pool, check if an update is needed
 			oldHost, _ := cm.GetHost(host.Name)
 			if oldHost.Connection == host.Connection &&
-				reflect.DeepEqual(oldHost.Labels, host.Labels) &&
-				oldHost.Shareable == host.Shareable {
+				reflect.DeepEqual(oldHost.Labels, host.Labels) {
 
 				// No config change, no update needed, ignoring this host
 				delete(hostsToUnregisterCheckAllocatedStatus, host.Name)
@@ -1241,7 +1195,7 @@ func (cm *consulManager) applyWait(
 				}
 			}
 			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				status, host.Shareable, message)
+				status, message)
 			if err != nil {
 				return err
 			}
@@ -1252,7 +1206,7 @@ func (cm *consulManager) applyWait(
 			// Host is new, creating it
 			hostChanged = append(hostChanged, host.Name)
 			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				HostStatusFree, host.Shareable, "")
+				HostStatusFree, "")
 			if err != nil {
 				return err
 			}

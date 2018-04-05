@@ -67,7 +67,7 @@ func init() {
 			}
 
 			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Shareable", "Allocations", "Message", "Labels")
+			hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
 			addRow(hostsTable, colorize, hostList, &host, true)
 			if colorize {
 				defer color.Unset()

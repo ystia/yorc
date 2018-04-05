@@ -66,7 +66,7 @@ func init() {
 			}
 
 			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Shareable", "Allocations", "Message", "Labels")
+			hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
 			for _, hostLink := range hostsColl.Hosts {
 				if hostLink.Rel == rest.LinkRelHost {
 					var host rest.Host

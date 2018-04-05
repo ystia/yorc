@@ -19,7 +19,7 @@ ensure consistency of the pool.
 
 To sum up this infrastructure type is really great when you want to use an infrastructure that is not yet supported by Yorc.
 Just take care you're responsible for handling the compatibility or conflicts of what is already installed and what will be by Yorc on your hosts pool.
-The best practice is using container isolation. This is especially true if you specify that the host can be shared by several apps with the **shareable** property.
+The best practice is using container isolation. This is especially true if a host can be shared by several apps by specifying in Tosca with the Compute **shareable** property.
 
 Hosts management
 ~~~~~~~~~~~~~~~~

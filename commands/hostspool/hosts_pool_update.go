@@ -37,7 +37,6 @@ func init() {
 	var port uint64
 	var labelsAdd []string
 	var labelsRemove []string
-	var shareable bool
 
 	var updCmd = &cobra.Command{
 		Use:   "update <hostname>",
@@ -71,7 +70,6 @@ func init() {
 				for _, l := range labelsRemove {
 					hostRequest.Labels = append(hostRequest.Labels, rest.MapEntry{Op: rest.MapEntryOperationRemove, Name: l})
 				}
-				hostRequest.Shareable = shareable
 				tmp, err := json.Marshal(hostRequest)
 				if err != nil {
 					log.Panic(err)
@@ -104,7 +102,6 @@ func init() {
 	updCmd.Flags().StringVarP(&password, "password", "p", "", `At any time a host of the pool should have at least one of private key or password. To delete a registered private key use the "-" character.`)
 	updCmd.Flags().StringSliceVarP(&labelsAdd, "add-label", "", nil, "Add a label in form 'key=value' to the host. May be specified several time.")
 	updCmd.Flags().StringSliceVarP(&labelsRemove, "remove-label", "", nil, "Remove a label from the host. May be specified several time.")
-	updCmd.Flags().BoolVarP(&shareable, "shareable", "m", false, "Specify if the host can be shared by several applications. Default is false")
 
 	hostsPoolCmd.AddCommand(updCmd)
 }
