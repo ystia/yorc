@@ -106,3 +106,42 @@ func testGetOperationImplementationFile(t *testing.T, kv *api.KV, deploymentID s
 		})
 	}
 }
+
+func testOperationHost(t *testing.T, kv *api.KV) {
+	deploymentID := testutil.BuildDeploymentID(t)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/operation_host.yaml")
+	require.NoError(t, err, "Failed to store test topology deployment definition")
+
+	type args struct {
+		typeName      string
+		interfaceName string
+		operationName string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"TestOperationHostOnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "create"}, "ORCHESTRATOR", false},
+		{"TestOperationHostDefault1OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "configure"}, "", false},
+		{"TestOperationHostDefault2OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "start"}, "", false},
+		{"TestOperationHostDefault3OnNodeType", args{"yorc.tests.OperationHosts.nodes.OHNode", "standard", "stop"}, "", false},
+		{"TestOperationHostOnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "configure", "pre_configure_source"}, "ORCHESTRATOR", false},
+		{"TestOperationHostDefault1OnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "configure", "post_configure_target"}, "", false},
+		{"TestOperationHostDefault2OnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "configure", "add_source"}, "", false},
+		{"TestOperationHostDefault3OnNodeType", args{"yorc.tests.OperationHosts.relationships.OHRel", "configure", "remove_target"}, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetOperationHostFromTypeOperation(kv, deploymentID, tt.args.typeName, tt.args.interfaceName, tt.args.operationName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetOperationHostFromTypeOperation() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetOperationHostFromTypeOperation() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

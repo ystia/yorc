@@ -75,8 +75,11 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testImportTopologyTemplate", func(t *testing.T) {
 			testImportTopologyTemplate(t, kv)
 		})
-		t.Run("TestOperationImplementationArtifact(", func(t *testing.T) {
+		t.Run("TestOperationImplementationArtifact", func(t *testing.T) {
 			testOperationImplementationArtifact(t, kv)
+		})
+		t.Run("TestOperationHost", func(t *testing.T) {
+			testOperationHost(t, kv)
 		})
 	})
 }
