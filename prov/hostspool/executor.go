@@ -30,14 +30,13 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
 	"strconv"
 )
 
 type defaultExecutor struct {
-	allocatedResources *hostResources
+	allocatedResources map[string]string
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -215,30 +214,20 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 			}
 		}
 
-		labels, err := updateHostResourcesLabels(&host, e.allocatedResources, true)
-		if err != nil {
-			return errors.Wrapf(err, "failed updating labels for hostname:%q", host.Name)
-		}
-		if err := saveLabels(host.Name, labels, hpManager); err != nil {
-			return errors.Wrapf(err, "failed saving labels for hostname:%q", host.Name)
-		}
+		return hpManager.UpdateLabels(hostname, e.allocatedResources, subtract, updateResourcesLabels)
 	}
 
 	return nil
 }
 
-func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (*hostResources, error) {
-	res := &hostResources{}
+func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
+	res := make(map[string]string, 0)
 	found, p, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
 		return nil, err
 	}
 	if found && p != "" {
-		c, err := strconv.Atoi(p)
-		if err != nil {
-			return nil, err
-		}
-		res.cpus = int64(c)
+		res["host.num_cpus"] = p
 	}
 
 	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "mem_size")
@@ -246,11 +235,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, 
 		return nil, err
 	}
 	if found && p != "" {
-		c, err := humanize.ParseBytes(p)
-		if err != nil {
-			return nil, err
-		}
-		res.memSize = int64(c)
+		res["host.mem_size"] = p
 	}
 
 	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "disk_size")
@@ -258,11 +243,7 @@ func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, 
 		return nil, err
 	}
 	if found && p != "" {
-		c, err := humanize.ParseBytes(p)
-		if err != nil {
-			return nil, err
-		}
-		res.diskSize = int64(c)
+		res["host.disk_size"] = p
 	}
 	return res, nil
 }
@@ -344,20 +325,7 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-
-		host, err := hpManager.GetHost(hostname)
-		if err != nil {
-			errs = multierror.Append(errs, err)
-		}
-		if &host != nil {
-			labels, err := updateHostResourcesLabels(&host, e.allocatedResources, false)
-			if err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(err, "failed updating labels for hostname:%q", host.Name))
-			}
-			if err := saveLabels(host.Name, labels, hpManager); err != nil {
-				errs = multierror.Append(errs, errors.Wrapf(err, "failed saving labels for hostname:%q", host.Name))
-			}
-		}
+		return hpManager.UpdateLabels(hostname, e.allocatedResources, add, updateResourcesLabels)
 
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
@@ -374,83 +342,67 @@ func setAttributeFromLabel(deploymentID, nodeName, instance, label string, value
 	return nil
 }
 
-func updateHostResourcesLabels(host *Host, allocResources *hostResources, allocate bool) (map[string]string, error) {
+func updateResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error) {
 	labels := make(map[string]string)
 
 	// Host Resources Labels can only be updated when deployment resources requirement is described
-	if allocResources.cpus != 0 {
-		if cpusNbStr, ok := host.Labels["host.num_cpus"]; ok {
-			cpus, err := strconv.Atoi(cpusNbStr)
+	if cpusDiffStr, ok := diff["host.num_cpus"]; ok {
+		if cpusOriginStr, ok := origin["host.num_cpus"]; ok {
+			cpusOrigin, err := strconv.Atoi(cpusOriginStr)
+			if err != nil {
+				return nil, err
+			}
+			cpusDiff, err := strconv.Atoi(cpusDiffStr)
 			if err != nil {
 				return nil, err
 			}
 
-			res := allocOrRelease(int64(cpus), int64(allocResources.cpus), allocate)
-			if allocate && res < 0 {
-				return nil, errors.Errorf("Illegal allocation : not enough cpus for host:%q", host.Name)
-			}
+			res := operation(int64(cpusOrigin), int64(cpusDiff))
 			labels["host.num_cpus"] = strconv.Itoa(int(res))
 		}
 	}
 
-	if allocResources.memSize != 0 {
-		if memSizeStr, ok := host.Labels["host.mem_size"]; ok {
-			memSize, err := humanize.ParseBytes(memSizeStr)
+	if memDiffStr, ok := diff["host.mem_size"]; ok {
+		if memOriginStr, ok := origin["host.mem_size"]; ok {
+			memOrigin, err := humanize.ParseBytes(memOriginStr)
+			if err != nil {
+				return nil, err
+			}
+			memDiff, err := humanize.ParseBytes(memDiffStr)
 			if err != nil {
 				return nil, err
 			}
 
-			res := allocOrRelease(int64(memSize), allocResources.memSize, allocate)
-			if allocate && res < 0 {
-				return nil, errors.Errorf("Illegal allocation : not enough memory for host:%q", host.Name)
-			}
-			labels["host.mem_size"] = formatBytes(res, isIECformat(memSizeStr))
+			res := operation(int64(memOrigin), int64(memDiff))
+			labels["host.mem_size"] = formatBytes(res, isIECformat(memOriginStr))
 		}
 	}
 
-	if allocResources.diskSize != 0 {
-		if diskSizeStr, ok := host.Labels["host.disk_size"]; ok {
-			diskSize, err := humanize.ParseBytes(diskSizeStr)
+	if diskDiffStr, ok := diff["host.disk_size"]; ok {
+		if diskOriginStr, ok := origin["host.disk_size"]; ok {
+			diskOrigin, err := humanize.ParseBytes(diskOriginStr)
+			if err != nil {
+				return nil, err
+			}
+			diskDiff, err := humanize.ParseBytes(diskDiffStr)
 			if err != nil {
 				return nil, err
 			}
 
-			res := allocOrRelease(int64(diskSize), allocResources.diskSize, allocate)
-			if allocate && res < 0 {
-				return nil, errors.Errorf("Illegal allocation : not enough disk space for host:%q", host.Name)
-			}
-			labels["host.disk_size"] = formatBytes(res, isIECformat(diskSizeStr))
+			res := operation(int64(diskOrigin), int64(diskDiff))
+			labels["host.disk_size"] = formatBytes(res, isIECformat(diskOriginStr))
 		}
 	}
 
 	return labels, nil
 }
 
-func allocOrRelease(valA int64, valB int64, alloc bool) int64 {
-	var res int64
-	if alloc {
-		res = valA - valB
-	} else {
-		res = valA + valB
-	}
-	return res
+func add(valA int64, valB int64) int64 {
+	return valA + valB
 }
 
-func saveLabels(hostname string, labels map[string]string, hpManager Manager) error {
-	log.Debugf("Prepare to update host resources labels:%+v", labels)
-	keys := make([]string, 0)
-	for k := range labels {
-		keys = append(keys, k)
-	}
-	if len(keys) == 0 {
-		return nil
-	}
-
-	// Maybe updating labels is a better solution...
-	if err := hpManager.RemoveLabels(hostname, keys); err != nil {
-		return err
-	}
-	return hpManager.AddLabels(hostname, labels)
+func subtract(valA int64, valB int64) int64 {
+	return valA - valB
 }
 
 func formatBytes(value int64, isIEC bool) string {

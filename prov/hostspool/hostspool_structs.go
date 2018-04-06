@@ -93,13 +93,6 @@ type Host struct {
 	Allocations []Allocation      `json:"allocations,omitempty"`
 }
 
-// hostResources represents host main resources (cpus, disk, ram)
-type hostResources struct {
-	cpus     int64
-	memSize  int64
-	diskSize int64
-}
-
 // An Allocation describes the related allocation associated to a host pool
 type Allocation struct {
 	ID           string `json:"id"`

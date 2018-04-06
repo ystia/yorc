@@ -32,6 +32,7 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/log"
 )
 
 const (
@@ -50,6 +51,7 @@ type Manager interface {
 	Add(hostname string, connection Connection, labels map[string]string) error
 	Apply(pool []Host, checkpoint *uint64) error
 	Remove(hostname string) error
+	UpdateLabels(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
 	UpdateHost(hostname string, connection Connection) error
@@ -325,6 +327,42 @@ func (cm *consulManager) updateHostWait(hostname string, conn Connection, maxWai
 	return nil
 }
 
+func (cm *consulManager) UpdateLabels(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error {
+	return cm.updateLabelsWait(hostname, diff, operation, update, maxWaitTimeSeconds*time.Second)
+}
+
+func (cm *consulManager) updateLabelsWait(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), maxWaitTime time.Duration) error {
+	if hostname == "" {
+		return errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+
+	lockCh, cleanupFn, err := cm.lockKey(hostname, "updateLabels", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	select {
+	case <-lockCh:
+		return errors.Errorf("admin lock lost on hosts pool for host %q deletion", hostname)
+	default:
+	}
+
+	labels, err := cm.GetHostLabels(hostname)
+
+	upLabels, err := update(labels, diff, operation)
+	if err != nil {
+		return err
+	}
+
+	if upLabels == nil || len(upLabels) == 0 {
+		return nil
+	}
+
+	log.Debugf("Updating labels:%+v", upLabels)
+	return cm.addLabelsSimpleOperation(hostname, upLabels)
+}
+
 func (cm *consulManager) Remove(hostname string) error {
 	return cm.removeWait(hostname, maxWaitTimeSeconds*time.Second)
 }
@@ -393,17 +431,7 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 	return rmOps, nil
 }
 
-func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {
-	return cm.addLabelsWait(hostname, labels, maxWaitTimeSeconds*time.Second)
-}
-func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string, maxWaitTime time.Duration) error {
-	if hostname == "" {
-		return errors.WithStack(badRequestError{`"hostname" missing`})
-	}
-	if labels == nil || len(labels) == 0 {
-		return nil
-	}
-
+func (cm *consulManager) addLabelsSimpleOperation(hostname string, labels map[string]string) error {
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
 	ops := make(api.KVTxnOps, 0)
 
@@ -418,21 +446,6 @@ func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string
 			Value: []byte(v),
 		})
 	}
-
-	_, cleanupFn, err := cm.lockKey(hostname, "labels addition", maxWaitTime)
-	if err != nil {
-		return err
-	}
-	defer cleanupFn()
-
-	// Checks host existence
-	_, err = cm.GetHostStatus(hostname)
-	if err != nil {
-		return err
-	}
-
-	// We don't care about host status for updating labels
-
 	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -447,6 +460,33 @@ func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string
 	}
 
 	return nil
+}
+
+func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {
+	return cm.addLabelsWait(hostname, labels, maxWaitTimeSeconds*time.Second)
+}
+func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string, maxWaitTime time.Duration) error {
+	if hostname == "" {
+		return errors.WithStack(badRequestError{`"hostname" missing`})
+	}
+	if labels == nil || len(labels) == 0 {
+		return nil
+	}
+
+	_, cleanupFn, err := cm.lockKey(hostname, "labels addition", maxWaitTime)
+	if err != nil {
+		return err
+	}
+	defer cleanupFn()
+
+	// Checks host existence
+	// We don't care about host status for updating labels
+	_, err = cm.GetHostStatus(hostname)
+	if err != nil {
+		return err
+	}
+
+	return cm.addLabelsSimpleOperation(hostname, labels)
 }
 
 func (cm *consulManager) RemoveLabels(hostname string, labels []string) error {

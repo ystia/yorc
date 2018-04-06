@@ -15,24 +15,16 @@
 package hostspool
 
 import (
-	"github.com/dustin/go-humanize"
 	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 )
 
 func TestUpdateHostResourcesLabels(t *testing.T) {
-	Test20GiB, err := humanize.ParseBytes("20 GiB")
-	Test20GB, err := humanize.ParseBytes("20 GB")
-	Test50GB, err := humanize.ParseBytes("50 GB")
-	Test50GiB, err := humanize.ParseBytes("50 GiB")
-	if err != nil {
-		t.Fatalf("Error during parsing bytes:%+v", err)
-	}
 	type args struct {
-		host     *Host
-		allocRes *hostResources
-		allocate bool
+		origin    map[string]string
+		diff      map[string]string
+		operation func(a int64, b int64) int64
 	}
 	tests := []struct {
 		name    string
@@ -41,21 +33,21 @@ func TestUpdateHostResourcesLabels(t *testing.T) {
 		want    map[string]string
 	}{
 
-		{"testSimpleAlloc", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GB", "host.mem_size": "20 GB"}}, &hostResources{diskSize: int64(Test50GB), memSize: int64(Test20GB), cpus: int64(8)}, true}, false, map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GB", "host.mem_size": "0 B"}},
-		{"testSimpleAllocWithMiB", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GiB", "host.mem_size": "20 GiB"}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, true}, false, map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 B"}},
-		{"testSimpleRelease", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GB", "host.mem_size": "0 GB"}}, &hostResources{diskSize: int64(Test50GB), memSize: int64(Test20GB), cpus: int64(8)}, false}, false, map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GB", "host.mem_size": "20 GB"}},
-		{"testSimpleReleaseWithMiB", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, false}, false, map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GiB", "host.mem_size": "20 GiB"}},
-		{"testSimpleAllocWithoutHostResources", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}}, &hostResources{}, true}, false, map[string]string{}},
-		{"testSimpleAllocWithoutHostResources", args{&Host{Name: "host1", Labels: map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}}, &hostResources{}, false}, false, map[string]string{}},
-		{"testSimpleAllocWithoutLabels", args{&Host{Name: "host1", Labels: map[string]string{}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, true}, false, map[string]string{}},
-		{"testSimpleReleaseWithoutLabels", args{&Host{Name: "host1", Labels: map[string]string{}}, &hostResources{diskSize: int64(Test50GiB), memSize: int64(Test20GiB), cpus: int64(8)}, false}, false, map[string]string{}},
+		{"testSimpleAlloc", args{map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GB", "host.mem_size": "20 GB"}, map[string]string{"host.num_cpus": "8", "host.disk_size": "50 GB", "host.mem_size": "20 GB"}, subtract}, false, map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GB", "host.mem_size": "0 B"}},
+		{"testSimpleAllocWithMiB", args{map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GiB", "host.mem_size": "20 GiB"}, map[string]string{"host.num_cpus": "8", "host.disk_size": "50 GiB", "host.mem_size": "20 GiB"}, subtract}, false, map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 B"}},
+		{"testSimpleRelease", args{map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GB", "host.mem_size": "0 GB"}, map[string]string{"host.num_cpus": "8", "host.disk_size": "50 GB", "host.mem_size": "20 GB"}, add}, false, map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GB", "host.mem_size": "20 GB"}},
+		{"testSimpleReleaseWithMiB", args{map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}, map[string]string{"host.num_cpus": "8", "host.disk_size": "50 GiB", "host.mem_size": "20 GiB"}, add}, false, map[string]string{"host.num_cpus": "16", "host.disk_size": "150 GiB", "host.mem_size": "20 GiB"}},
+		{"testSimpleAllocWithoutHostResources", args{map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}, map[string]string{}, subtract}, false, map[string]string{}},
+		{"testSimpleAllocWithoutHostResources", args{map[string]string{"host.num_cpus": "8", "host.disk_size": "100 GiB", "host.mem_size": "0 GiB"}, map[string]string{}, add}, false, map[string]string{}},
+		{"testSimpleAllocWithoutLabels", args{map[string]string{}, map[string]string{"host.num_cpus": "8", "host.disk_size": "50 GiB", "host.mem_size": "20 GiB"}, subtract}, false, map[string]string{}},
+		{"testSimpleReleaseWithoutLabels", args{map[string]string{}, map[string]string{"host.num_cpus": "8", "host.disk_size": "50 GiB", "host.mem_size": "20 GiB"}, add}, false, map[string]string{}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
 			var labels map[string]string
-			labels, err = updateHostResourcesLabels(tt.args.host, tt.args.allocRes, tt.args.allocate)
+			labels, err = updateResourcesLabels(tt.args.origin, tt.args.diff, tt.args.operation)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilitiesOfType() error = %v, wantErr %v", err, tt.wantErr)
 				return
