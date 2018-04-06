@@ -360,7 +360,7 @@ func addUpdateRows(table tabutil.Table, colorize bool, oldHost *rest.Host, newHo
 	sliceutil.PadSlices("", &allocationsSubRows, &newConnectionSubRows, &newLabelSubRows)
 
 	// Add rows for old values, one row for each sub-column
-	colNumber := 8
+	colNumber := 7
 	oldSubRowsNumber := len(oldLabelSubRows)
 	newSubRowsNumber := len(newLabelSubRows)
 	version, nameValue, statusValue, messageValue :=
@@ -394,7 +394,7 @@ func addUpdateRows(table tabutil.Table, colorize bool, oldHost *rest.Host, newHo
 				operation = hostUpdate
 			}
 		}
-		coloredColumns[7] = getColoredText(colorize,
+		coloredColumns[6] = getColoredText(colorize,
 			strings.TrimSpace(oldLabelSubRows[i]), operation)
 
 		table.AddRow(coloredColumns...)
@@ -438,7 +438,7 @@ func addUpdateRows(table tabutil.Table, colorize bool, oldHost *rest.Host, newHo
 				operation = hostUpdate
 			}
 		}
-		coloredColumns[7] = getColoredText(colorize,
+		coloredColumns[6] = getColoredText(colorize,
 			strings.TrimSpace(newLabelSubRows[i]), operation)
 
 		table.AddRow(coloredColumns...)
