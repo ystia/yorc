@@ -104,7 +104,14 @@ type Allocation struct {
 }
 
 func (alloc *Allocation) String() string {
-	return fmt.Sprintf(`node-instance: "%s-%s" in deployment: %q`, alloc.NodeName, alloc.Instance, alloc.DeploymentID)
+	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance)
+	if alloc.Resources != nil && len(alloc.Resources) > 0 {
+		for k, v := range alloc.Resources {
+			allocStr += "," + k + ": " + v
+		}
+	}
+
+	return allocStr
 }
 
 func (alloc *Allocation) buildID() error {

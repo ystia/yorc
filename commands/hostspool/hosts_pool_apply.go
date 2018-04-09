@@ -199,7 +199,7 @@ func init() {
 				badAnswer := true
 				var answer string
 				for badAnswer {
-					fmt.Printf("\nApply these settings [y/N]: ")
+					fmt.Printf("\nApply these settings (Warning: host resources labels can be recalculated depending of allocations) [y/N]: ")
 					var inputText string
 					reader := bufio.NewReader(os.Stdin)
 					inputText, err := reader.ReadString('\n')
@@ -345,7 +345,7 @@ func addUpdateRows(table tabutil.Table, colorize bool, oldHost *rest.Host, newHo
 	// Padding columns in the same row
 	allocationsSubRows := make([]string, 0)
 	for _, alloc := range oldHost.Allocations {
-		allocationsSubRows = append(allocationsSubRows, alloc.String())
+		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), ",")...)
 	}
 	oldConnectionSubRows := strings.Split(toPrintableConnection(oldConnection), ",")
 	oldLabelSubRows := strings.Split(toPrintableLabels(oldLabels), ",")
