@@ -22,8 +22,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 )
 
 func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {

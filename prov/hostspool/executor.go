@@ -36,7 +36,6 @@ import (
 )
 
 type defaultExecutor struct {
-	allocatedResources map[string]string
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -59,7 +58,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	if err != nil {
 		return err
 	}
-	e.allocatedResources, err = e.getAllocatedResourcesFromHostCapabilities(cc.KV(), deploymentID, nodeName)
+	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(cc.KV(), deploymentID, nodeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q", nodeName, deploymentID)
 	}
@@ -68,7 +67,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		for _, instance := range instances {
 			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		}
-		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName)
+		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -80,7 +79,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		for _, instance := range instances {
 			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		}
-		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName)
+		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -92,7 +91,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	return errors.Errorf("operation %q not supported", delegateOperation)
 }
 
-func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string) error {
+func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 	hpManager := NewManager(cc)
 
 	_, jsonProp, err := deployments.GetNodeProperty(cc.KV(), deploymentID, nodeName, "filters")
@@ -137,7 +136,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		logOptFields[events.InstanceID] = instance
 		ctx := events.NewContext(originalCtx, logOptFields)
 
-		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable, Resources: e.allocatedResources}
+		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable, Resources: allocatedResources}
 		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
@@ -214,7 +213,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 			}
 		}
 
-		return hpManager.UpdateLabels(hostname, e.allocatedResources, subtract, updateResourcesLabels)
+		return hpManager.UpdateLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
 	}
 
 	return nil
@@ -301,7 +300,7 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 	return filters, nil
 }
 
-func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string) error {
+func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 	hpManager := NewManager(cc)
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
@@ -325,7 +324,7 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		return hpManager.UpdateLabels(hostname, e.allocatedResources, add, updateResourcesLabels)
+		return hpManager.UpdateLabels(hostname, allocatedResources, add, updateResourcesLabels)
 
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
