@@ -75,9 +75,9 @@ func GetClient() (*YorcClient, error) {
 	tlsEnable := viper.GetBool("secured")
 	yorcAPI := viper.GetString("yorc_api")
 	yorcAPI = strings.TrimRight(yorcAPI, "/")
-	caFile := viper.GetString("cli_ca_file")
-	certFile := viper.GetString("cli_certFile")
-	keyFile := viper.GetString("cli_keyFile")
+	caFile := viper.GetString("ca_file")
+	certFile := viper.GetString("cert_file")
+	keyFile := viper.GetString("key_file")
 	skipTLSVerify := viper.GetBool("skip_tls_verify")
 	if tlsEnable || skipTLSVerify || caFile != "" {
 		url, err := urlx.Parse(yorcAPI)

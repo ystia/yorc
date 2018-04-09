@@ -128,7 +128,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		log.Printf("Starting HTTPServer over TLS on address %s", listener.Addr())
 		log.Debugf("TLS KeyFile in use: %q. TLS CertFile in use: %q", configuration.KeyFile, configuration.CertFile)
 		if configuration.CAFile != "" {
-			log.Debug("TLS set to reject any certificate not validated")
+			log.Printf("TLS set to reject any certificate not signed by CA")
 			log.Debugf("TLS CA file in use: %q", configuration.CAFile)
 		}
 	} else {
