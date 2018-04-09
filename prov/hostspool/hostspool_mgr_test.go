@@ -303,7 +303,7 @@ func testConsulManagerAdd(t *testing.T, cc *api.Client) {
 	}
 }
 
-func testConsulManagerUpdateHost(t *testing.T, cc *api.Client) {
+func testConsulManagerUpdateConnection(t *testing.T, cc *api.Client) {
 	cleanupHostsPool(t, cc)
 	cm := NewManagerWithSSHFactory(cc, mockSSHClientFactory)
 	originalConn := Connection{User: "u1", Password: "test", Host: "h1", Port: 24, PrivateKey: dummySSHkey}
@@ -368,7 +368,7 @@ func testConsulManagerUpdateHost(t *testing.T, cc *api.Client) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var err error
-			if err = cm.UpdateHost(tt.args.hostname, tt.args.conn); (err != nil) != tt.wantErr {
+			if err = cm.UpdateConnection(tt.args.hostname, tt.args.conn); (err != nil) != tt.wantErr {
 				t.Fatalf("consulManager.Add() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil && tt.errorCheck != nil {
@@ -514,7 +514,7 @@ func testConsulManagerConcurrency(t *testing.T, cc *api.Client) {
 	assert.Error(t, err, "Expecting concurrency lock for addLabelsWait()")
 	err = cm.removeLabelsWait("concurrent_host1", []string{"t1"}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
-	err = cm.updateHostWait("concurrent_host1", Connection{}, 500*time.Millisecond)
+	err = cm.updateConnectionWait("concurrent_host1", Connection{}, 500*time.Millisecond)
 	assert.Error(t, err, "Expecting concurrency lock for removeLabelsWait()")
 	_, _, err = cm.allocateWait(500*time.Millisecond, &Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false})
 	assert.Error(t, err, "Expecting concurrency lock for allocateWait()")

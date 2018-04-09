@@ -110,7 +110,7 @@ func (s *Server) updateHostInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if host.Connection != nil {
-		err = s.hostsPoolMgr.UpdateHost(hostname, *host.Connection)
+		err = s.hostsPoolMgr.UpdateConnection(hostname, *host.Connection)
 		if err != nil {
 			if hostspool.IsBadRequestError(err) {
 				writeError(w, r, newBadRequestError(err))
