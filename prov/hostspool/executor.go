@@ -137,7 +137,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		logOptFields[events.InstanceID] = instance
 		ctx := events.NewContext(originalCtx, logOptFields)
 
-		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable}
+		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable, Resources: e.allocatedResources}
 		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).

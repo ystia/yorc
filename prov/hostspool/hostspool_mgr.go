@@ -99,7 +99,7 @@ func (cm *consulManager) Add(hostname string, conn Connection, labels map[string
 }
 func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
 
-	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, "")
+	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, "", nil)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,8 @@ func getAddOperations(
 	conn Connection,
 	labels map[string]string,
 	status HostStatus,
-	message string) (api.KVTxnOps, error) {
+	message string,
+	allocations []Allocation) (api.KVTxnOps, error) {
 
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
@@ -207,6 +208,14 @@ func getAddOperations(
 		})
 	}
 
+	var allocsOps api.KVTxnOps
+	var err error
+	if allocsOps, err = getAddAllocationsOperation(hostname, allocations); err != nil {
+		return nil, err
+	} else if len(allocsOps) > 0 {
+		addOps = append(addOps, allocsOps...)
+	}
+
 	for k, v := range labels {
 		k = url.PathEscape(k)
 		if k == "" {
@@ -220,6 +229,58 @@ func getAddOperations(
 	}
 
 	return addOps, nil
+}
+
+func getAddAllocationsOperation(hostname string, allocations []Allocation) (api.KVTxnOps, error) {
+	allocsOps := api.KVTxnOps{}
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	if allocations != nil {
+		for _, alloc := range allocations {
+			allocKVPrefix := path.Join(hostKVPrefix, "allocations", alloc.ID)
+			allocOps := api.KVTxnOps{
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(allocKVPrefix),
+					Value: []byte(alloc.ID),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(allocKVPrefix, "node_name"),
+					Value: []byte(alloc.NodeName),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(allocKVPrefix, "instance"),
+					Value: []byte(alloc.Instance),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(allocKVPrefix, "deployment_id"),
+					Value: []byte(alloc.DeploymentID),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(allocKVPrefix, "shareable"),
+					Value: []byte(strconv.FormatBool(alloc.Shareable)),
+				},
+			}
+
+			for k, v := range alloc.Resources {
+				k = url.PathEscape(k)
+				if k == "" {
+					return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
+				}
+				allocOps = append(allocOps, &api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(allocKVPrefix, "resources", k),
+					Value: []byte(v),
+				})
+			}
+
+			allocsOps = append(allocsOps, allocOps...)
+		}
+	}
+	return allocsOps, nil
 }
 
 func (cm *consulManager) UpdateHost(hostname string, conn Connection) error {
@@ -344,7 +405,7 @@ func (cm *consulManager) updateLabelsWait(hostname string, diff map[string]strin
 
 	select {
 	case <-lockCh:
-		return errors.Errorf("admin lock lost on hosts pool for host %q deletion", hostname)
+		return errors.Errorf("admin lock lost on hosts pool for updating labels with host %q", hostname)
 	default:
 	}
 
@@ -360,7 +421,34 @@ func (cm *consulManager) updateLabelsWait(hostname string, diff map[string]strin
 	}
 
 	log.Debugf("Updating labels:%+v", upLabels)
-	return cm.addLabelsSimpleOperation(hostname, upLabels)
+	return cm.addLabels(hostname, upLabels)
+}
+
+func (cm *consulManager) getUpdateLabelsOperations(hostname string, diff map[string]string, new map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) (api.KVTxnOps, error) {
+	upLabels, err := update(new, diff, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	if upLabels == nil || len(upLabels) == 0 {
+		return nil, nil
+	}
+
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	ops := make(api.KVTxnOps, 0)
+
+	for k, v := range upLabels {
+		k = url.PathEscape(k)
+		if k == "" {
+			return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
+		}
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "labels", k),
+			Value: []byte(v),
+		})
+	}
+	return ops, nil
 }
 
 func (cm *consulManager) Remove(hostname string) error {
@@ -431,7 +519,7 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 	return rmOps, nil
 }
 
-func (cm *consulManager) addLabelsSimpleOperation(hostname string, labels map[string]string) error {
+func (cm *consulManager) addLabels(hostname string, labels map[string]string) error {
 	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
 	ops := make(api.KVTxnOps, 0)
 
@@ -486,7 +574,7 @@ func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string
 		return err
 	}
 
-	return cm.addLabelsSimpleOperation(hostname, labels)
+	return cm.addLabels(hostname, labels)
 }
 
 func (cm *consulManager) RemoveLabels(hostname string, labels []string) error {
@@ -733,18 +821,23 @@ func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, er
 }
 
 func (cm *consulManager) addAllocation(hostname string, allocation *Allocation) error {
-	prefix := path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID)
-	if err := consulutil.StoreConsulKeyAsString(prefix+"/node_name", allocation.NodeName); err != nil {
+	var allocOps api.KVTxnOps
+	var err error
+	if allocOps, err = getAddAllocationsOperation(hostname, []Allocation{*allocation}); err != nil {
+		return errors.Wrapf(err, "failed to add allocation to host:%q", hostname)
+	}
+
+	ok, response, _, err := cm.cc.KV().Txn(allocOps, nil)
+	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	if err := consulutil.StoreConsulKeyAsString(prefix+"/instance", allocation.Instance); err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if err := consulutil.StoreConsulKeyAsString(prefix+"/deployment_id", allocation.DeploymentID); err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if err := consulutil.StoreConsulKeyAsString(prefix+"/shareable", strconv.FormatBool(allocation.Shareable)); err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to add allocation on host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 	return nil
 }
@@ -752,6 +845,15 @@ func (cm *consulManager) addAllocation(hostname string, allocation *Allocation) 
 func (cm *consulManager) removeAllocation(hostname string, allocation *Allocation) error {
 	_, err := cm.cc.KV().DeleteTree(path.Join(consulutil.HostsPoolPrefix, hostname, "allocations", allocation.ID), nil)
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
+func exist(allocations []Allocation, ID string) bool {
+	for _, alloc := range allocations {
+		if alloc.ID == ID {
+			return true
+		}
+	}
+	return false
 }
 
 func (cm *consulManager) GetAllocations(hostname string) ([]Allocation, error) {
@@ -765,8 +867,12 @@ func (cm *consulManager) GetAllocations(hostname string) ([]Allocation, error) {
 	}
 
 	for _, key := range keys {
+		id := path.Base(key)
+		if exist(allocations, id) {
+			continue
+		}
 		alloc := Allocation{}
-		alloc.ID = path.Base(key)
+		alloc.ID = id
 		kvp, _, err := cm.cc.KV().Get(path.Join(key, "node_name"), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -801,6 +907,16 @@ func (cm *consulManager) GetAllocations(hostname string) ([]Allocation, error) {
 				return nil, errors.Wrapf(err, "failed to parse boolean from value:%q", string(kvp.Value))
 			}
 		}
+
+		kvps, _, err := cm.cc.KV().List(path.Join(key, "resources"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		resources := make(map[string]string, len(kvps))
+		for _, kvp := range kvps {
+			resources[path.Base(kvp.Key)] = string(kvp.Value)
+		}
+		alloc.Resources = resources
 
 		allocations = append(allocations, alloc)
 	}
@@ -1225,6 +1341,11 @@ func (cm *consulManager) applyWait(
 				return err
 			}
 
+			allocations, err := cm.GetAllocations(host.Name)
+			if err != nil {
+				return err
+			}
+
 			// Backup status and message if defined are restored at re-creation,
 			// the connection check will be performed afterwards
 			if status == HostStatusError {
@@ -1235,18 +1356,30 @@ func (cm *consulManager) applyWait(
 				}
 			}
 			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				status, message)
+				status, message, allocations)
 			if err != nil {
 				return err
 			}
-
 			addOps = append(addOps, ops...)
+
+			// Apply allocations resources on new labels
+			var updateOps api.KVTxnOps
+			for _, alloc := range allocations {
+				updateOp, err := cm.getUpdateLabelsOperations(host.Name, alloc.Resources, host.Labels, subtract, updateResourcesLabels)
+				if err != nil {
+					return err
+				} else if len(updateOp) > 0 {
+					updateOps = append(updateOps, updateOp...)
+				}
+			}
+
+			addOps = append(addOps, updateOps...)
 
 		} else {
 			// Host is new, creating it
 			hostChanged = append(hostChanged, host.Name)
 			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				HostStatusFree, "")
+				HostStatusFree, "", nil)
 			if err != nil {
 				return err
 			}

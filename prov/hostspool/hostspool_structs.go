@@ -95,11 +95,12 @@ type Host struct {
 
 // An Allocation describes the related allocation associated to a host pool
 type Allocation struct {
-	ID           string `json:"id"`
-	NodeName     string `json:"node_name"`
-	Instance     string `json:"instance"`
-	DeploymentID string `json:"deployment_id"`
-	Shareable    bool   `json:"shareable"`
+	ID           string            `json:"id"`
+	NodeName     string            `json:"node_name"`
+	Instance     string            `json:"instance"`
+	DeploymentID string            `json:"deployment_id"`
+	Shareable    bool              `json:"shareable"`
+	Resources    map[string]string `json:"resource_labels,omitempty"`
 }
 
 func (alloc *Allocation) String() string {
