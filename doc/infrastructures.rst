@@ -91,7 +91,9 @@ Some labels are also automatically exposed as TOSCA Compute instance attributes:
     * ``networks.<idx>.addresses`` as a coma separated list of addresses (ie. ``networks.0.addresses``)
 
 The resources host pool labels (``host.num_cpus``, ``host.disk_size``, ``host.mem_size``) are automatically decreased and increased respectively when a host pool is allocated and released
-only if the user specifies any of these Tosca ``host`` resources capabilities Compute in its Alien4Cloud applications.
+only if you specify any of these Tosca ``host`` resources capabilities Compute in its Alien4Cloud applications.
+If you apply a new configuration on allocated hosts with new host resources labels, they will be recalculated depending on existing allocations resources.
+
     
 
 .. _yorc_infras_slurm_section:

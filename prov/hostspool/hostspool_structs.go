@@ -104,7 +104,7 @@ type Allocation struct {
 }
 
 func (alloc *Allocation) String() string {
-	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s", alloc.DeploymentID, alloc.NodeName, alloc.Instance)
+	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable)
 	if alloc.Resources != nil && len(alloc.Resources) > 0 {
 		for k, v := range alloc.Resources {
 			allocStr += "," + k + ": " + v
