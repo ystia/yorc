@@ -16,7 +16,6 @@ package hostspool
 
 import (
 	"fmt"
-	"net/url"
 	"path"
 	"reflect"
 	"strconv"
@@ -49,7 +48,7 @@ type Manager interface {
 	Add(hostname string, connection Connection, labels map[string]string) error
 	Apply(pool []Host, checkpoint *uint64) error
 	Remove(hostname string) error
-	UpdateLabels(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
+	UpdateResourcesLabels(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
 	UpdateConnection(hostname string, connection Connection) error
@@ -213,19 +212,7 @@ func (cm *consulManager) getAddOperations(
 		addOps = append(addOps, allocsOps...)
 	}
 
-	for k, v := range labels {
-		k = url.PathEscape(k)
-		if k == "" {
-			return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
-		}
-		addOps = append(addOps, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "labels", k),
-			Value: []byte(v),
-		})
-	}
-
-	labelOps, err := cm.getAddLabelsOperations(hostname, labels)
+	labelOps, err := cm.getAddUpdatedLabelsOperations(hostname, labels)
 	if err != nil {
 		return nil, err
 	}
