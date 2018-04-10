@@ -58,19 +58,9 @@ func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string
 }
 
 func (cm *consulManager) addLabels(hostname string, labels map[string]string) error {
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
-	ops := make(api.KVTxnOps, 0)
-
-	for k, v := range labels {
-		k = url.PathEscape(k)
-		if k == "" {
-			return errors.WithStack(badRequestError{"empty labels are not allowed"})
-		}
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "labels", k),
-			Value: []byte(v),
-		})
+	ops, err := cm.getAddLabelsOperations(hostname, labels)
+	if err != nil {
+		return err
 	}
 	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
 	if err != nil {
@@ -85,6 +75,31 @@ func (cm *consulManager) addLabels(hostname string, labels map[string]string) er
 		return errors.Errorf("Failed to add labels to host %q: %s", hostname, strings.Join(errs, ", "))
 	}
 	return nil
+}
+
+func (cm *consulManager) getAddLabelsOperations(hostname string, labels map[string]string) (api.KVTxnOps, error) {
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	ops := make(api.KVTxnOps, 0)
+
+	for k, v := range labels {
+		k = url.PathEscape(k)
+		if k == "" {
+			return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
+		}
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "labels", k),
+			Value: []byte(v),
+		})
+	}
+
+	upLabelsOps, err := cm.getUpdateLabelsOperationsOnLabelChanges(hostname, labels)
+	if err != nil {
+		return nil, err
+	}
+	ops = append(ops, upLabelsOps...)
+
+	return ops, nil
 }
 
 func (cm *consulManager) removeLabelsWait(hostname string, labels []string, maxWaitTime time.Duration) error {
@@ -143,6 +158,7 @@ func (cm *consulManager) UpdateLabels(hostname string, diff map[string]string, o
 	return cm.updateLabelsWait(hostname, diff, operation, update, maxWaitTimeSeconds*time.Second)
 }
 
+// Labels must be read and write in the same transaction to avoid concurrency issues
 func (cm *consulManager) updateLabelsWait(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error), maxWaitTime time.Duration) error {
 	if hostname == "" {
 		return errors.WithStack(badRequestError{`"hostname" missing`})
@@ -172,7 +188,34 @@ func (cm *consulManager) updateLabelsWait(hostname string, diff map[string]strin
 	}
 
 	log.Debugf("Updating labels:%+v", upLabels)
-	return cm.addLabels(hostname, upLabels)
+
+	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
+	ops := make(api.KVTxnOps, 0)
+
+	for k, v := range upLabels {
+		k = url.PathEscape(k)
+		if k == "" {
+			return errors.WithStack(badRequestError{"empty labels are not allowed"})
+		}
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(hostKVPrefix, "labels", k),
+			Value: []byte(v),
+		})
+	}
+	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to add labels to host %q: %s", hostname, strings.Join(errs, ", "))
+	}
+	return nil
 }
 
 func (cm *consulManager) GetHostLabels(hostname string) (map[string]string, error) {
@@ -193,6 +236,25 @@ func (cm *consulManager) GetHostLabels(hostname string) (map[string]string, erro
 		labels[path.Base(kvp.Key)] = string(kvp.Value)
 	}
 	return labels, nil
+}
+
+func (cm *consulManager) getUpdateLabelsOperationsOnLabelChanges(hostname string, newLabels map[string]string) (api.KVTxnOps, error) {
+	// Apply allocations resources on new labels
+	var updateOps api.KVTxnOps
+
+	allocs, err := cm.GetAllocations(hostname)
+	if err != nil {
+		return nil, err
+	}
+	for _, alloc := range allocs {
+		updateOp, err := cm.getUpdateLabelsOperations(hostname, alloc.Resources, newLabels, subtract, updateResourcesLabels)
+		if err != nil {
+			return nil, err
+		} else if len(updateOp) > 0 {
+			updateOps = append(updateOps, updateOp...)
+		}
+	}
+	return updateOps, nil
 }
 
 func (cm *consulManager) getUpdateLabelsOperations(hostname string, diff map[string]string, new map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) (api.KVTxnOps, error) {

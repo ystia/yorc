@@ -1126,3 +1126,88 @@ func routineAllocate(
 	}
 
 }
+
+func testConsulManagerAddLabelsWithAllocation(t *testing.T, cc *api.Client) {
+	cleanupHostsPool(t, cc)
+	cm := &consulManager{cc, mockSSHClientFactory}
+	resources := map[string]string{"host.num_cpus": "8", "host.mem_size": "8 GB", "host.disk_size": "50 GB"}
+
+	var hostpool = createHostsWithLabels(1, resources)
+
+	// Apply this definition
+	var checkpoint uint64
+	err := cm.Apply(hostpool, &checkpoint)
+	require.NoError(t, err, "Unexpected failure applying host pool configuration")
+	assert.NotEqual(t, uint64(0), checkpoint, "Expected checkpoint to be > 0 after apply")
+	// Check the pool now
+	hosts, warnings, newCkpt, err := cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+	assert.Len(t, warnings, 0)
+	assert.Len(t, hosts, 1)
+	assert.NotEqual(t, uint64(0), newCkpt)
+	assert.Equal(t, checkpoint, newCkpt, "Unexpected checkpoint in list")
+
+	hostname := "host0"
+	assert.Contains(t, hosts, hostname)
+	host, err := cm.GetHost(hostname)
+	require.NoError(t, err, "Could not get host %s", hostname)
+	assert.Equal(t, hostpool[0].Connection, host.Connection,
+		"Unexpected connection value for host %s", hostname)
+	assert.Equal(t, hostpool[0].Labels, host.Labels,
+		"Unexpected labels for host %s", hostname)
+
+	// Allocate host1
+	// Check the resources labels have been updated
+	expectedLabels := map[string]string{
+		"host.num_cpus":  "6",
+		"host.mem_size":  "6.0 GB",
+		"host.disk_size": "40 GB",
+	}
+
+	AllocResources := map[string]string{"host.num_cpus": "2", "host.mem_size": "2 GB", "host.disk_size": "10 GB"}
+	allocatedName, warnings, err := cm.Allocate(&Allocation{NodeName: "node_test", Instance: "instance_test", DeploymentID: "test", Shareable: false, Resources: AllocResources})
+	assert.Equal(t, hostpool[0].Name, allocatedName,
+		"Unexpected host allocated")
+
+	err = cm.UpdateLabels(hostname, AllocResources, subtract, updateResourcesLabels)
+	require.NoError(t, err, "Unexpected error updating labels")
+	allocatedHost, err := cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
+	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after allocate")
+
+	// Change the host with new resources labels
+	newLabels := map[string]string{
+		"host.num_cpus":  "20",
+		"host.mem_size":  "40 GB",
+		"host.disk_size": "60 GB",
+	}
+
+	_, _, checkpoint, err = cm.List()
+	require.NoError(t, err, "Unexpected error getting list of hosts in pool")
+
+	// Add new labels
+	err = cm.AddLabels(hostname, newLabels)
+	require.NoError(t, err,
+		"Unexpected failure adding new labels")
+
+	// Check the resources labels have been updated
+	expectedLabels = map[string]string{
+		"host.num_cpus":  "18",
+		"host.mem_size":  "38 GB",
+		"host.disk_size": "50 GB",
+	}
+
+	allocatedHost, err = cm.GetHost(allocatedName)
+	require.NoError(t, err, "Unexpected error getting allocated host")
+	require.NotNil(t, allocatedHost)
+	require.Equal(t, 1, len(allocatedHost.Allocations))
+	require.Equal(t, "instance_test", allocatedHost.Allocations[0].Instance)
+	require.Equal(t, "test", allocatedHost.Allocations[0].DeploymentID)
+	require.Equal(t, "node_test", allocatedHost.Allocations[0].NodeName)
+	assert.Equal(t, expectedLabels, allocatedHost.Labels, "labels have not been updated after apply")
+}

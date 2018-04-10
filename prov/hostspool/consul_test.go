@@ -77,4 +77,7 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	t.Run("testConsulManagerApplyWithAllocation", func(t *testing.T) {
 		testConsulManagerApplyWithAllocation(t, client)
 	})
+	t.Run("testConsulManagerAddLabelsWithAllocation", func(t *testing.T) {
+		testConsulManagerAddLabelsWithAllocation(t, client)
+	})
 }

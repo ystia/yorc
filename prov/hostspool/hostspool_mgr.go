@@ -96,7 +96,7 @@ func (cm *consulManager) Add(hostname string, conn Connection, labels map[string
 	return cm.addWait(hostname, conn, labels, maxWaitTimeSeconds*time.Second)
 }
 func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
-	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, "", nil)
+	ops, err := cm.getAddOperations(hostname, conn, labels, HostStatusFree, "", nil)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 	return err
 }
 
-func getAddOperations(
+func (cm *consulManager) getAddOperations(
 	hostname string,
 	conn Connection,
 	labels map[string]string,
@@ -225,6 +225,11 @@ func getAddOperations(
 		})
 	}
 
+	labelOps, err := cm.getAddLabelsOperations(hostname, labels)
+	if err != nil {
+		return nil, err
+	}
+	addOps = append(addOps, labelOps...)
 	return addOps, nil
 }
 
@@ -694,30 +699,16 @@ func (cm *consulManager) applyWait(
 					message, _ = cm.getMessage(host.Name, true)
 				}
 			}
-			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
+			ops, err := cm.getAddOperations(host.Name, host.Connection, host.Labels,
 				status, message, allocations)
 			if err != nil {
 				return err
 			}
 			addOps = append(addOps, ops...)
-
-			// Apply allocations resources on new labels
-			var updateOps api.KVTxnOps
-			for _, alloc := range allocations {
-				updateOp, err := cm.getUpdateLabelsOperations(host.Name, alloc.Resources, host.Labels, subtract, updateResourcesLabels)
-				if err != nil {
-					return err
-				} else if len(updateOp) > 0 {
-					updateOps = append(updateOps, updateOp...)
-				}
-			}
-
-			addOps = append(addOps, updateOps...)
-
 		} else {
 			// Host is new, creating it
 			hostChanged = append(hostChanged, host.Name)
-			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
+			ops, err := cm.getAddOperations(host.Name, host.Connection, host.Labels,
 				HostStatusFree, "", nil)
 			if err != nil {
 				return err
