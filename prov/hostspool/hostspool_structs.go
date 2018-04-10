@@ -22,7 +22,9 @@ import (
 	"strconv"
 	"strings"
 
+	"fmt"
 	"github.com/pkg/errors"
+	"net/url"
 )
 
 // HostStatus x ENUM(
@@ -83,9 +85,41 @@ func (conn Connection) String() string {
 
 // An Host holds information on an Host as it is known by the hostspool
 type Host struct {
-	Name       string            `json:"name,omitempty"`
-	Connection Connection        `json:"connection"`
-	Status     HostStatus        `json:"status"`
-	Message    string            `json:"reason,omitempty"`
-	Labels     map[string]string `json:"labels,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Connection  Connection        `json:"connection"`
+	Status      HostStatus        `json:"status"`
+	Message     string            `json:"reason,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Allocations []Allocation      `json:"allocations,omitempty"`
+}
+
+// An Allocation describes the related allocation associated to a host pool
+type Allocation struct {
+	ID           string            `json:"id"`
+	NodeName     string            `json:"node_name"`
+	Instance     string            `json:"instance"`
+	DeploymentID string            `json:"deployment_id"`
+	Shareable    bool              `json:"shareable"`
+	Resources    map[string]string `json:"resource_labels,omitempty"`
+}
+
+func (alloc *Allocation) String() string {
+	allocStr := fmt.Sprintf("deployment: %s,node-instance: %s-%s,shareable: %t", alloc.DeploymentID, alloc.NodeName, alloc.Instance, alloc.Shareable)
+	if alloc.Resources != nil && len(alloc.Resources) > 0 {
+		for k, v := range alloc.Resources {
+			allocStr += "," + k + ": " + v
+		}
+	}
+
+	return allocStr
+}
+
+func (alloc *Allocation) buildID() error {
+	if alloc.NodeName == "" || alloc.Instance == "" || alloc.DeploymentID == "" {
+		return errors.New("Node name, instance and deployment ID must be set")
+	}
+	if alloc.ID == "" {
+		alloc.ID = url.QueryEscape(strings.Join([]string{alloc.DeploymentID, alloc.NodeName, alloc.Instance}, "-"))
+	}
+	return nil
 }

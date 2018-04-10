@@ -1,5 +1,5 @@
 Yorc Command Line Interface
-============================
+===========================
 
 You can interact with a Yorc server using a command line interface (CLI). The same binary as for running a Yorc server is used for the CLI.
 
@@ -139,7 +139,7 @@ The task should be in status "INITIAL" or "RUNNING" to be canceled.
      yorc deployments tasks cancel <DeploymentId> <TaskId> [flags]
 
 Resume a deployment task
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Resume a task specifying the deployment id and the task id.
 The task should be in status "FAILED" to be resumed.
@@ -244,7 +244,7 @@ Flags:
 .. _yorc_cli_hostspool_section:
 
 CLI Commands related to hosts pool
------------------------------------
+----------------------------------
 
 All hosts pool related commands are sub-commands of a command named ``hostspool``.
 In practice that means that the commands starts with
@@ -275,6 +275,7 @@ Flags:
   * ``--label``: Label in form ``key=value`` to add to the host. May be specified several time.
   * ``--port``: Port used to connect to the host. (default 22)
   * ``--user``: User used to connect to the host (default "root")
+
 
 
 Host pool (JSON):

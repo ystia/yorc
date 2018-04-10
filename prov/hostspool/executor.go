@@ -17,7 +17,6 @@ package hostspool
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/ystia/yorc/helper/labelsutil"
@@ -27,6 +26,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/dustin/go-humanize"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
@@ -35,7 +35,8 @@ import (
 	"strconv"
 )
 
-type defaultExecutor struct{}
+type defaultExecutor struct {
+}
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	cc, err := cfg.GetConsulClient()
@@ -45,7 +46,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	// Fill log optional fields for log registration
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {
-		return errors.New("Missing contextual log optionnal fields")
+		return errors.New("Missing contextual log optional fields")
 	}
 	logOptFields[events.NodeID] = nodeName
 	logOptFields[events.ExecutionID] = taskID
@@ -57,12 +58,16 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	if err != nil {
 		return err
 	}
+	allocatedResources, err := e.getAllocatedResourcesFromHostCapabilities(cc.KV(), deploymentID, nodeName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve allocated resources from host capabilities for node %q and deploymentID %q", nodeName, deploymentID)
+	}
 	switch strings.ToLower(delegateOperation) {
 	case "install":
 		for _, instance := range instances {
 			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		}
-		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName)
+		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -74,7 +79,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		for _, instance := range instances {
 			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		}
-		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName)
+		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
@@ -86,7 +91,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	return errors.Errorf("operation %q not supported", delegateOperation)
 }
 
-func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string) error {
+func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 	hpManager := NewManager(cc)
 
 	_, jsonProp, err := deployments.GetNodeProperty(cc.KV(), deploymentID, nodeName, "filters")
@@ -112,6 +117,16 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		filters = append(filters, f)
 	}
 
+	shareable := false
+	if _, s, err := deployments.GetNodeProperty(cc.KV(), deploymentID, nodeName, "shareable"); err != nil {
+		return err
+	} else if s != "" {
+		shareable, err = strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+	}
+
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -120,7 +135,9 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		logOptFields, _ := events.FromContext(originalCtx)
 		logOptFields[events.InstanceID] = instance
 		ctx := events.NewContext(originalCtx, logOptFields)
-		hostname, warnings, err := hpManager.Allocate(fmt.Sprintf(`allocated for node instance "%s-%s" in deployment %q`, nodeName, instance, deploymentID), filters...)
+
+		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable, Resources: allocatedResources}
+		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
 				NewLogEntry(events.WARN, deploymentID).Registerf(`%v`, warn)
@@ -195,9 +212,39 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 				return err
 			}
 		}
+
+		return hpManager.UpdateLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
 	}
 
 	return nil
+}
+
+func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
+	res := make(map[string]string, 0)
+	found, p, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "num_cpus")
+	if err != nil {
+		return nil, err
+	}
+	if found && p != "" {
+		res["host.num_cpus"] = p
+	}
+
+	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "mem_size")
+	if err != nil {
+		return nil, err
+	}
+	if found && p != "" {
+		res["host.mem_size"] = p
+	}
+
+	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "disk_size")
+	if err != nil {
+		return nil, err
+	}
+	if found && p != "" {
+		res["host.disk_size"] = p
+	}
+	return res, nil
 }
 
 func appendCapabilityFilter(kv *api.KV, deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
@@ -253,7 +300,7 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 	return filters, nil
 }
 
-func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string) error {
+func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 	hpManager := NewManager(cc)
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
@@ -272,10 +319,13 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
 			continue
 		}
-		err = hpManager.Release(hostname)
+		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID}
+		err = hpManager.Release(hostname, allocation)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
+		return hpManager.UpdateLabels(hostname, allocatedResources, add, updateResourcesLabels)
+
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")
 }
@@ -289,4 +339,81 @@ func setAttributeFromLabel(deploymentID, nodeName, instance, label string, value
 		}
 	}
 	return nil
+}
+
+func updateResourcesLabels(origin map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error) {
+	labels := make(map[string]string)
+
+	// Host Resources Labels can only be updated when deployment resources requirement is described
+	if cpusDiffStr, ok := diff["host.num_cpus"]; ok {
+		if cpusOriginStr, ok := origin["host.num_cpus"]; ok {
+			cpusOrigin, err := strconv.Atoi(cpusOriginStr)
+			if err != nil {
+				return nil, err
+			}
+			cpusDiff, err := strconv.Atoi(cpusDiffStr)
+			if err != nil {
+				return nil, err
+			}
+
+			res := operation(int64(cpusOrigin), int64(cpusDiff))
+			labels["host.num_cpus"] = strconv.Itoa(int(res))
+		}
+	}
+
+	if memDiffStr, ok := diff["host.mem_size"]; ok {
+		if memOriginStr, ok := origin["host.mem_size"]; ok {
+			memOrigin, err := humanize.ParseBytes(memOriginStr)
+			if err != nil {
+				return nil, err
+			}
+			memDiff, err := humanize.ParseBytes(memDiffStr)
+			if err != nil {
+				return nil, err
+			}
+
+			res := operation(int64(memOrigin), int64(memDiff))
+			labels["host.mem_size"] = formatBytes(res, isIECformat(memOriginStr))
+		}
+	}
+
+	if diskDiffStr, ok := diff["host.disk_size"]; ok {
+		if diskOriginStr, ok := origin["host.disk_size"]; ok {
+			diskOrigin, err := humanize.ParseBytes(diskOriginStr)
+			if err != nil {
+				return nil, err
+			}
+			diskDiff, err := humanize.ParseBytes(diskDiffStr)
+			if err != nil {
+				return nil, err
+			}
+
+			res := operation(int64(diskOrigin), int64(diskDiff))
+			labels["host.disk_size"] = formatBytes(res, isIECformat(diskOriginStr))
+		}
+	}
+
+	return labels, nil
+}
+
+func add(valA int64, valB int64) int64 {
+	return valA + valB
+}
+
+func subtract(valA int64, valB int64) int64 {
+	return valA - valB
+}
+
+func formatBytes(value int64, isIEC bool) string {
+	if isIEC {
+		return humanize.IBytes(uint64(value))
+	}
+	return humanize.Bytes(uint64(value))
+}
+
+func isIECformat(value string) bool {
+	if value != "" && strings.HasSuffix(value, "iB") {
+		return true
+	}
+	return false
 }

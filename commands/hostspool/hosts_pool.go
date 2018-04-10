@@ -23,8 +23,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/commands"
+	"github.com/ystia/yorc/helper/sliceutil"
 	"github.com/ystia/yorc/helper/tabutil"
-	"github.com/ystia/yorc/prov/hostspool"
+	"github.com/ystia/yorc/rest"
 )
 
 // Internal constants for operations on hosts pool
@@ -79,7 +80,7 @@ func setHostsPoolConfig() {
 	viper.SetDefault("skip_tls_verify", false)
 }
 
-// getColoredText returns a text colored accroding to the operation in
+// getColoredText returns a text colored according to the operation in
 // argument :
 // - red for a deletion
 // - yellow for an update (bold for the new version, regular for the old one)
@@ -137,71 +138,110 @@ func padSlices(slice1 []string, slice2 []string) ([]string, []string) {
 	return slice1, slice2
 }
 
-// AaddRow adds a row to a table, with text colored according to the operation
-func addRow(table tabutil.Table, colorize bool, operation int,
-	name string,
-	connection hostspool.Connection,
-	status *hostspool.HostStatus,
-	message *string,
-	labels map[string]string) {
+// AddRow adds a row to a table, with text colored according to the operation
+// longTable specifies table with all headers
+func addRow(table tabutil.Table, colorize bool, operation int, host *rest.Host, fullTable bool) {
+	colNumber := 3
+	if fullTable {
+		colNumber = 6
+	}
 
-	colNumber := 2
 	statusString := ""
-	if status != nil {
-		colNumber++
-		statusString = status.String()
-	}
-	messageString := ""
-	if message != nil {
-		colNumber++
-		messageString = *message
-	}
-	if labels != nil {
-		colNumber++
+	if &host.Status != nil {
+		statusString = host.Status.String()
 	}
 
-	connectionSubRows := strings.Split(connection.String(), ",")
+	allocationsSubRows := make([]string, 0)
+	for _, alloc := range host.Allocations {
+		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), ",")...)
+	}
+
+	connectionSubRows := strings.Split(host.Connection.String(), ",")
 	var labelSubRows []string
-	if labels != nil {
-		labelSubRows = strings.Split(toPrintableLabels(labels), ",")
+	if host.Labels != nil {
+		labelSubRows = strings.Split(toPrintableLabels(host.Labels), ",")
 		sort.Strings(labelSubRows)
 	}
 
-	connectionSubRows, labelSubRows = padSlices(connectionSubRows, labelSubRows)
+	sliceutil.PadSlices("", &allocationsSubRows, &connectionSubRows, &labelSubRows)
 	subRowsNumber := len(connectionSubRows)
 
 	// Add rows, one for each sub-column
 	for i := 0; i < subRowsNumber; i++ {
 		coloredColumns := make([]interface{}, colNumber)
-		coloredColumns[0] = getColoredText(colorize, name, operation)
+		coloredColumns[0] = getColoredText(colorize, host.Name, operation)
 		coloredColumns[1] = getColoredText(colorize,
 			strings.TrimSpace(connectionSubRows[i]), operation)
 		j := 2
-		if status != nil {
+		if fullTable {
 			// For a list operation, color the status according to its value
 			if operation == hostList {
 				coloredColumns[j] = getColoredHostStatus(colorize, statusString)
 			} else {
 				coloredColumns[j] = getColoredText(colorize, statusString, operation)
 			}
+			j++
+		}
 
-			j++
-		}
-		if message != nil {
-			coloredColumns[j] = getColoredText(colorize, messageString, operation)
-			j++
-		}
-		if labels != nil {
+		if fullTable {
 			coloredColumns[j] = getColoredText(colorize,
-				strings.TrimSpace(labelSubRows[i]), operation)
+				strings.TrimSpace(allocationsSubRows[i]), operation)
+			j++
 		}
 
+		if fullTable {
+			coloredColumns[j] = getColoredText(colorize, host.Message, operation)
+			j++
+		}
+		coloredColumns[j] = getColoredText(colorize,
+			strings.TrimSpace(labelSubRows[i]), operation)
 		table.AddRow(coloredColumns...)
 		if i == 0 {
 			// Don't repeat single column values in sub-columns
-			name = ""
+			host.Name = ""
 			statusString = ""
-			messageString = ""
+			host.Message = ""
+		}
+	}
+}
+
+func addHostInErrorRow(table tabutil.Table, colorize bool, operation int, host *rest.Host) {
+	colNumber := 4
+
+	statusString := ""
+	if &host.Status != nil {
+		statusString = host.Status.String()
+	}
+
+	connectionSubRows := strings.Split(host.Connection.String(), ",")
+	var labelSubRows []string
+	if host.Labels != nil {
+		labelSubRows = strings.Split(toPrintableLabels(host.Labels), ",")
+		sort.Strings(labelSubRows)
+	}
+
+	subRowsNumber := len(connectionSubRows)
+	// Add rows, one for each sub-column
+	for i := 0; i < subRowsNumber; i++ {
+		coloredColumns := make([]interface{}, colNumber)
+		coloredColumns[0] = getColoredText(colorize, host.Name, operation)
+		coloredColumns[1] = getColoredText(colorize,
+			strings.TrimSpace(connectionSubRows[i]), operation)
+
+		// For a list operation, color the status according to its value
+		if operation == hostList {
+			coloredColumns[2] = getColoredHostStatus(colorize, statusString)
+		} else {
+			coloredColumns[2] = getColoredText(colorize, statusString, operation)
+		}
+
+		coloredColumns[3] = getColoredText(colorize, host.Message, operation)
+		table.AddRow(coloredColumns...)
+		if i == 0 {
+			// Don't repeat single column values in sub-columns
+			host.Name = ""
+			statusString = ""
+			host.Message = ""
 		}
 	}
 }

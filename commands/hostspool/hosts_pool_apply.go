@@ -32,6 +32,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/helper/sliceutil"
 	"github.com/ystia/yorc/helper/tabutil"
 	"github.com/ystia/yorc/prov/hostspool"
 	"github.com/ystia/yorc/rest"
@@ -123,12 +124,12 @@ func init() {
 			var hostsImpacted []string
 			hostsToDeleteTable := tabutil.NewTable()
 			hostsToDeleteTable.AddHeaders(
-				"Name", "Connection", "Status", "Message", "Labels")
+				"Name", "Connection", "Status", "Allocations", "Message", "Labels")
 			hostsToCreateTable := tabutil.NewTable()
 			hostsToCreateTable.AddHeaders("Name", "Connection", "Labels")
 			hostsToUpdateTable := tabutil.NewTable()
 			hostsToUpdateTable.AddHeaders(
-				"Version", "Name", "Connection", "Status", "Message", "Labels")
+				"Version", "Name", "Connection", "Status", "Allocations", "Message", "Labels")
 
 			for _, hostLink := range hostsColl.Hosts {
 				if hostLink.Rel == rest.LinkRelHost {
@@ -148,14 +149,7 @@ func init() {
 							!reflect.DeepEqual(host.Labels, newDef.Labels) {
 							update = true
 							hostsImpacted = append(hostsImpacted, host.Name)
-							addUpdateRows(hostsToUpdateTable, colorize,
-								host.Name,
-								host.Connection,
-								host.Status,
-								host.Message,
-								host.Labels,
-								newDef.Connection,
-								newDef.Labels)
+							addUpdateRows(hostsToUpdateTable, colorize, &host, &rest.Host{Host: hostspool.Host{Connection: newDef.Connection, Labels: newDef.Labels}})
 						}
 
 						// This host is now computed, removing it from the map
@@ -164,12 +158,7 @@ func init() {
 					} else {
 						// host isn't in the new Pool, this is a deletion
 						deletion = true
-						addRow(hostsToDeleteTable, colorize, hostDeletion,
-							host.Name,
-							host.Connection,
-							&host.Status,
-							&host.Message,
-							host.Labels)
+						addRow(hostsToDeleteTable, colorize, hostDeletion, &host, true)
 					}
 
 				}
@@ -179,8 +168,7 @@ func init() {
 			for _, host := range newPoolMap {
 				creation = true
 				hostsImpacted = append(hostsImpacted, host.Name)
-				addRow(hostsToCreateTable, colorize, hostCreation,
-					host.Name, host.Connection, nil, nil, host.Labels)
+				addRow(hostsToCreateTable, colorize, hostCreation, &rest.Host{Host: hostspool.Host{Name: host.Name, Connection: host.Connection, Labels: host.Labels}}, false)
 			}
 
 			if !deletion && !update && !creation {
@@ -211,7 +199,7 @@ func init() {
 				badAnswer := true
 				var answer string
 				for badAnswer {
-					fmt.Printf("\nApply these settings [y/N]: ")
+					fmt.Printf("\nApply these settings (Warning: host resources labels can be recalculated depending of allocations) [y/N]: ")
 					var inputText string
 					reader := bufio.NewReader(os.Stdin)
 					inputText, err := reader.ReadString('\n')
@@ -303,12 +291,7 @@ func init() {
 
 				if host.Status == hostspool.HostStatusError {
 					connectionFailure = true
-					addRow(hostsTable, colorize, hostError,
-						host.Name,
-						host.Connection,
-						&host.Status,
-						&host.Message,
-						nil)
+					addHostInErrorRow(hostsTable, colorize, hostError, &host)
 				}
 			}
 			fmt.Println("New hosts pool configuration applied successfully.")
@@ -349,31 +332,35 @@ func toPrintableConnection(connection hostspool.Connection) string {
 
 // Add rows to a table, for both old and new values
 // with colored text for changed values
-func addUpdateRows(table tabutil.Table, colorize bool,
-	name string,
-	oldConnection hostspool.Connection,
-	status hostspool.HostStatus,
-	message string,
-	oldLabels map[string]string,
-	newConnection hostspool.Connection,
-	newLabels map[string]string) {
+func addUpdateRows(table tabutil.Table, colorize bool, oldHost *rest.Host, newHost *rest.Host) {
+	name := oldHost.Name
+	message := oldHost.Message
+	status := oldHost.Status
 
-	// Sorting lables for an easier comparison between old and new labels
-	oldLabelsSlice := strings.Split(toPrintableLabels(oldLabels), ",")
-	newLabelsSlice := strings.Split(toPrintableLabels(newLabels), ",")
-	sort.Strings(oldLabelsSlice)
-	sort.Strings(newLabelsSlice)
+	oldConnection := oldHost.Connection
+	newConnection := newHost.Connection
+	oldLabels := oldHost.Labels
+	newLabels := newHost.Labels
 
 	// Padding columns in the same row
-	oldConnectionSubRows, oldLabelSubRows := padSlices(
-		strings.Split(toPrintableConnection(oldConnection), ","),
-		oldLabelsSlice)
-	newConnectionSubRows, newLabelSubRows := padSlices(
-		strings.Split(toPrintableConnection(newConnection), ","),
-		newLabelsSlice)
+	allocationsSubRows := make([]string, 0)
+	for _, alloc := range oldHost.Allocations {
+		allocationsSubRows = append(allocationsSubRows, strings.Split(alloc.String(), ",")...)
+	}
+	oldConnectionSubRows := strings.Split(toPrintableConnection(oldConnection), ",")
+	oldLabelSubRows := strings.Split(toPrintableLabels(oldLabels), ",")
+	// Sorting labels for an easier comparison between old and new labels
+	sort.Strings(oldLabelSubRows)
+	sliceutil.PadSlices("", &allocationsSubRows, &oldConnectionSubRows, &oldLabelSubRows)
+
+	newConnectionSubRows := strings.Split(toPrintableConnection(newConnection), ",")
+	newLabelSubRows := strings.Split(toPrintableLabels(newLabels), ",")
+	// Sorting labels for an easier comparison between old and new labels
+	sort.Strings(newLabelSubRows)
+	sliceutil.PadSlices("", &allocationsSubRows, &newConnectionSubRows, &newLabelSubRows)
 
 	// Add rows for old values, one row for each sub-column
-	colNumber := 6
+	colNumber := 7
 	oldSubRowsNumber := len(oldLabelSubRows)
 	newSubRowsNumber := len(newLabelSubRows)
 	version, nameValue, statusValue, messageValue :=
@@ -393,7 +380,11 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 			strings.TrimSpace(oldConnectionSubRows[i]), operation)
 
 		coloredColumns[3] = statusValue
-		coloredColumns[4] = messageValue
+
+		coloredColumns[4] = getColoredText(colorize,
+			strings.TrimSpace(allocationsSubRows[i]), operation)
+
+		coloredColumns[5] = messageValue
 
 		operation = hostNoOperation
 		if oldLabelSubRows[i] != "" {
@@ -403,7 +394,7 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 				operation = hostUpdate
 			}
 		}
-		coloredColumns[5] = getColoredText(colorize,
+		coloredColumns[6] = getColoredText(colorize,
 			strings.TrimSpace(oldLabelSubRows[i]), operation)
 
 		table.AddRow(coloredColumns...)
@@ -434,7 +425,10 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 			strings.TrimSpace(newConnectionSubRows[i]), operation)
 
 		coloredColumns[3] = statusValue
-		coloredColumns[4] = messageValue
+		coloredColumns[4] = getColoredText(colorize,
+			strings.TrimSpace(allocationsSubRows[i]), operation)
+
+		coloredColumns[5] = messageValue
 
 		operation = hostNoOperation
 		if newLabelSubRows[i] != "" {
@@ -444,7 +438,7 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 				operation = hostUpdate
 			}
 		}
-		coloredColumns[5] = getColoredText(colorize,
+		coloredColumns[6] = getColoredText(colorize,
 			strings.TrimSpace(newLabelSubRows[i]), operation)
 
 		table.AddRow(coloredColumns...)
@@ -456,5 +450,4 @@ func addUpdateRows(table tabutil.Table, colorize bool,
 			messageValue = ""
 		}
 	}
-
 }
