@@ -59,7 +59,17 @@ Content-Type: application/json
 ```json
 {
   "deployments": [
-    {"rel":"deployment","href":"/deployments/55d54226-5ce5-4278-96e4-97dd4cbb4e62","type":"application/json"}
+    {
+      "id": "deployment1",
+      "status": "DEPLOYED",
+      "links": [
+        {
+          "rel": "deployment",
+          "href": "/deployments/deployment1",
+          "type": "application/json"
+        }
+      ]
+    }
   ]
 }
 ```

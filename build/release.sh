@@ -162,10 +162,10 @@ fi
 ####################################################
 # Make our build
 ####################################################
-echo "Building version v${version}"
-git checkout "v${version}"
-make tools || { exit 2; }
-SKIP_TESTS=1 make dist || { exit 2; }
+#echo "Building version v${version}"
+#git checkout "v${version}"
+#make tools || { exit 2; }
+#SKIP_TESTS=1 make dist || { exit 2; }
 
 # Push changes
 if [ "${dryRun}" = false ] ; then

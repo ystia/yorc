@@ -88,11 +88,11 @@ type Output struct {
 	Value string `json:"value"`
 }
 
-// DeploymentsCollection is a collection of deployments links
+// DeploymentsCollection is a collection of Deployment
 //
 // Links are all of type LinkRelDeployment.
 type DeploymentsCollection struct {
-	Deployments []AtomLink `json:"deployments"`
+	Deployments []Deployment `json:"deployments"`
 }
 
 // EventsCollection is a collection of instances status change events
