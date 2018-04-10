@@ -65,16 +65,8 @@ var listCmd = &cobra.Command{
 
 		depsTable := tabutil.NewTable()
 		depsTable.AddHeaders("Id", "Status")
-		for _, depLink := range deps.Deployments {
-			if depLink.Rel == rest.LinkRelDeployment {
-				var dep rest.Deployment
-
-				err = httputil.GetJSONEntityFromAtomGetRequest(client, depLink, &dep)
-				if err != nil {
-					httputil.ErrExit(err)
-				}
-				depsTable.AddRow(dep.ID, getColoredDeploymentStatus(colorize, dep.Status))
-			}
+		for _, dep := range deps.Deployments {
+			depsTable.AddRow(dep.ID, getColoredDeploymentStatus(colorize, dep.Status))
 		}
 		if colorize {
 			defer color.Unset()

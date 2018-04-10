@@ -227,9 +227,39 @@ func (e *executionAnsible) logAnsibleOutputInConsul(ctx context.Context, output 
 				if msg, err = host.GetString("msg"); err == nil && msg != "" {
 					buf.WriteString(" => {\n\tmsg: \"")
 					buf.WriteString(msg)
-					buf.WriteString("\"\n}")
+					buf.WriteString("\"\n")
 
 				}
+				results, err := host.GetObjectArray("results")
+				if err == nil {
+					// optionnal
+					for _, r := range results {
+						isItem, _ := r.GetBoolean("_ansible_item_result")
+						if isItem {
+							item, _ := r.GetString("item")
+							if item != "" {
+								buf.WriteString("\titem: \"")
+								buf.WriteString(item)
+								buf.WriteString("\"\n")
+							}
+						}
+						if msg, err := r.GetString("msg"); err == nil && msg != "" {
+							buf.WriteString("\tmsg: \"")
+							buf.WriteString(msg)
+							buf.WriteString("\"\n")
+						}
+						if sResults, err := r.GetStringArray("results"); err == nil && len(sResults) > 0 {
+							buf.WriteString("\t{\n")
+							for _, s := range sResults {
+								buf.WriteString("\t\t")
+								buf.WriteString(s)
+								buf.WriteString("\n")
+							}
+							buf.WriteString("\t}\n")
+						}
+					}
+				}
+				buf.WriteString("}")
 			}
 
 		}

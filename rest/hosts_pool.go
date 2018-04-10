@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/prov/hostspool"
+	"strconv"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/hostspool"
 )
 
 func (s *Server) deleteHostInPool(w http.ResponseWriter, r *http.Request) {
@@ -200,7 +201,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	hostsNames, warnings, err := s.hostsPoolMgr.List(filters...)
+	hostsNames, warnings, checkpoint, err := s.hostsPoolMgr.List(filters...)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -211,6 +212,7 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hostsCol := HostsCollection{}
+	hostsCol.Checkpoint = checkpoint
 	if len(hostsNames) > 0 {
 		hostsCol.Hosts = make([]AtomLink, len(hostsNames))
 	}
@@ -225,4 +227,57 @@ func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encodeJSONResponse(w, r, hostsCol)
+}
+
+func (s *Server) applyHostsPool(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Panic(err)
+	}
+	var hostsPoolCheckpoint *uint64
+	var value uint64
+	if r.Method == http.MethodPost {
+		if strValue, ok := r.URL.Query()["checkpoint"]; ok {
+			if value, err = strconv.ParseUint(strValue[0], 10, 64); err == nil {
+				hostsPoolCheckpoint = &value
+			} else {
+				writeError(w, r, newBadRequestError(err))
+				return
+			}
+		} else {
+			writeError(w, r, newBadRequestError(errors.Errorf("Missing query parameter checkpoint")))
+			return
+		}
+	}
+
+	var poolRequest HostsPoolRequest
+	err = json.Unmarshal(body, &poolRequest)
+	if err != nil {
+		writeError(w, r, newBadRequestError(err))
+		return
+	}
+
+	pool := make([]hostspool.Host, len(poolRequest.Hosts))
+	for i, host := range poolRequest.Hosts {
+		pool[i] = hostspool.Host{
+			Name:       host.Name,
+			Connection: host.Connection,
+			Labels:     host.Labels,
+		}
+	}
+
+	err = s.hostsPoolMgr.Apply(pool, hostsPoolCheckpoint)
+	if err != nil {
+		if hostspool.IsHostAlreadyExistError(err) || hostspool.IsBadRequestError(err) {
+			writeError(w, r, newBadRequestError(err))
+			return
+		}
+		log.Panic(err)
+	}
+
+	if r.Method == http.MethodPost {
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }
