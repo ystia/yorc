@@ -42,46 +42,81 @@ func (s *MockSSHClient) RunCommand(cmd string) (string, error) {
 	return "", nil
 }
 
-func TestGetAttribute(t *testing.T) {
+func TestGetAttributesWithCudaVisibleDeviceKey(t *testing.T) {
 	t.Parallel()
 	s := &MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "CUDA_VISIBLE_DEVICES=NoDevFiles", nil
 		},
 	}
-	value, err := getAttribute(s, "cuda_visible_devices", "1234", "myNodeName")
+	values, err := getAttributes(s, "cuda_visible_devices", "1234", "myNodeName")
 	require.Nil(t, err)
-	require.Equal(t, "NoDevFiles", value)
+	require.Len(t, values, 1, "values length not equal to 1")
+	require.Equal(t, "NoDevFiles", values[0])
 }
 
-func TestGetAttributeWithUnknownKey(t *testing.T) {
+func TestGetAttributesWithNodePartitionKey(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "node1,part1", nil
+		},
+	}
+	values, err := getAttributes(s, "node_partition", "1234")
+	require.Nil(t, err)
+	require.Len(t, values, 2, "values length not equal to 2")
+	require.Equal(t, "node1", values[0])
+	require.Equal(t, "part1", values[1])
+}
+
+func TestGetAttributesWithNodePartitionKeyAndNotEnoughParameters(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "node1,part1", nil
+		},
+	}
+	_, err := getAttributes(s, "node_partition")
+	require.Error(t, err, "expected not enough parameters error")
+}
+
+func TestGetAttributesWithNodePartitionKeyAndMalformedResponse(t *testing.T) {
+	t.Parallel()
+	s := &MockSSHClient{
+		MockRunCommand: func(cmd string) (string, error) {
+			return "a", nil
+		},
+	}
+	_, err := getAttributes(s, "node_partition", "1234")
+	require.Error(t, err, "expected unexpected stdout")
+}
+
+func TestGetAttributesWithUnknownKey(t *testing.T) {
 	t.Parallel()
 	s := &MockSSHClient{}
-	value, err := getAttribute(s, "unknown_key", "1234", "myNodeName")
-	require.Equal(t, "", value)
+	_, err := getAttributes(s, "unknown_key", "1234")
 	require.Error(t, err, "unknown key error expected")
 }
 
-func TestGetAttributeWithFailure(t *testing.T) {
+func TestGetAttributesWithFailure(t *testing.T) {
 	t.Parallel()
 	s := &MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "", errors.New("expected failure")
 		},
 	}
-	value, err := getAttribute(s, "unknown_key", "1234", "myNodeName")
-	require.Equal(t, "", value)
+	_, err := getAttributes(s, "unknown_key", "1234")
 	require.Error(t, err, "expected failure expected")
 }
 
-func TestGetAttributeWithMalformedStdout(t *testing.T) {
+func TestGetAttributesWithMalformedStdout(t *testing.T) {
+	t.Parallel()
 	s := &MockSSHClient{
 		MockRunCommand: func(cmd string) (string, error) {
 			return "MALFORMED_VALUE", nil
 		},
 	}
-	value, err := getAttribute(s, "unknown_key", "1234", "myNodeName")
-	require.Equal(t, "", value)
+	_, err := getAttributes(s, "unknown_key", "1234")
 	require.Error(t, err, "expected property/value is malformed")
 }
 
@@ -126,9 +161,9 @@ func TestParseSallocResponseWithExpectedPending(t *testing.T) {
 	}
 }
 
-//salloc: Required node not available (down, drained or reserved)
-//salloc: Pending job allocation 2220
-//salloc: job 2220 queued and waiting for resources
+// salloc: Required node not available (down, drained or reserved)
+// salloc: Pending job allocation 2220
+// salloc: job 2220 queued and waiting for resources
 func TestParseSallocResponseWithExpectedPendingInOtherThanFirstLine(t *testing.T) {
 	str := "salloc: Required node not available (down, drained or reserved)\nsalloc: Pending job allocation 2220\nsalloc: job 2220 queued and waiting for resources"
 	chResult := make(chan allocationResponse)
