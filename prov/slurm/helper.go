@@ -130,8 +130,8 @@ func getAttributes(client sshutil.Client, key string, params ...string) ([]strin
 			if len(split) != 2 {
 				return nil, errors.Errorf("Slurm returned an unexpected stdout: %q with command:%q", out, cmd)
 			}
-			node := strings.Trim(split[0], "\" \t\n")
-			part := strings.Trim(split[1], "\" \t\n")
+			node := strings.Trim(split[0], "\" \t\n\x00")
+			part := strings.Trim(split[1], "\" \t\n\x00")
 			return []string{node, part}, nil
 		}
 	default:
