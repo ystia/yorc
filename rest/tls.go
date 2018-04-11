@@ -32,15 +32,16 @@ func wrapListenerTLS(listener net.Listener, cfg config.Configuration) (net.Liste
 	tlsConf := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}
-
 	if cfg.SSLVerify {
-		certPool, err := rootcerts.LoadCAFile(cfg.CAFile)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to load CA certificate")
+		if cfg.CAFile == "" && cfg.CAPath == ""{
+			return nil, errors.New("SSL verify enabled but no CA provided")
 		}
-		tlsConf.ClientCAs = certPool
+		cfg := &rootcerts.Config{
+			CAFile: cfg.CAFile,
+			CAPath: cfg.CAPath,
+		}
+		rootcerts.ConfigureTLS(tlsConf, cfg)
 		tlsConf.ClientAuth = tls.RequireAndVerifyClientCert
 	}
-
 	return tls.NewListener(listener, tlsConf), nil
 }

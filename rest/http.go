@@ -107,7 +107,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		return nil, errors.Wrapf(err, "Failed to bind on %s", addr)
 	}
 
-	if configuration.CertFile != "" && configuration.KeyFile != "" {
+	if configuration.SSLEnabled {
 		listener, err = wrapListenerTLS(listener, configuration)
 		if err != nil {
 			return nil, err
@@ -127,9 +127,10 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 	if configuration.CertFile != "" && configuration.KeyFile != "" {
 		log.Printf("Starting HTTPServer over TLS on address %s", listener.Addr())
 		log.Debugf("TLS KeyFile in use: %q. TLS CertFile in use: %q", configuration.KeyFile, configuration.CertFile)
-		if configuration.CAFile != "" {
-			log.Printf("TLS set to reject any certificate not signed by CA")
+		if configuration.SSLVerify{
+			log.Printf("TLS set to reject any certificate not trusted by CA")
 			log.Debugf("TLS CA file in use: %q", configuration.CAFile)
+			log.Debugf("TLS CA path in use: %q", configuration.CAPath)	
 		}
 	} else {
 		log.Printf("Starting HTTPServer on address %s", listener.Addr())

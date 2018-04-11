@@ -111,6 +111,7 @@ func GetClient() (*YorcClient, error) {
 				CAPath: caPath,
 			}
 			rootcerts.ConfigureTLS(tlsConfig, cfg)
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 		
 		tlsConfig.InsecureSkipVerify = skipTLSVerify
