@@ -102,26 +102,42 @@ func checkInfraConfig(cfg config.Configuration) error {
 	return nil
 }
 
-// getAttribute allows to return an attribute with defined key from specific treatment
-func getAttribute(client sshutil.Client, key string, jobID, nodeName string) (string, error) {
+// getAttributes allows to return an attribute with defined key from specific treatment
+func getAttributes(client sshutil.Client, key string, params ...string) ([]string, error) {
+	var ret []string
 	switch key {
 	case "cuda_visible_devices":
-		if jobID != "" {
-			cmd := fmt.Sprintf("srun --jobid=%s env|grep CUDA_VISIBLE_DEVICES", jobID)
+		if len(params) == 2 && params[0] != "" {
+			cmd := fmt.Sprintf("srun --jobid=%s env|grep CUDA_VISIBLE_DEVICES", params[0])
 			stdout, err := client.RunCommand(cmd)
 			if err != nil {
-				return "", errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, nodeName)
+				return nil, errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, params[1])
 			}
 			value, err := getEnvValue(stdout)
 			if err != nil {
-				return "", errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, nodeName)
+				return nil, errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, params[1])
 			}
-			return value, nil
+			return []string{value}, nil
 		}
-		return "", nil
+	case "node_partition":
+		if len(params) == 1 && params[0] != "" {
+			cmd := fmt.Sprintf("squeue -j %s --noheader -o \"%%N,%%P\"", params[0])
+			out, err := client.RunCommand(cmd)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to retrieve Slurm node name/partition")
+			}
+			split := strings.Split(out, ",")
+			if len(split) != 2 {
+				return nil, errors.Errorf("Slurm returned an unexpected stdout: %q with command:%q", out, cmd)
+			}
+			node := strings.Trim(split[0], "\" \t\n")
+			part := strings.Trim(split[1], "\" \t\n")
+			return []string{node, part}, nil
+		}
 	default:
-		return "", fmt.Errorf("unknown key:%s", key)
+		return ret, errors.Errorf("unknown key:%s", key)
 	}
+	return nil, errors.Errorf("Number of parameters (%d) not as expected for key:%q", len(params), key)
 }
 
 // getEnvValue allows to return the value in a formatted string as "property=value"
@@ -144,9 +160,9 @@ func getEnvValue(s string) (string, error) {
 // salloc: Granted job allocation 1881
 // salloc: Pending job allocation 1881
 
-//salloc: Job allocation 1882 has been revoked.
-//salloc: error: CPU count per node can not be satisfied
-//salloc: error: Job submit/allocate failed: Requested node configuration is not available
+// salloc: Job allocation 1882 has been revoked.
+// salloc: error: CPU count per node can not be satisfied
+// salloc: error: Job submit/allocate failed: Requested node configuration is not available
 func parseSallocResponse(r io.Reader, chRes chan allocationResponse, chErr chan error) {
 	var (
 		jobID  string
