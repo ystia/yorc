@@ -196,9 +196,11 @@ func setConfig() {
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
 	serverCmd.PersistentFlags().String("http_address", config.DefaultHTTPAddress, "Listening address for the Yorc HTTP REST API.")
 	serverCmd.PersistentFlags().String("key_file", "", "File path to a PEM-encoded private key. The key is used to enable SSL for the Yorc HTTP REST API. This must be provided along with cert_file. If one of key_file or cert_file is not provided then SSL is disabled.")
-	serverCmd.PersistentFlags().String("ca_file", "", "File path to a PEM-encoded CA certificate.")
+	serverCmd.PersistentFlags().String("ca_file", "", "File path to a PEM-encoded CA certificate to use for talking to yorc over TLS")
+	serverCmd.PersistentFlags().String("ca_path", "", "Path to a directory of CA certs to use for talking to yorc over TLS")
 	serverCmd.PersistentFlags().String("cert_file", "", "File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Yorc HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.")
-	serverCmd.PersistentFlags().Bool("ssl_verify", false, "Enable certificate checking by the rest API")
+	serverCmd.PersistentFlags().Bool("ssl_enabled", false, "Whether or not to use HTTPS")
+	serverCmd.PersistentFlags().Bool("ssl_verify", false, "Whether or not enable client certificate checking by the server")
 
 	//Flags definition for Consul
 	serverCmd.PersistentFlags().StringP("consul_address", "", "", "Address of the HTTP interface for Consul (format: <host>:<port>)")
@@ -238,6 +240,8 @@ func setConfig() {
 	viper.BindPFlag("cert_file", serverCmd.PersistentFlags().Lookup("cert_file"))
 	viper.BindPFlag("key_file", serverCmd.PersistentFlags().Lookup("key_file"))
 	viper.BindPFlag("ca_file", serverCmd.PersistentFlags().Lookup("ca_file"))
+	viper.BindPFlag("ca_path", serverCmd.PersistentFlags().Lookup("ca_path"))
+	viper.BindPFlag("ssl_enabled", serverCmd.PersistentFlags().Lookup("ssl_enabled"))
 	viper.BindPFlag("ssl_verify", serverCmd.PersistentFlags().Lookup("ssl_verify"))
 
 	//Bind Ansible persistent flags
@@ -256,7 +260,9 @@ func setConfig() {
 	viper.BindEnv("http_address")
 	viper.BindEnv("key_file")
 	viper.BindEnv("ca_file")
+	viper.BindEnv("ca_path")
 	viper.BindEnv("cert_file")
+	viper.BindEnv("SSL_enabled")
 	viper.BindEnv("SSL_verify")
 	viper.BindEnv("resources_prefix")
 
@@ -314,6 +320,8 @@ func getConfig() config.Configuration {
 	configuration.CertFile = viper.GetString("cert_file")
 	configuration.KeyFile = viper.GetString("key_file")
 	configuration.CAFile = viper.GetString("ca_file")
+	configuration.CAPath = viper.GetString("ca_path")
+	configuration.SSLEnabled = viper.GetBool("ssl_enabled")
 	configuration.SSLVerify = viper.GetBool("ssl_verify")
 	configuration.ResourcesPrefix = viper.GetString("resources_prefix")
 	configuration.Consul.Address = viper.GetString("consul.address")

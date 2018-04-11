@@ -22,7 +22,6 @@ import (
 
 	"strings"
 
-	"crypto/x509"
 	"io/ioutil"
 
 	"fmt"
@@ -30,6 +29,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/goware/urlx"
+	"github.com/hashicorp/go-rootcerts"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/rest"
@@ -72,14 +72,19 @@ func (c *YorcClient) PostForm(path string, data url.Values) (*http.Response, err
 
 // GetClient returns a yorc HTTP Client
 func GetClient() (*YorcClient, error) {
-	tlsEnable := viper.GetBool("secured")
+	tlsEnable := viper.GetBool("ssl_enabled")
+	sslVeriry := viper.GetBool("ssl_verify")
 	yorcAPI := viper.GetString("yorc_api")
 	yorcAPI = strings.TrimRight(yorcAPI, "/")
 	caFile := viper.GetString("ca_file")
+	caPath := viper.GetString("ca_path")
 	certFile := viper.GetString("cert_file")
 	keyFile := viper.GetString("key_file")
 	skipTLSVerify := viper.GetBool("skip_tls_verify")
-	if tlsEnable || skipTLSVerify || caFile != "" {
+	if tlsEnable {
+		if certFile == "" || keyFile == ""{
+			return nil, errors.New("TLS enabled but no keypair provided")
+		}
 		url, err := urlx.Parse(yorcAPI)
 		if err != nil {
 			return nil, errors.Wrap(err, "Malformed Yorc URL")
@@ -88,25 +93,26 @@ func GetClient() (*YorcClient, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Malformed Yorc URL")
 		}
-		tlsConfig := &tls.Config{ServerName: yorcHost}
-		if certFile != "" && keyFile != "" {
-			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to load TLS certificates")
-			}
-			tlsConfig.Certificates = []tls.Certificate{cert}
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to load TLS certificates")
 		}
-		if caFile != "" {
-			certPool := x509.NewCertPool()
-			caCert, err := ioutil.ReadFile(caFile)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to read certificate authority file")
-			}
-			if !certPool.AppendCertsFromPEM(caCert) {
-				return nil, errors.Errorf("%q is not a valid certificate authority.", caFile)
-			}
-			tlsConfig.RootCAs = certPool
+		tlsConfig := &tls.Config{
+			ServerName:       yorcHost,
+			Certificates:     []tls.Certificate{cert},
 		}
+
+		if sslVeriry {
+			if caFile == "" && caPath == ""{
+				return nil, errors.New("SSL verify enabled but no CA provided")
+			}
+			cfg := &rootcerts.Config{
+				CAFile: caFile,
+				CAPath: caPath,
+			}
+			rootcerts.ConfigureTLS(tlsConfig, cfg)
+		}
+		
 		tlsConfig.InsecureSkipVerify = skipTLSVerify
 		tr := &http.Transport{
 			TLSClientConfig: tlsConfig,

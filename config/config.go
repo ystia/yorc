@@ -63,6 +63,8 @@ type Configuration struct {
 	KeyFile                          string
 	CertFile                         string
 	CAFile                           string
+	CAPath 							 string
+	SSLEnabled 						 bool
 	SSLVerify                        bool
 	ResourcesPrefix                  string
 	Consul                           Consul
