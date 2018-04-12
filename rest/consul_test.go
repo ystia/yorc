@@ -24,7 +24,27 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/config"
+	"golang.org/x/crypto/ssh"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/sshutil"
 )
+
+
+type mockSSHClient struct {
+	config *ssh.ClientConfig
+}
+
+func (m *mockSSHClient) RunCommand(string) (string, error) {
+	if m.config != nil && m.config.User == "fail" {
+		return "", errors.Errorf("Failed to connect")
+	}
+
+	return "ok", nil
+}
+
+var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connection) sshutil.Client {
+	return &mockSSHClient{config}
+}
 
 
 func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
@@ -33,7 +53,7 @@ func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 	httpSrv := &Server{
 		router:         router,
 		consulClient:   client,
-		hostsPoolMgr: hostspool.NewManager(client),
+		hostsPoolMgr: hostspool.NewManagerWithSSHFactory(client, mockSSHClientFactory),
 		tasksCollector: tasks.NewCollector(client),
 		config:         config.Configuration{},
 	}
@@ -53,3 +73,5 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 		})
 	})
 }
+
+
