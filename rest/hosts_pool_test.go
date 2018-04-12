@@ -21,12 +21,30 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/hostspool"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func testHostsPoolHandlers(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Run("testListHostsInPool", func(t *testing.T) {
+		testListHostsInPool(t, client, srv)
+	})
+	t.Run("testListNoHostsInPool", func(t *testing.T) {
+		testListNoHostsInPool(t, client, srv)
+	})
+	t.Run("testListHostsInPoolWithBadFilter", func(t *testing.T) {
+		testListHostsInPoolWithBadFilter(t, client, srv)
+	})
+	t.Run("testDeleteHostInPool", func(t *testing.T) {
+		testDeleteHostInPool(t, client, srv)
+	})
+	t.Run("testDeleteHostInPoolNotFound", func(t *testing.T) {
+		testDeleteHostInPoolNotFound(t, client, srv)
+	})
+}
+
 
 func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 	t.Parallel()
@@ -38,24 +56,14 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 		consulutil.HostsPoolPrefix + "/host3/status": []byte("free"),
 	})
 
-	httpSrv := &Server{
-		hostsPoolMgr: hostspool.NewManager(client),
-	}
-
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		httpSrv.listHostsInPool(w, r)
-	}
-
 	req := httptest.NewRequest("GET", "/hosts_pool", nil)
-	w := httptest.NewRecorder()
-	handler(w, req)
-
-	resp := w.Result()
+	req.Header.Add("Accept", "application/json")
+	resp := newTestHTTPRouter(client, req)
 	body, err := ioutil.ReadAll(resp.Body)
 
 	require.Nil(t, err, "unexpected error reading body response")
 	require.NotNil(t, resp, "unexpected nil response")
-	require.Equal(t, 200, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
 	require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
 	var collection HostsCollection
@@ -70,3 +78,70 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 	require.Equal(t, "/hosts_pool/host3", collection.Hosts[2].Href)
 	require.Equal(t, "host", collection.Hosts[2].Rel)
 }
+
+func testListNoHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+
+	req := httptest.NewRequest("GET", "/hosts_pool", nil)
+	req.Header.Add("Accept", "application/json")
+	resp := newTestHTTPRouter(client, req)
+	_, err := ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusNoContent)
+}
+
+func testListHostsInPoolWithBadFilter(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+	log.SetDebug(true)
+
+	req := httptest.NewRequest("GET", "/hosts_pool", nil)
+	filters := []string{"bad++"}
+	q := req.URL.Query()
+	for i := range filters {
+		q.Add("filter", filters[i])
+	}
+	req.URL.RawQuery = q.Encode()
+	req.Header.Add("Accept", "application/json")
+	resp := newTestHTTPRouter(client, req)
+	_, err := ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+}
+
+func testDeleteHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+	srv.PopulateKV(t, map[string][]byte{
+		consulutil.HostsPoolPrefix + "/host1/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/host1/connection/host":    []byte("1.2.3.4"),
+		consulutil.HostsPoolPrefix + "/host1/connection/port":    []byte("22"),
+		consulutil.HostsPoolPrefix + "/host1/connection/private_key":    []byte("test/cert1.pem"),
+		consulutil.HostsPoolPrefix + "/host1/connection/user":    []byte("user1"),
+	})
+
+	req := httptest.NewRequest("DELETE", "/hosts_pool/host1", nil)
+	resp := newTestHTTPRouter(client, req)
+	_, err := ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusOK)
+}
+
+func testDeleteHostInPoolNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+
+	req := httptest.NewRequest("DELETE", "/hosts_pool/host1", nil)
+	resp := newTestHTTPRouter(client, req)
+	_, err := ioutil.ReadAll(resp.Body)
+
+	require.Nil(t, err, "unexpected error reading body response")
+	require.NotNil(t, resp, "unexpected nil response")
+	require.Equal(t, http.StatusNotFound, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusNotFound)
+}
+
+
+

@@ -18,15 +18,38 @@ import (
 	"testing"
 
 	"github.com/ystia/yorc/testutil"
+	"net/http"
+	"github.com/ystia/yorc/prov/hostspool"
+	"net/http/httptest"
+	"github.com/hashicorp/consul/api"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/config"
 )
+
+
+func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
+	router := newRouter()
+
+	httpSrv := &Server{
+		router:         router,
+		consulClient:   client,
+		hostsPoolMgr: hostspool.NewManager(client),
+		tasksCollector: tasks.NewCollector(client),
+		config:         config.Configuration{},
+	}
+	httpSrv.registerHandlers()
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w.Result()
+}
 
 func TestRunConsulRestPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 	defer srv.Stop()
 
 	t.Run("groupRest", func(t *testing.T) {
-		t.Run("testListHostsInPool", func(t *testing.T) {
-			testListHostsInPool(t, client, srv)
+		t.Run("testHostsPoolHandlers", func(t *testing.T) {
+			testHostsPoolHandlers(t, client, srv)
 		})
 	})
 }
