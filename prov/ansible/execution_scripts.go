@@ -29,9 +29,7 @@ import (
 
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
 )
 
 const scriptCustomWrapper = `#!/usr/bin/env bash
@@ -168,16 +166,6 @@ func cutAfterLastUnderscore(str string) string {
 }
 
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID:    wfName,
-		events.NodeID:        e.NodeName,
-		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
-		events.InstanceID:    currentInstance,
-		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
-	}
-
 	var buffer bytes.Buffer
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
@@ -205,12 +193,12 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	}
 	if err := wrapTemplate.Execute(&buffer, e); err != nil {
 		err = errors.Wrap(err, "Failed to Generate wrapper template")
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -218,17 +206,17 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	if err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook")
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook template")
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -237,7 +225,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		return err
 	}
 
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
 	var cmd *executil.Cmd
 	wrapperPath, err := filepath.Abs(ansibleRecipePath)
 	if err != nil {
@@ -265,16 +253,16 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	defer close(errCloseCh)
 
 	// Register log entry via error buffer
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
 	defer func(buffer *bytes.Buffer) {
-		if err := e.logAnsibleOutputInConsul(buffer, logOptFields); err != nil {
+		if err := e.logAnsibleOutputInConsul(ctx, buffer); err != nil {
 			log.Printf("Failed to publish Ansible log %v", err)
 			log.Debugf("%+v", err)
 		}
 	}(&outbuf)
 	if err := cmd.Run(); err != nil {
-		return e.checkAnsibleRetriableError(err, logOptFields)
+		return e.checkAnsibleRetriableError(ctx, err)
 	}
 
 	return nil

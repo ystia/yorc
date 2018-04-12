@@ -5,13 +5,13 @@ checks:
       threshold: 8
   complex-logic:
     config:
-      threshold: 10
+      threshold: 20
   file-lines:
     config:
       threshold: 500
   method-complexity:
     config:
-      threshold: 10
+      threshold: 20
   method-count:
     config:
       threshold: 40

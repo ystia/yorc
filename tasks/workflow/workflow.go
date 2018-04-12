@@ -211,17 +211,16 @@ func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) er
 
 func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool, workflowName string, w worker) error {
 	// Fill log optional fields for log registration
-	var logOptFields events.LogOptionalFields
-	if s.Target != "" {
-		logOptFields = events.LogOptionalFields{
-			events.WorkFlowID: workflowName,
-			events.NodeID:     s.Target,
-		}
-	} else {
-		logOptFields = events.LogOptionalFields{
-			events.WorkFlowID: workflowName,
-		}
+	logOptFields, ok := events.FromContext(ctx)
+	if !ok {
+		logOptFields = make(events.LogOptionalFields)
 	}
+	logOptFields[events.WorkFlowID] = workflowName
+
+	if s.Target != "" {
+		logOptFields[events.NodeID] = s.Target
+	}
+	ctx = events.NewContext(ctx, logOptFields)
 
 	s.setStatus(tasks.TaskStepStatusINITIAL)
 	haveErr := false
@@ -252,7 +251,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		return err
 	} else if !runnable {
 		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
-		events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
 		s.setStatus(tasks.TaskStepStatusDONE)
 		s.notifyNext()
 		return nil
@@ -261,7 +260,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	s.setStatus(tasks.TaskStepStatusRUNNING)
 
 	// Create a new context to handle gracefully current step termination when an error occurred during another step
-	wfCtx, cancelWf := context.WithCancel(context.Background())
+	wfCtx, cancelWf := context.WithCancel(events.NewContext(context.Background(), logOptFields))
 	waitDoneCh := make(chan struct{})
 	defer close(waitDoneCh)
 	go func() {

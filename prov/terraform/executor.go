@@ -50,33 +50,35 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 	kv := consulClient.KV()
+	// Fill log optional fields for log registration
+	logOptFields, ok := events.FromContext(ctx)
+	if !ok {
+		return errors.New("Missing contextual log optionnal fields")
+	}
+	logOptFields[events.NodeID] = nodeName
+	logOptFields[events.ExecutionID] = taskID
+	logOptFields[events.OperationName] = delegateOperation
+	logOptFields[events.InterfaceName] = "delegate"
+	ctx = events.NewContext(ctx, logOptFields)
+
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(kv, taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.NodeID:        nodeName,
-		events.WorkFlowID:    wfName,
-		events.InterfaceName: "delegate",
-		events.OperationName: delegateOperation,
-	}
-
 	op := strings.ToLower(delegateOperation)
 	switch {
 	case op == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields)
+		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances)
 	case op == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields)
+		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
@@ -88,7 +90,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 		return err
 	}
 	if infraGenerated {
-		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env, logOptFields); err != nil {
+		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env); err != nil {
 			return err
 		}
 	}
@@ -101,7 +103,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	return nil
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {
@@ -113,7 +115,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		return err
 	}
 	if infraGenerated {
-		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env, logOptFields); err != nil {
+		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env); err != nil {
 			return err
 		}
 	}
@@ -126,8 +128,8 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	return nil
 }
 
-func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, env []string, logOptFields events.LogOptionalFields) error {
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
+func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, env []string) error {
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "init")
 	cmd.Dir = infraPath
@@ -141,8 +143,8 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	defer close(quit)
 
 	// Register log entries via stderr/stdout buffers
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
 
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "Failed to setup Consul remote backend for terraform")
@@ -187,14 +189,14 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	return nil
 }
 
-func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, env []string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, env []string) error {
 
 	// Remote Configuration for Terraform State to store it in the Consul KV store
-	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName, env, logOptFields); err != nil {
+	if err := e.remoteConfigInfrastructure(ctx, kv, cfg, deploymentID, nodeName, env); err != nil {
 		return err
 	}
 
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Applying the infrastructure")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Applying the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
@@ -208,8 +210,8 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	defer close(quit)
 
 	// Register log entries via stderr/stdout buffers
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
-	events.WithOptionalFields(logOptFields).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
 
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "Failed to apply the infrastructure changes via terraform")
@@ -219,16 +221,16 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 
 }
 
-func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, env []string, logOptFields events.LogOptionalFields) error {
+func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, env []string) error {
 	if e.preDestroyCheck != nil {
 
-		check, err := e.preDestroyCheck(ctx, kv, cfg, deploymentID, nodeName, logOptFields)
+		check, err := e.preDestroyCheck(ctx, kv, cfg, deploymentID, nodeName)
 		if err != nil || !check {
 			return err
 		}
 	}
 
-	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env, logOptFields)
+	return e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, outputs, env)
 }
 
 // mergeEnvironments merges given env with current process env

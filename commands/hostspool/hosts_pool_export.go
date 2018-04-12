@@ -19,22 +19,22 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/helper/tabutil"
 	"github.com/ystia/yorc/rest"
+	"gopkg.in/yaml.v2"
 )
 
 func init() {
-	var filters []string
-	hpListCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List hosts pools",
-		Long:  `Lists hosts of the hosts pool managed by this Yorc cluster.`,
+	var outputFormat string
+	var filePath string
+	hpExportCmd := &cobra.Command{
+		Use:   "export",
+		Short: "Export hosts pool configuration",
+		Long:  `Export hosts pool configuration as a YAML or JSON representation`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			colorize := !noColor
 			client, err := httputil.GetClient()
 			if err != nil {
 				httputil.ErrExit(err)
@@ -43,17 +43,13 @@ func init() {
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			q := request.URL.Query()
-			for i := range filters {
-				q.Add("filter", filters[i])
-			}
-			request.URL.RawQuery = q.Encode()
+
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
+			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			defer response.Body.Close()
 			httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
 			var hostsColl rest.HostsCollection
 			body, err := ioutil.ReadAll(response.Body)
@@ -65,31 +61,50 @@ func init() {
 				httputil.ErrExit(err)
 			}
 
-			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
+			pool := rest.HostsPoolRequest{}
 			for _, hostLink := range hostsColl.Hosts {
 				if hostLink.Rel == rest.LinkRelHost {
-					var host rest.Host
-					err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &host)
+					var restHost rest.Host
+					err = httputil.GetJSONEntityFromAtomGetRequest(client, hostLink, &restHost)
 					if err != nil {
 						httputil.ErrExit(err)
 					}
-					// If no label was defined, define an empty map
-					// to still consider there is a column to display
-					if host.Labels == nil {
-						host.Labels = map[string]string{}
+
+					host := rest.HostConfig{
+						Name:       restHost.Name,
+						Connection: restHost.Connection,
+						Labels:     restHost.Labels,
 					}
-					addRow(hostsTable, colorize, hostList, &host, true)
+					pool.Hosts = append(pool.Hosts, host)
 				}
 			}
-			if colorize {
-				defer color.Unset()
+
+			// Marshal according to the specified output format
+			outputFormat = strings.ToLower(strings.TrimSpace(outputFormat))
+			var bSlice []byte
+			if outputFormat == "json" {
+				bSlice, err = json.MarshalIndent(pool, "", "    ")
+			} else {
+				bSlice, err = yaml.Marshal(pool)
 			}
-			fmt.Println("Host pools:")
-			fmt.Println(hostsTable.Render())
+			if err != nil {
+				httputil.ErrExit(err)
+			}
+
+			if filePath != "" {
+				err = ioutil.WriteFile(filePath, bSlice, 0644)
+				if err != nil {
+					httputil.ErrExit(err)
+				}
+			} else {
+				output := string(bSlice)
+				fmt.Println(output)
+			}
+
 			return nil
 		},
 	}
-	hpListCmd.Flags().StringSliceVarP(&filters, "filter", "f", nil, "Filter hosts based on their labels. May be specified several time, filters are joined by a logical 'and'. See the documentation for the filters grammar.")
-	hostsPoolCmd.AddCommand(hpListCmd)
+	hpExportCmd.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format: yaml, json")
+	hpExportCmd.Flags().StringVarP(&filePath, "file", "f", "", "Path to a file where to store the output")
+	hostsPoolCmd.AddCommand(hpExportCmd)
 }
