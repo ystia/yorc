@@ -15,10 +15,13 @@
 package plugin
 
 import (
-	"github.com/ystia/yorc/prov"
 	"net/rpc"
 
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/prov"
+
 	"context"
+
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -63,6 +66,11 @@ type InfraUsageCollectorClient struct {
 // GetUsageInfo is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error) {
+	lof, ok := events.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("Missing contextual log optionnal fields")
+	}
+
 	id := c.Broker.NextId()
 	closeChan := make(chan struct{}, 0)
 	defer close(closeChan)
@@ -70,10 +78,11 @@ func (c *InfraUsageCollectorClient) GetUsageInfo(ctx context.Context, cfg config
 
 	var resp InfraUsageCollectorGetUsageInfoResponse
 	args := &InfraUsageCollectorGetUsageInfoArgs{
-		ChannelID: id,
-		Conf:      cfg,
-		TaskID:    taskID,
-		InfraName: infraName,
+		ChannelID:         id,
+		Conf:              cfg,
+		TaskID:            taskID,
+		InfraName:         infraName,
+		LogOptionalFields: lof,
 	}
 	err := c.Client.Call("Plugin.GetUsageInfo", args, &resp)
 	if err != nil {
@@ -105,10 +114,11 @@ type InfraUsageCollectorServer struct {
 // InfraUsageCollectorGetUsageInfoArgs is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 type InfraUsageCollectorGetUsageInfoArgs struct {
-	ChannelID uint32
-	Conf      config.Configuration
-	TaskID    string
-	InfraName string
+	ChannelID         uint32
+	Conf              config.Configuration
+	TaskID            string
+	InfraName         string
+	LogOptionalFields events.LogOptionalFields
 }
 
 // InfraUsageCollectorGetUsageInfoResponse is public for use by reflexion and should be considered as private to this package.
@@ -128,7 +138,7 @@ type InfraUsageCollectorGetSupportedInfrasResponse struct {
 // GetUsageInfo is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
 func (s *InfraUsageCollectorServer) GetUsageInfo(args *InfraUsageCollectorGetUsageInfoArgs, reply *InfraUsageCollectorGetUsageInfoResponse) error {
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(events.NewContext(context.Background(), args.LogOptionalFields))
 	defer cancelFunc()
 
 	go s.Broker.AcceptAndServe(args.ChannelID, &RPCContextCanceller{CancelFunc: cancelFunc})

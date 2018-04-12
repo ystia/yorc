@@ -16,13 +16,16 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
-	"errors"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -32,6 +35,7 @@ type mockDelegateExecutor struct {
 	conf                                              config.Configuration
 	taskID, deploymentID, nodeName, delegateOperation string
 	contextCancelled                                  bool
+	lof                                               events.LogOptionalFields
 }
 
 func (m *mockDelegateExecutor) ExecDelegate(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
@@ -42,6 +46,7 @@ func (m *mockDelegateExecutor) ExecDelegate(ctx context.Context, conf config.Con
 	m.deploymentID = deploymentID
 	m.nodeName = nodeName
 	m.delegateOperation = delegateOperation
+	m.lof, _ = events.FromContext(ctx)
 
 	go func() {
 		<-m.ctx.Done()
@@ -72,8 +77,14 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 
 	delegate := raw.(prov.DelegateExecutor)
 
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	err = delegate.ExecDelegate(
-		context.Background(),
+		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestDepID", "TestNodeName", "TestDelegateOP")
 	require.Nil(t, err)
@@ -84,6 +95,7 @@ func TestDelegateExecutorExecDelegate(t *testing.T) {
 	require.Equal(t, "TestDepID", mock.deploymentID)
 	require.Equal(t, "TestNodeName", mock.nodeName)
 	require.Equal(t, "TestDelegateOP", mock.delegateOperation)
+	assert.Equal(t, lof, mock.lof)
 }
 
 func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
@@ -101,11 +113,18 @@ func TestDelegateExecutorExecDelegateWithFailure(t *testing.T) {
 
 	delegate := raw.(prov.DelegateExecutor)
 
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	err = delegate.ExecDelegate(
-		context.Background(),
+		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "TestFailure", "TestNodeName", "TestDelegateOP")
 	require.Error(t, err, "An error was expected during executing plugin operation")
+	require.EqualError(t, err, "a failure occurred during plugin exec operation")
 }
 
 func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
@@ -122,7 +141,13 @@ func TestDelegateExecutorExecDelegateWithCancel(t *testing.T) {
 	require.Nil(t, err)
 
 	delegate := raw.(prov.DelegateExecutor)
-	ctx := context.Background()
+
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
 		err = delegate.ExecDelegate(

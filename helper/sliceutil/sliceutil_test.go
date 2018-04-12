@@ -12,26 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ansible
+package sliceutil
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
-
-	"github.com/ystia/yorc/log"
-
-	"github.com/ystia/yorc/testutil"
 )
 
-// The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulAnsiblePackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
-	defer srv.Stop()
-	log.SetDebug(true)
-	t.Run("TestExecution", func(t *testing.T) {
-		testExecution(t, srv, kv)
-	})
-	t.Run("TestLogAnsibleOutputInConsul", func(t *testing.T) {
-		testLogAnsibleOutputInConsul(t, kv)
-	})
+func TestPadSlices(t *testing.T) {
+	s1 := []string{"a", "b", "c"}
+	s2 := []string{"a", "b", "c", "d", "e"}
+	s3 := []string{"a", "b", "c", "d", "e", "f", "g"}
+
+	PadSlices("x", &s1, &s2, &s3)
+	require.Equal(t, 7, len(s1))
+	require.Equal(t, 7, len(s2))
+	require.Equal(t, 7, len(s3))
+	for i := 3; i < 7; i++ {
+		require.Equal(t, "x", s1[i])
+	}
+	for i := 5; i < 7; i++ {
+		require.Equal(t, "x", s2[i])
+	}
 }

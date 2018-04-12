@@ -160,7 +160,10 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("ERROR: %+v", err)
 		log.Panic(err)
 	}
-	taskID, err := s.tasksCollector.RegisterTask(uid, tasks.Deploy)
+	data := map[string]string{
+		"workflowName": "install",
+	}
+	taskID, err := s.tasksCollector.RegisterTaskWithData(uid, tasks.Deploy, data)
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
@@ -206,8 +209,10 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-
-	if taskID, err := s.tasksCollector.RegisterTask(id, taskType); err != nil {
+	data := map[string]string{
+		"workflowName": "uninstall",
+	}
+	if taskID, err := s.tasksCollector.RegisterTaskWithData(id, taskType, data); err != nil {
 		log.Debugln("register task err" + err.Error())
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			log.Debugln("another task is living")
@@ -272,11 +277,24 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	depCol := DeploymentsCollection{Deployments: make([]AtomLink, len(depPaths))}
+	depCol := DeploymentsCollection{Deployments: make([]Deployment, len(depPaths))}
+	depPrefix := consulutil.DeploymentKVPrefix + "/"
 	for depIndex, depPath := range depPaths {
-		deploymentID := strings.TrimRight(strings.TrimPrefix(depPath, consulutil.DeploymentKVPrefix), "/ ")
-		link := newAtomLink(LinkRelDeployment, "/deployments"+deploymentID)
-		depCol.Deployments[depIndex] = link
+		deploymentID := strings.TrimRight(strings.TrimPrefix(depPath, depPrefix), "/ ")
+		status, err := deployments.GetDeploymentStatus(kv, deploymentID)
+		if err != nil {
+			if deployments.IsDeploymentNotFoundError(err) {
+				// Deployment purged now
+				status = deployments.UNDEPLOYED
+			} else {
+				log.Panic(err)
+			}
+		}
+		depCol.Deployments[depIndex] = Deployment{
+			ID:     deploymentID,
+			Status: status.String(),
+			Links:  []AtomLink{newAtomLink(LinkRelDeployment, "/deployments/"+deploymentID)},
+		}
 	}
 	encodeJSONResponse(w, r, depCol)
 }

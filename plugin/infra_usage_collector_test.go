@@ -16,13 +16,17 @@ package plugin
 
 import (
 	"context"
-	"github.com/hashicorp/go-plugin"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/prov"
+	"errors"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/go-plugin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/prov"
 )
 
 type mockInfraUsageCollector struct {
@@ -32,6 +36,7 @@ type mockInfraUsageCollector struct {
 	taskID             string
 	infraName          string
 	contextCancelled   bool
+	lof                events.LogOptionalFields
 }
 
 func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.Configuration, taskID, infraName string) (map[string]interface{}, error) {
@@ -40,6 +45,7 @@ func (m *mockInfraUsageCollector) GetUsageInfo(ctx context.Context, conf config.
 	m.conf = conf
 	m.taskID = taskID
 	m.infraName = infraName
+	m.lof, _ = events.FromContext(ctx)
 
 	go func() {
 		<-m.ctx.Done()
@@ -73,8 +79,14 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 
 	plugin := raw.(prov.InfraUsageCollector)
 
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	info, err := plugin.GetUsageInfo(
-		context.Background(),
+		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestTaskID", "myInfra")
 	require.Nil(t, err)
@@ -84,6 +96,7 @@ func TestInfraUsageCollectorGetUsageInfo(t *testing.T) {
 	require.Equal(t, "TestTaskID", mock.taskID)
 	require.Equal(t, "myInfra", mock.infraName)
 	require.Equal(t, 3, len(info))
+	assert.Equal(t, lof, mock.lof)
 
 	val, exist := info["keyOne"]
 	require.True(t, exist)
@@ -113,11 +126,18 @@ func TestInfraUsageCollectorGetUsageInfoWithFailure(t *testing.T) {
 
 	plugin := raw.(prov.InfraUsageCollector)
 
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	_, err = plugin.GetUsageInfo(
-		context.Background(),
+		ctx,
 		config.Configuration{Consul: config.Consul{Address: "test", Datacenter: "testdc"}},
 		"TestFailure", "myInfra")
 	require.Error(t, err, "An error was expected during executing plugin infra usage collector")
+	require.EqualError(t, err, "a failure occurred during plugin infra usage collector")
 }
 
 func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
@@ -135,7 +155,12 @@ func TestInfraUsageCollectorGetUsageInfoWithCancel(t *testing.T) {
 
 	plugin := raw.(prov.InfraUsageCollector)
 
-	ctx := context.Background()
+	lof := events.LogOptionalFields{
+		events.WorkFlowID:    "testWF",
+		events.InterfaceName: "delegate",
+		events.OperationName: "myTest",
+	}
+	ctx := events.NewContext(context.Background(), lof)
 	ctx, cancelF := context.WithCancel(ctx)
 	go func() {
 		_, err = plugin.GetUsageInfo(

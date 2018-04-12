@@ -19,7 +19,6 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
 )
 
 // A Generator is used to generate the Terraform infrastructure for a given TOSCA node
@@ -34,4 +33,4 @@ type Generator interface {
 }
 
 // PreDestroyInfraCallback is a function that is call before destroying an infrastructure. If it returns false the node will not be destroyed.
-type PreDestroyInfraCallback func(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, logOptFields events.LogOptionalFields) (bool, error)
+type PreDestroyInfraCallback func(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (bool, error)

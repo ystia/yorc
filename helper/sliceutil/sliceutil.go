@@ -12,26 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ansible
+package sliceutil
 
-import (
-	"testing"
+// PadSlices allow padding string slices with the defined padding value
+func PadSlices(padding string, slices ...*[]string) {
+	var max int
+	for _, slice := range slices {
+		if len(*slice) > max {
+			max = len(*slice)
+		}
+	}
 
-	"github.com/ystia/yorc/log"
-
-	"github.com/ystia/yorc/testutil"
-)
-
-// The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulAnsiblePackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
-	defer srv.Stop()
-	log.SetDebug(true)
-	t.Run("TestExecution", func(t *testing.T) {
-		testExecution(t, srv, kv)
-	})
-	t.Run("TestLogAnsibleOutputInConsul", func(t *testing.T) {
-		testLogAnsibleOutputInConsul(t, kv)
-	})
+	for _, slice := range slices {
+		val := len(*slice)
+		for i := 0; i < max-val; i++ {
+			*slice = append(*slice, padding)
+		}
+	}
 }

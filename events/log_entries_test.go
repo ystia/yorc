@@ -15,6 +15,7 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -145,5 +146,29 @@ func testLogsSortedByTimestamp(t *testing.T, kv *api.KV) {
 		require.NoError(t, err, "Failure scanning integer in string %s", logEntries[i]["content"])
 		assert.Equal(t, i, value, "Unexpected log entry at index %d: %s", i, logEntries[i]["content"])
 	}
+
+}
+
+func TestContext(t *testing.T) {
+	rootLogOpts := LogOptionalFields{WorkFlowID: "wf"}
+	require.Len(t, rootLogOpts, 1)
+	rootCtx := NewContext(context.Background(), rootLogOpts)
+	require.NotNil(t, rootCtx)
+
+	lof1, ok := FromContext(rootCtx)
+	assert.True(t, ok)
+	assert.NotNil(t, lof1)
+
+	lof1[NodeID] = "node"
+	assert.Len(t, lof1, 2)
+	assert.Len(t, rootLogOpts, 1)
+
+	lof2, ok := FromContext(rootCtx)
+	assert.True(t, ok)
+	assert.NotNil(t, lof2)
+
+	lof2[InstanceID] = "1"
+	assert.Len(t, lof2, 2)
+	assert.Len(t, rootLogOpts, 1)
 
 }

@@ -16,16 +16,15 @@ package ansible
 
 import (
 	"bytes"
+	"context"
 	"testing"
+	"time"
 
 	"github.com/ystia/yorc/log"
-
-	"path"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/testutil"
@@ -240,6 +239,55 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
                         "id": "2226e1f8-ce7d-4423-adae-7490697d1e7e",
                         "name": "echo servers list"
                     }
+                },
+                {
+                    "hosts": {
+                        "10.0.0.181": {
+                            "changed": false,
+                            "failed": true,
+                            "msg": "All items completed",
+                            "results": [
+                            {
+                                "_ansible_item_result": true,
+                                "_ansible_no_log": false,
+                                "_ansible_parsed": true,
+                                "changed": false,
+                                "failed": false,
+                                "invocation": {
+                                    "module_args": {
+                                        "allow_downgrade": false,
+                                        "conf_file": null,
+                                        "disable_gpg_check": false,
+                                        "disablerepo": null,
+                                        "enablerepo": null,
+                                        "exclude": null,
+                                        "install_repoquery": true,
+                                        "installroot": "/",
+                                        "list": null,
+                                        "name": [
+                                            "python2-pip"
+                                        ],
+                                        "security": false,
+                                        "skip_broken": false,
+                                        "state": "present",
+                                        "update_cache": false,
+                                        "validate_certs": true
+                                    }
+                                },
+                                "item": "python2-pip",
+                                "msg": "Done.",
+                                "rc": 0,
+                                "results": [
+                                    "python2-pip-8.1.2-5.el7.noarch providing python2-pip is already installed"
+                                ]
+                            }
+                            ]
+                        }
+                    },
+                    "task": {
+                        "id": "fa163e7e-e253-f0c9-8fb0-00000000000f",
+                        "name": "install prerequirements"
+                    }
                 }
             ]
         }
@@ -272,14 +320,13 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 		events.OperationName: stringutil.GetLastElement(ec.operation.Name, "."),
 		events.InterfaceName: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),
 	}
-	err := ea.logAnsibleOutputInConsul(&buf, logOptFields)
+	ctx := events.NewContext(context.Background(), logOptFields)
+	err := ea.logAnsibleOutputInConsul(ctx, &buf)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 
-	kvps, _, err := kv.List(path.Join(consulutil.DeploymentKVPrefix, ec.deploymentID, "logs"), nil)
+	logs, _, err := events.LogsEvents(kv, deploymentID, 0, 5*time.Millisecond)
 	require.Nil(t, err)
-	require.Len(t, kvps, 1)
-
-	t.Log(string(kvps[0].Value))
+	require.Len(t, logs, 1)
 
 }

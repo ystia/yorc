@@ -15,10 +15,11 @@
 package events
 
 import (
-	"fmt"
 	"io"
 	"regexp"
 	"time"
+
+	"github.com/ystia/yorc/log"
 )
 
 // A BufferedLogEntryWriter is a Writer that buffers writes and flushes its buffer as an event log on a regular basis (every 5s)
@@ -53,7 +54,7 @@ func (b *bufferedConsulWriter) flush(logEntry LogEntry) error {
 	if len(b.buf) == 0 {
 		return nil
 	}
-	fmt.Print(string(b.buf))
+	log.Debug(string(b.buf))
 	reg := regexp.MustCompile(`\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]`)
 	out := reg.ReplaceAll(b.buf, []byte(""))
 	logEntry.Register(out)
@@ -69,13 +70,13 @@ func (b *bufferedConsulWriter) run(quit chan bool, logEntry LogEntry) {
 			case <-quit:
 				err := b.flush(logEntry)
 				if err != nil {
-					fmt.Print(err)
+					log.Print(err)
 				}
 				return
 			case <-time.After(b.timeout):
 				err := b.flush(logEntry)
 				if err != nil {
-					fmt.Print(err)
+					log.Print(err)
 				}
 			}
 		}
