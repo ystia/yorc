@@ -130,14 +130,14 @@ func testListHostsInPoolWithBadFilter(t *testing.T, client *api.Client, srv *tes
 func testDeleteHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 	t.Parallel()
 	srv.PopulateKV(t, map[string][]byte{
-		consulutil.HostsPoolPrefix + "/host1/status": []byte("free"),
-		consulutil.HostsPoolPrefix + "/host1/connection/host":    []byte("1.2.3.4"),
-		consulutil.HostsPoolPrefix + "/host1/connection/port":    []byte("22"),
-		consulutil.HostsPoolPrefix + "/host1/connection/private_key":    []byte("test/cert1.pem"),
-		consulutil.HostsPoolPrefix + "/host1/connection/user":    []byte("user1"),
+		consulutil.HostsPoolPrefix + "/host13/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/host13/connection/host":    []byte("1.2.3.4"),
+		consulutil.HostsPoolPrefix + "/host13/connection/port":    []byte("22"),
+		consulutil.HostsPoolPrefix + "/host13/connection/private_key":    []byte("test/cert1.pem"),
+		consulutil.HostsPoolPrefix + "/host13/connection/user":    []byte("user1"),
 	})
 
-	req := httptest.NewRequest("DELETE", "/hosts_pool/host1", nil)
+	req := httptest.NewRequest("DELETE", "/hosts_pool/host13", nil)
 	resp := newTestHTTPRouter(client, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
@@ -149,7 +149,7 @@ func testDeleteHostInPool(t *testing.T, client *api.Client, srv *testutil.TestSe
 func testDeleteHostInPoolNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 	t.Parallel()
 
-	req := httptest.NewRequest("DELETE", "/hosts_pool/host1", nil)
+	req := httptest.NewRequest("DELETE", "/hosts_pool/host13", nil)
 	resp := newTestHTTPRouter(client, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
@@ -179,6 +179,8 @@ func testNewHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	require.NotNil(t, resp, "unexpected nil response")
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)
 	require.Equal(t, []string{"/hosts_pool/host11"}, resp.Header["Location"])
+
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix, nil)
 }
 
 func testNewHostInPoolWithoutConnectionInfo(t *testing.T, client *api.Client, srv *testutil.TestServer) {
