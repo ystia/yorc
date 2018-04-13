@@ -325,6 +325,12 @@
 			"revisionTime": "2017-05-05T08:58:37Z"
 		},
 		{
+			"checksumSHA1": "encY+ZtDf4nJaMvsVL2c+EJ2r3Q=",
+			"path": "github.com/hashicorp/hcl/hcl/printer",
+			"revision": "ef8a98b0bbce4a65b5aa4c368430a80ddc533168",
+			"revisionTime": "2018-04-04T17:41:02Z"
+		},
+		{
 			"checksumSHA1": "z6wdP4mRw4GVjShkNHDaOWkbxS0=",
 			"path": "github.com/hashicorp/hcl/hcl/scanner",
 			"revision": "392dba7d905ed5d04a5794ba89f558b27e2ba1ca",
@@ -535,16 +541,20 @@
 			"revisionTime": "2016-08-08T18:12:53Z"
 		},
 		{
-			"checksumSHA1": "8Y05Pz7onrQPcVWW6JStSsYRh6E=",
+			"checksumSHA1": "F1IYMLBLAZaTOWnmXsgaxTGvrWI=",
 			"path": "github.com/pelletier/go-buffruneio",
-			"revision": "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d",
-			"revisionTime": "2016-01-24T19:35:03Z"
+			"revision": "c37440a7cf42ac63b919c752ca73a85067e05992",
+			"revisionTime": "2017-02-27T22:03:11Z",
+			"version": "v0.2.0",
+			"versionExact": "v0.2.0"
 		},
 		{
-			"checksumSHA1": "CtI2rBQw2rxHNIU+a0rcAf29Sco=",
+			"checksumSHA1": "+qobk0BQiCfqdrhKeoZnwz6hFnE=",
 			"path": "github.com/pelletier/go-toml",
-			"revision": "45932ad32dfdd20826f5671da37a5f3ce9f26a8d",
-			"revisionTime": "2016-09-20T07:07:15Z"
+			"revision": "acdc4509485b587f5e675510c4f2c63e90ff68a8",
+			"revisionTime": "2018-01-18T22:54:55Z",
+			"version": "v1.1.0",
+			"versionExact": "v1.1.0"
 		},
 		{
 			"checksumSHA1": "ynJSWoF6v+3zMnh9R0QmmG6iGV8=",
@@ -652,16 +662,20 @@
 			"revisionTime": "2016-09-19T21:01:14Z"
 		},
 		{
-			"checksumSHA1": "M4qI7Ul0vf2uj3fF69DvRnwqfd0=",
+			"checksumSHA1": "Hc2i9OOK34PAImuNftTaHdbdLgs=",
 			"path": "github.com/spf13/cast",
-			"revision": "2580bc98dc0e62908119e4737030cc2fdfc45e4c",
-			"revisionTime": "2016-09-26T08:42:49Z"
+			"revision": "8965335b8c7107321228e3e3702cab9832751bac",
+			"revisionTime": "2018-02-14T17:35:30Z",
+			"version": "v1.2.0",
+			"versionExact": "v1.2.0"
 		},
 		{
-			"checksumSHA1": "fEGgcE+iSzLkxdrbRj7j/vV7a7E=",
+			"checksumSHA1": "12g3NDgLPvSJcPKEKzU42m6GWVI=",
 			"path": "github.com/spf13/cobra",
-			"revision": "9c28e4bbd74e5c3ed7aacbc552b2cab7cfdfe744",
-			"revisionTime": "2016-08-30T17:49:25Z"
+			"revision": "a1f051bc3eba734da4772d60e2d677f47cf93ef4",
+			"revisionTime": "2018-03-21T14:39:34Z",
+			"version": "v0.0.2",
+			"versionExact": "v0.0.2"
 		},
 		{
 			"checksumSHA1": "dkruahfhuLXXuyeCuRpsWlcRK+8=",
@@ -670,16 +684,20 @@
 			"revisionTime": "2016-03-01T12:00:06Z"
 		},
 		{
-			"checksumSHA1": "b1FgvXRMwcr3D1litcrDNxgowBw=",
+			"checksumSHA1": "k5TsfhX2vvfffYbZQ4fMKtL5+cA=",
 			"path": "github.com/spf13/pflag",
-			"revision": "c7e63cf4530bcd3ba943729cee0efeff2ebea63f",
-			"revisionTime": "2016-09-15T15:31:01Z"
+			"revision": "583c0c0531f06d5278b7d917446061adc344b5cd",
+			"revisionTime": "2018-04-12T12:09:13Z",
+			"version": "v1.0.1",
+			"versionExact": "v1.0.1"
 		},
 		{
-			"checksumSHA1": "c95O+eiZqqbHBDb8oy+RqzUBzRg=",
+			"checksumSHA1": "AB/VGCv0NIjGYZXhJUBSbVIsOJw=",
 			"path": "github.com/spf13/viper",
-			"revision": "382f87b929b84ce13e9c8a375a4b217f224e6c65",
-			"revisionTime": "2016-09-26T15:04:02Z"
+			"revision": "b5e8006cbee93ec955a89ab31e0e3ce3204f3736",
+			"revisionTime": "2018-03-19T18:50:19Z",
+			"version": "v1.0.2",
+			"versionExact": "v1.0.2"
 		},
 		{
 			"checksumSHA1": "/Xb050Eomzzt7Gs/AnAXnDmPum4=",

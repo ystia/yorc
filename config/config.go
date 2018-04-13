@@ -53,54 +53,54 @@ const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
-	Ansible                          Ansible
-	PluginsDirectory                 string
-	WorkingDirectory                 string
-	WorkersNumber                    int
-	ServerGracefulShutdownTimeout    time.Duration
-	HTTPPort                         int
-	HTTPAddress                      string
-	KeyFile                          string
-	CertFile                         string
-	ResourcesPrefix                  string
-	Consul                           Consul
-	Telemetry                        Telemetry
-	Infrastructures                  map[string]DynamicMap
-	Vault                            DynamicMap
-	WfStepGracefulTerminationTimeout time.Duration
+	Ansible                          Ansible               `mapstructure:"ansible"`
+	PluginsDirectory                 string                `mapstructure:"plugins_directory"`
+	WorkingDirectory                 string                `mapstructure:"working_directory"`
+	WorkersNumber                    int                   `mapstructure:"workers_number"`
+	ServerGracefulShutdownTimeout    time.Duration         `mapstructure:"server_graceful_shutdown_timeout"`
+	HTTPPort                         int                   `mapstructure:"http_port"`
+	HTTPAddress                      string                `mapstructure:"http_address"`
+	KeyFile                          string                `mapstructure:"key_file"`
+	CertFile                         string                `mapstructure:"cert_file"`
+	ResourcesPrefix                  string                `mapstructure:"resources_prefix"`
+	Consul                           Consul                `mapstructure:"consul"`
+	Telemetry                        Telemetry             `mapstructure:"telemetry"`
+	Infrastructures                  map[string]DynamicMap `mapstructure:"infrastructures"`
+	Vault                            DynamicMap            `mapstructure:"vault"`
+	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
 }
 
 // Ansible configuration
 type Ansible struct {
-	UseOpenSSH              bool
-	DebugExec               bool
-	ConnectionRetries       int
-	OperationRemoteBaseDir  string
-	KeepOperationRemotePath bool
+	UseOpenSSH              bool   `mapstructure:"use_openssh"`
+	DebugExec               bool   `mapstructure:"debug"`
+	ConnectionRetries       int    `mapstructure:"connection_retries"`
+	OperationRemoteBaseDir  string `mapstructure:"operation_remote_base_dir"`
+	KeepOperationRemotePath bool   `mapstructure:"keep_operation_remote_path"`
 }
 
 // Consul configuration
 type Consul struct {
-	Token          string
-	Datacenter     string
-	Address        string
-	Key            string
-	Cert           string
-	CA             string
-	CAPath         string
-	SSL            bool
-	SSLVerify      bool
-	PubMaxRoutines int
+	Token          string `mapstructure:"token"`
+	Datacenter     string `mapstructure:"datacenter"`
+	Address        string `mapstructure:"address"`
+	Key            string `mapstructure:"key_file"`
+	Cert           string `mapstructure:"cert_file"`
+	CA             string `mapstructure:"ca_cert"`
+	CAPath         string `mapstructure:"ca_path"`
+	SSL            bool   `mapstructure:"ssl"`
+	SSLVerify      bool   `mapstructure:"ssl_verify"`
+	PubMaxRoutines int    `mapstructure:"publisher_max_routines"`
 }
 
 // Telemetry holds the configuration for the telemetry service
 type Telemetry struct {
-	StatsdAddress           string
-	StatsiteAddress         string
-	PrometheusEndpoint      bool
-	ServiceName             string
-	DisableHostName         bool
-	DisableGoRuntimeMetrics bool
+	StatsdAddress           string `mapstructure:"statsd_address"`
+	StatsiteAddress         string `mapstructure:"statsite_address"`
+	PrometheusEndpoint      bool   `mapstructure:"expose_prometheus_endpoint"`
+	ServiceName             string `mapstructure:"service_name"`
+	DisableHostName         bool   `mapstructure:"disable_hostname"`
+	DisableGoRuntimeMetrics bool   `mapstructure:"disable_go_runtime_metrics"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.
