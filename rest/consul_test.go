@@ -17,18 +17,17 @@ package rest
 import (
 	"testing"
 
-	"github.com/ystia/yorc/testutil"
-	"net/http"
-	"github.com/ystia/yorc/prov/hostspool"
-	"net/http/httptest"
 	"github.com/hashicorp/consul/api"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/config"
-	"golang.org/x/crypto/ssh"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/prov/hostspool"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/testutil"
+	"golang.org/x/crypto/ssh"
+	"net/http"
+	"net/http/httptest"
 )
-
 
 type mockSSHClient struct {
 	config *ssh.ClientConfig
@@ -46,14 +45,13 @@ var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connect
 	return &mockSSHClient{config}
 }
 
-
 func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 	router := newRouter()
 
 	httpSrv := &Server{
 		router:         router,
 		consulClient:   client,
-		hostsPoolMgr: hostspool.NewManagerWithSSHFactory(client, mockSSHClientFactory),
+		hostsPoolMgr:   hostspool.NewManagerWithSSHFactory(client, mockSSHClientFactory),
 		tasksCollector: tasks.NewCollector(client),
 		config:         config.Configuration{},
 	}
@@ -73,5 +71,3 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 		})
 	})
 }
-
-
