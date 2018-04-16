@@ -40,6 +40,7 @@ import (
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/executil"
 	"github.com/ystia/yorc/helper/provutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
@@ -670,10 +671,26 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 	return nil
 }
 
-func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host hostConnection) {
+func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx context.Context, buffer *bytes.Buffer) error {
+	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+		// TODO
+	} else if e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
+		buffer.WriteString(" ansible_connection=local")
+	} else {
+		err := errors.New("Ansible provisioning: you are trying to execute an operation on the orchestrator host but there is no sandbox configured to handle it and execution on the actual orchestrator host is disallowed by configuration")
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).Registerf("%v", err)
+		return err
+	}
+	return nil
+}
+
+func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host hostConnection) error {
 	buffer.WriteString(host.host)
 	if e.isOrchestratorOperation {
-		buffer.WriteString(" ansible_connection=local")
+		err := e.generateHostConnectionForOrchestratorOperation(ctx, buffer)
+		if err != nil {
+			return err
+		}
 	} else {
 		sshUser := host.user
 		if sshUser == "" {
@@ -704,6 +721,7 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		}
 	}
 	buffer.WriteString("\n")
+	return nil
 }
 
 func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
@@ -740,7 +758,10 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {
-		e.generateHostConnection(ctx, &buffer, host)
+		err = e.generateHostConnection(ctx, &buffer, host)
+		if err != nil {
+			return err
+		}
 		var perInstanceInputsBuffer bytes.Buffer
 		for _, varInput := range e.VarInputsNames {
 			if varInput == "INSTANCE" {
@@ -894,4 +915,45 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 		}
 	}
 	return "", errors.Errorf("Unknown host %q", host)
+}
+
+func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansibleRecipePath string) error {
+	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml")
+
+	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
+		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
+	}
+	if e.cfg.Ansible.DebugExec {
+		cmd.Args = append(cmd.Args, "-vvvv")
+	}
+	if !e.isOrchestratorOperation {
+		if e.cfg.Ansible.UseOpenSSH {
+			cmd.Args = append(cmd.Args, "-c", "ssh")
+		} else {
+			cmd.Args = append(cmd.Args, "-c", "paramiko")
+		}
+	}
+	cmd.Dir = ansibleRecipePath
+	var outbuf bytes.Buffer
+	errbuf := events.NewBufferedLogEntryWriter()
+	cmd.Stdout = &outbuf
+	cmd.Stderr = errbuf
+
+	errCloseCh := make(chan bool)
+	defer close(errCloseCh)
+
+	// Register log entry via error buffer
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
+
+	defer func(buffer *bytes.Buffer) {
+		if err := e.logAnsibleOutputInConsul(ctx, buffer); err != nil {
+			log.Printf("Failed to publish Ansible log %v", err)
+			log.Debugf("%+v", err)
+		}
+	}(&outbuf)
+	if err := cmd.Run(); err != nil {
+		return e.checkAnsibleRetriableError(ctx, err)
+	}
+
+	return nil
 }

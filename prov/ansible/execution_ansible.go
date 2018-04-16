@@ -28,8 +28,6 @@ import (
 	"strings"
 
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/log"
 )
 
 const ansiblePlaybook = `
@@ -152,40 +150,6 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
-	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml")
 
-	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
-		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
-	}
-	if e.cfg.Ansible.DebugExec {
-		cmd.Args = append(cmd.Args, "-vvvv")
-	}
-	if e.cfg.Ansible.UseOpenSSH {
-		cmd.Args = append(cmd.Args, "-c", "ssh")
-	} else {
-		cmd.Args = append(cmd.Args, "-c", "paramiko")
-	}
-	cmd.Dir = ansibleRecipePath
-	var outbuf bytes.Buffer
-	errbuf := events.NewBufferedLogEntryWriter()
-	cmd.Stdout = &outbuf
-	cmd.Stderr = errbuf
-
-	errCloseCh := make(chan bool)
-	defer close(errCloseCh)
-
-	// Register log entry via error buffer
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
-
-	defer func(buffer *bytes.Buffer) {
-		if err := e.logAnsibleOutputInConsul(ctx, buffer); err != nil {
-			log.Printf("Failed to publish Ansible log %v", err)
-			log.Debugf("%+v", err)
-		}
-	}(&outbuf)
-	if err := cmd.Run(); err != nil {
-		return e.checkAnsibleRetriableError(ctx, err)
-	}
-
-	return nil
+	return e.executePlaybook(ctx, retry, ansibleRecipePath)
 }

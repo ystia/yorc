@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"text/template"
 
@@ -28,8 +27,6 @@ import (
 	"strings"
 
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/log"
 )
 
 const scriptCustomWrapper = `#!/usr/bin/env bash
@@ -122,13 +119,13 @@ func quoteAndComaJoinMapKeys(m map[string]string) string {
 }
 
 const shellAnsiblePlaybook = `
-- name: Executing script {{ script_to_run }}
+- name: Executing script [[[.ScriptToRun]]]
   hosts: all
   strategy: free
   tasks:
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" state=directory mode=0755
-    [[[printf  "- copy: src=\"{{ wrapper_location }}\" dest=\"{{ ansible_env.HOME}}/%s/wrapper\" mode=0744" $.OperationRemotePath]]]
-    - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
+    [[[printf  "- copy: src=\"%s\" dest=\"{{ ansible_env.HOME}}/%s/wrapper\" mode=0744" $.WrapperLocation $.OperationRemotePath]]]
+    - copy: src="[[[.ScriptToRun]]]" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
@@ -148,7 +145,7 @@ const shellAnsiblePlaybook = `
         [[[printf "%s: \" {{%s}}\"" $hostVarValue $hostVarValue]]]
         [[[end]]]
     [[[if .HaveOutput]]]
-    [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest={{dest_folder}}/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath]]]
+    [[[printf "- fetch: src={{ ansible_env.HOME}}/%s/out.csv dest=%s/{{ansible_host}}-out.csv flat=yes" $.OperationRemotePath $.DestFolder]]]
     [[[end]]]
     [[[if not .KeepOperationRemotePath ]]]
     - file: path="{{ ansible_env.HOME}}/[[[.OperationRemoteBaseDir]]]" state=absent
@@ -157,7 +154,10 @@ const shellAnsiblePlaybook = `
 
 type executionScript struct {
 	*executionCommon
-	isPython bool
+	isPython        bool
+	ScriptToRun     string
+	WrapperLocation string
+	DestFolder      string
 }
 
 func cutAfterLastUnderscore(str string) string {
@@ -166,6 +166,19 @@ func cutAfterLastUnderscore(str string) string {
 }
 
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
+	var err error
+	e.ScriptToRun, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve script absolute path")
+	}
+
+	e.DestFolder, err = filepath.Abs(ansibleRecipePath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve script wrapper absolute path")
+	}
+
+	e.WrapperLocation = filepath.Join(e.DestFolder, "wrapper")
+
 	var buffer bytes.Buffer
 	funcMap := template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
@@ -182,7 +195,6 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	tmpl = tmpl.Funcs(funcMap)
 	wrapTemplate := template.New("execTemplate")
 	wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
-	var err error
 	if e.isPython {
 		wrapTemplate, err = tmpl.Parse(pythonCustomWrapper)
 	} else {
@@ -196,7 +208,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(ansibleRecipePath, "wrapper"), buffer.Bytes(), 0664); err != nil {
+	if err := ioutil.WriteFile(e.WrapperLocation, buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
@@ -226,44 +238,5 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
-	var cmd *executil.Cmd
-	wrapperPath, err := filepath.Abs(ansibleRecipePath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve script wrapper absolute path")
-	}
-	cmd = executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--extra-vars", fmt.Sprintf("script_to_run=%s , wrapper_location=%s/wrapper , dest_folder=%s", scriptPath, wrapperPath, wrapperPath))
-	if _, err = os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
-		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
-	}
-	if e.cfg.Ansible.DebugExec {
-		cmd.Args = append(cmd.Args, "-vvvvv")
-	}
-	if e.cfg.Ansible.UseOpenSSH {
-		cmd.Args = append(cmd.Args, "-c", "ssh")
-	} else {
-		cmd.Args = append(cmd.Args, "-c", "paramiko")
-	}
-	cmd.Dir = ansibleRecipePath
-	var outbuf bytes.Buffer
-	errbuf := events.NewBufferedLogEntryWriter()
-	cmd.Stdout = &outbuf
-	cmd.Stderr = errbuf
-
-	errCloseCh := make(chan bool)
-	defer close(errCloseCh)
-
-	// Register log entry via error buffer
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
-
-	defer func(buffer *bytes.Buffer) {
-		if err := e.logAnsibleOutputInConsul(ctx, buffer); err != nil {
-			log.Printf("Failed to publish Ansible log %v", err)
-			log.Debugf("%+v", err)
-		}
-	}(&outbuf)
-	if err := cmd.Run(); err != nil {
-		return e.checkAnsibleRetriableError(ctx, err)
-	}
-
-	return nil
+	return e.executePlaybook(ctx, retry, ansibleRecipePath)
 }

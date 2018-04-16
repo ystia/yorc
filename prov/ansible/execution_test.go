@@ -243,14 +243,16 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
 	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
+	execution.(*executionScript).ScriptToRun = "/path/to/some.sh"
+	execution.(*executionScript).WrapperLocation = "/path/to/wrapper.sh"
 
-	expectedResult := `- name: Executing script {{ script_to_run }}
+	expectedResult := `- name: Executing script /path/to/some.sh
   hosts: all
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+  - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
 
       environment:
@@ -385,14 +387,16 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
 	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
+	execution.(*executionScript).ScriptToRun = "/path/to/some.sh"
+	execution.(*executionScript).WrapperLocation = "/path/to/wrapper.sh"
 
-	expectedResult := `- name: Executing script {{ script_to_run }}
+	expectedResult := `- name: Executing script /path/to/some.sh
   hosts: all
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+  - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
 
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:
@@ -514,14 +518,16 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
 	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
+	execution.(*executionScript).ScriptToRun = "/path/to/some.sh"
+	execution.(*executionScript).WrapperLocation = "/path/to/wrapper.sh"
 
-	expectedResult := `- name: Executing script {{ script_to_run }}
+	expectedResult := `- name: Executing script /path/to/some.sh
   hosts: all
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+  - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
 
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:
