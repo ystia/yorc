@@ -1,6 +1,9 @@
 tosca_definitions_version: alien_dsl_2_0_0
-metadata: {template_name: testcontainer-type, template_version: 2.0.0-SNAPSHOT, template_author: yorcTester}
-description: This archive contains a containe tosca node type used in tests
+metadata:
+  template_name: testcontainer-type
+  template_version: 2.0.0-SNAPSHOT
+  template_author: yorcTester
+description: This archive contains a container tosca node type used in tests
 imports: []
 node_types:
   yorc.test.nodes.TestContainer:
