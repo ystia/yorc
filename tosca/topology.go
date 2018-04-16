@@ -43,15 +43,27 @@ type Topology struct {
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_TOPOLOGY_TEMPLATE for more details
 type TopologyTemplate struct {
-	Description   string                         `yaml:"description,omitempty"`
-	Inputs        map[string]ParameterDefinition `yaml:"inputs,omitempty"`
-	NodeTemplates map[string]NodeTemplate        `yaml:"node_templates"`
+	Description        string                         `yaml:"description,omitempty"`
+	Inputs             map[string]ParameterDefinition `yaml:"inputs,omitempty"`
+	NodeTemplates      map[string]NodeTemplate        `yaml:"node_templates"`
+	Outputs            map[string]ParameterDefinition `yaml:"outputs,omitempty"`
+	SubstitionMappings *SubstitutionMappings          `yaml:"substitution_mappings,omitempty"`
+	Workflows          map[string]Workflow
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
 	//Groups                []Group `yaml:",omitempty"`
 	//Policies              []Policy                 `yaml:",omitempty"`
-	Outputs map[string]ParameterDefinition `yaml:"outputs,omitempty"`
-	//substitution_mappings
-	Workflows map[string]Workflow
+}
+
+// A SubstitutionMappings allows to create a node type out of a given topology template.
+// This allows the consumption of complex systems using a simplified vision.
+//
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_TOPOLOGY_TEMPLATE for more details
+type SubstitutionMappings struct {
+	NodeType     string                      `yaml:"node_type"`
+	Properties   map[string]*ValueAssignment `yaml:"properties,omitempty"`
+	Capabilities map[string]*ValueAssignment `yaml:"capabilities,omitempty"`
+	Requirements map[string]*ValueAssignment `yaml:"requirements,omitempty"`
+	Interfaces   map[string]*ValueAssignment `yaml:"interfaces,omitempty"`
 }
 
 // An NodeTemplate is the representation of a TOSCA Node Template
