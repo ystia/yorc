@@ -674,6 +674,7 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx context.Context, buffer *bytes.Buffer) error {
 	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
 		// TODO
+		e.createSandbox(ctx, e.cfg.Ansible.HostedOperations.DefaultSandbox)
 	} else if e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
 		buffer.WriteString(" ansible_connection=local")
 	} else {
