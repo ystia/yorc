@@ -70,13 +70,26 @@ type Configuration struct {
 	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
 }
 
+// DockerSandbox holds the configuration for a docker sandbox
+type DockerSandbox struct {
+	Image   string `mapstructure:"image"`
+	Command string `mapstructure:"command"`
+}
+
+// HostedOperations holds the configuration for operations executed on the orechestrator host (eg. with an operation_host equals to ORECHESTRATOR)
+type HostedOperations struct {
+	UnsandboxedOperationsAllowed bool           `mapstructure:"unsandboxed_operations_allowed"`
+	DefaultSandbox               *DockerSandbox `mapstructure:"default_sandbox"`
+}
+
 // Ansible configuration
 type Ansible struct {
-	UseOpenSSH              bool   `mapstructure:"use_openssh"`
-	DebugExec               bool   `mapstructure:"debug"`
-	ConnectionRetries       int    `mapstructure:"connection_retries"`
-	OperationRemoteBaseDir  string `mapstructure:"operation_remote_base_dir"`
-	KeepOperationRemotePath bool   `mapstructure:"keep_operation_remote_path"`
+	UseOpenSSH              bool             `mapstructure:"use_openssh"`
+	DebugExec               bool             `mapstructure:"debug"`
+	ConnectionRetries       int              `mapstructure:"connection_retries"`
+	OperationRemoteBaseDir  string           `mapstructure:"operation_remote_base_dir"`
+	KeepOperationRemotePath bool             `mapstructure:"keep_operation_remote_path"`
+	HostedOperations        HostedOperations `mapstructure:"hosted_operations"`
 }
 
 // Consul configuration
