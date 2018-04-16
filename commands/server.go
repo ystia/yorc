@@ -35,7 +35,6 @@ func init() {
 
 	serverInitExtraFlags(args)
 	setConfig()
-	cobra.OnInitialize(initConfig)
 }
 
 const (
@@ -85,7 +84,11 @@ var serverCmd = &cobra.Command{
 	Short:        "Perform the server command",
 	Long:         `Perform the server command`,
 	SilenceUsage: true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		log.Println("Using config file:", viper.ConfigFileUsed())
 		configuration := getConfig()
 		log.Debugf("Configuration :%+v", configuration)
 		shutdownCh := make(chan struct{})
@@ -169,9 +172,7 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	}
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		log.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
+	if err := viper.ReadInConfig(); err != nil {
 		log.Println("Can't use config file:", err)
 	}
 
