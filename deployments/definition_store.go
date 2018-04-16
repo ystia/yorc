@@ -120,6 +120,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	if isRootTopologyTemplate {
 		storeInputs(ctx, topology, topologyPrefix)
 		storeOutputs(ctx, topology, topologyPrefix)
+		storeSubstitutionMappings(ctx, topology, topologyPrefix)
 		storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
 	}
 
@@ -293,6 +294,24 @@ func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 	}
 }
 
+func storeSubstitutionMappings(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
+	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
+	substitutionPrefix := path.Join(topologyPrefix, "substitution_mappings")
+	substitution := topology.TopologyTemplate.SubstitionMappings
+	if substitution != nil {
+		consulStore.StoreConsulKeyAsString(path.Join(substitutionPrefix, "node_type"),
+			substitution.NodeType)
+		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "properties"),
+			substitution.Properties)
+		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "capabilities"),
+			substitution.Capabilities)
+		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "requirements"),
+			substitution.Requirements)
+		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "interfaces"),
+			substitution.Interfaces)
+	}
+}
+
 func storeRequirementAssignment(ctx context.Context, requirement tosca.RequirementAssignment, requirementPrefix, requirementName string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/name", requirementName)
@@ -313,6 +332,9 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		nodePrefix := nodesPrefix + "/" + nodeName
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/name", nodeName)
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/type", node.Type)
+		if node.Directives != nil {
+			consulStore.StoreConsulKeyAsString(nodePrefix+"/directives", strings.Join(node.Directives, ","))
+		}
 		propertiesPrefix := nodePrefix + "/properties"
 		for propName, propValue := range node.Properties {
 			storeValueAssignment(consulStore, propertiesPrefix+"/"+url.QueryEscape(propName), propValue)
@@ -422,6 +444,14 @@ func storeValueAssignment(consulStore consulutil.ConsulStore, vaPrefix string, v
 		storeComplexType(consulStore, vaPrefix, va.GetList())
 	case tosca.ValueAssignmentMap:
 		storeComplexType(consulStore, vaPrefix, va.GetMap())
+	}
+}
+
+func storeMapValueAssignment(consulStore consulutil.ConsulStore, prefix string,
+	mapValueAssignment map[string]*tosca.ValueAssignment) {
+
+	for name, value := range mapValueAssignment {
+		storeValueAssignment(consulStore, path.Join(prefix, name), value)
 	}
 }
 
@@ -858,21 +888,28 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 		if err != nil {
 			return err
 		}
-		err = createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
+
+		substitutable, err := IsSubstitutableNode(kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
-		err = fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-		var isCompute bool
-		isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
-		if err != nil {
-			return err
-		}
-		if isCompute {
-			computes = append(computes, nodeName)
+		if !substitutable {
+			err = createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
+			if err != nil {
+				return err
+			}
+			err = fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
+			if err != nil {
+				return err
+			}
+			var isCompute bool
+			isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
+			if err != nil {
+				return err
+			}
+			if isCompute {
+				computes = append(computes, nodeName)
+			}
 		}
 	}
 	for _, nodeName := range computes {
