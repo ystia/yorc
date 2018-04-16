@@ -52,9 +52,9 @@ func parsing(t *testing.T) {
 	// Check Topology types
 	assert.Equal(t, "tosca_simple_yaml_1_0_0_wd03", topology.TOSCAVersion)
 	assert.Equal(t, "Alien4Cloud generated service template", topology.Description)
-	assert.Equal(t, "Test", topology.Name)
-	assert.Equal(t, "0.1.0-SNAPSHOT", topology.Version)
-	assert.Equal(t, "admin", topology.Author)
+	assert.Equal(t, "Test", topology.Metadata[TemplateName])
+	assert.Equal(t, "0.1.0-SNAPSHOT", topology.Metadata[TemplateVersion])
+	assert.Equal(t, "admin", topology.Metadata[TemplateAuthor])
 
 	assert.Len(t, topology.Imports, 1)
 	importDef := topology.Imports[0]
