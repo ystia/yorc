@@ -297,24 +297,6 @@ func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 	}
 }
 
-func storeSubstitutionMappings(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
-	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	substitutionPrefix := path.Join(topologyPrefix, "substitution_mappings")
-	substitution := topology.TopologyTemplate.SubstitionMappings
-	if substitution != nil {
-		consulStore.StoreConsulKeyAsString(path.Join(substitutionPrefix, "node_type"),
-			substitution.NodeType)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "properties"),
-			substitution.Properties)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "capabilities"),
-			substitution.Capabilities)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "requirements"),
-			substitution.Requirements)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "interfaces"),
-			substitution.Interfaces)
-	}
-}
-
 func storeRequirementAssignment(ctx context.Context, requirement tosca.RequirementAssignment, requirementPrefix, requirementName string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/name", requirementName)
