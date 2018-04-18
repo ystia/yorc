@@ -32,13 +32,6 @@ import (
 	"vbom.ml/util/sortorder"
 )
 
-const (
-	// DirectiveSubstitutable is a directive to the Orchestrator that a node
-	// type is substitutable, ie. if this node type is a reference to another
-	// topology template providing substitution mappings
-	DirectiveSubstitutable = "substitutable"
-)
-
 // IsNodeDerivedFrom check if the node's type is derived from another type.
 //
 // Basically this function is a shorthand for GetNodeType and IsNodeTypeDerivedFrom.
@@ -48,27 +41,6 @@ func IsNodeDerivedFrom(kv *api.KV, deploymentID, nodeName, derives string) (bool
 		return false, err
 	}
 	return IsTypeDerivedFrom(kv, deploymentID, nodeType, derives)
-}
-
-// IsSubstitutableNode returns true if a node contains an Orchestrator directive
-// that it is substitutable
-func IsSubstitutableNode(kv *api.KV, deploymentID, nodeName string) (bool, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "directives"), nil)
-	if err != nil {
-		return false, errors.Wrapf(err, "Can't get directives for node %q", nodeName)
-	}
-
-	substitutable := false
-	if kvp != nil && kvp.Value != nil {
-		values := strings.Split(string(kvp.Value), ",")
-		for _, value := range values {
-			if value == DirectiveSubstitutable {
-				substitutable = true
-				break
-			}
-		}
-	}
-	return substitutable, nil
 }
 
 // GetDefaultNbInstancesForNode retrieves the default number of instances for a given node nodeName in deployment deploymentId.
@@ -173,6 +145,40 @@ func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, e
 	}
 	sort.Sort(sortorder.Natural(names))
 	return names, nil
+}
+
+// GetSubstitutionNodeInstancesIds returns the deployment ID and names of the
+// different instances for a given subsitutable node (a node referencing a service
+// provided by an instance on a different deployment.
+// It will return the deployment ID in argument and an empty array if the given
+// node is not substitutable.
+func GetSubstitutionNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) (string, []string, error) {
+	ids := make([]string, 0)
+	newDeploymentID := deploymentID
+	if substitutable, _ := IsSubstitutableNode(kv, deploymentID, nodeName); !substitutable {
+		return newDeploymentID, ids, nil
+	}
+
+	// The node type corresponds to the deployment providing the Service
+	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return deploymentID, ids, err
+	}
+	// TODO: do not hard-code Environment
+	newDeploymentID = nodeType + "-Environment"
+	/*
+	   TODO : complete
+	   	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
+	   	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
+	   	if err != nil {
+	   		return names, errors.Wrap(err, "Consul communication error")
+	   	}
+	   	for _, instance := range instances {
+	   		names = append(names, path.Base(instance))
+	   	}
+	   	sort.Sort(sortorder.Natural(names))
+	*/
+	return newDeploymentID, ids, nil
 }
 
 // GetHostedOnNode returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"

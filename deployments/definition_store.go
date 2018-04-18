@@ -122,6 +122,12 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 		storeOutputs(ctx, topology, topologyPrefix)
 		storeSubstitutionMappings(ctx, topology, topologyPrefix)
 		storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
+	} else {
+		// For imported templates, storing substitution mappings if any
+		// as they contain details on service to deployment/instance mapping,
+		// the template name corresponding to the deployment
+		storeSubstitutionMappings(ctx, topology,
+			path.Join(topologyPrefix, "substitutions", topology.Metadata[tosca.TemplateName]))
 	}
 
 	if err := storeNodeTypes(ctx, topology, topologyPrefix, importPath); err != nil {
@@ -292,24 +298,6 @@ func storeInputs(ctx context.Context, topology tosca.Topology, topologyPrefix st
 	}
 }
 
-func storeSubstitutionMappings(ctx context.Context, topology tosca.Topology, topologyPrefix string) {
-	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	substitutionPrefix := path.Join(topologyPrefix, "substitution_mappings")
-	substitution := topology.TopologyTemplate.SubstitionMappings
-	if substitution != nil {
-		consulStore.StoreConsulKeyAsString(path.Join(substitutionPrefix, "node_type"),
-			substitution.NodeType)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "properties"),
-			substitution.Properties)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "capabilities"),
-			substitution.Capabilities)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "requirements"),
-			substitution.Requirements)
-		storeMapValueAssignment(consulStore, path.Join(substitutionPrefix, "interfaces"),
-			substitution.Interfaces)
-	}
-}
-
 func storeRequirementAssignment(ctx context.Context, requirement tosca.RequirementAssignment, requirementPrefix, requirementName string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
 	consulStore.StoreConsulKeyAsString(requirementPrefix+"/name", requirementName)
@@ -331,7 +319,9 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/name", nodeName)
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/type", node.Type)
 		if node.Directives != nil {
-			consulStore.StoreConsulKeyAsString(nodePrefix+"/directives", strings.Join(node.Directives, ","))
+			consulStore.StoreConsulKeyAsString(
+				path.Join(nodePrefix, "directives"),
+				strings.Join(node.Directives, ","))
 		}
 		propertiesPrefix := nodePrefix + "/properties"
 		for propName, propValue := range node.Properties {
