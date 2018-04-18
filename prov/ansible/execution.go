@@ -482,7 +482,11 @@ func (e *executionCommon) resolveContext() error {
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
 		if !e.isRelationshipTargetNode && !e.isPerInstanceOperation {
-			execContext["TARGET_INSTANCE"] = targetNames[0]
+			if len(targetNames) == 0 {
+				log.Debugf("No target instance defined in context %+v", e)
+			} else {
+				execContext["TARGET_INSTANCE"] = targetNames[0]
+			}
 		} else {
 			e.VarInputsNames = append(e.VarInputsNames, "TARGET_INSTANCE")
 		}
