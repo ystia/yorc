@@ -1,0 +1,277 @@
+tosca_definitions_version: alien_dsl_2_0_0
+description: Alien4Cloud generated service template
+template_name: Test
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+imports:
+  - openstack-types: <yorc-openstack-types.yml>
+  - welcome: welcome/welcome-types.yml
+  - consul: consul/consul-types.yaml
+  - extended: extended/alien-extended-storage-types.yaml
+
+topology_template:
+  node_templates:
+    BlockStorage:
+       type: yorc.nodes.openstack.BlockStorage
+       properties:
+         size: 2 GiB
+         availability_zone: r423-03.share.ops
+         deletable: true
+    XFS:
+      type: starlings.nodes.XFS
+      properties:
+        fs_type: ext4
+        location: /home/cloud-user/test
+      requirements:
+        - host:
+            node: ComputeConsulServer
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - partition:
+            node: BlockStorage
+            capability: tosca.capabilities.Node
+            relationship:
+             type: alien.relationships.LinuxPartition
+             properties:
+               device: /dev/vdb
+               partition_type: 83
+    ConsulAgent:
+      type: starlings.nodes.Consul
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/consul
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: ComputeConsulAgent
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - server_endpoint:
+            node: ConsulServer
+            capability: starlings.capabilities.ConsulServer
+            relationship: starlings.relationships.ConnectsConsulAgentToServer
+    ComputeConsulAgent:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: yorc
+      requirements:
+        - network:
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Network:
+      type: yorc.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+    ConsulServer:
+      type: starlings.nodes.Consul
+      properties:
+        install_dnsmasq: true
+        installation_directory: ~/consul
+        component_version: 0.5.2
+      requirements:
+        - host:
+            node: ComputeConsulServer
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ComputeConsulServer:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: yorc
+      requirements:
+        - local_storage:
+            node: BlockStorage
+            capability: tosca.capabilities.Attachment
+            relationship:
+              type: tosca.relationships.AttachesTo
+              properties:
+                location: /dev/vdb
+        - network:
+            node: Net
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Net:
+      type: yorc.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+    Welcome:
+      type: starlings.samples.nodes.Welcome
+      properties:
+        component_version: "2.1-SNAPSHOT"
+        port: 8111
+      requirements:
+        - host:
+            node: ComputeWelcome
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    ComputeWelcome:
+      type: yorc.nodes.openstack.Compute
+      properties:
+        user: cloud-user
+        flavor: 2
+        image: 89ec515c-3251-4c2f-8402-bda280c31650
+        availability_zone: nova
+        key_pair: yorc
+      requirements:
+        - network:
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.ConnectsTo
+      capabilities:
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: source
+            secure: true
+            network_name: private_starlings
+        scalable:
+          properties:
+            max_instances: 1
+            min_instances: 1
+            default_instances: 1
+    Network:
+      type: yorc.nodes.openstack.FloatingIP
+      properties:
+        floating_network_name: Public_Network
+  workflows:
+    install:
+      steps:
+        Network_install:
+          target: Network
+          activities:
+            - set_state: installed
+          on-success:
+            - Compute_install
+        Compute_install:
+          target: ComputeWelcome
+          activities:
+            - set_state: installed
+          on-success:
+            - Welcome_initial
+        Welcome_initial:
+          target: Welcome
+          activities:
+            - set_state: initial
+          on-success:
+            - Welcome_creating
+        Welcome_creating:
+          target: Welcome
+          activities:
+            - set_state: creating
+          on-success:
+            - Welcome_created
+        Welcome_created:
+          target: Welcome
+          activities:
+            - set_state: created
+          on-success:
+            - Welcome_configuring
+        Welcome_configuring:
+          target: Welcome
+          activities:
+            - set_state: configuring
+          on-success:
+            - configure_Welcome
+        configure_Welcome:
+          target: Welcome
+          activities:
+            - set_state: working
+          on-success:
+            - Welcome_configured
+        Welcome_configured:
+          target: Welcome
+          activities:
+            - set_state: configured
+          on-success:
+            - Welcome_starting
+        Welcome_starting:
+          target: Welcome
+          activities:
+            - set_state: starting
+          on-success:
+            - start_Welcome
+        start_Welcome:
+          target: Welcome
+          activities:
+            - set_state: working
+          on-success:
+            - Welcome_started
+        Welcome_started:
+          target: Welcome
+          activities:
+            - set_state: started
+    uninstall:
+      steps:
+        Network_unistall:
+         target: Network
+         activities:
+            - set_state: uninstalled
+        Compute_uninstall:
+          target: ComputeWelcome
+          activities:
+            - set_state: uninstalled
+          on-success:
+            - Network_unistall
+        Welcome_stopping:
+          target: Welcome
+          activities:
+            - set_state: stopping
+          on-success:
+            - stop_Welcome
+        stop_Welcome:
+          target: Welcome
+          activities:
+            - set_state: working
+          on-success:
+            - Welcome_stopped
+        Welcome_stopped:
+          target: Welcome
+          activities:
+            - set_state: stopped
+          on-success:
+            - Welcome_deleting
+        Welcome_deleting:
+          target: Welcome
+          activities:
+            - set_state: deleting
+          on-success:
+            - Welcome_deleted
+        Welcome_deleted:
+          target: Welcome
+          activities:
+            - set_state: deleted
+          on-success:
+            - Compute_uninstall

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Setup GOMAXPROCS to the number of cpu
+export GOMAXPROCS=$(cat /proc/cpuinfo | grep processor | wc -l)
+
+nohup {{ABS_INSTALL_DIR}}/consul agent -pid-file="{{ABS_INSTALL_DIR}}/work/consul.pid" -config-dir="{{ABS_INSTALL_DIR}}/config" > {{ABS_INSTALL_DIR}}/logs/consul.log 2>&1 </dev/null &
+timeout=$((600))
+time=$((0))
+while [[ ! -e  {{ABS_INSTALL_DIR}}/work/consul.pid ]]; do
+  sleep 1
+  time=$((time + 1))
+  [[ ${time} -gt ${timeout} ]] && { echo "Failed to start consul!!!"; exit 1; }
+done
+echo "Consul started."
+

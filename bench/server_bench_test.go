@@ -41,15 +41,17 @@ func setupServer(b *testing.B) (*testutil.TestServer, chan struct{}) {
 
 	nw := noopWriter{}
 
-	//log.SetDebug(true)
-	//log.SetDebug(false)
+	log.SetDebug(true)
+	log.SetDebug(false)
 	log.SetOutput(nw)
 	srv1, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
 		c.LogLevel = "err"
 		c.Stderr = nw
 		c.Stdout = nw
 	})
-	b.Fatalf("Failed to setup consul server: %v", err)
+	if err != nil {
+		b.Fatalf("Failed to setup consul server: %v", err)
+	}
 
 	configuration := config.Configuration{
 		WorkingDirectory: defaultWorkingDirectory,
@@ -69,7 +71,7 @@ func BenchmarkHttpApiNewDeployment(b *testing.B) {
 	defer srv1.Stop()
 	var csarZip []byte
 	var err error
-	if csarZip, err = ziputil.ZipPath("../testdata/deployment/no-op"); err != nil {
+	if csarZip, err = ziputil.ZipPath("./testdata/deployment/no-op"); err != nil {
 		b.Fatal(err)
 	}
 	var r *http.Response
