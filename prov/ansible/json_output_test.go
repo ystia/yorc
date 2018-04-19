@@ -25,8 +25,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/testutil"
 )
 
@@ -307,21 +305,18 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 
 	log.SetDebug(true)
 	deploymentID := testutil.BuildDeploymentID(t)
-	ec := &executionCommon{kv: kv, deploymentID: deploymentID, NodeName: "node"}
-	ea := &executionAnsible{executionCommon: ec}
+	nodeName := "node"
 	var buf bytes.Buffer
 	buf.WriteString(data)
 
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(ec.kv, ec.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID:    wfName,
-		events.NodeID:        ec.NodeName,
-		events.OperationName: stringutil.GetLastElement(ec.operation.Name, "."),
-		events.InterfaceName: stringutil.GetAllExceptLastElement(ec.operation.Name, "."),
+		events.WorkFlowID:    "wfID",
+		events.NodeID:        nodeName,
+		events.OperationName: "create",
+		events.InterfaceName: "standard",
 	}
 	ctx := events.NewContext(context.Background(), logOptFields)
-	err := ea.logAnsibleOutputInConsul(ctx, &buf)
+	err := logAnsibleOutputInConsul(ctx, deploymentID, nodeName, &buf)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 

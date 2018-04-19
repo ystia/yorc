@@ -85,7 +85,9 @@ func checkAndPublishOutput(ctx context.Context, obj *jason.Object, deploymentID,
 	}
 }
 
-func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *bytes.Buffer) error {
+type logAnsibleOutputInConsulFn func(context.Context, string, string, *bytes.Buffer) error
+
+func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeName string, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -134,11 +136,11 @@ func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *
 					logLevel = events.ERROR
 				}
 
-				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "module_stderr", stdErrLogLevel)
-				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "module_stdout", logLevel)
-				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "stderr", stdErrLogLevel)
-				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "stdout", logLevel)
-				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "msg", logLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "module_stderr", stdErrLogLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "module_stdout", logLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "stderr", stdErrLogLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "stdout", logLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "msg", logLevel)
 			}
 		}
 
@@ -147,7 +149,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *
 	return nil
 }
 
-func (e *executionAnsible) logAnsibleOutputInConsul(ctx context.Context, output *bytes.Buffer) error {
+func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -312,6 +314,6 @@ func (e *executionAnsible) logAnsibleOutputInConsul(ctx context.Context, output 
 	}
 
 	// Register log entry
-	events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).Register(buf.Bytes())
+	events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, deploymentID).Register(buf.Bytes())
 	return nil
 }

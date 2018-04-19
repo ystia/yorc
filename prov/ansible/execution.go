@@ -934,7 +934,7 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 	return "", errors.Errorf("Unknown host %q", host)
 }
 
-func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansibleRecipePath string) error {
+func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansibleRecipePath string, logFn logAnsibleOutputInConsulFn) error {
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml")
 
 	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
@@ -963,7 +963,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
 	defer func(buffer *bytes.Buffer) {
-		if err := e.logAnsibleOutputInConsul(ctx, buffer); err != nil {
+		if err := logFn(ctx, e.deploymentID, e.NodeName, buffer); err != nil {
 			log.Printf("Failed to publish Ansible log %v", err)
 			log.Debugf("%+v", err)
 		}

@@ -238,5 +238,5 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
-	return e.executePlaybook(ctx, retry, ansibleRecipePath)
+	return e.executePlaybook(ctx, retry, ansibleRecipePath, logAnsibleOutputInConsulFromScript)
 }
