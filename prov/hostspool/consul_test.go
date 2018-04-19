@@ -42,7 +42,7 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 		testConsulManagerConcurrency(t, client)
 	})
 	t.Run("TestConsulManagerUpdateConnection", func(t *testing.T) {
-		testConsulManagerUpdateConn(t, client)
+		testConsulManagerUpdateConnection(t, client)
 	})
 	t.Run("TestConsulManagerList", func(t *testing.T) {
 		testConsulManagerList(t, client)
@@ -67,5 +67,17 @@ func TestRunConsulHostsPoolPackageTests(t *testing.T) {
 	})
 	t.Run("testConsulManagerApplyBadConnection", func(t *testing.T) {
 		testConsulManagerApplyBadConnection(t, client)
+	})
+	t.Run("testConsulManagerAllocateConcurrency", func(t *testing.T) {
+		testConsulManagerAllocateConcurrency(t, client)
+	})
+	t.Run("testConsulManagerAllocateShareableCompute", func(t *testing.T) {
+		testConsulManagerAllocateShareableCompute(t, client)
+	})
+	t.Run("testConsulManagerApplyWithAllocation", func(t *testing.T) {
+		testConsulManagerApplyWithAllocation(t, client)
+	})
+	t.Run("testConsulManagerAddLabelsWithAllocation", func(t *testing.T) {
+		testConsulManagerAddLabelsWithAllocation(t, client)
 	})
 }

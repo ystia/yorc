@@ -27,6 +27,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 	"io"
+	"strings"
 )
 
 // Client is interface allowing running command
@@ -84,7 +85,7 @@ func (client *SSHClient) RunCommand(cmd string) (string, error) {
 
 	log.Debugf("[SSHSession] %q", cmd)
 	err = session.Run(cmd)
-	return b.String(), err
+	return strings.Trim(b.String(), "\x00"), err
 }
 
 func (client *SSHClient) newSession() (*ssh.Session, error) {

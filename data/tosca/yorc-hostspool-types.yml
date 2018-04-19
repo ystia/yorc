@@ -11,6 +11,11 @@ node_types:
   yorc.nodes.hostspool.Compute:
     derived_from: yorc.nodes.Compute
     properties:
+      shareable:
+        type: boolean
+        description: Specify if the compute can be shared.
+        required: false
+        default: false
       filters:
         type: list
         entry_schema:
