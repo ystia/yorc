@@ -25,16 +25,16 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 
 	"gopkg.in/yaml.v2"
-
-	"strconv"
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
@@ -137,9 +137,10 @@ type executionCommon struct {
 	ansibleRunner            ansibleRunner
 	sourceNodeInstances      []string
 	targetNodeInstances      []string
+	cli                      *client.Client
 }
 
-func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, cli *client.Client) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		cfg:          cfg,
 		ctx:          ctx,
@@ -152,6 +153,7 @@ func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, tas
 		EnvInputs:               make([]*operations.EnvInput, 0),
 		taskID:                  taskID,
 		Outputs:                 make(map[string]string),
+		cli:                     cli,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -672,13 +674,22 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 }
 
 func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx context.Context, buffer *bytes.Buffer) error {
-	if e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
-		// TODO
-		e.createSandbox(ctx, e.cfg.Ansible.HostedOperations.DefaultSandbox)
+	if e.cli != nil && e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+		containerID, err := createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID)
+		if err != nil {
+			return err
+		}
+		buffer.WriteString(" ansible_connection=docker ansible_host=")
+		buffer.WriteString(containerID)
 	} else if e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
 		buffer.WriteString(" ansible_connection=local")
 	} else {
-		err := errors.New("Ansible provisioning: you are trying to execute an operation on the orchestrator host but there is no sandbox configured to handle it and execution on the actual orchestrator host is disallowed by configuration")
+		actualRootCause := "there is no sandbox configured to handle it"
+		if e.cli == nil {
+			actualRootCause = "connection to docker failed (see logs)"
+		}
+
+		err := errors.Errorf("Ansible provisioning: you are trying to execute an operation on the orchestrator host but %s and execution on the actual orchestrator host is disallowed by configuration", actualRootCause)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).Registerf("%v", err)
 		return err
 	}
@@ -830,6 +841,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				return errors.Wrapf(err, "Failed to write vars for host %q file: %v", host, err)
 			}
 		}
+	}
+
+	if e.isOrchestratorOperation {
+		buffer.WriteString("\n[all:vars]\n")
+		buffer.WriteString("ansible_python_interpreter=/usr/bin/env python\n")
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {

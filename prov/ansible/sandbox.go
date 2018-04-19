@@ -16,28 +16,35 @@ package ansible
 
 import (
 	"context"
+	"io/ioutil"
 	"time"
-
-	"github.com/docker/docker/api/types/strslice"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 )
 
-func (e *executionCommon) createSandbox(ctx context.Context, sandboxCfg *config.DockerSandbox) (string, error) {
+func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.DockerSandbox, deploymentID string) (string, error) {
 
-	// TODO make this global
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to connect to the docker daemon")
+	// check context is cancelable
+	if ctx.Done() == nil {
+		return "", errors.New("should provide a cancelable context for creating a docker sandbox")
 	}
 
 	pullResp, err := cli.ImagePull(ctx, sandboxCfg.Image, types.ImagePullOptions{})
 	if pullResp != nil {
+		b, errRead := ioutil.ReadAll(pullResp)
+		if errRead == nil && len(b) > 0 {
+			log.Debugf("Pulled docker image image: %s", string(b))
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Pulled docker image image: %s", string(b))
+		}
 		pullResp.Close()
 	}
 	if err != nil {
@@ -46,9 +53,12 @@ func (e *executionCommon) createSandbox(ctx context.Context, sandboxCfg *config.
 
 	cc := &container.Config{
 		Image: sandboxCfg.Image,
-		Cmd:   strslice.StrSlice{sandboxCfg.Command},
+		Cmd:   strslice.StrSlice{"sleep", "365d"},
 	}
 
+	if len(sandboxCfg.Command) > 0 {
+		cc.Cmd = sandboxCfg.Command
+	}
 	hc := &container.HostConfig{
 		AutoRemove: true,
 	}
@@ -64,6 +74,20 @@ func (e *executionCommon) createSandbox(ctx context.Context, sandboxCfg *config.
 		cli.ContainerStop(ctx, createResp.ID, &timeout)
 		return "", errors.Wrapf(err, "Failed to create docker sandbox %q", sandboxCfg.Image)
 	}
-
+	go stopSandboxOnContextCancellation(ctx, cli, deploymentID, createResp.ID)
 	return createResp.ID, nil
+}
+
+func stopSandboxOnContextCancellation(ctx context.Context, cli *client.Client, deploymentID, containerID string) {
+	<-ctx.Done()
+	timeout := 10 * time.Second
+	err := cli.ContainerStop(context.Background(), containerID, &timeout)
+	if err != nil {
+		log.Printf("Failed to delete docker container %v", err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Failed to delete your docker container execution sandbox %q. Please retport this to your system administrator.", containerID)
+	}
+	if versions.LessThan(cli.ClientVersion(), "1.25") {
+		// auto-remove is disable before 1.25
+		cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true})
+	}
 }
