@@ -76,6 +76,15 @@ func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, []string, error)
 	return v, failedHosts, nil
 }
 
+func checkAndPublishOutput(ctx context.Context, obj *jason.Object, deploymentID, nodeName, host, field string, logLevel events.LogLevel) {
+	//Check if a msg field is present
+	if std, err := obj.GetString(field); err == nil && std != "" {
+		//Display it and store it in consul
+		log.Debugf("%s found on host : %s  message : %s", field, host, std)
+		events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, %s:\n%s", nodeName, host, field, std))
+	}
+}
+
 func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
@@ -125,25 +134,11 @@ func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *
 					logLevel = events.ERROR
 				}
 
-				//Check if a stderr field is present (The stdout field is exported for shell tasks on ansible)
-				if std, err := obj.GetString("stderr"); err == nil && std != "" {
-					//Display it and store it in consul
-					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					events.WithContextOptionalFields(ctx).NewLogEntry(stdErrLogLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
-				}
-				//Check if a stdout field is present (The stdout field is exported for shell tasks on ansible)
-				if std, err := obj.GetString("stdout"); err == nil && std != "" {
-					//Display it and store it in consul
-					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
-				}
-
-				//Check if a msg field is present (The stdout field is exported for shell tasks on ansible)
-				if std, err := obj.GetString("msg"); err == nil && std != "" {
-					//Display it and store it in consul
-					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
-				}
+				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "module_stderr", stdErrLogLevel)
+				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "module_stdout", logLevel)
+				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "stderr", stdErrLogLevel)
+				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "stdout", logLevel)
+				checkAndPublishOutput(ctx, obj, e.deploymentID, e.NodeName, host, "msg", logLevel)
 			}
 		}
 
