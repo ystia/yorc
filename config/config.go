@@ -17,6 +17,8 @@ package config
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"log"
 	"strings"
 	"text/template"
@@ -72,14 +74,23 @@ type Configuration struct {
 
 // DockerSandbox holds the configuration for a docker sandbox
 type DockerSandbox struct {
-	Image   string `mapstructure:"image"`
-	Command string `mapstructure:"command"`
+	Image   string   `mapstructure:"image"`
+	Command []string `mapstructure:"command"`
 }
 
 // HostedOperations holds the configuration for operations executed on the orechestrator host (eg. with an operation_host equals to ORECHESTRATOR)
 type HostedOperations struct {
 	UnsandboxedOperationsAllowed bool           `mapstructure:"unsandboxed_operations_allowed"`
 	DefaultSandbox               *DockerSandbox `mapstructure:"default_sandbox"`
+}
+
+// Format implements fmt.Formatter to provide a custom formatter.
+func (ho HostedOperations) Format(s fmt.State, verb rune) {
+	io.WriteString(s, "{UnsandboxedOperationsAllowed:")
+	fmt.Fprint(s, ho.UnsandboxedOperationsAllowed)
+	io.WriteString(s, " DefaultSandbox:")
+	fmt.Fprintf(s, "%+v", ho.DefaultSandbox)
+	io.WriteString(s, "}")
 }
 
 // Ansible configuration
