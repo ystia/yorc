@@ -37,7 +37,7 @@ type defaultConfigManager struct {
 
 func (cm *defaultConfigManager) SetupConfig(cfg config.Configuration) error {
 	// Currently we only use this plugin part to initialize the Consul publisher
-	cClient, err := cfg.GetConsulClient()
+	cClient, err := cfg.GetNewConsulClient()
 	if err != nil {
 		return err
 	}
