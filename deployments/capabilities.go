@@ -260,6 +260,18 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	return GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
 }
 
+// GetNodeCapabilityAttributeNames retrieves the names for all capability attributes
+// of a capability on a given node name
+func GetNodeCapabilityAttributeNames(kv *api.KV, deploymentID, nodeName, capabilityName string, exploreParents bool) ([]string, error) {
+
+	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return nil, err
+	}
+	return GetTypeAttributes(kv, deploymentID, capabilityType, exploreParents)
+
+}
+
 // SetInstanceCapabilityAttribute sets a capability attribute for a given node instance
 func SetInstanceCapabilityAttribute(deploymentID, nodeName, instanceName, capabilityName, attributeName, value string) error {
 	return SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instanceName, capabilityName, attributeName, value)

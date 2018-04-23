@@ -493,16 +493,6 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		if err != nil {
 			return nil, err
 		}
-		if len(instances) == 0 {
-			// If no instance was found, check if this node is a reference to a service
-			// implemented in another deployment
-			if substitutable, _ := IsSubstitutableNode(kv, deploymentID, ctxNodeName); substitutable {
-				deploymentID, instances, err = GetSubstitutionNodeInstancesIds(kv, deploymentID, nodeName)
-			}
-			if err != nil {
-				return nil, err
-			}
-		}
 
 		for _, ins := range instances {
 			res, err = resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(f)

@@ -140,45 +140,29 @@ func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, e
 	if err != nil {
 		return names, errors.Wrap(err, "Consul communication error")
 	}
+
 	for _, instance := range instances {
 		names = append(names, path.Base(instance))
 	}
+
+	if len(names) == 0 {
+		// Check if this is a node to substitute
+		substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+		if err != nil {
+			return names, err
+		}
+		if substitutable {
+			log.Debugf("Found no instance for %s %s, getting substitutable node instance", deploymentID, nodeName)
+			names, err = getSubstitutionNodeInstancesIds(kv, deploymentID, nodeName)
+			if err != nil {
+				return names, err
+			}
+		}
+	}
+
 	sort.Sort(sortorder.Natural(names))
+	log.Debugf("Found node instances %v for %s %s", names, deploymentID, nodeName)
 	return names, nil
-}
-
-// GetSubstitutionNodeInstancesIds returns the deployment ID and names of the
-// different instances for a given subsitutable node (a node referencing a service
-// provided by an instance on a different deployment.
-// It will return the deployment ID in argument and an empty array if the given
-// node is not substitutable.
-func GetSubstitutionNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) (string, []string, error) {
-	ids := make([]string, 0)
-	newDeploymentID := deploymentID
-	if substitutable, _ := IsSubstitutableNode(kv, deploymentID, nodeName); !substitutable {
-		return newDeploymentID, ids, nil
-	}
-
-	// The node type corresponds to the deployment providing the Service
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
-	if err != nil {
-		return deploymentID, ids, err
-	}
-	// TODO: do not hard-code Environment
-	newDeploymentID = nodeType + "-Environment"
-	/*
-	   TODO : complete
-	   	instancesPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName)
-	   	instances, _, err := kv.Keys(instancesPath+"/", "/", nil)
-	   	if err != nil {
-	   		return names, errors.Wrap(err, "Consul communication error")
-	   	}
-	   	for _, instance := range instances {
-	   		names = append(names, path.Base(instance))
-	   	}
-	   	sort.Sort(sortorder.Natural(names))
-	*/
-	return newDeploymentID, ids, nil
 }
 
 // GetHostedOnNode returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"
@@ -408,7 +392,21 @@ func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
 	if kvp == nil || len(kvp.Value) == 0 {
 		return "", errors.Errorf("Missing mandatory parameter \"type\" for node %q", nodeName)
 	}
-	return string(kvp.Value), nil
+
+	nodeType := string(kvp.Value)
+
+	// If the corresponding node is substitutable, get its real node type
+	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return "", err
+	}
+	if substitutable {
+		nodeType, err = getSubstitutableNodeType(kv, deploymentID, nodeName, nodeType)
+		if err != nil {
+			return "", err
+		}
+	}
+	return nodeType, nil
 }
 
 // GetNodeAttributesNames retrieves the list of existing attributes for a given node.
@@ -448,12 +446,22 @@ func GetNodeAttributesNames(kv *api.KV, deploymentID, nodeName string) ([]string
 		return nil, err
 	}
 
+	// Alien4Cloud did not yet implement the management of capability attributes
+	// in substitution mappings. It expects for now to read these capability
+	// attributes as node attributes
+	err = storeSubstitutionMappingAttributeNamesInSet(kv, deploymentID, nodeName, attributesSet)
+	if err != nil {
+		return nil, err
+	}
+
 	attributesList := make([]string, len(attributesSet))
 	i := 0
 	for attr := range attributesSet {
 		attributesList[i] = attr
 		i++
 	}
+
+	log.Debugf("Found attributes %v for %s, %s", attributesList, deploymentID, nodeName)
 
 	return attributesList, nil
 }
