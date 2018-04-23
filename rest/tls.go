@@ -40,7 +40,11 @@ func wrapListenerTLS(listener net.Listener, cfg config.Configuration) (net.Liste
 			CAFile: cfg.CAFile,
 			CAPath: cfg.CAPath,
 		}
-		rootcerts.ConfigureTLS(tlsConf, cfg)
+		pool, err := rootcerts.LoadCACerts(cfg)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to load CA cert(s)")
+		}
+		tlsConf.ClientCAs = pool
 		tlsConf.ClientAuth = tls.RequireAndVerifyClientCert
 		tlsConf.BuildNameToCertificate()
 	}
