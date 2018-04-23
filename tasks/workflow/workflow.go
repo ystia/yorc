@@ -346,7 +346,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		case wfSetStateActivity:
 			setNodeStatus(kv, s.t.ID, deploymentID, s.Target, activity.ActivityValue())
 		case wfCallOpActivity:
-			op, err := operations.GetOperation(kv, s.t.TargetID, s.Target, activity.ActivityValue(), s.TargetRelationship, s.OperationHost)
+			op, err := operations.GetOperation(ctx, kv, s.t.TargetID, s.Target, activity.ActivityValue(), s.TargetRelationship, s.OperationHost)
 			if err != nil {
 				if deployments.IsOperationNotImplemented(err) {
 					// Operation not implemented just skip it

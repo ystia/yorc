@@ -601,7 +601,17 @@ func IsOperationInputAPropertyDefinition(kv *api.KV, deploymentID, typeName, ope
 // The returned value may be an empty string. This function doesn't explore the type heirarchy to
 // find the operation or declared value for operation_host.
 func GetOperationHostFromTypeOperation(kv *api.KV, deploymentID, typeName, interfaceName, operationName string) (string, error) {
-	hop := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", typeName, "interfaces", interfaceName, operationName, "implementation/operation_host")
+	return GetOperationHostFromTypeOperationByName(kv, deploymentID, typeName, interfaceName+"."+operationName)
+}
+
+// GetOperationHostFromTypeOperationByName return the operation_host declared for this operation if any.
+//
+// The given operation name should be in format <interface_name>.<operation_name>
+// The returned value may be an empty string. This function doesn't explore the type heirarchy to
+// find the operation or declared value for operation_host.
+func GetOperationHostFromTypeOperationByName(kv *api.KV, deploymentID, typeName, operationName string) (string, error) {
+	opPath, _ := getOperationAndInterfacePath(deploymentID, typeName, operationName)
+	hop := path.Join(opPath, "implementation/operation_host")
 	kvp, _, err := kv.Get(hop, nil)
 	if err != nil || kvp == nil {
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
