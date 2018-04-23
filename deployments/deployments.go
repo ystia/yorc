@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/tosca"
 )
 
 type deploymentNotFound struct {
@@ -99,12 +98,4 @@ func DoesDeploymentExists(kv *api.KV, deploymentID string) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-// GetDeploymentSubstitutionMapping returns the Substitution Mappings defined
-// for a given nodeType (ie. a service provided by another deployment)
-func GetDeploymentSubstitutionMapping(kv *api.KV, deploymentID, nodeType string) (tosca.SubstitutionMapping, error) {
-	// TODO call util getSubstitutionMappingFromStore
-	var substitutionMapping tosca.SubstitutionMapping
-	return substitutionMapping, nil
 }
