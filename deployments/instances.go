@@ -69,6 +69,31 @@ func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) err
 // If the attribute is still not found then it will explore the HostedOn hierarchy.
 // If still not found then it will check node properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (bool, string, error) {
+
+	substitutionInstance := isSubstitutionNodeInstance(instanceName)
+	if isSubstitutionMappingAttribute(attributeName) {
+
+		// Alien4Cloud did not yet implement the management of capability attributes
+		// in substitution mappings. It is using node attributes names with a
+		// capabilities prefix.
+		// These attributes will be available :
+		// - in the case of the source application providing this attribute,
+		//   the call here should be redirected to the call getting
+		//   instance capability attribute
+		// - in the case of a substitutable node, the attribute is available in
+		//   the node attributes (managed in a later block in this function)
+		if !substitutionInstance {
+			found, result, err := getSubstitutionMappingAttribute(kv, deploymentID, nodeName, instanceName, attributeName, nestedKeys...)
+			if err != nil {
+				return false, "", err
+			}
+
+			if found {
+				return true, result, nil
+			}
+		}
+	}
+
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return false, "", err
@@ -87,16 +112,28 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 	}
 
 	// First look at instance-scoped attributes
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
-	if err != nil {
-		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-	}
-	if found {
-		return true, result, nil
+	// except if this is a substitutable node instance, in which case
+	// attributes are stored at the node level
+	if substitutionInstance {
+		found, result := getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attributeName)
+		if found {
+			return true, result, nil
+		}
+	} else {
+		found, result, err := getValueAssignmentWithDataType(kv, deploymentID,
+			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
+			nodeName, instanceName, "", attrDataType, nestedKeys...)
+		if err != nil {
+			return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)",
+				attributeName, nodeName, instanceName)
+		}
+		if found {
+			return true, result, nil
+		}
 	}
 
 	// Then look at global node level (not instance-scoped)
-	found, result, err = getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
 	if err != nil {
 		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q", attributeName, nodeName, instanceName)
 	}

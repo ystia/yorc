@@ -124,10 +124,9 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 		storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
 	} else {
 		// For imported templates, storing substitution mappings if any
-		// as they contain details on service to deployment/instance mapping,
-		// the template name corresponding to the deployment
+		// as they contain details on service to application/node type mapping
 		storeSubstitutionMappings(ctx, topology,
-			path.Join(topologyPrefix, "substitutions", topology.Metadata[tosca.TemplateName]))
+			path.Join(topologyPrefix, importPrefix))
 	}
 
 	if err := storeNodeTypes(ctx, topology, topologyPrefix, importPath); err != nil {
@@ -885,7 +884,7 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 			return err
 		}
 
-		substitutable, err := IsSubstitutableNode(kv, deploymentID, nodeName)
+		substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
