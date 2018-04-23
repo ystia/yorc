@@ -15,6 +15,7 @@
 package rest
 
 import (
+	"net/http"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
@@ -52,79 +53,84 @@ import (
 			SSLVerify: false,
 		}
 
-		_, err := newTestHTTPSRouter(cfg, client, nil)
+		resp, err := newTestHTTPSRouter(cfg, client, nil)
 		require.NotNil(t, err, "unexpected nil error : SSL without certs should raise error")
+		require.Nil(t, resp, "unexpected Not nil response")
 	}
 
 	func testSSLVerifyNoCA(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		
+		t.Parallel()
+
 		cfg := config.Configuration{
 			SSLEnabled: true,
 			SSLVerify: true,
-			CertFile: "testdata/client-cert.pem",
-			KeyFile: "testdata/client-key.pem",
+			CertFile: "testdata/server-cert.pem",
+			KeyFile: "testdata/server-key.pem",
 		}
 
-		_, err := newTestHTTPSRouter(cfg, client, nil)
+	 	resp, err := newTestHTTPSRouter(cfg, client, nil)
 		require.NotNil(t, err, "unexpected nil error : SSL verify without CA should raise error")
+		require.Nil(t, resp, "unexpected Not nil response")
 	}
 
 	func testSSLEnabledNoVerify(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+		t.Parallel()
 
 		req := httptest.NewRequest("GET", "/deployments", nil)
 		req.Header.Add("Accept", "application/json")
 		cfg := config.Configuration{
 			SSLEnabled: true,
 			SSLVerify: false,
-			CertFile: "testdata/client-cert.pem",
-			KeyFile: "testdata/client-key.pem",
+			CertFile: "testdata/server-cert.pem",
+			KeyFile: "testdata/server-key.pem",
 		}
 
 		resp, err := newTestHTTPSRouter(cfg, client, req)
 		require.Nil(t, err, "unexpected error creating router")
-		log.Println(resp.StatusCode)
 		_, err = ioutil.ReadAll(resp.Body)
 		require.Nil(t, err, "unexpected error reading body response")
 		require.NotNil(t, resp, "unexpected nil response")
+		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 	}
 
 	func testSSLEnabledVerifyUnsignedCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+		t.Parallel()
 
 		req := httptest.NewRequest("GET", "/deployments", nil)
 		req.Header.Add("Accept", "application/json")
 		cfg := config.Configuration{
 			SSLEnabled: true,
 			SSLVerify: true,
-			CertFile: "testdata/unsigned-cert.pem",
-			KeyFile: "testdata/unsigned-key.pem",
+			CertFile: "testdata/server-cert.pem",
+			KeyFile: "testdata/server-key.pem",
 			CAFile: "testdata/ca-cert.pem",
 		}
 
 		resp, err := newTestHTTPSRouter(cfg, client, req)
-		require.Nil(t, err, "unexpected error creating router")
-		body, err := ioutil.ReadAll(resp.Body)
-		log.Println(body)
-		log.Println(resp.StatusCode)
-		require.Nil(t, err, "unexpected error reading body response")
-		require.NotNil(t, resp, "unexpected nil response")
-	}
-
-	func testSSLEnabledVerifySignedCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-
-		req := httptest.NewRequest("GET", "/deployments", nil)
-		req.Header.Add("Accept", "application/json")
-		cfg := config.Configuration{
-			SSLEnabled: true,
-			SSLVerify: true,
-			CertFile: "testdata/signed-cert.pem",
-			KeyFile: "testdata/signed-key.pem",
-			CAFile: "testdata/ca-cert.pem",
-		}
-
-		resp, err := newTestHTTPSRouter(cfg, client, req)
-		log.Println(resp.StatusCode)
 		require.Nil(t, err, "unexpected error creating router")
 		_, err = ioutil.ReadAll(resp.Body)
 		require.Nil(t, err, "unexpected error reading body response")
 		require.NotNil(t, resp, "unexpected nil response")
+		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+	}
+
+	func testSSLEnabledVerifySignedCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+		t.Parallel()
+
+		req := httptest.NewRequest("GET", "/deployments", nil)
+		req.Header.Add("Accept", "application/json")
+		cfg := config.Configuration{
+			SSLEnabled: true,
+			SSLVerify: true,
+			CertFile: "testdata/server-cert.pem",
+			KeyFile: "testdata/server-key.pem",
+			CAFile: "testdata/ca-cert.pem",
+		}
+
+		resp, err := newTestHTTPSRouter(cfg, client, req)
+		require.Nil(t, err, "unexpected error creating router")
+		_, err = ioutil.ReadAll(resp.Body)
+		require.Nil(t, err, "unexpected error reading body response")
+		require.NotNil(t, resp, "unexpected nil response")
+		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 	}
