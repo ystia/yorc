@@ -737,6 +737,10 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 }
 
 func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
+	// Create a cancel func here to remove docker sandboxes as soon as we exit this function
+	ctx, cancelFn := context.WithCancel(ctx)
+	defer cancelFn()
+
 	// Fill log optional fields for log registration
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {
