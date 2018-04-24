@@ -324,4 +324,10 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 	require.Len(t, logs, 1)
 
+	err = logAnsibleOutputInConsulFromScript(ctx, deploymentID, nodeName, &buf)
+	t.Logf("%+v", err)
+	require.Nil(t, err)
+	logs, _, err = events.LogsEvents(kv, deploymentID, 0, 5*time.Millisecond)
+	require.Nil(t, err)
+	require.Len(t, logs, 4)
 }
