@@ -46,6 +46,22 @@ Now you can proceed with the installation of softwares used by Yorc.
 
 Finally you can install the Yorc binary into ``/usr/local/bin``.
 
+To support :ref:`Orchestrator-hosted operations <tosca_orchestrator_hosted_operations>` sandboxed into Docker containers the following
+softwares should also be installed.
+
+.. code-block:: bash
+
+  # for apt based distributions
+  sudo apt install Docker
+  # for yum based distributions
+  sudo yum install Docker
+  # Docker should be running and configured to works with http proxies if any
+  sudo systemctl enable docker
+  sudo systemctl start docker
+  
+  sudo pip install docker-py
+
+
 Final setup
 -----------
 
