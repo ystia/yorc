@@ -15,7 +15,6 @@
 package rest
 
 import (
-	"net"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
@@ -44,29 +43,6 @@ func (m *mockSSHClient) RunCommand(string) (string, error) {
 
 var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connection) sshutil.Client {
 	return &mockSSHClient{config}
-}
-
-func newTestHTTPSRouter(cfg config.Configuration, client *api.Client, req *http.Request) (*http.Response, error) {
-	router := newRouter()
-	
-	ln, err := net.Listen("localhost", ":8800")
-	ln, err = wrapListenerTLS(ln, cfg)
-	if err != nil {
-		return nil, err
-	}
-	
-	httpSrv := &Server{
-		router:         router,
-		consulClient:   client,
-		tasksCollector: tasks.NewCollector(client),
-		config:         cfg,
-		listener: 		ln,
-	}
-	
-	httpSrv.registerHandlers()
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	return w.Result(), nil
 }
 
 func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
