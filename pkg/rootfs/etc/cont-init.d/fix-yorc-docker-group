@@ -9,14 +9,14 @@
 if [ -e /var/run/docker.sock ] 
 then 
     docker_group=$(stat -c "%g" /var/run/docker.sock)
-    docker_group_name=$(cat /etc/group | grep ":${docker_group}:" | cut -d ':' -f1)
+    docker_group_name=$(grep ":${docker_group}:" /etc/group | cut -d ':' -f1)
     if [ -z "${docker_group_name}" ]
     then
         docker_group_name=docker
         echo "creating a docker group"
-        addgroup -g ${docker_group} ${docker_group_name}
+        addgroup -g "${docker_group}" "${docker_group_name}"
     fi 
     echo "adding group ${docker_group_name} to yorc's groups"
-    addgroup yorc ${docker_group_name} 
+    addgroup yorc "${docker_group_name}" 
 fi
 
