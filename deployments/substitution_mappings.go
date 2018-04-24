@@ -141,20 +141,11 @@ func storeCapReqMappings(
 func storeInterfaceMappings(
 	consulStore consulutil.ConsulStore,
 	prefix string,
-	mappings map[string]tosca.InterfaceMapping) {
+	mappings map[string]string) {
 
 	if mappings != nil {
-
-		for name, itfMapping := range mappings {
-
-			itfPrefix := path.Join(prefix, name)
-			if itfMapping != nil {
-				for k, v := range itfMapping {
-					consulStore.StoreConsulKeyAsString(
-						path.Join(itfPrefix, k), v)
-
-				}
-			}
+		for operationName, workflowName := range mappings {
+			consulStore.StoreConsulKeyAsString(path.Join(prefix, operationName), workflowName)
 		}
 	}
 }
