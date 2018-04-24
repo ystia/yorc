@@ -53,12 +53,19 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 
 	cc := &container.Config{
 		Image: sandboxCfg.Image,
-		Cmd:   strslice.StrSlice{"sleep", "365d"},
 	}
 
-	if len(sandboxCfg.Command) > 0 {
-		cc.Cmd = sandboxCfg.Command
+	if len(sandboxCfg.Command) == 0 && len(sandboxCfg.Entrypoint) == 0 {
+		cc.Entrypoint = strslice.StrSlice{"python"}
+		cc.Cmd = strslice.StrSlice{"-c", "import time;time.sleep(31536000);"}
 	}
+	if len(sandboxCfg.Command) > 0 {
+		cc.Cmd = strslice.StrSlice(sandboxCfg.Command)
+	}
+	if len(sandboxCfg.Entrypoint) > 0 {
+		cc.Entrypoint = strslice.StrSlice(sandboxCfg.Entrypoint)
+	}
+
 	hc := &container.HostConfig{
 		AutoRemove: true,
 	}
