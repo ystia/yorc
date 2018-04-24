@@ -10,6 +10,8 @@ imports:
 topology_template:
   node_templates:
     TestCompute:
+      metadata:
+        monitoring_time_interval: 30
       type: yorc.nodes.openstack.Compute
       properties: {image: 4bde6002-649d-4868-a5cb-fcd36d5ffa63, flavor: 2}
       requirements:

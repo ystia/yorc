@@ -66,6 +66,7 @@ type NodeTemplate struct {
 	Capabilities map[string]CapabilityAssignment `yaml:"capabilities,omitempty"`
 	Requirements []RequirementAssignmentMap      `yaml:"requirements,omitempty"`
 	Artifacts    ArtifactDefMap                  `yaml:"artifacts,omitempty"`
+	Metadata     map[string]string               `yaml:"metadata,omitempty"`
 }
 
 //A Repository is representation of TOSCA Repository

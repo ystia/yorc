@@ -909,8 +909,9 @@ func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
 
 	// Check the stored compute node and network have the expected type
 	expectedKeyValuePairs := map[string]string{
-		"topology/nodes/TestCompute/type": "yorc.nodes.openstack.Compute",
-		"topology/nodes/Network/type":     "yorc.nodes.openstack.Network",
+		"topology/nodes/TestCompute/type":                              "yorc.nodes.openstack.Compute",
+		"topology/nodes/TestCompute/metadata/monitoring_time_interval": "30",
+		"topology/nodes/Network/type":                                  "yorc.nodes.openstack.Network",
 	}
 
 	for key, expectedValue := range expectedKeyValuePairs {
