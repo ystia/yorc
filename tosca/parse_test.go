@@ -23,12 +23,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
 func TestGroupedParsingParallel(t *testing.T) {
 	t.Run("groupParsing", func(t *testing.T) {
 		t.Run("TestParsing", parsing)
+		t.Run("TestSubsitutionMappingsParsing", parsingSubstitutionMappings)
 	})
 }
 
@@ -133,4 +135,135 @@ func parsing(t *testing.T) {
 	assert.Equal(t, "", computeUninstallStep.Activities[0].CallOperation)
 	assert.Equal(t, "", computeUninstallStep.Activities[0].SetState)
 	assert.Equal(t, "uninstall", computeUninstallStep.Activities[0].Delegate)
+}
+
+func parsingSubstitutionMappings(t *testing.T) {
+	t.Parallel()
+	definition, err := os.Open(filepath.Join("testdata", "test_substitution.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defBytes, err := ioutil.ReadAll(definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	topology := Topology{}
+	err = yaml.Unmarshal(defBytes, &topology)
+	require.NoError(t, err, "Unexpected failure unmarshalling topology with substitution mappings")
+
+	//log.Printf("%+v\n\n%#v\n", topology, topology)
+
+	// Check Topology types
+	assert.Equal(t, "TestService", topology.Metadata[TemplateName])
+
+	mappings := topology.TopologyTemplate.SubstitionMappings
+	assert.Equal(t, "org.test.SoftwareAType", mappings.NodeType)
+	assert.Equal(t, 4, len(mappings.Properties),
+		"Wrong number of properties substitutions")
+
+	// Check property substitutions
+	assert.Equal(t, 0, len(mappings.Properties["propertyA"].Mapping),
+		"Unexpected mapping found for propertyA")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Properties["propertyA"].Value.Type,
+		"Unexpected value type for propertyA")
+	require.Equal(t, 2, len(mappings.Properties["propertyB"].Mapping),
+		"Wrong number of propertyB mapping")
+	assert.Equal(t, "ServerAInstance", mappings.Properties["propertyB"].Mapping[0],
+		"Wrong node template in propertyB mapping")
+	assert.Equal(t, "propertyB", mappings.Properties["propertyB"].Mapping[1],
+		"Wrong property in propertyB mapping")
+	assert.Equal(t, 0, len(mappings.Properties["propertyC"].Mapping),
+		"Unexpected mapping found for propertyC")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Properties["propertyC"].Value.Type,
+		"Unexpected value type for propertyC %+v", mappings.Properties["propertyC"].Value)
+	require.Equal(t, 2, len(mappings.Properties["propertyD"].Mapping),
+		"Wrong number of propertyD mapping")
+	assert.Equal(t, "ServerAInstance", mappings.Properties["propertyD"].Mapping[0],
+		"Wrong node template in propertyD mapping")
+	assert.Equal(t, "propertyD", mappings.Properties["propertyD"].Mapping[1],
+		"Wrong property in propertyD mapping")
+
+	// Check attributes substitutions
+	assert.Equal(t, 0, len(mappings.Attributes["attributesA"].Mapping),
+		"Unexpected mapping found for attributeA")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Attributes["attributeA"].Value.Type,
+		"Unexpected mapping found for attributeA")
+	require.Equal(t, 2, len(mappings.Attributes["attributeB"].Mapping),
+		"Wrong number of attributeB mapping")
+	assert.Equal(t, "ServerAInstance", mappings.Attributes["attributeB"].Mapping[0],
+		"Wrong node template in attributeB mapping")
+	assert.Equal(t, "attributeB", mappings.Attributes["attributeB"].Mapping[1],
+		"Wrong attribute in attributeB mapping")
+	assert.Equal(t, 0, len(mappings.Attributes["attributeC"].Mapping),
+		"Unexpected mapping found for attributeC")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Attributes["attributeC"].Value.Type,
+		"Unexpected value type for attributeC")
+	require.Equal(t, 2, len(mappings.Attributes["attributeD"].Mapping),
+		"Wrong number of attributeD mapping")
+	assert.Equal(t, "ServerAInstance", mappings.Attributes["attributeD"].Mapping[0],
+		"Wrong node template in attributeD mapping")
+	assert.Equal(t, "attributeD", mappings.Attributes["attributeD"].Mapping[1],
+		"Wrong attribute in attributeD mapping")
+
+	// Check capabilities substitutions
+	require.Equal(t, 2, len(mappings.Capabilities),
+		"Unexpected number of capabilities mapping")
+	require.Equal(t, 2, len(mappings.Capabilities["capabilityA"].Mapping),
+		"Unexpected size of Mapping for capabilityA")
+	assert.Equal(t, "ServerAInstance", mappings.Capabilities["capabilityA"].Mapping[0],
+		"Wrong node template in capabilityA mapping")
+	assert.Equal(t, "capabilityA", mappings.Capabilities["capabilityA"].Mapping[1],
+		"Wrong capability in capabilityA mapping")
+	assert.Equal(t, 0, len(mappings.Capabilities["capabilityA"].Properties),
+		"Unexpected size of Properties Mapping for capabilityA")
+	assert.Equal(t, 0, len(mappings.Capabilities["capabilityA"].Attributes),
+		"Unexpected size of Attributes Mapping for capabilityA")
+	require.Equal(t, 2, len(mappings.Capabilities["capabilityB"].Mapping),
+		"Unexpected size of Mapping for capabilityA")
+	assert.Equal(t, "ServerAInstance", mappings.Capabilities["capabilityB"].Mapping[0],
+		"Wrong node template in capabilityB mapping")
+	assert.Equal(t, "capabilityB", mappings.Capabilities["capabilityB"].Mapping[1],
+		"Wrong capability in capabilityB mapping")
+	require.Equal(t, 1, len(mappings.Capabilities["capabilityB"].Properties),
+		"Unexpected size of Properties Mapping for capabilityB")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Capabilities["capabilityB"].Properties["propertyA"].Type,
+		"Unexpected value type for capabilityB propertyA mapping")
+	require.Equal(t, 1, len(mappings.Capabilities["capabilityB"].Attributes),
+		"Unexpected size of Attributes Mapping for capabilityB")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Capabilities["capabilityB"].Attributes["attributeA"].Type,
+		"Unexpected value type for capabilityB attributeA mapping")
+
+	// Check requirements substitutions
+	require.Equal(t, 2, len(mappings.Requirements),
+		"Unexpected number of requirements mapping")
+	require.Equal(t, 2, len(mappings.Requirements["requirementA"].Mapping),
+		"Unexpected size of Mapping for requirementA")
+	assert.Equal(t, "ServerAInstance", mappings.Requirements["requirementA"].Mapping[0],
+		"Wrong node template in requirementA mapping")
+	assert.Equal(t, "requirementA", mappings.Requirements["requirementA"].Mapping[1],
+		"Wrong requirement in requirementA mapping")
+	assert.Equal(t, 0, len(mappings.Requirements["requirementA"].Properties),
+		"Unexpected size of Properties Mapping for requirementA")
+	assert.Equal(t, 0, len(mappings.Requirements["requirementA"].Attributes),
+		"Unexpected size of Attributes Mapping for requirementA")
+	require.Equal(t, 2, len(mappings.Requirements["requirementB"].Mapping),
+		"Unexpected size of Mapping for requirementB")
+	assert.Equal(t, "ServerAInstance", mappings.Requirements["requirementB"].Mapping[0],
+		"Wrong node template in requirementB mapping")
+	assert.Equal(t, "requirementB", mappings.Requirements["requirementB"].Mapping[1],
+		"Wrong requirement in requirementB mapping")
+	require.Equal(t, 1, len(mappings.Requirements["requirementB"].Properties),
+		"Unexpected size of Properties Mapping for requirementB")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Requirements["requirementB"].Properties["propertyA"].Type,
+		"Unexpected value type for capabilityB propertyA mapping")
+	require.Equal(t, 1, len(mappings.Requirements["requirementB"].Attributes),
+		"Unexpected size of Attributes Mapping for requirementB")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Requirements["requirementB"].Attributes["attributeA"].Type,
+		"Unexpected value type for requirementB attributeA mapping")
+
+	// Check interfaces mappings
+	require.Equal(t, 2, len(mappings.Interfaces),
+		"Unexpected number of interfaces mapping")
+	assert.Equal(t, "workflowA", mappings.Interfaces["operationA"],
+		"Wrong workflow name in operationA interface mapping")
 }

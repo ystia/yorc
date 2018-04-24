@@ -25,12 +25,12 @@ import (
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
 // section 3.8.12 Substitution mapping
 type SubstitutionMapping struct {
-	NodeType     string                      `yaml:"node_type"`
-	Properties   map[string]PropAttrMapping  `yaml:"properties,omitempty"`
-	Capabilities map[string]CapReqMapping    `yaml:"capabilities,omitempty"`
-	Requirements map[string]CapReqMapping    `yaml:"requirements,omitempty"`
-	Attributes   map[string]PropAttrMapping  `yaml:"attributes,omitempty"`
-	Interfaces   map[string]InterfaceMapping `yaml:"interfaces,omitempty"`
+	NodeType     string                     `yaml:"node_type"`
+	Properties   map[string]PropAttrMapping `yaml:"properties,omitempty"`
+	Capabilities map[string]CapReqMapping   `yaml:"capabilities,omitempty"`
+	Requirements map[string]CapReqMapping   `yaml:"requirements,omitempty"`
+	Attributes   map[string]PropAttrMapping `yaml:"attributes,omitempty"`
+	Interfaces   map[string]string          `yaml:"interfaces,omitempty"`
 }
 
 // PropAttrMapping defines a property or attribute mapping.
@@ -61,50 +61,60 @@ type SubstitutionMapping struct {
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
 // section 3.8.8 Property mapping
 type PropAttrMapping struct {
-	Mapping []string         `yaml:"mapping,omitempty"`
+	Mapping []string         `yaml:"mapping,omitempty,flow"`
 	Value   *ValueAssignment `yaml:"value,omitempty"`
 }
 
 // UnmarshalYAML unmarshals a yaml into a PropAttrMapping
 func (c *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
-	// First case, single-line grammar.
-	// Example of property mapping using this format:
-	//   my_property: true
+	// Multi-line grammar check.
+	// Example:
+	// my_property:
+	//   mapping: [node1, property1]
 	// or
-	//   my_property: [node1, property1]
-	var mapping []string
-	valueAssignment := new(ValueAssignment)
-	if err := unmarshal(&mapping); err == nil {
-		c.Mapping = mapping
-	} else if err := unmarshal(valueAssignment); err == nil {
-		c.Value = valueAssignment
-	} else {
-		// Second case, multi-line grammar.
-		// Example:
-		// my_property:
-		//   mapping: [node1, property1]
-		var str struct {
-			Mapping []string         `yaml:"mapping,omitempty"`
-			Value   *ValueAssignment `yaml:"value,omitempty"`
-		}
+	// my_property:
+	//   value: 1
+	var str struct {
+		Mapping []string         `yaml:"mapping,omitempty,flow"`
+		Value   *ValueAssignment `yaml:"value,omitempty"`
+	}
 
-		if err := unmarshal(&str); err == nil {
+	if err := unmarshal(&str); err == nil {
+		mappingSize := len(str.Mapping)
+		if mappingSize != 0 {
 			c.Mapping = str.Mapping
+			if mappingSize > 3 {
+				return errors.Errorf("Mapping should between 1 and 3 elements: %v", c.Mapping)
+			}
+			return nil
+		}
+		if str.Value != nil {
 			c.Value = str.Value
-		} else {
-			return err
+			return nil
 		}
 	}
 
-	// Final check on mapping size
-	if c.Value == nil {
-		mappingSize := len(c.Mapping)
-		if mappingSize < 1 || mappingSize > 3 {
-			return errors.Errorf("Mapping should between 1 and 3 elements: %v", mapping)
+	// Single-line grammar check.
+	// Example of property mapping using this format:
+	//   my_property: [node1, property1]
+	// or
+	//   my_property: true
+	var mapping []string
+	if err := unmarshal(&mapping); err == nil {
+		if len(mapping) > 0 {
+			c.Mapping = mapping
+			return nil
 		}
 	}
-	return nil
+
+	var valueAssignment ValueAssignment
+	err := unmarshal(&valueAssignment)
+	if err == nil {
+		c.Value = &valueAssignment
+	}
+
+	return err
 }
 
 // CapReqMapping defines a capability mapping or a requirement mapping.
@@ -167,10 +177,3 @@ func (c *CapReqMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	return nil
 }
-
-// InterfaceMapping defines a mapping between an operation and a workflow:
-// <operation_name>: <workflow_name>
-//
-// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
-// section 3.8.11 Interface mapping
-type InterfaceMapping map[string]string
