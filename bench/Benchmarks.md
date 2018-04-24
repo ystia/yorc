@@ -52,3 +52,19 @@ BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4     8989072224     10307613
 benchmark                                                old ns/op       new ns/op      delta
 BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4     15171243702     1030761390     -93.21%
 ```
+
+### Improvement 3: Change Transport MaxIdleConns / MaxIdleConnsPerHost values to PubMaxRoutines value
+
+```
+go test -bench=. -benchtime=300s
+BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4         	      50	6144313435 ns/op
+PASS
+ok  	github.com/ystia/yorc/bench	345.164s
+```
+
+#### Results from previous:
+
+```
+benchmark                                                old ns/op      new ns/op      delta
+BenchmarkHttpApiNewDeployment/HttpApiNewDeployment-4     6438261471     6144313435     -4.57%
+```
