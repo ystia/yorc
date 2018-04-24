@@ -38,6 +38,11 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 		return "", errors.New("should provide a cancelable context for creating a docker sandbox")
 	}
 
+	// At least sandboxCfg.Image is required
+	if sandboxCfg.Image == "" {
+		return "", errors.New("Docker sandbox for orchestrator-hosted operation misconfigured, image option is missing")
+	}
+
 	pullResp, err := cli.ImagePull(ctx, sandboxCfg.Image, types.ImagePullOptions{})
 	if pullResp != nil {
 		b, errRead := ioutil.ReadAll(pullResp)
