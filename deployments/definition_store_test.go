@@ -614,16 +614,24 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range capAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetInstanceCapabilityAttribute(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName, tt.args.nestedKeys...)
+			found, got, err := GetInstanceCapabilityAttribute(kv, deploymentID,
+				tt.args.nodeName, tt.args.instanceName, tt.args.capability,
+				tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetInstanceCapabilityAttribute() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) error = %v, wantErr %v",
+					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
+					err, tt.wantErr)
 				return
 			}
 			if err == nil && found != tt.wantFound {
-				t.Errorf("GetInstanceCapabilityAttribute() found result = %v, want %v", found, tt.wantFound)
+				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) found result = %v, want %v",
+					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
+					found, tt.wantFound)
 			}
 			if err == nil && got != tt.want {
-				t.Errorf("GetInstanceCapabilityAttribute() = %q, want %q", got, tt.want)
+				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) = %q, want %q",
+					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
+					got, tt.want)
 			}
 		})
 	}

@@ -204,6 +204,52 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 	return "", nil
 }
 
+// GetHostedOnNodeInstance returns the node name and instance name of the instance
+// defined in the first found relationship derived from "tosca.relationships.HostedOn"
+//
+// If there is no HostedOn relationship for this node then it returns an empty string
+func GetHostedOnNodeInstance(kv *api.KV, deploymentID, nodeName, instanceName string) (string, string, error) {
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	// Going through requirements to find hosted on relationships
+	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
+	if err != nil {
+		return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	log.Debugf("Deployment: %q. Node %q. Requirements %v", deploymentID, nodeName, reqKVPs)
+	for _, reqKey := range reqKVPs {
+		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, reqKey)
+		// Check requirement relationship
+		kvp, _, err := kv.Get(path.Join(reqKey, "relationship"), nil)
+		if err != nil {
+			return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		// Is this "HostedOn" relationship ?
+		if kvp.Value != nil {
+			if ok, err := IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
+				return "", "", err
+			} else if ok {
+				// An HostedOn! Great! let inspect the target node.
+				kvp, _, err := kv.Get(path.Join(reqKey, "node"), nil)
+				if err != nil {
+					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				}
+				if kvp == nil || len(kvp.Value) == 0 {
+					return "", "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
+				}
+				// Get the corresponding target instances
+				hostNodeName, hostInstances, err := GetTargetInstanceForRequirement(kv, deploymentID, nodeName, path.Base(reqKey), instanceName)
+				if err != nil {
+					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				}
+				if hostNodeName != "" && len(hostInstances) > 0 {
+					return hostNodeName, hostInstances[0], nil
+				}
+			}
+		}
+	}
+	return "", "", nil
+}
+
 // IsHostedOn checks if a given nodeName is hosted on another given node hostedOn by traversing the hostedOn hierarchy
 func IsHostedOn(kv *api.KV, deploymentID, nodeName, hostedOn string) (bool, error) {
 	if host, err := GetHostedOnNode(kv, deploymentID, nodeName); err != nil {
