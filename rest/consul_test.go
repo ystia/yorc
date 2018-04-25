@@ -67,7 +67,7 @@ func TestRunConsulRestPackageTests(t *testing.T) {
 
 	t.Run("groupRest", func(t *testing.T) {
 		t.Run("testHostsPoolHandlers", func(t *testing.T) {
-			//testHostsPoolHandlers(t, client, srv)
+			testHostsPoolHandlers(t, client, srv)
 		})
 		t.Run("testSSLRest", func(t *testing.T) {
 			testSSLREST(t, client, srv)
