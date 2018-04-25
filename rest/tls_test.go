@@ -16,11 +16,8 @@ package rest
 
 import (
 	"crypto/x509"
-	_ "net/http/httptest"
 	"net"
 	"crypto/tls"
-	_ "crypto/x509"
-	_"crypto/tls"
 	
 	"net/http"
 	"github.com/stretchr/testify/require"
@@ -34,24 +31,38 @@ import (
 )
 
 	func testSSLREST(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Run("testSSLEnabledNoCerts", func(t *testing.T) {
-			testSSLEnabledNoCerts(t, client, srv)
+		t.Run("groupWrapListenerTest", func(t *testing.T) {
+			t.Run("testSSLEnabledNoCerts", func(t *testing.T) {
+				testSSLEnabledNoCerts(t, client, srv)
+			})
+			t.Run("testSSLVerifyNoCA", func(t *testing.T) {
+				testSSLVerifyNoCA(t, client, srv)
+			})
 		})
-		t.Run("testSSLVerifyNoCA", func(t *testing.T) {
-			testSSLVerifyNoCA(t, client, srv)
+		t.Run("groupSSLserverPOView", func(t *testing.T) {
+			t.Run("testSSLEnabledNoServerVerify", func(t *testing.T) {
+				testSSLEnabledNoServerVerify(t, client, srv)
+			})
+			t.Run("testSSLEnabledServerVerifyUnsignedClientCerts", func(t *testing.T) {
+				testSSLEnabledServerVerifyUnsignedClientCerts(t, client, srv)
+			})
+			t.Run("testSSLEnabledServerVerifyNoClientCerts", func(t *testing.T) {
+				testSSLEnabledServerVerifyNoClientCerts(t, client, srv)
+			})
+			t.Run("testSSLEnabledServerVerifySignedClientCerts", func(t *testing.T) {
+				testSSLEnabledServerVerifySignedClientCerts(t, client, srv)
+			})
 		})
-		t.Run("testSSLEnabledNoVerify", func(t *testing.T) {
-			testSSLEnabledNoVerify(t, client, srv)
+		t.Run("groupSSLclientPOView", func(t *testing.T) {
+			t.Run("testSSLEnabledClientVerifyUnsignedServerCerts", func(t *testing.T) {
+				testSSLEnabledClientVerifyUnsignedServerCerts(t, client, srv)
+			})
+			t.Run("testSSLEnabledMutualVerification", func(t *testing.T) {
+				testSSLEnabledMutualVerification(t, client, srv)
+			})
 		})
-		t.Run("testSSLEnabledVerifyUnsignedClientCerts", func(t *testing.T) {
-			testSSLEnabledVerifyUnsignedClientCerts(t, client, srv)
-		})
-		t.Run("testSSLEnabledVerifyNoClientCerts", func(t *testing.T) {
-			testSSLEnabledVerifyNoClientCerts(t, client, srv)
-		})
-		t.Run("testSSLEnabledVerifySignedClientCerts", func(t *testing.T) {
-			testSSLEnabledVerifySignedClientCerts(t, client, srv)
-		})
+
+		
 	}
 
 	func testSSLEnabledNoCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -82,7 +93,7 @@ import (
 		require.Nil(t, ln, "unexpected Not nil response")
 	}
 
-	func testSSLEnabledNoVerify(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	func testSSLEnabledNoServerVerify(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 		t.Parallel()
 				
 		cfg := &config.Configuration{
@@ -107,7 +118,7 @@ import (
 		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
 	}
 	
-	func testSSLEnabledVerifyUnsignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	func testSSLEnabledServerVerifyUnsignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 		t.Parallel()
 				
 		cfg := &config.Configuration{
@@ -129,7 +140,7 @@ import (
 		require.Nil(t, resp, "response should be nil")
 	}
 
-	func testSSLEnabledVerifyNoClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	func testSSLEnabledServerVerifyNoClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 		t.Parallel()
 				
 		cfg := &config.Configuration{
@@ -152,7 +163,7 @@ import (
 	}
 
 
-	func testSSLEnabledVerifySignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	func testSSLEnabledServerVerifySignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 		t.Parallel()
 				
 		cfg := &config.Configuration{
@@ -180,11 +191,59 @@ import (
 		
 	} 
 
+	func testSSLEnabledClientVerifyUnsignedServerCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+		t.Parallel()
+				
+		cfg := &config.Configuration{
+			SSLVerify: false,
+			CertFile: "testdata/unsigned-cert.pem",
+			KeyFile:  "testdata/unsigned-key.pem",
+			CAFile:   "testdata/ca-cert.pem",
+		}
+
+		httpsSrv, url := makeSSLtestServer(cfg, client)
+		defer httpsSrv.Shutdown()
+
+		req, _ := http.NewRequest("GET", url+"/deployments", nil )
+		req.Header.Add("Accept", "application/json")
+
+		hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
+		resp, err := hclient.Do(req)
+		require.NotNil(t, err, "performing request should raise error")
+		require.Nil(t, resp, "response should be nil")
+	} 
+
+	func testSSLEnabledMutualVerification(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+		t.Parallel()
+				
+		cfg := &config.Configuration{
+			SSLVerify: true,
+			CertFile: "testdata/server-cert.pem",
+			KeyFile:  "testdata/server-key.pem",
+			CAFile:   "testdata/ca-cert.pem",
+		}
+
+		httpsSrv, url := makeSSLtestServer(cfg, client)
+		defer httpsSrv.Shutdown()
+
+		req, _ := http.NewRequest("GET", url+"/deployments", nil )
+		req.Header.Add("Accept", "application/json")
+
+		hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
+		resp, err := hclient.Do(req)
+		require.Nil(t, err, "unexpected error performing request")
+		require.NotNil(t, resp, "response shouldn't be nil")
+		_, err = ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+		require.Nil(t, err, "unexpected error reading body response")
+		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+	} 
+
 	func makeSSLtestServer(cfg *config.Configuration, client *api.Client) (*Server, string){
-		ln, err := net.Listen("tcp", "")
+		ln, err := net.Listen("tcp", "127.0.0.1:")
 		ln, err = wrapListenerTLS(ln, *cfg)
 		if err != nil {
-			log.Fatal( "Failed listenner ")
+			log.Fatal( err)
 		}
 		httpsrv := &Server{
 			router: newRouter(),
@@ -220,6 +279,5 @@ import (
 		}
 		cert, _ := tls.LoadX509KeyPair(cliCert, cliKey)
 		tlsConf.Certificates = []tls.Certificate{cert}
-		tlsConf.InsecureSkipVerify = true
 		return client
 	} 
