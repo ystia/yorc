@@ -175,8 +175,28 @@ func getSubstitutionMappingFromStore(kv *api.KV, prefix string) (tosca.Substitut
 		return substitutionMapping, err
 	}
 
-	// TODO: get other values
-	return substitutionMapping, nil
+	substitutionMapping.Requirements, err = getCapReqMappingFromStore(
+		kv, path.Join(substitutionPrefix, "requirements"))
+	if err != nil {
+		return substitutionMapping, err
+	}
+
+	substitutionMapping.Properties, err = getPropAttrMappingFromStore(
+		kv, path.Join(substitutionPrefix, "properties"))
+	if err != nil {
+		return substitutionMapping, err
+	}
+
+	substitutionMapping.Attributes, err = getPropAttrMappingFromStore(
+		kv, path.Join(substitutionPrefix, "attributes"))
+	if err != nil {
+		return substitutionMapping, err
+	}
+
+	substitutionMapping.Interfaces, err = getInterfaceMappingFromStore(
+		kv, path.Join(substitutionPrefix, "interfaces"))
+
+	return substitutionMapping, err
 }
 
 func getCapReqMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.CapReqMapping, error) {
@@ -198,25 +218,142 @@ func getCapReqMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.CapR
 				errors.Wrapf(err, "Can't get mapping for capability at %q", capPath)
 		}
 		var capMapping tosca.CapReqMapping
-		if kvp != nil {
+		if kvp != nil && len(kvp.Value) != 0 {
 			capMapping.Mapping = strings.Split(string(kvp.Value), ",")
+			// When a mapping is defined, there is no property/attribute
+			// definition, so the capability definition is complete at this point
+			capabilities[capName] = capMapping
+			continue
 		}
-		/*
-			propertiesPrefix := path.Join(capPath, "properties")
-			propertyPaths, _, err := kv.Keys(propertiesPrefix+"/", "/", nil)
-			if err != nil {
-				return nil, err
-			}
-		*/
-		properties := make(map[string]*tosca.ValueAssignment)
 
-		// TODO: continue the parsing
-		capMapping.Properties = properties
+		capMapping.Properties, err = getPropertiesOrAttributesFromStore(kv,
+			path.Join(capPath, "properties"))
+		if err != nil {
+			return capabilities, err
+		}
+
+		capMapping.Attributes, err = getPropertiesOrAttributesFromStore(kv,
+			path.Join(capPath, "attributes"))
+		if err != nil {
+			return capabilities, err
+		}
 
 		capabilities[capName] = capMapping
 	}
 
 	return capabilities, nil
+}
+
+func getPropertiesOrAttributesFromStore(kv *api.KV, prefix string) (map[string]*tosca.ValueAssignment, error) {
+	propPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	props := make(map[string]*tosca.ValueAssignment)
+
+	for _, propPath := range propPaths {
+
+		propName := path.Base(propPath)
+
+		val, err := getValueAssignmentFromStore(kv, propPath)
+		if err != nil {
+			return props,
+				errors.Wrapf(err, "Can't get value for property or attribute at %q", propPath)
+		}
+		if val != nil {
+			props[propName] = val
+		}
+	}
+
+	return props, nil
+}
+
+func getPropAttrMappingFromStore(kv *api.KV, prefix string) (map[string]tosca.PropAttrMapping, error) {
+
+	propPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	props := make(map[string]tosca.PropAttrMapping)
+
+	for _, propPath := range propPaths {
+
+		propName := path.Base(propPath)
+
+		var propMapping tosca.PropAttrMapping
+		kvp, _, err := kv.Get(path.Join(propPath, "mapping"), nil)
+		if err != nil {
+			return props,
+				errors.Wrapf(err, "Can't get mapping for properties or attributes at %q", propPath)
+		}
+		if kvp != nil && len(kvp.Value) != 0 {
+			propMapping.Mapping = strings.Split(string(kvp.Value), ",")
+		} else {
+			propMapping.Value, err = getValueAssignmentFromStore(
+				kv, path.Join(propPath, "value"))
+			if err != nil {
+				return props,
+					errors.Wrapf(err, "Can't get mapping for properties or attributes at %q", propPath)
+			}
+		}
+		props[propName] = propMapping
+	}
+
+	return props, nil
+}
+
+func getValueAssignmentFromStore(kv *api.KV, valPath string) (*tosca.ValueAssignment, error) {
+	kvp, _, err := kv.Get(valPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	var val tosca.ValueAssignment
+	if kvp != nil {
+		val.Type = tosca.ValueAssignmentType(kvp.Flags)
+		if err != nil {
+			return nil, err
+		}
+
+		switch val.Type {
+		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
+			val.Value = kvp.Value
+		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
+			val.Value, err = readComplexVA(kv, val.Type, "", valPath, "")
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return &val, nil
+}
+
+func getInterfaceMappingFromStore(kv *api.KV, prefix string) (map[string]string, error) {
+
+	opPaths, _, err := kv.Keys(prefix+"/", "/", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	itfs := make(map[string]string)
+
+	for _, opPath := range opPaths {
+
+		opName := path.Base(opPath)
+
+		kvp, _, err := kv.Get(path.Join(opPath), nil)
+		if err != nil {
+			return itfs,
+				errors.Wrapf(err, "Can't get mapping for interface at %q", opPath)
+		}
+		if kvp != nil && len(kvp.Value) != 0 {
+			itfs[opName] = string(kvp.Value)
+		}
+	}
+
+	return itfs, nil
 }
 
 // storeSubstitutionMappingAttributeNamesInSet gets capability attributes for capabilities
@@ -259,10 +396,9 @@ func storeSubstitutionMappingAttributeNamesInSet(kv *api.KV, deploymentID, nodeN
 		}
 	}
 
-	// See org.alien4cloud.alm.service.ManagedServiceResourceEventService,
-	// method mapCapabilityRequirementAttributes. This method expects
-	// to get capability attributes as instances attributes with the prefix
-	// capabilities.<capability name>.<attribute name>
+	// See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
+	// Alien4Cloud is managing capability attributes  as instances attributes with
+	// the format capabilities.<capability name>.<attribute name>
 	capabilityFormat := "capabilities.%s.%s"
 	for capability, names := range capabilityToAttrNames {
 		for _, attr := range names {
