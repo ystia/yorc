@@ -32,6 +32,7 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/metricsutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/monitoring"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/registry"
 	"github.com/ystia/yorc/tasks"
@@ -324,7 +325,8 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				delegateOp := activity.ActivityValue()
 				err := func() error {
 					defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
-					return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Target, delegateOp)
+					monitoredExecDelegate := monitoring.MonitoredExecDelegate(provisioner.ExecDelegate)
+					return monitoredExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Target, delegateOp)
 				}()
 
 				if err != nil {

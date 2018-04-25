@@ -639,3 +639,15 @@ func DoesNodeExist(kv *api.KV, deploymentID, nodeName string) (bool, error) {
 	}
 	return kvp != nil && len(kvp.Value) > 0, nil
 }
+
+// GetNodeMetadata retrieves the related node metadata key if exists
+func GetNodeMetadata(kv *api.KV, deploymentID, nodeName, key string) (bool, string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "metadata", key), nil)
+	if err != nil {
+		return false, "", errors.Wrapf(err, "Can't get metadata for node %q", nodeName)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return false, "", nil
+	}
+	return true, string(kvp.Value), nil
+}
