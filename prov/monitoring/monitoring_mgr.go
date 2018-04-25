@@ -30,8 +30,8 @@ import (
 
 // Manager is responsible for adding and removing monitoring health checks
 type Manager interface {
-	AddHealthCheck(name, ipAddress string, port int, interval int) error
-	RemoveHealthCheck(name string) error
+	AddHealthCheck(id, ipAddress string, port int, interval int) error
+	RemoveHealthCheck(id string) error
 	GetHealthChecks() (map[string]*api.AgentCheck, error)
 }
 
@@ -43,7 +43,6 @@ func MonitoredExecDelegate(f ExecDelegateFunc) ExecDelegateFunc {
 	return func(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 		err := f(ctx, cfg, taskID, deploymentID, nodeName, delegateOperation)
 		if err == nil {
-			log.Debugf("Check if monitoring is required...")
 			// Fill log optional fields for log registration
 			logOptFields, ok := events.FromContext(ctx)
 			if !ok {
@@ -98,16 +97,16 @@ func handleMonitoring(cc *api.Client, taskID, deploymentID, nodeName, delegateOp
 				return errors.Errorf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID", nodeName, instance, deploymentID)
 			}
 
-			name := buildCheckID(deploymentID, nodeName, instance)
-			if err := monitoringMgr.AddHealthCheck(name, ipAddress, 22, monitoringInterval); err != nil {
+			id := buildCheckID(deploymentID, nodeName, instance)
+			if err := monitoringMgr.AddHealthCheck(id, ipAddress, 22, monitoringInterval); err != nil {
 				return err
 			}
 		}
 		return nil
 	case "uninstall":
 		for _, instance := range instances {
-			name := buildCheckID(deploymentID, nodeName, instance)
-			if err := monitoringMgr.RemoveHealthCheck(name); err != nil {
+			id := buildCheckID(deploymentID, nodeName, instance)
+			if err := monitoringMgr.RemoveHealthCheck(id); err != nil {
 				return err
 			}
 		}
@@ -159,12 +158,12 @@ type monitoringMgr struct {
 }
 
 // AddHealthCheck allows to register a TCP consul health check
-func (mgr monitoringMgr) AddHealthCheck(name, ipAddress string, port, interval int) error {
-	log.Debugf("Adding health check with name:%q, iPAddress:%q, port:%d, interval:%d", name, ipAddress, port, interval)
+func (mgr monitoringMgr) AddHealthCheck(id, ipAddress string, port, interval int) error {
+	log.Debugf("Adding health check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
 	tcpAddr := fmt.Sprintf("%s:%d", ipAddress, port)
 	check := &api.AgentCheckRegistration{
-		ID:   name,
-		Name: name,
+		ID:   id,
+		Name: id,
 		AgentServiceCheck: api.AgentServiceCheck{
 			Interval: strconv.Itoa(interval) + "s",
 			TCP:      tcpAddr,
@@ -172,18 +171,18 @@ func (mgr monitoringMgr) AddHealthCheck(name, ipAddress string, port, interval i
 	}
 
 	if err := mgr.cc.Agent().CheckRegister(check); err != nil {
-		return errors.Wrapf(err, "failed to add health check with name:%q, ipAddress:%q, port:%d, interval:%d", name, ipAddress, port, interval)
+		return errors.Wrapf(err, "failed to add health check with id:%q, ipAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
 	}
 
 	return nil
 }
 
 // RemoveHealthCheck allows to unregister a TCP consul health check
-func (mgr monitoringMgr) RemoveHealthCheck(name string) error {
-	log.Debugf("Removing health check with name:%q", name)
+func (mgr monitoringMgr) RemoveHealthCheck(id string) error {
+	log.Debugf("Removing health check with id:%q", id)
 
-	if err := mgr.cc.Agent().CheckDeregister(name); err != nil {
-		return errors.Wrapf(err, "failed to remove health check with name:%q", name)
+	if err := mgr.cc.Agent().CheckDeregister(id); err != nil {
+		return errors.Wrapf(err, "failed to remove health check with id:%q", id)
 	}
 	return nil
 }

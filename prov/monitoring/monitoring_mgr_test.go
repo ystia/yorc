@@ -34,6 +34,9 @@ func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client) {
 	check := checks["monitoring1_Compute1-0"]
 	require.Equal(t, "monitoring1_Compute1-0", check.Name, "Name is not equal to \"monitoring1_Compute1-0\"")
 	require.Equal(t, "critical", check.Status, "Status is not equal to critical")
+
+	err = client.Agent().CheckDeregister(check.Name)
+	require.Nil(t, err, "Unexpected error while unregistering consul agent checks")
 }
 
 func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.T, client *api.Client) {
