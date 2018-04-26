@@ -962,7 +962,7 @@ func testTopologyTemplateMetadata(t *testing.T, kv *api.KV) {
 }
 
 // Testing a topology template defining substitution mappings
-func testTopologyTemplateService(t *testing.T, kv *api.KV) {
+func testTopologyTemplateSubstitutionMappings(t *testing.T, kv *api.KV) {
 	t.Parallel()
 
 	// Storing the Deployment definition
@@ -974,13 +974,9 @@ func testTopologyTemplateService(t *testing.T, kv *api.KV) {
 	// This topology template imports a tempologuy template with metatadata
 	// Checking the imported template metadata
 	expectedKeyValuePairs := map[string]string{
-		"topology/substitution_mappings/node_type":                   "org.ystia.yorc.TestAbstractNodeType",
-		"topology/substitution_mappings/capabilities/testendpoint/0": "org.ystia.yorc.TestAbstractNodeType",
-		"topology/metadata/template_version":                         "0.1.0-SNAPSHOT",
-		"topology/metadata/template_author":                          "yorcTester",
-		"topology/imports/3/metadata/template_name":                  "test-component",
-		"topology/imports/3/metadata/template_version":               "2.0.0-SNAPSHOT",
-		"topology/imports/3/metadata/template_author":                "yorcTester",
+		"topology/substitution_mappings/node_type":                      "org.ystia.yorc.test.pub.AppAType",
+		"topology/substitution_mappings/capabilities/appA_capA/mapping": "AppAInstance,appA_capA",
+		"topology/substitution_mappings/requirements/hosted/mapping":    "AppAInstance,hostedOnComputeHost",
 	}
 
 	for key, expectedValue := range expectedKeyValuePairs {
@@ -988,7 +984,7 @@ func testTopologyTemplateService(t *testing.T, kv *api.KV) {
 		kvp, _, err := kv.Get(consulKey, nil)
 		require.NoError(t, err, "Error getting value for key %s", consulKey)
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
-		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
+		assert.Equal(t, expectedValue, string(kvp.Value), "Wrong value for key %s", key)
 	}
 
 }
