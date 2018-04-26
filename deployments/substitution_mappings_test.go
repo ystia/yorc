@@ -116,6 +116,12 @@ func testSubstitutionClientServiceInstance(t *testing.T, kv *api.KV) {
 	require.NoError(t, err, "Failed to check substitutability of %s", clientName)
 	assert.False(t, substitutable, "Node template %s should not be substitutable", clientName)
 
+	// Get the node type of the service node template
+	// provided in an import generated from the Application Deployment
+	nodeType, err := GetNodeType(kv, deploymentID, serviceName)
+	require.NoError(t, err, "Failed to get the node type of service of %s", clientName)
+	assert.Equal(t, "org.ystia.yorc.test.pub.AppAType", nodeType, "Wrong node type for service %s", serviceName)
+
 	// Get instances of the service node template (fake instance)
 	instances, err := GetNodeInstancesIds(kv, deploymentID, serviceName)
 	require.NoError(t, err, "Failed to get service nod einstance id for %s", serviceName)

@@ -213,6 +213,20 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 		}
 	}
 
+	// Capability attributes of a Service referencing an application in another
+	// deployment are actually available as attributes of the node template
+	if isSubstitutionNodeInstance(instanceName) {
+
+		found, result, err := getSubstitutionInstanceCapabilityAttribute(kv, deploymentID, nodeName, instanceName, capabilityName, attrDataType, attributeName, nestedKeys...)
+		if err != nil || found {
+			// If there is an error or attribute was found, returning
+			// else going back to the generic behavior
+			return found, result, errors.Wrapf(err,
+				"Failed to get attribute %q for capability %q on substitutable node %q",
+				attributeName, capabilityName, nodeName)
+		}
+	}
+
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
 	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
