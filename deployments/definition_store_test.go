@@ -970,9 +970,6 @@ func testTopologyTemplateSubstitutionMappings(t *testing.T, kv *api.KV) {
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology_service.yml")
 	require.NoError(t, err, "Failed to store test topology service deployment definition")
 
-	// Check the stored template metadata
-	// This topology template imports a tempologuy template with metatadata
-	// Checking the imported template metadata
 	expectedKeyValuePairs := map[string]string{
 		"topology/substitution_mappings/node_type":                      "org.ystia.yorc.test.pub.AppAType",
 		"topology/substitution_mappings/capabilities/appA_capA/mapping": "AppAInstance,appA_capA",
@@ -987,4 +984,23 @@ func testTopologyTemplateSubstitutionMappings(t *testing.T, kv *api.KV) {
 		assert.Equal(t, expectedValue, string(kvp.Value), "Wrong value for key %s", key)
 	}
 
+}
+
+// Testing the topology template of a client is using a service
+func testTopologyTemplateClientDirective(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	// Storing the Deployment definition
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology_client_service.yml")
+	require.NoError(t, err, "Failed to store topology deployment definition")
+
+	// Check the service whose deployment is not managed in this topology,
+	// is referenced here with a directive substitutable
+	consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+		"/topology/nodes/AppAService/directives")
+	kvp, _, err := kv.Get(consulKey, nil)
+	require.NoError(t, err, "Error getting value for key %s", consulKey)
+	require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
+	assert.Equal(t, directiveSubstitutable, string(kvp.Value), "Wrong value for key %s", consulKey)
 }
