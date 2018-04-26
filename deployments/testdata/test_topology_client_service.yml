@@ -66,7 +66,7 @@ topology_template:
         join_address: "10.0.0.36"
         state: started
         web_ui_url: "http://10.1.2.3:8500"
-        capabilities.endpoint.ip_address: "10.0.0.2"
+        capabilities.appA_capA.ip_address: "10.0.0.2"
       capabilities:
         appA_capA:
           properties:

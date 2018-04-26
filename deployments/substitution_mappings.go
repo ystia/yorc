@@ -28,6 +28,12 @@ import (
 )
 
 const (
+	// Alien4Cloud is managing capability attributes of Managed serviced
+	// referenced in a deployment as node templates attributes with
+	// the format capabilities.<capability name>.<attribute name>
+	// See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
+	capabilityFormat = "capabilities.%s.%s"
+
 	// directiveSubstitutable is a directive to the Orchestrator that a node
 	// type is substitutable, ie. this node type is either abstract or a
 	// reference to another topology template providing substitution mappings
@@ -360,6 +366,7 @@ func getInterfaceMappingFromStore(kv *api.KV, prefix string) (map[string]string,
 // exposed in the deployment through substitution mappings, and stores these
 // capability attributes as node attributes prefixed by capabilities.<capability name>
 // as expected by Alien4Cloud until it implements the mapping of capability attributes
+// See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
 func storeSubstitutionMappingAttributeNamesInSet(kv *api.KV, deploymentID, nodeName string, set map[string]struct{}) error {
 
 	substMapping, err := getDeploymentSubstitutionMapping(kv, deploymentID)
@@ -397,9 +404,8 @@ func storeSubstitutionMappingAttributeNamesInSet(kv *api.KV, deploymentID, nodeN
 	}
 
 	// See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
-	// Alien4Cloud is managing capability attributes  as instances attributes with
+	// Alien4Cloud is managing capability attributes  as node template attributes with
 	// the format capabilities.<capability name>.<attribute name>
-	capabilityFormat := "capabilities.%s.%s"
 	for capability, names := range capabilityToAttrNames {
 		for _, attr := range names {
 			set[fmt.Sprintf(capabilityFormat, capability, attr)] = struct{}{}
@@ -477,7 +483,7 @@ func isSubstitutionNodeInstance(nodeInstance string) bool {
 func getSubstitutableNodeType(kv *api.KV, deploymentID, nodeName, nodeType string) (string, error) {
 	_, err := GetParentType(kv, deploymentID, nodeType)
 	if err == nil {
-		// Rference to an external service, this node type is a eal abstract
+		// Reference to an external service, this node type is a real abstract
 		// node type
 		return nodeType, nil
 	} else if !IsTypeMissingError(err) {
@@ -532,4 +538,25 @@ func getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attr
 	default:
 		return false, ""
 	}
+}
+
+// getSubstitutionInstanceCapabilityAttribute returns the value of a capability
+// attribute for a Service Instance not deployed in this deployment.
+// In this case, the capability attribute is provided as an attribute in the Node
+// template, the attribute having this format:
+// capabilities.<capability name>.<attribute name>
+// See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
+func getSubstitutionInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName,
+	instanceName, capabilityName, attributeType, attributeName string, nestedKeys ...string) (bool, string, error) {
+
+	nodeAttrName := fmt.Sprintf(capabilityFormat, capabilityName, attributeName)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID,
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes",
+			nodeName, "attributes", nodeAttrName),
+		nodeName, instanceName, "", attributeType, nestedKeys...)
+	if err != nil {
+		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q", nodeAttrName, nodeName)
+	}
+
+	return found, result, nil
 }
