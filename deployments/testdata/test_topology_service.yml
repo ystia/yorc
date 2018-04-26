@@ -18,7 +18,6 @@ topology_template:
     node_type: org.ystia.yorc.test.pub.AppAType
     capabilities:
       appA_capA: [ AppAInstance, appA_capA ]
-      appA_capA: [ AppAInstance, appA_capA ]
     requirements:
       hosted: [ AppAInstance, hostedOnComputeHost ]
   node_templates:
