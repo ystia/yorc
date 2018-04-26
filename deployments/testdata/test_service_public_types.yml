@@ -73,6 +73,14 @@ node_types:
           occurrences: [1, 1]
 
 capability_types:
+  org.ystia.yorc.test.pub.AppACapAType:
+    derived_from: tosca.capabilities.Endpoint
+    description: >
+      A capability allowing to bind to AppA.
+  org.ystia.yorc.test.pub.AppACapBType:
+    derived_from: tosca.capabilities.Endpoint
+    description: >
+      Another capability allowing to bind to AppA.
   org.ystia.yorc.test.pub.AppBCapAType:
     derived_from: tosca.capabilities.Endpoint
     description: >
@@ -83,14 +91,6 @@ capability_types:
         description: Port of the Consul HTTP API.
         required: true
         default: 8001
-  org.ystia.yorc.test.pub.AppACapAType:
-    derived_from: tosca.capabilities.Endpoint
-    description: >
-      A capability allowing to bind to AppA.
-  org.ystia.yorc.test.pub.AppACapBType:
-    derived_from: tosca.capabilities.Endpoint
-    description: >
-      Another capability allowing to bind to AppA.
 relationship_types:
   org.ystia.yorc.test.pub.relationships.JoinAppA:
     derived_from: tosca.relationships.ConnectsTo
