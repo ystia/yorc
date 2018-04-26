@@ -1,0 +1,99 @@
+metadata:
+  template_name: org.ystia.yorc.test.pub
+  template_version: 1.0.1
+  template_author: yorcTester2
+
+imports:
+  - <yorc-types.yml>
+
+description: >
+  This component exposes public interfaces for Test types
+node_types:
+  org.ystia.yorc.test.pub.AppAType:
+    derived_from: tosca.nodes.SoftwareComponent
+    abstract: true
+    properties:
+      appA_propABool:
+        description: >
+          Boolean property
+        type: boolean
+        required: false
+        default: false
+      appA_propBString:
+        description: >
+          String property
+        type: string
+        required: false
+        default: test
+      appA_propCInt:
+        type: integer
+        description: Integer property
+        required: true
+        default: 0
+      appA_propDInt:
+        type: integer
+        description: Integer property
+        required: true
+        default: 1
+    attributes:
+      web_ui_url:
+        description: >
+          App A Web UI URL
+        type: string
+      join_address:
+        description: >
+          Address clients can use to join this App A
+        type: string
+    capabilities:
+      appA_capA:
+        type: org.ystia.yorc.test.pub.AppACapAType
+      appA_capB:
+        type: org.ystia.yorc.test.pub.AppACapBType
+    requirements:
+      - appATOAppA:
+          capability: org.ystia.yorc.test.pub.AppACapBType
+          occurrences: [0, 1]
+
+  org.ystia.yorc.test.pub.AppBType:
+    derived_from: tosca.nodes.SoftwareComponent
+    abstract: true
+    properties:
+      appB_propAString:
+        description: >
+          String property
+        type: string
+        required: false
+        default: test
+    capabilities:
+      appB_capA:
+        type: org.ystia.yorc.test.pub.AppBCapAType
+    requirements:
+      - appA_capA:
+          capability: org.ystia.yorc.test.pub.AppACapAType
+          occurrences: [1, 1]
+
+capability_types:
+  org.ystia.yorc.test.pub.AppBCapAType:
+    derived_from: tosca.capabilities.Endpoint
+    description: >
+      A capability allowing to bind to AppB.
+    properties:
+      api_port:
+        type: integer
+        description: Port of the Consul HTTP API.
+        required: true
+        default: 8001
+  org.ystia.yorc.test.pub.AppACapAType:
+    derived_from: tosca.capabilities.Endpoint
+    description: >
+      A capability allowing to bind to AppA.
+  org.ystia.yorc.test.pub.AppACapBType:
+    derived_from: tosca.capabilities.Endpoint
+    description: >
+      Another capability allowing to bind to AppA.
+relationship_types:
+  org.ystia.yorc.test.pub.relationships.JoinAppA:
+    derived_from: tosca.relationships.ConnectsTo
+    description: >
+      Joins AppA
+valid_target_types: [ org.ystia.yorc.test.pub.AppAType ]

@@ -1,0 +1,131 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: org.ystia.yorc.test.implem
+  template_version: 1.0.2
+  template_author: yorcTester
+
+imports:
+  - <yorc-types.yml>
+  - test_service_public_types.yml
+
+description: >
+  This component exposes privtae implementations for Test types
+
+node_types:
+  org.ystia.yorc.test.implem.AppAType:
+    derived_from: org.ystia.yorc.test.pub.AppAType
+    description: Test Application A
+    properties:
+      appA_propDInt:
+        type: integer
+        description: Integer property
+        required: true
+        default: 2
+    attributes:
+      web_ui_url: { concat: [ "http://", get_attribute: [ HOST, public_address ], ":", get_property: [ SELF, consul_agent, api_port ] ] }
+      join_address: { get_attribute: [ HOST, private_address ] }
+    requirements:
+      - appA_capB:
+          capability: org.ystia.yorc.test.pub.AppACapBType
+          relationship: org.ystia.yorc.test.implem.AppAJoinAppARelType
+          occurrences: [0, 1]
+    interfaces:
+      Standard:
+        inputs:
+          PROPC: { get_property: [SELF, appA_propCInt] }
+          PROPD: { get_property: [SELF, appA_propDInt] }
+        create:
+          description: App A installation step
+          inputs:
+            PROPA: { get_property: [SELF, appA_propABool] }
+          implementation: test_playbook.yml
+        configure:
+          inputs:
+            PROPB: { get_property: [SELF, appA_propBString] }
+          implementation: test_playbook.yml
+        start:
+          implementation: test_playbook.yml
+        stop:
+          implementation: test_playbook.yml
+        inputs:
+          INSTALL_DIR: "/install"
+        maintenance_on:
+          inputs:
+            MAINT_MODE: "on"
+          implementation: test_playbook.yml
+        maintenance_off:
+          inputs:
+            MAINT_MODE: "off"
+          implementation: test_playbook.yml
+
+  org.ystia.yorc.test.implem.AppBType:
+    derived_from: org.ystia.yorc.test.pub.AppAType
+    description: Test Application A
+    requirements:
+      - appA_capA:
+          capability: org.ystia.yorc.test.pub.AppBCapAType
+          relationship: org.ystia.yorc.test.implem.JoinAppARelType
+          occurrences: [1, 1]
+    interfaces:
+      Standard:
+        inputs:
+          INSTALL_DIR: { get_property: [SELF, install_dir] }
+          CONFIG_DIR: { get_property: [SELF, config_dir] }
+          MODE: { get_property: [SELF, mode] }
+          DATA_DIR: { get_property: [SELF, data_dir] }
+          WEB_UI: { get_property: [SELF, web_ui] }
+        create:
+          description: Consul installation step
+          inputs:
+            INSTALL_DNSMASQ: { get_property: [SELF, install_dnsmasq] }
+            DOMAIN: { get_property: [SELF, domain] }
+            DOWNLOAD_URL: { get_property: [SELF, download_url] }
+          implementation: test_playbook.yml
+        configure:
+          inputs:
+            DATACENTER: { get_property: [SELF, datacenter] }
+            DOMAIN: { get_property: [SELF, domain] }
+            WEB_UI: { get_property: [SELF, web_ui] }
+            IP_ADDRESS: { get_attribute: [HOST, private_address] }
+            WAN_ADDRESS: { get_attribute: [HOST, public_address] }
+          implementation: test_playbook.yml
+        start:
+          implementation: test_playbook.yml
+        stop:
+          implementation: test_playbook.yml
+      custom:
+        inputs:
+          INSTALL_DIR: { get_property: [SELF, install_dir] }
+        maintenance_on:
+          inputs:
+            MAINT_MODE: "on"
+          implementation: test_playbook.yml
+        maintenance_off:
+          inputs:
+            MAINT_MODE: "off"
+          implementation: test_playbook.yml
+
+relationship_types:
+  org.ystia.yorc.test.implem.JoinAppARelType:
+    derived_from: tosca.relationships.ConnectsTo
+    description: >
+      Connects to an App A instance
+    valid_target_types: [org.ystia.yorc.test.pub.AppACapAType ]
+    interfaces:
+      Configure:
+        pre_configure_source:
+          inputs:
+            SERVER_IP: { get_attribute: [TARGET, private_address] }
+          implementation: test_playbook.yml
+  org.ystia.yorc.test.implem.AppAJoinAppARelType:
+    derived_from: tosca.relationships.ConnectsTo
+    description: >
+      Connects an App A to another App A using its public address 
+    valid_target_types: [ org.ystia.yorc.test.pub.AppACapBType ]
+    interfaces:
+      Configure:
+        pre_configure_source:
+          inputs:
+            SERVER_IP: { get_attribute: [TARGET, public_address] }
+          implementation: test_playbook.yml

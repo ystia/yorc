@@ -1,0 +1,225 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: testService-Environment
+  template_version: 1.0.0
+  template_author: yorcTester
+
+description: "Test topology with substitution mappings"
+
+imports:
+  - <yorc-hostspool-types.yml>
+  - <yorc-types.yml>
+  - test_service_public_types.yml
+  - test_service_private_types.yml
+
+topology_template:
+  substitution_mappings:
+    node_type: org.ystia.yorc.test.pub.AppAType
+    capabilities:
+      appA_capA: [ AppAInstance, appA_capA ]
+      appA_capA: [ AppAInstance, appA_capA ]
+    requirements:
+      hosted: [ AppAInstance, hostedOnComputeHost ]
+  node_templates:
+    Compute:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: false
+      capabilities:
+        endpoint:
+          properties:
+            credentials: 
+              user: "not significant, will be set by Yorc itself"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    AppAInstance:
+      type: org.ystia.yorc.test.implem.AppAType
+      properties:
+        appA_propABool: true
+        appA_propBString: test1
+        appA_propCInt: 123
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+      capabilities:
+        appA_capA:
+          properties:
+            api_port: 1234
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+        appA_capB:
+          properties:
+            api_port: 5678
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+  outputs:
+    AppAInstance_join_address:
+      value: { get_attribute: [ AppAInstance, join_address ] }
+    AppAInstance_web_ui_url:
+      value: { get_attribute: [ AppAInstance, web_ui_url ] }
+  workflows:
+    install:
+      steps:
+        AppAInstance_start:
+          target: AppAInstance
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - AppAInstance_started
+        AppAInstance_create:
+          target: AppAInstance
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - AppAInstance_created
+        AppAInstance_initial:
+          target: AppAInstance
+          activities:
+            - set_state: initial
+          on_success:
+            - AppAInstance_creating
+        AppAInstance_configure:
+          target: AppAInstance
+          activities:
+            - call_operation: Standard.configure
+          on_success:
+            - AppAInstance_configured
+        AppAInstance_started:
+          target: AppAInstance
+          activities:
+            - set_state: started
+        Compute_install:
+          target: Compute
+          activities:
+            - delegate: install
+          on_success:
+            - AppAInstance_initial
+        AppAInstance_created:
+          target: AppAInstance
+          activities:
+            - set_state: created
+          on_success:
+            - AppAInstance_configuring
+        AppAInstance_configuring:
+          target: AppAInstance
+          activities:
+            - set_state: configuring
+          on_success:
+            - AppAInstance_configure
+        AppAInstance_starting:
+          target: AppAInstance
+          activities:
+            - set_state: starting
+          on_success:
+            - AppAInstance_start
+        AppAInstance_configured:
+          target: AppAInstance
+          activities:
+            - set_state: configured
+          on_success:
+            - AppAInstance_starting
+        AppAInstance_creating:
+          target: AppAInstance
+          activities:
+            - set_state: creating
+          on_success:
+            - AppAInstance_create
+    uninstall:
+      steps:
+        AppAInstance_deleting:
+          target: AppAInstance
+          activities:
+            - set_state: deleting
+          on_success:
+            - AppAInstance_deleted
+        Compute_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+        AppAInstance_deleted:
+          target: AppAInstance
+          activities:
+            - set_state: deleted
+          on_success:
+            - Compute_uninstall
+        AppAInstance_stop:
+          target: AppAInstance
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - AppAInstance_stopped
+        AppAInstance_stopping:
+          target: AppAInstance
+          activities:
+            - set_state: stopping
+          on_success:
+            - AppAInstance_stop
+        AppAInstance_stopped:
+          target: AppAInstance
+          activities:
+            - set_state: stopped
+          on_success:
+            - AppAInstance_deleting
+    start:
+      steps:
+        AppAInstance_start:
+          target: AppAInstance
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - AppAInstance_started
+        Compute_start:
+          target: Compute
+          activities:
+            - delegate: start
+          on_success:
+            - AppAInstance_starting
+        AppAInstance_starting:
+          target: AppAInstance
+          activities:
+            - set_state: starting
+          on_success:
+            - AppAInstance_start
+        AppAInstance_started:
+          target: AppAInstance
+          activities:
+            - set_state: started
+    stop:
+      steps:
+        AppAInstance_stop:
+          target: AppAInstance
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - AppAInstance_stopped
+        AppAInstance_stopping:
+          target: AppAInstance
+          activities:
+            - set_state: stopping
+          on_success:
+            - AppAInstance_stop
+        Compute_stop:
+          target: Compute
+          activities:
+            - delegate: stop
+        AppAInstance_stopped:
+          target: AppAInstance
+          activities:
+            - set_state: stopped
+          on_success:
+            - Compute_stop
