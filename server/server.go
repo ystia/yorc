@@ -27,6 +27,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/monitoring"
 	"github.com/ystia/yorc/rest"
 	"github.com/ystia/yorc/tasks/workflow"
 )
@@ -78,6 +79,11 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		goto WAIT
 	}
 	defer httpServer.Shutdown()
+
+	if err = monitoring.Start(client); err != nil {
+		return err
+	}
+	defer monitoring.Stop()
 
 WAIT:
 	signalCh := make(chan os.Signal, 4)

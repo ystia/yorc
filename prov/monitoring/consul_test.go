@@ -31,7 +31,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.nodes.Compute/derived_from":            []byte("tosca.nodes.Compute"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/yorc.nodes.openstack.Compute/derived_from":  []byte("yorc.nodes.Compute"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute1/type":                              []byte("yorc.nodes.openstack.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute1/metadata/monitoring_time_interval": []byte("30"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute1/metadata/monitoring_time_interval": []byte("1"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/ip_address":       []byte("1.2.3.4"),
 
 		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/tosca.nodes.Root/name":                     []byte("tosca.nodes.Root"),
@@ -68,6 +68,9 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		})
 		t.Run("testHandleMonitoringWithNoIP", func(t *testing.T) {
 			testHandleMonitoringWithNoIP(t, client)
+		})
+		t.Run("testAddAndRemoveHealthCheck", func(t *testing.T) {
+			testAddAndRemoveHealthCheck(t, client)
 		})
 	})
 }
