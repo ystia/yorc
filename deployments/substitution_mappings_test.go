@@ -144,6 +144,10 @@ func testSubstitutionClientServiceInstance(t *testing.T, kv *api.KV) {
 
 	assert.Equal(t, substitutableNodeInstance, instances[0], "Unexpected instance for service %s", serviceName)
 
+	substitionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, serviceName, instances[0])
+	assert.True(t, substitionInstance, "Expected %s %s %s to be a substitutin instance",
+		deploymentID, serviceName, instances[0])
+
 	// Get a capability attribute for the capability exposed by this service
 	// here the ip_adress attribute exists as the capability derives from an
 	// endpoint capability

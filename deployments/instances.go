@@ -70,7 +70,10 @@ func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) err
 // If still not found then it will check node properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (bool, string, error) {
 
-	substitutionInstance := isSubstitutionNodeInstance(instanceName)
+	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
+	if err != nil {
+		return false, "", err
+	}
 	if isSubstitutionMappingAttribute(attributeName) {
 
 		// Alien4Cloud did not yet implement the management of capability attributes

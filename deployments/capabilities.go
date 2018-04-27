@@ -215,7 +215,11 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 
 	// Capability attributes of a Service referencing an application in another
 	// deployment are actually available as attributes of the node template
-	if isSubstitutionNodeInstance(instanceName) {
+	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
+	if err != nil {
+		return false, "", err
+	}
+	if substitutionInstance {
 
 		found, result, err := getSubstitutionInstanceCapabilityAttribute(kv, deploymentID, nodeName, instanceName, capabilityName, attrDataType, attributeName, nestedKeys...)
 		if err != nil || found {
