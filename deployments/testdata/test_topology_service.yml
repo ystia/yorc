@@ -18,8 +18,15 @@ topology_template:
     node_type: org.ystia.yorc.test.pub.AppAType
     capabilities:
       appA_capA: [ AppAInstance, appA_capA ]
+      appA_capB:
+        properties:
+          network_name: PRIVATE
     requirements:
       hosted: [ AppAInstance, hostedOnComputeHost ]
+    properties:
+      aProp: [ AppAInstance, appA_propBString ]
+    attributes:
+      addrAttr: [ AppAInstance, join_address ]
   node_templates:
     Compute:
       type: yorc.nodes.hostspool.Compute
