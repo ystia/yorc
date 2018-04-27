@@ -27,6 +27,7 @@ topology_template:
       capabilityA: [ ServerAInstance, capabilityA ]
       capabilityB:
         mapping: [ ServerAInstance, capabilityB ]
+      capabilityC:
         properties:
           propertyA: 1
         attributes:
@@ -35,10 +36,6 @@ topology_template:
       requirementA: [ ServerAInstance, requirementA ]
       requirementB:
         mapping: [ ServerAInstance, requirementB ]
-        properties:
-          propertyA: 1
-        attributes:
-          attributeA: 1
     interfaces:
       operationA: workflowA
       operationB: wokrflowB
@@ -64,6 +61,13 @@ topology_template:
             attributeA: 1
             attributeB: 2
         capabilityB:
+          properties:
+            propertyA: 1
+            propertyB: 2
+          attributes:
+            attributeA: 1
+            attributeB: 2
+        capabilityC:
           properties:
             propertyA: 1
             propertyB: 2

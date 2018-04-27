@@ -66,7 +66,7 @@ type PropAttrMapping struct {
 }
 
 // UnmarshalYAML unmarshals a yaml into a PropAttrMapping
-func (c *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (p *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	// Multi-line grammar check.
 	// Example:
@@ -76,23 +76,27 @@ func (c *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error
 	// my_property:
 	//   value: 1
 	var str struct {
-		Mapping []string         `yaml:"mapping,omitempty,flow"`
-		Value   *ValueAssignment `yaml:"value,omitempty"`
+		Mapping []string `yaml:"mapping,flow"`
 	}
 
 	if err := unmarshal(&str); err == nil {
 		mappingSize := len(str.Mapping)
 		if mappingSize != 0 {
-			c.Mapping = str.Mapping
+			p.Mapping = str.Mapping
 			if mappingSize > 3 {
-				return errors.Errorf("Mapping should between 1 and 3 elements: %v", c.Mapping)
+				return errors.Errorf("Mapping should between 1 and 3 elements: %v", p.Mapping)
 			}
 			return nil
 		}
-		if str.Value != nil {
-			c.Value = str.Value
-			return nil
-		}
+	}
+
+	var str2 struct {
+		Value *ValueAssignment `yaml:"value"`
+	}
+
+	if err := unmarshal(&str2); err == nil && str2.Value != nil {
+		p.Value = str2.Value
+		return nil
 	}
 
 	// Single-line grammar check.
@@ -100,18 +104,18 @@ func (c *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error
 	//   my_property: [node1, property1]
 	// or
 	//   my_property: true
+	//var mapping []string
+
 	var mapping []string
-	if err := unmarshal(&mapping); err == nil {
-		if len(mapping) > 0 {
-			c.Mapping = mapping
-			return nil
-		}
+	if err := unmarshal(&mapping); err == nil && len(mapping) > 0 {
+		p.Mapping = mapping
+		return nil
 	}
 
 	var valueAssignment ValueAssignment
 	err := unmarshal(&valueAssignment)
 	if err == nil {
-		c.Value = &valueAssignment
+		p.Value = &valueAssignment
 	}
 
 	return err
@@ -126,15 +130,16 @@ func (c *PropAttrMapping) UnmarshalYAML(unmarshal func(interface{}) error) error
 // - Multi-line grammar:
 //   <capability_name>:
 //      mapping: [ <node_template_name>, <node_template_capability_name> ]
-//        properties:
-//          <property_name>: <property_value>
-//        attributes:
-//          <attribute_name>: <attribute_value>
+//   <capability_name>:
+//      properties:
+//        <property_name>: <property_value>
+//      attributes:
+//        <attribute_name>: <attribute_value>
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html
 // section 3.8.9 Capability mapping and 3.8.10 Requirement mapping
 type CapReqMapping struct {
-	Mapping    []string                    `yaml:"mapping"`
+	Mapping    []string                    `yaml:"mapping,omitempty,flow"`
 	Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
 	Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty"`
 }
@@ -146,7 +151,7 @@ func (c *CapReqMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// Example of capability mapping using this format:
 	// exported_capability: [node1, internal_capability]
 	var mapping []string
-	if err := unmarshal(&mapping); err == nil {
+	if err := unmarshal(&mapping); err == nil && len(mapping) > 0 {
 		c.Mapping = mapping
 	} else {
 
@@ -154,24 +159,33 @@ func (c *CapReqMapping) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		// Example:
 		// exported_capability:
 		//   mapping: [node1, internal_capability]
+		// or
+		// exported_capability:
 		//   properties:
 		//     property1: value1
 		var str struct {
-			Mapping    []string                    `yaml:"mapping"`
-			Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
-			Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty"`
+			Mapping []string `yaml:"mapping,flow"`
 		}
 
-		if err := unmarshal(&str); err == nil {
+		if err := unmarshal(&str); err == nil && len(str.Mapping) > 0 {
 			c.Mapping = str.Mapping
-			c.Properties = str.Properties
-			c.Attributes = str.Attributes
 		} else {
-			return err
+
+			var str2 struct {
+				Properties map[string]*ValueAssignment `yaml:"properties,omitempty"`
+				Attributes map[string]*ValueAssignment `yaml:"attributes,omitempty"`
+			}
+
+			if err := unmarshal(&str2); err == nil {
+				c.Properties = str2.Properties
+				c.Attributes = str2.Attributes
+			} else {
+				return err
+			}
 		}
 	}
 
-	if len(c.Mapping) != 2 {
+	if len(c.Mapping) > 0 && len(c.Mapping) != 2 {
 		return errors.Errorf("Mapping should have 2 elements: %v", c.Mapping)
 	}
 

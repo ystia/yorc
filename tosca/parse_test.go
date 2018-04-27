@@ -206,7 +206,7 @@ func parsingSubstitutionMappings(t *testing.T) {
 		"Wrong attribute in attributeD mapping")
 
 	// Check capabilities substitutions
-	require.Equal(t, 2, len(mappings.Capabilities),
+	require.Equal(t, 3, len(mappings.Capabilities),
 		"Unexpected number of capabilities mapping")
 	require.Equal(t, 2, len(mappings.Capabilities["capabilityA"].Mapping),
 		"Unexpected size of Mapping for capabilityA")
@@ -219,19 +219,19 @@ func parsingSubstitutionMappings(t *testing.T) {
 	assert.Equal(t, 0, len(mappings.Capabilities["capabilityA"].Attributes),
 		"Unexpected size of Attributes Mapping for capabilityA")
 	require.Equal(t, 2, len(mappings.Capabilities["capabilityB"].Mapping),
-		"Unexpected size of Mapping for capabilityA")
+		"Unexpected size of Mapping for capabilityB")
 	assert.Equal(t, "ServerAInstance", mappings.Capabilities["capabilityB"].Mapping[0],
 		"Wrong node template in capabilityB mapping")
 	assert.Equal(t, "capabilityB", mappings.Capabilities["capabilityB"].Mapping[1],
 		"Wrong capability in capabilityB mapping")
-	require.Equal(t, 1, len(mappings.Capabilities["capabilityB"].Properties),
-		"Unexpected size of Properties Mapping for capabilityB")
-	assert.Equal(t, ValueAssignmentLiteral, mappings.Capabilities["capabilityB"].Properties["propertyA"].Type,
-		"Unexpected value type for capabilityB propertyA mapping")
-	require.Equal(t, 1, len(mappings.Capabilities["capabilityB"].Attributes),
-		"Unexpected size of Attributes Mapping for capabilityB")
-	assert.Equal(t, ValueAssignmentLiteral, mappings.Capabilities["capabilityB"].Attributes["attributeA"].Type,
-		"Unexpected value type for capabilityB attributeA mapping")
+	require.Equal(t, 1, len(mappings.Capabilities["capabilityC"].Properties),
+		"Unexpected size of Properties Mapping for capabilityC")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Capabilities["capabilityC"].Properties["propertyA"].Type,
+		"Unexpected value type for capabilityC propertyA mapping")
+	require.Equal(t, 1, len(mappings.Capabilities["capabilityC"].Attributes),
+		"Unexpected size of Attributes Mapping for capabilityC")
+	assert.Equal(t, ValueAssignmentLiteral, mappings.Capabilities["capabilityC"].Attributes["attributeA"].Type,
+		"Unexpected value type for capabilityC attributeA mapping")
 
 	// Check requirements substitutions
 	require.Equal(t, 2, len(mappings.Requirements),
@@ -252,14 +252,6 @@ func parsingSubstitutionMappings(t *testing.T) {
 		"Wrong node template in requirementB mapping")
 	assert.Equal(t, "requirementB", mappings.Requirements["requirementB"].Mapping[1],
 		"Wrong requirement in requirementB mapping")
-	require.Equal(t, 1, len(mappings.Requirements["requirementB"].Properties),
-		"Unexpected size of Properties Mapping for requirementB")
-	assert.Equal(t, ValueAssignmentLiteral, mappings.Requirements["requirementB"].Properties["propertyA"].Type,
-		"Unexpected value type for capabilityB propertyA mapping")
-	require.Equal(t, 1, len(mappings.Requirements["requirementB"].Attributes),
-		"Unexpected size of Attributes Mapping for requirementB")
-	assert.Equal(t, ValueAssignmentLiteral, mappings.Requirements["requirementB"].Attributes["attributeA"].Type,
-		"Unexpected value type for requirementB attributeA mapping")
 
 	// Check interfaces mappings
 	require.Equal(t, 2, len(mappings.Interfaces),

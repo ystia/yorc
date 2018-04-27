@@ -40,13 +40,27 @@ func testSubstitutionServiceCapabilityMappings(t *testing.T, kv *api.KV) {
 	assert.Equal(t, "org.ystia.yorc.test.pub.AppAType", mapping.NodeType,
 		"Unexpected node type in substitution mappings")
 
-	assert.Equal(t, 1, len(mapping.Capabilities),
+	require.Equal(t, 2, len(mapping.Capabilities),
 		"Wrong number of capability mappings")
 	capName := "appA_capA"
 	capMap := mapping.Capabilities[capName].Mapping
-	assert.Equal(t, 2, len(capMap), "Wrong number of elements in mapping %v", capMap)
+	require.Equal(t, 2, len(capMap), "Wrong number of elements in mapping %v", capMap)
 	assert.Equal(t, "AppAInstance", capMap[0], "Wrong node template name in mapping %v", capMap)
 	assert.Equal(t, capName, capMap[1], "Wrong capability name in mapping %v", capMap)
+
+	props := mapping.Properties
+	assert.Equal(t, 1, len(props), "Wrong number of elements in properties mapping %v", props)
+	value := props["aProp"]
+	require.Equal(t, 2, len(value.Mapping), "Wrong number of elements in properties mapping value %v", value)
+	assert.Equal(t, "AppAInstance", value.Mapping[0], "Wrong node template name in properties mapping value %v", value)
+	assert.Equal(t, "appA_propBString", value.Mapping[1], "Wrong property name in properties mapping value %v", value)
+
+	attrs := mapping.Attributes
+	require.Equal(t, 1, len(attrs), "Wrong number of elements in properties mapping %v", attrs)
+	value = attrs["addrAttr"]
+	require.Equal(t, 2, len(value.Mapping), "Wrong number of elements in attributes mapping value %v", value)
+	assert.Equal(t, "AppAInstance", value.Mapping[0], "Wrong node template name in attributes mapping value %v", value)
+	assert.Equal(t, "join_address", value.Mapping[1], "Wrong property name in attributes mapping value %v", value)
 
 }
 
