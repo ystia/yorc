@@ -288,6 +288,10 @@ All available configuration options for Ansible are:
 
       * ``command``: This allows to run a command within the container.  If both ``entrypoint`` and ``command`` are empty the default value for ``command`` is ``["import time;time.sleep(31536000);"]``.
 
+      .. _option_ansible_sandbox_hosted_ops_default_sandbox_env_cfg:
+
+      * ``env``: An optional list environment variables to set when creating the container. The format of each variable is ``var_name=value``.
+
 .. _yorc_config_file_consul_section:
 
 Consul configuration

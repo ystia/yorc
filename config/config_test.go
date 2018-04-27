@@ -209,7 +209,7 @@ func TestHostedOperations_Format(t *testing.T) {
 	}{
 		{"DefaultValues", fields{}, `{UnsandboxedOperationsAllowed:false DefaultSandbox:<nil>}`},
 		{"AllowUnsandboxed", fields{UnsandboxedOperationsAllowed: true}, `{UnsandboxedOperationsAllowed:true DefaultSandbox:<nil>}`},
-		{"DefaultSandboxConfigured", fields{DefaultSandbox: &DockerSandbox{Image: "alpine:3.7", Command: []string{"cmd", "arg"}}}, `{UnsandboxedOperationsAllowed:false DefaultSandbox:&{Image:alpine:3.7 Command:[cmd arg] Entrypoint:[]}}`},
+		{"DefaultSandboxConfigured", fields{DefaultSandbox: &DockerSandbox{Image: "alpine:3.7", Command: []string{"cmd", "arg"}}}, `{UnsandboxedOperationsAllowed:false DefaultSandbox:&{Image:alpine:3.7 Command:[cmd arg] Entrypoint:[] Env:[]}}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

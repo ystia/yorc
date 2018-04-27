@@ -77,6 +77,7 @@ type DockerSandbox struct {
 	Image      string   `mapstructure:"image"`
 	Command    []string `mapstructure:"command"`
 	Entrypoint []string `mapstructure:"entrypoint"`
+	Env        []string `mapstructure:"env"`
 }
 
 // HostedOperations holds the configuration for operations executed on the orechestrator host (eg. with an operation_host equals to ORECHESTRATOR)

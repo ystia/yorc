@@ -58,6 +58,7 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 
 	cc := &container.Config{
 		Image: sandboxCfg.Image,
+		Env:   sandboxCfg.Env,
 	}
 
 	if len(sandboxCfg.Command) == 0 && len(sandboxCfg.Entrypoint) == 0 {
