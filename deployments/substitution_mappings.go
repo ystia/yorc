@@ -40,8 +40,10 @@ const (
 	directiveSubstitutable = "substitutable"
 
 	// Name of a fake instance for a substitutable node
-	// Using an integer value as this is expected by the Orchestrator plugin
-	substitutableNodeInstance = "-1"
+	// Using an integer value as this is expected by the Alien4cloud Yorc
+	// Orchestrator plugin, and it is has to be 0 so that the plugin can manage
+	// a state change event started and display the instance as started.
+	substitutableNodeInstance = "0"
 )
 
 // isSubstitutableNode returns true if a node contains an Orchestrator directive
@@ -458,7 +460,7 @@ func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanc
 }
 
 // getSubstitutionNodeInstancesIds returns for a substitutable node, a fake
-// instance ID, all necessary infos being stored at the node level.
+// instance ID, all necessary infos are stored and retrieved at the node level.
 func getSubstitutionNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
 
 	var names []string
@@ -469,8 +471,12 @@ func getSubstitutionNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) 
 	return names, err
 }
 
-func isSubstitutionNodeInstance(nodeInstance string) bool {
-	return nodeInstance == substitutableNodeInstance
+func isSubstitutionNodeInstance(kv *api.KV, deploymentID, nodeName, nodeInstance string) (bool, error) {
+	if nodeInstance != substitutableNodeInstance {
+		return false, nil
+	}
+
+	return isSubstitutableNode(kv, deploymentID, nodeName)
 }
 
 // getSubstitutableNodeType returns the node type of a substitutable node.
