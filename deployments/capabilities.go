@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tosca"
 )
 
 // HasScalableCapability check if the given nodeName in the specified deployment, has in this capabilities a Key named scalable
@@ -277,7 +278,7 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	}
 
 	isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
-		"tosca.capabilities.Endpoint")
+		tosca.EndpointCapability)
 	if err != nil {
 		return false, "", err
 	}
