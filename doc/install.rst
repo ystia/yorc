@@ -1,3 +1,5 @@
+.. _yorc_install_section:
+
 Install Yorc and requirements
 ==============================
 
