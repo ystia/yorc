@@ -31,3 +31,14 @@ RUN apk add --update make openssh-client python python-dev py-pip gcc musl-dev l
 COPY ./yorc /usr/local/bin/
 
 EXPOSE 8800
+
+ARG BUILD_DATE
+ARG VCS_REF
+ARG YORC_VERSION
+
+LABEL org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.vcs-url="https://github.com/ystia/yorc.git" \
+      org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.schema-version="1.0.0-rc1" \
+      org.label-schema.vendor="Bull Atos Technologies" \
+      org.label-schema.version=${YORC_VERSION}
