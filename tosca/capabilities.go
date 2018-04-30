@@ -14,6 +14,15 @@
 
 package tosca
 
+const (
+	// EndpointCapability is the default TOSCA type that should be used or
+	// extended to define a network endpoint capability.
+	EndpointCapability = "tosca.capabilities.Endpoint"
+
+	// PublicEndpointCapability represents a public endpoint.
+	PublicEndpointCapability = "tosca.capabilities.Endpoint.Public"
+)
+
 // An CapabilityDefinition is the representation of a TOSCA Capability Definition
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_CAPABILITY_DEFN for more details
