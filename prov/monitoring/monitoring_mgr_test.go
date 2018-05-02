@@ -18,14 +18,12 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/log"
 	"testing"
 	"time"
 )
 
 func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client) {
 	t.Parallel()
-	log.SetDebug(true)
 	ctx := context.Background()
 
 	err := Start(client)
@@ -33,17 +31,26 @@ func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client) {
 	err = handleMonitoring(ctx, client, "", "monitoring1", "Compute1", "install")
 	require.Nil(t, err, "Unexpected error during handleMonitoring function")
 	time.Sleep(2 * time.Second)
-	checks, err := client.Agent().Checks()
-	require.Nil(t, err, "Unexpected error while getting consul agent checks")
+	checks, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+		if cr.DeploymentID == "monitoring1" {
+			return true
+		}
+		return false
+	})
+	require.Nil(t, err, "Unexpected error while getting check reports list")
 	require.Len(t, checks, 1, "1 check is expected")
-	require.Contains(t, checks, "monitoring1:Compute1:0")
+	require.Contains(t, checks, CheckReport{DeploymentID: "monitoring1", NodeName: "Compute1", Status:CheckStatusCRITICAL, Instance: "0"})
 
-	check := checks["monitoring1:Compute1:0"]
-	require.Equal(t, "monitoring1:Compute1:0", check.Name, "Name is not equal to \"monitoring1:Compute1:0\"")
-	require.Equal(t, "critical", check.Status, "Status is not equal to critical")
-
-	err = client.Agent().CheckDeregister(check.Name)
-	require.Nil(t, err, "Unexpected error while unregistering consul agent checks")
+	err = defaultMonManager.removeHealthCheck(defaultMonManager.buildCheckID("monitoring1", "Compute1", "0"))
+	require.Nil(t, err, "Unexpected error while removing health check")
+	checks, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+		if cr.DeploymentID == "monitoring1" {
+			return true
+		}
+		return false
+	})
+	require.Nil(t, err, "Unexpected error while getting check reports list")
+	require.Len(t, checks, 0, "0 check is expected")
 }
 
 func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.T, client *api.Client) {
@@ -52,7 +59,12 @@ func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.
 	err := handleMonitoring(ctx, client, "", "monitoring2", "Compute1", "install")
 	require.Nil(t, err, "Unexpected error during handleMonitoring function")
 
-	checks, err := client.Agent().Checks()
+	checks, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+		if cr.DeploymentID == "monitoring2" {
+			return true
+		}
+		return false
+	})
 	require.Nil(t, err, "Unexpected error while getting consul agent checks")
 	require.Len(t, checks, 0, "No check expected")
 }
@@ -61,9 +73,14 @@ func testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t *testin
 	t.Parallel()
 	ctx := context.Background()
 	err := handleMonitoring(ctx, client, "", "monitoring3", "Compute1", "install")
-	require.Nil(t, err, "Unexpected error during handleMonitoring function")
+	require.Nil(t, err, "Unexpected error during handleMonitoring function doesn't occur")
 
-	checks, err := client.Agent().Checks()
+	checks, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+		if cr.DeploymentID == "monitoring3" {
+			return true
+		}
+		return false
+	})
 	require.Nil(t, err, "Unexpected error while getting consul agent checks")
 	require.Len(t, checks, 0, "No check expected")
 }
@@ -72,23 +89,41 @@ func testHandleMonitoringWithNoIP(t *testing.T, client *api.Client) {
 	t.Parallel()
 	ctx := context.Background()
 	err := handleMonitoring(ctx, client, "", "monitoring4", "Compute1", "install")
-	require.NotNil(t, err, "Unexpected error during handleMonitoring function")
+	require.NotNil(t, err, "Expected error during handleMonitoring function")
 }
 
 func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
-	log.SetDebug(true)
+	t.Parallel()
 	ctx := context.Background()
 	err := Start(client)
 	require.Nil(t, err, "Unexpected error while starting monitoring")
 
-	err = defaultMonManager.addHealthCheck(ctx, "monitoring1:Compute1:0", "1.2.3.4", 22, 2)
+	checkID := defaultMonManager.buildCheckID("monitoring5", "Compute1", "0")
+
+	err = defaultMonManager.addHealthCheck(ctx, checkID, "1.2.3.4", 22, 1)
 	require.Nil(t, err, "Unexpected error while adding health check")
 
-	checks, err := client.Agent().Checks()
-	require.Nil(t, err, "Unexpected error while getting consul agent checks")
+	time.Sleep(2 * time.Second)
+	checks, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+		if cr.DeploymentID == "monitoring5" {
+			return true
+		}
+		return false
+	})
+	require.Nil(t, err, "Unexpected error while getting check reports list")
 	require.Len(t, checks, 1, "1 check is expected")
-	require.Contains(t, checks, "monitoring1:Compute1:0")
+	require.Contains(t, checks, CheckReport{DeploymentID: "monitoring5", NodeName: "Compute1", Status:CheckStatusCRITICAL, Instance: "0"})
 
-	err = defaultMonManager.removeHealthCheck("monitoring1:Compute1:0")
+	err = defaultMonManager.removeHealthCheck(checkID)
 	require.Nil(t, err, "Unexpected error while removing health check")
+
+	require.Nil(t, err, "Unexpected error while removing health check")
+	checks, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {
+		if cr.DeploymentID == "monitoring5" {
+			return true
+		}
+		return false
+	})
+	require.Nil(t, err, "Unexpected error while getting check reports list")
+	require.Len(t, checks, 0, "0 check is expected")
 }
