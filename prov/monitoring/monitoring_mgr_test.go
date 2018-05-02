@@ -19,9 +19,23 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/tasks/workflow"
 	"testing"
 	"time"
 )
+
+type mockActivity struct {
+	t workflow.ActivityType
+	v string
+}
+
+func (m *mockActivity) Type() workflow.ActivityType {
+	return m.t
+}
+
+func (m *mockActivity) Value() string {
+	return m.v
+}
 
 func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
@@ -29,7 +43,8 @@ func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client, cfg 
 
 	err := Start(client, cfg)
 	require.Nil(t, err, "Unexpected error while starting monitoring")
-	err = handleMonitoring(ctx, client, "", "monitoring1", "Compute1", "install")
+	activity := &mockActivity{t: workflow.ActivityTypeDelegate, v: "install"}
+	err = handleMonitoring(ctx, client, "", "monitoring1", "Compute1", activity, 5)
 	require.Nil(t, err, "Unexpected error during handleMonitoring function")
 	time.Sleep(2 * time.Second)
 	checks, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
@@ -57,7 +72,8 @@ func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client, cfg 
 func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
-	err := handleMonitoring(ctx, client, "", "monitoring2", "Compute1", "install")
+	activity := &mockActivity{t: workflow.ActivityTypeDelegate, v: "install"}
+	err := handleMonitoring(ctx, client, "", "monitoring2", "Compute1", activity, 5)
 	require.Nil(t, err, "Unexpected error during handleMonitoring function")
 
 	checks, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
@@ -73,7 +89,8 @@ func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.
 func testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
-	err := handleMonitoring(ctx, client, "", "monitoring3", "Compute1", "install")
+	activity := &mockActivity{t: workflow.ActivityTypeDelegate, v: "install"}
+	err := handleMonitoring(ctx, client, "", "monitoring3", "Compute1", activity, 5*time.Second)
 	require.Nil(t, err, "Unexpected error during handleMonitoring function doesn't occur")
 
 	checks, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
@@ -89,7 +106,8 @@ func testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t *testin
 func testHandleMonitoringWithNoIP(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
-	err := handleMonitoring(ctx, client, "", "monitoring4", "Compute1", "install")
+	activity := &mockActivity{t: workflow.ActivityTypeDelegate, v: "install"}
+	err := handleMonitoring(ctx, client, "", "monitoring4", "Compute1", activity, 5*time.Second)
 	require.NotNil(t, err, "Expected error during handleMonitoring function")
 }
 
@@ -101,7 +119,7 @@ func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client, cfg config.Co
 
 	checkID := defaultMonManager.buildCheckID("monitoring5", "Compute1", "0")
 
-	err = defaultMonManager.addHealthCheck(ctx, checkID, "1.2.3.4", 22, 1)
+	err = defaultMonManager.addHealthCheck(ctx, checkID, "1.2.3.4", 22, 5)
 	require.Nil(t, err, "Unexpected error while adding health check")
 
 	time.Sleep(2 * time.Second)

@@ -35,6 +35,7 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute1/type":                              []byte("yorc.nodes.openstack.Compute"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/nodes/Compute1/metadata/monitoring_time_interval": []byte("1"),
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/ip_address":       []byte("1.2.3.4"),
+		consulutil.DeploymentKVPrefix + "/monitoring1/topology/instances/Compute1/0/attributes/state":            []byte("started"),
 
 		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/tosca.nodes.Root/name":                     []byte("tosca.nodes.Root"),
 		consulutil.DeploymentKVPrefix + "/monitoring2/topology/types/tosca.nodes.Compute/derived_from":          []byte("tosca.nodes.Root"),
@@ -56,6 +57,15 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring4/topology/nodes/Compute1/type":                              []byte("yorc.nodes.openstack.Compute"),
 		consulutil.DeploymentKVPrefix + "/monitoring4/topology/nodes/Compute1/metadata/monitoring_time_interval": []byte("30"),
 		consulutil.DeploymentKVPrefix + "/monitoring4/topology/instances/Compute1/0/attributes/state":            []byte("started"),
+
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/tosca.nodes.Root/name":                      []byte("tosca.nodes.Root"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/tosca.nodes.Compute/derived_from":           []byte("tosca.nodes.Root"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/yorc.nodes.Compute/derived_from":            []byte("tosca.nodes.Compute"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/yorc.nodes.openstack.Compute/derived_from":  []byte("yorc.nodes.Compute"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/nodes/Compute1/type":                              []byte("yorc.nodes.openstack.Compute"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/nodes/Compute1/metadata/monitoring_time_interval": []byte("1"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/instances/Compute1/0/attributes/ip_address":       []byte("1.2.3.4"),
+		consulutil.DeploymentKVPrefix + "/monitoring5/topology/instances/Compute1/0/attributes/state":            []byte("started"),
 	})
 
 	cfg := config.Configuration{

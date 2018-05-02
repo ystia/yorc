@@ -24,6 +24,7 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tasks/workflow"
 	"github.com/ystia/yorc/tosca"
 	"strconv"
 	"strings"
@@ -32,6 +33,10 @@ import (
 )
 
 var defaultMonManager *monitoringMgr
+
+func init() {
+	workflow.RegisterPostActivityHook(computeMonitoringHook)
+}
 
 // Start allows to instantiate a default Monitoring Manager and to start polling Consul agent checks
 func Start(cc *api.Client, cfg config.Configuration) error {
@@ -69,58 +74,52 @@ type monitoringMgr struct {
 	chEndPolling          chan struct{}
 }
 
-// ExecDelegateFunc represents an alias to the exec delegate function in the aim of being decorated for monitoring
-type ExecDelegateFunc func(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error
+func computeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+	if activity.Type() != workflow.ActivityTypeDelegate && activity.Type() != workflow.ActivityTypeSetState {
+		return
+	}
+	if activity.Type() == workflow.ActivityTypeSetState && (activity.Value() != tosca.NodeStateStarted.String() && activity.Value() != tosca.NodeStateDeleted.String()) {
+		return
+	}
+	// Get Consul Client
+	cc, err := cfg.GetConsulClient()
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			Registerf("Failed to retrieve consul client when handling compute monitoring for node name:%q due to: %v", target, err)
+		return
+	}
 
-// MonitoredExecDelegate decorates an execDelegate function with the monitoring handling
-func MonitoredExecDelegate(f ExecDelegateFunc) ExecDelegateFunc {
-	return func(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
-		err := f(ctx, cfg, taskID, deploymentID, nodeName, delegateOperation)
-		if err == nil {
-			// Fill log optional fields for log registration
-			logOptFields, ok := events.FromContext(ctx)
-			if !ok {
-				return errors.New("Missing contextual log optional fields")
-			}
-			logOptFields[events.NodeID] = nodeName
-			logOptFields[events.ExecutionID] = taskID
-			logOptFields[events.OperationName] = delegateOperation
-			logOptFields[events.InterfaceName] = "delegate"
-			ctx = events.NewContext(ctx, logOptFields)
+	// Check if monitoring is required
+	isMonitorReq, monitoringInterval, err := isMonitoringRequired(cc, deploymentID, target)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
+		return
+	}
+	if !isMonitorReq {
+		return
+	}
 
-			// Get Consul Client
-			cc, err := cfg.GetConsulClient()
-			if err != nil {
-				return err
-			}
-
-			if err := handleMonitoring(ctx, cc, taskID, deploymentID, nodeName, delegateOperation); err != nil {
-				events.WithContextOptionalFields(ctx).
-					NewLogEntry(events.WARN, deploymentID).Registerf("[Warning] Monitoring hasn't be handled due to error:%+v", err)
-			}
-		}
-		return err
+	if err := handleMonitoring(ctx, cc, taskID, deploymentID, target, activity, monitoringInterval); err != nil {
+		events.WithContextOptionalFields(ctx).
+			NewLogEntry(events.WARN, deploymentID).Registerf("Health check monitoring hasn't be handled correctly due to:%+v", err)
 	}
 }
 
-func handleMonitoring(ctx context.Context, cc *api.Client, taskID, deploymentID, nodeName, delegateOperation string) error {
-	// Check if monitoring is required
-	isMonitorReq, monitoringInterval, err := isMonitoringRequired(cc, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-	if !isMonitorReq {
-		return nil
-	}
+func handleMonitoring(ctx context.Context, cc *api.Client, taskID, deploymentID, nodeName string, activity workflow.Activity, monitoringInterval time.Duration) error {
 	log.Debugf("Handle monitoring for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
 
-	// Check operation
-	switch strings.ToLower(delegateOperation) {
-	case "install":
+	// Monitoring compute is run on:
+	// - Delegate activity (checks are registered during install and unregistered during uninstall operation)
+	// - SetState activity (checks are registered on node state "Started" and unregistered on node state "Deleted")
+	switch {
+	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
+		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
+
 		for _, instance := range instances {
 			found, ipAddress, err := deployments.GetInstanceAttribute(cc.KV(), deploymentID, nodeName, instance, "ip_address")
 			if err != nil {
@@ -135,21 +134,21 @@ func handleMonitoring(ctx context.Context, cc *api.Client, taskID, deploymentID,
 				return err
 			}
 		}
-		return nil
-	case "uninstall":
+	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
+		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
+
 		for _, instance := range instances {
 			id := defaultMonManager.buildCheckID(deploymentID, nodeName, instance)
 			if err := defaultMonManager.removeHealthCheck(id); err != nil {
 				return err
 			}
 		}
-	default:
-		return errors.Errorf("Operation %q not supported", delegateOperation)
 	}
+
 	return nil
 }
 
-func isMonitoringRequired(cc *api.Client, deploymentID, nodeName string) (bool, int, error) {
+func isMonitoringRequired(cc *api.Client, deploymentID, nodeName string) (bool, time.Duration, error) {
 	// Check if the node is a compute
 	var isCompute bool
 	isCompute, err := deployments.IsNodeDerivedFrom(cc.KV(), deploymentID, nodeName, "tosca.nodes.Compute")
@@ -174,20 +173,24 @@ func isMonitoringRequired(cc *api.Client, deploymentID, nodeName string) (bool, 
 		return false, 0, err
 	}
 	if t > 0 {
-		return true, t, nil
+		duration, err := time.ParseDuration(val + "s")
+		if err != nil {
+			return false, 0, err
+		}
+		return true, duration, nil
 	}
 	return false, 0, nil
 }
 
 // addHealthCheck allows to register a TCP consul health check
-func (mgr *monitoringMgr) addHealthCheck(ctx context.Context, id, ipAddress string, port, interval int) error {
+func (mgr *monitoringMgr) addHealthCheck(ctx context.Context, id, ipAddress string, port, interval time.Duration) error {
 	log.Debugf("Adding health check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
 	tcpAddr := fmt.Sprintf("%s:%d", ipAddress, port)
 	check := &api.AgentCheckRegistration{
 		ID:   id,
 		Name: id,
 		AgentServiceCheck: api.AgentServiceCheck{
-			Interval: strconv.Itoa(interval) + "s",
+			Interval: interval.String(),
 			TCP:      tcpAddr,
 			Status:   "passing",
 		},
@@ -309,9 +312,11 @@ func (mgr *monitoringMgr) updateNodesState(ctx context.Context) error {
 		}
 		if nodeStateBefore != nodeStateAfter {
 			if ctx != nil {
-				logOptFields, _ := events.FromContext(ctx)
-				logOptFields[events.InstanceID] = cr.Instance
-				ctx = events.NewContext(ctx, logOptFields)
+				logOptFields, ok := events.FromContext(ctx)
+				if ok {
+					logOptFields[events.InstanceID] = cr.Instance
+					ctx = events.NewContext(ctx, logOptFields)
+				}
 			} else {
 				lof := events.LogOptionalFields{
 					events.InstanceID: cr.Instance,
