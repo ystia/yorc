@@ -39,5 +39,8 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testReadStepFromConsulFailing", func(t *testing.T) {
 			testReadStepFromConsulFailing(t, srv, kv)
 		})
+		t.Run("testRunWorkflow", func(t *testing.T) {
+			testRunWorkflow(t, kv)
+		})
 	})
 }
