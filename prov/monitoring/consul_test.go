@@ -15,9 +15,11 @@
 package monitoring
 
 import (
+	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/testutil"
 	"testing"
+	"time"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
@@ -56,21 +58,27 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring4/topology/instances/Compute1/0/attributes/state":            []byte("started"),
 	})
 
+	cfg := config.Configuration{
+		Consul: config.Consul{
+			HealthCheckPollingInterval: 1 * time.Second,
+		},
+	}
+
 	t.Run("groupMonitoring", func(t *testing.T) {
 		t.Run("testHandleMonitoringWithCheckCreated", func(t *testing.T) {
-			testHandleMonitoringWithCheckCreated(t, client)
+			testHandleMonitoringWithCheckCreated(t, client, cfg)
 		})
 		t.Run("testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval", func(t *testing.T) {
-			testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t, client)
+			testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t, client, cfg)
 		})
 		t.Run("testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval", func(t *testing.T) {
-			testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t, client)
+			testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t, client, cfg)
 		})
 		t.Run("testHandleMonitoringWithNoIP", func(t *testing.T) {
-			testHandleMonitoringWithNoIP(t, client)
+			testHandleMonitoringWithNoIP(t, client, cfg)
 		})
 		t.Run("testAddAndRemoveHealthCheck", func(t *testing.T) {
-			testAddAndRemoveHealthCheck(t, client)
+			testAddAndRemoveHealthCheck(t, client, cfg)
 		})
 	})
 }

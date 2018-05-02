@@ -51,6 +51,9 @@ const DefaultKeepOperationRemotePath = false
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
+// DefaultHealthCheckPollingInterval is the default Consul polling interval for health check
+const DefaultHealthCheckPollingInterval = 5 * time.Second
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible
@@ -81,16 +84,17 @@ type Ansible struct {
 
 // Consul configuration
 type Consul struct {
-	Token          string
-	Datacenter     string
-	Address        string
-	Key            string
-	Cert           string
-	CA             string
-	CAPath         string
-	SSL            bool
-	SSLVerify      bool
-	PubMaxRoutines int
+	Token                      string
+	Datacenter                 string
+	Address                    string
+	Key                        string
+	Cert                       string
+	CA                         string
+	CAPath                     string
+	SSL                        bool
+	SSLVerify                  bool
+	PubMaxRoutines             int
+	HealthCheckPollingInterval time.Duration
 }
 
 // Telemetry holds the configuration for the telemetry service

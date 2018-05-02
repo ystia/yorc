@@ -18,15 +18,16 @@ import (
 	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/config"
 	"testing"
 	"time"
 )
 
-func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client) {
+func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
 
-	err := Start(client)
+	err := Start(client, cfg)
 	require.Nil(t, err, "Unexpected error while starting monitoring")
 	err = handleMonitoring(ctx, client, "", "monitoring1", "Compute1", "install")
 	require.Nil(t, err, "Unexpected error during handleMonitoring function")
@@ -39,7 +40,7 @@ func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client) {
 	})
 	require.Nil(t, err, "Unexpected error while getting check reports list")
 	require.Len(t, checks, 1, "1 check is expected")
-	require.Contains(t, checks, CheckReport{DeploymentID: "monitoring1", NodeName: "Compute1", Status:CheckStatusCRITICAL, Instance: "0"})
+	require.Contains(t, checks, CheckReport{DeploymentID: "monitoring1", NodeName: "Compute1", Status: CheckStatusCRITICAL, Instance: "0"})
 
 	err = defaultMonManager.removeHealthCheck(defaultMonManager.buildCheckID("monitoring1", "Compute1", "0"))
 	require.Nil(t, err, "Unexpected error while removing health check")
@@ -53,7 +54,7 @@ func testHandleMonitoringWithCheckCreated(t *testing.T, client *api.Client) {
 	require.Len(t, checks, 0, "0 check is expected")
 }
 
-func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.T, client *api.Client) {
+func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
 	err := handleMonitoring(ctx, client, "", "monitoring2", "Compute1", "install")
@@ -69,7 +70,7 @@ func testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t *testing.
 	require.Len(t, checks, 0, "No check expected")
 }
 
-func testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t *testing.T, client *api.Client) {
+func testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
 	err := handleMonitoring(ctx, client, "", "monitoring3", "Compute1", "install")
@@ -85,17 +86,17 @@ func testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t *testin
 	require.Len(t, checks, 0, "No check expected")
 }
 
-func testHandleMonitoringWithNoIP(t *testing.T, client *api.Client) {
+func testHandleMonitoringWithNoIP(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
 	err := handleMonitoring(ctx, client, "", "monitoring4", "Compute1", "install")
 	require.NotNil(t, err, "Expected error during handleMonitoring function")
 }
 
-func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
+func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client, cfg config.Configuration) {
 	t.Parallel()
 	ctx := context.Background()
-	err := Start(client)
+	err := Start(client, cfg)
 	require.Nil(t, err, "Unexpected error while starting monitoring")
 
 	checkID := defaultMonManager.buildCheckID("monitoring5", "Compute1", "0")
@@ -112,7 +113,7 @@ func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
 	})
 	require.Nil(t, err, "Unexpected error while getting check reports list")
 	require.Len(t, checks, 1, "1 check is expected")
-	require.Contains(t, checks, CheckReport{DeploymentID: "monitoring5", NodeName: "Compute1", Status:CheckStatusCRITICAL, Instance: "0"})
+	require.Contains(t, checks, CheckReport{DeploymentID: "monitoring5", NodeName: "Compute1", Status: CheckStatusCRITICAL, Instance: "0"})
 
 	err = defaultMonManager.removeHealthCheck(checkID)
 	require.Nil(t, err, "Unexpected error while removing health check")

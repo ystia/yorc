@@ -34,11 +34,11 @@ import (
 var defaultMonManager *monitoringMgr
 
 // Start allows to instantiate a default Monitoring Manager and to start polling Consul agent checks
-func Start(cc *api.Client) error {
+func Start(cc *api.Client, cfg config.Configuration) error {
 	defaultMonManager = &monitoringMgr{
 		cc:                    cc,
 		checksNb:              0,
-		checksPollingDuration: 5 * time.Second,
+		checksPollingDuration: cfg.Consul.HealthCheckPollingInterval,
 		chEndPolling:          make(chan struct{}),
 	}
 
@@ -262,7 +262,6 @@ func (mgr *monitoringMgr) startCheckReportsPolling(ctx context.Context) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				log.Debugf("Polling checks is running")
 				if err := mgr.updateNodesState(ctx); err != nil {
 					log.Printf("[ERROR] An error occurred during polling checks:%+v", err)
 				}
@@ -315,8 +314,8 @@ func (mgr *monitoringMgr) updateNodesState(ctx context.Context) error {
 				ctx = events.NewContext(ctx, logOptFields)
 			} else {
 				lof := events.LogOptionalFields{
-					events.InstanceID: cr.NodeName,
-					events.NodeID:     cr.Instance,
+					events.InstanceID: cr.Instance,
+					events.NodeID:     cr.NodeName,
 				}
 				ctx = events.NewContext(context.Background(), lof)
 			}
