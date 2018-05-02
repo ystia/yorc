@@ -120,7 +120,7 @@ Globals Command-line options
 Configuration files
 -------------------
 
-Configuration files are JSON-formatted as a single JSON object containing the following configuration options. 
+Configuration files are either JSON or YAML formatted as a single object containing the following configuration options. 
 By default Yorc will look for a file named config.yorc.json in ``/etc/yorc`` directory then if not found in the current directory. 
 The :ref:`--config <option_config_cmd>` command line flag allows to specify an alternative configuration file.
 
