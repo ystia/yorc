@@ -16,7 +16,6 @@ package hostspool
 
 import (
 	"fmt"
-	"net/url"
 	"path"
 	"reflect"
 	"strconv"
@@ -28,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/helper/sshutil"
@@ -50,13 +48,14 @@ type Manager interface {
 	Add(hostname string, connection Connection, labels map[string]string) error
 	Apply(pool []Host, checkpoint *uint64) error
 	Remove(hostname string) error
+	UpdateResourcesLabels(hostname string, diff map[string]string, operation func(a int64, b int64) int64, update func(orig map[string]string, diff map[string]string, operation func(a int64, b int64) int64) (map[string]string, error)) error
 	AddLabels(hostname string, labels map[string]string) error
 	RemoveLabels(hostname string, labels []string) error
 	UpdateConnection(hostname string, connection Connection) error
 	List(filters ...labelsutil.Filter) ([]string, []labelsutil.Warning, uint64, error)
 	GetHost(hostname string) (Host, error)
-	Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
-	Release(hostname string) error
+	Allocate(allocation *Allocation, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error)
+	Release(hostname string, allocation *Allocation) error
 }
 
 // SSHClientFactory is a that could be called to customize the client used to check the connection.
@@ -96,8 +95,7 @@ func (cm *consulManager) Add(hostname string, conn Connection, labels map[string
 	return cm.addWait(hostname, conn, labels, maxWaitTimeSeconds*time.Second)
 }
 func (cm *consulManager) addWait(hostname string, conn Connection, labels map[string]string, maxWaitTime time.Duration) error {
-
-	ops, err := getAddOperations(hostname, conn, labels, HostStatusFree, "")
+	ops, err := cm.getAddOperations(hostname, conn, labels, HostStatusFree, "", nil)
 	if err != nil {
 		return err
 	}
@@ -130,12 +128,13 @@ func (cm *consulManager) addWait(hostname string, conn Connection, labels map[st
 	return err
 }
 
-func getAddOperations(
+func (cm *consulManager) getAddOperations(
 	hostname string,
 	conn Connection,
 	labels map[string]string,
 	status HostStatus,
-	message string) (api.KVTxnOps, error) {
+	message string,
+	allocations []Allocation) (api.KVTxnOps, error) {
 
 	if hostname == "" {
 		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
@@ -205,124 +204,20 @@ func getAddOperations(
 		})
 	}
 
-	for k, v := range labels {
-		k = url.PathEscape(k)
-		if k == "" {
-			return nil, errors.WithStack(badRequestError{"empty labels are not allowed"})
-		}
-		addOps = append(addOps, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "labels", k),
-			Value: []byte(v),
-		})
+	var allocsOps api.KVTxnOps
+	var err error
+	if allocsOps, err = getAddAllocationsOperation(hostname, allocations); err != nil {
+		return nil, err
+	} else if len(allocsOps) > 0 {
+		addOps = append(addOps, allocsOps...)
 	}
 
+	labelOps, err := cm.getAddUpdatedLabelsOperations(hostname, labels)
+	if err != nil {
+		return nil, err
+	}
+	addOps = append(addOps, labelOps...)
 	return addOps, nil
-}
-
-func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {
-	return cm.updateConnWait(hostname, conn, maxWaitTimeSeconds*time.Second)
-}
-func (cm *consulManager) updateConnWait(hostname string, conn Connection, maxWaitTime time.Duration) error {
-	if hostname == "" {
-		return errors.WithStack(badRequestError{`"hostname" missing`})
-	}
-
-	// check if host exists
-	status, err := cm.GetHostStatus(hostname)
-	if err != nil {
-		return err
-	}
-
-	ops := make(api.KVTxnOps, 0)
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
-	if conn.User != "" {
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "connection", "user"),
-			Value: []byte(conn.User),
-		})
-	}
-	if conn.Port != 0 {
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "connection", "port"),
-			Value: []byte(strconv.FormatUint(conn.Port, 10)),
-		})
-	}
-	if conn.Host != "" {
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "connection", "host"),
-			Value: []byte(conn.Host),
-		})
-	}
-	if conn.PrivateKey != "" {
-		if conn.PrivateKey == "-" {
-			ok, err := cm.DoesHostHasConnectionPassword(hostname)
-			if err != nil {
-				return err
-			}
-			if !ok && conn.Password == "" || ok && conn.Password == "-" {
-				return errors.WithStack(badRequestError{`at any time at least one of "password" or "private_key" is required`})
-			}
-			conn.PrivateKey = ""
-		}
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "connection", "private_key"),
-			Value: []byte(conn.PrivateKey),
-		})
-	}
-	if conn.Password != "" {
-		if conn.Password == "-" {
-			ok, err := cm.DoesHostHasConnectionPrivateKey(hostname)
-			if err != nil {
-				return err
-			}
-			if !ok && conn.PrivateKey == "" || ok && conn.PrivateKey == "-" {
-				return errors.WithStack(badRequestError{`at any time at least one of "password" or "private_key" is required`})
-			}
-			conn.Password = ""
-		}
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "connection", "password"),
-			Value: []byte(conn.Password),
-		})
-	}
-
-	_, cleanupFn, err := cm.lockKey(hostname, "update", maxWaitTime)
-	if err != nil {
-		return err
-	}
-	defer cleanupFn()
-
-	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !ok {
-		// Check the response
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return errors.Errorf("Failed to update host %q connection: %s", hostname, strings.Join(errs, ", "))
-	}
-
-	err = cm.checkConnection(hostname)
-	if err != nil {
-		if status != HostStatusError {
-			cm.backupHostStatus(hostname)
-			cm.setHostStatusWithMessage(hostname, HostStatusError, "failed to connect to host")
-		}
-		return err
-	}
-	if status == HostStatusError {
-		cm.restoreHostStatus(hostname)
-	}
-	return nil
 }
 
 func (cm *consulManager) Remove(hostname string) error {
@@ -391,117 +286,6 @@ func (cm *consulManager) getRemoveOperations(hostname string, checkStatus bool) 
 	}
 
 	return rmOps, nil
-}
-
-func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {
-	return cm.addLabelsWait(hostname, labels, maxWaitTimeSeconds*time.Second)
-}
-func (cm *consulManager) addLabelsWait(hostname string, labels map[string]string, maxWaitTime time.Duration) error {
-	if hostname == "" {
-		return errors.WithStack(badRequestError{`"hostname" missing`})
-	}
-	if labels == nil || len(labels) == 0 {
-		return nil
-	}
-
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
-	ops := make(api.KVTxnOps, 0)
-
-	for k, v := range labels {
-		k = url.PathEscape(k)
-		if k == "" {
-			return errors.WithStack(badRequestError{"empty labels are not allowed"})
-		}
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(hostKVPrefix, "labels", k),
-			Value: []byte(v),
-		})
-	}
-
-	_, cleanupFn, err := cm.lockKey(hostname, "labels addition", maxWaitTime)
-	if err != nil {
-		return err
-	}
-	defer cleanupFn()
-
-	// Checks host existence
-	_, err = cm.GetHostStatus(hostname)
-	if err != nil {
-		return err
-	}
-
-	// We don't care about host status for updating labels
-
-	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !ok {
-		// Check the response
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return errors.Errorf("Failed to add labels to host %q: %s", hostname, strings.Join(errs, ", "))
-	}
-
-	return nil
-}
-
-func (cm *consulManager) RemoveLabels(hostname string, labels []string) error {
-	return cm.removeLabelsWait(hostname, labels, maxWaitTimeSeconds*time.Second)
-}
-func (cm *consulManager) removeLabelsWait(hostname string, labels []string, maxWaitTime time.Duration) error {
-	if hostname == "" {
-		return errors.WithStack(badRequestError{`"hostname" missing`})
-	}
-	if labels == nil || len(labels) == 0 {
-		return nil
-	}
-
-	hostKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname)
-	ops := make(api.KVTxnOps, 0)
-
-	for _, v := range labels {
-		v = url.PathEscape(v)
-		if v == "" {
-			return errors.WithStack(badRequestError{"empty labels are not allowed"})
-		}
-		ops = append(ops, &api.KVTxnOp{
-			Verb: api.KVDelete,
-			Key:  path.Join(hostKVPrefix, "labels", v),
-		})
-	}
-
-	_, cleanupFn, err := cm.lockKey(hostname, "labels remove", maxWaitTime)
-	if err != nil {
-		return err
-	}
-	defer cleanupFn()
-
-	// Checks host existence
-	_, err = cm.GetHostStatus(hostname)
-	if err != nil {
-		return err
-	}
-
-	// We don't care about host status for updating labels
-
-	ok, response, _, err := cm.cc.KV().Txn(ops, nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !ok {
-		// Check the response
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return errors.Errorf("Failed to delete labels on host %q: %s", hostname, strings.Join(errs, ", "))
-	}
-
-	return nil
 }
 
 func (cm *consulManager) lockKey(hostname, opType string, lockWaitTime time.Duration) (lockCh <-chan struct{}, cleanupFn func(), err error) {
@@ -692,72 +476,6 @@ func (cm *consulManager) getStatus(hostname string, backup bool) (HostStatus, er
 	return status, nil
 }
 
-func (cm *consulManager) DoesHostHasConnectionPrivateKey(hostname string) (bool, error) {
-	c, err := cm.GetHostConnection(hostname)
-	if err != nil {
-		return false, err
-	}
-	return c.PrivateKey != "", nil
-}
-
-func (cm *consulManager) DoesHostHasConnectionPassword(hostname string) (bool, error) {
-	c, err := cm.GetHostConnection(hostname)
-	if err != nil {
-		return false, err
-	}
-	return c.Password != "", nil
-}
-
-func (cm *consulManager) GetHostConnection(hostname string) (Connection, error) {
-	conn := Connection{}
-	if hostname == "" {
-		return conn, errors.WithStack(badRequestError{`"hostname" missing`})
-	}
-	kv := cm.cc.KV()
-	connKVPrefix := path.Join(consulutil.HostsPoolPrefix, hostname, "connection")
-
-	kvp, _, err := kv.Get(path.Join(connKVPrefix, "host"), nil)
-	if err != nil {
-		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		conn.Host = string(kvp.Value)
-	}
-	kvp, _, err = kv.Get(path.Join(connKVPrefix, "user"), nil)
-	if err != nil {
-		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		conn.User = string(kvp.Value)
-	}
-	kvp, _, err = kv.Get(path.Join(connKVPrefix, "password"), nil)
-	if err != nil {
-		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		conn.Password = string(kvp.Value)
-	}
-	kvp, _, err = kv.Get(path.Join(connKVPrefix, "private_key"), nil)
-	if err != nil {
-		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		conn.PrivateKey = string(kvp.Value)
-	}
-	kvp, _, err = kv.Get(path.Join(connKVPrefix, "port"), nil)
-	if err != nil {
-		return conn, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp != nil {
-		conn.Port, err = strconv.ParseUint(string(kvp.Value), 10, 64)
-		if err != nil {
-			return conn, errors.Wrapf(err, "failed to retrieve connection port for host %q", hostname)
-		}
-	}
-
-	return conn, nil
-}
-
 func (cm *consulManager) GetHostMessage(hostname string) (string, error) {
 	return cm.getMessage(hostname, false)
 }
@@ -800,26 +518,6 @@ func (cm *consulManager) setHostMessage(hostname, message string) error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.HostsPoolPrefix, hostname, "message"), message)
 }
 
-func (cm *consulManager) GetHostLabels(hostname string) (map[string]string, error) {
-	if hostname == "" {
-		return nil, errors.WithStack(badRequestError{`"hostname" missing`})
-	}
-	// check if host exists
-	_, err := cm.GetHostStatus(hostname)
-	if err != nil {
-		return nil, err
-	}
-	kvps, _, err := cm.cc.KV().List(path.Join(consulutil.HostsPoolPrefix, hostname, "labels"), nil)
-	if err != nil {
-		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	labels := make(map[string]string, len(kvps))
-	for _, kvp := range kvps {
-		labels[path.Base(kvp.Key)] = string(kvp.Value)
-	}
-	return labels, nil
-}
-
 func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	host := Host{Name: hostname}
 	if hostname == "" {
@@ -839,114 +537,13 @@ func (cm *consulManager) GetHost(hostname string) (Host, error) {
 	if err != nil {
 		return host, err
 	}
+	host.Allocations, err = cm.GetAllocations(hostname)
+	if err != nil {
+		return host, err
+	}
 
 	host.Labels, err = cm.GetHostLabels(hostname)
 	return host, err
-}
-
-func (cm *consulManager) Allocate(message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
-	return cm.allocateWait(maxWaitTimeSeconds*time.Second, message, filters...)
-}
-func (cm *consulManager) allocateWait(maxWaitTime time.Duration, message string, filters ...labelsutil.Filter) (string, []labelsutil.Warning, error) {
-	lockCh, cleanupFn, err := cm.lockKey("", "allocation", maxWaitTime)
-	if err != nil {
-		return "", nil, err
-	}
-	defer cleanupFn()
-
-	hosts, warnings, _, err := cm.List(filters...)
-	if err != nil {
-		return "", warnings, err
-	}
-	// Filters only free and connectable hosts but try to bypass errors if we can allocate an host
-	var lastErr error
-	freeHosts := hosts[:0]
-	for _, h := range hosts {
-		select {
-		case <-lockCh:
-			return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
-		default:
-		}
-		err := cm.checkConnection(h)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		hs, err := cm.GetHostStatus(h)
-		if err != nil {
-			lastErr = err
-		} else if hs == HostStatusFree {
-			freeHosts = append(freeHosts, h)
-		}
-	}
-
-	if len(freeHosts) == 0 {
-		if lastErr != nil {
-			return "", warnings, lastErr
-		}
-		return "", warnings, errors.WithStack(noMatchingHostFoundError{})
-	}
-	// Get the first host that match
-	hostname := freeHosts[0]
-	select {
-	case <-lockCh:
-		return "", warnings, errors.New("admin lock lost on hosts pool during host allocation")
-	default:
-	}
-	return hostname, warnings, cm.setHostStatusWithMessage(hostname, HostStatusAllocated, message)
-}
-func (cm *consulManager) Release(hostname string) error {
-	return cm.releaseWait(hostname, maxWaitTimeSeconds*time.Second)
-}
-func (cm *consulManager) releaseWait(hostname string, maxWaitTime time.Duration) error {
-	_, cleanupFn, err := cm.lockKey(hostname, "release", maxWaitTime)
-	if err != nil {
-		return err
-	}
-	defer cleanupFn()
-
-	status, err := cm.GetHostStatus(hostname)
-	if err != nil {
-		return err
-	}
-	if status != HostStatusAllocated {
-		return errors.WithStack(badRequestError{fmt.Sprintf("unexpected status %q when releasing host %q", status.String(), hostname)})
-	}
-	err = cm.setHostStatus(hostname, HostStatusFree)
-	if err != nil {
-		return err
-	}
-	err = cm.checkConnection(hostname)
-	if err != nil {
-		cm.backupHostStatus(hostname)
-		cm.setHostStatusWithMessage(hostname, HostStatusError, "failed to connect to host")
-	}
-	return nil
-}
-
-func resolveTemplatesInConnection(conn *Connection) {
-	conn.User = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.User", conn.User).(string)
-	conn.Password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Password", conn.Password).(string)
-	conn.PrivateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.PrivateKey", conn.PrivateKey).(string)
-	conn.Host = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("Connection.Host", conn.Host).(string)
-}
-
-// Check if we can log into an host given a connection
-func (cm *consulManager) checkConnection(hostname string) error {
-
-	conn, err := cm.GetHostConnection(hostname)
-	if err != nil {
-		return errors.Wrapf(err, "failed to connect to host %q", hostname)
-	}
-	resolveTemplatesInConnection(&conn)
-	conf, err := getSSHConfig(conn)
-	if err != nil {
-		return errors.Wrapf(err, "failed to connect to host %q", hostname)
-	}
-
-	client := cm.getSSHClient(conf, conn)
-	_, err = client.RunCommand(`echo "Connected!"`)
-	return errors.Wrapf(err, "failed to connect to host %q", hostname)
 }
 
 func getSSHConfig(conn Connection) (*ssh.ClientConfig, error) {
@@ -1075,6 +672,11 @@ func (cm *consulManager) applyWait(
 				return err
 			}
 
+			allocations, err := cm.GetAllocations(host.Name)
+			if err != nil {
+				return err
+			}
+
 			// Backup status and message if defined are restored at re-creation,
 			// the connection check will be performed afterwards
 			if status == HostStatusError {
@@ -1084,19 +686,17 @@ func (cm *consulManager) applyWait(
 					message, _ = cm.getMessage(host.Name, true)
 				}
 			}
-			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				status, message)
+			ops, err := cm.getAddOperations(host.Name, host.Connection, host.Labels,
+				status, message, allocations)
 			if err != nil {
 				return err
 			}
-
 			addOps = append(addOps, ops...)
-
 		} else {
 			// Host is new, creating it
 			hostChanged = append(hostChanged, host.Name)
-			ops, err := getAddOperations(host.Name, host.Connection, host.Labels,
-				HostStatusFree, "")
+			ops, err := cm.getAddOperations(host.Name, host.Connection, host.Labels,
+				HostStatusFree, "", nil)
 			if err != nil {
 				return err
 			}
@@ -1173,28 +773,4 @@ func (cm *consulManager) applyWait(
 	}
 
 	return err
-}
-
-// Go routine checking a Host connection and updating the Host status
-func (cm *consulManager) updateConnectionStatus(name string, waitGroup *sync.WaitGroup) {
-	defer waitGroup.Done()
-	status, err := cm.GetHostStatus(name)
-	if err != nil {
-		// No such host anymore
-		return
-	}
-
-	err = cm.checkConnection(name)
-	if err != nil {
-		if status != HostStatusError {
-			cm.backupHostStatus(name)
-			cm.setHostStatusWithMessage(name, HostStatusError, "failed to connect to host")
-		}
-		return
-	}
-	// Connection is up now. If it was previsouly down, restoring the status as
-	// it was before the failure (free, allocated)
-	if status == HostStatusError {
-		cm.restoreHostStatus(name)
-	}
 }
