@@ -173,7 +173,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
-	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag string
+	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag string
 	if nodeAlloc.cpu != "" {
 		sallocCPUFlag = fmt.Sprintf(" -c %s", nodeAlloc.cpu)
 	}
@@ -185,6 +185,9 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}
 	if nodeAlloc.gres != "" {
 		sallocGresFlag = fmt.Sprintf(" --gres=%s", nodeAlloc.gres)
+	}
+	if nodeAlloc.constraint != "" {
+		sallocConstraintFlag = fmt.Sprintf(" --constraint==%q", nodeAlloc.constraint)
 	}
 
 	// salloc command can potentially be a long synchronous command according to the slurm cluster state
@@ -249,7 +252,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}()
 
 	// Run the salloc command
-	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag))
+	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag))
 	err = sessionWrapper.RunCommand(ctxAlloc, sallocCmd)
 	if err != nil {
 		return errors.Wrap(err, "Failed to allocate Slurm resource")

@@ -22,6 +22,7 @@ type nodeAllocation struct {
 	cpu          string
 	memory       string
 	gres         string
+	constraint   string
 	partition    string
 	jobName      string
 	instanceName string
