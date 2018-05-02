@@ -187,7 +187,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 		sallocGresFlag = fmt.Sprintf(" --gres=%s", nodeAlloc.gres)
 	}
 	if nodeAlloc.constraint != "" {
-		sallocConstraintFlag = fmt.Sprintf(" --constraint==%q", nodeAlloc.constraint)
+		sallocConstraintFlag = fmt.Sprintf(" --constraint=%q", nodeAlloc.constraint)
 	}
 
 	// salloc command can potentially be a long synchronous command according to the slurm cluster state
