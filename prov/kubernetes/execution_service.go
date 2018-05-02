@@ -25,9 +25,13 @@ import (
 
 const (
 	// KubernetesServicePortMapping is the capability attribute of a public
-	// endpoint providing the mapping between a docker container port and
-	// the port provided by Kubernetes to expose a service to external clients
+	// endpoint specifying the the port provided by Kubernetes to expose to
+	// external clients a docker host port
 	KubernetesServicePortMapping = "kubernetes_port_mapping"
+
+	// DockerBridgePortMapping is the capability attribute of a endpoint
+	// specifying the docker host port associated to a container port
+	DockerBridgePortMapping = "docker_bridge_port_mapping"
 )
 
 // updatePortMappingPublicEndpoints updates public endpoint capabilities
@@ -65,10 +69,11 @@ func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress
 		for _, capName := range capNames {
 
 			// First check this is an endpoint declaring this port
+			// the port provided here is the docker mapping port, not
+			// the port in the container
 			found, result, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID,
-				e.NodeName, instance, capName, "port")
+				e.NodeName, instance, capName, DockerBridgePortMapping)
 			if err != nil {
-				// If there is an error or attribute was found
 				return err
 			}
 			if !found || result != strconv.Itoa(int(port)) {
