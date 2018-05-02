@@ -76,41 +76,17 @@ func checkAllInstances(ctx context.Context, kv *api.KV, deploymentID, target str
 			return
 		}
 		if !found {
-			found, err := setEndpointIPFromAttribute(ctx, kv, deploymentID, target, instance, "public_ip_address")
-			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
-					Registerf("Failed to retrieve node attribute for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
-				return
-			}
-			if found {
-				continue
-			}
-			found, err = setEndpointIPFromAttribute(ctx, kv, deploymentID, target, instance, "public_address")
-			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
-					Registerf("Failed to retrieve node attribute for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
-				return
-			}
-			if found {
-				continue
-			}
-			found, err = setEndpointIPFromAttribute(ctx, kv, deploymentID, target, instance, "private_address")
-			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
-					Registerf("Failed to retrieve node attribute for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
-				return
-			}
-			if found {
-				continue
-			}
-			found, err = setEndpointIPFromAttribute(ctx, kv, deploymentID, target, instance, "ip_address")
-			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
-					Registerf("Failed to retrieve node attribute for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
-				return
-			}
-			if found {
-				continue
+			// Check those attributes in order. Stop at the first found.
+			for _, attr := range []string{"public_ip_address", "public_address", "private_address", "ip_address"} {
+				found, err := setEndpointIPFromAttribute(ctx, kv, deploymentID, target, instance, attr)
+				if err != nil {
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+						Registerf("Failed to retrieve node attribute for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
+					return
+				}
+				if found {
+					break
+				}
 			}
 		}
 	}
