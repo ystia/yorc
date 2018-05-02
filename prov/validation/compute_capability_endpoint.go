@@ -59,6 +59,15 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 		return
 	}
 	instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, target)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			Registerf("Failed to retrieve node instances for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
+		return
+	}
+	checkAllInstances(ctx, kv, deploymentID, target, instances)
+}
+
+func checkAllInstances(ctx context.Context, kv *api.KV, deploymentID, target string, instances []string) {
 	for _, instance := range instances {
 		found, _, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, target, instance, "endpoint", "ip_address")
 		if err != nil {
