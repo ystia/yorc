@@ -17,6 +17,9 @@ node_types:
       constraint:
         type: string
         required: false
+      cuda_visible_devices:
+        type: string
+        description: Coma separated list of visibles GPU devices for the compute.
       partition:
         type: string
         required: false
