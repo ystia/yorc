@@ -277,15 +277,17 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}
 
 	// Get cuda_visible_device attribute
-	var cudaVisibleDeviceAttrs []string
-	if cudaVisibleDeviceAttrs, err = getAttributes(e.client, "cuda_visible_devices", allocResponse.jobID, nodeName); err != nil {
-		// cuda_visible_device attribute is not mandatory : just log the error
+	var cudaVisibleDevice string
+	if cudaVisibleDeviceAttrs, err := getAttributes(e.client, "cuda_visible_devices", allocResponse.jobID, nodeName); err != nil {
+		// cuda_visible_device attribute is not mandatory : just log the error and set the attribute to an empty string
 		log.Println("[Warning]: " + err.Error())
 	} else {
-		err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "cuda_visible_devices", cudaVisibleDeviceAttrs[0])
-		if err != nil {
-			return errors.Wrapf(err, "Failed to set attribute (cuda_visible_devices) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
-		}
+		cudaVisibleDevice = cudaVisibleDeviceAttrs[0]
+	}
+
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "cuda_visible_devices", cudaVisibleDevice)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to set attribute (cuda_visible_devices) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
 
 	// Update the instance state
