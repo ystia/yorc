@@ -102,10 +102,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	if err != nil {
 		return err
 	}
-	if err = e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra); err != nil {
-		return err
-	}
-	return nil
+	return e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
 }
 
 func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
@@ -120,10 +117,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		return err
 	}
 
-	if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra); err != nil {
-		return err
-	}
-	return nil
+	return e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
 }
 
 func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
