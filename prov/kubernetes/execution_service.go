@@ -26,10 +26,12 @@ import (
 const (
 	// KubernetesServicePortMapping is the capability attribute of a public
 	// endpoint specifying the the port provided by Kubernetes to expose to
-	// external clients a docker host port
-	KubernetesServicePortMapping = "kubernetes_port_mapping"
+	// external clients a docker host port.
+	// This is a capability attribute set at runtime, while the container port
+	// is a property attribute
+	KubernetesServicePortMapping = "port"
 
-	// DockerBridgePortMapping is the capability attribute of a endpoint
+	// DockerBridgePortMapping is the capability property of a endpoint
 	// specifying the docker host port associated to a container port
 	DockerBridgePortMapping = "docker_bridge_port_mapping"
 )
