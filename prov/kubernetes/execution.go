@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -120,10 +120,10 @@ func (e *execution) execute(ctx context.Context) error {
 		return nil
 	case "standard.start":
 		if e.taskType == tasks.ScaleOut {
-			log.Println("##### Scale up node !")
+			log.Println("Scale up node !")
 			err = e.scaleNode(ctx, tasks.ScaleOut, nbInstances)
 		} else {
-			log.Println("##### Deploy node !")
+			log.Println("Deploy node !")
 			err = e.deployNode(ctx, nbInstances)
 		}
 		if err != nil {
@@ -132,7 +132,7 @@ func (e *execution) execute(ctx context.Context) error {
 		return e.checkNode(ctx)
 	case "standard.stop":
 		if e.taskType == tasks.ScaleIn {
-			log.Println("##### Scale down node !")
+			log.Println("Scale down node !")
 			return e.scaleNode(ctx, tasks.ScaleIn, nbInstances)
 		}
 		return e.uninstallNode(ctx)
@@ -169,12 +169,16 @@ func (e *execution) manageDeploymentResource(ctx context.Context, operationType 
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
-	// TODO manage Namespace creation
+	// Manage Namespace creation
 	// Get it from matadata, or generate it using deploymentID
+	//namespace := deploymentRepr.ObjectMeta.Namespace
 	// (Synchronize with Alien)
-	//namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
-	//namespace := deploymentRepresentation.ObjectMeta.Namespace
-	namespace := "default"
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+
+	err = e.generator.createNamespaceIfMissing(e.deploymentID, namespace, e.clientSet)
+	if err != nil {
+		return err
+	}
 
 	switch operationType {
 	case k8sCreateOperation:
@@ -183,15 +187,17 @@ func (e *execution) manageDeploymentResource(ctx context.Context, operationType 
 		if err != nil {
 			return err
 		}
-		log.Printf("k8s Deployment %s created", deployment.Name)
+		log.Printf("k8s Deployment %s created in namespace %s", deployment.Name, namespace)
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
 		var deploymentName string
 		deploymentName = deploymentRepr.Name
 		log.Printf("Delete k8s Deployment %s", deploymentName)
 
-		err = e.clientSet.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, nil)
-		if err != nil {
+		deletePolicy := metav1.DeletePropagationForeground
+		var gracePeriod int64 = 5
+		if err = e.clientSet.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{
+			GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy}); err != nil {
 			return err
 		}
 		log.Printf("k8s Deployment %s deleted", deploymentName)
@@ -204,7 +210,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, operationType 
 
 func (e *execution) manageServiceResource(ctx context.Context, operationType k8sResourceOperation, rSpec string) (err error) {
 
-	var serviceRepr v1.Service
+	var serviceRepr apiv1.Service
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
 	}
@@ -214,7 +220,15 @@ func (e *execution) manageServiceResource(ctx context.Context, operationType k8s
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
-	namespace := "default"
+	// Manage Namespace creation
+	// Get it from matadata, or generate it using deploymentID
+	//namespace := deploymentRepr.ObjectMeta.Namespace
+	// (Synchronize with Alien)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	err = e.generator.createNamespaceIfMissing(e.deploymentID, namespace, e.clientSet)
+	if err != nil {
+		return err
+	}
 
 	switch operationType {
 	case k8sCreateOperation:
@@ -224,7 +238,7 @@ func (e *execution) manageServiceResource(ctx context.Context, operationType k8s
 			return errors.Wrap(err, "Failed to create service")
 		}
 
-		log.Printf("k8s Service %s created", service.Name)
+		log.Printf("k8s Service %s created in namespace %s", service.Name, namespace)
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
 		var serviceName string
@@ -236,18 +250,18 @@ func (e *execution) manageServiceResource(ctx context.Context, operationType k8s
 			return errors.Wrap(err, "Failed to delete service")
 		}
 
-		log.Printf("k8s Service %s deleted", serviceName)
+		log.Printf("k8s Service %s deleted !", serviceName)
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}
 	return nil
 }
 
-func (e *execution) parseEnvInputs() []v1.EnvVar {
-	var data []v1.EnvVar
+func (e *execution) parseEnvInputs() []apiv1.EnvVar {
+	var data []apiv1.EnvVar
 
 	for _, val := range e.EnvInputs {
-		tmp := v1.EnvVar{Name: val.Name, Value: val.Value}
+		tmp := apiv1.EnvVar{Name: val.Name, Value: val.Value}
 		data = append(data, tmp)
 	}
 
@@ -495,10 +509,10 @@ func (e *execution) checkPod(ctx context.Context, podName string) error {
 		return err
 	}
 
-	status := v1.PodUnknown
+	status := apiv1.PodUnknown
 	latestReason := ""
 
-	for status != v1.PodRunning && latestReason != "ErrImagePull" && latestReason != "InvalidImageName" {
+	for status != apiv1.PodRunning && latestReason != "ErrImagePull" && latestReason != "InvalidImageName" {
 		pod, err := e.clientSet.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
 
 		if err != nil {
@@ -507,7 +521,7 @@ func (e *execution) checkPod(ctx context.Context, podName string) error {
 
 		status = pod.Status.Phase
 
-		if status == v1.PodPending && len(pod.Status.ContainerStatuses) > 0 {
+		if status == apiv1.PodPending && len(pod.Status.ContainerStatuses) > 0 {
 			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
 				reason := pod.Status.ContainerStatuses[0].State.Waiting.Reason
 				if reason != latestReason {
@@ -519,9 +533,9 @@ func (e *execution) checkPod(ctx context.Context, podName string) error {
 
 		} else {
 			ready := true
-			cond := v1.PodCondition{}
+			cond := apiv1.PodCondition{}
 			for _, condition := range pod.Status.Conditions {
-				if condition.Status == v1.ConditionFalse {
+				if condition.Status == apiv1.ConditionFalse {
 					ready = false
 					cond = condition
 				}
@@ -544,7 +558,7 @@ func (e *execution) checkPod(ctx context.Context, podName string) error {
 
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Pod status : " + pod.Name + " : " + string(pod.Status.Phase) + " (" + state + ")")
 				if reason == "RunContainerError" {
-					logs, err := e.clientSet.CoreV1().Pods(namespace).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &v1.PodLogOptions{}).Do().Raw()
+					logs, err := e.clientSet.CoreV1().Pods(namespace).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &apiv1.PodLogOptions{}).Do().Raw()
 					if err != nil {
 						return errors.Wrap(err, "Failed to fetch pod logs")
 					}
@@ -556,7 +570,7 @@ func (e *execution) checkPod(ctx context.Context, podName string) error {
 			}
 		}
 
-		if status != v1.PodRunning {
+		if status != apiv1.PodRunning {
 			time.Sleep(2 * time.Second)
 		}
 	}
