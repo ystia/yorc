@@ -76,7 +76,18 @@ func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, []string, error)
 	return v, failedHosts, nil
 }
 
-func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *bytes.Buffer) error {
+func checkAndPublishOutput(ctx context.Context, obj *jason.Object, deploymentID, nodeName, host, field string, logLevel events.LogLevel) {
+	//Check if a msg field is present
+	if std, err := obj.GetString(field); err == nil && std != "" {
+		//Display it and store it in consul
+		log.Debugf("%s found on host : %s  message : %s", field, host, std)
+		events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, %s:\n%s", nodeName, host, field, std))
+	}
+}
+
+type logAnsibleOutputInConsulFn func(context.Context, string, string, *bytes.Buffer) error
+
+func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeName string, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -125,25 +136,11 @@ func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *
 					logLevel = events.ERROR
 				}
 
-				//Check if a stderr field is present (The stdout field is exported for shell tasks on ansible)
-				if std, err := obj.GetString("stderr"); err == nil && std != "" {
-					//Display it and store it in consul
-					log.Debugf("Stderr found on host : %s  message : %s", host, std)
-					events.WithContextOptionalFields(ctx).NewLogEntry(stdErrLogLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stderr:\n%s", e.NodeName, host, std))
-				}
-				//Check if a stdout field is present (The stdout field is exported for shell tasks on ansible)
-				if std, err := obj.GetString("stdout"); err == nil && std != "" {
-					//Display it and store it in consul
-					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, stdout:\n%s", e.NodeName, host, std))
-				}
-
-				//Check if a msg field is present (The stdout field is exported for shell tasks on ansible)
-				if std, err := obj.GetString("msg"); err == nil && std != "" {
-					//Display it and store it in consul
-					log.Debugf("Stdout found on host : %s  message : %s", host, std)
-					events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).RegisterAsString(fmt.Sprintf("node %q, host %q, msg:\n%s", e.NodeName, host, std))
-				}
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "module_stderr", stdErrLogLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "module_stdout", logLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "stderr", stdErrLogLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "stdout", logLevel)
+				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "msg", logLevel)
 			}
 		}
 
@@ -152,7 +149,7 @@ func (e *executionCommon) logAnsibleOutputInConsul(ctx context.Context, output *
 	return nil
 }
 
-func (e *executionAnsible) logAnsibleOutputInConsul(ctx context.Context, output *bytes.Buffer) error {
+func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -317,6 +314,6 @@ func (e *executionAnsible) logAnsibleOutputInConsul(ctx context.Context, output 
 	}
 
 	// Register log entry
-	events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, e.deploymentID).Register(buf.Bytes())
+	events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, deploymentID).Register(buf.Bytes())
 	return nil
 }

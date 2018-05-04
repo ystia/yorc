@@ -595,3 +595,26 @@ func IsOperationInputAPropertyDefinition(kv *api.KV, deploymentID, typeName, ope
 	isPropDef, err := strconv.ParseBool(string(kvp.Value))
 	return isPropDef, errors.Wrapf(err, "Failed to parse boolean for operation %q of type %q", operationName, typeName)
 }
+
+// GetOperationHostFromTypeOperation return the operation_host declared for this operation if any.
+//
+// The returned value may be an empty string. This function doesn't explore the type heirarchy to
+// find the operation or declared value for operation_host.
+func GetOperationHostFromTypeOperation(kv *api.KV, deploymentID, typeName, interfaceName, operationName string) (string, error) {
+	return GetOperationHostFromTypeOperationByName(kv, deploymentID, typeName, interfaceName+"."+operationName)
+}
+
+// GetOperationHostFromTypeOperationByName return the operation_host declared for this operation if any.
+//
+// The given operation name should be in format <interface_name>.<operation_name>
+// The returned value may be an empty string. This function doesn't explore the type heirarchy to
+// find the operation or declared value for operation_host.
+func GetOperationHostFromTypeOperationByName(kv *api.KV, deploymentID, typeName, operationName string) (string, error) {
+	opPath, _ := getOperationAndInterfacePath(deploymentID, typeName, operationName)
+	hop := path.Join(opPath, "implementation/operation_host")
+	kvp, _, err := kv.Get(hop, nil)
+	if err != nil || kvp == nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return string(kvp.Value), nil
+}

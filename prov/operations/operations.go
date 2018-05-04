@@ -15,15 +15,18 @@
 package operations
 
 import (
-	"github.com/hashicorp/consul/api"
+	"context"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov"
 )
 
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it
-func GetOperation(kv *api.KV, deploymentID, nodeName, operationName, requirementName, operationHost string) (prov.Operation, error) {
+func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, operationName, requirementName, operationHost string) (prov.Operation, error) {
 	var (
 		implementingType, requirementIndex string
 		err                                error
@@ -58,6 +61,12 @@ func GetOperation(kv *api.KV, deploymentID, nodeName, operationName, requirement
 		return prov.Operation{}, err
 	}
 
+	implemOperationHost, err := deployments.GetOperationHostFromTypeOperationByName(kv, deploymentID, implementingType, operationName)
+	if operationHost != "" && implemOperationHost != "" && operationHost != implemOperationHost {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("operation host defined in the implementation of operation %q (%q) is different from the one defined in the workflow step (%q). We will use the one from the workflow.", implemOperationHost, operationName, operationHost)
+	} else if operationHost == "" && implemOperationHost != "" {
+		operationHost = implemOperationHost
+	}
 	op := prov.Operation{
 		Name:                   operationName,
 		ImplementedInType:      implementingType,

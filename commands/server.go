@@ -35,7 +35,6 @@ func init() {
 
 	serverInitExtraFlags(args)
 	setConfig()
-	cobra.OnInitialize(initConfig)
 }
 
 const (
@@ -85,7 +84,11 @@ var serverCmd = &cobra.Command{
 	Short:        "Perform the server command",
 	Long:         `Perform the server command`,
 	SilenceUsage: true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		log.Println("Using config file:", viper.ConfigFileUsed())
 		configuration := getConfig()
 		log.Debugf("Configuration :%+v", configuration)
 		shutdownCh := make(chan struct{})
@@ -169,9 +172,7 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	}
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		log.Println("Using config file:", viper.ConfigFileUsed())
-	} else {
+	if err := viper.ReadInConfig(); err != nil {
 		log.Println("Can't use config file:", err)
 	}
 
@@ -295,46 +296,23 @@ func setConfig() {
 
 func getConfig() config.Configuration {
 	configuration := config.Configuration{}
-	configuration.Ansible.UseOpenSSH = viper.GetBool("ansible.use_openssh")
-	configuration.Ansible.DebugExec = viper.GetBool("ansible.debug")
-	configuration.Ansible.ConnectionRetries = viper.GetInt("ansible.connection_retries")
-	configuration.Ansible.OperationRemoteBaseDir = viper.GetString("ansible.operation_remote_base_dir")
-	configuration.Ansible.KeepOperationRemotePath = viper.GetBool("ansible.keep_operation_remote_path")
-	configuration.WorkingDirectory = viper.GetString("working_directory")
-	configuration.PluginsDirectory = viper.GetString("plugins_directory")
-	configuration.WorkersNumber = viper.GetInt("workers_number")
-	configuration.HTTPPort = viper.GetInt("http_port")
-	configuration.HTTPAddress = viper.GetString("http_address")
-	configuration.CertFile = viper.GetString("cert_file")
-	configuration.KeyFile = viper.GetString("key_file")
-	configuration.ResourcesPrefix = viper.GetString("resources_prefix")
-	configuration.Consul.Address = viper.GetString("consul.address")
-	configuration.Consul.Datacenter = viper.GetString("consul.datacenter")
-	configuration.Consul.Token = viper.GetString("consul.token")
-	configuration.Consul.PubMaxRoutines = viper.GetInt("consul.publisher_max_routines")
-	configuration.Consul.Key = viper.GetString("consul.key_file")
-	configuration.Consul.Cert = viper.GetString("consul.cert_file")
-	configuration.Consul.CA = viper.GetString("consul.ca_cert")
-	configuration.Consul.CAPath = viper.GetString("consul.ca_path")
-	configuration.Consul.SSL = viper.GetBool("consul.ssl")
-	configuration.Consul.SSLVerify = viper.GetBool("consul.ssl_verify")
-	configuration.ServerGracefulShutdownTimeout = viper.GetDuration("server_graceful_shutdown_timeout")
-	configuration.WfStepGracefulTerminationTimeout = viper.GetDuration("wf_step_graceful_termination_timeout")
-	configuration.Infrastructures = make(map[string]config.DynamicMap)
-	configuration.Vault = make(config.DynamicMap)
+	err := viper.Unmarshal(&configuration)
+	if err != nil {
+		log.Fatalf("Misconfiguration error: %v", err)
+	}
 
+	if configuration.Infrastructures == nil {
+		configuration.Infrastructures = make(map[string]config.DynamicMap)
+	}
+	if configuration.Vault == nil {
+		configuration.Vault = make(config.DynamicMap)
+	}
 	for _, sep := range resolvedServerExtraParams {
 		sep.readConfFn(&configuration)
 		for _, infraParam := range sep.viperNames {
 			sep.storeFn(&configuration, infraParam)
 		}
 	}
-	configuration.Telemetry.StatsdAddress = viper.GetString("telemetry.statsd_address")
-	configuration.Telemetry.StatsiteAddress = viper.GetString("telemetry.statsite_address")
-	configuration.Telemetry.ServiceName = viper.GetString("telemetry.service_name")
-	configuration.Telemetry.PrometheusEndpoint = viper.GetBool("telemetry.expose_prometheus_endpoint")
-	configuration.Telemetry.DisableHostName = viper.GetBool("telemetry.disable_hostname")
-	configuration.Telemetry.DisableGoRuntimeMetrics = viper.GetBool("telemetry.disable_go_runtime_metrics")
 
 	return configuration
 }

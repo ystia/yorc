@@ -23,7 +23,8 @@ type Workflow struct {
 
 // An Step is the representation of a TOSCA Workflow Step
 //
-// Currently Workflows are not part of the TOSCA specification
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_WORKFLOW_STEP_DEFN
+// for more details
 type Step struct {
 	Target             string     `yaml:"target,omitempty" json:"target,omitempty"`
 	TargetRelationShip string     `yaml:"target_relationship,omitempty" json:"target_relationship,omitempty"`
@@ -34,7 +35,8 @@ type Step struct {
 
 // An Activity is the representation of a TOSCA Workflow Step Activity
 //
-// Currently Workflows are not part of the TOSCA specification
+// See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_WORKFLOW_ACTIVITY_DEFN
+// for more details
 type Activity struct {
 	SetState      string `yaml:"set_state,omitempty" json:"set_state,omitempty"`
 	Delegate      string `yaml:"delegate,omitempty" json:"delegate,omitempty"`

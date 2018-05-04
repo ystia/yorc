@@ -1,0 +1,22 @@
+#!/usr/bin/with-contenv sh
+
+# In this init script we add the group that owns the /var/run/docker.sock socket
+# to the list of yorc's groups.
+# This is tricky and not an ideal solution but we can't change the ownership of this
+# file as it will be changed on the host too...
+# Here was the corresponding fix-attrs.d file content: /var/run/docker.sock false root:docker 0660 0660
+
+if [ -e /var/run/docker.sock ] 
+then 
+    docker_group=$(stat -c "%g" /var/run/docker.sock)
+    docker_group_name=$(grep ":${docker_group}:" /etc/group | cut -d ':' -f1)
+    if [ -z "${docker_group_name}" ]
+    then
+        docker_group_name=docker
+        echo "creating a docker group"
+        addgroup -g "${docker_group}" "${docker_group_name}"
+    fi 
+    echo "adding group ${docker_group_name} to yorc's groups"
+    addgroup yorc "${docker_group_name}" 
+fi
+
