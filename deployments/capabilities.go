@@ -287,7 +287,7 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
 	// describes that the ip_address attribute of an endpoint is the IP address
 	// as propagated up by the associated node’s host (Compute) container.
-	if isEndpoint && attributeName == "ip_address" {
+	if isEndpoint && attributeName == "ip_address" && host != "" {
 		found, result, err = getIPAddressFromHost(kv, deploymentID, host,
 			hostInstance, nodeName, instanceName, capabilityName)
 		if err != nil || found {
