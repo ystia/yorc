@@ -165,26 +165,6 @@ func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, e
 	return names, nil
 }
 
-	if len(names) == 0 {
-		// Check if this is a node to substitute
-		substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
-		if err != nil {
-			return names, err
-		}
-		if substitutable {
-			log.Debugf("Found no instance for %s %s, getting substitutable node instance", deploymentID, nodeName)
-			names, err = getSubstitutionNodeInstancesIds(kv, deploymentID, nodeName)
-			if err != nil {
-				return names, err
-			}
-		}
-	}
-
-	sort.Sort(sortorder.Natural(names))
-	log.Debugf("Found node instances %v for %s %s", names, deploymentID, nodeName)
-	return names, nil
-}
-
 // GetHostedOnNode returns the node name of the node defined in the first found relationship derived from "tosca.relationships.HostedOn"
 //
 // If there is no HostedOn relationship for this node then it returns an empty string
