@@ -65,7 +65,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	exec, err := newExecution(ctx, kv, conf, taskID, deploymentID, nodeName, operation, e.cli)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
-			log.Debugf("Voluntary bypassing error: %s.", err.Error())
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Voluntary bypassing error: %s", err.Error())
 			return nil
 		}
 		return err
@@ -84,7 +84,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	log.Debugf("Ansible Connection Retries:%d", conf.Ansible.ConnectionRetries)
 	if conf.Ansible.ConnectionRetries > 0 {
 		for i := 0; i < conf.Ansible.ConnectionRetries; i++ {
-			log.Printf("Deployment: %q, Node: %q, Operation: %s: Caught a retriable error from Ansible: '%s'. Let's retry in few seconds (%d/%d)", deploymentID, nodeName, operation, err, i+1, conf.Ansible.ConnectionRetries)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Caught a retriable error from Ansible: '%v'. Let's retry in few seconds (%d/%d)", err, i+1, conf.Ansible.ConnectionRetries)
 			time.Sleep(time.Duration(e.r.Int63n(10)) * time.Second)
 			err = exec.execute(ctx, i != 0)
 			if err == nil {
@@ -95,7 +95,8 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 			}
 		}
 
-		log.Printf("Deployment: %q, Node: %q, Operation: %s: Giving up retries for Ansible error: '%s' (%d/%d)", deploymentID, nodeName, operation, err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).Registerf("Giving up retries for Ansible error: '%v' (%d/%d)", err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
+
 	}
 
 	return err

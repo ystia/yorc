@@ -43,12 +43,12 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 		return "", errors.New("Docker sandbox for orchestrator-hosted operation misconfigured, image option is missing")
 	}
 
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Pulling docker image: %s", sandboxCfg.Image)
 	pullResp, err := cli.ImagePull(ctx, sandboxCfg.Image, types.ImagePullOptions{})
 	if pullResp != nil {
 		b, errRead := ioutil.ReadAll(pullResp)
 		if errRead == nil && len(b) > 0 {
-			log.Debugf("Pulled docker image image: %s", string(b))
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Pulled docker image image: %s", string(b))
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Pulled docker image: %s", string(b))
 		}
 		pullResp.Close()
 	}
@@ -76,17 +76,20 @@ func createSandbox(ctx context.Context, cli *client.Client, sandboxCfg *config.D
 		AutoRemove: true,
 	}
 
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Creating docker container from image: %s", sandboxCfg.Image)
 	createResp, err := cli.ContainerCreate(ctx, cc, hc, nil, "")
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create docker sandbox %q", sandboxCfg.Image)
 	}
 
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Docker container with id %q created", createResp.ID)
 	err = cli.ContainerStart(ctx, createResp.ID, types.ContainerStartOptions{})
 	if err != nil {
 		timeout := 10 * time.Second
 		cli.ContainerStop(ctx, createResp.ID, &timeout)
 		return "", errors.Wrapf(err, "Failed to create docker sandbox %q", sandboxCfg.Image)
 	}
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Docker container with id %q started", createResp.ID)
 	go stopSandboxOnContextCancellation(ctx, cli, deploymentID, createResp.ID)
 	return createResp.ID, nil
 }
@@ -103,4 +106,5 @@ func stopSandboxOnContextCancellation(ctx context.Context, cli *client.Client, d
 		// auto-remove is disable before 1.25
 		cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true})
 	}
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Docker container with id %q removed", containerID)
 }

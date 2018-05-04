@@ -250,12 +250,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			err := s.runActivity(wfCtx, kv, cfg, deploymentID, bypassErrors, w, activity)
 			if err != nil {
 				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
-				log.Debugf("Deployment %q, Step %q: error details: %+v", deploymentID, s.Name, err)
-				log.Printf("Deployment %q, Step %q: Sending error %v to error channel", deploymentID, s.Name, err)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Step %q: error details: %+v", s.Name, err)
 				if !bypassErrors {
 					s.setStatus(tasks.TaskStepStatusERROR)
 					return err
 				}
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Step %q: Bypassing error: %v", s.Name, err)
 				ignoredErrsChan <- err
 				haveErr = true
 			}
