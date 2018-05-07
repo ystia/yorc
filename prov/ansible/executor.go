@@ -19,7 +19,9 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
@@ -28,12 +30,19 @@ import (
 )
 
 type defaultExecutor struct {
-	r *rand.Rand
+	r   *rand.Rand
+	cli *client.Client
 }
 
 // NewExecutor returns an Executor
 func NewExecutor() prov.OperationExecutor {
-	return &defaultExecutor{r: rand.New(rand.NewSource(time.Now().UnixNano()))}
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		err = errors.Wrap(err, "failed to create docker execution client, docker sandboxing for operation hosted on orchestrator is disabled")
+		log.Printf("%v", err)
+	}
+
+	return &defaultExecutor{r: rand.New(rand.NewSource(time.Now().UnixNano())), cli: cli}
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
@@ -53,10 +62,10 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operation.Name, ".")
 	ctx = events.NewContext(ctx, logOptFields)
 
-	exec, err := newExecution(ctx, kv, conf, taskID, deploymentID, nodeName, operation)
+	exec, err := newExecution(ctx, kv, conf, taskID, deploymentID, nodeName, operation, e.cli)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
-			log.Debugf("Voluntary bypassing error: %s.", err.Error())
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Voluntary bypassing error: %s", err.Error())
 			return nil
 		}
 		return err
@@ -75,7 +84,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	log.Debugf("Ansible Connection Retries:%d", conf.Ansible.ConnectionRetries)
 	if conf.Ansible.ConnectionRetries > 0 {
 		for i := 0; i < conf.Ansible.ConnectionRetries; i++ {
-			log.Printf("Deployment: %q, Node: %q, Operation: %s: Caught a retriable error from Ansible: '%s'. Let's retry in few seconds (%d/%d)", deploymentID, nodeName, operation, err, i+1, conf.Ansible.ConnectionRetries)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Caught a retriable error from Ansible: '%v'. Let's retry in few seconds (%d/%d)", err, i+1, conf.Ansible.ConnectionRetries)
 			time.Sleep(time.Duration(e.r.Int63n(10)) * time.Second)
 			err = exec.execute(ctx, i != 0)
 			if err == nil {
@@ -86,7 +95,8 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 			}
 		}
 
-		log.Printf("Deployment: %q, Node: %q, Operation: %s: Giving up retries for Ansible error: '%s' (%d/%d)", deploymentID, nodeName, operation, err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).Registerf("Giving up retries for Ansible error: '%v' (%d/%d)", err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
+
 	}
 
 	return err

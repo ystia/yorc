@@ -130,5 +130,58 @@ variables will be available:
     MyNodeT_1_TARGET_IP=192.168.0.11
     MyNodeT_2_TARGET_IP=192.168.0.12
 
+.. _tosca_orchestrator_hosted_operations:
 
+Orchestrator-hosted Operations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the general case an operation is an implementation of a step within a node's lifecycle
+(install a software package for instance). Those operations should be executed on the Compute that hosts 
+the node. Yorc handles this case seamlessly and execute your implementation artifacts on the required host.
+
+But sometimes you may want to model in TOSCA an interaction with something (generally a service) that is 
+not hosted on a compute of your application.
+For those usecases the TOSCA specification support a tag called *operation_host* this tag could be set either
+on `an operation implementation <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_OPERATION_DEF>`_  
+or on `a workflow step <http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_WORKFLOW_STEP_DEFN>`_.
+If set to the keyword ``ORCHESTRATOR`` this tag indicates that the operation should be executed on the host of the 
+orchestrator.
+
+For executing those kind of operations Yorc supports two different behaviors. The first one is to execute implementation
+artifacts directly on the orchestrator's host. But we think that running user-defined bash or python scripts
+directly on the orchestrator's host may be dangerous. So, Yorc offers an alternative that allows to run those
+scripts in a sandboxed environment implemented by a Docker container. This is the recommended solution.
+
+Choosing one or the other solution is done by configuration see 
+:ref:`ansible hosted operations options in the configuration section <option_ansible_sandbox_hosted_ops_cfg>`.
+If a :ref:`default_sandbox <option_ansible_sandbox_hosted_ops_default_sandbox_cfg>` option is provided, it
+will be used to start a docker sandbox. Otherwise if 
+:ref:`unsandboxed_operations_allowed <option_ansible_sandbox_hosted_ops_unsandboxed_flag_cfg>` is set to ``true``
+(defaults to ``false``) then operations are executed on orchestrator's host. Otherwise Yorc will rise an
+error if an orchestrator hosted operation should be executed.
+
+In order to let Yorc interact with Docker to manage sandboxes some requirements should be met on the Yorc's host:
+
+  * Docker service should be installed and running
+  * Docker CLI should be installed
+  * the *pip package* ``docker_py`` should be installed
+
+Yorc uses standard Docker's APIs so ``DOCKER_HOST`` and ``DOCKER_CERT_PATH`` environment variables could be used
+to configure the way Yorc interacts with Docker.
+
+In order to execute operations on container some minimal requirements should also be met on Docker images used
+as sandboxes:
+
+  * the ``/usr/bin/env`` command should be present
+  * a python 2 interpreter compatible with ansible |ansible_version| should be available as the ``python`` command
+
+apart those above requirements you can install whatever you want in your Docker image as prerequisites of your 
+operations artifacts.
+
+Yorc will automatically pull the required Docker image and start a separated Docker sandbox before each 
+orchestrator-hosted operation and automatically destroy it after the operation execution.  
+
+.. caution:: Currently setting ``operation_host`` on operation implementation is supported in Yorc but not in Alien4Cloud.
+             That said, when using Alien4Cloud workflows will automatically be generated with ``operation_host=ORCHESTRATOR``
+             for nodes that are not hosted on a Compute.
 

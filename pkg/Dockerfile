@@ -8,8 +8,11 @@ ENV ANSIBLE_VERSION ${ANSIBLE_VERSION:-2.4.1.0}
 ADD rootfs /
 
 # Python is required here as it should not be removed automatically when uninstalling python-dev
+# We do not install the whole docker package we download the package and extract only the client
 RUN apk add --update make openssh-client python python-dev py-pip gcc musl-dev libffi-dev openssl-dev && \
-    pip install ansible==${ANSIBLE_VERSION} && \
+    mkdir /tmp/docker && apk fetch -o /tmp/docker docker && \
+    tar xzf /tmp/docker/*.apk -C / usr/bin/docker && \
+    pip install ansible==${ANSIBLE_VERSION} docker-py && \
     cd /tmp && \
     curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     cd /usr/local/bin && \
@@ -28,3 +31,14 @@ RUN apk add --update make openssh-client python python-dev py-pip gcc musl-dev l
 COPY ./yorc /usr/local/bin/
 
 EXPOSE 8800
+
+ARG BUILD_DATE
+ARG VCS_REF
+ARG YORC_VERSION
+
+LABEL org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.vcs-url="https://github.com/ystia/yorc.git" \
+      org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.schema-version="1.0.0-rc1" \
+      org.label-schema.vendor="Bull Atos Technologies" \
+      org.label-schema.version=${YORC_VERSION}

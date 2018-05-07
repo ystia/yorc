@@ -31,6 +31,7 @@ fi
 
 tf_version=$(grep terraform_version ${script_dir}/versions.yaml | awk '{print $2}')
 ansible_version=$(grep ansible_version ${script_dir}/versions.yaml | awk '{print $2}')
+yorc_version=$(grep yorc_version "${script_dir}/versions.yaml" | awk '{print $2}')
 
 if [[ "${TRAVIS}" == "true" ]]; then
     if [[ "${TRAVIS_PULL_REQUEST}" == "false" ]] ; then
@@ -53,7 +54,13 @@ fi
 
 cp ${script_dir}/yorc ${script_dir}/pkg/
 cd ${script_dir}/pkg
-docker build ${BUILD_ARGS} --build-arg "TERRAFORM_VERSION=${tf_version}" --build-arg "ANSIBLE_VERSION=${ansible_version}" -t "ystia/yorc:${DOCKER_TAG:-latest}" .
+docker build ${BUILD_ARGS} \
+        --build-arg BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+        --build-arg VCS_REF="$(git rev-parse --short HEAD)" \
+        --build-arg "TERRAFORM_VERSION=${tf_version}" \
+        --build-arg "ANSIBLE_VERSION=${ansible_version}" \
+        --build-arg "YORC_VERSION=${yorc_version}" \
+        -t "ystia/yorc:${DOCKER_TAG:-latest}" .
 
 if [[ "${TRAVIS}" == "true" ]]; then
     docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz

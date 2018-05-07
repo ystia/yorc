@@ -43,7 +43,7 @@ func testDefinitionStore(t *testing.T, kv *api.KV) {
 }
 
 func testImplementationArtifacts(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_op_output.yaml")
 	require.Nil(t, err, "Failed to parse testdata/get_op_output.yaml definition")
@@ -75,7 +75,7 @@ func testImplementationArtifacts(t *testing.T, kv *api.KV) {
 }
 
 func testImplementationArtifactsDuplicates(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/artifacts_ext_duplicate.yaml")
 	require.Error(t, err, "Expecting for a duplicate extension for artifact implementation")
@@ -83,7 +83,7 @@ func testImplementationArtifactsDuplicates(t *testing.T, kv *api.KV) {
 }
 
 func testValueAssignments(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
@@ -737,7 +737,7 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 }
 
 func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/issue_get_empty_prop_rel.yaml")
 	require.Nil(t, err)
@@ -758,7 +758,7 @@ func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
 }
 
 func testRelationshipWorkflow(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/relationship_workflow.yaml")
 	require.Nil(t, err)
@@ -779,7 +779,7 @@ func testRelationshipWorkflow(t *testing.T, kv *api.KV) {
 }
 
 func testGlobalInputs(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/global_interfaces_inputs.yaml")
 	require.Nil(t, err)
@@ -862,7 +862,7 @@ func testGlobalInputs(t *testing.T, kv *api.KV) {
 }
 
 func testInlineWorkflow(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/inline_workflow.yaml")
 	require.Nil(t, err)
@@ -891,7 +891,7 @@ func testInlineWorkflow(t *testing.T, kv *api.KV) {
 }
 
 func testCheckCycleInNestedWorkflows(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/cyclic_workflow.yaml")
 	require.Error(t, err, "a cycle should be detected in inline workflows")
@@ -900,7 +900,7 @@ func testCheckCycleInNestedWorkflows(t *testing.T, kv *api.KV) {
 // Testing a Deployment Definition where one of the imports
 // contains a topology template
 func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	// Storing the Deployment definition
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
