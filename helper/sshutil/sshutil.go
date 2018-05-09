@@ -87,8 +87,10 @@ func (client *SSHClient) RunCommand(cmd string) (string, error) {
 	session.Stderr = &b
 	session.Stdout = &b
 
-	log.Debugf("[SSHSession] %q", cmd)
+	log.Debugf("[SSHSession] cmd:%q", cmd)
 	err = session.Run(cmd)
+
+	log.Debugf("[SSHSession] stdout/stderr:%q", b.String())
 	return strings.Trim(b.String(), "\x00"), err
 }
 
