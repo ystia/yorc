@@ -1,0 +1,85 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: TestService
+  template_version: 0.1.0-SNAPSHOT
+  template_author: yorcTester
+
+description: "Test Service"
+topology_template:
+  substitution_mappings:
+    node_type: org.test.SoftwareAType
+    properties:
+      propertyA: 1
+      propertyB: [ ServerAInstance, propertyB ]
+      propertyC:
+        value: 3
+      propertyD:
+        mapping: [ ServerAInstance, propertyD ]
+    attributes:
+      attributeA: 1
+      attributeB: [ ServerAInstance, attributeB ]
+      attributeC:
+        value: 3
+      attributeD:
+        mapping: [ ServerAInstance, attributeD ]
+    capabilities:
+      capabilityA: [ ServerAInstance, capabilityA ]
+      capabilityB:
+        mapping: [ ServerAInstance, capabilityB ]
+      capabilityC:
+        properties:
+          propertyA: 1
+        attributes:
+          attributeA: 1
+    requirements:
+      requirementA: [ ServerAInstance, requirementA ]
+      requirementB:
+        mapping: [ ServerAInstance, requirementB ]
+    interfaces:
+      operationA: workflowA
+      operationB: wokrflowB
+  node_templates:
+    ServerAInstance:
+      type: org.test.ServerAType
+      properties:
+        propertyA: 1
+        propertyB: 2
+        propertyC: 3
+        propertyD: 4
+      attributes:
+        attributeA: 1
+        attributeB: 2
+        attributeC: 3
+        attributeD: 4
+      capabilities:
+        capabilityA:
+          properties:
+            propertyA: 1
+            propertyB: 2
+          attributes:
+            attributeA: 1
+            attributeB: 2
+        capabilityB:
+          properties:
+            propertyA: 1
+            propertyB: 2
+          attributes:
+            attributeA: 1
+            attributeB: 2
+        capabilityC:
+          properties:
+            propertyA: 1
+            propertyB: 2
+          attributes:
+            attributeA: 1
+            attributeB: 2
+      requirements:
+        - requirementA:
+            node: ServerAInstance
+            capability: SeverACapabilityA
+            relationship: tosca.relationships.HostedOn
+        - requirementB:
+            node: SoftBInstance
+            capability: SoftBBCapabilityB
+            relationship: relationshipA

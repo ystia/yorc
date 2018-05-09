@@ -1,0 +1,239 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: sampleClient1-Environment
+  template_version: 0.1.1
+  template_author: yorcTester
+
+description: ""
+
+imports:
+  - <yorc-types.yml>
+  - <yorc-hostspool-types.yml>
+  - test_service_public_types.yml
+  - test_client_service_private_types.yml
+  - test_client_service_generated_topology.yml
+
+topology_template:
+  node_templates:
+    ComputeInstance:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: false
+      capabilities:
+        endpoint:
+          properties:
+            credentials: 
+              user: "not significant, will be set by Yorc itself"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    AppBInstance:
+      type: org.ystia.yorc.test.implem.AppBType
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: ComputeInstance
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - joinServiceAppACapA:
+            type_requirement: appA_capA
+            node: AppAService
+            capability: org.ystia.yorc.test.pub.AppACapAType
+            relationship: org.ystia.yorc.test.implem.JoinAppARelType
+      capabilities:
+        appB_capA:
+          properties:
+            api_port: 8500
+            network_name: PUBLIC
+            protocol: tcp
+            secure: false
+            initiator: source
+    AppAService:
+      directives: [substitutable]
+      type: TestService
+      properties:
+        appA_propABool: true
+        appA_propBString: test1
+        appA_propCInt: 123
+      attributes:
+        join_address: "10.0.0.36"
+        state: started
+        web_ui_url: "http://10.1.2.3:8500"
+        capabilities.appA_capA.ip_address: "10.0.0.2"
+      capabilities:
+        appA_capA:
+          properties:
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+workflows:
+    install:
+      steps:
+        AppBInstance_configured:
+          target: AppBInstance
+          activities:
+            - set_state: configured
+          on_success:
+            - AppBInstance_starting
+        AppBInstance_joinServiceAppACapA_pre_configure_source:
+          target: AppBInstance
+          target_relationship: joinServiceAppACapA
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - AppBInstance_configure
+        AppBInstance_initial:
+          target: AppBInstance
+          activities:
+            - set_state: initial
+          on_success:
+            - AppBInstance_creating
+        AppBInstance_configure:
+          target: AppBInstance
+          activities:
+            - call_operation: Standard.configure
+          on_success:
+            - AppBInstance_configured
+        AppBInstance_start:
+          target: AppBInstance
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - AppBInstance_started
+        AppBInstance_create:
+          target: AppBInstance
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - AppBInstance_created
+        AppBInstance_created:
+          target: AppBInstance
+          activities:
+            - set_state: created
+          on_success:
+            - AppBInstance_configuring
+        AppBInstance_started:
+          target: AppBInstance
+          activities:
+            - set_state: started
+        AppBInstance_creating:
+          target: AppBInstance
+          activities:
+            - set_state: creating
+          on_success:
+            - AppBInstance_create
+        ComputeInstance_install:
+          target: AppBInstance
+          activities:
+            - delegate: install
+          on_success:
+            - AppBInstance_initial
+        AppBInstance_starting:
+          target: AppBInstance
+          activities:
+            - set_state: starting
+          on_success:
+            - AppBInstance_start
+        AppBInstance_configuring:
+          target: AppBInstance
+          activities:
+            - set_state: configuring
+          on_success:
+            - AppBInstance_joinServiceAppACapA_server_pre_configure_source
+        AppAService_started:
+          target: AppAService
+          activities:
+            - set_state: started
+    uninstall:
+      steps:
+        AppBInstance_stop:
+          target: AppBInstance
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - AppBInstance_stopped
+        ComputeInstance_uninstall:
+          target: ComputeInstance
+          activities:
+            - delegate: uninstall
+        AppBInstance_stopping:
+          target: AppBInstance
+          activities:
+            - set_state: stopping
+          on_success:
+            - AppBInstance_stop
+        AppBInstance_deleted:
+          target: AppBInstance
+          activities:
+            - set_state: deleted
+          on_success:
+            - ComputeInstance_uninstall
+        AppBInstance_deleting:
+          target: AppBInstance
+          activities:
+            - set_state: deleting
+          on_success:
+            - AppBInstance_deleted
+        AppBInstance_stopped:
+          target: AppBInstance
+          activities:
+            - set_state: stopped
+          on_success:
+            - AppBInstance_deleting
+    start:
+      steps:
+        AppBInstance_started:
+          target: AppBInstance
+          activities:
+            - set_state: started
+        ComputeInstance_start:
+          target: ComputeInstance
+          activities:
+            - delegate: start
+          on_success:
+            - AppBInstance_starting
+        AppBInstance_starting:
+          target: AppBInstance
+          activities:
+            - set_state: starting
+          on_success:
+            - AppBInstance_start
+        AppBInstance_start:
+          target: AppBInstance
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - AppBInstance_started
+    stop:
+      steps:
+        AppBInstance_stop:
+          target: AppBInstance
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - AppBInstance_stopped
+        AppBInstance_stopping:
+          target: AppBInstance
+          activities:
+            - set_state: stopping
+          on_success:
+            - AppBInstance_stop
+        AppBInstance_stopped:
+          target: AppBInstance
+          activities:
+            - set_state: stopped
+          on_success:
+            - ComputeInstance_stop
+        ComputeInstance_stop:
+          target: ComputeInstance
+          activities:
+            - delegate: stop

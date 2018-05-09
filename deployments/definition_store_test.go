@@ -614,16 +614,24 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range capAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetInstanceCapabilityAttribute(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName, tt.args.nestedKeys...)
+			found, got, err := GetInstanceCapabilityAttribute(kv, deploymentID,
+				tt.args.nodeName, tt.args.instanceName, tt.args.capability,
+				tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetInstanceCapabilityAttribute() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) error = %v, wantErr %v",
+					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
+					err, tt.wantErr)
 				return
 			}
 			if err == nil && found != tt.wantFound {
-				t.Errorf("GetInstanceCapabilityAttribute() found result = %v, want %v", found, tt.wantFound)
+				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) found result = %v, want %v",
+					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
+					found, tt.wantFound)
 			}
 			if err == nil && got != tt.want {
-				t.Errorf("GetInstanceCapabilityAttribute() = %q, want %q", got, tt.want)
+				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) = %q, want %q",
+					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
+					got, tt.want)
 			}
 		})
 	}
@@ -920,4 +928,35 @@ func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
 		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
 	}
+}
+
+// Testing topology template metadata
+func testTopologyTemplateMetadata(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	// Storing the Deployment definition
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
+	require.NoError(t, err, "Failed to store test topology deployment definition")
+
+	// Check the stored template metadata
+	// This topology template imports a tempologuy template with metatadata
+	// Checking the imported template metadata
+	expectedKeyValuePairs := map[string]string{
+		"topology/metadata/template_name":              "topotest-Environment",
+		"topology/metadata/template_version":           "0.1.0-SNAPSHOT",
+		"topology/metadata/template_author":            "yorcTester",
+		"topology/imports/3/metadata/template_name":    "test-component",
+		"topology/imports/3/metadata/template_version": "2.0.0-SNAPSHOT",
+		"topology/imports/3/metadata/template_author":  "yorcTester",
+	}
+
+	for key, expectedValue := range expectedKeyValuePairs {
+		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
+		kvp, _, err := kv.Get(consulKey, nil)
+		require.NoError(t, err, "Error getting value for key %s", consulKey)
+		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
+		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
+	}
+
 }

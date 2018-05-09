@@ -17,6 +17,7 @@ package deployments
 import (
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -149,6 +150,34 @@ func GetTargetNodeForRequirement(kv *api.KV, deploymentID, nodeName, requirement
 		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	return string(kvp.Value), nil
+}
+
+// GetTargetInstanceForRequirement returns the target node and instances
+// associated with a given requirementIndex of the given nodeName/instanceName.
+//
+func GetTargetInstanceForRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex, instanceName string) (string, []string, error) {
+	targetPrefix := path.Join(
+		consulutil.DeploymentKVPrefix, deploymentID,
+		"topology", "relationship_instances", nodeName, requirementIndex,
+		instanceName, "target")
+	kvp, _, err := kv.Get(path.Join(targetPrefix, "name"), nil)
+	if err != nil {
+		return "", nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", nil, nil
+	}
+	targetNodeName := string(kvp.Value)
+
+	kvp, _, err = kv.Get(path.Join(targetPrefix, "instances"), nil)
+	if err != nil {
+		return "", nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", nil, nil
+	}
+	instanceIds := strings.Split(string(kvp.Value), ",")
+	return targetNodeName, instanceIds, nil
 }
 
 // GetTargetNodeForRequirementByName returns the target node associated with a given requirementName for the given nodeName.
