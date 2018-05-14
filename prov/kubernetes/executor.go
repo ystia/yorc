@@ -50,7 +50,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	ctx = events.NewContext(ctx, logOptFields)
 
 	kv := consulClient.KV()
-	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation, e.clientset)
+	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
