@@ -14,15 +14,25 @@
 
 package tosca
 
+const (
+	// TemplateName is the optional descriptive name for the template provided
+	// in the template metadata
+	TemplateName = "template_name"
+	// TemplateVersion is the optional version for the template provided in the
+	// template metadata
+	TemplateVersion = "template_version"
+	// TemplateAuthor is the optional declaration of the author of the template
+	// provided in the template metadata
+	TemplateAuthor = "template_author"
+)
+
 // An Topology is the representation of a TOSCA Service Template definition
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ELEMENT_SERVICE_TEMPLATE for more details
 type Topology struct {
-	TOSCAVersion string `yaml:"tosca_definitions_version"`
-	Description  string `yaml:"description,omitempty"`
-	Name         string `yaml:"template_name"`
-	Version      string `yaml:"template_version"`
-	Author       string `yaml:"template_author"`
+	TOSCAVersion string            `yaml:"tosca_definitions_version"`
+	Description  string            `yaml:"description,omitempty"`
+	Metadata     map[string]string `yaml:"metadata,omitempty"`
 
 	Imports []ImportDefinition `yaml:"imports,omitempty"`
 
@@ -43,15 +53,15 @@ type Topology struct {
 //
 // See http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_ENTITY_TOPOLOGY_TEMPLATE for more details
 type TopologyTemplate struct {
-	Description   string                         `yaml:"description,omitempty"`
-	Inputs        map[string]ParameterDefinition `yaml:"inputs,omitempty"`
-	NodeTemplates map[string]NodeTemplate        `yaml:"node_templates"`
+	Description        string                         `yaml:"description,omitempty"`
+	Inputs             map[string]ParameterDefinition `yaml:"inputs,omitempty"`
+	NodeTemplates      map[string]NodeTemplate        `yaml:"node_templates"`
+	Outputs            map[string]ParameterDefinition `yaml:"outputs,omitempty"`
+	SubstitionMappings *SubstitutionMapping           `yaml:"substitution_mappings,omitempty"`
+	Workflows          map[string]Workflow
 	//RelationshipTemplates []RelationshipTemplate `yaml:"relationship_templates,omitempty"`
 	//Groups                []Group `yaml:",omitempty"`
 	//Policies              []Policy                 `yaml:",omitempty"`
-	Outputs map[string]ParameterDefinition `yaml:"outputs,omitempty"`
-	//substitution_mappings
-	Workflows map[string]Workflow
 }
 
 // An NodeTemplate is the representation of a TOSCA Node Template

@@ -1,5 +1,8 @@
 tosca_definitions_version: alien_dsl_2_0_0
-metadata: {template_name: topotest-Environment, template_version: 0.1.0-SNAPSHOT, template_author: yorcTester}
+metadata:
+  template_name: topotest-Environment
+  template_version: 0.1.0-SNAPSHOT
+  template_author: yorcTester
 description: ''
 imports:
 - file: test_container.yml

@@ -1,5 +1,8 @@
 tosca_definitions_version: alien_dsl_2_0_0
-metadata: {template_name: test-component, template_version: 2.0.0-SNAPSHOT, template_author: yorcTester}
+metadata:
+  template_name: test-component
+  template_version: 2.0.0-SNAPSHOT
+  template_author: yorcTester
 imports: []
 description: |
   Test Component definition. Contains types as well as a template definition

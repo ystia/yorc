@@ -493,6 +493,7 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		if err != nil {
 			return nil, err
 		}
+
 		for _, ins := range instances {
 			res, err = resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(f)
 			if err != nil {

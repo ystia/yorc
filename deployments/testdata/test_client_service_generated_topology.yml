@@ -1,0 +1,68 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: TestService
+  template_version: 0.1.0
+  template_author: ${template_author}
+
+description: ""
+
+topology_template:
+  substitution_mappings:
+    node_type: org.ystia.yorc.test.pub.AppAType
+    capabilities:
+      appA_capA: [ AppAInstance, appA_capA ]
+      appA_capA: [ AppAInstance, appA_capA ]
+    requirements:
+      hosted: [ AppAInstance, hostedOnComputeHost ]
+  node_templates:
+    Compute:
+      type: yorc.nodes.hostspool.Compute
+      properties:
+        shareable: false
+      capabilities:
+        endpoint:
+          properties:
+            credentials: 
+              user: "not significant, will be set by Yorc itself"
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    AppAInstance:
+      type: org.ystia.yorc.test.implem.AppAType
+      properties:
+        appA_propABool: true
+        appA_propBString: test1
+        appA_propCInt: 123
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+      capabilities:
+        appA_capA:
+          properties:
+            api_port: 1234
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+        appA_capB:
+          properties:
+            api_port: 5678
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+  outputs:
+    AppAInstance_join_address:
+      value: { get_attribute: [ AppAInstance, join_address ] }
+    AppAInstance_web_ui_url:
+      value: { get_attribute: [ AppAInstance, web_ui_url ] }
