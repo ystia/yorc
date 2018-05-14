@@ -1,8 +1,9 @@
 tosca_definitions_version: alien_dsl_1_4_0
 description: Alien4Cloud generated service template
-template_name: ValueAssignment
-template_version: 0.1.0-SNAPSHOT
-template_author: admin
+metadata:
+  template_name: ValueAssignment
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
 
 imports:
   - tosca-normative-types: <normative-types.yml>

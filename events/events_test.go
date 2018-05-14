@@ -16,7 +16,6 @@ package events
 
 import (
 	"path"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -365,42 +364,6 @@ func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, tc.args.taskID+"\n"+tc.args.status, string(kvp.Value))
 	}
 
-}
-
-func Test_consulPubSub_StatusEvents(t *testing.T) {
-	type fields struct {
-		kv           *api.KV
-		deploymentID string
-	}
-	type args struct {
-		waitIndex uint64
-		timeout   time.Duration
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []StatusUpdate
-		want1   uint64
-		wantErr bool
-	}{
-	// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := StatusEvents(tt.fields.kv, tt.fields.deploymentID, tt.args.waitIndex, tt.args.timeout)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("StatusEvents() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("StatusEvents() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("StatusEvents() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
 }
 
 func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {

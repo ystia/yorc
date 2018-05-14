@@ -15,21 +15,20 @@
 package deployments
 
 import (
+	"context"
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-
-	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"strings"
+
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	t.Parallel()
 	log.SetDebug(true)
 
 	srv1.PopulateKV(t, map[string][]byte{
@@ -298,7 +297,7 @@ func testGetNodeCapabilityType(t *testing.T, kv *api.KV) {
 }
 
 func testGetCapabilityProperties(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/capabilities_properties.yaml")
 	require.Nil(t, err)

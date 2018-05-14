@@ -19,5 +19,6 @@ Yorc |release| Documentation
    secured
    vault
    ha
+   docker
    telemetry
 

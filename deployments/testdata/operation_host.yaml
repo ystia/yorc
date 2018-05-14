@@ -1,0 +1,36 @@
+tosca_definitions_version: alien_dsl_2_0_0
+description: Test For operation_host on operation implementation
+template_name: OperationHost
+template_version: 0.1.0-SNAPSHOT
+template_author: admin
+
+
+node_types:
+  yorc.tests.OperationHosts.nodes.OHNode:
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            primary: myscript.sh
+            operation_host: ORCHESTRATOR
+        configure:
+          implementation:
+            primary: myscript.sh
+        start:
+          implementation: myscript.sh
+        stop: myscript.sh
+
+relationship_types:
+  yorc.tests.OperationHosts.relationships.OHRel:
+    interfaces:
+      Configure:
+        pre_configure_source:
+          implementation:
+            primary: myscript.sh
+            operation_host: ORCHESTRATOR
+        post_configure_target:
+          implementation:
+            primary: myscript.sh
+        add_source:
+          implementation: myscript.sh
+        remove_target: myscript.sh

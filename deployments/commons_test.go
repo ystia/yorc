@@ -29,7 +29,7 @@ import (
 )
 
 func testReadComplexVA(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)

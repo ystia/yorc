@@ -1,0 +1,58 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: testClientPrivateTypes
+  template_version: 1.0.2
+  template_author: yorcTester
+
+imports:
+  - <yorc-types.yml>
+  - test_service_public_types.yml
+
+description: >
+  This component exposes private implementations for Test types
+
+node_types:
+  org.ystia.yorc.test.implem.AppBType:
+    derived_from: org.ystia.yorc.test.pub.AppBType
+    description: Test Application B
+    requirements:
+      - appB_capA:
+          capability: org.ystia.yorc.test.pub.AppBCapAType
+          relationship: org.ystia.yorc.test.implem.JoinAppARelType
+          occurrences: [1, 1]
+    interfaces:
+      Standard:
+        create:
+          description: App B installation step
+          implementation: test_playbook.yml
+        configure:
+          implementation: test_playbook.yml
+        start:
+          implementation: test_playbook.yml
+        stop:
+          implementation: test_playbook.yml
+      custom:
+        inputs:
+          INSTALL_DIR: "/install"
+        maintenance_on:
+          inputs:
+            MAINT_MODE: "on"
+          implementation: test_playbook.yml
+        maintenance_off:
+          inputs:
+            MAINT_MODE: "off"
+          implementation: test_playbook.yml
+
+relationship_types:
+  org.ystia.yorc.test.implem.JoinAppARelType:
+    derived_from: tosca.relationships.ConnectsTo
+    description: >
+      Connects to an App A instance
+    valid_target_types: [org.ystia.yorc.test.pub.AppACapAType ]
+    interfaces:
+      Configure:
+        pre_configure_source:
+          inputs:
+            SERVER_IP: { get_attribute: [TARGET, private_address] }
+          implementation: test_playbook.yml

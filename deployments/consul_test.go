@@ -75,8 +75,26 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testImportTopologyTemplate", func(t *testing.T) {
 			testImportTopologyTemplate(t, kv)
 		})
-		t.Run("TestOperationImplementationArtifact(", func(t *testing.T) {
+		t.Run("testTopologyTemplateMetadata", func(t *testing.T) {
+			testTopologyTemplateMetadata(t, kv)
+		})
+		t.Run("testSubstitutionServiceCapabilityMappings", func(t *testing.T) {
+			testSubstitutionServiceCapabilityMappings(t, kv)
+		})
+		t.Run("testSubstitutionServiceRequirementMappings", func(t *testing.T) {
+			testSubstitutionServiceRequirementMappings(t, kv)
+		})
+		t.Run("testSubstitutionClientDirective", func(t *testing.T) {
+			testSubstitutionClientDirective(t, kv)
+		})
+		t.Run("testSubstitutionClientServiceInstance", func(t *testing.T) {
+			testSubstitutionClientServiceInstance(t, kv)
+		})
+		t.Run("TestOperationImplementationArtifact", func(t *testing.T) {
 			testOperationImplementationArtifact(t, kv)
+		})
+		t.Run("TestOperationHost", func(t *testing.T) {
+			testOperationHost(t, kv)
 		})
 	})
 }

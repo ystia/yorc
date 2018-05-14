@@ -32,6 +32,8 @@ import (
 	_ "github.com/ystia/yorc/tosca"
 	// Registering builtin HashiCorp Vault Client Builder
 	_ "github.com/ystia/yorc/vault/hashivault"
+	// Registering builtin activity hooks
+	_ "github.com/ystia/yorc/prov/validation"
 )
 
 import (

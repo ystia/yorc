@@ -25,11 +25,13 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 
 	"gopkg.in/yaml.v2"
@@ -38,6 +40,7 @@ import (
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/executil"
 	"github.com/ystia/yorc/helper/provutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
@@ -45,7 +48,6 @@ import (
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-	"strconv"
 )
 
 const ansibleConfig = `[defaults]
@@ -135,9 +137,10 @@ type executionCommon struct {
 	ansibleRunner            ansibleRunner
 	sourceNodeInstances      []string
 	targetNodeInstances      []string
+	cli                      *client.Client
 }
 
-func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, cli *client.Client) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		cfg:          cfg,
 		ctx:          ctx,
@@ -150,6 +153,7 @@ func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, tas
 		EnvInputs:               make([]*operations.EnvInput, 0),
 		taskID:                  taskID,
 		Outputs:                 make(map[string]string),
+		cli:                     cli,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -257,15 +261,13 @@ func (e *executionCommon) resolveOperation() error {
 
 func (e *executionCommon) resolveInstances() error {
 	var err error
-	if !e.isOrchestratorOperation {
-		if e.operation.RelOp.IsRelationshipOperation {
-			e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
-			if err != nil {
-				return err
-			}
+	if e.operation.RelOp.IsRelationshipOperation {
+		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
+		if err != nil {
+			return err
 		}
-		e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	}
+	e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 
 	return err
 }
@@ -351,12 +353,16 @@ func (e *executionCommon) setHostConnection(kv *api.KV, host, instanceID, capTyp
 	return nil
 }
 
-func (e *executionCommon) resolveHosts(nodeName string) error {
-	// Resolve hosts from the hostedOn hierarchy from bottom to top by finding the first node having a capability
-	// named endpoint and derived from "tosca.capabilities.Endpoint"
+func (e *executionCommon) resolveHostsOrchestratorLocal(nodeName string, instances []string) error {
+	e.hosts = make(map[string]hostConnection, len(instances))
+	for i := range instances {
+		instanceName := operations.GetInstanceName(nodeName, instances[i])
+		e.hosts[instanceName] = hostConnection{host: instanceName}
+	}
+	return nil
+}
 
-	log.Debugf("Resolving hosts for node %q", nodeName)
-
+func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []string) error {
 	hostedOnList := make([]string, 0)
 	hostedOnList = append(hostedOnList, nodeName)
 	parentHost, err := deployments.GetHostedOnNode(e.kv, e.deploymentID, nodeName)
@@ -373,15 +379,6 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 
 	hosts := make(map[string]hostConnection)
 
-	var instances []string
-	if e.isRelationshipTargetNode {
-		instances = e.targetNodeInstances
-	} else if e.isOrchestratorOperation {
-		return errors.New("Execution on orchestrator's host is not yet implemented")
-	} else {
-		instances = e.sourceNodeInstances
-	}
-
 	for i := len(hostedOnList) - 1; i >= 0; i-- {
 		host := hostedOnList[i]
 		capType, err := deployments.GetNodeCapabilityType(e.kv, e.deploymentID, host, "endpoint")
@@ -395,15 +392,16 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 		}
 		if hasEndpoint {
 			for _, instance := range instances {
-				found, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instance, "endpoint", "ip_address")
+				_, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instance, "endpoint", "ip_address")
 				if err != nil {
 					return err
 				}
-				if found && ipAddress != "" {
+				if ipAddress != "" {
 					ipAddress = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
 					hostConn := hostConnection{host: ipAddress, instanceID: instance}
-					if err := e.setHostConnection(e.kv, host, instance, capType, &hostConn); err != nil {
+					err = e.setHostConnection(e.kv, host, instance, capType, &hostConn)
+					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
 						log.Debug(mess)
 						events.WithContextOptionalFields(e.ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(mess)
@@ -420,6 +418,23 @@ func (e *executionCommon) resolveHosts(nodeName string) error {
 	}
 	e.hosts = hosts
 	return nil
+}
+
+func (e *executionCommon) resolveHosts(nodeName string) error {
+	// Resolve hosts from the hostedOn hierarchy from bottom to top by finding the first node having a capability
+	// named endpoint and derived from "tosca.capabilities.Endpoint"
+
+	log.Debugf("Resolving hosts for node %q", nodeName)
+
+	instances := e.sourceNodeInstances
+	if e.isRelationshipTargetNode {
+		instances = e.targetNodeInstances
+	}
+
+	if e.isOrchestratorOperation {
+		return e.resolveHostsOrchestratorLocal(nodeName, instances)
+	}
+	return e.resolveHostsOnCompute(nodeName, instances)
 }
 
 func (e *executionCommon) resolveContext() error {
@@ -482,7 +497,11 @@ func (e *executionCommon) resolveContext() error {
 		execContext["TARGET_INSTANCES"] = strings.Join(targetNames, ",")
 
 		if !e.isRelationshipTargetNode && !e.isPerInstanceOperation {
-			execContext["TARGET_INSTANCE"] = targetNames[0]
+			if len(targetNames) == 0 {
+				log.Debugf("No target instance defined in context %+v", e)
+			} else {
+				execContext["TARGET_INSTANCE"] = targetNames[0]
+			}
 		} else {
 			e.VarInputsNames = append(e.VarInputsNames, "TARGET_INSTANCE")
 		}
@@ -658,7 +677,74 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 	return nil
 }
 
+func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx context.Context, buffer *bytes.Buffer) error {
+	if e.cli != nil && e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
+		containerID, err := createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID)
+		if err != nil {
+			return err
+		}
+		buffer.WriteString(" ansible_connection=docker ansible_host=")
+		buffer.WriteString(containerID)
+	} else if e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
+		buffer.WriteString(" ansible_connection=local")
+	} else {
+		actualRootCause := "there is no sandbox configured to handle it"
+		if e.cli == nil {
+			actualRootCause = "connection to docker failed (see logs)"
+		}
+
+		err := errors.Errorf("Ansible provisioning: you are trying to execute an operation on the orchestrator host but %s and execution on the actual orchestrator host is disallowed by configuration", actualRootCause)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).Registerf("%v", err)
+		return err
+	}
+	return nil
+}
+
+func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host hostConnection) error {
+	buffer.WriteString(host.host)
+	if e.isOrchestratorOperation {
+		err := e.generateHostConnectionForOrchestratorOperation(ctx, buffer)
+		if err != nil {
+			return err
+		}
+	} else {
+		sshUser := host.user
+		if sshUser == "" {
+			// Use root as default user
+			sshUser = "root"
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
+		}
+		sshPassword := host.password
+		sshPrivateKey := host.privateKey
+		if sshPrivateKey == "" && sshPassword == "" {
+			sshPrivateKey = "~/.ssh/yorc.pem"
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
+		}
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
+		if sshPrivateKey != "" {
+			// TODO if not a path store it somewhere
+			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshPrivateKey))
+		}
+		if sshPassword != "" {
+			// TODO use vault
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
+		}
+
+		// Specify SSH port when different than default 22
+		if host.port != 0 && host.port != 22 {
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_port=%d", host.port))
+		}
+	}
+	buffer.WriteString("\n")
+	return nil
+}
+
 func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry bool, currentInstance string) error {
+	// Create a cancel func here to remove docker sandboxes as soon as we exit this function
+	ctx, cancelFn := context.WithCancel(ctx)
+	defer cancelFn()
+
 	// Fill log optional fields for log registration
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {
@@ -692,35 +778,10 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {
-		buffer.WriteString(host.host)
-		sshUser := host.user
-		if sshUser == "" {
-			// Use root as default user
-			sshUser = "root"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
+		err = e.generateHostConnection(ctx, &buffer, host)
+		if err != nil {
+			return err
 		}
-		sshPassword := host.password
-		sshPrivateKey := host.privateKey
-		if sshPrivateKey == "" && sshPassword == "" {
-			sshPrivateKey = "~/.ssh/yorc.pem"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
-		}
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
-		if sshPrivateKey != "" {
-			// TODO if not a path store it somewhere
-			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshPrivateKey))
-		}
-		if sshPassword != "" {
-			// TODO use vault
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
-		}
-
-		// Specify SSH port when different than default 22
-		if host.port != 0 && host.port != 22 {
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_port=%d", host.port))
-		}
-		buffer.WriteString("\n")
 		var perInstanceInputsBuffer bytes.Buffer
 		for _, varInput := range e.VarInputsNames {
 			if varInput == "INSTANCE" {
@@ -788,6 +849,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				return errors.Wrapf(err, "Failed to write vars for host %q file: %v", host, err)
 			}
 		}
+	}
+
+	if e.isOrchestratorOperation {
+		buffer.WriteString("\n[all:vars]\n")
+		buffer.WriteString("ansible_python_interpreter=/usr/bin/env python\n")
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
@@ -874,4 +940,45 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 		}
 	}
 	return "", errors.Errorf("Unknown host %q", host)
+}
+
+func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansibleRecipePath string, logFn logAnsibleOutputInConsulFn) error {
+	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml")
+
+	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
+		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
+	}
+	if e.cfg.Ansible.DebugExec {
+		cmd.Args = append(cmd.Args, "-vvvv")
+	}
+	if !e.isOrchestratorOperation {
+		if e.cfg.Ansible.UseOpenSSH {
+			cmd.Args = append(cmd.Args, "-c", "ssh")
+		} else {
+			cmd.Args = append(cmd.Args, "-c", "paramiko")
+		}
+	}
+	cmd.Dir = ansibleRecipePath
+	var outbuf bytes.Buffer
+	errbuf := events.NewBufferedLogEntryWriter()
+	cmd.Stdout = &outbuf
+	cmd.Stderr = errbuf
+
+	errCloseCh := make(chan bool)
+	defer close(errCloseCh)
+
+	// Register log entry via error buffer
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
+
+	defer func(buffer *bytes.Buffer) {
+		if err := logFn(ctx, e.deploymentID, e.NodeName, buffer); err != nil {
+			log.Printf("Failed to publish Ansible log %v", err)
+			log.Debugf("%+v", err)
+		}
+	}(&outbuf)
+	if err := cmd.Run(); err != nil {
+		return e.checkAnsibleRetriableError(ctx, err)
+	}
+
+	return nil
 }

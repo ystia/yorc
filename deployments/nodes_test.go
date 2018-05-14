@@ -27,7 +27,6 @@ import (
 )
 
 func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	t.Parallel()
 	log.SetDebug(true)
 
 	srv1.PopulateKV(t, map[string][]byte{
@@ -217,7 +216,7 @@ func testDeploymentNodes(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 }
 
 func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	ok, err := IsTypeDerivedFrom(kv, "testIsNodeTypeDerivedFrom", "yorc.type.1", "tosca.relationships.HostedOn")
 	require.Nil(t, err)
@@ -233,7 +232,7 @@ func testIsNodeTypeDerivedFrom(t *testing.T, kv *api.KV) {
 }
 
 func testGetDefaultNbInstancesForNode(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	nb, err := GetDefaultNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
@@ -260,7 +259,7 @@ func testGetDefaultNbInstancesForNode(t *testing.T, kv *api.KV) {
 }
 
 func testGetMaxNbInstancesForNode(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	nb, err := GetMaxNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
@@ -288,7 +287,7 @@ func testGetMaxNbInstancesForNode(t *testing.T, kv *api.KV) {
 }
 
 func testGetMinNbInstancesForNode(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	nb, err := GetMinNbInstancesForNode(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
@@ -316,7 +315,7 @@ func testGetMinNbInstancesForNode(t *testing.T, kv *api.KV) {
 }
 
 func testGetNodeProperty(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	// Property is directly in node
 	res, value, err := GetNodeProperty(kv, "testGetNbInstancesForNode", "Node1", "simple")
@@ -355,7 +354,7 @@ func testGetNodeProperty(t *testing.T, kv *api.KV) {
 }
 
 func testGetNodeAttributes(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	// Attribute is directly in node
 	// res, instancesValues, err := GetNodeAttributes(kv, "testGetNbInstancesForNode", "Node3", "simple")
 	// require.Nil(t, err)
@@ -416,7 +415,7 @@ func testGetNodeAttributes(t *testing.T, kv *api.KV) {
 }
 
 func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	attrNames, err := GetNodeAttributesNames(kv, "testGetNbInstancesForNode", "Compute1")
 	require.Nil(t, err)
@@ -462,7 +461,7 @@ func testGetNodeAttributesNames(t *testing.T, kv *api.KV) {
 }
 
 func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	attrNames, err := GetTypeAttributesNames(kv, "testGetNbInstancesForNode", "tosca.nodes.SoftwareComponent")
 	require.Nil(t, err)
@@ -510,7 +509,7 @@ func testGetTypeAttributesNames(t *testing.T, kv *api.KV) {
 }
 
 func testGetNodeInstancesIds(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 
 	node1ExpectedResult := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "20"}
 	instancesIDs, err := GetNodeInstancesIds(kv, "testGetNodeInstancesIds", "Node1")

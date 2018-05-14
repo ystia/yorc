@@ -16,12 +16,13 @@ package slurm
 
 import (
 	"context"
+	"regexp"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
-	"regexp"
-	"strings"
 )
 
 func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
@@ -73,6 +74,13 @@ func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV,
 		return err
 	}
 	node.gres = gres
+
+	// Set the node constraint property from Tosca slurm.Compute property
+	_, constraint, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "constraint")
+	if err != nil {
+		return err
+	}
+	node.constraint = constraint
 
 	// Set the node partition property from Tosca slurm.Compute property
 	_, partition, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "partition")

@@ -15,8 +15,11 @@
 package tosca
 
 const (
+	// EndpointCapability is the default TOSCA type that should be used or
+	// extended to define a network endpoint capability.
 	EndpointCapability = "tosca.capabilities.Endpoint"
 
+	// PublicEndpointCapability represents a public endpoint.
 	PublicEndpointCapability = "tosca.capabilities.Endpoint.Public"
 )
 
