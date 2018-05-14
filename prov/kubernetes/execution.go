@@ -110,9 +110,9 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	nbInstances := int32(len(instances))
 
 	// Supporting both fully qualified and short standard operation names, ie.
-	// - tosca.interfaces.node.lifecycle.standard.XXX
+	// - tosca.interfaces.node.lifecycle.standard.operation
 	// or
-	// - standard.XXX
+	// - standard.operation
 	operationName := strings.TrimPrefix(strings.ToLower(e.Operation.Name),
 		"tosca.interfaces.node.lifecycle.")
 	switch operationName {
