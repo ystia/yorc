@@ -37,8 +37,6 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	e.clientset, err = initClientSet(conf)
-
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {
 		return errors.New("Missing contextual log optionnal fields")
@@ -55,7 +53,14 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	return exec.execute(ctx)
+	e.clientset, err = initClientSet(conf)
+	if err != nil {
+		return err
+	}
+
+	newCtx := context.WithValue(ctx, "clientset", e.clientset)
+
+	return exec.execute(newCtx)
 }
 
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
