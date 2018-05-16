@@ -14,11 +14,16 @@
 
 package monitoring
 
+import (
+	"context"
+	"sync"
+	"time"
+)
+
 //go:generate go-enum -f=monitoring_structs.go --lower
 
 // CheckStatus x ENUM(
 // PASSING,
-// WARNING,
 // CRITICAL
 // )
 type CheckStatus int
@@ -26,11 +31,23 @@ type CheckStatus int
 const (
 	// PASSING is the status of a passing check
 	PASSING CheckStatus = iota
-	// WARNING is the status of a warning check
-	WARNING
 	// CRITICAL is the status of a critical check
 	CRITICAL
 )
+
+// Check represents a registered check
+type Check struct {
+	ID           string
+	TCPAddress   string
+	TimeInterval time.Duration
+	Report       CheckReport
+
+	stop     bool
+	stopLock sync.Mutex
+	chStop   chan struct{}
+	timeout  time.Duration
+	ctx      context.Context
+}
 
 // CheckReport represents a node check report including its status
 type CheckReport struct {

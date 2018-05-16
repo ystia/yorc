@@ -70,10 +70,6 @@ Globals Command-line options
 
   * ``--consul_publisher_max_routines``: Maximum number of parallelism used to store key/values in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value (500) will be used.
 
-.. _option_health_check_polling_interval_cmd:
-
-  * ``--consul_health_check_polling_interval``: Time frequency for polling Consul on compute health checks. Default is ``5s``.
-
 .. _option_shut_timeout_cmd:
 
   * ``--graceful_shutdown_timeout``: Timeout to wait for a graceful shutdown of the Yorc server. After this delay the server immediately exits. The default is ``5m``.
@@ -366,10 +362,6 @@ All available configuration options for Consul are:
 
   * ``publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
-.. _option_health_check_polling_interval_cfg:
-
-  * ``health_check_polling_interval``: Equivalent to :ref:`--consul_health_check_polling_interval <option_health_check_polling_interval_cmd>` command-line flag.
-
 .. _yorc_config_file_telemetry_section:
 
 Telemetry configuration
@@ -552,10 +544,6 @@ Environment variables
 .. _option_pub_routines_env:
 
   * ``YORC_CONSUL_PUBLISHER_MAX_ROUTINES``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
-
-.. _option_health_check_polling_interval_env:
-
-  * ``YORC_CONSUL_HEALTH_CHECK_POLLING_INTERVAL``: Equivalent to :ref:`--consul_health_check_polling_interval <option_health_check_polling_interval_cmd>` command-line flag.
 
 .. _option_shut_timeout_env:
 

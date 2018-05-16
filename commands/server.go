@@ -50,17 +50,16 @@ var ansibleConfiguration = map[string]interface{}{
 }
 
 var consulConfiguration = map[string]interface{}{
-	"consul.address":                       "",
-	"consul.token":                         "anonymous",
-	"consul.datacenter":                    "dc1",
-	"consul.key_file":                      "",
-	"consul.cert_file":                     "",
-	"consul.ca_cert":                       "",
-	"consul.ca_path":                       "",
-	"consul.ssl":                           false,
-	"consul.ssl_verify":                    true,
-	"consul.publisher_max_routines":        config.DefaultConsulPubMaxRoutines,
-	"consul.health_check_polling_interval": config.DefaultHealthCheckPollingInterval,
+	"consul.address":                "",
+	"consul.token":                  "anonymous",
+	"consul.datacenter":             "dc1",
+	"consul.key_file":               "",
+	"consul.cert_file":              "",
+	"consul.ca_cert":                "",
+	"consul.ca_path":                "",
+	"consul.ssl":                    false,
+	"consul.ssl_verify":             true,
+	"consul.publisher_max_routines": config.DefaultConsulPubMaxRoutines,
 }
 
 var cfgFile string
@@ -212,7 +211,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("consul_ssl_verify", true, "Whether or not to disable certificate checking")
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
-	serverCmd.PersistentFlags().Duration("consul_health_check_polling_interval", config.DefaultHealthCheckPollingInterval, "Time frequency for polling Consul on compute health checks.")
+
 	serverCmd.PersistentFlags().Bool("ansible_use_openssh", false, "Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts")
 	serverCmd.PersistentFlags().Bool("ansible_debug", false, "Prints massive debug information from Ansible")
 	serverCmd.PersistentFlags().Int("ansible_connection_retries", 5, "Number of retries in case of Ansible SSH connection failure")

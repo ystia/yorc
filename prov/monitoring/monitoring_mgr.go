@@ -22,13 +22,14 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/workflow"
 	"github.com/ystia/yorc/tosca"
+	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -38,59 +39,147 @@ func init() {
 	workflow.RegisterPostActivityHook(computeMonitoringHook)
 }
 
-// Start allows to instantiate a default Monitoring Manager and to start polling Consul agent checks
-func Start(cc *api.Client, cfg config.Configuration) error {
-	defaultMonManager = &monitoringMgr{
-		cc:                    cc,
-		checksNb:              0,
-		checksPollingDuration: cfg.Consul.HealthCheckPollingInterval,
-		chEndPolling:          make(chan struct{}),
-	}
+type monitoringMgr struct {
+	cc     *api.Client
+	chStop chan struct{}
+	stop   bool
+	checks map[string]*Check
+}
 
-	checks, err := defaultMonManager.listCheckReports(nil)
-	if err != nil {
-		return errors.Wrapf(err, "Unable to start monitoring")
+// Start allows to instantiate a default Monitoring Manager and to start monitoring checks
+func Start(cc *api.Client) error {
+	defaultMonManager = &monitoringMgr{
+		cc:     cc,
+		chStop: make(chan struct{}),
+		checks: make(map[string]*Check),
 	}
-	// Start checks polling only if any health check is registered
-	defaultMonManager.checksNb = len(checks)
-	if defaultMonManager.checksNb > 0 {
-		defaultMonManager.startCheckReportsPolling(nil)
-	}
+	defaultMonManager.startMonitoring()
 	return nil
 }
 
-// Stop allows to stop polling Consul agent checks
+// Stop allows to stop monitoring checks
 func Stop() {
-	if defaultMonManager != nil && defaultMonManager.checksNb > 0 {
-		close(defaultMonManager.chEndPolling)
+	if !defaultMonManager.stop {
+		close(defaultMonManager.chStop)
+		defaultMonManager.stop = true
+	}
+
+	// Stop all running checks
+	for _, check := range defaultMonManager.checks {
+		check.Stop()
 	}
 }
 
-type monitoringMgr struct {
-	cc                    *api.Client
-	checksNbLock          sync.RWMutex
-	checksNb              int
-	checksPollingDuration time.Duration
-	chEndPolling          chan struct{}
+func handleError(err error) {
+	err = errors.Wrap(err, "Error during polling monitoring checks")
+	log.Print(err)
+	log.Debugf("%+v", err)
+}
+
+func (mgr *monitoringMgr) startMonitoring() {
+	var waitIndex uint64
+	go func() {
+		for {
+			select {
+			case <-mgr.chStop:
+				log.Debug("Ending monitoring has been requested: stop it now.")
+				return
+			default:
+			}
+
+			q := &api.QueryOptions{WaitIndex: waitIndex, WaitTime: 100 * time.Millisecond}
+			checks, rMeta, err := mgr.cc.KV().Keys(path.Join(consulutil.MonitoringKVPrefix, "checks")+"/", "/", q)
+			log.Debugf("%d checks has been found", len(checks))
+			if err != nil {
+				handleError(err)
+				continue
+			}
+			if waitIndex == rMeta.LastIndex {
+				log.Debugf("No changes")
+				// long pool ended due to a timeout
+				// there is no new items go back to the pooling
+				continue
+			}
+			waitIndex = rMeta.LastIndex
+			log.Debugf("Monitoring Wait index: %d", waitIndex)
+			for _, key := range checks {
+				id := path.Base(key)
+				check, err := NewCheckFromID(id)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+
+				// Handle check unregistration
+				kvp, _, err := mgr.cc.KV().Get(path.Join(key, ".unregisterFlag"), nil)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+
+				if kvp != nil && len(kvp.Value) > 0 && strings.ToLower(string(kvp.Value)) == "true" {
+					log.Debugf("Check with id:%q has been requested to be stopped and unregister", id)
+
+					checkToStop, is := mgr.checks[id]
+					if !is {
+						handleError(errors.Errorf("Unable to find check with id:%q in order to stop and remove it", id))
+						continue
+					}
+					// Stop the check execution
+					checkToStop.Stop()
+					// Remove it from the manager checks
+					delete(mgr.checks, id)
+					// Unregister it definitively
+					mgr.unregisterCheck(id)
+					continue
+				}
+
+				kvp, _, err = mgr.cc.KV().Get(path.Join(key, "interval"), nil)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+				if kvp != nil && len(kvp.Value) > 0 {
+					d, err := time.ParseDuration(string(kvp.Value))
+					if err != nil {
+						handleError(err)
+						continue
+					}
+					check.TimeInterval = d
+				}
+				kvp, _, err = mgr.cc.KV().Get(path.Join(key, "address"), nil)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+				if kvp != nil && len(kvp.Value) > 0 {
+					check.TCPAddress = string(kvp.Value)
+				}
+
+				// Store the check if not already present and start it
+				_, is := mgr.checks[id]
+				if !is {
+					mgr.checks[check.ID] = check
+					check.Start()
+				}
+			}
+		}
+	}()
 }
 
 func computeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+	// Monitoring compute is run on:
+	// - Delegate activity (checks are registered during install and unregistered during uninstall operation)
+	// - SetState activity (checks are registered on node state "Started" and unregistered on node state "Deleted")
 	if activity.Type() != workflow.ActivityTypeDelegate && activity.Type() != workflow.ActivityTypeSetState {
 		return
 	}
 	if activity.Type() == workflow.ActivityTypeSetState && (activity.Value() != tosca.NodeStateStarted.String() && activity.Value() != tosca.NodeStateDeleted.String()) {
 		return
 	}
-	// Get Consul Client
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
-			Registerf("Failed to retrieve consul client when handling compute monitoring for node name:%q due to: %v", target, err)
-		return
-	}
 
 	// Check if monitoring is required
-	isMonitorReq, monitoringInterval, err := isMonitoringRequired(cc, deploymentID, target)
+	isMonitorReq, monitoringInterval, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
 			Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
@@ -100,58 +189,53 @@ func computeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID
 		return
 	}
 
-	if err := handleMonitoring(ctx, cc, taskID, deploymentID, target, activity, monitoringInterval); err != nil {
-		events.WithContextOptionalFields(ctx).
-			NewLogEntry(events.WARN, deploymentID).Registerf("Health check monitoring hasn't be handled correctly due to:%+v", err)
-	}
-}
-
-func handleMonitoring(ctx context.Context, cc *api.Client, taskID, deploymentID, nodeName string, activity workflow.Activity, monitoringInterval time.Duration) error {
-	log.Debugf("Handle monitoring for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
-	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
+	instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
 	if err != nil {
-		return err
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
+		return
 	}
 
-	// Monitoring compute is run on:
-	// - Delegate activity (checks are registered during install and unregistered during uninstall operation)
-	// - SetState activity (checks are registered on node state "Started" and unregistered on node state "Deleted")
 	switch {
 	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
 		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
 
 		for _, instance := range instances {
-			found, ipAddress, err := deployments.GetInstanceAttribute(cc.KV(), deploymentID, nodeName, instance, "ip_address")
+			found, ipAddress, err := deployments.GetInstanceAttribute(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
 			if err != nil {
-				return err
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+					Registerf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
+				return
 			}
 			if !found || ipAddress == "" {
-				return errors.Errorf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID", nodeName, instance, deploymentID)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+					Registerf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID", target, instance, deploymentID)
+				return
 			}
 
-			id := defaultMonManager.buildCheckID(deploymentID, nodeName, instance)
-			if err := defaultMonManager.addHealthCheck(ctx, id, ipAddress, 22, monitoringInterval); err != nil {
-				return err
+			if err := defaultMonManager.registerCheck(deploymentID, target, instance, ipAddress, 22, monitoringInterval); err != nil {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+					Registerf("Failed to register check for node name:%q due to: %v", target, err)
+				return
 			}
 		}
 	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
 		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
 
 		for _, instance := range instances {
-			id := defaultMonManager.buildCheckID(deploymentID, nodeName, instance)
-			if err := defaultMonManager.removeHealthCheck(id); err != nil {
-				return err
+			if err := defaultMonManager.flagCheckForRemoval(deploymentID, target, instance); err != nil {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+					Registerf("Failed to unregister check for node name:%q due to: %v", target, err)
+				return
 			}
 		}
 	}
-
-	return nil
 }
 
-func isMonitoringRequired(cc *api.Client, deploymentID, nodeName string) (bool, time.Duration, error) {
+func (mgr *monitoringMgr) isMonitoringRequired(deploymentID, nodeName string) (bool, time.Duration, error) {
 	// Check if the node is a compute
 	var isCompute bool
-	isCompute, err := deployments.IsNodeDerivedFrom(cc.KV(), deploymentID, nodeName, "tosca.nodes.Compute")
+	isCompute, err := deployments.IsNodeDerivedFrom(mgr.cc.KV(), deploymentID, nodeName, "tosca.nodes.Compute")
 	if err != nil {
 		return false, 0, err
 	}
@@ -160,7 +244,7 @@ func isMonitoringRequired(cc *api.Client, deploymentID, nodeName string) (bool, 
 	}
 
 	// monitoring_time_interval must be set to positive value
-	found, val, err := deployments.GetNodeMetadata(cc.KV(), deploymentID, nodeName, "monitoring_time_interval")
+	found, val, err := deployments.GetNodeMetadata(mgr.cc.KV(), deploymentID, nodeName, "monitoring_time_interval")
 	if err != nil {
 		return false, 0, err
 	}
@@ -182,165 +266,131 @@ func isMonitoringRequired(cc *api.Client, deploymentID, nodeName string) (bool, 
 	return false, 0, nil
 }
 
-// addHealthCheck allows to register a TCP consul health check
-func (mgr *monitoringMgr) addHealthCheck(ctx context.Context, id, ipAddress string, port, interval time.Duration) error {
-	log.Debugf("Adding health check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
+// registerCheck allows to register a check
+func (mgr *monitoringMgr) registerCheck(deploymentID, nodeName, instance, ipAddress string, port int, interval time.Duration) error {
+	id := buildID(deploymentID, nodeName, instance)
+	log.Debugf("Register check with id:%q, iPAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
 	tcpAddr := fmt.Sprintf("%s:%d", ipAddress, port)
-	check := &api.AgentCheckRegistration{
-		ID:   id,
-		Name: id,
-		AgentServiceCheck: api.AgentServiceCheck{
-			Interval: interval.String(),
-			TCP:      tcpAddr,
-			Status:   "passing",
+
+	// Check is registered in a transaction to ensure to be read in its wholeness
+	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
+	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
+
+	checkOps := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb: api.KVCheckNotExists,
+			Key:  path.Join(checkPath, "address"),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "address"),
+			Value: []byte(tcpAddr),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkPath, "interval"),
+			Value: []byte(interval.String()),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(checkReportPath, "status"),
+			Value: []byte(CheckStatusPASSING.String()),
 		},
 	}
 
-	if err := mgr.cc.Agent().CheckRegister(check); err != nil {
-		return errors.Wrapf(err, "Failed to add health check with id:%q, ipAddress:%q, port:%d, interval:%d", id, ipAddress, port, interval)
-	}
-
-	mgr.checksNbLock.Lock()
-	defer mgr.checksNbLock.Unlock()
-
-	// Start checks polling if no initial checks
-	if mgr.checksNb == 0 {
-		mgr.chEndPolling = make(chan struct{})
-		mgr.startCheckReportsPolling(ctx)
-	}
-	mgr.checksNb++
-	return nil
-}
-
-// removeHealthCheck allows to unregister a TCP consul health check
-func (mgr *monitoringMgr) removeHealthCheck(id string) error {
-	log.Debugf("Removing health check with id:%q", id)
-
-	if err := mgr.cc.Agent().CheckDeregister(id); err != nil {
-		return errors.Wrapf(err, "Failed to remove health check with id:%q", id)
-	}
-
-	mgr.checksNbLock.Lock()
-	defer mgr.checksNbLock.Unlock()
-	mgr.checksNb--
-	// Stop checks polling if no more checks
-	if mgr.checksNb == 0 {
-		close(mgr.chEndPolling)
-	}
-	return nil
-}
-
-// CheckReportFilterFunc defines a filter function for CheckReport
-type CheckReportFilterFunc func(CheckReport) bool
-
-// listCheckReports can return a filtered health checks list if defined filter function. Otherwise, it returns the full checks.
-func (mgr monitoringMgr) listCheckReports(f CheckReportFilterFunc) ([]CheckReport, error) {
-	checks, err := mgr.cc.Agent().Checks()
+	ok, response, _, err := mgr.cc.KV().Txn(checkOps, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to list health checks")
+		return errors.Wrapf(err, "Failed to add check with id:%q", id)
 	}
-	return filter(mgr.toCheckReport(checks), f), nil
-}
-
-func (mgr *monitoringMgr) buildCheckID(deploymentID, nodeName, instance string) string {
-	return fmt.Sprintf("%s:%s:%s", deploymentID, nodeName, instance)
-}
-
-func (mgr *monitoringMgr) parseCheckID(checkID string) (*CheckReport, error) {
-	tab := strings.Split(checkID, ":")
-	if len(tab) != 3 {
-		return nil, errors.Errorf("Failed to parse checkID:%q", checkID)
-	}
-	return &CheckReport{DeploymentID: tab[0], NodeName: tab[1], Instance: tab[2]}, nil
-}
-
-// startCheckReportsPolling polls Consul agent checks
-func (mgr *monitoringMgr) startCheckReportsPolling(ctx context.Context) {
-	ticker := time.NewTicker(mgr.checksPollingDuration)
-	go func() {
-		for {
-			select {
-			case <-mgr.chEndPolling:
-				log.Debug("Ending polling has been requested: stop it now.")
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				if err := mgr.updateNodesState(ctx); err != nil {
-					log.Printf("[ERROR] An error occurred during polling checks:%+v", err)
-				}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			if e.OpIndex == 0 {
+				return errors.Wrapf(err, "Check with id:%q and TCP address:%q already exists", id, tcpAddr)
 			}
+			errs = append(errs, e.What)
 		}
-	}()
-}
-
-func (mgr monitoringMgr) toCheckReport(agentChecks map[string]*api.AgentCheck) []CheckReport {
-	res := make([]CheckReport, 0)
-
-	for _, v := range agentChecks {
-		cr, err := mgr.parseCheckID(v.CheckID)
-		if err != nil {
-			log.Printf("[WARNING] Failed to parse check report from checkID:%q. This check is ignored.", v.CheckID)
-			continue
-		}
-		st, err := ParseCheckStatus(v.Status)
-		if err != nil {
-			log.Printf("[WARNING] Failed to parse check report status from status:%q. This check is ignored.", v.Status)
-			continue
-		}
-		cr.Status = st
-		res = append(res, *cr)
-	}
-	return res
-}
-
-func (mgr *monitoringMgr) updateNodesState(ctx context.Context) error {
-	checkReports, err := mgr.listCheckReports(nil)
-	if err != nil {
-		return errors.Wrap(err, "Failed to update node states in function of monitoring health checks")
-	}
-	for _, cr := range checkReports {
-		nodeStateBefore, err := deployments.GetInstanceState(mgr.cc.KV(), cr.DeploymentID, cr.NodeName, cr.Instance)
-		if err != nil {
-			return err
-		}
-
-		var nodeStateAfter tosca.NodeState
-		if cr.Status != CheckStatusPASSING {
-			nodeStateAfter = tosca.NodeStateError
-		} else if cr.Status == CheckStatusPASSING {
-			nodeStateAfter = tosca.NodeStateStarted
-		}
-		if nodeStateBefore != nodeStateAfter {
-			if ctx != nil {
-				logOptFields, ok := events.FromContext(ctx)
-				if ok {
-					logOptFields[events.InstanceID] = cr.Instance
-					ctx = events.NewContext(ctx, logOptFields)
-				}
-			} else {
-				lof := events.LogOptionalFields{
-					events.InstanceID: cr.Instance,
-					events.NodeID:     cr.NodeName,
-				}
-				ctx = events.NewContext(context.Background(), lof)
-			}
-
-			// Log change on node state
-			if nodeStateAfter == tosca.NodeStateError {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, cr.DeploymentID).Registerf("Health check monitoring returned a connection failure for node (%s-%s)", cr.NodeName, cr.Instance)
-			} else if nodeStateAfter == tosca.NodeStateStarted {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, cr.DeploymentID).Registerf("Health check monitoring is back to normal for node (%s-%s)", cr.NodeName, cr.Instance)
-			}
-			// Update the node state
-			if err := deployments.SetInstanceState(mgr.cc.KV(), cr.DeploymentID, cr.NodeName, cr.Instance, nodeStateAfter); err != nil {
-				return err
-			}
-		}
+		return errors.Errorf("Failed to add check with id:%q due to:%s", id, strings.Join(errs, ", "))
 	}
 	return nil
 }
 
-func filter(tab []CheckReport, f CheckReportFilterFunc) []CheckReport {
+// flagCheckForRemoval allows to remove a check report and flag a check in order to remove it
+func (mgr *monitoringMgr) flagCheckForRemoval(deploymentID, nodeName, instance string) error {
+	id := buildID(deploymentID, nodeName, instance)
+	log.Debugf("PreUnregisterCheck check with id:%q", id)
+	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
+	kvp := &api.KVPair{Key: path.Join(checkPath, ".unregisterFlag"), Value: []byte("true")}
+	_, err := mgr.cc.KV().Put(kvp, nil)
+	return errors.Wrap(err, "Failed to flag check for unregister it")
+}
+
+// unregisterCheck allows to unregister a check and its related report
+func (mgr *monitoringMgr) unregisterCheck(id string) error {
+	log.Debugf("Removing check with id:%q", id)
+	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
+	checkReportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
+	rmOps := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb: api.KVDeleteTree,
+			Key:  checkPath,
+		},
+		&api.KVTxnOp{
+			Verb: api.KVDeleteTree,
+			Key:  checkReportPath,
+		},
+	}
+
+	ok, response, _, err := mgr.cc.KV().Txn(rmOps, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to remove check and report for id:%q", id)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to remove check and report for id:%q due to:%s", id, strings.Join(errs, ", "))
+	}
+	return nil
+}
+
+// CheckFilterFunc defines a filter function for CheckReport
+type CheckFilterFunc func(CheckReport) bool
+
+// listCheckReports can return a filtered checks reports list if defined filter function. Otherwise, it returns the full check reports.
+func (mgr monitoringMgr) listCheckReports(f CheckFilterFunc) ([]CheckReport, error) {
+	log.Debugf("List check reports")
+	keys, _, err := mgr.cc.KV().Keys(path.Join(consulutil.MonitoringKVPrefix, "reports")+"/", "/", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	checkReports := make([]CheckReport, 0)
+	for _, key := range keys {
+		id := path.Base(key)
+		check, err := NewCheckFromID(id)
+		if err != nil {
+			return nil, err
+		}
+
+		kvp, _, err := mgr.cc.KV().Get(path.Join(key, "status"), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		if kvp != nil && len(kvp.Value) > 0 {
+			check.Report.Status, err = ParseCheckStatus(string(kvp.Value))
+			if err != nil {
+				return nil, err
+			}
+		}
+		checkReports = append(checkReports, check.Report)
+	}
+	return filter(checkReports, f), nil
+}
+
+func filter(tab []CheckReport, f CheckFilterFunc) []CheckReport {
 	if f == nil {
 		return tab
 	}

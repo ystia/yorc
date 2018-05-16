@@ -80,7 +80,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	}
 	defer httpServer.Shutdown()
 
-	if err = monitoring.Start(client, configuration); err != nil {
+	if err = monitoring.Start(client); err != nil {
 		return err
 	}
 	defer monitoring.Stop()

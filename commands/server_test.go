@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
-	"time"
 )
 
 // Test the following args:
@@ -168,18 +167,16 @@ func TestConfigFile(t *testing.T) {
 				OperationRemoteBaseDir:  "test_base_dir",
 				KeepOperationRemotePath: true},
 			ConsulConfig: config.Consul{
-				Token:                      "testToken",
-				Datacenter:                 "testDC",
-				Address:                    "http://127.0.0.1:8500",
-				Key:                        "testKeyFile",
-				Cert:                       "testCertFile",
-				CA:                         "testCACert",
-				CAPath:                     "testCAPath",
-				SSL:                        true,
-				SSLVerify:                  false,
-				PubMaxRoutines:             1234,
-				HealthCheckPollingInterval: 10 * time.Second,
-			},
+				Token:          "testToken",
+				Datacenter:     "testDC",
+				Address:        "http://127.0.0.1:8500",
+				Key:            "testKeyFile",
+				Cert:           "testCertFile",
+				CA:             "testCACert",
+				CAPath:         "testCAPath",
+				SSL:            true,
+				SSLVerify:      false,
+				PubMaxRoutines: 1234},
 		},
 		{SubTestName: "config_structured",
 			FileName: "testdata/config_structured.yorc.json",
@@ -191,17 +188,16 @@ func TestConfigFile(t *testing.T) {
 				KeepOperationRemotePath: true,
 			},
 			ConsulConfig: config.Consul{
-				Token:                      "testToken2",
-				Datacenter:                 "testDC2",
-				Address:                    "http://127.0.0.1:8502",
-				Key:                        "testKeyFile2",
-				Cert:                       "testCertFile2",
-				CA:                         "testCACert2",
-				CAPath:                     "testCAPath2",
-				SSL:                        true,
-				SSLVerify:                  false,
-				PubMaxRoutines:             4321,
-				HealthCheckPollingInterval: 10 * time.Second,
+				Token:          "testToken2",
+				Datacenter:     "testDC2",
+				Address:        "http://127.0.0.1:8502",
+				Key:            "testKeyFile2",
+				Cert:           "testCertFile2",
+				CA:             "testCACert2",
+				CAPath:         "testCAPath2",
+				SSL:            true,
+				SSLVerify:      false,
+				PubMaxRoutines: 4321,
 			},
 		},
 	}
@@ -243,17 +239,16 @@ func TestAnsibleDefaultValues(t *testing.T) {
 func TestConsulDefaultValues(t *testing.T) {
 
 	expectedConsulConfig := config.Consul{
-		Token:                      "anonymous",
-		Datacenter:                 "dc1",
-		Address:                    "",
-		Key:                        "",
-		Cert:                       "",
-		CA:                         "",
-		CAPath:                     "",
-		SSL:                        false,
-		SSLVerify:                  true,
-		PubMaxRoutines:             config.DefaultConsulPubMaxRoutines,
-		HealthCheckPollingInterval: config.DefaultHealthCheckPollingInterval,
+		Token:          "anonymous",
+		Datacenter:     "dc1",
+		Address:        "",
+		Key:            "",
+		Cert:           "",
+		CA:             "",
+		CAPath:         "",
+		SSL:            false,
+		SSLVerify:      true,
+		PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
 	}
 
 	testResetConfig()
@@ -300,17 +295,16 @@ func TestAnsibleEnvVariables(t *testing.T) {
 func TestConsulEnvVariables(t *testing.T) {
 
 	expectedConsulConfig := config.Consul{
-		Token:                      "testEnvToken",
-		Datacenter:                 "testEnvDC",
-		Address:                    "testEnvAddress",
-		Key:                        "testEnvKey",
-		Cert:                       "testEnvCert",
-		CA:                         "testEnvCA",
-		CAPath:                     "testEnvCAPath",
-		SSL:                        true,
-		SSLVerify:                  false,
-		PubMaxRoutines:             125,
-		HealthCheckPollingInterval: 10 * time.Second,
+		Token:          "testEnvToken",
+		Datacenter:     "testEnvDC",
+		Address:        "testEnvAddress",
+		Key:            "testEnvKey",
+		Cert:           "testEnvCert",
+		CA:             "testEnvCA",
+		CAPath:         "testEnvCAPath",
+		SSL:            true,
+		SSLVerify:      false,
+		PubMaxRoutines: 125,
 	}
 
 	// Set Consul configuration environment variables
@@ -324,7 +318,6 @@ func TestConsulEnvVariables(t *testing.T) {
 	os.Setenv("YORC_CONSUL_SSL", strconv.FormatBool(expectedConsulConfig.SSL))
 	os.Setenv("YORC_CONSUL_SSL_VERIFY", strconv.FormatBool(expectedConsulConfig.SSLVerify))
 	os.Setenv("YORC_CONSUL_PUBLISHER_MAX_ROUTINES", strconv.Itoa(expectedConsulConfig.PubMaxRoutines))
-	os.Setenv("YORC_CONSUL_HEALTH_CHECK_POLLING_INTERVAL", expectedConsulConfig.HealthCheckPollingInterval.String())
 
 	testResetConfig()
 	setConfig()
@@ -385,31 +378,29 @@ func TestAnsiblePersistentFlags(t *testing.T) {
 func TestConsulPersistentFlags(t *testing.T) {
 
 	expectedConsulConfig := config.Consul{
-		Token:                      "testPFlagToken",
-		Datacenter:                 "testPFlagDC",
-		Address:                    "testPFlagAddress",
-		Key:                        "testPFlagKey",
-		Cert:                       "testPFlagCert",
-		CA:                         "testPFlagCA",
-		CAPath:                     "testEnvCAPath",
-		SSL:                        true,
-		SSLVerify:                  false,
-		PubMaxRoutines:             123,
-		HealthCheckPollingInterval: 10 * time.Second,
+		Token:          "testPFlagToken",
+		Datacenter:     "testPFlagDC",
+		Address:        "testPFlagAddress",
+		Key:            "testPFlagKey",
+		Cert:           "testPFlagCert",
+		CA:             "testPFlagCA",
+		CAPath:         "testEnvCAPath",
+		SSL:            true,
+		SSLVerify:      false,
+		PubMaxRoutines: 123,
 	}
 
 	consulPFlagConfiguration := map[string]string{
-		"consul_token":                         expectedConsulConfig.Token,
-		"consul_datacenter":                    expectedConsulConfig.Datacenter,
-		"consul_address":                       expectedConsulConfig.Address,
-		"consul_key_file":                      expectedConsulConfig.Key,
-		"consul_cert_file":                     expectedConsulConfig.Cert,
-		"consul_ca_cert":                       expectedConsulConfig.CA,
-		"consul_ca_path":                       expectedConsulConfig.CAPath,
-		"consul_ssl":                           strconv.FormatBool(expectedConsulConfig.SSL),
-		"consul_ssl_verify":                    strconv.FormatBool(expectedConsulConfig.SSLVerify),
-		"consul_publisher_max_routines":        strconv.Itoa(expectedConsulConfig.PubMaxRoutines),
-		"consul_health_check_polling_interval": expectedConsulConfig.HealthCheckPollingInterval.String(),
+		"consul_token":                  expectedConsulConfig.Token,
+		"consul_datacenter":             expectedConsulConfig.Datacenter,
+		"consul_address":                expectedConsulConfig.Address,
+		"consul_key_file":               expectedConsulConfig.Key,
+		"consul_cert_file":              expectedConsulConfig.Cert,
+		"consul_ca_cert":                expectedConsulConfig.CA,
+		"consul_ca_path":                expectedConsulConfig.CAPath,
+		"consul_ssl":                    strconv.FormatBool(expectedConsulConfig.SSL),
+		"consul_ssl_verify":             strconv.FormatBool(expectedConsulConfig.SSLVerify),
+		"consul_publisher_max_routines": strconv.Itoa(expectedConsulConfig.PubMaxRoutines),
 	}
 
 	testResetConfig()

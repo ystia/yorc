@@ -53,9 +53,6 @@ const DefaultKeepOperationRemotePath = false
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
-// DefaultHealthCheckPollingInterval is the default Consul polling interval for health check
-const DefaultHealthCheckPollingInterval = 5 * time.Second
-
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible               `mapstructure:"ansible"`
@@ -110,17 +107,16 @@ type Ansible struct {
 
 // Consul configuration
 type Consul struct {
-	Token                      string        `mapstructure:"token"`
-	Datacenter                 string        `mapstructure:"datacenter"`
-	Address                    string        `mapstructure:"address"`
-	Key                        string        `mapstructure:"key_file"`
-	Cert                       string        `mapstructure:"cert_file"`
-	CA                         string        `mapstructure:"ca_cert"`
-	CAPath                     string        `mapstructure:"ca_path"`
-	SSL                        bool          `mapstructure:"ssl"`
-	SSLVerify                  bool          `mapstructure:"ssl_verify"`
-	PubMaxRoutines             int           `mapstructure:"publisher_max_routines"`
-	HealthCheckPollingInterval time.Duration `mapstructure:"health_check_polling_interval"`
+	Token          string `mapstructure:"token"`
+	Datacenter     string `mapstructure:"datacenter"`
+	Address        string `mapstructure:"address"`
+	Key            string `mapstructure:"key_file"`
+	Cert           string `mapstructure:"cert_file"`
+	CA             string `mapstructure:"ca_cert"`
+	CAPath         string `mapstructure:"ca_path"`
+	SSL            bool   `mapstructure:"ssl"`
+	SSLVerify      bool   `mapstructure:"ssl_verify"`
+	PubMaxRoutines int    `mapstructure:"publisher_max_routines"`
 }
 
 // Telemetry holds the configuration for the telemetry service

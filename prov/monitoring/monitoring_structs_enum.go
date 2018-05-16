@@ -25,18 +25,15 @@ import (
 const (
 	// CheckStatusPASSING is a CheckStatus of type PASSING
 	CheckStatusPASSING CheckStatus = iota
-	// CheckStatusWARNING is a CheckStatus of type WARNING
-	CheckStatusWARNING
 	// CheckStatusCRITICAL is a CheckStatus of type CRITICAL
 	CheckStatusCRITICAL
 )
 
-const _CheckStatusName = "PASSINGWARNINGCRITICAL"
+const _CheckStatusName = "PASSINGCRITICAL"
 
 var _CheckStatusMap = map[CheckStatus]string{
 	0: _CheckStatusName[0:7],
-	1: _CheckStatusName[7:14],
-	2: _CheckStatusName[14:22],
+	1: _CheckStatusName[7:15],
 }
 
 func (i CheckStatus) String() string {
@@ -47,12 +44,10 @@ func (i CheckStatus) String() string {
 }
 
 var _CheckStatusValue = map[string]CheckStatus{
-	_CheckStatusName[0:7]:                    0,
-	strings.ToLower(_CheckStatusName[0:7]):   0,
-	_CheckStatusName[7:14]:                   1,
-	strings.ToLower(_CheckStatusName[7:14]):  1,
-	_CheckStatusName[14:22]:                  2,
-	strings.ToLower(_CheckStatusName[14:22]): 2,
+	_CheckStatusName[0:7]:                   0,
+	strings.ToLower(_CheckStatusName[0:7]):  0,
+	_CheckStatusName[7:15]:                  1,
+	strings.ToLower(_CheckStatusName[7:15]): 1,
 }
 
 // ParseCheckStatus attempts to convert a string to a CheckStatus

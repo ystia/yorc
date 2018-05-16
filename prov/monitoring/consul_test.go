@@ -15,17 +15,24 @@
 package monitoring
 
 import (
+	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/testutil"
 	"testing"
-	"time"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
-	defer srv.Stop()
+
+	// Start/Stop the monitoring manager
+	err := Start(client)
+	require.Nil(t, err, "Unexpected error while starting monitoring manager")
+	defer func() {
+		Stop()
+		srv.Stop()
+	}()
 
 	srv.PopulateKV(t, map[string][]byte{
 		consulutil.DeploymentKVPrefix + "/monitoring1/topology/types/tosca.nodes.Root/name":                      []byte("tosca.nodes.Root"),
@@ -50,14 +57,6 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring3/topology/nodes/Compute1/type":                              []byte("yorc.nodes.openstack.Compute"),
 		consulutil.DeploymentKVPrefix + "/monitoring3/topology/nodes/Compute1/metadata/monitoring_time_interval": []byte("0"),
 
-		consulutil.DeploymentKVPrefix + "/monitoring4/topology/types/tosca.nodes.Root/name":                      []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring4/topology/types/tosca.nodes.Compute/derived_from":           []byte("tosca.nodes.Root"),
-		consulutil.DeploymentKVPrefix + "/monitoring4/topology/types/yorc.nodes.Compute/derived_from":            []byte("tosca.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring4/topology/types/yorc.nodes.openstack.Compute/derived_from":  []byte("yorc.nodes.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring4/topology/nodes/Compute1/type":                              []byte("yorc.nodes.openstack.Compute"),
-		consulutil.DeploymentKVPrefix + "/monitoring4/topology/nodes/Compute1/metadata/monitoring_time_interval": []byte("30"),
-		consulutil.DeploymentKVPrefix + "/monitoring4/topology/instances/Compute1/0/attributes/state":            []byte("started"),
-
 		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/tosca.nodes.Root/name":                      []byte("tosca.nodes.Root"),
 		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/tosca.nodes.Compute/derived_from":           []byte("tosca.nodes.Root"),
 		consulutil.DeploymentKVPrefix + "/monitoring5/topology/types/yorc.nodes.Compute/derived_from":            []byte("tosca.nodes.Compute"),
@@ -68,27 +67,18 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		consulutil.DeploymentKVPrefix + "/monitoring5/topology/instances/Compute1/0/attributes/state":            []byte("started"),
 	})
 
-	cfg := config.Configuration{
-		Consul: config.Consul{
-			HealthCheckPollingInterval: 1 * time.Second,
-		},
-	}
-
 	t.Run("groupMonitoring", func(t *testing.T) {
-		t.Run("testHandleMonitoringWithCheckCreated", func(t *testing.T) {
-			testHandleMonitoringWithCheckCreated(t, client, cfg)
+		t.Run("testComputeMonitoringHook", func(t *testing.T) {
+			testComputeMonitoringHook(t, client, config.Configuration{})
 		})
 		t.Run("testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval", func(t *testing.T) {
-			testHandleMonitoringWithoutMonitoringRequiredWithNoTimeInterval(t, client, cfg)
+			testIsMonitoringRequiredWithNoTimeInterval(t, client)
 		})
 		t.Run("testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval", func(t *testing.T) {
-			testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval(t, client, cfg)
-		})
-		t.Run("testHandleMonitoringWithNoIP", func(t *testing.T) {
-			testHandleMonitoringWithNoIP(t, client, cfg)
+			testIsMonitoringRequiredWithZeroTimeInterval(t, client)
 		})
 		t.Run("testAddAndRemoveHealthCheck", func(t *testing.T) {
-			testAddAndRemoveHealthCheck(t, client, cfg)
+			testAddAndRemoveHealthCheck(t, client)
 		})
 	})
 }
