@@ -117,7 +117,14 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	ctx = context.WithValue(ctx, "generator", newGenerator(e.kv, e.cfg))
 	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	nbInstances := int32(len(instances))
-	switch strings.ToLower(e.Operation.Name) {
+
+	// Supporting both fully qualified and short standard operation names, ie.
+	// - tosca.interfaces.node.lifecycle.standard.operation
+	// or
+	// - standard.operation
+	operationName := strings.TrimPrefix(strings.ToLower(e.Operation.Name),
+		"tosca.interfaces.node.lifecycle.")
+	switch operationName {
 	case "standard.create":
 		return e.manageKubernetesResource(ctx, k8sCreateOperation)
 	case "standard.configure":
@@ -146,6 +153,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
+
 }
 
 func (e *executionCommon) manageKubernetesResource(ctx context.Context, op k8sResourceOperation) error {
