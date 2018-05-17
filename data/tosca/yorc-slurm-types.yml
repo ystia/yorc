@@ -36,3 +36,9 @@ node_types:
       partition:
         type: string
         description: Slurm partition where the nodes are deployed.
+    capabilities:
+      endpoint:
+        type: yorc.capabilities.Endpoint.ProvisioningAdmin
+        properties:
+          credentials:
+            user: "not significant, will be set by the orchestrator"
