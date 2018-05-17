@@ -72,7 +72,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			log.Panic(err)
 		}
-		data[path.Join("inputs", name)] = inputMap.Inputs[name]
+		data[path.Join("inputs", name)] = inputMap.Inputs[name].String()
 	}
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.CustomCommand, data)

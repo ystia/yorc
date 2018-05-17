@@ -16,6 +16,7 @@ package tosca
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -164,6 +165,20 @@ func (p ValueAssignment) String() string {
 
 // UnmarshalYAML unmarshals a yaml into a ValueAssignment
 func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return p.unmarshalYAMLJSON(unmarshal)
+}
+
+// UnmarshalJSON unmarshals json into a ValueAssignment
+func (p *ValueAssignment) UnmarshalJSON(b []byte) error {
+
+	jsonUnmarshal := func(itf interface{}) error {
+		return json.Unmarshal(b, itf)
+	}
+	return p.unmarshalYAMLJSON(jsonUnmarshal)
+}
+
+// unmarshalYAMLJSON unmarshals yaml or json into a ValueAssignment
+func (p *ValueAssignment) unmarshalYAMLJSON(unmarshal func(interface{}) error) error {
 	// Value assignment could be:
 	//   - a List
 	//   - a TOSCA function
@@ -179,7 +194,7 @@ func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error
 	}
 	// Not a List try a TOSCA function
 	f := &Function{}
-	if err := unmarshal(f); err == nil {
+	if err := unmarshal(f); err == nil && IsOperator(string(f.Operator)) {
 		p.Value = f
 		p.Type = ValueAssignmentFunction
 		return nil
@@ -193,6 +208,14 @@ func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error
 		return nil
 	}
 
+	// JSON map unmarshaling expects a map[string]interface{}
+	var strMap map[string]interface{}
+	if err := unmarshal(&strMap); err == nil {
+		p.Value = strMap
+		p.Type = ValueAssignmentMap
+		return nil
+	}
+
 	// Not a List nor a TOSCA function, nor a map or complex type, let's try literal
 	var s interface{}
 	if err := unmarshal(&s); err != nil {
@@ -202,4 +225,9 @@ func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error
 	p.Value = s
 	p.Type = ValueAssignmentLiteral
 	return nil
+}
+
+// MarshalJSON is marshaling only the Value field of a ValueAssignment
+func (p *ValueAssignment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.Value)
 }

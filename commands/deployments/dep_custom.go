@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/tosca"
 )
 
 func init() {
@@ -53,12 +54,15 @@ func init() {
 				var InputsStruct rest.CustomCommandRequest
 				InputsStruct.CustomCommandName = customCName
 				InputsStruct.NodeName = nodeName
-				InputsStruct.Inputs = make(map[string]string)
+				InputsStruct.Inputs = make(map[string]*tosca.ValueAssignment)
 				for _, arg := range inputs {
-					for _, split := range strings.Split(arg, ",") {
-						tmp := strings.Split(split, "=")
-						InputsStruct.Inputs[tmp[0]] = tmp[1]
+					keyValue := strings.Split(arg, "=")
+					var value tosca.ValueAssignment
+					err := json.Unmarshal([]byte(strings.TrimSpace(keyValue[1])), &value)
+					if err != nil {
+						return err
 					}
+					InputsStruct.Inputs[strings.TrimSpace(keyValue[0])] = &value
 				}
 
 				tmp, err := json.Marshal(InputsStruct)
@@ -89,6 +93,6 @@ func init() {
 	customCmd.PersistentFlags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the custom command")
 	customCmd.PersistentFlags().StringVarP(&nodeName, "node", "n", "", "Provide the node name (use with flag c and i)")
 	customCmd.PersistentFlags().StringVarP(&customCName, "custom", "c", "", "Provide the custom command name (use with flag n and i)")
-	customCmd.PersistentFlags().StringSliceVarP(&inputs, "inputsMap", "i", make([]string, 0), "Provide the input for the custom command (use with flag c and n)")
+	customCmd.PersistentFlags().StringArrayVarP(&inputs, "input", "i", make([]string, 0), "Provide the input for the custom command (use with flag c and n)")
 	DeploymentsCmd.AddCommand(customCmd)
 }

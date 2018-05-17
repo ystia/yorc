@@ -161,9 +161,9 @@ type Attribute struct {
 
 // CustomCommandRequest is the representation of a request to process a Custom Command
 type CustomCommandRequest struct {
-	NodeName          string            `json:"node"`
-	CustomCommandName string            `json:"name"`
-	Inputs            map[string]string `json:"inputs"`
+	NodeName          string                            `json:"node"`
+	CustomCommandName string                            `json:"name"`
+	Inputs            map[string]*tosca.ValueAssignment `json:"inputs"`
 }
 
 // WorkflowsCollection is a collection of workflows links
