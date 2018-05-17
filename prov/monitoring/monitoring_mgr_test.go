@@ -74,7 +74,7 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 	require.Equal(t, tosca.NodeStateError, state)
 
 	err = defaultMonManager.flagCheckForRemoval(dep, node, instance)
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	require.Nil(t, err, "Unexpected error while removing health check")
 	checkReports, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {
 		if cr.DeploymentID == dep {
@@ -84,6 +84,7 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 	})
 	require.Nil(t, err, "Unexpected error while getting check reports list")
 	require.Len(t, checkReports, 0, "0 check is expected")
+	require.Len(t, defaultMonManager.checks, 0, "0 check is expected in work map")
 }
 
 func testIsMonitoringRequiredWithNoTimeInterval(t *testing.T, client *api.Client) {
@@ -132,7 +133,7 @@ func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
 	require.Equal(t, tosca.NodeStateError, state)
 
 	err = defaultMonManager.flagCheckForRemoval(dep, node, instance)
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	require.Nil(t, err, "Unexpected error while removing health check")
 
 	require.Nil(t, err, "Unexpected error while removing health check")
@@ -144,4 +145,5 @@ func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
 	})
 	require.Nil(t, err, "Unexpected error while getting check reports list")
 	require.Len(t, checkReports, 0, "0 check is expected")
+	require.Len(t, defaultMonManager.checks, 0, "0 check is expected in work map")
 }

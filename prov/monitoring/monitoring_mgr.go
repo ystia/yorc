@@ -40,29 +40,41 @@ func init() {
 }
 
 type monitoringMgr struct {
-	cc     *api.Client
-	chStop chan struct{}
-	stop   bool
-	checks map[string]*Check
+	cc                        *api.Client
+	chStopMonitoring          chan struct{}
+	chStopWatchLeaderElection chan struct{}
+	isMonitoring              bool
+	checks                    map[string]*Check
+	watchTime                 time.Duration
+	serviceKey                string
 }
 
 // Start allows to instantiate a default Monitoring Manager and to start monitoring checks
 func Start(cc *api.Client) error {
 	defaultMonManager = &monitoringMgr{
-		cc:     cc,
-		chStop: make(chan struct{}),
-		checks: make(map[string]*Check),
+		cc:                        cc,
+		chStopMonitoring:          make(chan struct{}),
+		chStopWatchLeaderElection: make(chan struct{}),
+		isMonitoring:              false,
+		checks:                    make(map[string]*Check),
+		watchTime:                 5 * time.Second,
+		serviceKey:                "service/monitoring/leader",
 	}
-	defaultMonManager.startMonitoring()
+
+	// Watch leader election for monitoring service
+	go consulutil.WatchLeaderElection(defaultMonManager.cc, defaultMonManager.serviceKey, defaultMonManager.chStopWatchLeaderElection, defaultMonManager.startMonitoring)
 	return nil
 }
 
-// Stop allows to stop monitoring checks
+// Stop allows to isMonitoring monitoring checks
 func Stop() {
-	if !defaultMonManager.stop {
-		close(defaultMonManager.chStop)
-		defaultMonManager.stop = true
+	if !defaultMonManager.isMonitoring {
+		close(defaultMonManager.chStopMonitoring)
+		defaultMonManager.isMonitoring = true
 	}
+
+	// Stop watch leader election
+	close(defaultMonManager.chStopWatchLeaderElection)
 
 	// Stop all running checks
 	for _, check := range defaultMonManager.checks {
@@ -71,23 +83,24 @@ func Stop() {
 }
 
 func handleError(err error) {
-	err = errors.Wrap(err, "Error during polling monitoring checks")
+	err = errors.Wrap(err, "[WARN] Error during polling monitoring checks")
 	log.Print(err)
 	log.Debugf("%+v", err)
 }
 
 func (mgr *monitoringMgr) startMonitoring() {
+	log.Debug("Compute monitoring is now running.")
 	var waitIndex uint64
 	go func() {
 		for {
 			select {
-			case <-mgr.chStop:
+			case <-mgr.chStopMonitoring:
 				log.Debug("Ending monitoring has been requested: stop it now.")
 				return
 			default:
 			}
 
-			q := &api.QueryOptions{WaitIndex: waitIndex, WaitTime: 100 * time.Millisecond}
+			q := &api.QueryOptions{WaitIndex: waitIndex}
 			checks, rMeta, err := mgr.cc.KV().Keys(path.Join(consulutil.MonitoringKVPrefix, "checks")+"/", "/", q)
 			log.Debugf("%d checks has been found", len(checks))
 			if err != nil {
@@ -116,21 +129,17 @@ func (mgr *monitoringMgr) startMonitoring() {
 					handleError(err)
 					continue
 				}
-
 				if kvp != nil && len(kvp.Value) > 0 && strings.ToLower(string(kvp.Value)) == "true" {
 					log.Debugf("Check with id:%q has been requested to be stopped and unregister", id)
-
 					checkToStop, is := mgr.checks[id]
-					if !is {
-						handleError(errors.Errorf("Unable to find check with id:%q in order to stop and remove it", id))
-						continue
+					if is {
+						// Stop the check execution
+						checkToStop.Stop()
+						// Remove it from the manager checks
+						delete(mgr.checks, id)
+						// Unregister it definitively
+						mgr.unregisterCheck(id)
 					}
-					// Stop the check execution
-					checkToStop.Stop()
-					// Remove it from the manager checks
-					delete(mgr.checks, id)
-					// Unregister it definitively
-					mgr.unregisterCheck(id)
 					continue
 				}
 

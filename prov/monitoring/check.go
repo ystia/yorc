@@ -102,8 +102,25 @@ func (c *Check) check() {
 	c.updateStatus(CheckStatusPASSING)
 }
 
+func (c *Check) exist() bool {
+	checkPath := path.Join(consulutil.MonitoringKVPrefix, "reports", c.ID, "status")
+	KVPair, _, err := defaultMonManager.cc.KV().Get(checkPath, nil)
+	if err != nil {
+		log.Println("[WARN] Failed to get check due to error:%+v", err)
+		return false
+	}
+	if KVPair == nil || len(KVPair.Value) == 0 {
+		return false
+	}
+	return true
+}
+
 func (c *Check) updateStatus(status CheckStatus) {
 	if c.Report.Status != status {
+		// Be sure check isn't currently being removed before check has been stopped
+		if !c.exist() {
+			return
+		}
 		log.Debugf("Update check status from %q to %q", c.Report.Status.String(), status.String())
 		key := &api.KVPair{Key: path.Join(consulutil.MonitoringKVPrefix, "reports", c.ID, "status"), Value: []byte(status.String())}
 		if _, err := defaultMonManager.cc.KV().Put(key, nil); err != nil {
@@ -129,7 +146,7 @@ func (c *Check) notify() {
 
 	// Update the node state
 	if err := deployments.SetInstanceState(defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance, nodeState); err != nil {
-		log.Printf("[WARN] Unable to update node state due to error:%+v", c.ID, err)
+		log.Printf("[WARN] Unable to update node state due to error:%+v", err)
 	}
 }
 
