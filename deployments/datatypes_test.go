@@ -24,7 +24,6 @@ import (
 )
 
 func testGetTypePropertyDataType(t *testing.T, kv *api.KV) {
-	t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)
@@ -59,7 +58,6 @@ func testGetTypePropertyDataType(t *testing.T, kv *api.KV) {
 }
 
 func testGetNestedDataType(t *testing.T, kv *api.KV) {
-	t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/value_assignments.yaml")
 	require.Nil(t, err)

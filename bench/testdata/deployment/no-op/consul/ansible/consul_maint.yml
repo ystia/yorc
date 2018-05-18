@@ -1,0 +1,9 @@
+- name: Consul maintenance Switch
+  hosts: all
+  strategy: free
+  tasks:
+    - name: Switch maintance mode to {{MAINT_MODE}}
+      shell: "{{INSTALL_DIR}}/consul_maintenance.sh {{MAINT_MODE}}"
+    
+    - name: log maintenance mode
+      debug: msg="Consul maintenance mode switched to {{MAINT_MODE}}"

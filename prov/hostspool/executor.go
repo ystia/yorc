@@ -213,7 +213,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 			}
 		}
 
-		return hpManager.UpdateLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
+		return hpManager.UpdateResourcesLabels(hostname, allocatedResources, subtract, updateResourcesLabels)
 	}
 
 	return nil
@@ -324,7 +324,7 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		return hpManager.UpdateLabels(hostname, allocatedResources, add, updateResourcesLabels)
+		return hpManager.UpdateResourcesLabels(hostname, allocatedResources, add, updateResourcesLabels)
 
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")

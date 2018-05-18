@@ -128,7 +128,7 @@ Globals Command-line options
 Configuration files
 -------------------
 
-Configuration files are JSON-formatted as a single JSON object containing the following configuration options. 
+Configuration files are either JSON or YAML formatted as a single object containing the following configuration options. 
 By default Yorc will look for a file named config.yorc.json in ``/etc/yorc`` directory then if not found in the current directory. 
 The :ref:`--config <option_config_cmd>` command line flag allows to specify an alternative configuration file.
 
@@ -242,7 +242,15 @@ Below is an example of configuration file with Ansible configuration options.
       },
       "ansible": {
         "use_openssh": true,
-        "connection_retries": 3
+        "connection_retries": 3,
+        "hosted_operations": {
+          "unsandboxed_operations_allowed": false,                                     
+          "default_sandbox": {                               
+            "image": "jfloff/alpine-python:2.7-slim",  
+            "entrypoint": ["python", "-c"],
+            "command": ["import time;time.sleep(31536000);"]                                                   
+          }            
+        }  
       }
     }
 
@@ -267,6 +275,38 @@ All available configuration options for Ansible are:
 .. _option_keep_remote_path_cfg:
 
   * ``keep_operation_remote_path``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
+
+.. _option_ansible_sandbox_hosted_ops_cfg:
+
+  * ``hosted_operations``: This is a complex structure that allow to define the behavior of a Yorc server when it executes an hosted operation.
+    For more information about hosted operation please see :ref:`The hosted operations paragraph in the TOSCA support section <tosca_orchestrator_hosted_operations>`.
+    This structure contains the following configuration options:
+
+    .. _option_ansible_sandbox_hosted_ops_unsandboxed_flag_cfg:
+
+    * ``unsandboxed_operations_allowed``: This option control if operations can be executed directly on the system that hosts Yorc if no default sandbox is defined. **This is not permitted by default.** 
+
+    .. _option_ansible_sandbox_hosted_ops_default_sandbox_cfg:
+
+    * ``default_sandbox``: This complex structure allows to define the default docker container to use to sandbox orchestrator-hosted operations.
+      Bellow configuration options ``entrypoint`` and ``command`` should be carefully set to run the container and make it sleep until operations are executed on it.
+      Defaults options will run a python inline script that sleeps for 1 year.
+
+      .. _option_ansible_sandbox_hosted_ops_default_sandbox_image_cfg:
+
+      * ``image``: This is the docker image identifier (in the docker format ``[repository/]name[:tag]``) is option is **required**.
+
+      .. _option_ansible_sandbox_hosted_ops_default_sandbox_entrypoint_cfg:
+
+      * ``entrypoint``: This allows to override the default image entrypoint. If both ``entrypoint`` and ``command`` are empty the default value for ``entrypoint`` is ``["python", "-c"]``.
+
+      .. _option_ansible_sandbox_hosted_ops_default_sandbox_command_cfg:
+
+      * ``command``: This allows to run a command within the container.  If both ``entrypoint`` and ``command`` are empty the default value for ``command`` is ``["import time;time.sleep(31536000);"]``.
+
+      .. _option_ansible_sandbox_hosted_ops_default_sandbox_env_cfg:
+
+      * ``env``: An optional list environment variables to set when creating the container. The format of each variable is ``var_name=value``.
 
 .. _yorc_config_file_consul_section:
 

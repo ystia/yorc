@@ -47,7 +47,7 @@ var mockSSHClientFactory = func(config *ssh.ClientConfig, conn hostspool.Connect
 
 func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 	router := newRouter()
-	
+
 	httpSrv := &Server{
 		router:         router,
 		consulClient:   client,

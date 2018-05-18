@@ -17,10 +17,13 @@ package deployments
 import (
 	"context"
 	"path"
+	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tosca"
 )
 
 // HasScalableCapability check if the given nodeName in the specified deployment, has in this capabilities a Key named scalable
@@ -211,6 +214,24 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 		}
 	}
 
+	// Capability attributes of a Service referencing an application in another
+	// deployment are actually available as attributes of the node template
+	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
+	if err != nil {
+		return false, "", err
+	}
+	if substitutionInstance {
+
+		found, result, err := getSubstitutionInstanceCapabilityAttribute(kv, deploymentID, nodeName, instanceName, capabilityName, attrDataType, attributeName, nestedKeys...)
+		if err != nil || found {
+			// If there is an error or attribute was found, returning
+			// else going back to the generic behavior
+			return found, result, errors.Wrapf(err,
+				"Failed to get attribute %q for capability %q on substitutable node %q",
+				attributeName, capabilityName, nodeName)
+		}
+	}
+
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
 	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
@@ -244,20 +265,81 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
-	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
+	host, hostInstance, err := GetHostedOnNodeInstance(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
 		return false, "", err
 	}
 	if host != "" {
-		found, result, err = GetInstanceCapabilityAttribute(kv, deploymentID, host, instanceName, capabilityName, attributeName, nestedKeys...)
+		found, result, err = GetInstanceCapabilityAttribute(kv, deploymentID, host, hostInstance, capabilityName, attributeName, nestedKeys...)
 		if err != nil || found {
 			// If there is an error or attribute was found
 			return found, result, err
 		}
 	}
 
+	isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
+		tosca.EndpointCapability)
+	if err != nil {
+		return false, "", err
+	}
+
+	// TOSCA specification at :
+	// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
+	// describes that the ip_address attribute of an endpoint is the IP address
+	// as propagated up by the associated node’s host (Compute) container.
+	if isEndpoint && attributeName == "ip_address" && host != "" {
+		found, result, err = getIPAddressFromHost(kv, deploymentID, host,
+			hostInstance, nodeName, instanceName, capabilityName)
+		if err != nil || found {
+			return found, result, err
+		}
+	}
+
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 	return GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
+}
+
+func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance,
+	nodeName, instanceName, capabilityName string) (bool, string, error) {
+
+	// First check the network name in the capability property to find the right
+	// IP address attribute (default: private address)
+	ipAddressAttrName := "private_address"
+
+	found, netName, err := GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, "network_name")
+	if err != nil {
+		return false, "", err
+	}
+
+	if found && strings.ToLower(netName) == "public" {
+		ipAddressAttrName = "public_address"
+	}
+
+	found, result, err := GetInstanceAttribute(kv, deploymentID, hostName, hostInstance,
+		ipAddressAttrName)
+
+	if err == nil && found {
+		log.Debugf("Found IP address %s for %s %s %s %s on network %s from host %s %s",
+			result, deploymentID, nodeName, instanceName, capabilityName, netName, hostName, hostInstance)
+	} else {
+		log.Debugf("Found no IP address for %s %s %s %s on network %s from host %s %s",
+			deploymentID, nodeName, instanceName, capabilityName, netName, hostName, hostInstance)
+	}
+
+	return found, result, err
+
+}
+
+// GetNodeCapabilityAttributeNames retrieves the names for all capability attributes
+// of a capability on a given node name
+func GetNodeCapabilityAttributeNames(kv *api.KV, deploymentID, nodeName, capabilityName string, exploreParents bool) ([]string, error) {
+
+	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+	if err != nil {
+		return nil, err
+	}
+	return GetTypeAttributes(kv, deploymentID, capabilityType, exploreParents)
+
 }
 
 // SetInstanceCapabilityAttribute sets a capability attribute for a given node instance

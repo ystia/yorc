@@ -17,12 +17,35 @@ package config
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/log"
+	"sync"
+	"time"
 )
 
-// GetConsulClient returns a Consul client from a given Configuration
-func (cfg Configuration) GetConsulClient() (*api.Client, error) {
+var consulClient *api.Client
+var once sync.Once
 
+// GetConsulClient returns the Consul client singleton instance from a given Configuration
+func (cfg Configuration) GetConsulClient() (*api.Client, error) {
+	var err error
+	once.Do(func() {
+		consulClient, err = cfg.buildConsulClientInstance()
+	})
+	return consulClient, err
+}
+
+// GetNewConsulClient returns a Consul client instance from a given Configuration used for plugin, tests but no for server runtime needs
+// For standard server runtime need, use the GetConsulClient which returns a singleton
+func (cfg Configuration) GetNewConsulClient() (*api.Client, error) {
+	return cfg.buildConsulClientInstance()
+}
+
+func (cfg Configuration) buildConsulClientInstance() (*api.Client, error) {
 	consulCustomConfig := api.DefaultConfig()
+	consulCustomConfig.Transport.MaxIdleConnsPerHost = cfg.Consul.PubMaxRoutines
+	consulCustomConfig.Transport.MaxIdleConns = cfg.Consul.PubMaxRoutines
+	consulCustomConfig.Transport.IdleConnTimeout = 10 * time.Second
+	log.Debugf("consul http Transport config: %+v", consulCustomConfig.Transport)
 	if cfg.Consul.Address != "" {
 		consulCustomConfig.Address = cfg.Consul.Address
 	}

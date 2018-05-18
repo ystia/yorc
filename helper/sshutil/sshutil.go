@@ -15,18 +15,18 @@
 package sshutil
 
 import (
-	"bytes"
 	"encoding/pem"
-	"fmt"
 	"io/ioutil"
 	"os"
 
-	homedir "github.com/mitchellh/go-homedir"
+	"io"
+	"strings"
+
+	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
-	"io"
 )
 
 // Client is interface allowing running command
@@ -47,6 +47,9 @@ type SSHClient struct {
 	Host   string
 	Port   int
 }
+
+// Sessions Pool used to provide reusable sessions for each sshClient
+var sessionsPool = &pool{}
 
 // GetSessionWrapper allows to return a session wrapper in order to handle stdout/stderr for running long synchronous commands
 func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
@@ -77,23 +80,20 @@ func (client *SSHClient) RunCommand(cmd string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to setup stdout for session")
 	}
-	defer session.Close()
-	var b bytes.Buffer
-	session.Stderr = &b
-	session.Stdout = &b
+	defer func() {
+		session.Close()
+	}()
 
-	log.Debugf("[SSHSession] %q", cmd)
-	err = session.Run(cmd)
-	return b.String(), err
+	log.Debugf("[SSHSession] cmd: %q", cmd)
+	stdOutErrBytes, err := session.CombinedOutput(cmd)
+	stdOutErrStr := strings.Trim(string(stdOutErrBytes[:]), "\x00")
+	log.Debugf("[SSHSession] stdout/stderr: %q", stdOutErrStr)
+
+	return stdOutErrStr, err
 }
 
 func (client *SSHClient) newSession() (*ssh.Session, error) {
-	connection, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", client.Host, client.Port), client.Config)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to open SSH connection")
-	}
-
-	session, err := connection.NewSession()
+	session, err := sessionsPool.openSession(client)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create session")
 	}

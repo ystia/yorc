@@ -20,12 +20,12 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 )
 
 func testArtifacts(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	t.Parallel()
 	log.SetDebug(true)
 
 	srv1.PopulateKV(t, map[string][]byte{

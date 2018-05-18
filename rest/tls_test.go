@@ -15,269 +15,265 @@
 package rest
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"net"
-	"crypto/tls"
-	
-	"net/http"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/hashicorp/consul/api"
 	"io/ioutil"
+	"net/http"
 
 	"testing"
 )
 
-	func testSSLREST(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Run("groupWrapListenerTest", func(t *testing.T) {
-			t.Run("testSSLEnabledNoCerts", func(t *testing.T) {
-				testSSLEnabledNoCerts(t, client, srv)
-			})
-			t.Run("testSSLVerifyNoCA", func(t *testing.T) {
-				testSSLVerifyNoCA(t, client, srv)
-			})
+func testSSLREST(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Run("groupWrapListenerTest", func(t *testing.T) {
+		t.Run("testSSLEnabledNoCerts", func(t *testing.T) {
+			testSSLEnabledNoCerts(t, client, srv)
 		})
-		t.Run("groupSSLserverPOView", func(t *testing.T) {
-			t.Run("testSSLEnabledNoServerVerify", func(t *testing.T) {
-				testSSLEnabledNoServerVerify(t, client, srv)
-			})
-			t.Run("testSSLEnabledServerVerifyUnsignedClientCerts", func(t *testing.T) {
-				testSSLEnabledServerVerifyUnsignedClientCerts(t, client, srv)
-			})
-			t.Run("testSSLEnabledServerVerifyNoClientCerts", func(t *testing.T) {
-				testSSLEnabledServerVerifyNoClientCerts(t, client, srv)
-			})
-			t.Run("testSSLEnabledServerVerifySignedClientCerts", func(t *testing.T) {
-				testSSLEnabledServerVerifySignedClientCerts(t, client, srv)
-			})
+		t.Run("testSSLVerifyNoCA", func(t *testing.T) {
+			testSSLVerifyNoCA(t, client, srv)
 		})
-		t.Run("groupSSLclientPOView", func(t *testing.T) {
-			t.Run("testSSLEnabledClientVerifyUnsignedServerCerts", func(t *testing.T) {
-				testSSLEnabledClientVerifyUnsignedServerCerts(t, client, srv)
-			})
-			t.Run("testSSLEnabledMutualVerification", func(t *testing.T) {
-				testSSLEnabledMutualVerification(t, client, srv)
-			})
+	})
+	t.Run("groupSSLserverPOView", func(t *testing.T) {
+		t.Run("testSSLEnabledNoServerVerify", func(t *testing.T) {
+			testSSLEnabledNoServerVerify(t, client, srv)
 		})
+		t.Run("testSSLEnabledServerVerifyUnsignedClientCerts", func(t *testing.T) {
+			testSSLEnabledServerVerifyUnsignedClientCerts(t, client, srv)
+		})
+		t.Run("testSSLEnabledServerVerifyNoClientCerts", func(t *testing.T) {
+			testSSLEnabledServerVerifyNoClientCerts(t, client, srv)
+		})
+		t.Run("testSSLEnabledServerVerifySignedClientCerts", func(t *testing.T) {
+			testSSLEnabledServerVerifySignedClientCerts(t, client, srv)
+		})
+	})
+	t.Run("groupSSLclientPOView", func(t *testing.T) {
+		t.Run("testSSLEnabledClientVerifyUnsignedServerCerts", func(t *testing.T) {
+			testSSLEnabledClientVerifyUnsignedServerCerts(t, client, srv)
+		})
+		t.Run("testSSLEnabledMutualVerification", func(t *testing.T) {
+			testSSLEnabledMutualVerification(t, client, srv)
+		})
+	})
 
-		
+}
+
+func testSSLEnabledNoCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	log.SetDebug(true)
+
+	cfg := config.Configuration{
+		SSLEnabled: true,
+		SSLVerify:  false,
 	}
 
-	func testSSLEnabledNoCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		log.SetDebug(true)
+	ln, err := wrapListenerTLS(nil, cfg)
+	require.NotNil(t, err, "unexpected nil error : SSL without certs should raise error")
+	require.Nil(t, ln, "unexpected Not nil response")
+}
 
-		cfg := config.Configuration{
-			SSLEnabled: true,
-			SSLVerify: false,
-		}
+func testSSLVerifyNoCA(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
 
-		ln, err := wrapListenerTLS(nil, cfg)
-		require.NotNil(t, err, "unexpected nil error : SSL without certs should raise error")
-		require.Nil(t, ln, "unexpected Not nil response")
+	cfg := config.Configuration{
+		SSLEnabled: true,
+		SSLVerify:  true,
+		CertFile:   "testdata/server-cert.pem",
+		KeyFile:    "testdata/server-key.pem",
 	}
 
-	func testSSLVerifyNoCA(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Parallel()
+	ln, err := wrapListenerTLS(nil, cfg)
+	require.NotNil(t, err, "unexpected nil error : SSL verify without CA should raise error")
+	require.Nil(t, ln, "unexpected Not nil response")
+}
 
-		cfg := config.Configuration{
-			SSLEnabled: true,
-			SSLVerify: true,
-			CertFile: "testdata/server-cert.pem",
-			KeyFile: "testdata/server-key.pem",
-		}
+func testSSLEnabledNoServerVerify(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
 
-		ln, err := wrapListenerTLS(nil, cfg)
-		require.NotNil(t, err, "unexpected nil error : SSL verify without CA should raise error")
-		require.Nil(t, ln, "unexpected Not nil response")
+	cfg := &config.Configuration{
+		SSLVerify: false,
+		CertFile:  "testdata/server-cert.pem",
+		KeyFile:   "testdata/server-key.pem",
 	}
 
-	func testSSLEnabledNoServerVerify(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Parallel()
-				
-		cfg := &config.Configuration{
-			SSLVerify: false,
-			CertFile: "testdata/server-cert.pem",
-			KeyFile:  "testdata/server-key.pem",
-		}
+	httpsSrv, url := makeSSLtestServer(cfg, client)
+	defer httpsSrv.Shutdown()
 
-		httpsSrv, url := makeSSLtestServer(cfg, client)
-		defer httpsSrv.Shutdown()
+	req, _ := http.NewRequest("GET", url+"/deployments", nil)
+	req.Header.Add("Accept", "application/json")
 
-		req, _ := http.NewRequest("GET", url+"/deployments", nil )
-		req.Header.Add("Accept", "application/json")
+	hclient := makeSSLtestClient("", "", "", false)
+	resp, err := hclient.Do(req)
+	require.Nil(t, err, "unexpected error performing request")
+	require.NotNil(t, resp, "response shouldn't be nil")
+	_, err = ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.Nil(t, err, "unexpected error reading body response")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+}
 
-		hclient := makeSSLtestClient("", "", "", false)
-		resp, err := hclient.Do(req)
-		require.Nil(t, err, "unexpected error performing request")
-		require.NotNil(t, resp, "response shouldn't be nil")
-		_, err = ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		require.Nil(t, err, "unexpected error reading body response")
-		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
-	}
-	
-	func testSSLEnabledServerVerifyUnsignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Parallel()
-				
-		cfg := &config.Configuration{
-			SSLVerify: true,
-			CertFile: "testdata/server-cert.pem",
-			KeyFile:  "testdata/server-key.pem",
-			CAFile:   "testdata/ca-cert.pem",
-		}
+func testSSLEnabledServerVerifyUnsignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
 
-		httpsSrv, url := makeSSLtestServer(cfg, client)
-		defer httpsSrv.Shutdown()
-
-		req, _ := http.NewRequest("GET", url+"/deployments", nil )
-		req.Header.Add("Accept", "application/json")
-
-		hclient := makeSSLtestClient("testdata/unsigned-cert.pem", "testdata/unsigned-key.pem", "", false)
-		resp, err := hclient.Do(req)
-		require.NotNil(t, err, "unsigned client certs should raise an error")
-		require.Nil(t, resp, "response should be nil")
+	cfg := &config.Configuration{
+		SSLVerify: true,
+		CertFile:  "testdata/server-cert.pem",
+		KeyFile:   "testdata/server-key.pem",
+		CAFile:    "testdata/ca-cert.pem",
 	}
 
-	func testSSLEnabledServerVerifyNoClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Parallel()
-				
-		cfg := &config.Configuration{
-			SSLVerify: true,
-			CertFile: "testdata/server-cert.pem",
-			KeyFile:  "testdata/server-key.pem",
-			CAFile:   "testdata/ca-cert.pem",
-		}
+	httpsSrv, url := makeSSLtestServer(cfg, client)
+	defer httpsSrv.Shutdown()
 
-		httpsSrv, url := makeSSLtestServer(cfg, client)
-		defer httpsSrv.Shutdown()
+	req, _ := http.NewRequest("GET", url+"/deployments", nil)
+	req.Header.Add("Accept", "application/json")
 
-		req, _ := http.NewRequest("GET", url+"/deployments", nil )
-		req.Header.Add("Accept", "application/json")
+	hclient := makeSSLtestClient("testdata/unsigned-cert.pem", "testdata/unsigned-key.pem", "", false)
+	resp, err := hclient.Do(req)
+	require.NotNil(t, err, "unsigned client certs should raise an error")
+	require.Nil(t, resp, "response should be nil")
+}
 
-		hclient := makeSSLtestClient("", "", "", false)
-		resp, err := hclient.Do(req)
-		require.NotNil(t, err, "no client certs should raise an error")
-		require.Nil(t, resp, "response should be nil")
+func testSSLEnabledServerVerifyNoClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+
+	cfg := &config.Configuration{
+		SSLVerify: true,
+		CertFile:  "testdata/server-cert.pem",
+		KeyFile:   "testdata/server-key.pem",
+		CAFile:    "testdata/ca-cert.pem",
 	}
 
+	httpsSrv, url := makeSSLtestServer(cfg, client)
+	defer httpsSrv.Shutdown()
 
-	func testSSLEnabledServerVerifySignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Parallel()
-				
-		cfg := &config.Configuration{
-			SSLVerify: true,
-			CertFile: "testdata/server-cert.pem",
-			KeyFile:  "testdata/server-key.pem",
-			CAFile:   "testdata/ca-cert.pem",
-		}
+	req, _ := http.NewRequest("GET", url+"/deployments", nil)
+	req.Header.Add("Accept", "application/json")
 
-		httpsSrv, url := makeSSLtestServer(cfg, client)
-		defer httpsSrv.Shutdown()
+	hclient := makeSSLtestClient("", "", "", false)
+	resp, err := hclient.Do(req)
+	require.NotNil(t, err, "no client certs should raise an error")
+	require.Nil(t, resp, "response should be nil")
+}
 
-		req, _ := http.NewRequest("GET", url+"/deployments", nil )
-		req.Header.Add("Accept", "application/json")
+func testSSLEnabledServerVerifySignedClientCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
 
-		hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "", false)
-		resp, err := hclient.Do(req)
-		require.Nil(t, err, "unexpected error performing request")
-		require.NotNil(t, resp, "response shouldn't be nil")
-		_, err = ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		require.Nil(t, err, "unexpected error reading body response")
-		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
-		
-		
-	} 
-
-	func testSSLEnabledClientVerifyUnsignedServerCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Parallel()
-				
-		cfg := &config.Configuration{
-			SSLVerify: false,
-			CertFile: "testdata/unsigned-cert.pem",
-			KeyFile:  "testdata/unsigned-key.pem",
-			CAFile:   "testdata/ca-cert.pem",
-		}
-
-		httpsSrv, url := makeSSLtestServer(cfg, client)
-		defer httpsSrv.Shutdown()
-
-		req, _ := http.NewRequest("GET", url+"/deployments", nil )
-		req.Header.Add("Accept", "application/json")
-
-		hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
-		resp, err := hclient.Do(req)
-		require.NotNil(t, err, "performing request should raise error")
-		require.Nil(t, resp, "response should be nil")
-	} 
-
-	func testSSLEnabledMutualVerification(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-		t.Parallel()
-				
-		cfg := &config.Configuration{
-			SSLVerify: true,
-			CertFile: "testdata/server-cert.pem",
-			KeyFile:  "testdata/server-key.pem",
-			CAFile:   "testdata/ca-cert.pem",
-		}
-
-		httpsSrv, url := makeSSLtestServer(cfg, client)
-		defer httpsSrv.Shutdown()
-
-		req, _ := http.NewRequest("GET", url+"/deployments", nil )
-		req.Header.Add("Accept", "application/json")
-
-		hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
-		resp, err := hclient.Do(req)
-		require.Nil(t, err, "unexpected error performing request")
-		require.NotNil(t, resp, "response shouldn't be nil")
-		_, err = ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		require.Nil(t, err, "unexpected error reading body response")
-		require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
-	} 
-
-	func makeSSLtestServer(cfg *config.Configuration, client *api.Client) (*Server, string){
-		ln, err := net.Listen("tcp", "127.0.0.1:")
-		ln, err = wrapListenerTLS(ln, *cfg)
-		if err != nil {
-			log.Fatal( err)
-		}
-		httpsrv := &Server{
-			router: newRouter(),
-			listener: ln,
-			consulClient: client,
-
-		} 
-		httpsrv.registerHandlers()
-		sURL := "https://" + ln.Addr().String()
-
-		go http.Serve(httpsrv.listener, httpsrv.router)
-		return httpsrv , sURL
+	cfg := &config.Configuration{
+		SSLVerify: true,
+		CertFile:  "testdata/server-cert.pem",
+		KeyFile:   "testdata/server-key.pem",
+		CAFile:    "testdata/ca-cert.pem",
 	}
-	
-	func makeSSLtestClient(cliCert, cliKey , caCert string, verify bool) http.Client{
-		tlsConf := &tls.Config{}
-		client := http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConf,
-			}, 
-		}
-		if !verify{
-			tlsConf.InsecureSkipVerify = true
-		}else{
-			certpool := x509.NewCertPool()
-			pem, _ := ioutil.ReadFile(caCert)
-			certpool.AppendCertsFromPEM(pem)		
-			tlsConf.RootCAs = certpool
-		}
 
-		if cliCert == "" || cliKey == "" {
-			return client
-		}
-		cert, _ := tls.LoadX509KeyPair(cliCert, cliKey)
-		tlsConf.Certificates = []tls.Certificate{cert}
+	httpsSrv, url := makeSSLtestServer(cfg, client)
+	defer httpsSrv.Shutdown()
+
+	req, _ := http.NewRequest("GET", url+"/deployments", nil)
+	req.Header.Add("Accept", "application/json")
+
+	hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "", false)
+	resp, err := hclient.Do(req)
+	require.Nil(t, err, "unexpected error performing request")
+	require.NotNil(t, resp, "response shouldn't be nil")
+	_, err = ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.Nil(t, err, "unexpected error reading body response")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+
+}
+
+func testSSLEnabledClientVerifyUnsignedServerCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+
+	cfg := &config.Configuration{
+		SSLVerify: false,
+		CertFile:  "testdata/unsigned-cert.pem",
+		KeyFile:   "testdata/unsigned-key.pem",
+		CAFile:    "testdata/ca-cert.pem",
+	}
+
+	httpsSrv, url := makeSSLtestServer(cfg, client)
+	defer httpsSrv.Shutdown()
+
+	req, _ := http.NewRequest("GET", url+"/deployments", nil)
+	req.Header.Add("Accept", "application/json")
+
+	hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
+	resp, err := hclient.Do(req)
+	require.NotNil(t, err, "performing request should raise error")
+	require.Nil(t, resp, "response should be nil")
+}
+
+func testSSLEnabledMutualVerification(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+	t.Parallel()
+
+	cfg := &config.Configuration{
+		SSLVerify: true,
+		CertFile:  "testdata/server-cert.pem",
+		KeyFile:   "testdata/server-key.pem",
+		CAFile:    "testdata/ca-cert.pem",
+	}
+
+	httpsSrv, url := makeSSLtestServer(cfg, client)
+	defer httpsSrv.Shutdown()
+
+	req, _ := http.NewRequest("GET", url+"/deployments", nil)
+	req.Header.Add("Accept", "application/json")
+
+	hclient := makeSSLtestClient("testdata/client-cert.pem", "testdata/client-key.pem", "testdata/ca-cert.pem", true)
+	resp, err := hclient.Do(req)
+	require.Nil(t, err, "unexpected error performing request")
+	require.NotNil(t, resp, "response shouldn't be nil")
+	_, err = ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.Nil(t, err, "unexpected error reading body response")
+	require.Equal(t, http.StatusNoContent, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusBadRequest)
+}
+
+func makeSSLtestServer(cfg *config.Configuration, client *api.Client) (*Server, string) {
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	ln, err = wrapListenerTLS(ln, *cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	httpsrv := &Server{
+		router:       newRouter(),
+		listener:     ln,
+		consulClient: client,
+	}
+	httpsrv.registerHandlers()
+	sURL := "https://" + ln.Addr().String()
+
+	go http.Serve(httpsrv.listener, httpsrv.router)
+	return httpsrv, sURL
+}
+
+func makeSSLtestClient(cliCert, cliKey, caCert string, verify bool) http.Client {
+	tlsConf := &tls.Config{}
+	client := http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConf,
+		},
+	}
+	if !verify {
+		tlsConf.InsecureSkipVerify = true
+	} else {
+		certpool := x509.NewCertPool()
+		pem, _ := ioutil.ReadFile(caCert)
+		certpool.AppendCertsFromPEM(pem)
+		tlsConf.RootCAs = certpool
+	}
+
+	if cliCert == "" || cliKey == "" {
 		return client
-	} 
+	}
+	cert, _ := tls.LoadX509KeyPair(cliCert, cliKey)
+	tlsConf.Certificates = []tls.Certificate{cert}
+	return client
+}

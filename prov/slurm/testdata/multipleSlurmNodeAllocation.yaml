@@ -18,6 +18,7 @@ topology_template:
         partition: debug
         user: root
         gres: gpu:1
+        constraint: "[rack1*2&rack2*4]"
         job_name: xyz
       capabilities:
         host:

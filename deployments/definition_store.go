@@ -105,7 +105,7 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 		return ctx.Err()
 	default:
 	}
-	log.Debugf("Storing topology with name %q (Import prefix %q)", topology.Name, importPrefix)
+	log.Debugf("Storing topology with name %q (Import prefix %q)", topology.Metadata[tosca.TemplateName], importPrefix)
 	storeTopologyTopLevelKeyNames(ctx, topology, path.Join(topologyPrefix, importPrefix))
 	if err := storeImports(ctx, topology, deploymentID, topologyPrefix, importPath, rootDefPath); err != nil {
 		return err
@@ -120,7 +120,13 @@ func storeTopology(ctx context.Context, topology tosca.Topology, deploymentID, t
 	if isRootTopologyTemplate {
 		storeInputs(ctx, topology, topologyPrefix)
 		storeOutputs(ctx, topology, topologyPrefix)
+		storeSubstitutionMappings(ctx, topology, topologyPrefix)
 		storeNodes(ctx, topology, topologyPrefix, importPath, rootDefPath)
+	} else {
+		// For imported templates, storing substitution mappings if any
+		// as they contain details on service to application/node type mapping
+		storeSubstitutionMappings(ctx, topology,
+			path.Join(topologyPrefix, importPrefix))
 	}
 
 	if err := storeNodeTypes(ctx, topology, topologyPrefix, importPath); err != nil {
@@ -150,9 +156,7 @@ func storeTopologyTopLevelKeyNames(ctx context.Context, topology tosca.Topology,
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/tosca_version", topology.TOSCAVersion)
 	consulStore.StoreConsulKeyAsString(topologyPrefix+"/description", topology.Description)
-	consulStore.StoreConsulKeyAsString(topologyPrefix+"/name", topology.Name)
-	consulStore.StoreConsulKeyAsString(topologyPrefix+"/version", topology.Version)
-	consulStore.StoreConsulKeyAsString(topologyPrefix+"/author", topology.Author)
+	storeStringMap(consulStore, topologyPrefix+"/metadata", topology.Metadata)
 }
 
 //storeRepositories store repositories
@@ -313,6 +317,11 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		nodePrefix := nodesPrefix + "/" + nodeName
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/name", nodeName)
 		consulStore.StoreConsulKeyAsString(nodePrefix+"/type", node.Type)
+		if node.Directives != nil {
+			consulStore.StoreConsulKeyAsString(
+				path.Join(nodePrefix, "directives"),
+				strings.Join(node.Directives, ","))
+		}
 		propertiesPrefix := nodePrefix + "/properties"
 		for propName, propValue := range node.Properties {
 			storeValueAssignment(consulStore, propertiesPrefix+"/"+url.QueryEscape(propName), propValue)
@@ -422,6 +431,22 @@ func storeValueAssignment(consulStore consulutil.ConsulStore, vaPrefix string, v
 		storeComplexType(consulStore, vaPrefix, va.GetList())
 	case tosca.ValueAssignmentMap:
 		storeComplexType(consulStore, vaPrefix, va.GetMap())
+	}
+}
+
+func storeMapValueAssignment(consulStore consulutil.ConsulStore, prefix string,
+	mapValueAssignment map[string]*tosca.ValueAssignment) {
+
+	for name, value := range mapValueAssignment {
+		storeValueAssignment(consulStore, path.Join(prefix, name), value)
+	}
+}
+
+func storeStringMap(consulStore consulutil.ConsulStore, prefix string,
+	stringMap map[string]string) {
+
+	for name, value := range stringMap {
+		consulStore.StoreConsulKeyAsString(path.Join(prefix, name), value)
 	}
 }
 
@@ -858,21 +883,28 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 		if err != nil {
 			return err
 		}
-		err = createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
+
+		substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
-		err = fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
-		if err != nil {
-			return err
-		}
-		var isCompute bool
-		isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
-		if err != nil {
-			return err
-		}
-		if isCompute {
-			computes = append(computes, nodeName)
+		if !substitutable {
+			err = createInstancesForNode(ctxStore, kv, deploymentID, nodeName)
+			if err != nil {
+				return err
+			}
+			err = fixAlienBlockStorages(ctxStore, kv, deploymentID, nodeName)
+			if err != nil {
+				return err
+			}
+			var isCompute bool
+			isCompute, err = IsNodeDerivedFrom(kv, deploymentID, nodeName, "tosca.nodes.Compute")
+			if err != nil {
+				return err
+			}
+			if isCompute {
+				computes = append(computes, nodeName)
+			}
 		}
 	}
 	for _, nodeName := range computes {

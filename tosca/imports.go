@@ -64,12 +64,11 @@ func (i *ImportDefinition) UnmarshalYAML(unmarshal func(interface{}) error) erro
 			i.NamespaceURI = str.NamespaceURI
 			i.NamespacePrefix = str.NamespacePrefix
 			return nil
-		} else {
-			// This entry is not compatible with the latest TOSCA specification.
-			// But the error is not returned yet, if ever the entry is
-			// compatible with a previous TOSCA specification
-			unmarshalError = errors.New("Missing required key 'file' in import definition")
 		}
+		// This entry is not compatible with the latest TOSCA specification.
+		// But the error is not returned yet, if ever the entry is
+		// compatible with a previous TOSCA specification
+		unmarshalError = errors.New("Missing required key 'file' in import definition")
 	}
 
 	// Additional case for backward compatibility with TOSCA 1.0 specification:

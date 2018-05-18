@@ -1,8 +1,9 @@
 tosca_definitions_version: alien_dsl_1_3_0
 description: Alien4Cloud generated service template
-template_name: GetOpOutputTest2
-template_version: 0.1.0-SNAPSHOT
-template_author: admin
+metadata:
+  template_name: GetOpOutputTest2
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
 
 imports:
   - type-types: <normative-types.yml>

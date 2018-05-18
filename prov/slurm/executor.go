@@ -102,10 +102,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	if err != nil {
 		return err
 	}
-	if err = e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra); err != nil {
-		return err
-	}
-	return nil
+	return e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
 }
 
 func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
@@ -120,10 +117,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		return err
 	}
 
-	if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra); err != nil {
-		return err
-	}
-	return nil
+	return e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
 }
 
 func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
@@ -173,7 +167,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
-	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag string
+	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag string
 	if nodeAlloc.cpu != "" {
 		sallocCPUFlag = fmt.Sprintf(" -c %s", nodeAlloc.cpu)
 	}
@@ -185,6 +179,9 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}
 	if nodeAlloc.gres != "" {
 		sallocGresFlag = fmt.Sprintf(" --gres=%s", nodeAlloc.gres)
+	}
+	if nodeAlloc.constraint != "" {
+		sallocConstraintFlag = fmt.Sprintf(" --constraint=%q", nodeAlloc.constraint)
 	}
 
 	// salloc command can potentially be a long synchronous command according to the slurm cluster state
@@ -249,50 +246,45 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}()
 
 	// Run the salloc command
-	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag))
+	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag))
 	err = sessionWrapper.RunCommand(ctxAlloc, sallocCmd)
 	if err != nil {
 		return errors.Wrap(err, "Failed to allocate Slurm resource")
 	}
 
 	wg.Wait() // we wait until jobID has been set
-	// run squeue cmd to get slurm node name
-	//TODO: use getAttribute function (modify it to be able to add more than one attribute)
-	squeueCmd := fmt.Sprintf("squeue -n %s -j %s --noheader -o \"%%N,%%P\"", nodeAlloc.jobName, allocResponse.jobID)
-	squeueOutput, err := e.client.RunCommand(squeueCmd)
-	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve Slurm node name/partition")
+	// retrieve nodename and partition
+	var nodeAndPartitionAttrs []string
+	if nodeAndPartitionAttrs, err = getAttributes(e.client, "node_partition", allocResponse.jobID); err != nil {
+		return err
 	}
-	split := strings.Split(squeueOutput, ",")
-	if len(split) != 2 {
-		return errors.New("Malformed command : " + squeueCmd)
-	}
-	slurmNodeName := strings.Trim(split[0], "\" \t\n\x00")
-	slurmPartition := strings.Trim(split[1], "\" \t\n\x00")
 
-	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", slurmNodeName)
+	err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "endpoint", "ip_address", nodeAndPartitionAttrs[0])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set capability attribute (ip_address) for node name:%s, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "ip_address", slurmNodeName)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "ip_address", nodeAndPartitionAttrs[0])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (ip_address) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "node_name", slurmNodeName)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "node_name", nodeAndPartitionAttrs[0])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (node_name) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
-	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "partition", slurmPartition)
+	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "partition", nodeAndPartitionAttrs[1])
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (partition) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
 	}
 
 	// Get cuda_visible_device attribute
 	var cudaVisibleDevice string
-	if cudaVisibleDevice, err = getAttribute(e.client, "cuda_visible_devices", allocResponse.jobID, nodeName); err != nil {
-		// cuda_visible_device attribute is not mandatory : just log the error
+	if cudaVisibleDeviceAttrs, err := getAttributes(e.client, "cuda_visible_devices", allocResponse.jobID, nodeName); err != nil {
+		// cuda_visible_device attribute is not mandatory : just log the error and set the attribute to an empty string
 		log.Println("[Warning]: " + err.Error())
+	} else {
+		cudaVisibleDevice = cudaVisibleDeviceAttrs[0]
 	}
+
 	err = deployments.SetInstanceAttribute(deploymentID, nodeName, nodeAlloc.instanceName, "cuda_visible_devices", cudaVisibleDevice)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set attribute (cuda_visible_devices) for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)

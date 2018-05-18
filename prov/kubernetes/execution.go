@@ -108,12 +108,18 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 	ctx = context.WithValue(ctx, "generator", newGenerator(e.kv, e.cfg))
 	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	nbInstances := int32(len(instances))
-	switch strings.ToLower(e.Operation.Name) {
-	case "tosca.interfaces.node.lifecycle.standard.delete",
-		"tosca.interfaces.node.lifecycle.standard.configure":
+
+	// Supporting both fully qualified and short standard operation names, ie.
+	// - tosca.interfaces.node.lifecycle.standard.operation
+	// or
+	// - standard.operation
+	operationName := strings.TrimPrefix(strings.ToLower(e.Operation.Name),
+		"tosca.interfaces.node.lifecycle.")
+	switch operationName {
+	case "standard.delete", "standard.configure":
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
-	case "tosca.interfaces.node.lifecycle.standard.start":
+	case "standard.start":
 		if e.taskType == tasks.ScaleOut {
 			log.Println("##### Scale up node !")
 			err = e.scaleNode(ctx, tasks.ScaleOut, nbInstances)
@@ -125,7 +131,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 			return err
 		}
 		return e.checkNode(ctx)
-	case "tosca.interfaces.node.lifecycle.standard.stop":
+	case "standard.stop":
 		if e.taskType == tasks.ScaleIn {
 			log.Println("##### Scale down node !")
 			return e.scaleNode(ctx, tasks.ScaleIn, nbInstances)
@@ -283,6 +289,16 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 			log.Printf("%s : %s: %d:%d mapped to %s", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
 
 			s = fmt.Sprintf("%s %d ==> %s \n", s, val.Port, str)
+
+			if val.NodePort != 0 {
+				// The service is accessible to an external IP address through
+				// this port. Updating the corresponding public endpoints
+				// kubernetes port mapping
+				err := e.updatePortMappingPublicEndpoints(val.Port, h[0], val.NodePort)
+				if err != nil {
+					return errors.Wrap(err, "Failed to update endpoint capabilities port mapping")
+				}
+			}
 		}
 		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
 		if err != nil {
