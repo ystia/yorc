@@ -73,7 +73,9 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 	require.Nil(t, err, "Unexpected error while node state")
 	require.Equal(t, tosca.NodeStateError, state)
 
-	err = defaultMonManager.flagCheckForRemoval(dep, node, instance)
+	activity = &mockActivity{t: workflow.ActivityTypeDelegate, v: "uninstall"}
+	computeMonitoringHook(ctx, cfg, "", dep, node, activity)
+
 	time.Sleep(1 * time.Second)
 	require.Nil(t, err, "Unexpected error while removing health check")
 	checkReports, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {

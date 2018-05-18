@@ -30,6 +30,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -44,8 +45,8 @@ type monitoringMgr struct {
 	chStopMonitoring          chan struct{}
 	chStopWatchLeaderElection chan struct{}
 	isMonitoring              bool
+	isMonitoringLock          sync.Mutex
 	checks                    map[string]*Check
-	watchTime                 time.Duration
 	serviceKey                string
 }
 
@@ -57,7 +58,6 @@ func Start(cc *api.Client) error {
 		chStopWatchLeaderElection: make(chan struct{}),
 		isMonitoring:              false,
 		checks:                    make(map[string]*Check),
-		watchTime:                 5 * time.Second,
 		serviceKey:                "service/monitoring/leader",
 	}
 
@@ -66,11 +66,13 @@ func Start(cc *api.Client) error {
 	return nil
 }
 
-// Stop allows to isMonitoring monitoring checks
+// Stop allows to stop managing monitoring checks
 func Stop() {
-	if !defaultMonManager.isMonitoring {
+	if defaultMonManager.isMonitoring {
 		close(defaultMonManager.chStopMonitoring)
-		defaultMonManager.isMonitoring = true
+		defaultMonManager.isMonitoringLock.Lock()
+		defaultMonManager.isMonitoring = false
+		defaultMonManager.isMonitoringLock.Unlock()
 	}
 
 	// Stop watch leader election
@@ -89,26 +91,33 @@ func handleError(err error) {
 }
 
 func (mgr *monitoringMgr) startMonitoring() {
-	log.Debug("Compute monitoring is now running.")
+	if mgr.isMonitoring {
+		log.Println("Monitoring is already running.")
+		return
+	}
+	log.Debugf("Monitoring service is now running.")
+
+	mgr.isMonitoringLock.Lock()
+	mgr.isMonitoring = true
+	mgr.isMonitoringLock.Unlock()
 	var waitIndex uint64
 	go func() {
 		for {
 			select {
 			case <-mgr.chStopMonitoring:
-				log.Debug("Ending monitoring has been requested: stop it now.")
+				log.Debugf("Ending monitoring has been requested: stop it now.")
 				return
 			default:
 			}
 
 			q := &api.QueryOptions{WaitIndex: waitIndex}
 			checks, rMeta, err := mgr.cc.KV().Keys(path.Join(consulutil.MonitoringKVPrefix, "checks")+"/", "/", q)
-			log.Debugf("%d checks has been found", len(checks))
+			log.Debugf("Found %d checks", len(checks))
 			if err != nil {
 				handleError(err)
 				continue
 			}
 			if waitIndex == rMeta.LastIndex {
-				log.Debugf("No changes")
 				// long pool ended due to a timeout
 				// there is no new items go back to the pooling
 				continue

@@ -73,13 +73,14 @@ func handleError(err error, serviceKey string) {
 	log.Debugf("%+v", err)
 }
 
-// WatchLeaderElection allows to watch for leader election for defined service. It elects leader if needed and can run the related concern function
-func WatchLeaderElection(cc *api.Client, serviceKey string, chStop chan struct{}, leaderConcernFct func()) {
+// WatchLeaderElection allows to watch for leader election for defined service. It elects leader if needed and can run the related service
+func WatchLeaderElection(cc *api.Client, serviceKey string, chStop chan struct{}, leaderService func()) {
 	log.Debugf("WatchLeaderElection for service:%q", serviceKey)
 	var (
-		waitIndex uint64
-		isAny     bool
-		leader    string
+		waitIndex        uint64
+		isAny            bool
+		leader           string
+		isServiceRunning bool
 	)
 	agentName, err := GetAgentName(cc)
 	if err != nil {
@@ -116,8 +117,9 @@ func WatchLeaderElection(cc *api.Client, serviceKey string, chStop chan struct{}
 			if acquired {
 				log.Printf("I am leader for service:%q as %q", serviceKey, agentName)
 				// Proceed to leader concern execution if needed
-				if leaderConcernFct != nil {
-					leaderConcernFct()
+				if leaderService != nil && !isServiceRunning {
+					isServiceRunning = true
+					leaderService()
 				}
 			} else {
 				log.Debugf("Failed to acquire service leadership. Someone else did it for service:%q", serviceKey)
@@ -125,8 +127,9 @@ func WatchLeaderElection(cc *api.Client, serviceKey string, chStop chan struct{}
 		} else if leader == agentName {
 			log.Printf("I am still the leader for service:%q as %q", serviceKey, agentName)
 			// Proceed to leader concern execution if needed
-			if leaderConcernFct != nil {
-				leaderConcernFct()
+			if leaderService != nil && !isServiceRunning {
+				isServiceRunning = true
+				leaderService()
 			}
 		}
 	}
