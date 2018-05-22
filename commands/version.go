@@ -44,4 +44,5 @@ func init() {
 	versionCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, fmt.Sprintf("Print just the release number in machine readable format (ie: %s)", version))
 
 	RootCmd.AddCommand(versionCmd)
+	RootCmd.Version = version
 }

@@ -45,7 +45,7 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a path to a file or directory (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -126,10 +126,10 @@ func submitCSAR(csarZip []byte, client *httputil.YorcClient, deploymentID string
 	}
 	request.Header.Add("Content-Type", "application/zip")
 	response, err := client.Do(request)
-	defer response.Body.Close()
 	if err != nil {
 		return "", err
 	}
+	defer response.Body.Close()
 	if response.StatusCode != 201 {
 		// Try to get the reason
 		httputil.PrintErrors(response.Body)

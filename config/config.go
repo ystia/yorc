@@ -64,6 +64,9 @@ type Configuration struct {
 	HTTPAddress                      string                `mapstructure:"http_address"`
 	KeyFile                          string                `mapstructure:"key_file"`
 	CertFile                         string                `mapstructure:"cert_file"`
+	CAFile                           string                `mapstructure:"ca_file"`
+	CAPath                           string                `mapstructure:"ca_path"`
+	SSLVerify                        bool                  `mapstructure:"ssl_verify"`
 	ResourcesPrefix                  string                `mapstructure:"resources_prefix"`
 	Consul                           Consul                `mapstructure:"consul"`
 	Telemetry                        Telemetry             `mapstructure:"telemetry"`
@@ -253,4 +256,16 @@ func (ctr *configTemplateResolver) ResolveValueWithTemplates(key string, value i
 		return b.String()
 	}
 	return value
+}
+
+// Client holds config information filled by Cobra and Viper (see commands package for more information)
+// for the CLI (in short not the server) part of Yorc
+type Client struct {
+	YorcAPI       string `mapstructure:"yorc_api"`
+	SSLEnabled    bool   `mapstructure:"ssl_enabled"`
+	SkipTLSVerify bool   `mapstructure:"skip_tls_verify"`
+	KeyFile       string `mapstructure:"key_file"`
+	CertFile      string `mapstructure:"cert_file"`
+	CAFile        string `mapstructure:"ca_file"`
+	CAPath        string `mapstructure:"ca_path"`
 }

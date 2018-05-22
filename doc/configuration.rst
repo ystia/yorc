@@ -98,6 +98,14 @@ Globals Command-line options
 
   * ``--cert_file``: File path to a PEM-encoded certificate. The certificate is used to enable SSL for the Yorc HTTP REST API. This must be provided along with key_file. If one of key_file or cert_file is not provided then SSL is disabled.
 
+.. _option_ca_file_cmd:
+
+  * ``--ca_file``: If set to true, enable TLS certificate checking. Must be provided with cert_file ; key_file and ca_file. Disabled by default.
+
+.. _option_ssl_verify_cmd:
+
+  * ``--ssl_verify``: If set to true, enable TLS certificate checking for clients of the Yorc's API. Must be provided with cert_file ; key_file and ca_file. Disabled by default.
+
 .. _option_pluginsdir_cmd:
 
   * ``--plugins_directory``: The name of the plugins directory of the Yorc server. The default is to use a directory named *plugins* in the current directory.
@@ -186,6 +194,14 @@ Below is an example of configuration file with TLS enabled.
 .. _option_certfile_cfg:
 
   * ``cert_file``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
+
+.. _option_sslverify_cfg:
+
+  * ``ssl_verify``: Equivalent to :ref:`--ssl_verify <option_sslverify_cmd>` command-line flag.
+
+.. _option_cafile_cfg:
+
+  * ``ca_file``: Equivalent to :ref:`--ca_file <option_cafile_cmd>` command-line flag.
 
 .. _option_plugindir_cfg:
 
@@ -573,6 +589,14 @@ Environment variables
 
   * ``YORC_CERT_FILE``: Equivalent to :ref:`--cert_file <option_certfile_cmd>` command-line flag.
 
+.. _option_sslverify_env:
+
+  * ``YORC_CERT_FILE``: Equivalent to :ref:`--ssl_verify <option_sslverify_cmd>` command-line flag.
+
+.. _option_cafile_env:
+
+  * ``YORC_CA_FILE``: Equivalent to :ref:`--ca_file <option_cafile_cmd>` command-line flag.
+
 .. _option_plugindir_env:
 
   * ``YORC_PLUGINS_DIRECTORY``: Equivalent to :ref:`--plugins_directory <option_pluginsdir_cmd>` command-line flag.
@@ -823,3 +847,116 @@ Bellow are recognized configuration options for Vault:
 |                     | configuration file as the token is a sensitive data and should not be written on disk. Prefer the associated environment variable |           |          |           |
 +---------------------+-----------------------------------------------------------------------------------------------------------------------------------+-----------+----------+-----------+
 
+.. _yorc_config_client_section:
+
+Yorc Client CLI Configuration
+=============================
+
+This section is dedicated to the CLI part of yorc that covers everything except the server configuration detailed
+above. It focus on configuration options commons to all the commands. Sub commands may have additional options please use the cli *help* command to see them.
+
+Just like for its server part Yorc Client CLI has various configuration options that could be specified either by command-line flags, configuration file or environment variables.
+
+If an option is specified several times using flags, environment and config file, command-line flag will have the precedence then the environment variable and finally the value defined in the configuration file. 
+
+Command-line options
+--------------------
+
+
+.. _option_client_ca_file_cmd:
+
+  * ``--ca_file``: This provides a file path to a PEM-encoded certificate authority. This implies the use of HTTPS to connect to the Yorc REST API.
+
+.. _option_client_ca_path_cmd:
+
+  * ``--ca_path``: Path to a directory of PEM-encoded certificates authorities. This implies the use of HTTPS to connect to the Yorc REST API.
+
+.. _option_client_cert_file_cmd:
+
+  * ``--cert_file``: File path to a PEM-encoded client certificate used to authenticate to the Yorc API. This must be provided along with key-file. If one of key-file or cert-file is not provided then SSL authentication is disabled. If both cert-file and key-file are provided this implies the use of HTTPS to connect to the Yorc REST API.
+
+.. _option_client_config_cmd:
+
+  * ``-c`` or ``--config``: config file (default is /etc/yorc/yorc-client.[json|yaml])
+
+.. _option_client_key_file_cmd:
+
+  * ``--key_file``: File path to a PEM-encoded client private key used to authenticate to the Yorc API. This must be provided along with cert-file. If one of key-file or cert-file is not provided then SSL authentication is disabled. If both cert-file and key-file are provided this implies the use of HTTPS to connect to the Yorc REST API.
+
+.. _option_client_skip_tls_verify_cmd:
+
+  * ``--skip_tls_verify``: Controls whether a client verifies the server's certificate chain and host name. If set to true, TLS accepts any certificate presented by the server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing. This implies the use of HTTPS to connect to the Yorc REST API.
+
+.. _option_client_skip_tls_verify_cmd:
+
+  * ``-s`` or ``--ssl_enabled``: Use HTTPS to connect to the Yorc REST API. This is automatically implied if one of ``--ca_file``, ``--ca_path``, ``--cert_file``, ``--key_file`` or ``--skip_tls_verify`` is provided.
+
+.. _option_client_yorc_api_cmd:
+
+  * ``--yorc_api``: specify the host and port used to join the Yorc' REST API (default "localhost:8800")
+
+Configuration files
+-------------------
+
+Configuration files are either JSON or YAML formatted as a single object containing the following configuration options. 
+By default Yorc will look for a file named yorc-client.json or yorc-client.yaml in ``/etc/yorc`` directory then if not found in the current directory. 
+The :ref:`--config <option_client_config_cmd>` command line flag allows to specify an alternative configuration file.
+
+.. _option_client_ca_file_cfg:
+
+  * ``ca_file``: Equivalent to :ref:`--ca_file <option_client_ca_file_cmd>` command-line flag.
+
+.. _option_client_ca_path_cfg:
+
+  * ``ca_path``: Equivalent to :ref:`--ca_path <option_client_ca_path_cmd>` command-line flag.
+
+.. _option_client_cert_file_cfg:
+
+  * ``cert_file``: Equivalent to :ref:`--cert_file <option_client_cert_file_cmd>` command-line flag.
+
+.. _option_client_key_file_cfg:
+
+  * ``key_file``: Equivalent to :ref:`--key_file <option_client_key_file_cmd>` command-line flag.
+
+.. _option_client_skip_tls_verify_cfg:
+
+  * ``skip_tls_verify``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
+
+.. _option_client_skip_tls_verify_cfg:
+
+  * ``ssl_enabled``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
+
+.. _option_client_yorc_api_cfg:
+
+  * ``yorc_api``: Equivalent to :ref:`--yorc_api <option_client_yorc_api_cmd>` command-line flag.
+
+Environment variables
+---------------------
+
+.. _option_client_ca_file_env:
+
+  * ``YORC_CA_FILE``: Equivalent to :ref:`--ca_file <option_client_ca_file_cmd>` command-line flag.
+
+.. _option_client_ca_path_env:
+
+  * ``YORC_CA_PATH``: Equivalent to :ref:`--ca_path <option_client_ca_path_cmd>` command-line flag.
+
+.. _option_client_cert_file_env:
+
+  * ``YORC_CERT_FILE``: Equivalent to :ref:`--cert_file <option_client_cert_file_cmd>` command-line flag.
+
+.. _option_client_key_file_env:
+
+  * ``YORC_KEY_FILE``: Equivalent to :ref:`--key_file <option_client_key_file_cmd>` command-line flag.
+
+.. _option_client_skip_tls_verify_env:
+
+  * ``YORC_SKIP_TLS_VERIFY``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
+
+.. _option_client_skip_tls_verify_env:
+
+  * ``YORC_SSL_ENABLED``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
+
+.. _option_client_yorc_api_env:
+
+  * ``YORC_API``: Equivalent to :ref:`--yorc_api <option_client_yorc_api_cmd>` command-line flag.
