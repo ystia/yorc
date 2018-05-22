@@ -255,6 +255,28 @@ func (e *executionCommon) manageServiceResource(ctx context.Context, operationTy
 		}
 
 		log.Printf("k8s Service %s created in namespace %s", service.Name, namespace)
+
+		var s string
+		kubConf := e.cfg.Infrastructures["kubernetes"]
+		kubMasterIP := kubConf.GetString("master_url")
+		u, _ := url.Parse(kubMasterIP)
+		h := strings.Split(u.Host, ":")
+		for _, val := range service.Spec.Ports {
+			//log.Printf("- k8s Service Spec Port : Name = %s ~ NodePort = %d ~ Port = %d ~ TargetPort (string) = %s ~ TargetPort (int) = %d ~ Protocol = %s", val.Name, val.NodePort, val.Port, val.TargetPort.StrVal, val.TargetPort.IntVal, val.Protocol)
+
+			str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+
+			log.Printf("%s : %s: %d:%d mapped to %s", service.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
+
+			s = fmt.Sprintf("%s %d ==> %s \n", s, val.Port, str)
+
+			if val.NodePort != 0 {
+				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
+				if err != nil {
+					return errors.Wrap(err, "Failed to set attribute")
+				}
+			}
+		}
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
 		var serviceName string
