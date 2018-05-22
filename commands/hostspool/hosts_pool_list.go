@@ -35,7 +35,7 @@ func init() {
 		Long:  `Lists hosts of the hosts pool managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -50,10 +50,10 @@ func init() {
 			request.URL.RawQuery = q.Encode()
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 			httputil.HandleHTTPStatusCode(response, "", "host pool", http.StatusOK)
 			var hostsColl rest.HostsCollection
 			body, err := ioutil.ReadAll(response.Body)

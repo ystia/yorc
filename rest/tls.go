@@ -19,6 +19,7 @@ import (
 
 	"crypto/tls"
 
+	"github.com/hashicorp/go-rootcerts"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 )
@@ -31,6 +32,21 @@ func wrapListenerTLS(listener net.Listener, cfg config.Configuration) (net.Liste
 	tlsConf := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}
-
+	if cfg.SSLVerify {
+		if cfg.CAFile == "" && cfg.CAPath == "" {
+			return nil, errors.New("SSL verify enabled but no CA provided")
+		}
+		cfg := &rootcerts.Config{
+			CAFile: cfg.CAFile,
+			CAPath: cfg.CAPath,
+		}
+		pool, err := rootcerts.LoadCACerts(cfg)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to load CA cert(s)")
+		}
+		tlsConf.ClientCAs = pool
+		tlsConf.ClientAuth = tls.RequireAndVerifyClientCert
+		tlsConf.BuildNameToCertificate()
+	}
 	return tls.NewListener(listener, tlsConf), nil
 }

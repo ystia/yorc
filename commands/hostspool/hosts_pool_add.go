@@ -46,7 +46,7 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -85,10 +85,10 @@ func init() {
 			request.Header.Add("Content-Type", "application/json")
 
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 
 			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusCreated)
 			fmt.Println("Command submitted. path :", response.Header.Get("Location"))
