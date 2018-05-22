@@ -44,7 +44,7 @@ func init() {
 			if len(args) != 2 {
 				return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(deployments.ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

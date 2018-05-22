@@ -50,7 +50,7 @@ func init() {
 				return errors.New("Missing non-zero \"delta\" flag")
 			}
 
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

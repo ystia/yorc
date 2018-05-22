@@ -17,28 +17,19 @@ package rest
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"io/ioutil"
 	"net"
+	"net/http"
+	"testing"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
-	"io/ioutil"
-	"net/http"
-
-	"testing"
 )
 
 func testSSLREST(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-	t.Run("groupWrapListenerTest", func(t *testing.T) {
-		t.Run("testSSLEnabledNoCerts", func(t *testing.T) {
-			testSSLEnabledNoCerts(t, client, srv)
-		})
-		t.Run("testSSLVerifyNoCA", func(t *testing.T) {
-			testSSLVerifyNoCA(t, client, srv)
-		})
-	})
 	t.Run("groupSSLserverPOView", func(t *testing.T) {
 		t.Run("testSSLEnabledNoServerVerify", func(t *testing.T) {
 			testSSLEnabledNoServerVerify(t, client, srv)
@@ -64,27 +55,23 @@ func testSSLREST(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 
 }
 
-func testSSLEnabledNoCerts(t *testing.T, client *api.Client, srv *testutil.TestServer) {
-	log.SetDebug(true)
+func TestSSLEnabledNoCerts(t *testing.T) {
+	t.Parallel()
 
-	cfg := config.Configuration{
-		SSLEnabled: true,
-		SSLVerify:  false,
-	}
+	cfg := config.Configuration{}
 
 	ln, err := wrapListenerTLS(nil, cfg)
 	require.NotNil(t, err, "unexpected nil error : SSL without certs should raise error")
 	require.Nil(t, ln, "unexpected Not nil response")
 }
 
-func testSSLVerifyNoCA(t *testing.T, client *api.Client, srv *testutil.TestServer) {
+func TestSSLVerifyNoCA(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.Configuration{
-		SSLEnabled: true,
-		SSLVerify:  true,
-		CertFile:   "testdata/server-cert.pem",
-		KeyFile:    "testdata/server-key.pem",
+		SSLVerify: true,
+		CertFile:  "testdata/server-cert.pem",
+		KeyFile:   "testdata/server-key.pem",
 	}
 
 	ln, err := wrapListenerTLS(nil, cfg)

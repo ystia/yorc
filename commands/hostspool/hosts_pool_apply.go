@@ -60,14 +60,15 @@ func init() {
 
 			// Read config file, viper will accept indiferrently a yaml or json
 			// format
-			viper.SetConfigFile(args[0])
-			err = viper.ReadInConfig()
+			v := viper.New()
+			v.SetConfigFile(args[0])
+			err = v.ReadInConfig()
 			if err != nil {
 				log.Panic(err)
 			}
 
 			var hostsPoolRequest rest.HostsPoolRequest
-			err = viper.Unmarshal(&hostsPoolRequest)
+			err = v.Unmarshal(&hostsPoolRequest)
 			if err != nil {
 				log.Panic(err)
 			}
@@ -85,7 +86,7 @@ func init() {
 
 			// Get current Hosts Pool to output diffs and ask for user
 			// confirmation before proceeding to the change
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

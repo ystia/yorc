@@ -50,7 +50,7 @@ func init() {
 				return errors.Errorf("Expecting one deployment id or none (got %d parameters)", len(args))
 			}
 
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

@@ -38,7 +38,7 @@ var listCmd = &cobra.Command{
 	Long:  `List active deployments. Giving their id and status.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		colorize := !NoColor
-		client, err := httputil.GetClient()
+		client, err := httputil.GetClient(ClientConfig)
 		if err != nil {
 			httputil.ErrExit(err)
 		}

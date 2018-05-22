@@ -19,6 +19,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/ystia/yorc/commands/deployments"
 	"github.com/ystia/yorc/commands/httputil"
 )
 
@@ -35,7 +37,7 @@ var cancelTaskCmd = &cobra.Command{
 		if len(args) != 2 {
 			return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
 		}
-		client, err := httputil.GetClient()
+		client, err := httputil.GetClient(deployments.ClientConfig)
 		if err != nil {
 			httputil.ErrExit(err)
 		}

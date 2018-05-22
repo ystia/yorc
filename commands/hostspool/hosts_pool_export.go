@@ -35,7 +35,7 @@ func init() {
 		Short: "Export hosts pool configuration",
 		Long:  `Export hosts pool configuration as a YAML or JSON representation`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

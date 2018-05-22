@@ -45,7 +45,7 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a path to a file or directory (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

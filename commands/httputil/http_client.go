@@ -15,25 +15,23 @@
 package httputil
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-
+	"os"
 	"strings"
 
-	"io/ioutil"
-
-	"fmt"
-
-	"bytes"
-	"encoding/json"
 	"github.com/goware/urlx"
 	"github.com/hashicorp/go-rootcerts"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
+
+	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/rest"
-	"os"
 )
 
 // YorcAPIDefaultErrorMsg is the default communication error message
@@ -71,20 +69,14 @@ func (c *YorcClient) PostForm(path string, data url.Values) (*http.Response, err
 }
 
 // GetClient returns a yorc HTTP Client
-func GetClient() (*YorcClient, error) {
-	tlsEnable := viper.GetBool("ssl_enabled")
-	sslVeriry := viper.GetBool("ssl_verify")
-	yorcAPI := viper.GetString("yorc_api")
+func GetClient(cc config.Client) (*YorcClient, error) {
+	yorcAPI := cc.YorcAPI
 	yorcAPI = strings.TrimRight(yorcAPI, "/")
-	caFile := viper.GetString("ca_file")
-	caPath := viper.GetString("ca_path")
-	certFile := viper.GetString("cert_file")
-	keyFile := viper.GetString("key_file")
-	skipTLSVerify := viper.GetBool("skip_tls_verify")
-	if tlsEnable {
-		if certFile == "" || keyFile == "" {
-			return nil, errors.New("TLS enabled but no keypair provided")
-		}
+	caFile := cc.CAFile
+	caPath := cc.CAPath
+	certFile := cc.CertFile
+	keyFile := cc.KeyFile
+	if cc.SSLEnabled || cc.CAFile != "" || cc.CAPath != "" || (certFile != "" && keyFile != "") {
 		url, err := urlx.Parse(yorcAPI)
 		if err != nil {
 			return nil, errors.Wrap(err, "Malformed Yorc URL")
@@ -93,19 +85,16 @@ func GetClient() (*YorcClient, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Malformed Yorc URL")
 		}
-		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to load TLS certificates")
-		}
-		tlsConfig := &tls.Config{
-			ServerName:   yorcHost,
-			Certificates: []tls.Certificate{cert},
-		}
 
-		if sslVeriry {
-			if caFile == "" && caPath == "" {
-				return nil, errors.New("SSL verify enabled but no CA provided")
+		tlsConfig := &tls.Config{ServerName: yorcHost}
+		if certFile != "" && keyFile != "" {
+			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to load TLS certificates")
 			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+		if caFile != "" || caPath != "" {
 			cfg := &rootcerts.Config{
 				CAFile: caFile,
 				CAPath: caPath,
@@ -114,9 +103,9 @@ func GetClient() (*YorcClient, error) {
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 			tlsConfig.BuildNameToCertificate()
 		}
-		if skipTLSVerify {
-			tlsConfig.InsecureSkipVerify = skipTLSVerify
-			fmt.Println("Warning : usage of skiptlsvrify is not recommended for production and may expose to MITM attack")
+		if cc.SkipTLSVerify {
+			tlsConfig.InsecureSkipVerify = true
+			fmt.Println("Warning : usage of skip_tls_verify is not recommended for production and may expose to MITM attack")
 		}
 
 		tr := &http.Transport{

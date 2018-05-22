@@ -35,7 +35,7 @@ func init() {
 		Long:  `Lists hosts of the hosts pool managed by this Yorc cluster.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			colorize := !noColor
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

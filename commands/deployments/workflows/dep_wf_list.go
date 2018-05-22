@@ -19,14 +19,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
-	"github.com/ystia/yorc/rest"
-
 	"path"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/ystia/yorc/commands/deployments"
 	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/rest"
 )
 
 func init() {
@@ -38,7 +38,7 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(deployments.ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}

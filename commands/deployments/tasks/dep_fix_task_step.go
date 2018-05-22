@@ -24,6 +24,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/ystia/yorc/commands/deployments"
 	"github.com/ystia/yorc/commands/httputil"
 	"github.com/ystia/yorc/tasks"
 )
@@ -41,7 +43,7 @@ var updateTaskStepCmd = &cobra.Command{
 		if len(args) != 3 {
 			return errors.Errorf("Expecting a deployment id, a task id and a step name(got %d parameters)", len(args))
 		}
-		client, err := httputil.GetClient()
+		client, err := httputil.GetClient(deployments.ClientConfig)
 		if err != nil {
 			httputil.ErrExit(err)
 		}

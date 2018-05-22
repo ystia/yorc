@@ -41,7 +41,7 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting an id (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
