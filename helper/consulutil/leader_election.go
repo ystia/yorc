@@ -46,28 +46,17 @@ func GetSession(cc *api.Client, serviceKey, agentName string) (string, error) {
 	sessionChecks = append(sessionChecks, commonCheckID)
 
 	sessionEntry := &api.SessionEntry{
-		Name:      serviceKey,
-		Behavior:  "release",
-		LockDelay: 0 * time.Nanosecond,
+		Name:     serviceKey,
+		Behavior: "release",
+		// Consul Issue : LockDelay = 0 is not allowed by API. https://github.com/hashicorp/consul/issues/1077
+		LockDelay: 1 * time.Nanosecond,
 		Checks:    sessionChecks,
 	}
-
-	// Creating session can fail if check states are Critical : retry 3 times
-	totalTries := 3
-	log.Debugf("Try to create a session with key:%q", serviceKey)
-	for try := 1; try <= totalTries; try++ {
-		session, _, err := cc.Session().Create(sessionEntry, nil)
-		if err == nil {
-			log.Debugf("session created with id:%q", session)
-			return session, nil
-		}
-
-		if try < totalTries {
-			log.Printf("Failed to create session with key %q (try n°%d). %d another tries will be done", serviceKey, try, totalTries-try)
-		}
-		time.Sleep(2 * time.Second)
+	session, _, err := cc.Session().Create(sessionEntry, nil)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to create session with key:%q", serviceKey)
 	}
-	return "", errors.Wrapf(err, "Failed to create session with key:%q", serviceKey)
+	return session, nil
 }
 
 // GetAgentName allows to return the local consul agent name
@@ -119,12 +108,9 @@ func IsAnyLeader(cc *api.Client, serviceKey string, waitIndex uint64) (bool, str
 	}
 
 	if kvPair == nil || kvPair.Session == "" || len(kvPair.Value) == 0 {
-		log.Debugf("Session has been invalidated")
+		log.Debugf("No leader has been found for service:%q", serviceKey)
 		return false, "", rMeta.LastIndex, nil
 	}
-
-	log.Debugf("Current leader:%q for service:%q", kvPair.Value, serviceKey)
-	log.Debugf("Leader session:%q for service :%q", kvPair.Session, serviceKey)
 	return true, string(kvPair.Value), rMeta.LastIndex, nil
 }
 
@@ -179,32 +165,20 @@ func WatchLeaderElection(cfg config.Configuration, cc *api.Client, serviceKey st
 				Session: session,
 			}
 
-			// Because of default lock delay = 15s issue, we temporize before trying again to acquire the lock.
-			totalTries := 3
-			for try := 1; try <= totalTries; try++ {
-				log.Debugf("Try to acquire a lock on key:%q", serviceKey)
-
-				acquired, _, err := cc.KV().Acquire(kvPair, nil)
-				if err != nil {
-					handleError(err, serviceKey)
-					continue
+			// Try to acquire the service leadership
+			acquired, _, err := cc.KV().Acquire(kvPair, nil)
+			if err != nil {
+				handleError(err, serviceKey)
+				continue
+			}
+			if acquired {
+				log.Printf("I am now leader for service:%q as %q", serviceKey, agentName)
+				// Proceed to leader concern execution if needed
+				if leaderServiceStart != nil {
+					leaderServiceStart()
 				}
-				if acquired {
-					log.Printf("I am now leader for service:%q as %q", serviceKey, agentName)
-					// Proceed to leader concern execution if needed
-					if leaderServiceStart != nil {
-						leaderServiceStart()
-					}
-					break
-				} else {
-					if try < totalTries {
-						log.Printf("Failed to acquire service leadership for service %q (try n°%d). %d another tries will be done", serviceKey, try, totalTries-try)
-					} else {
-						log.Printf("Failed to acquire service leadership (%d tries). Another node did it for service:%q", totalTries, serviceKey)
-					}
-
-				}
-				time.Sleep(15 * time.Second)
+			} else {
+				log.Printf("Failed to acquire service leadership. Another node did it for service:%q", serviceKey)
 			}
 		} else {
 			if leader == agentName {
