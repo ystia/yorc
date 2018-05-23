@@ -421,7 +421,7 @@ func (mgr *monitoringMgr) unregisterCheck(id string) error {
 type CheckFilterFunc func(CheckReport) bool
 
 // listCheckReports can return a filtered checks reports list if defined filter function. Otherwise, it returns the full check reports.
-func (mgr monitoringMgr) listCheckReports(f CheckFilterFunc) ([]CheckReport, error) {
+func (mgr *monitoringMgr) listCheckReports(f CheckFilterFunc) ([]CheckReport, error) {
 	log.Debugf("List check reports")
 	keys, _, err := mgr.cc.KV().Keys(path.Join(consulutil.MonitoringKVPrefix, "reports")+"/", "/", nil)
 	if err != nil {
