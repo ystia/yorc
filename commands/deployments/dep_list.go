@@ -38,7 +38,7 @@ var listCmd = &cobra.Command{
 	Long:  `List active deployments. Giving their id and status.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		colorize := !NoColor
-		client, err := httputil.GetClient()
+		client, err := httputil.GetClient(ClientConfig)
 		if err != nil {
 			httputil.ErrExit(err)
 		}
@@ -48,10 +48,10 @@ var listCmd = &cobra.Command{
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
-		defer response.Body.Close()
 		if err != nil {
 			httputil.ErrExit(err)
 		}
+		defer response.Body.Close()
 		httputil.HandleHTTPStatusCode(response, "", "deployment", http.StatusOK)
 		var deps rest.DeploymentsCollection
 		body, err := ioutil.ReadAll(response.Body)

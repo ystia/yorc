@@ -15,18 +15,18 @@
 package sshutil
 
 import (
-	"bytes"
 	"encoding/pem"
 	"io/ioutil"
 	"os"
+
+	"io"
+	"strings"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
-	"io"
-	"strings"
 )
 
 // Client is interface allowing running command
@@ -83,15 +83,13 @@ func (client *SSHClient) RunCommand(cmd string) (string, error) {
 	defer func() {
 		session.Close()
 	}()
-	var b bytes.Buffer
-	session.Stderr = &b
-	session.Stdout = &b
 
-	log.Debugf("[SSHSession] cmd:%q", cmd)
-	err = session.Run(cmd)
+	log.Debugf("[SSHSession] cmd: %q", cmd)
+	stdOutErrBytes, err := session.CombinedOutput(cmd)
+	stdOutErrStr := strings.Trim(string(stdOutErrBytes[:]), "\x00")
+	log.Debugf("[SSHSession] stdout/stderr: %q", stdOutErrStr)
 
-	log.Debugf("[SSHSession] stdout/stderr:%q", b.String())
-	return strings.Trim(b.String(), "\x00"), err
+	return stdOutErrStr, err
 }
 
 func (client *SSHClient) newSession() (*ssh.Session, error) {
