@@ -37,7 +37,8 @@ import (
 var defaultMonManager *monitoringMgr
 
 func init() {
-	workflow.RegisterPostActivityHook(computeMonitoringHook)
+	workflow.RegisterPreActivityHook(removeMonitoringHook)
+	workflow.RegisterPostActivityHook(addMonitoringHook)
 }
 
 type monitoringMgr struct {
@@ -48,46 +49,52 @@ type monitoringMgr struct {
 	isMonitoringLock          sync.Mutex
 	checks                    map[string]*Check
 	serviceKey                string
+	cfg                       config.Configuration
 }
 
 // Start allows to instantiate a default Monitoring Manager and to start monitoring checks
-func Start(cc *api.Client) error {
+func Start(cfg config.Configuration, cc *api.Client) error {
 	defaultMonManager = &monitoringMgr{
-		cc:                        cc,
-		chStopMonitoring:          make(chan struct{}),
+		cc: cc,
 		chStopWatchLeaderElection: make(chan struct{}),
 		isMonitoring:              false,
 		checks:                    make(map[string]*Check),
 		serviceKey:                "service/monitoring/leader",
+		cfg:                       cfg,
 	}
 
 	// Watch leader election for monitoring service
-	go consulutil.WatchLeaderElection(defaultMonManager.cc, defaultMonManager.serviceKey, defaultMonManager.chStopWatchLeaderElection, defaultMonManager.startMonitoring)
+	go consulutil.WatchLeaderElection(defaultMonManager.cfg, defaultMonManager.cc, defaultMonManager.serviceKey, defaultMonManager.chStopWatchLeaderElection, defaultMonManager.startMonitoring, defaultMonManager.stopMonitoring)
 	return nil
 }
 
 // Stop allows to stop managing monitoring checks
 func Stop() {
-	if defaultMonManager.isMonitoring {
-		close(defaultMonManager.chStopMonitoring)
-		defaultMonManager.isMonitoringLock.Lock()
-		defaultMonManager.isMonitoring = false
-		defaultMonManager.isMonitoringLock.Unlock()
-	}
+	defaultMonManager.stopMonitoring()
 
 	// Stop watch leader election
 	close(defaultMonManager.chStopWatchLeaderElection)
-
-	// Stop all running checks
-	for _, check := range defaultMonManager.checks {
-		check.Stop()
-	}
 }
 
 func handleError(err error) {
 	err = errors.Wrap(err, "[WARN] Error during polling monitoring checks")
 	log.Print(err)
 	log.Debugf("%+v", err)
+}
+
+func (mgr *monitoringMgr) stopMonitoring() {
+	if defaultMonManager.isMonitoring {
+		log.Debugf("Monitoring service is about to be stopped")
+		close(defaultMonManager.chStopMonitoring)
+		defaultMonManager.isMonitoringLock.Lock()
+		defaultMonManager.isMonitoring = false
+		defaultMonManager.isMonitoringLock.Unlock()
+
+		// Stop all running checks
+		for _, check := range defaultMonManager.checks {
+			check.Stop()
+		}
+	}
 }
 
 func (mgr *monitoringMgr) startMonitoring() {
@@ -100,6 +107,7 @@ func (mgr *monitoringMgr) startMonitoring() {
 	mgr.isMonitoringLock.Lock()
 	mgr.isMonitoring = true
 	mgr.isMonitoringLock.Unlock()
+	mgr.chStopMonitoring = make(chan struct{})
 	var waitIndex uint64
 	go func() {
 		for {
@@ -174,6 +182,20 @@ func (mgr *monitoringMgr) startMonitoring() {
 					check.TCPAddress = string(kvp.Value)
 				}
 
+				reportPath := path.Join(consulutil.MonitoringKVPrefix, "reports", id)
+				kvp, _, err = mgr.cc.KV().Get(path.Join(reportPath, "status"), nil)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+				if kvp != nil && len(kvp.Value) > 0 {
+					check.Report.Status, err = ParseCheckStatus(string(kvp.Value))
+					if err != nil {
+						handleError(err)
+						continue
+					}
+				}
+
 				// Store the check if not already present and start it
 				_, is := mgr.checks[id]
 				if !is {
@@ -185,38 +207,32 @@ func (mgr *monitoringMgr) startMonitoring() {
 	}()
 }
 
-func computeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
-	// Monitoring compute is run on:
-	// - Delegate activity (checks are registered during install and unregistered during uninstall operation)
-	// - SetState activity (checks are registered on node state "Started" and unregistered on node state "Deleted")
-	if activity.Type() != workflow.ActivityTypeDelegate && activity.Type() != workflow.ActivityTypeSetState {
-		return
-	}
-	if activity.Type() == workflow.ActivityTypeSetState && (activity.Value() != tosca.NodeStateStarted.String() && activity.Value() != tosca.NodeStateDeleted.String()) {
-		return
-	}
-
-	// Check if monitoring is required
-	isMonitorReq, monitoringInterval, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
-			Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
-		return
-	}
-	if !isMonitorReq {
-		return
-	}
-
-	instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
-			Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
-		return
-	}
+func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+	// Monitoring check are added after (post-hook):
+	// - Delegate activity and install operation
+	// - SetState activity and node state "Started"
 
 	switch {
 	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
 		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
+
+		// Check if monitoring is required
+		isMonitorReq, monitoringInterval, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
+			return
+		}
+		if !isMonitorReq {
+			return
+		}
+
+		instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
+			return
+		}
 
 		for _, instance := range instances {
 			found, ipAddress, err := deployments.GetInstanceAttribute(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
@@ -237,8 +253,34 @@ func computeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID
 				return
 			}
 		}
+	}
+}
+
+func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+	// Monitoring check are removed before (pre-hook):
+	// - Delegate activity and uninstall operation
+	// - SetState activity and node state "Deleted"
+	switch {
 	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
 		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
+
+		// Check if monitoring has been required
+		isMonitorReq, _, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
+			return
+		}
+		if !isMonitorReq {
+			return
+		}
+
+		instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
+			return
+		}
 
 		for _, instance := range instances {
 			if err := defaultMonManager.flagCheckForRemoval(deploymentID, target, instance); err != nil {

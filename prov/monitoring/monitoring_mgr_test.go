@@ -41,7 +41,6 @@ func (m *mockActivity) Value() string {
 }
 
 func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Configuration) {
-	t.Parallel()
 	log.SetDebug(true)
 
 	activity := &mockActivity{t: workflow.ActivityTypeDelegate, v: "install"}
@@ -52,7 +51,7 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 	instance := "0"
 	expectedCheck := NewCheck(dep, node, instance)
 
-	computeMonitoringHook(ctx, cfg, "", dep, node, activity)
+	addMonitoringHook(ctx, cfg, "", dep, node, activity)
 	time.Sleep(2 * time.Second)
 
 	checkReports, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
@@ -74,10 +73,10 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 	require.Equal(t, tosca.NodeStateError, state)
 
 	activity = &mockActivity{t: workflow.ActivityTypeDelegate, v: "uninstall"}
-	computeMonitoringHook(ctx, cfg, "", dep, node, activity)
+	removeMonitoringHook(ctx, cfg, "", dep, node, activity)
 
 	time.Sleep(1 * time.Second)
-	require.Nil(t, err, "Unexpected error while removing health check")
+	require.Nil(t, err, "Unexpected error while removing check")
 	checkReports, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {
 		if cr.DeploymentID == dep {
 			return true
@@ -103,8 +102,7 @@ func testIsMonitoringRequiredWithZeroTimeInterval(t *testing.T, client *api.Clie
 	require.Equal(t, false, is, "unexpected monitoring required")
 }
 
-func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
-	t.Parallel()
+func testAddAndRemoveCheck(t *testing.T, client *api.Client) {
 	log.SetDebug(true)
 
 	dep := "monitoring5"
@@ -113,7 +111,7 @@ func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
 	expectedCheck := NewCheck(dep, node, instance)
 
 	err := defaultMonManager.registerCheck(dep, node, instance, "1.2.3.4", 22, 1*time.Second)
-	require.Nil(t, err, "Unexpected error while adding health check")
+	require.Nil(t, err, "Unexpected error while adding check")
 
 	time.Sleep(2 * time.Second)
 	checkReports, err := defaultMonManager.listCheckReports(func(cr CheckReport) bool {
@@ -136,9 +134,9 @@ func testAddAndRemoveHealthCheck(t *testing.T, client *api.Client) {
 
 	err = defaultMonManager.flagCheckForRemoval(dep, node, instance)
 	time.Sleep(1 * time.Second)
-	require.Nil(t, err, "Unexpected error while removing health check")
+	require.Nil(t, err, "Unexpected error while removing check")
 
-	require.Nil(t, err, "Unexpected error while removing health check")
+	require.Nil(t, err, "Unexpected error while removing check")
 	checkReports, err = defaultMonManager.listCheckReports(func(cr CheckReport) bool {
 		if cr.DeploymentID == dep {
 			return true

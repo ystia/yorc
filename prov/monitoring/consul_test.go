@@ -27,7 +27,9 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 
 	// Start/Stop the monitoring manager
-	err := Start(client)
+	err := Start(config.Configuration{
+		HTTPPort: 8800,
+	}, client)
 	require.Nil(t, err, "Unexpected error while starting monitoring manager")
 	defer func() {
 		Stop()
@@ -77,8 +79,8 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 		t.Run("testHandleMonitoringWithoutMonitoringRequiredWithZeroTimeInterval", func(t *testing.T) {
 			testIsMonitoringRequiredWithZeroTimeInterval(t, client)
 		})
-		t.Run("testAddAndRemoveHealthCheck", func(t *testing.T) {
-			testAddAndRemoveHealthCheck(t, client)
+		t.Run("testAddAndRemoveCheck", func(t *testing.T) {
+			testAddAndRemoveCheck(t, client)
 		})
 	})
 }
