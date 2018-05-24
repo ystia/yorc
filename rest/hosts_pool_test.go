@@ -90,9 +90,9 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 	require.Equal(t, "/hosts_pool/host23", collection.Hosts[2].Href)
 	require.Equal(t, "host", collection.Hosts[2].Rel)
 
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host21", nil)
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host22", nil)
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host23", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix + "/host21", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix + "/host22", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix + "/host23", nil)
 }
 
 func testListNoHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -181,7 +181,7 @@ func testNewHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)
 	require.Equal(t, []string{"/hosts_pool/host11"}, resp.Header["Location"])
 
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host11", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix + "/host11", nil)
 }
 
 func testNewHostInPoolWithoutConnectionInfo(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -258,5 +258,5 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 
 	require.Equal(t, hostspool.HostStatusFree, host.Status, "unexpected not free host status")
 
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host17", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix + "/host17", nil)
 }
