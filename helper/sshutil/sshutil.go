@@ -16,12 +16,13 @@ package sshutil
 
 import (
 	"encoding/pem"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path"
 
 	"github.com/bramvdbogaerde/go-scp"
-	homedir "github.com/mitchellh/go-homedir"
-	"io"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -29,8 +30,6 @@ import (
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
-	"io"
-	"path"
 )
 
 // Client is interface allowing running command
