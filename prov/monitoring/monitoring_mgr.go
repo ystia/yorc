@@ -58,7 +58,6 @@ func Start(cfg config.Configuration, cc *api.Client) error {
 		cc: cc,
 		chStopWatchLeaderElection: make(chan struct{}),
 		isMonitoring:              false,
-		checks:                    make(map[string]*Check),
 		serviceKey:                "service/monitoring/leader",
 		cfg:                       cfg,
 	}
@@ -108,6 +107,7 @@ func (mgr *monitoringMgr) startMonitoring() {
 	mgr.isMonitoring = true
 	mgr.isMonitoringLock.Unlock()
 	mgr.chStopMonitoring = make(chan struct{})
+	mgr.checks = make(map[string]*Check)
 	var waitIndex uint64
 	go func() {
 		for {
