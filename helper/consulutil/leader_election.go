@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
+	"strings"
 	"time"
 )
 
@@ -52,11 +53,28 @@ func GetSession(cc *api.Client, serviceKey, agentName string) (string, error) {
 		LockDelay: 1 * time.Nanosecond,
 		Checks:    sessionChecks,
 	}
-	session, _, err := cc.Session().Create(sessionEntry, nil)
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create session with key:%q", serviceKey)
+
+	// Retry 3 times to create a session if node check is in critical state after a restart
+	retries := 3
+	for i := 0; i <= retries; i++ {
+		session, _, err := cc.Session().Create(sessionEntry, nil)
+		if err == nil {
+			return session, nil
+		}
+		if isNodeInCriticalState(err) && i <= retries {
+			log.Printf("Failed to create session with key %q because node check is still in critical state. %d another tries will be done in a few time", serviceKey, retries-i)
+		} else {
+			return "", errors.Wrapf(err, "Failed to create session with key:%q", serviceKey)
+		}
+		time.Sleep(5 * time.Second)
 	}
-	return session, nil
+
+	return "", errors.Wrapf(err, "Failed to create session with key:%q", serviceKey)
+}
+
+func isNodeInCriticalState(err error) bool {
+	mess := fmt.Sprintf("Check '%s' is in critical state", commonCheckID)
+	return strings.Contains(err.Error(), mess)
 }
 
 // GetAgentName allows to return the local consul agent name
