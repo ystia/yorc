@@ -63,9 +63,9 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 	log.SetDebug(true)
 
 	srv.PopulateKV(t, map[string][]byte{
-		consulutil.HostsPoolPrefix + "/host1/status": []byte("free"),
-		consulutil.HostsPoolPrefix + "/host2/status": []byte("free"),
-		consulutil.HostsPoolPrefix + "/host3/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/host21/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/host22/status": []byte("free"),
+		consulutil.HostsPoolPrefix + "/host23/status": []byte("free"),
 	})
 
 	req := httptest.NewRequest("GET", "/hosts_pool", nil)
@@ -83,14 +83,16 @@ func testListHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestSer
 	require.Nil(t, err, "unexpected error unmarshalling json body")
 	require.NotNil(t, collection, "unexpected nil hosts collection")
 	require.Equal(t, 3, len(collection.Hosts))
-	require.Equal(t, "/hosts_pool/host1", collection.Hosts[0].Href)
+	require.Equal(t, "/hosts_pool/host21", collection.Hosts[0].Href)
 	require.Equal(t, "host", collection.Hosts[0].Rel)
-	require.Equal(t, "/hosts_pool/host2", collection.Hosts[1].Href)
+	require.Equal(t, "/hosts_pool/host22", collection.Hosts[1].Href)
 	require.Equal(t, "host", collection.Hosts[1].Rel)
-	require.Equal(t, "/hosts_pool/host3", collection.Hosts[2].Href)
+	require.Equal(t, "/hosts_pool/host23", collection.Hosts[2].Href)
 	require.Equal(t, "host", collection.Hosts[2].Rel)
 
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix, nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host21", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host22", nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host23", nil)
 }
 
 func testListNoHostsInPool(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -148,7 +150,7 @@ func testDeleteHostInPool(t *testing.T, client *api.Client, srv *testutil.TestSe
 func testDeleteHostInPoolNotFound(t *testing.T, client *api.Client, srv *testutil.TestServer) {
 	t.Parallel()
 
-	req := httptest.NewRequest("DELETE", "/hosts_pool/host13", nil)
+	req := httptest.NewRequest("DELETE", "/hosts_pool/hostNOTFOUND", nil)
 	resp := newTestHTTPRouter(client, req)
 	_, err := ioutil.ReadAll(resp.Body)
 
@@ -179,7 +181,7 @@ func testNewHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "unexpected status code %d instead of %d", resp.StatusCode, http.StatusCreated)
 	require.Equal(t, []string{"/hosts_pool/host11"}, resp.Header["Location"])
 
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix, nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host11", nil)
 }
 
 func testNewHostInPoolWithoutConnectionInfo(t *testing.T, client *api.Client, srv *testutil.TestServer) {
@@ -223,14 +225,14 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	t.Parallel()
 
 	srv.PopulateKV(t, map[string][]byte{
-		consulutil.HostsPoolPrefix + "/host1/status":                 []byte("free"),
-		consulutil.HostsPoolPrefix + "/host1/connection/host":        []byte("1.2.3.4"),
-		consulutil.HostsPoolPrefix + "/host1/connection/port":        []byte("22"),
-		consulutil.HostsPoolPrefix + "/host1/connection/private_key": []byte("test/cert1.pem"),
-		consulutil.HostsPoolPrefix + "/host1/connection/user":        []byte("user1"),
+		consulutil.HostsPoolPrefix + "/host17/status":                 []byte("free"),
+		consulutil.HostsPoolPrefix + "/host17/connection/host":        []byte("1.2.3.4"),
+		consulutil.HostsPoolPrefix + "/host17/connection/port":        []byte("22"),
+		consulutil.HostsPoolPrefix + "/host17/connection/private_key": []byte("test/cert1.pem"),
+		consulutil.HostsPoolPrefix + "/host17/connection/user":        []byte("user1"),
 	})
 
-	req := httptest.NewRequest("GET", "/hosts_pool/host1", nil)
+	req := httptest.NewRequest("GET", "/hosts_pool/host17", nil)
 	req.Header.Add("Accept", "application/json")
 	resp := newTestHTTPRouter(client, req)
 	body, err := ioutil.ReadAll(resp.Body)
@@ -247,7 +249,7 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 	err = json.Unmarshal(body, &host)
 	require.Nil(t, err, "unexpected error unmarshalling json body")
 	require.NotNil(t, host, "unexpected nil hosts collection")
-	require.Equal(t, "host1", host.Name, "unexpected host name %q", host.Name)
+	require.Equal(t, "host17", host.Name, "unexpected host name %q", host.Name)
 	require.NotNil(t, host.Connection, "unexpected nil connection")
 	require.Equal(t, 22, int(host.Connection.Port), "unexpected host connection port %q", host.Connection.Port)
 	require.Equal(t, "1.2.3.4", host.Connection.Host, "unexpected host connection port %q", host.Connection.Host)
@@ -256,5 +258,5 @@ func testGetHostInPool(t *testing.T, client *api.Client, srv *testutil.TestServe
 
 	require.Equal(t, hostspool.HostStatusFree, host.Status, "unexpected not free host status")
 
-	client.KV().DeleteTree(consulutil.HostsPoolPrefix, nil)
+	client.KV().DeleteTree(consulutil.HostsPoolPrefix+"/host17", nil)
 }
