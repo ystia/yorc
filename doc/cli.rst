@@ -1,5 +1,5 @@
 Yorc Command Line Interface
-============================
+===========================
 
 You can interact with a Yorc server using a command line interface (CLI). The same binary as for running a Yorc server is used for the CLI.
 
@@ -139,7 +139,7 @@ The task should be in status "INITIAL" or "RUNNING" to be canceled.
      yorc deployments tasks cancel <DeploymentId> <TaskId> [flags]
 
 Resume a deployment task
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Resume a task specifying the deployment id and the task id.
 The task should be in status "FAILED" to be resumed.
@@ -244,7 +244,7 @@ Flags:
 .. _yorc_cli_hostspool_section:
 
 CLI Commands related to hosts pool
------------------------------------
+----------------------------------
 
 All hosts pool related commands are sub-commands of a command named ``hostspool``.
 In practice that means that the commands starts with
@@ -275,6 +275,7 @@ Flags:
   * ``--label``: Label in form ``key=value`` to add to the host. May be specified several time.
   * ``--port``: Port used to connect to the host. (default 22)
   * ``--user``: User used to connect to the host (default "root")
+
 
 
 Host pool (JSON):
@@ -369,5 +370,75 @@ Gets the description of a host of the hosts pool managed by this Yorc cluster.
 .. code-block:: bash
 
      yorc hostspool info <hostname>
+
+Apply a Hosts Pool configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Applies a Hosts Pool configuration provided in a YAML or JSON file.
+This command will compare and display the differences between the current Hosts Pool configuration and the configuration specified in the file.
+A user confirmation will be asked before proceeding.
+The command will fail if the new configuration would result in the removal of a host currently allocated for a deployment.
+
+.. code-block:: bash
+
+     yorc hostspool apply <filename>
+
+Flags:
+  * ``--auto-approve``: Skip interactive approval before applying the new Hosts Pool configuration.
+
+
+YAML and JSON formats are accepted. The following properties are supported :
+
+  * ``hosts``: List of hosts configuration. A host configuration supports the following properties,
+     - ``name``: mandatory string identifying the host, no other host entry can have the same name value in the file
+     - ``connection``: Connection configuration,
+        + ``host``: Hostname or ip address used to connect to the host (defaults to the ``name`` described above)
+        + ``user``: name of the user used to connect to the host (default "root")
+        + ``password``: either a password or a private key should be provided
+        + ``private_key``: Path to a private key file (or private key file content), either a password or a private key should be provided
+        + ``port``: Port used to connect to the host (default 22)
+     - ``labels``: key/value pairs (see :ref:`yorc_infras_hostspool_filters_section` for more details on labels)
+
+
+Example of a YAML Hosts Pool configuration file :
+
+.. code-block:: YAML
+
+    hosts:
+    - name: host1
+      connection:
+        host: host1.example.com
+        user: test
+        private_key: /path/to/secrets/id_rsa
+        port: 22
+      labels:
+        environment: dev
+        testlabel: hello
+        host.cpu_frequency: 3 GHz
+        host.disk_size: 50 GB
+        host.mem_size: 4GB
+        host.num_cpus: "4"
+        os.architecture: x86_64
+        os.distribution: ubuntu
+        os.type: linux
+        os.version: "17.1"
+    - name: host2
+      connection:
+        host: host2.example.com
+        user: test
+        password: test
+
+Export a Hosts Pool configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Exports a Hosts Pool configuration as a YAML or JSON representation, to the standard output or a file.
+
+.. code-block:: bash
+
+     yorc hostspool export
+
+Flags:
+  * ``--output`` or ``-o``: Output format, ``yaml`` or ``json`` (default ``yaml``)
+  * ``--file`` or ``-f``: Path to a file where to store the output (default standard output)
 
 

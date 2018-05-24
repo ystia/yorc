@@ -25,7 +25,6 @@ import (
 )
 
 func testRequirements(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	t.Parallel()
 	log.SetDebug(true)
 
 	srv1.PopulateKV(t, map[string][]byte{
@@ -65,7 +64,7 @@ func testRequirements(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 }
 
 func testGetRequirementKeyByNameForNode(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	key, err := GetRequirementKeyByNameForNode(kv, "t1", "Compute1", "host_1")
 	require.Nil(t, err)
 	require.Equal(t, key, consulutil.DeploymentKVPrefix+"/t1/topology/nodes/Compute1/requirements/3")
@@ -76,7 +75,7 @@ func testGetRequirementKeyByNameForNode(t *testing.T, kv *api.KV) {
 }
 
 func testGetNbRequirementsForNode(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	reqNb, err := GetNbRequirementsForNode(kv, "t1", "Compute1")
 	require.Nil(t, err)
 	require.Equal(t, 7, reqNb)
@@ -88,7 +87,7 @@ func testGetNbRequirementsForNode(t *testing.T, kv *api.KV) {
 }
 
 func testGetRequirementsKeysByTypeForNode(t *testing.T, kv *api.KV) {
-	t.Parallel()
+	// t.Parallel()
 	keys, err := GetRequirementsKeysByTypeForNode(kv, "t1", "Compute1", "network")
 	require.Nil(t, err)
 	require.Len(t, keys, 3)

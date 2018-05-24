@@ -153,11 +153,13 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 func TestConfigFile(t *testing.T) {
 
 	fileToExpectedValues := []struct {
+		SubTestName   string
 		FileName      string
 		AnsibleConfig config.Ansible
 		ConsulConfig  config.Consul
 	}{
-		{FileName: "testdata/config_flat.yorc.json",
+		{SubTestName: "config_flat",
+			FileName: "testdata/config_flat.yorc.json",
 			AnsibleConfig: config.Ansible{
 				UseOpenSSH:              true,
 				DebugExec:               true,
@@ -176,7 +178,8 @@ func TestConfigFile(t *testing.T) {
 				SSLVerify:      false,
 				PubMaxRoutines: 1234},
 		},
-		{FileName: "testdata/config_structured.yorc.json",
+		{SubTestName: "config_structured",
+			FileName: "testdata/config_structured.yorc.json",
 			AnsibleConfig: config.Ansible{
 				UseOpenSSH:              true,
 				DebugExec:               true,
@@ -200,15 +203,16 @@ func TestConfigFile(t *testing.T) {
 	}
 
 	for _, fileToExpectedValue := range fileToExpectedValues {
+		t.Run(fileToExpectedValue.SubTestName, func(t *testing.T) {
+			testResetConfig()
+			setConfig()
+			viper.SetConfigFile(fileToExpectedValue.FileName)
+			initConfig()
+			testConfig := getConfig()
 
-		testResetConfig()
-		setConfig()
-		viper.SetConfigFile(fileToExpectedValue.FileName)
-		initConfig()
-		testConfig := getConfig()
-
-		assert.Equal(t, fileToExpectedValue.AnsibleConfig, testConfig.Ansible, "Ansible configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
-		assert.Equal(t, fileToExpectedValue.ConsulConfig, testConfig.Consul, "Consul configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
+			assert.Equal(t, fileToExpectedValue.AnsibleConfig, testConfig.Ansible, "Ansible configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
+			assert.Equal(t, fileToExpectedValue.ConsulConfig, testConfig.Consul, "Consul configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
+		})
 	}
 }
 

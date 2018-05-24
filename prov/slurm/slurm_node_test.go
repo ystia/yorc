@@ -16,13 +16,14 @@ package slurm
 
 import (
 	"context"
+	"path"
+	"strconv"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
-	"path"
-	"strconv"
-	"testing"
 )
 
 func loadTestYaml(t *testing.T, kv *api.KV) string {
@@ -45,6 +46,7 @@ func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configur
 	require.Len(t, infrastructure.nodes, 1)
 	require.Equal(t, "0", infrastructure.nodes[0].instanceName)
 	require.Equal(t, "gpu:1", infrastructure.nodes[0].gres)
+	require.Equal(t, "[rack1|rack2|rack3|rack4]", infrastructure.nodes[0].constraint)
 	require.Equal(t, "debug", infrastructure.nodes[0].partition)
 	require.Equal(t, "2G", infrastructure.nodes[0].memory)
 	require.Equal(t, "4", infrastructure.nodes[0].cpu)
@@ -63,6 +65,7 @@ func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg con
 	require.Len(t, infrastructure.nodes, 1)
 	require.Equal(t, "0", infrastructure.nodes[0].instanceName)
 	require.Equal(t, "", infrastructure.nodes[0].gres)
+	require.Equal(t, "", infrastructure.nodes[0].constraint)
 	require.Equal(t, "", infrastructure.nodes[0].partition)
 	require.Equal(t, "", infrastructure.nodes[0].memory)
 	require.Equal(t, "", infrastructure.nodes[0].cpu)
@@ -87,6 +90,7 @@ func testMultipleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Config
 		require.Len(t, infrastructure.nodes, i+1)
 		require.Equal(t, istr, infrastructure.nodes[i].instanceName)
 		require.Equal(t, "gpu:1", infrastructure.nodes[i].gres)
+		require.Equal(t, "[rack1*2&rack2*4]", infrastructure.nodes[i].constraint)
 		require.Equal(t, "debug", infrastructure.nodes[i].partition)
 		require.Equal(t, "2G", infrastructure.nodes[i].memory)
 		require.Equal(t, "4", infrastructure.nodes[i].cpu)

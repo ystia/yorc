@@ -140,7 +140,7 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 }
 
 func testExecutionResolveInputsOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, nodeTypeName, operation string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, "", "")
+	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:           deploymentID,
@@ -235,22 +235,24 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 }
 
 func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, "", "")
+	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
 	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
+	execution.(*executionScript).ScriptToRun = "/path/to/some.sh"
+	execution.(*executionScript).WrapperLocation = "/path/to/wrapper.sh"
 
-	expectedResult := `- name: Executing script {{ script_to_run }}
+	expectedResult := `- name: Executing script /path/to/some.sh
   hosts: all
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+  - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
 
       environment:
@@ -315,7 +317,7 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 }
 
 func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:           deploymentID,
@@ -377,22 +379,24 @@ func testExecutionResolveInputsOnRelationshipSource(t *testing.T, kv *api.KV, de
 }
 
 func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
 
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
 	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
+	execution.(*executionScript).ScriptToRun = "/path/to/some.sh"
+	execution.(*executionScript).WrapperLocation = "/path/to/wrapper.sh"
 
-	expectedResult := `- name: Executing script {{ script_to_run }}
+	expectedResult := `- name: Executing script /path/to/some.sh
   hosts: all
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+  - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
 
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:
@@ -447,7 +451,7 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 }
 
 func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeAName, nodeBName, operation, relationshipTypeName, requirementName, operationHost string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeAName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeAName, operation, requirementName, operationHost)
 	require.Nil(t, err)
 	execution := &executionCommon{kv: kv,
 		deploymentID:             deploymentID,
@@ -507,21 +511,23 @@ func testExecutionResolveInputOnRelationshipTarget(t *testing.T, kv *api.KV, dep
 }
 
 func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploymentID, nodeName, operation, requirementName, operationHost string) {
-	op, err := operations.GetOperation(kv, deploymentID, nodeName, operation, requirementName, operationHost)
+	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, requirementName, operationHost)
 	require.Nil(t, err)
-	execution, err := newExecution(kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op)
+	execution, err := newExecution(context.Background(), kv, GetConfig(), "taskIDNotUsedForNow", deploymentID, nodeName, op, nil)
 	require.Nil(t, err)
 	// This is bad.... Hopefully it will be temporary
 	execution.(*executionScript).OperationRemoteBaseDir = "tmp"
 	execution.(*executionScript).OperationRemotePath = path.Join(execution.(*executionScript).OperationRemoteBaseDir, ".yorc")
+	execution.(*executionScript).ScriptToRun = "/path/to/some.sh"
+	execution.(*executionScript).WrapperLocation = "/path/to/wrapper.sh"
 
-	expectedResult := `- name: Executing script {{ script_to_run }}
+	expectedResult := `- name: Executing script /path/to/some.sh
   hosts: all
   strategy: free
   tasks:
   - file: path="{{ ansible_env.HOME}}/tmp/.yorc" state=directory mode=0755
-  - copy: src="{{ wrapper_location }}" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
-  - copy: src="{{ script_to_run }}" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
+  - copy: src="/path/to/wrapper.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc/wrapper" mode=0744
+  - copy: src="/path/to/some.sh" dest="{{ ansible_env.HOME}}/tmp/.yorc" mode=0744
 
   - shell: "/bin/bash -l -c {{ ansible_env.HOME}}/tmp/.yorc/wrapper"
       environment:

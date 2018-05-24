@@ -21,7 +21,7 @@ import (
 )
 
 func TestDeploymentStatusFromString(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	status, err := DeploymentStatusFromString("initial", true)
 	require.Nil(t, err)
 	require.Equal(t, INITIAL, status)

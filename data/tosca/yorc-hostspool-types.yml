@@ -1,8 +1,9 @@
 tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: yorc-hostspool-types
-template_author: yorc
-template_version: 1.0.0
+metadata:
+  template_name: yorc-hostspool-types
+  template_author: yorc
+  template_version: 1.0.0
 
 imports:
   - yorc: <yorc-types.yml>
@@ -11,6 +12,11 @@ node_types:
   yorc.nodes.hostspool.Compute:
     derived_from: yorc.nodes.Compute
     properties:
+      shareable:
+        type: boolean
+        description: Specify if the compute can be shared.
+        required: false
+        default: false
       filters:
         type: list
         entry_schema:

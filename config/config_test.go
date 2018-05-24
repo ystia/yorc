@@ -15,7 +15,9 @@
 package config
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -191,6 +193,34 @@ func TestDynamicMap_Keys(t *testing.T) {
 			dm := tt.inputs
 			got := dm.Keys()
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestHostedOperations_Format(t *testing.T) {
+	type fields struct {
+		UnsandboxedOperationsAllowed bool
+		DefaultSandbox               *DockerSandbox
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		expected string
+	}{
+		{"DefaultValues", fields{}, `{UnsandboxedOperationsAllowed:false DefaultSandbox:<nil>}`},
+		{"AllowUnsandboxed", fields{UnsandboxedOperationsAllowed: true}, `{UnsandboxedOperationsAllowed:true DefaultSandbox:<nil>}`},
+		{"DefaultSandboxConfigured", fields{DefaultSandbox: &DockerSandbox{Image: "alpine:3.7", Command: []string{"cmd", "arg"}}}, `{UnsandboxedOperationsAllowed:false DefaultSandbox:&{Image:alpine:3.7 Command:[cmd arg] Entrypoint:[] Env:[]}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			writer := &strings.Builder{}
+			ho := HostedOperations{
+				UnsandboxedOperationsAllowed: tt.fields.UnsandboxedOperationsAllowed,
+				DefaultSandbox:               tt.fields.DefaultSandbox,
+			}
+			fmt.Fprintf(writer, "%+v", ho)
+
+			assert.Equal(t, tt.expected, writer.String())
 		})
 	}
 }

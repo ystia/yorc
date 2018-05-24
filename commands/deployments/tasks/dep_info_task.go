@@ -44,7 +44,7 @@ func init() {
 			if len(args) != 2 {
 				return errors.Errorf("Expecting a deployment id and a task id (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(deployments.ClientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -57,10 +57,10 @@ func init() {
 
 			request.Header.Add("Accept", "application/json")
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 			ids := args[0] + "/" + args[1]
 			httputil.HandleHTTPStatusCode(response, ids, "deployment/task", http.StatusOK)
 			var task rest.Task
@@ -99,10 +99,10 @@ func displayStepTables(client *httputil.YorcClient, args []string) {
 	}
 	request.Header.Add("Accept", "application/json")
 	response, err := client.Do(request)
-	defer response.Body.Close()
 	if err != nil {
 		httputil.ErrExit(err)
 	}
+	defer response.Body.Close()
 	httputil.HandleHTTPStatusCode(response, args[0], "step", http.StatusOK)
 	var steps []tasks.TaskStep
 	body, err := ioutil.ReadAll(response.Body)

@@ -47,7 +47,7 @@ var tasksCmd = &cobra.Command{
 		if len(args) != 1 {
 			return errors.Errorf("Expecting a deployment id (got %d parameters)", len(args))
 		}
-		client, err := httputil.GetClient()
+		client, err := httputil.GetClient(deployments.ClientConfig)
 		if err != nil {
 			httputil.ErrExit(err)
 		}
@@ -61,10 +61,10 @@ var tasksCmd = &cobra.Command{
 		}
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
-		defer response.Body.Close()
 		if err != nil {
 			httputil.ErrExit(err)
 		}
+		defer response.Body.Close()
 		httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
 		var dep rest.Deployment
 		body, err := ioutil.ReadAll(response.Body)

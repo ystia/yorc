@@ -46,7 +46,7 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -85,19 +85,19 @@ func init() {
 			request.Header.Add("Content-Type", "application/json")
 
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 
 			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
 			return nil
 		},
 	}
 	updCmd.Flags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the updated host pool")
-	updCmd.Flags().StringVarP(&user, "user", "", "root", "User used to connect to the host")
+	updCmd.Flags().StringVarP(&user, "user", "", "", "User used to connect to the host")
 	updCmd.Flags().StringVarP(&host, "host", "", "", "Hostname or ip address used to connect to the host. (defaults to the hostname in the hosts pool)")
-	updCmd.Flags().Uint64VarP(&port, "port", "", 22, "Port used to connect to the host.")
+	updCmd.Flags().Uint64VarP(&port, "port", "", 0, "Port used to connect to the host.")
 	updCmd.Flags().StringVarP(&privateKey, "key", "k", "", `At any time a host of the pool should have at least one of private key or password. To delete a registered password use the "-" character.`)
 	updCmd.Flags().StringVarP(&password, "password", "p", "", `At any time a host of the pool should have at least one of private key or password. To delete a registered private key use the "-" character.`)
 	updCmd.Flags().StringSliceVarP(&labelsAdd, "add-label", "", nil, "Add a label in form 'key=value' to the host. May be specified several time.")

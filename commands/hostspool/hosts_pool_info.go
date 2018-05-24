@@ -38,7 +38,7 @@ func init() {
 			if len(args) != 1 {
 				return errors.Errorf("Expecting a hostname (got %d parameters)", len(args))
 			}
-			client, err := httputil.GetClient()
+			client, err := httputil.GetClient(clientConfig)
 			if err != nil {
 				httputil.ErrExit(err)
 			}
@@ -50,10 +50,10 @@ func init() {
 			}
 
 			response, err := client.Do(request)
-			defer response.Body.Close()
 			if err != nil {
 				httputil.ErrExit(err)
 			}
+			defer response.Body.Close()
 
 			httputil.HandleHTTPStatusCode(response, args[0], "host pool", http.StatusOK)
 			var host rest.Host
@@ -67,17 +67,8 @@ func init() {
 			}
 
 			hostsTable := tabutil.NewTable()
-			hostsTable.AddHeaders("Name", "Connection", "Status", "Message", "Labels")
-			var labelsList string
-			for k, v := range host.Labels {
-				if labelsList != "" {
-					labelsList += ", "
-				}
-				labelsList += fmt.Sprintf("%s:%s", k, v)
-			}
-
-			hostsTable.AddRow(host.Name, host.Connection.String(), getColoredHostStatus(colorize, host.Status.String()), host.Message, labelsList)
-
+			hostsTable.AddHeaders("Name", "Connection", "Status", "Allocations", "Message", "Labels")
+			addRow(hostsTable, colorize, hostList, &host, true)
 			if colorize {
 				defer color.Unset()
 			}

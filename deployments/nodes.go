@@ -140,10 +140,28 @@ func GetNodeInstancesIds(kv *api.KV, deploymentID, nodeName string) ([]string, e
 	if err != nil {
 		return names, errors.Wrap(err, "Consul communication error")
 	}
+
 	for _, instance := range instances {
 		names = append(names, path.Base(instance))
 	}
+
+	if len(names) == 0 {
+		// Check if this is a node to substitute
+		substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+		if err != nil {
+			return names, err
+		}
+		if substitutable {
+			log.Debugf("Found no instance for %s %s, getting substitutable node instance", deploymentID, nodeName)
+			names, err = getSubstitutionNodeInstancesIds(kv, deploymentID, nodeName)
+			if err != nil {
+				return names, err
+			}
+		}
+	}
+
 	sort.Sort(sortorder.Natural(names))
+	log.Debugf("Found node instances %v for %s %s", names, deploymentID, nodeName)
 	return names, nil
 }
 
@@ -184,6 +202,52 @@ func GetHostedOnNode(kv *api.KV, deploymentID, nodeName string) (string, error) 
 		}
 	}
 	return "", nil
+}
+
+// GetHostedOnNodeInstance returns the node name and instance name of the instance
+// defined in the first found relationship derived from "tosca.relationships.HostedOn"
+//
+// If there is no HostedOn relationship for this node then it returns an empty string
+func GetHostedOnNodeInstance(kv *api.KV, deploymentID, nodeName, instanceName string) (string, string, error) {
+	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
+	// Going through requirements to find hosted on relationships
+	reqKVPs, _, err := kv.Keys(path.Join(nodePath, "requirements")+"/", "/", nil)
+	if err != nil {
+		return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	log.Debugf("Deployment: %q. Node %q. Requirements %v", deploymentID, nodeName, reqKVPs)
+	for _, reqKey := range reqKVPs {
+		log.Debugf("Deployment: %q. Node %q. Inspecting requirement %q", deploymentID, nodeName, reqKey)
+		// Check requirement relationship
+		kvp, _, err := kv.Get(path.Join(reqKey, "relationship"), nil)
+		if err != nil {
+			return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		// Is this "HostedOn" relationship ?
+		if kvp.Value != nil {
+			if ok, err := IsTypeDerivedFrom(kv, deploymentID, string(kvp.Value), "tosca.relationships.HostedOn"); err != nil {
+				return "", "", err
+			} else if ok {
+				// An HostedOn! Great! let inspect the target node.
+				kvp, _, err := kv.Get(path.Join(reqKey, "node"), nil)
+				if err != nil {
+					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				}
+				if kvp == nil || len(kvp.Value) == 0 {
+					return "", "", errors.Errorf("Missing 'node' attribute for requirement at index %q for node %q in deployment %q", path.Base(reqKey), nodeName, deploymentID)
+				}
+				// Get the corresponding target instances
+				hostNodeName, hostInstances, err := GetTargetInstanceForRequirement(kv, deploymentID, nodeName, path.Base(reqKey), instanceName)
+				if err != nil {
+					return "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				}
+				if hostNodeName != "" && len(hostInstances) > 0 {
+					return hostNodeName, hostInstances[0], nil
+				}
+			}
+		}
+	}
+	return "", "", nil
 }
 
 // IsHostedOn checks if a given nodeName is hosted on another given node hostedOn by traversing the hostedOn hierarchy
@@ -374,7 +438,21 @@ func GetNodeType(kv *api.KV, deploymentID, nodeName string) (string, error) {
 	if kvp == nil || len(kvp.Value) == 0 {
 		return "", errors.Errorf("Missing mandatory parameter \"type\" for node %q", nodeName)
 	}
-	return string(kvp.Value), nil
+
+	nodeType := string(kvp.Value)
+
+	// If the corresponding node is substitutable, get its real node type
+	substitutable, err := isSubstitutableNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return "", err
+	}
+	if substitutable {
+		nodeType, err = getSubstitutableNodeType(kv, deploymentID, nodeName, nodeType)
+		if err != nil {
+			return "", err
+		}
+	}
+	return nodeType, nil
 }
 
 // GetNodeAttributesNames retrieves the list of existing attributes for a given node.
@@ -414,12 +492,22 @@ func GetNodeAttributesNames(kv *api.KV, deploymentID, nodeName string) ([]string
 		return nil, err
 	}
 
+	// Alien4Cloud did not yet implement the management of capability attributes
+	// in substitution mappings. It expects for now to read these capability
+	// attributes as node attributes
+	err = storeSubstitutionMappingAttributeNamesInSet(kv, deploymentID, nodeName, attributesSet)
+	if err != nil {
+		return nil, err
+	}
+
 	attributesList := make([]string, len(attributesSet))
 	i := 0
 	for attr := range attributesSet {
 		attributesList[i] = attr
 		i++
 	}
+
+	log.Debugf("Found attributes %v for %s, %s", attributesList, deploymentID, nodeName)
 
 	return attributesList, nil
 }

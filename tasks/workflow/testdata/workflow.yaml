@@ -1,0 +1,211 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: TestWf
+  template_version: 0.1.0-SNAPSHOT
+  template_author: admin
+
+description: ""
+
+imports:
+  - normative-types: <yorc-types.yml>
+
+artifacts_types:
+  ystia.yorc.tests.artifacts.Implementation.Custom:
+    derived_from: tosca.artifact.Implementation
+
+node_types:
+  ystia.yorc.tests.nodes.WFCompute:
+    derived_from: tosca.nodes.Compute
+
+  ystia.yorc.tests.nodes.WFNode:
+    derived_from: tosca.nodes.SoftwareComponent
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            type: ystia.yorc.tests.artifacts.Implementation.Custom
+            file: whatever
+
+topology_template:
+  node_templates:
+    WFNode:
+      type: ystia.yorc.tests.nodes.WFNode
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: Compute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    
+    Compute:
+      type: ystia.yorc.tests.nodes.WFCompute
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+  workflows:
+    install:
+      steps:
+        Compute_install:
+          target: Compute
+          activities:
+            - delegate: install
+          on_success:
+            - WFNode_hostedOnComputeHost_add_target
+            - WFNode_creating
+        WFNode_initial:
+          target: WFNode
+          activities:
+            - set_state: initial
+          on_success:
+            - WFNode_creating
+        WFNode_creating:
+          target: WFNode
+          activities:
+            - set_state: creating
+          on_success:
+            - WFNode_create
+        WFNode_created:
+          target: WFNode
+          activities:
+            - set_state: created
+          on_success:
+            - WFNode_hostedOnComputeHost_pre_configure_source
+            - WFNode_configuring
+        WFNode_configuring:
+          target: WFNode
+          activities:
+            - set_state: configuring
+          on_success:
+            - WFNode_configure
+        WFNode_configured:
+          target: WFNode
+          activities:
+            - set_state: configured
+          on_success:
+            - WFNode_starting
+            - WFNode_hostedOnComputeHost_post_configure_source
+        WFNode_starting:
+          target: WFNode
+          activities:
+            - set_state: starting
+          on_success:
+            - WFNode_start
+        WFNode_started:
+          target: WFNode
+          activities:
+            - set_state: started
+          on_success:
+            - WFNode_hostedOnComputeHost_add_target
+        WFNode_create:
+          target: WFNode
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - WFNode_created
+        WFNode_configure:
+          target: WFNode
+          activities:
+            - call_operation: Standard.configure
+          on_success:
+            - WFNode_configured
+        WFNode_start:
+          target: WFNode
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - WFNode_started
+        WFNode_hostedOnComputeHost_pre_configure_source:
+          target: WFNode
+          target_relationship: hostedOnComputeHost
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - WFNode_configure
+        WFNode_hostedOnComputeHost_post_configure_source:
+          target: WFNode
+          target_relationship: hostedOnComputeHost
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
+          on_success:
+            - WFNode_start
+        WFNode_hostedOnComputeHost_add_target:
+          target: WFNode
+          target_relationship: hostedOnComputeHost
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.add_target
+    uninstall:
+      steps:
+        Compute_uninstall:
+          target: Compute
+          activities:
+            - delegate: uninstall
+        WFNode_stopping:
+          target: WFNode
+          activities:
+            - set_state: stopping
+          on_success:
+            - WFNode_stop
+        WFNode_stopped:
+          target: WFNode
+          activities:
+            - set_state: stopped
+          on_success:
+            - WFNode_deleting
+        WFNode_deleting:
+          target: WFNode
+          activities:
+            - set_state: deleting
+          on_success:
+            - WFNode_delete
+        WFNode_deleted:
+          target: WFNode
+          activities:
+            - set_state: deleted
+          on_success:
+            - Compute_uninstall
+        WFNode_stop:
+          target: WFNode
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - WFNode_stopped
+        WFNode_delete:
+          target: WFNode
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - WFNode_deleted
+        WFNode_hostedOnComputeHost_remove_target:
+          target: WFNode
+          target_relationship: hostedOnComputeHost
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.remove_target
+          on_success:
+            - Compute_uninstall
+            - WFNode_stop
+    start:
+      steps:
+        Compute_start:
+          target: Compute
+          activities:
+            - delegate: start
+    stop:
+      steps:
+        Compute_stop:
+          target: Compute
+          activities:
+            - delegate: stop

@@ -53,9 +53,10 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 func main() {
 	def := []byte(`tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: yorc-my-types
-template_author: Yorc
-template_version: 1.0.0
+metadata:
+  template_name: yorc-my-types
+  template_author: Yorc
+  template_version: 1.0.0
 
 imports:
   - yorc: <yorc-types.yml>

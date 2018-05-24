@@ -1,8 +1,9 @@
 tosca_definitions_version: yorc_tosca_simple_yaml_1_0
 
-template_name: yorc-slurm-types
-template_author: yorc
-template_version: 1.0.0
+metadata:
+  template_name: yorc-slurm-types
+  template_author: yorc
+  template_version: 1.0.0
 
 imports:
   - yorc: <yorc-types.yml>
@@ -20,6 +21,9 @@ node_types:
     derived_from: yorc.nodes.Compute
     properties:
       gres:
+        type: string
+        required: false
+      constraint:
         type: string
         required: false
       partition:
@@ -40,6 +44,7 @@ node_types:
       partition:
         type: string
         description: Slurm partition where the nodes are deployed.
+
 
   yorc.nodes.slurm.Job:
     derived_from: org.alien4cloud.nodes.Job
