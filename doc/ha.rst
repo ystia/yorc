@@ -47,27 +47,12 @@ Here is how to run a Consul agent in client mode and connect it to a running Con
 
     consul agent -config-dir ./consul-conf -data-dir ./consul-data -retry-join <ConsulServer1IP> -retry-join <ConsulServer2IP> -retry-join <ConsulServer3IP>
 
-You should create a Consul service description for each Yorc server and store it as a JSON file in the ``consul-conf`` directory
 
-.. code-block:: json
-
-    {
-      "service": {
-        "name": "yorc",
-        "tags": ["server", "{YORC_ID}"],
-        "address": "{PUBLIC_YORC_IP}",
-        "port": 8800,
-        "check": {
-          "name": "TCP check on port 8800",
-          "tcp": "{PUBLIC_YORC_IP}:8800",
-          "interval": "10s"
-        }
-      }
-    }
+When starting the Yorc server instance, a Consul service is automatically created with a defined TCP check on Yorc port.
 
 
-* Replace {YORC_ID} with an unique ID for each Yorc instance (e.g. "server1" and "server2").
-* Replace {PUBLIC_YORC_IP} with the IP of the current Yorc server's host.
+When running Yorc you should use the :ref:`--server_id <option_server_id_cmd>` command line flag
+(or equivalent configuration options or environment variable) to specify the server ID used to identify the server node in a cluster.
 
 When running Yorc you should use the :ref:`--working_directory <option_workdir_cmd>` command line flag 
 (or equivalent configuration options or environment variable) to specify a working directory on the 

@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-var commonCheckID = "yorc-common-check"
+const yorcServiceCheck = "service:yorc"
 
 // GetSession allows to return the session ID for a defined service leader key
 func GetSession(cc *api.Client, serviceKey, agentName string) (string, error) {
@@ -41,17 +41,13 @@ func GetSession(cc *api.Client, serviceKey, agentName string) (string, error) {
 
 	// Create the session if not exists
 	log.Printf("Creating session with key:%q for leader election", serviceKey)
-	var sessionChecks []string
-	// Default serf Health check
-	sessionChecks = append(sessionChecks, "serfHealth")
-	sessionChecks = append(sessionChecks, commonCheckID)
-
 	sessionEntry := &api.SessionEntry{
 		Name:     serviceKey,
 		Behavior: "release",
 		// Consul Issue : LockDelay = 0 is not allowed by API. https://github.com/hashicorp/consul/issues/1077
 		LockDelay: 1 * time.Nanosecond,
-		Checks:    sessionChecks,
+		// Default serf Health check + yorc service check
+		Checks: []string{"serfHealth", yorcServiceCheck},
 	}
 
 	// Retry 3 times to create a session if node check is in critical state after a restart
@@ -73,7 +69,7 @@ func GetSession(cc *api.Client, serviceKey, agentName string) (string, error) {
 }
 
 func isNodeInCriticalState(err error) bool {
-	mess := fmt.Sprintf("Check '%s' is in critical state", commonCheckID)
+	mess := fmt.Sprintf("Check '%s' is in critical state", yorcServiceCheck)
 	return strings.Contains(err.Error(), mess)
 }
 
@@ -90,31 +86,6 @@ func handleError(err error, serviceKey string) {
 	err = errors.Wrapf(err, "[WARN] Error during watching leader election for service:%q", serviceKey)
 	log.Print(err)
 	log.Debugf("%+v", err)
-}
-
-// RegisterCommonCheck allows to register common checks for yorc. It must be used for all leader elections
-func RegisterCommonCheck(cfg config.Configuration, cc *api.Client) error {
-	checks, err := cc.Agent().Checks()
-	if err != nil {
-		return err
-	}
-
-	_, exist := checks[commonCheckID]
-	log.Debugf("Check with id:%q already exists", commonCheckID)
-	if !exist {
-		log.Debugf("Creating check with id:%q", commonCheckID)
-		check := &api.AgentCheckRegistration{
-			ID:   commonCheckID,
-			Name: "Common TCP check for yorc",
-			AgentServiceCheck: api.AgentServiceCheck{
-				Interval: "5s",
-				TCP:      fmt.Sprintf("localhost:%d", cfg.HTTPPort),
-				Status:   "passing",
-			},
-		}
-		return cc.Agent().CheckRegister(check)
-	}
-	return nil
 }
 
 // IsAnyLeader allows to return true if any leader exists for a defined service key
@@ -145,11 +116,6 @@ func WatchLeaderElection(cfg config.Configuration, cc *api.Client, serviceKey st
 	if err != nil {
 		handleError(err, serviceKey)
 		return
-	}
-
-	// Register common check used for controlling all services and leader elections
-	if err := RegisterCommonCheck(cfg, cc); err != nil {
-		log.Printf("Failed to register checks for leader election due to error:%+v", err)
 	}
 
 	for {

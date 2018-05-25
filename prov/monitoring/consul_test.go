@@ -26,10 +26,16 @@ import (
 func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
 
+	cfg := config.Configuration{
+		HTTPAddress: "localhost",
+		ServerID:    "0",
+	}
+
+	// Register the consul service
+	consulutil.RegisterServerAsConsulService(cfg, client)
+
 	// Start/Stop the monitoring manager
-	err := Start(config.Configuration{
-		HTTPPort: 8800,
-	}, client)
+	err := Start(cfg, client)
 	require.Nil(t, err, "Unexpected error while starting monitoring manager")
 	defer func() {
 		Stop()

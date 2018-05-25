@@ -80,6 +80,11 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	}
 	defer httpServer.Shutdown()
 
+	// Register yorc service in Consul
+	if err = consulutil.RegisterServerAsConsulService(configuration, client); err != nil {
+		return errors.Wrap(err, "Failed to register this yorc server as a Consul service")
+	}
+
 	if err = monitoring.Start(configuration, client); err != nil {
 		return err
 	}
