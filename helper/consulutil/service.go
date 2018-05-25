@@ -33,8 +33,5 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client) err
 			Status:   api.HealthPassing,
 		},
 	}
-	if err := cc.Agent().ServiceRegister(service); err != nil {
-		return err
-	}
-	return nil
+	return cc.Agent().ServiceRegister(service)
 }
