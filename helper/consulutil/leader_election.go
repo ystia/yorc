@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
 	"strings"
 	"time"
@@ -104,7 +103,7 @@ func IsAnyLeader(cc *api.Client, serviceKey string, waitIndex uint64) (bool, str
 }
 
 // WatchLeaderElection allows to watch for leader election for defined service. It elects leader if needed and can start the related service or stop it if node is no longer leader
-func WatchLeaderElection(cfg config.Configuration, cc *api.Client, serviceKey string, chStop chan struct{}, leaderServiceStart func(), leaderServiceStop func()) {
+func WatchLeaderElection(cc *api.Client, serviceKey string, chStop chan struct{}, leaderServiceStart func(), leaderServiceStop func()) {
 	log.Debugf("WatchLeaderElection for service:%q", serviceKey)
 	var (
 		waitIndex uint64

@@ -42,37 +42,37 @@ func init() {
 }
 
 type monitoringMgr struct {
-	cc                        *api.Client
-	chStopMonitoring          chan struct{}
-	chStopWatchLeaderElection chan struct{}
-	isMonitoring              bool
-	isMonitoringLock          sync.Mutex
-	checks                    map[string]*Check
-	serviceKey                string
-	cfg                       config.Configuration
+	cc               *api.Client
+	chStopMonitoring chan struct{}
+	chShutdown       chan struct{}
+	isMonitoring     bool
+	isMonitoringLock sync.Mutex
+	checks           map[string]*Check
+	serviceKey       string
+	cfg              config.Configuration
 }
 
 // Start allows to instantiate a default Monitoring Manager and to start monitoring checks
-func Start(cfg config.Configuration, cc *api.Client) error {
+func Start(cfg config.Configuration, cc *api.Client) {
 	defaultMonManager = &monitoringMgr{
-		cc: cc,
-		chStopWatchLeaderElection: make(chan struct{}),
-		isMonitoring:              false,
-		serviceKey:                "service/monitoring/leader",
-		cfg:                       cfg,
+		cc:           cc,
+		chShutdown:   make(chan struct{}),
+		isMonitoring: false,
+		serviceKey:   "service/monitoring/leader",
+		cfg:          cfg,
 	}
 
 	// Watch leader election for monitoring service
-	go consulutil.WatchLeaderElection(defaultMonManager.cfg, defaultMonManager.cc, defaultMonManager.serviceKey, defaultMonManager.chStopWatchLeaderElection, defaultMonManager.startMonitoring, defaultMonManager.stopMonitoring)
-	return nil
+	go consulutil.WatchLeaderElection(defaultMonManager.cc, defaultMonManager.serviceKey, defaultMonManager.chShutdown, defaultMonManager.startMonitoring, defaultMonManager.stopMonitoring)
 }
 
 // Stop allows to stop managing monitoring checks
 func Stop() {
+	// Stop Monitoring checks
 	defaultMonManager.stopMonitoring()
 
 	// Stop watch leader election
-	close(defaultMonManager.chStopWatchLeaderElection)
+	close(defaultMonManager.chShutdown)
 }
 
 func handleError(err error) {
@@ -114,6 +114,9 @@ func (mgr *monitoringMgr) startMonitoring() {
 			select {
 			case <-mgr.chStopMonitoring:
 				log.Debugf("Ending monitoring has been requested: stop it now.")
+				return
+			case <-mgr.chShutdown:
+				log.Debugf("Shutdown has been sent: stop monitoring checks now.")
 				return
 			default:
 			}

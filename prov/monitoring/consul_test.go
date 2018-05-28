@@ -15,7 +15,6 @@
 package monitoring
 
 import (
-	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/testutil"
@@ -32,11 +31,11 @@ func TestRunConsulMonitoringPackageTests(t *testing.T) {
 	}
 
 	// Register the consul service
-	consulutil.RegisterServerAsConsulService(cfg, client)
+	chStop := make(chan struct{})
+	consulutil.RegisterServerAsConsulService(cfg, client, chStop)
 
 	// Start/Stop the monitoring manager
-	err := Start(cfg, client)
-	require.Nil(t, err, "Unexpected error while starting monitoring manager")
+	Start(cfg, client)
 	defer func() {
 		Stop()
 		srv.Stop()

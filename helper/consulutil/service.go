@@ -18,12 +18,17 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
 )
 
+// YorcService is the service name for yorc as a Consul service
+const YorcService = "yorc"
+
 // RegisterServerAsConsulService allows to register the Yorc server as a Consul service
-func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client) error {
+func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chShutdown chan struct{}) error {
+	log.Printf("Register Yorc as Consul Service for node %q", cfg.ServerID)
 	service := &api.AgentServiceRegistration{
-		Name: "yorc",
+		Name: YorcService,
 		Tags: []string{"server", cfg.ServerID},
 		Port: cfg.HTTPPort,
 		Check: &api.AgentServiceCheck{
@@ -33,5 +38,22 @@ func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client) err
 			Status:   api.HealthPassing,
 		},
 	}
+	go func() {
+		for {
+			select {
+			case <-chShutdown:
+				UnregisterServerAsConsulService(cfg, cc)
+			}
+		}
+	}()
 	return cc.Agent().ServiceRegister(service)
+}
+
+// UnregisterServerAsConsulService allows to unregister the Yorc server as a Consul service
+func UnregisterServerAsConsulService(cfg config.Configuration, cc *api.Client) {
+	log.Printf("Unregister Yorc as Consul Service for node %q", cfg.ServerID)
+	err := cc.Agent().ServiceDeregister(YorcService)
+	if err != nil {
+		log.Printf("Failed to unregister Yorc as Consul service for node %q due to:%+v", cfg.ServerID, err)
+	}
 }
