@@ -365,6 +365,11 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			consulStore.StoreConsulKeyAsString(artPrefix+"/repository", artDef.Repository)
 			consulStore.StoreConsulKeyAsString(artPrefix+"/deploy_path", artDef.DeployPath)
 		}
+
+		metadataPrefix := nodePrefix + "/metadata/"
+		for metaName, metaValue := range node.Metadata {
+			consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
+		}
 	}
 
 }

@@ -1,6 +1,7 @@
 {
     "working_directory": "work",
     "workers_number": 3,
+    "server_id": "${server_id}",
     "resources_prefix": "${prefix}",
     "infrastructures":{
           "openstack": {

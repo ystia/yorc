@@ -23,6 +23,7 @@ data "template_file" "yorc-server-config" {
     prefix      = "${var.prefix}yorc"
     secgrp      = "${openstack_compute_secgroup_v2.yorc-admin-secgroup.name}"
     statsd_ip   = "${openstack_compute_instance_v2.yorc-monitoring-server.network.0.fixed_ip_v4}"
+    server_id     = "${count.index}"
   }
 }
 
@@ -40,16 +41,6 @@ data "template_file" "yorc-autofs" {
   vars {
     user          = "${var.ssh_manager_user}"
     nfs_server_ip = "${openstack_compute_instance_v2.nfs-server.network.0.fixed_ip_v4}"
-  }
-}
-
-data "template_file" "yorc-consul-checks" {
-  count    = "${var.yorc_instances}"
-  template = "${file("../config/yorc-consul-check.json.tpl")}"
-
-  vars {
-    yorc_id = "${count.index}"
-    yorc_ip = "${element(openstack_compute_floatingip_associate_v2.yorc-server-fip.*.floating_ip, count.index)}"
   }
 }
 
@@ -127,11 +118,6 @@ resource "null_resource" "yorc-server-provisioning" {
   }
 
   provisioner "file" {
-    content     = "${data.template_file.yorc-consul-checks.*.rendered[count.index]}"
-    destination = "/tmp/yorc-consul-check.json"
-  }
-
-  provisioner "file" {
     content     = "${data.template_file.yorc-server-service.rendered}"
     destination = "/tmp/yorc.service"
   }
@@ -142,7 +128,6 @@ resource "null_resource" "yorc-server-provisioning" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo mv /tmp/yorc-consul-check.json /etc/consul.d/",
       "sudo mv /tmp/consul-agent.config.json /etc/consul.d/",
       "sudo chown root:root /etc/consul.d/*",
       "mkdir -p ~/work",
