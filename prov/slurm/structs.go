@@ -27,3 +27,18 @@ type nodeAllocation struct {
 	jobName      string
 	instanceName string
 }
+
+type jobInfo struct {
+	ID        string
+	name      string
+	state     string
+	tasks     int
+	cpus      int
+	nodes     int
+	mem       int
+	maxTime   string
+	batchMode bool
+	opts      []string
+	execArgs  []string
+	outputs   []string
+}

@@ -28,6 +28,10 @@ import (
 	"strings"
 )
 
+const reSbatch = `^Submitted batch job (\d+)`
+const reOutput = `--output=(\w+.*\w+)|-o (\w+.*\w+ )`
+const reOutputSBATCH = `^#SBATCH --output=(\w+.*\w+)|^#SBATCH -o (\w+.*\w+ )`
+
 // GetSSHClient returns a SSH client with slurm configuration credentials usage
 func GetSSHClient(cfg config.Configuration) (*sshutil.SSHClient, error) {
 	// Check slurm configuration
@@ -169,11 +173,11 @@ func parseSallocResponse(r io.Reader, chRes chan allocationResponse, chErr chan 
 		err    error
 		strErr string
 	)
+	reGranted := regexp.MustCompile(reSallocGranted)
+	rePending := regexp.MustCompile(reSallocPending)
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
-		reGranted := regexp.MustCompile(reSallocGranted)
-		rePending := regexp.MustCompile(reSallocPending)
 		if reGranted.MatchString(line) {
 			// expected line: "salloc: Granted job allocation 1881"
 			if jobID, err = parseJobID(line, reGranted); err != nil {
@@ -222,4 +226,65 @@ func cancelJobID(jobID string, client *sshutil.SSHClient) error {
 		return errors.Wrapf(err, "Failed to cancel Slurm job: %s:", sCancelOutput)
 	}
 	return nil
+}
+
+func parseJobIDFromBatchOutput(out string) (string, error) {
+	// expected: "Submitted batch job 4507"
+	reBatch := regexp.MustCompile(reSbatch)
+	if !reBatch.MatchString(out) {
+		return "", errors.Errorf("Unable to parse Job ID from stdout:%q", out)
+	}
+	jobID, err := parseJobID(out, reBatch)
+	if err != nil {
+		return "", err
+	}
+	return jobID, nil
+}
+
+func parseOutputConfigFromBatchScript(r io.Reader, all bool) ([]string, error) {
+	res := make([]string, 0)
+	scanner := bufio.NewScanner(r)
+	reOutput := regexp.MustCompile(reOutput)
+	reOutputSBATCH := regexp.MustCompile(reOutputSBATCH)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if all {
+			if reOutput.MatchString(line) {
+				subMatch := reOutput.FindStringSubmatch(line)
+				if subMatch != nil && len(subMatch) == 3 {
+					if subMatch[1] != "" {
+						res = append(res, subMatch[1])
+					} else if subMatch[2] != "" {
+						res = append(res, strings.Trim(subMatch[2], " "))
+					}
+				}
+			}
+		} else {
+			if reOutput.MatchString(line) && !reOutputSBATCH.MatchString(line) {
+				subMatch := reOutput.FindStringSubmatch(line)
+				if subMatch != nil && len(subMatch) == 3 {
+					if subMatch[1] != "" {
+						res = append(res, subMatch[1])
+					} else if subMatch[2] != "" {
+						res = append(res, strings.Trim(subMatch[2], " "))
+					}
+				}
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return res, err
+	}
+	return res, nil
+}
+
+func parseOutputConfigFromOpts(opts []string) []string {
+	res := make([]string, 0)
+	for _, opt := range opts {
+		propVal := strings.Split(opt, "=")
+		if propVal[0] == "--output" {
+			res = append(res, propVal[1])
+		}
+	}
+	return res
 }
