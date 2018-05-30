@@ -327,13 +327,17 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	job.opts = extraOpts
 
 	var args []string
+	job.inputs = make(map[string]string)
 	for _, input := range e.EnvInputs {
 		if input.Name == "args" && input.Value != "" {
 			if err = json.Unmarshal([]byte(input.Value), &args); err != nil {
 				return err
 			}
+		} else {
+			job.inputs[input.Name] = input.Value
 		}
 	}
+
 	job.execArgs = args
 	e.jobInfo = &job
 	return nil
@@ -397,7 +401,21 @@ func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile
 }
 
 func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile string) (string, error) {
-	cmd := fmt.Sprintf("cd %s;sbatch %s %s", path.Dir(execFile), opts, path.Base(execFile))
+	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
+	var exports string
+	for _, arg := range e.jobInfo.execArgs {
+		if is, key, val := parseKeyValue(arg); is {
+			log.Debugf("Add env var with key:%q and value:%q", key, val)
+			export := fmt.Sprintf("export %s=%s;", key, val)
+			exports += export
+		}
+	}
+	for k, v := range e.jobInfo.inputs {
+		log.Debugf("Add env var with key:%q and value:%q", k, v)
+		export := fmt.Sprintf("export %s=%s;", k, v)
+		exports += export
+	}
+	cmd := fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {

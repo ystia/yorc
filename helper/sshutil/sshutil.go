@@ -81,17 +81,13 @@ func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 func (client *SSHClient) RunCommand(cmd string) (string, error) {
 	session, err := client.newSession()
 	if err != nil {
-		return "", errors.Wrap(err, "Unable to setup stdout for session")
+		return "", errors.Wrap(err, "Unable to create new session")
 	}
-	defer func() {
-		session.Close()
-	}()
 
 	log.Debugf("[SSHSession] cmd: %q", cmd)
 	stdOutErrBytes, err := session.CombinedOutput(cmd)
 	stdOutErrStr := strings.Trim(string(stdOutErrBytes[:]), "\x00")
 	log.Debugf("[SSHSession] stdout/stderr: %q", stdOutErrStr)
-
 	return stdOutErrStr, err
 }
 
@@ -179,7 +175,6 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath, permissions stri
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't establish a connection to the remote host:%q", scpHostPort)
 	}
-	defer scpClient.Session.Close()
 
 	// Create the remote directory
 	remoteDir := path.Dir(remotePath)

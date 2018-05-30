@@ -288,3 +288,11 @@ func parseOutputConfigFromOpts(opts []string) []string {
 	}
 	return res
 }
+
+func parseKeyValue(str string) (bool, string, string) {
+	keyVal := strings.Split(str, "=")
+	if len(keyVal) == 2 && keyVal[0] != "" && keyVal[1] != "" {
+		return true, keyVal[0], keyVal[1]
+	}
+	return false, "", ""
+}

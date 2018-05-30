@@ -41,4 +41,5 @@ type jobInfo struct {
 	opts      []string
 	execArgs  []string
 	outputs   []string
+	inputs    map[string]string
 }

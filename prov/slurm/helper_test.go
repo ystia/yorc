@@ -323,3 +323,34 @@ func TestParseOutputConfigFromOpts(t *testing.T) {
 	outputParams := parseOutputConfigFromOpts(data)
 	require.Equal(t, expected, outputParams)
 }
+
+func TestParseKeyValue(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		str string
+	}
+	type checks struct {
+		is    bool
+		key   string
+		value string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want checks
+	}{
+		{"TestKeyValueSimple", args{"aaa=bbb"}, checks{true, "aaa", "bbb"}},
+		{"TestNoKeyValue", args{"azerty"}, checks{false, "", ""}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is, k, v := parseKeyValue(tt.args.str)
+			assert.Equal(t, tt.want.is, is)
+			assert.Equal(t, tt.want.key, k)
+			assert.Equal(t, tt.want.value, v)
+		})
+	}
+
+}
