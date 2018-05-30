@@ -53,6 +53,9 @@ const DefaultKeepOperationRemotePath = false
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
+// DefaultServerID is the default server ID used to identify the server node in a cluster
+const DefaultServerID = "server_0"
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible               `mapstructure:"ansible"`
@@ -73,6 +76,7 @@ type Configuration struct {
 	Infrastructures                  map[string]DynamicMap `mapstructure:"infrastructures"`
 	Vault                            DynamicMap            `mapstructure:"vault"`
 	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
+	ServerID                         string                `mapstructure:"server_id"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox

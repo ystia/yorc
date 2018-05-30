@@ -40,3 +40,6 @@ const HostsPoolPrefix = yorcPrefix + "/hosts_pool"
 // YorcManagementPrefix is the prefix on KV store for the orchestrator
 // own management
 const YorcManagementPrefix = yorcPrefix + "/.yorc_management"
+
+// MonitoringKVPrefix is the prefix in Consul KV store for monitoring
+const MonitoringKVPrefix string = yorcPrefix + "/monitoring"
