@@ -149,6 +149,16 @@ func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeN
 	return nil
 }
 
+func appendAnsibleOutput(buf *bytes.Buffer, obj *jason.Object, field string) {
+	if msg, err := obj.GetString(field); err == nil && msg != "" {
+		buf.WriteString("\n\t")
+		buf.WriteString(field)
+		buf.WriteString(": \"")
+		buf.WriteString(msg)
+		buf.WriteString("\"")
+	}
+}
+
 func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
@@ -161,11 +171,14 @@ func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve play name")
 	}
-	for _, play := range plays {
+	for i, play := range plays {
 		var playName string
 		playName, err = play.GetString("play", "name")
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve play name")
+		}
+		if i != 0 {
+			buf.WriteString("\n")
 		}
 		buf.WriteString("Ansible Playbook result:\n")
 		buf.WriteString("\nPlay [")
@@ -220,13 +233,11 @@ func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string
 				}
 				buf.WriteString(hostName)
 				buf.WriteString("]")
-				var msg string
-				if msg, err = host.GetString("msg"); err == nil && msg != "" {
-					buf.WriteString(" => {\n\tmsg: \"")
-					buf.WriteString(msg)
-					buf.WriteString("\"\n")
-
-				}
+				buf.WriteString(" => {")
+				braceLen := buf.Len()
+				appendAnsibleOutput(&buf, host, "msg")
+				appendAnsibleOutput(&buf, host, "stderr")
+				appendAnsibleOutput(&buf, host, "stdout")
 				results, err := host.GetObjectArray("results")
 				if err == nil {
 					// optionnal
@@ -255,6 +266,9 @@ func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string
 							buf.WriteString("\t}\n")
 						}
 					}
+				}
+				if buf.Len() != braceLen {
+					buf.WriteString("\n}")
 				}
 				buf.WriteString("}")
 			}
