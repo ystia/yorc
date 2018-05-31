@@ -49,7 +49,7 @@ func TestTemplates(t *testing.T) {
 	t.Parallel()
 	ec := &executionCommon{
 		NodeName:               "Welcome",
-		operation:              prov.Operation{Name: "tosca.interfaces.node.lifecycle.standard.start"},
+		operation:              prov.Operation{Name: "standard.start"},
 		Artifacts:              map[string]string{"scripts": "my_scripts"},
 		OverlayPath:            "/some/local/path",
 		VarInputsNames:         []string{"INSTANCE", "PORT"},
@@ -106,14 +106,14 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	})
 
 	t.Run("testExecutionResolveInputsOnNode", func(t *testing.T) {
-		testExecutionResolveInputsOnNode(t, kv, deploymentID, nodeAName, "yorc.types.A", "tosca.interfaces.node.lifecycle.standard.create")
+		testExecutionResolveInputsOnNode(t, kv, deploymentID, nodeAName, "yorc.types.A", "standard.create")
 	})
 	t.Run("testExecutionGenerateOnNode", func(t *testing.T) {
-		testExecutionGenerateOnNode(t, kv, deploymentID, nodeAName, "tosca.interfaces.node.lifecycle.standard.create")
+		testExecutionGenerateOnNode(t, kv, deploymentID, nodeAName, "standard.create")
 	})
 
 	var operationTestCases = []string{
-		"tosca.interfaces.node.lifecycle.configure.pre_configure_source",
+		"configure.pre_configure_source",
 	}
 	for i, operation := range operationTestCases {
 		t.Run("testExecutionResolveInputsOnRelationshipSource-"+strconv.Itoa(i), func(t *testing.T) {
@@ -125,7 +125,7 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	}
 
 	operationTestCases = []string{
-		"tosca.interfaces.node.lifecycle.configure.add_source",
+		"configure.add_source",
 	}
 
 	for i, operation := range operationTestCases {

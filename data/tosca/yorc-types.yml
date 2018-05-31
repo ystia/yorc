@@ -64,3 +64,12 @@ node_types:
     capabilities:
       endpoint:
         type: yorc.capabilities.Endpoint.ProvisioningAdmin
+
+  # NOTE: Alien specific
+  org.alien4cloud.nodes.Job:
+    abstract: true
+    derived_from: tosca.nodes.Root
+    interfaces:
+      tosca.interfaces.node.lifecycle.Runnable:
+        run:
+          description: Standard lifecycle run operation.

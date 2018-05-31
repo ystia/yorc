@@ -8,6 +8,14 @@ metadata:
 imports:
   - yorc: <yorc-types.yml>
 
+artifact_types:
+  yorc.artifacts.Deployment.SlurmJob:
+    description: Slurm Job deployment descriptor
+    derived_from: tosca.artifacts.Deployment
+  yorc.artifacts.Deployment.SlurmJobBin:
+    description: Slurm Job binary deployment descriptor
+    derived_from: yorc.artifacts.Deployment.SlurmJob
+
 node_types:
   yorc.nodes.slurm.Compute:
     derived_from: yorc.nodes.Compute
@@ -36,3 +44,65 @@ node_types:
       partition:
         type: string
         description: Slurm partition where the nodes are deployed.
+
+
+  yorc.nodes.slurm.Job:
+    derived_from: org.alien4cloud.nodes.Job
+    properties:
+      name:
+        type: string
+        description: The slurm job name.
+        required: false
+      tasks:
+        description: Number of tasks to run.
+        type: integer
+        required: false
+        default: 1
+      nodes:
+        description: Number of nodes allocated to the job.
+        type: integer
+        required: false
+        default: 1
+      cpus_per_task:
+        description: Number of cpus allocated per task.
+        type: integer
+        required: false
+      mem_per_node:
+        type: integer
+        description: The memory per node in GB required to the job.
+        required: false
+      time:
+        type: string
+        description: >
+          Set a limit on the total run time of the job allocation.
+          Time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+        required: false
+      batch:
+        type: boolean
+        description: True if the job is run on batch mode.
+        required: false
+        default: true
+      extra_options:
+        type: list
+        description: >
+         This define all other slurm job options with the format opt=value (ex: mpi=pmi2 or partition=MyPartition).
+        required: false
+        entry_schema:
+          type: string
+      exec_args:
+        type: list
+        description: >
+         This define all arguments passed to the executable run by the job.
+        required: false
+        entry_schema:
+          type: string
+    attributes:
+      job_id:
+        type: string
+        description: The ID of the job allocation.
+    interfaces:
+      tosca.interfaces.node.lifecycle.Runnable:
+        run:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.SlurmJob

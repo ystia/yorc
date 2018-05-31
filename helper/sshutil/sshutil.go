@@ -16,10 +16,13 @@ package sshutil
 
 import (
 	"encoding/pem"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path"
 
-	"io"
+	"github.com/bramvdbogaerde/go-scp"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -78,17 +81,13 @@ func (client *SSHClient) GetSessionWrapper() (*SSHSessionWrapper, error) {
 func (client *SSHClient) RunCommand(cmd string) (string, error) {
 	session, err := client.newSession()
 	if err != nil {
-		return "", errors.Wrap(err, "Unable to setup stdout for session")
+		return "", errors.Wrap(err, "Unable to create new session")
 	}
-	defer func() {
-		session.Close()
-	}()
 
 	log.Debugf("[SSHSession] cmd: %q", cmd)
 	stdOutErrBytes, err := session.CombinedOutput(cmd)
 	stdOutErrStr := strings.Trim(string(stdOutErrBytes[:]), "\x00")
 	log.Debugf("[SSHSession] stdout/stderr: %q", stdOutErrStr)
-
 	return stdOutErrStr, err
 }
 
@@ -163,4 +162,31 @@ func ReadPrivateKey(pk string) (ssh.AuthMethod, error) {
 	}
 
 	return ssh.PublicKeys(signer), nil
+}
+
+// CopyFile allows to copy a reader over SSH with defined remote path and specific permissions
+func (client *SSHClient) CopyFile(source io.Reader, remotePath, permissions string) error {
+	// Create a new SCP client
+	scpHostPort := fmt.Sprintf("%s:%d", client.Host, client.Port)
+	scpClient := scp.NewClient(scpHostPort, client.Config)
+
+	// Connect to the remote server
+	err := scpClient.Connect()
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't establish a connection to the remote host:%q", scpHostPort)
+	}
+	defer scpClient.Session.Close()
+
+	// Create the remote directory
+	remoteDir := path.Dir(remotePath)
+	mkdirCmd := fmt.Sprintf("mkdir -p %s", remoteDir)
+	_, err = client.RunCommand(mkdirCmd)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't create the remote directory:%q", remoteDir)
+	}
+
+	// Finally, copy the reader over SSH
+	log.Debugf("Copy source over SSH to remote path:%s", remotePath)
+	scpClient.CopyFile(source, remotePath, permissions)
+	return nil
 }
