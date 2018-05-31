@@ -175,6 +175,7 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath, permissions stri
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't establish a connection to the remote host:%q", scpHostPort)
 	}
+	defer scpClient.Session.Close()
 
 	// Create the remote directory
 	remoteDir := path.Dir(remotePath)

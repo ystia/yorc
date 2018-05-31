@@ -380,13 +380,12 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 		go e.pollBatchJobInfo(ctx, stopCh, errCh)
 		out, err := e.runBatchMode(ctx, opts, execFile)
 		return out, err
-	} else {
-		go e.pollInteractiveJobInfo(ctx, stopCh, errCh)
-		out, err := e.runInteractiveMode(ctx, opts, execFile)
-		// Stop polling information in interactive mode
-		close(stopCh)
-		return out, err
 	}
+	go e.pollInteractiveJobInfo(ctx, stopCh, errCh)
+	out, err := e.runInteractiveMode(ctx, opts, execFile)
+	// Stop polling information in interactive mode
+	close(stopCh)
+	return out, err
 }
 
 func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) (string, error) {
@@ -518,11 +517,7 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 			})
 		}(artPath)
 	}
-
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	return nil
+	return g.Wait()
 }
 
 func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath string, fileInfo os.FileInfo, artifactBaseDir string) error {
@@ -583,11 +578,7 @@ func (e *executionCommon) resolveExecution() error {
 	}
 
 	e.client, err = GetSSHClient(e.cfg)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (e *executionCommon) resolveInputs() error {
@@ -600,9 +591,6 @@ func (e *executionCommon) resolveArtifacts() error {
 	var err error
 	log.Debugf("Get artifacts for node:%q", e.NodeName)
 	e.Artifacts, err = deployments.GetArtifactsForNode(e.kv, e.deploymentID, e.NodeName)
-	if err != nil {
-		return err
-	}
 	log.Debugf("Resolved artifacts: %v", e.Artifacts)
-	return nil
+	return err
 }
