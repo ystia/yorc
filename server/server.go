@@ -27,6 +27,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov/monitoring"
 	"github.com/ystia/yorc/rest"
 	"github.com/ystia/yorc/tasks/workflow"
 )
@@ -78,6 +79,14 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 		goto WAIT
 	}
 	defer httpServer.Shutdown()
+
+	// Register yorc service in Consul
+	if err = consulutil.RegisterServerAsConsulService(configuration, client, shutdownCh); err != nil {
+		return errors.Wrap(err, "Failed to register this yorc server as a Consul service")
+	}
+	// Start monitoring
+	monitoring.Start(configuration, client)
+	defer monitoring.Stop()
 
 WAIT:
 	signalCh := make(chan os.Signal, 4)

@@ -752,7 +752,7 @@ func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
 	// First test operation outputs detection
 
 	results, err := GetOperationInput(kv, deploymentID, "ValueAssignmentNode2", prov.Operation{
-		Name:                   "tosca.interfaces.relationship.configure.pre_configure_target",
+		Name:                   "configure.pre_configure_target",
 		ImplementedInType:      "yorc.tests.relationships.ValueAssignmentConnectsTo",
 		ImplementationArtifact: "",
 		RelOp: prov.RelationshipOperation{
@@ -794,7 +794,7 @@ func testGlobalInputs(t *testing.T, kv *api.KV) {
 
 	nodeName := "GI"
 	giType := "yorc.tests.nodes.GlobalInputs"
-	operationName := "tosca.interfaces.nodes.lifecycle.standard.create"
+	operationName := "standard.create"
 
 	err = SetInstanceAttribute(deploymentID, nodeName, "0", "state", "initial")
 	require.Nil(t, err)
@@ -917,8 +917,9 @@ func testImportTopologyTemplate(t *testing.T, kv *api.KV) {
 
 	// Check the stored compute node and network have the expected type
 	expectedKeyValuePairs := map[string]string{
-		"topology/nodes/TestCompute/type": "yorc.nodes.openstack.Compute",
-		"topology/nodes/Network/type":     "yorc.nodes.openstack.Network",
+		"topology/nodes/TestCompute/type":                              "yorc.nodes.openstack.Compute",
+		"topology/nodes/TestCompute/metadata/monitoring_time_interval": "30",
+		"topology/nodes/Network/type":                                  "yorc.nodes.openstack.Network",
 	}
 
 	for key, expectedValue := range expectedKeyValuePairs {

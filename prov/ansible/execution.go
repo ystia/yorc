@@ -598,11 +598,11 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 }
 
 // resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
-//	add_target, remove_target, add_source, target_changed
+//	add_target, remove_target, add_source, remove_source, target_changed
 // And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
 func (e *executionCommon) resolveIsPerInstanceOperation(operationName string) error {
 	op := strings.ToLower(operationName)
-	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") {
+	if strings.Contains(op, "add_target") || strings.Contains(op, "remove_target") || strings.Contains(op, "target_changed") || strings.Contains(op, "add_source") || strings.Contains(op, "remove_source") {
 		// Do not call the call the operation several time for a "HostedOn" relationship (makes no sense till we scale at compute level)
 		if hostedOn, err := deployments.IsTypeDerivedFrom(e.kv, e.deploymentID, e.relationshipType, "tosca.relationships.HostedOn"); err != nil || hostedOn {
 			e.isPerInstanceOperation = false

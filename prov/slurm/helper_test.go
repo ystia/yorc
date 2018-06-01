@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
+	"os"
 )
 
 // MockSSHSession allows to mock an SSH session
@@ -122,6 +123,7 @@ func TestGetAttributesWithMalformedStdout(t *testing.T) {
 
 // We test parsing the stderr line: ""
 func TestParseSallocResponseWithEmpty(t *testing.T) {
+	t.Parallel()
 	str := ""
 	chResult := make(chan allocationResponse)
 	chErr := make(chan error)
@@ -141,6 +143,7 @@ func TestParseSallocResponseWithEmpty(t *testing.T) {
 
 // We test parsing the stderr line: "salloc: Pending job allocation 1881"
 func TestParseSallocResponseWithExpectedPending(t *testing.T) {
+	t.Parallel()
 	str := "salloc: Pending job allocation 1881\n"
 	chResult := make(chan allocationResponse)
 	chErr := make(chan error)
@@ -165,6 +168,7 @@ func TestParseSallocResponseWithExpectedPending(t *testing.T) {
 // salloc: Pending job allocation 2220
 // salloc: job 2220 queued and waiting for resources
 func TestParseSallocResponseWithExpectedPendingInOtherThanFirstLine(t *testing.T) {
+	t.Parallel()
 	str := "salloc: Required node not available (down, drained or reserved)\nsalloc: Pending job allocation 2220\nsalloc: job 2220 queued and waiting for resources"
 	chResult := make(chan allocationResponse)
 	chErr := make(chan error)
@@ -187,6 +191,7 @@ func TestParseSallocResponseWithExpectedPendingInOtherThanFirstLine(t *testing.T
 
 // We test parsing the stdout line: "salloc: Granted job allocation 1881"
 func TestParseSallocResponseWithExpectedGranted(t *testing.T) {
+	t.Parallel()
 	str := "salloc: Granted job allocation 1881\n"
 	chResult := make(chan allocationResponse)
 	chErr := make(chan error)
@@ -212,6 +217,7 @@ func TestParseSallocResponseWithExpectedGranted(t *testing.T) {
 // "salloc: error: CPU count per node can not be satisfied"
 // "salloc: error: Job submit/allocate failed: Requested node configuration is not available"
 func TestParseSallocResponseWithExpectedRevokedAllocation(t *testing.T) {
+	t.Parallel()
 	str := "salloc: Job allocation 1882 has been revoked.\nsalloc: error: CPU count per node can not be satisfied\nsalloc: error: Job submit/allocate failed: Requested node configuration is not available"
 	chResult := make(chan allocationResponse)
 	chErr := make(chan error)
@@ -231,7 +237,7 @@ func TestParseSallocResponseWithExpectedRevokedAllocation(t *testing.T) {
 
 // Tests the definition of a private key in configuration
 func TestPrivateKey(t *testing.T) {
-
+	t.Parallel()
 	// First generate a valid private key content
 	priv, err := rsa.GenerateKey(rand.Reader, 1024)
 	bArray := pem.EncodeToMemory(&pem.Block{"RSA PRIVATE KEY", nil, x509.MarshalPKCS1PrivateKey(priv)})
@@ -280,4 +286,71 @@ func TestPrivateKey(t *testing.T) {
 	assert.NoError(t, err, "Unexpected error parsing a configuration with password")
 	_, err = GetSSHClient(cfg)
 	assert.NoError(t, err, "Unexpected error getting a ssh client using a configuration with password")
+}
+
+func TestParseJobIDFromSbatchOut(t *testing.T) {
+	t.Parallel()
+	str := "Submitted batch job 4567"
+	ret, err := parseJobIDFromBatchOutput(str)
+	require.Nil(t, err, "unexpected error")
+	require.Equal(t, "4567", ret, "unexpected JobID parsing")
+}
+
+func TestParseOutputConfigFromBatchScriptWithAll(t *testing.T) {
+	t.Parallel()
+	expected := []string{"c.out", "file", "b.out"}
+	data, err := os.Open("testdata/submit.sh")
+	require.Nil(t, err, "unexpected error while opening test file")
+	outputParams, err := parseOutputConfigFromBatchScript(data, true)
+	require.Nil(t, err, "unexpected error while parsing output params from test file")
+	require.Equal(t, expected, outputParams)
+}
+
+func TestParseOutputConfigFromBatchScript(t *testing.T) {
+	t.Parallel()
+	expected := []string{"file", "b.out"}
+	data, err := os.Open("testdata/submit.sh")
+	require.Nil(t, err, "unexpected error while opening test file")
+	outputParams, err := parseOutputConfigFromBatchScript(data, false)
+	require.Nil(t, err, "unexpected error while parsing output params from test file")
+	require.Equal(t, expected, outputParams)
+}
+
+func TestParseOutputConfigFromOpts(t *testing.T) {
+	t.Parallel()
+	expected := []string{"b.out"}
+	data := []string{"--output=b.out"}
+	outputParams := parseOutputConfigFromOpts(data)
+	require.Equal(t, expected, outputParams)
+}
+
+func TestParseKeyValue(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		str string
+	}
+	type checks struct {
+		is    bool
+		key   string
+		value string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want checks
+	}{
+		{"TestKeyValueSimple", args{"aaa=bbb"}, checks{true, "aaa", "bbb"}},
+		{"TestNoKeyValue", args{"azerty"}, checks{false, "", ""}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is, k, v := parseKeyValue(tt.args.str)
+			assert.Equal(t, tt.want.is, is)
+			assert.Equal(t, tt.want.key, k)
+			assert.Equal(t, tt.want.value, v)
+		})
+	}
+
 }

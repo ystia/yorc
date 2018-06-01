@@ -192,6 +192,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Yorc server. After this delay the server immediately exits.")
 	serverCmd.PersistentFlags().StringP("resources_prefix", "x", "", "Prefix created resources (like Computes and so on)")
 	serverCmd.PersistentFlags().Duration("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout, "Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error.")
+	serverCmd.PersistentFlags().String("server_id", config.DefaultServerID, "The server ID used to identify the server node in a cluster.")
 
 	// Flags definition for Yorc HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
@@ -233,6 +234,7 @@ func setConfig() {
 	viper.BindPFlag("server_graceful_shutdown_timeout", serverCmd.PersistentFlags().Lookup("graceful_shutdown_timeout"))
 	viper.BindPFlag("resources_prefix", serverCmd.PersistentFlags().Lookup("resources_prefix"))
 	viper.BindPFlag("wf_step_graceful_termination_timeout", serverCmd.PersistentFlags().Lookup("wf_step_graceful_termination_timeout"))
+	viper.BindPFlag("server_id", serverCmd.PersistentFlags().Lookup("server_id"))
 
 	//Bind Flags Yorc HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
@@ -263,6 +265,7 @@ func setConfig() {
 	viper.BindEnv("cert_file")
 	viper.BindEnv("SSL_verify")
 	viper.BindEnv("resources_prefix")
+	viper.BindEnv("server_id")
 
 	//Bind Consul environment variables flags
 	for key := range consulConfiguration {
@@ -285,6 +288,7 @@ func setConfig() {
 	viper.SetDefault("resources_prefix", "yorc-")
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
+	viper.SetDefault("server_id", config.DefaultServerID)
 
 	// Consul configuration default settings
 	for key, value := range consulConfiguration {

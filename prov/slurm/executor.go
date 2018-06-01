@@ -52,6 +52,27 @@ func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
 }
 
+func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+	log.Debugf("Slurm defaultExecutor: Execute the operation:%+v", operation)
+	consulClient, err := conf.GetConsulClient()
+	if err != nil {
+		return err
+	}
+	kv := consulClient.KV()
+	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+	if err != nil {
+		return err
+	}
+
+	// Execute operation
+	err = exec.execute(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
 	consulClient, err := cfg.GetConsulClient()
 	if err != nil {

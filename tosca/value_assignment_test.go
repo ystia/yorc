@@ -15,9 +15,11 @@
 package tosca
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/log"
 	yaml "gopkg.in/yaml.v2"
@@ -353,4 +355,65 @@ func TestValueAssignmentStringWithQuote(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Equal(t, `concat: ["Hello:", "\"World\"", "!", "!"]`, va.String())
+}
+
+func TestValueAssignment_UnmarshalJSON(t *testing.T) {
+
+	tests := []struct {
+		name      string
+		jsonVal   string
+		wantType  ValueAssignmentType
+		wantValue interface{}
+	}{
+		{"StringLiteral", `"abc"`, ValueAssignmentLiteral, "abc"},
+		{"List", `["1", "two"]`, ValueAssignmentList, []interface{}{"1", "two"}},
+		{"Map", `{"one":"val1","two":"val2"}`, ValueAssignmentMap,
+			map[string]interface{}{"one": "val1", "two": "val2"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var v ValueAssignment
+
+			err := json.Unmarshal([]byte(tt.jsonVal), &v)
+			if err != nil {
+				t.Errorf("ValueAssignment.UnmarshalJSON() error = %v", err)
+
+			} else {
+				assert.Equal(t, tt.wantType.String(), v.Type.String(),
+					"Unexpected type error unmarshalling %s", tt.jsonVal)
+				assert.Equal(t, tt.wantValue, v.Value,
+					"Unexpected value error unmarshalling %s", tt.jsonVal)
+			}
+		})
+	}
+}
+
+func TestValueAssignment_MarshalJSON(t *testing.T) {
+
+	type args struct {
+		json string
+	}
+	tests := []struct {
+		name    string
+		want    string
+		valType ValueAssignmentType
+		value   interface{}
+	}{
+		{"StringLiteral", `"abc"`, ValueAssignmentLiteral, "abc"},
+		{"List", `["1","two"]`, ValueAssignmentList, []interface{}{"1", "two"}},
+		{"Map", `{"one":"val1","two":"val2"}`, ValueAssignmentMap,
+			map[string]string{"one": "val1", "two": "val2"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := &ValueAssignment{Type: tt.valType, Value: tt.value}
+			bytesVal, err := json.Marshal(val)
+			if err != nil {
+				t.Errorf("ValueAssignment.MarshalJSON() error = %v marshalling %q", err, val)
+			} else {
+				stringVal := string(bytesVal)
+				assert.Equal(t, tt.want, stringVal, "Unexpected result marshalling %q", val)
+			}
+		})
+	}
 }
