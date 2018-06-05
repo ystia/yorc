@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,10 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -ex
+#
+#SBATCH --job-name=batch_test
+#
+#SBATCH --ntasks=4
+#SBATCH --nodes=4
+#SBATCH --output=c.out
 
-sudo yum install -q -y wget zip unzip
-cd /tmp && wget -q https://releases.hashicorp.com/consul/1.0.6/consul_1.0.6_linux_amd64.zip && sudo unzip /tmp/consul_1.0.6_linux_amd64.zip -d /usr/local/bin
-sudo mv /tmp/consul.service /etc/systemd/system/consul.service
-sudo chown root:root /etc/systemd/system/consul.service
-sudo mkdir -p /etc/consul.d
+echo "First srun"
+srun --mpi=pmi2 -o file test.mpi
+srun --mpi=pmi2 -o b.out test.mpi

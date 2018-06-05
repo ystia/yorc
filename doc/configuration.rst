@@ -122,6 +122,10 @@ Globals Command-line options
 
   * ``--working_directory`` or ``-w``: Specify an alternative working directory for Yorc. The default is to use a directory named *work* in the current directory.
 
+.. _option_server_id_cmd:
+
+  * ``--server_id``: Specify the server ID used to identify the server node in a cluster. The default is ``server_0``.
+
 
 .. _yorc_config_file_section:
 
@@ -218,6 +222,10 @@ Below is an example of configuration file with TLS enabled.
 .. _option_workdir_cfg: 
 
   * ``working_directory``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
+
+.. _option_server_id_cfg:
+
+  * ``server_id``: Equivalent to :ref:`--server_id <option_server_id_cmd>` command-line flag.
 
 .. _yorc_config_file_ansible_section:
 
@@ -612,6 +620,10 @@ Environment variables
 .. _option_workdir_env: 
 
   * ``YORC_WORKING_DIRECTORY``: Equivalent to :ref:`--working_directory <option_workdir_cmd>` command-line flag.
+
+.. _option_server_id_env:
+
+  * ``YORC_SERVER_ID``: Equivalent to :ref:`--server_id <option_server_id_cmd>` command-line flag.
 
 .. _option_log_env: 
 
