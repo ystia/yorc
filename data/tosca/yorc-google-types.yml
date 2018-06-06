@@ -14,7 +14,7 @@ node_types:
     description: >
       Google Compute Engine Virtual Machine (Compute Instance)
     properties:
-      # See defintions at:
+      # See definitions at:
       # https://cloud.google.com/compute/docs/reference/rest/v1/instances
       imageProject:
         type: string
