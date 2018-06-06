@@ -1,0 +1,101 @@
+tosca_definitions_version: yorc_tosca_simple_yaml_1_0
+
+metadata:
+  template_name: yorc-google-types
+  template_author: yorc
+  template_version: 1.0.0
+
+imports:
+  - yorc: <yorc-types.yml>
+
+node_types:
+  yorc.nodes.google.Compute:
+    derived_from: yorc.nodes.Compute
+    description: >
+      Google Compute Engine Virtual Machine (Compute Instance)
+    properties:
+      # See defintions at:
+      # https://cloud.google.com/compute/docs/reference/rest/v1/instances
+      imageProject:
+        type: string
+        description: >
+          The project against which all image and image family references will be
+          resolved.
+          If not specified, and either image or imageFamily is provided, the current
+          default project is used.
+        required: false
+      imageFamily:
+        type: string
+        description: >
+          The family of the image that the boot disk will be initialized with.
+          When a family is specified instead of an image, the latest non-deprecated 
+          image associated with that family is used.
+        required: false
+      image:
+        type: string
+        description: >
+          Boot image for the instance.
+          If not specified, and an image family is specified, the latest 
+          non-deprecated image associated with that family is used.
+        required: false
+      machineType:
+        type: string
+        description: >
+          The machine type used for the Compute Node, defining the Compute Node 
+          CPU and Memory resources.
+        default: n1-standard-1
+      zone:
+        type: string
+        description: >
+          The zone on which the Compute Node should be hosted.
+      description:
+        type: string
+        description: >
+          Textual description of this Compute Node.
+        required: false
+      labels:
+        type: string
+        description: >
+          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Node. 
+        required: false
+      metadata:
+        type: string
+        description: >
+          Comma-separated list of label KEY=VALUE pairs made available to the
+          Compute Node Operating System. On Google official images, the metadata
+          keys startup-script or startup-script-url can be used to specify a script
+          that will be executed by the Compute Node once it starts running.
+        required: false
+      noAddress:
+        type: boolean
+        description: >
+        If set to true, the instance will not be assigned an external IP address
+        required: false
+      preemptible:
+        type: boolean
+        description: >
+        If set to true, the Compute Node is preemptible and time-limited.
+        required: false
+      scopes:
+        type: string
+        description: >
+          Comma-separated list of service scopes defining access to Google Cloud APIs.
+          A scope can be either the full URI of the scope or an alias, like default 
+          or cloud-platform.
+        required: false
+        default: default
+      serviceAccount:
+        type: string
+        description: >
+          Service Account (e-mail or alias) to attach to the Compute Node.
+          If not provided, the Compute Node will get the project default service
+          account. 
+        required: false
+      tags:
+        type: string
+        description: >
+          Comma-separated list of tags to apply to the instances for identifying
+          the instances to which network firewall rules will apply.
+        required: false
+
+      
