@@ -16,15 +16,15 @@ node_types:
     properties:
       # See definitions at:
       # https://cloud.google.com/compute/docs/reference/rest/v1/instances
-      imageProject:
+      image_project:
         type: string
         description: >
           The project against which all image and image family references will be
           resolved.
-          If not specified, and either image or imageFamily is provided, the current
+          If not specified, and either image or image_family is provided, the current
           default project is used.
         required: false
-      imageFamily:
+      image_family:
         type: string
         description: >
           The family of the image that the boot disk will be initialized with.
@@ -38,7 +38,7 @@ node_types:
           If not specified, and an image family is specified, the latest 
           non-deprecated image associated with that family is used.
         required: false
-      machineType:
+      machine_type:
         type: string
         description: >
           The machine type used for the Compute Node, defining the Compute Node 
@@ -66,7 +66,7 @@ node_types:
           keys startup-script or startup-script-url can be used to specify a script
           that will be executed by the Compute Node once it starts running.
         required: false
-      noAddress:
+      no_address:
         type: boolean
         description: >
         If set to true, the instance will not be assigned an external IP address
@@ -84,7 +84,7 @@ node_types:
           or cloud-platform.
         required: false
         default: default
-      serviceAccount:
+      service_account:
         type: string
         description: >
           Service Account (e-mail or alias) to attach to the Compute Node.
