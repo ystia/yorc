@@ -14,7 +14,11 @@
 
 package kubernetes
 
-import "github.com/ystia/yorc/registry"
+import (
+	"log"
+
+	"github.com/ystia/yorc/registry"
+)
 
 const (
 	kubernetesArtifactImplementation           = "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes"
@@ -24,6 +28,7 @@ const (
 // Default executor is registered to treat kubernetes artifacts deployment
 func init() {
 	reg := registry.GetRegistry()
+	log.Printf("Register operation executor for implementation artifacts %s and %s (corresponding to the 2 K8S implementations currently supported by Yorc)", kubernetesArtifactImplementation, kubernetesDeploymentArtifactImplementation)
 	reg.RegisterOperationExecutor(
 		[]string{
 			kubernetesArtifactImplementation,
