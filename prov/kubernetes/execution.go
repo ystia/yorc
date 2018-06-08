@@ -180,7 +180,6 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, operatio
 	}
 	// Unmarshal JSON to k8s data structs
 	if err = json.Unmarshal([]byte(rSpec), &deploymentRepr); err != nil {
-		log.Printf("Try to manage k8S resource %s", rSpec)
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
@@ -202,12 +201,12 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, operatio
 		if err != nil {
 			return err
 		}
-		log.Printf("k8s Deployment %s created in namespace %s", deployment.Name, namespace)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).Registerf("k8s Deployment %s created in namespace %s", deployment.Name, namespace)
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
 		var deploymentName string
 		deploymentName = deploymentRepr.Name
-		log.Printf("Delete k8s Deployment %s", deploymentName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).Registerf("Delete k8s Deployment %s", deploymentName)
 
 		deletePolicy := metav1.DeletePropagationForeground
 		var gracePeriod int64 = 5
@@ -215,7 +214,7 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, operatio
 			GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy}); err != nil {
 			return err
 		}
-		log.Printf("k8s Deployment %s deleted", deploymentName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).Registerf("k8s Deployment %s deleted", deploymentName)
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}
@@ -232,7 +231,6 @@ func (e *executionCommon) manageServiceResource(ctx context.Context, operationTy
 	}
 	// Unmarshal JSON to k8s data structs
 	if err = json.Unmarshal([]byte(rSpec), &serviceRepr); err != nil {
-		log.Printf("Try to manage k8s resource %s", rSpec)
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
@@ -254,24 +252,17 @@ func (e *executionCommon) manageServiceResource(ctx context.Context, operationTy
 			return errors.Wrap(err, "Failed to create service")
 		}
 
-		log.Printf("k8s Service %s created in namespace %s", service.Name, namespace)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).Registerf("k8s Service %s created in namespace %s", service.Name, namespace)
 
-		var s string
 		kubConf := e.cfg.Infrastructures["kubernetes"]
 		kubMasterIP := kubConf.GetString("master_url")
 		u, _ := url.Parse(kubMasterIP)
 		h := strings.Split(u.Host, ":")
 		for _, val := range service.Spec.Ports {
-			//log.Printf("- k8s Service Spec Port : Name = %s ~ NodePort = %d ~ Port = %d ~ TargetPort (string) = %s ~ TargetPort (int) = %d ~ Protocol = %s", val.Name, val.NodePort, val.Port, val.TargetPort.StrVal, val.TargetPort.IntVal, val.Protocol)
-
-			str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
-
-			log.Printf("%s : %s: %d:%d mapped to %s", service.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
-
-			s = fmt.Sprintf("%s %d ==> %s \n", s, val.Port, str)
-
 			if val.NodePort != 0 {
-				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
+				str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).Registerf("%s : %s: %d:%d mapped to %s", service.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
+				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", str)
 				if err != nil {
 					return errors.Wrap(err, "Failed to set attribute")
 				}
@@ -281,14 +272,14 @@ func (e *executionCommon) manageServiceResource(ctx context.Context, operationTy
 		// Delete Deployment k8s resource
 		var serviceName string
 		serviceName = serviceRepr.Name
-		log.Printf("Delete k8s Service %s", serviceName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).Registerf("Delete k8s Service %s", serviceName)
 
 		err = clientset.CoreV1().Services(namespace).Delete(serviceName, nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to delete service")
 		}
 
-		log.Printf("k8s Service %s deleted !", serviceName)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).Registerf("k8s Service %s deleted!", serviceName)
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}
