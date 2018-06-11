@@ -24,12 +24,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
@@ -39,7 +40,6 @@ import (
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
-	"k8s.io/client-go/kubernetes"
 )
 
 // An EnvInput represent a TOSCA operation input
@@ -57,7 +57,7 @@ const (
 )
 
 type execution interface {
-	execute(ctx context.Context) error
+	execute(ctx context.Context, clientset *kubernetes.Clientset) error
 }
 
 type executionScript struct {
@@ -113,8 +113,9 @@ func (e *executionCommon) resolveOperation() error {
 	return err
 }
 
-func (e *executionCommon) execute(ctx context.Context) (err error) {
-	ctx = context.WithValue(ctx, "generator", newGenerator(e.kv, e.cfg))
+func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Clientset) (err error) {
+	// TODO is there any reason for recreating a new generator for each execution?
+	generator := newGenerator(e.kv, e.cfg)
 	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	nbInstances := int32(len(instances))
 
@@ -126,54 +127,52 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		"tosca.interfaces.node.lifecycle.")
 	switch operationName {
 	case "standard.create":
-		return e.manageKubernetesResource(ctx, k8sCreateOperation)
+		return e.manageKubernetesResource(ctx, clientset, generator, k8sCreateOperation)
 	case "standard.configure":
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
 	case "standard.start":
 		if e.taskType == tasks.ScaleOut {
 			log.Println("Scale up node !")
-			err = e.scaleNode(ctx, tasks.ScaleOut, nbInstances)
+			err = e.scaleNode(ctx, clientset, tasks.ScaleOut, nbInstances)
 		} else {
 			log.Println("Deploy node !")
-			err = e.deployNode(ctx, nbInstances)
+			err = e.deployNode(ctx, clientset, generator, nbInstances)
 		}
 		if err != nil {
 			return err
 		}
-		return e.checkNode(ctx)
+		return e.checkNode(ctx, clientset, generator)
 	case "standard.stop":
 		if e.taskType == tasks.ScaleIn {
 			log.Println("Scale down node !")
-			return e.scaleNode(ctx, tasks.ScaleIn, nbInstances)
+			return e.scaleNode(ctx, clientset, tasks.ScaleIn, nbInstances)
 		}
-		return e.uninstallNode(ctx)
+		return e.uninstallNode(ctx, clientset)
 	case "standard.delete":
-		return e.manageKubernetesResource(ctx, k8sDeleteOperation)
+		return e.manageKubernetesResource(ctx, clientset, generator, k8sDeleteOperation)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
 
 }
 
-func (e *executionCommon) manageKubernetesResource(ctx context.Context, op k8sResourceOperation) error {
+func (e *executionCommon) manageKubernetesResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, op k8sResourceOperation) error {
 	_, rSpec, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec")
 	if err != nil {
 		return err
 	}
 	switch e.NodeType {
 	case deploymentResourceType:
-		return e.manageDeploymentResource(ctx, op, rSpec)
+		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec)
 	case serviceResourceType:
-		return e.manageServiceResource(ctx, op, rSpec)
+		return e.manageServiceResource(ctx, clientset, generator, op, rSpec)
 	default:
 		return errors.Errorf("Unsupported k8s resource type %q", e.NodeType)
 	}
 }
 
-func (e *executionCommon) manageDeploymentResource(ctx context.Context, operationType k8sResourceOperation, rSpec string) (err error) {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-	generator := ctx.Value("generator").(*k8sGenerator)
+func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	var deploymentRepr v1beta1.Deployment
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
@@ -222,9 +221,7 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, operatio
 	return nil
 }
 
-func (e *executionCommon) manageServiceResource(ctx context.Context, operationType k8sResourceOperation, rSpec string) (err error) {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-	generator := ctx.Value("generator").(*k8sGenerator)
+func (e *executionCommon) manageServiceResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	var serviceRepr apiv1.Service
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
@@ -297,10 +294,7 @@ func (e *executionCommon) parseEnvInputs() []apiv1.EnvVar {
 	return data
 }
 
-func (e *executionCommon) checkRepository(ctx context.Context) error {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-	generator := ctx.Value("generator").(*k8sGenerator)
-
+func (e *executionCommon) checkRepository(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -354,9 +348,7 @@ func (e *executionCommon) checkRepository(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskType, nbInstances int32) error {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-
+func (e *executionCommon) scaleNode(ctx context.Context, clientset *kubernetes.Clientset, scaleType tasks.TaskType, nbInstances int32) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -380,10 +372,7 @@ func (e *executionCommon) scaleNode(ctx context.Context, scaleType tasks.TaskTyp
 	return nil
 }
 
-func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) error {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-	generator := ctx.Value("generator").(*k8sGenerator)
-
+func (e *executionCommon) deployNode(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, nbInstances int32) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -394,7 +383,7 @@ func (e *executionCommon) deployNode(ctx context.Context, nbInstances int32) err
 		return err
 	}
 
-	err = e.checkRepository(ctx)
+	err = e.checkRepository(ctx, clientset, generator)
 	if err != nil {
 		return err
 	}
@@ -492,9 +481,7 @@ func (e *executionCommon) setUnDeployHook() error {
 	return nil
 }
 
-func (e *executionCommon) checkNode(ctx context.Context) error {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-
+func (e *executionCommon) checkNode(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -533,7 +520,7 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 			for _, podItem := range pods.Items {
 
 				//log.Printf("Check pod %s", podItem.Name)
-				err := e.checkPod(ctx, podItem.Name)
+				err := e.checkPod(ctx, clientset, generator, podItem.Name)
 				if err != nil {
 					return err
 				}
@@ -547,9 +534,7 @@ func (e *executionCommon) checkNode(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
-
+func (e *executionCommon) checkPod(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, podName string) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -624,8 +609,7 @@ func (e *executionCommon) checkPod(ctx context.Context, podName string) error {
 	return nil
 }
 
-func (e *executionCommon) uninstallNode(ctx context.Context) error {
-	clientset := ctx.Value("clientset").(*kubernetes.Clientset)
+func (e *executionCommon) uninstallNode(ctx context.Context, clientset *kubernetes.Clientset) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
