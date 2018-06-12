@@ -18,6 +18,8 @@ package server
 import (
 	// Registering AWS delegate executor in the registry
 	_ "github.com/ystia/yorc/prov/terraform/aws"
+	// Registering Google Cloud delegate executor in the registry
+	_ "github.com/ystia/yorc/prov/terraform/google"
 	// Registering openstack delegate executor in the registry
 	_ "github.com/ystia/yorc/prov/terraform/openstack"
 	// Registering ansible operation executor in the registry

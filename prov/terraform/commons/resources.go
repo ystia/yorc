@@ -14,6 +14,12 @@
 
 package commons
 
+const (
+	// DefaultSSHPrivateKeyFilePath is the default SSH private Key file path
+	// used to connect to provisioned resources
+	DefaultSSHPrivateKeyFilePath = "~/.ssh/yorc.pem"
+)
+
 // An Infrastructure is the top-level element of a Terraform infrastructure definition
 type Infrastructure struct {
 	Terraform map[string]interface{} `json:"terraform,omitempty"`

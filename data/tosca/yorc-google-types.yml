@@ -80,10 +80,9 @@ node_types:
         type: string
         description: >
           Comma-separated list of service scopes defining access to Google Cloud APIs.
-          A scope can be either the full URI of the scope or an alias, like default 
-          or cloud-platform.
+          A scope can be either the full URI of the scope or an alias, like
+          cloud-platform.
         required: false
-        default: default
       service_account:
         type: string
         description: >
@@ -98,4 +97,3 @@ node_types:
           the instances to which network firewall rules will apply.
         required: false
 
-      
