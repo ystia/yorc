@@ -200,6 +200,12 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 		if err != nil {
 			return err
 		}
+
+		err = waitForDeploymentCompletion(ctx, e.deploymentID, clientset, deployment)
+		if err != nil {
+			return err
+		}
+
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).Registerf("k8s Deployment %s created in namespace %s", deployment.Name, namespace)
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
