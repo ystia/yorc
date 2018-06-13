@@ -22,6 +22,7 @@ import (
 
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -79,5 +80,6 @@ func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, opera
 		OperationHost:      operationHost,
 		TargetRelationship: requirementName,
 	}
+	log.Debugf("operation:%+v", op)
 	return op, nil
 }

@@ -15,6 +15,9 @@ artifact_types:
   yorc.artifacts.Deployment.SlurmJobBin:
     description: Slurm Job binary deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
+  yorc.artifacts.Deployment.SlurmJobImage:
+    description: Slurm Job Container image deployment descriptor
+    derived_from: yorc.artifacts.Deployment.SlurmJob
 
 node_types:
   yorc.nodes.slurm.Compute:

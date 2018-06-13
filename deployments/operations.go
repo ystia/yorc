@@ -29,6 +29,7 @@ import (
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/stringutil"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tosca"
 )
@@ -147,6 +148,7 @@ func GetRelationshipTypeImplementingAnOperation(kv *api.KV, deploymentID, nodeNa
 // This is a shortcut for retrieving the node type and calling the GetTypeImplementingAnOperation() function
 func GetNodeTypeImplementingAnOperation(kv *api.KV, deploymentID, nodeName, operationName string) (string, error) {
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
+	log.Debugf("[GetNodeTypeImplementingAnOperation] nodeType=%q", nodeType)
 	if err != nil {
 		return "", err
 	}
@@ -158,9 +160,12 @@ func GetNodeTypeImplementingAnOperation(kv *api.KV, deploymentID, nodeName, oper
 //
 // An error is returned if the operation is not found in the type hierarchy
 func GetTypeImplementingAnOperation(kv *api.KV, deploymentID, typeName, operationName string) (string, error) {
+	log.Debugf("[GetTypeImplementingAnOperation] operationName=%q", operationName)
 	implType := typeName
 	for implType != "" {
+		log.Debugf("[GetTypeImplementingAnOperation] implType=%q", implType)
 		operationPath := getOperationPath(deploymentID, implType, operationName)
+		log.Debugf("[GetTypeImplementingAnOperation] operationPath=%q", operationPath)
 		kvp, _, err := kv.Get(path.Join(operationPath, "name"), nil)
 		if err != nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)

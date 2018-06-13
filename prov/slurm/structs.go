@@ -43,3 +43,10 @@ type jobInfo struct {
 	outputs   []string
 	inputs    map[string]string
 }
+
+type singularityInfo struct {
+	imageName string
+	imageURI  string
+	command   string
+	exec      string
+}

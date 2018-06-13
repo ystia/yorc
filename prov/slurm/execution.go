@@ -93,6 +93,17 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
+
+	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
+	if err != nil {
+		return nil, err
+	}
+
+	if isSingularity {
+		execSingularity := &executionSingularity{executionCommon: execCommon}
+		return execSingularity, execCommon.resolveExecution()
+	}
+
 	return execCommon, execCommon.resolveExecution()
 }
 
