@@ -201,6 +201,8 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 			return err
 		}
 
+		streamDeploymentLogs(ctx, e.deploymentID, clientset, deployment)
+
 		err = waitForDeploymentCompletion(ctx, e.deploymentID, clientset, deployment)
 		if err != nil {
 			return err
@@ -212,6 +214,12 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 		var deploymentName string
 		deploymentName = deploymentRepr.Name
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).Registerf("Delete k8s Deployment %s", deploymentName)
+
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(deploymentName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		streamDeploymentLogs(ctx, e.deploymentID, clientset, deployment)
 
 		deletePolicy := metav1.DeletePropagationForeground
 		var gracePeriod int64 = 5
