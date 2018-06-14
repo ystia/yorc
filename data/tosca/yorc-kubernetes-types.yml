@@ -13,7 +13,37 @@ artifact_types:
     description: Docker Container Image to be deployed by Kubernetes
     derived_from: tosca.artifacts.Deployment.Image.Container.Docker
 
+  yorc.artifacts.Deployment.Kubernetes:
+    description: Docker deployment descriptor
+    derived_from: tosca.artifacts.Deployment
+
 node_types:
+  yorc.nodes.kubernetes.api.types.DeploymentResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.DeploymentResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+        delete:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+
+  yorc.nodes.kubernetes.api.types.ServiceResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.ServiceResource
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+        delete:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+
   yorc.nodes.KubernetesVolume:
     derived_from: yorc.nodes.DockerVolume
     properties:

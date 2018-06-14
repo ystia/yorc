@@ -47,7 +47,7 @@ type Registry interface {
 	// ListToscaDefinitions returns a map of definitions names to their origin
 	ListToscaDefinitions() []Definition
 
-	// RegisterDelegates register a list of implementation artifact type that should be used along with the given
+	// RegisterOperationExecutor register a list of implementation artifact type that should be used along with the given
 	// prov.OperationExecutor. Origin is the origin of the executor (builtin for builtin executors or the plugin name in case of a plugin)
 	RegisterOperationExecutor(artifacts []string, executor prov.OperationExecutor, origin string)
 	// Returns the first prov.OperationExecutor that matches the given artifact implementation
