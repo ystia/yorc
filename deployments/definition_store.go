@@ -370,6 +370,8 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 		for metaName, metaValue := range node.Metadata {
 			consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
 		}
+
+		storeInterfaces(consulStore, node.Interfaces, nodePrefix+"/interfaces", false)
 	}
 
 }
