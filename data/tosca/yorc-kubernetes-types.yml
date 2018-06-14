@@ -24,11 +24,11 @@ node_types:
       Standard:
         create:
           implementation:
-            file: "embeded"
+            file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes
         delete:
           implementation:
-            file: "embeded"
+            file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes
 
   yorc.nodes.kubernetes.api.types.ServiceResource:
@@ -37,11 +37,11 @@ node_types:
       Standard:
         create:
           implementation:
-            file: "embeded"
+            file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes
         delete:
           implementation:
-            file: "embeded"
+            file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes
 
   yorc.nodes.KubernetesVolume:
