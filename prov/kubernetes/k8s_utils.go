@@ -70,7 +70,7 @@ func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clien
 
 		if failed, msg := isDeploymentFailed(clientset, deployment); failed {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", deployment.Name, msg)
-			return false, errors.Errorf("Kubernetes deployment %q: ", deployment.Name, msg)
+			return false, errors.Errorf("Kubernetes deployment %q: %s", deployment.Name, msg)
 		}
 		return false, nil
 	}, ctx.Done())
