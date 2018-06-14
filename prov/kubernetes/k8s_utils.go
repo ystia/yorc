@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -41,6 +42,20 @@ func isDeploymentFailed(clientset *kubernetes.Clientset, deployment *v1beta1.Dep
 		}
 	}
 	return false, ""
+}
+
+func waitForDeploymentDeletion(ctx context.Context, clientset *kubernetes.Clientset, deployment *v1beta1.Deployment) error {
+	return wait.PollUntil(2*time.Second, func() (bool, error) {
+		_, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		return false, nil
+	}, ctx.Done())
+
 }
 
 func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clientset *kubernetes.Clientset, deployment *v1beta1.Deployment) error {

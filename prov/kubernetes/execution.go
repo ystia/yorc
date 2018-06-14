@@ -227,6 +227,15 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 			GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy}); err != nil {
 			return err
 		}
+
+		// TODO make timeout configurable
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+		err = waitForDeploymentDeletion(ctx, clientset, deployment)
+		if err != nil {
+			return err
+		}
+
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).Registerf("k8s Deployment %s deleted", deploymentName)
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
