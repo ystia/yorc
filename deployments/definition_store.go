@@ -371,7 +371,7 @@ func storeNodes(ctx context.Context, topology tosca.Topology, topologyPrefix, im
 			consulStore.StoreConsulKeyAsString(metadataPrefix+metaName, metaValue)
 		}
 
-		storeInterfaces(consulStore, node.Interfaces, nodePrefix+"/interfaces", false)
+		storeInterfaces(consulStore, node.Interfaces, nodePrefix, false)
 	}
 
 }

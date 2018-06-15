@@ -115,7 +115,7 @@ func (e *executionCommon) resolveOperation() error {
 		return err
 	}
 	operationNodeType := e.NodeType
-	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.deploymentID, operationNodeType, e.operation.Name)
+	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
@@ -401,6 +401,7 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 
 func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) (string, error) {
 	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
+	cmd = strings.Trim(cmd, "")
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
@@ -465,18 +466,18 @@ func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
 }
 
 func (e *executionCommon) handleBatchOutputs(ctx context.Context) error {
-	var outputDir string
-	if len(e.jobInfo.outputs) > 0 {
-		// Copy the outputs in <JOB_ID>_outputs directory at root level
-		outputDir = fmt.Sprintf("job_" + e.jobInfo.ID + "_outputs")
-		cmd := fmt.Sprintf("mkdir %s", outputDir)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		output, err := e.client.RunCommand(cmd)
-		if err != nil {
-			return errors.Wrap(err, output)
-		}
+	if len(e.jobInfo.outputs) == 0 {
+		e.jobInfo.outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
 	}
-
+	// Copy the outputs in <JOB_ID>_outputs directory at root level
+	outputDir := fmt.Sprintf("job_" + e.jobInfo.ID + "_outputs")
+	cmd := fmt.Sprintf("mkdir %s", outputDir)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	output, err := e.client.RunCommand(cmd)
+	if err != nil {
+		return errors.Wrap(err, output)
+	}
+	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
 	for _, out := range e.jobInfo.outputs {
 		oldPath := path.Join(e.OperationRemoteDir, out)
 		newPath := path.Join(outputDir, out)

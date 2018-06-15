@@ -65,13 +65,13 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 	envInputs := make([]*EnvInput, 0)
 	varInputsNames := make([]string, 0)
 
-	inputKeys, err := deployments.GetOperationInputs(kv, deploymentID, operation.ImplementedInType, operation.Name)
+	inputKeys, err := deployments.GetOperationInputs(kv, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	for _, input := range inputKeys {
-		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(kv, deploymentID, operation.ImplementedInType, operation.Name, input)
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(kv, deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name, input)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -18,10 +18,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
+	"net/url"
 	"path"
 	"strings"
 )
@@ -47,16 +49,6 @@ func (e *executionSingularity) execute(ctx context.Context) (err error) {
 	switch strings.ToLower(e.operation.Name) {
 	case "tosca.interfaces.node.lifecycle.runnable.run":
 		log.Printf("Running the job: %s", e.operation.Name)
-		// Copy the artifacts
-		if err := e.uploadArtifacts(ctx); err != nil {
-			return errors.Wrap(err, "failed to upload artifact")
-		}
-
-		// Copy the operation implementation
-		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-			return errors.Wrap(err, "failed to upload operation implementation")
-		}
-
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
 			return errors.Wrap(err, "failed to build job information")
@@ -108,41 +100,132 @@ func (e *executionSingularity) runCommand(ctx context.Context) (string, error) {
 
 	stopCh := make(chan struct{})
 	errCh := make(chan error)
+	if e.jobInfo.batchMode {
+		// get outputs for batch mode
+		err := e.searchForBatchOutputs(ctx)
+		if err != nil {
+			return "", err
+		}
+		go e.pollBatchJobInfo(ctx, stopCh, errCh)
+		out, err := e.runBatchMode(ctx, opts)
+		return out, err
+	}
 	go e.pollInteractiveJobInfo(ctx, stopCh, errCh)
+	out, err := e.runInteractiveMode(ctx, opts)
+	// Stop polling information in interactive mode
+	close(stopCh)
+	return out, err
+}
 
-	cmd := fmt.Sprintf("srun singularity %s %s %s", e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
+func (e *executionSingularity) searchForBatchOutputs(ctx context.Context) error {
+	outputs := parseOutputConfigFromOpts(e.jobInfo.opts)
+	e.jobInfo.outputs = outputs
+	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
+	return nil
+}
+
+func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) (string, error) {
+	innerCmd := fmt.Sprintf("srun %s singularity %s %s %s", opts, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
+	cmd := fmt.Sprintf("sbatch --wrap=\"%s\"", innerCmd)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
 		return "", errors.Wrap(err, output)
 	}
-	// Stop polling information in interactive mode
-	close(stopCh)
+	output = strings.Trim(output, "\n")
+	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
+		return "", err
+	}
+	log.Debugf("JobID:%q", e.jobInfo.ID)
+	return output, nil
+}
+
+func (e *executionSingularity) runInteractiveMode(ctx context.Context, opts string) (string, error) {
+	cmd := fmt.Sprintf("srun %s singularity %s %s %s %s", opts, e.singularityInfo.command, strings.Join(e.jobInfo.execArgs, " "), e.singularityInfo.imageURI, e.singularityInfo.exec)
+	cmd = strings.Trim(cmd, "")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	output, err := e.client.RunCommand(cmd)
+	if err != nil {
+		log.Debugf("stderr:%q", output)
+		return "", errors.Wrap(err, output)
+	}
 	return output, nil
 }
 
 func (e *executionSingularity) buildSingularityInfo(ctx context.Context) error {
 	singularityInfo := singularityInfo{}
 	for _, input := range e.EnvInputs {
-		if input.Name == "container_image" && input.Value != "" {
-			singularityInfo.imageName = input.Value
-		}
-
 		if input.Name == "exec_command" && input.Value != "" {
 			singularityInfo.exec = input.Value
 			singularityInfo.command = "exec"
 		}
 	}
-	// imageName is mandatory
+
+	singularityInfo.imageName = e.Primary
 	if singularityInfo.imageName == "" {
-		return errors.Errorf("Missing mandatory input 'container_image' for %s", e.NodeName)
+		return errors.New("The image name is mandatory and must be filled in the operation artifact implementation")
 	}
+
 	// Default singularity command is "run"
 	if singularityInfo.command == "" {
 		singularityInfo.command = "run"
 	}
 	log.Debugf("singularity Info:%+v", singularityInfo)
 	e.singularityInfo = &singularityInfo
+	return e.resolveContainerImage()
+}
+
+func (e *executionSingularity) resolveContainerImage() error {
+	switch {
+	// Docker image
+	case strings.HasPrefix(e.singularityInfo.imageName, "docker://"):
+		if err := e.buildImageURI("docker://"); err != nil {
+			return err
+		}
+		// Singularity image
+	case strings.HasPrefix(e.singularityInfo.imageName, "shub://"):
+		if err := e.buildImageURI("shub://"); err != nil {
+			return err
+		}
+		// File image
+	case strings.HasSuffix(e.singularityInfo.imageName, ".simg") || strings.HasSuffix(e.singularityInfo.imageName, ".img"):
+		e.singularityInfo.imageURI = e.singularityInfo.imageName
+	default:
+		return errors.Errorf("Unable to resolve container image URI from image name:%q", e.singularityInfo.imageName)
+	}
+	return nil
+}
+
+func (e *executionSingularity) buildImageURI(prefix string) error {
+	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+	if err != nil {
+		return err
+	}
+	if repoName == "" {
+		e.singularityInfo.imageURI = e.singularityInfo.imageName
+	} else {
+		repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
+		if err != nil {
+			log.Debugf("Unable to retrieve repository URL for repo name:%q due to error:%s. We keep going on running execution", repoName, err)
+			// Yes, I know...it's bad !
+			repoURL = "https://hpda-docker-registry:5000/"
+		}
+		// Just ignore default registries
+		if repoURL == deployments.DockerHubURL || repoURL == deployments.SingularityHubURL {
+			e.singularityInfo.imageURI = e.singularityInfo.imageName
+		} else if repoURL != "" {
+			url, err := url.Parse(repoURL)
+			if err != nil {
+				return err
+			}
+			tabs := strings.Split(e.singularityInfo.imageName, prefix)
+			imageURI := prefix + path.Join(url.Host, tabs[1])
+			log.Debugf("imageURI:%q", imageURI)
+			e.singularityInfo.imageURI = imageURI
+		} else {
+			e.singularityInfo.imageURI = e.singularityInfo.imageName
+		}
+	}
 	return nil
 }
