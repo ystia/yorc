@@ -87,7 +87,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		VarInputsNames:         make([]string, 0),
 		EnvInputs:              make([]*operations.EnvInput, 0),
 		taskID:                 taskID,
-		OperationRemoteBaseDir: ".yorc",
+		OperationRemoteBaseDir: stringutil.UniqueTimestampedName(".yorc_", ""),
 		jobInfoPolling:         5 * time.Second,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
@@ -159,7 +159,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		}
 
 		// Run the command
-		out, err := e.runCommand(ctx)
+		out, err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
@@ -354,7 +354,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
+func (e *executionCommon) fillJobCommandOpts() string {
 	var opts string
 	opts += fmt.Sprintf(" --job-name=%s", e.jobInfo.name)
 
@@ -377,7 +377,11 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 			opts += fmt.Sprintf(" --%s", opt)
 		}
 	}
+	return opts
+}
 
+func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
+	opts := e.fillJobCommandOpts()
 	stopCh := make(chan struct{})
 	errCh := make(chan error)
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)

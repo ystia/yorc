@@ -60,46 +60,27 @@ func (e *executionSingularity) execute(ctx context.Context) (err error) {
 		}
 
 		// Run the command
-		out, err := e.runCommand(ctx)
+		out, err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
 		log.Debugf("output:%q", out)
-		return e.cleanUp()
+		if !e.jobInfo.batchMode {
+			return e.cleanUp()
+		}
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
 	return nil
 }
 
-func (e *executionSingularity) runCommand(ctx context.Context) (string, error) {
-	var opts string
-	opts += fmt.Sprintf(" --job-name=%s", e.jobInfo.name)
-
-	if e.jobInfo.tasks > 1 {
-		opts += fmt.Sprintf(" --ntasks=%d", e.jobInfo.tasks)
-	}
-	opts += fmt.Sprintf(" --nodes=%d", e.jobInfo.nodes)
-
-	if e.jobInfo.mem != 0 {
-		opts += fmt.Sprintf(" --mem=%dG", e.jobInfo.mem)
-	}
-	if e.jobInfo.cpus != 0 {
-		opts += fmt.Sprintf(" --cpus-per-task=%d", e.jobInfo.cpus)
-	}
-	if e.jobInfo.maxTime != "" {
-		opts += fmt.Sprintf(" --time=%s", e.jobInfo.maxTime)
-	}
-	if e.jobInfo.opts != nil && len(e.jobInfo.opts) > 0 {
-		for _, opt := range e.jobInfo.opts {
-			opts += fmt.Sprintf(" --%s", opt)
-		}
-	}
-
+func (e *executionSingularity) runJobCommand(ctx context.Context) (string, error) {
+	opts := e.fillJobCommandOpts()
 	stopCh := make(chan struct{})
 	errCh := make(chan error)
+	e.OperationRemoteDir = e.OperationRemoteBaseDir
 	if e.jobInfo.batchMode {
 		// get outputs for batch mode
 		err := e.searchForBatchOutputs(ctx)
@@ -126,7 +107,7 @@ func (e *executionSingularity) searchForBatchOutputs(ctx context.Context) error 
 
 func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) (string, error) {
 	innerCmd := fmt.Sprintf("srun %s singularity %s %s %s", opts, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
-	cmd := fmt.Sprintf("sbatch --wrap=\"%s\"", innerCmd)
+	cmd := fmt.Sprintf("mkdir -p %s;cd %s;sbatch --wrap=\"%s\"", e.OperationRemoteBaseDir, e.OperationRemoteBaseDir, innerCmd)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
@@ -217,7 +198,7 @@ func (e *executionSingularity) buildImageURI(prefix string) error {
 		log.Debugf("Replacing repo:%q by %q", repoURL, testRepo)
 		repoURL = testRepo
 
-		// Just ignore default registries
+		// Just ignore default public Docker and Singularity registries
 		if repoURL == deployments.DockerHubURL || repoURL == deployments.SingularityHubURL {
 			e.singularityInfo.imageURI = e.singularityInfo.imageName
 		} else if repoURL != "" {
