@@ -127,6 +127,30 @@ Future work
   * We also plan to support `Singularity <http://singularity.lbl.gov/>`_ , a container system similar to Docker but designed to integrate well HPC environments.
     This feature, as it will leverage some Bull HPC proprietary integration with Slurm, will be part of a premium version of Yorc.
 
+.. _yorc_infras_google_section:
+
+Google Cloud Platform
+---------------------
+
+.. only:: html
+
+   |dev|
+
+The Google Cloud Platform integration within Yorc allows to provision Compute nodes on top of `Google Compute Engine <https://cloud.google.com/compute/>`_.
+This part is ready for production.
+
+It is planned to support soon the following features and have them production-ready:
+
+  * Persistent Disks provisioning
+  * Virtual Private Cloud Networks provisioning 
+
+Future work
+~~~~~~~~~~~
+
+The following features are planned to be supported in a next release:
+
+  * `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/`_ to deploy containers
+
 .. _yorc_infras_aws_section:
 
 AWS
