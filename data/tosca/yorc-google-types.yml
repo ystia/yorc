@@ -23,6 +23,7 @@ node_types:
           resolved.
           If not specified, and either image or image_family is provided, the current
           default project is used.
+          At least one of the tuples image_project/image_family, image_project/image, family, image, should be defined.
         required: false
       image_family:
         type: string
@@ -30,6 +31,7 @@ node_types:
           The family of the image that the boot disk will be initialized with.
           When a family is specified instead of an image, the latest non-deprecated 
           image associated with that family is used.
+          At least one of the tuples image_project/image_family, image_project/image, family, image, should be defined.
         required: false
       image:
         type: string
@@ -37,6 +39,7 @@ node_types:
           Boot image for the instance.
           If not specified, and an image family is specified, the latest 
           non-deprecated image associated with that family is used.
+          At least one of the tuples image_project/image_family, image_project/image, family, image, should be defined.
         required: false
       machine_type:
         type: string
