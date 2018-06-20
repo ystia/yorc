@@ -749,20 +749,21 @@ Google Cloud Platform
 
 Google Cloud Platform infrastructure key name is ``google`` in lower case.
 
-+------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
-|  Option Name                 |              Description                    | Data Type | Required | Default                                |
-|                              |                                             |           |          |                                        |
-+==============================+=============================================+===========+==========+========================================+
-| ``application_credentials``* | Path of file containing credentials         | string    | no       | Google Application Default Credentials |
-+------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
-| ``project``                  | ID of the project to apply any resources to | string    | yes      |                                        |
-+------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
-| ``region``                   | The region to operate under                 | string    | no       |                                        |
-+------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
++-------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
+|  Option Name                  |              Description                    | Data Type | Required | Default                                |
+|                               |                                             |           |          |                                        |
++===============================+=============================================+===========+==========+========================================+
+| ``project``                   | ID of the project to apply any resources to | string    | yes      |                                        |
++-------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
+| ``application_credentials`` * | Path of file containing credentials         | string    | no       | Google Application Default Credentials |
++-------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
+| ``region``                    | The region to operate under                 | string    | no       |                                        |
++-------------------------------+---------------------------------------------+-----------+----------+----------------------------------------+
 
 *``application_credentials`` is the path (accessible to Yorc server) of a file containing service account private keys in JSON format.
 This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
-If no file is specified, the orchestrator will fall back to using the `Google Application Default Credentials<https://cloud.google.com/docs/authentication/production>`_ if any.
+
+If no file is specified, the orchestrator will fall back to using the `Google Application Default Credentials <https://cloud.google.com/docs/authentication/production>`_ if any.
 
 .. _option_infra_aws:
 

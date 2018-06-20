@@ -147,9 +147,9 @@ It is planned to support soon the following features and have them production-re
 Future work
 ~~~~~~~~~~~
 
-The following features are planned to be supported in a next release:
+The following feature is planned to be supported in a next release:
 
-  * `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/`_ to deploy containers
+  * `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`_ to deploy containers
 
 .. _yorc_infras_aws_section:
 
