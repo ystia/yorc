@@ -82,7 +82,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 	// Define Terraform provider environment variables
 	var cmdEnv []string
-	configParams := []string{"application_credentials", "project", "region"}
+	configParams := []string{"application_credentials", "credentials", "project", "region"}
 	for _, configParam := range configParams {
 		value := cfg.Infrastructures[infrastructureName].GetString(configParam)
 		if value != "" {
