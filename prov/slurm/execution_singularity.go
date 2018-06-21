@@ -190,14 +190,6 @@ func (e *executionSingularity) buildImageURI(prefix string) error {
 		if err != nil {
 			return err
 		}
-
-		// Yes, I know...it's bad !
-		// Actually the test repository is not accessible from A4C so we need to bypass the A4C ertifact existence check
-		// Need to remove that when A4C repositories artifact check will be changed
-		testRepo := "https://hpda-docker-registry:5000/"
-		log.Debugf("Replacing repo:%q by %q", repoURL, testRepo)
-		repoURL = testRepo
-
 		// Just ignore default public Docker and Singularity registries
 		if repoURL == deployments.DockerHubURL || repoURL == deployments.SingularityHubURL {
 			e.singularityInfo.imageURI = e.singularityInfo.imageName
