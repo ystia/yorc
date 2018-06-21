@@ -221,7 +221,6 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Check the connection in order to be sure that ansible will be able to log on the instance
 	nullResource := commons.Resource{}
-	// TODO private key should not be hard-coded
 	re := commons.RemoteExec{Inline: []string{`echo "connected"`},
 		Connection: &commons.Connection{User: user, Host: accessIP,
 			PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
