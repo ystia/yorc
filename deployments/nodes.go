@@ -383,6 +383,101 @@ func SetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName, propertyV
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
+// GetStringNodeProperty returns the string value of a property.
+// If this value is empty and the argument mandatory is true, an error is returned
+func GetStringNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, mandatory bool) (string, error) {
+
+	var result string
+	var err error
+	if _, result, err = GetNodeProperty(kv, deploymentID,
+		nodeName, propertyName); err != nil {
+		return result, err
+	}
+
+	if result == "" && mandatory {
+		return result, errors.Errorf("Missing value for mandatory parameter %s of %s",
+			propertyName, nodeName)
+	}
+
+	return result, nil
+}
+
+// GetBooleanNodeProperty returns the boolean value of a property (default: false)
+func GetBooleanNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (bool, error) {
+
+	var result bool
+	var strValue string
+	var err error
+	if _, strValue, err = GetNodeProperty(kv, deploymentID,
+		nodeName, propertyName); err != nil {
+		return result, err
+	}
+
+	if strValue == "" {
+		result = false
+	} else {
+		result, err = strconv.ParseBool(strValue)
+		if err != nil {
+			log.Printf("Unexpected value for %s %s: '%s', considering it is set to 'false'",
+				nodeName, propertyName, strValue)
+			result = false
+		}
+	}
+
+	return result, nil
+}
+
+// GetStringArrayNodeProperty returns the string Array value of a node property (default: false)
+func GetStringArrayNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) ([]string, error) {
+
+	var result []string
+	var strValue string
+	var found bool
+	var err error
+	if found, strValue, err = GetNodeProperty(kv, deploymentID,
+		nodeName, propertyName); err != nil {
+		return nil, err
+	}
+
+	if found && strValue != "" {
+		values := strings.Split(strValue, ",")
+		for _, val := range values {
+			result = append(result, strings.TrimSpace(val))
+		}
+	}
+
+	return result, nil
+}
+
+// GetKeyValuePairsNodeProperty returns a key/value string map value of a node property (default: false)
+func GetKeyValuePairsNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (map[string]string, error) {
+
+	var result map[string]string
+	var strValue string
+	var found bool
+	var err error
+	if found, strValue, err = GetNodeProperty(kv, deploymentID,
+		nodeName, propertyName); err != nil {
+		return nil, err
+	}
+
+	if found && strValue != "" {
+		result = make(map[string]string)
+		values := strings.Split(strValue, ",")
+		for _, val := range values {
+			keyValuePair := strings.Split(val, "=")
+			if len(keyValuePair) != 2 {
+
+				return result, errors.Errorf("Expected KEY=VALUE format, got %s for property %s on %s",
+					val, propertyName, nodeName)
+			}
+			result[strings.TrimSpace(keyValuePair[0])] =
+				strings.TrimSpace(keyValuePair[1])
+		}
+	}
+	return result, nil
+}
+
 // GetNodeAttributes retrieves the values for a given attribute in a given node.
 //
 // As a node may have multiple instances and attributes may be instance-scoped, then returned result is a map with the instance name as key

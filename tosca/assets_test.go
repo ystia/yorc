@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
@@ -26,6 +27,7 @@ func TestGroupedAssetsParallel(t *testing.T) {
 		t.Run("TestAssetNormativeParsing", assetNormativeParsing)
 		t.Run("TestAssetYorcOpenStackParsing", assetYorcOpenStackParsing)
 		t.Run("TestAssetYorcAwsParsing", assetYorcAwsParsing)
+		t.Run("TestAssetYorcGoogleParsing", assetYorcGoogleParsing)
 	})
 }
 
@@ -60,4 +62,15 @@ func assetYorcAwsParsing(t *testing.T) {
 
 	err = yaml.Unmarshal(data, &topo)
 	assert.Nil(t, err, "Can't parse yorc aws types")
+}
+
+func assetYorcGoogleParsing(t *testing.T) {
+	t.Parallel()
+	data, err := Asset("yorc-google-types.yml")
+	require.NoError(t, err, "Can't load yorc google types")
+	assert.NotNil(t, data, "Can't load yorc google types")
+	var topo Topology
+
+	err = yaml.Unmarshal(data, &topo)
+	assert.Nil(t, err, "Can't parse yorc google types")
 }
