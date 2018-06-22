@@ -23,8 +23,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"strconv"
-
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
@@ -55,7 +53,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	instance.Name = strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
 
 	// Getting string parameters
-	var imageProject, imageFamily, image, serviceAccount string
+	var imageProject, imageFamily, image, externalAddress, serviceAccount string
 
 	stringParams := []struct {
 		pAttr        *string
@@ -68,11 +66,12 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		{&imageFamily, "image_family", false},
 		{&image, "image", false},
 		{&instance.Description, "description", false},
+		{&externalAddress, "address", false},
 		{&serviceAccount, "service_acount", false},
 	}
 
 	for _, stringParam := range stringParams {
-		if *stringParam.pAttr, err = getStringProperty(kv, deploymentID, nodeName,
+		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return err
 		}
@@ -104,11 +103,11 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Get boolean parameters
 
-	if instance.NoAddress, err = getBooleanProperty(kv, deploymentID, nodeName, "no_address"); err != nil {
+	if instance.NoAddress, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "no_address"); err != nil {
 		return err
 	}
 
-	if instance.Preemptible, err = getBooleanProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
+	if instance.Preemptible, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
 		return err
 	}
 
@@ -116,15 +115,15 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	networkInterface := NetworkInterface{Network: "default"}
 	// Define an external access if there will be an external IP address
 	if !instance.NoAddress {
-		// keeping all default values
-		accessConfig := AccessConfig{}
+		// keeping all default values, except from the external IP address if defined
+		accessConfig := AccessConfig{NatIP: externalAddress}
 		networkInterface.AccessConfigs = []AccessConfig{accessConfig}
 	}
 	instance.NetworkInterfaces = []NetworkInterface{networkInterface}
 
 	// Get list of strings parameters
 	var scopes []string
-	if scopes, err = getStringArray(kv, deploymentID, nodeName, "scopes"); err != nil {
+	if scopes, err = deployments.GetStringArrayNodeProperty(kv, deploymentID, nodeName, "scopes"); err != nil {
 		return err
 	}
 
@@ -137,17 +136,17 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		instance.ServiceAccounts = []ServiceAccount{configuredAccount}
 	}
 
-	if instance.Tags, err = getStringArray(kv, deploymentID, nodeName, "tags"); err != nil {
+	if instance.Tags, err = deployments.GetStringArrayNodeProperty(kv, deploymentID, nodeName, "tags"); err != nil {
 		return err
 	}
 
 	// Get list of key/value pairs parameters
 
-	if instance.Labels, err = getKeyValuePairs(kv, deploymentID, nodeName, "labels"); err != nil {
+	if instance.Labels, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "labels"); err != nil {
 		return err
 	}
 
-	if instance.Metadata, err = getKeyValuePairs(kv, deploymentID, nodeName, "metadata"); err != nil {
+	if instance.Metadata, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "metadata"); err != nil {
 		return err
 	}
 
@@ -232,94 +231,4 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
 	return nil
-}
-
-func getStringProperty(kv *api.KV, deploymentID, nodeName, propertyName string, mandatory bool) (string, error) {
-
-	var result string
-	var err error
-	if _, result, err = deployments.GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
-		return result, err
-	}
-
-	if result == "" && mandatory {
-		return result, errors.Errorf("Missing value for mandatory parameter %s of %s",
-			propertyName, nodeName)
-	}
-
-	return result, nil
-}
-
-func getBooleanProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (bool, error) {
-
-	var result bool
-	var strValue string
-	var err error
-	if _, strValue, err = deployments.GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
-		return result, err
-	}
-
-	if strValue == "" {
-		result = false
-	} else {
-		result, err = strconv.ParseBool(strValue)
-		if err != nil {
-			log.Printf("Unexpected value for %s %s: '%s', considering it is set to 'false'",
-				nodeName, propertyName, strValue)
-			result = false
-		}
-	}
-
-	return result, nil
-}
-
-func getStringArray(kv *api.KV, deploymentID, nodeName, propertyName string) ([]string, error) {
-
-	var result []string
-	var strValue string
-	var found bool
-	var err error
-	if found, strValue, err = deployments.GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
-		return nil, err
-	}
-
-	if found && strValue != "" {
-		values := strings.Split(strValue, ",")
-		for _, val := range values {
-			result = append(result, strings.TrimSpace(val))
-		}
-	}
-
-	return result, nil
-}
-
-func getKeyValuePairs(kv *api.KV, deploymentID, nodeName, propertyName string) (map[string]string, error) {
-
-	var result map[string]string
-	var strValue string
-	var found bool
-	var err error
-	if found, strValue, err = deployments.GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
-		return nil, err
-	}
-
-	if found && strValue != "" {
-		result = make(map[string]string)
-		values := strings.Split(strValue, ",")
-		for _, val := range values {
-			keyValuePair := strings.Split(val, "=")
-			if len(keyValuePair) != 2 {
-
-				return result, errors.Errorf("Expected KEY=VALUE format, got %s for property %s on %s",
-					val, propertyName, nodeName)
-			}
-			result[strings.TrimSpace(keyValuePair[0])] =
-				strings.TrimSpace(keyValuePair[1])
-		}
-	}
-	return result, nil
 }

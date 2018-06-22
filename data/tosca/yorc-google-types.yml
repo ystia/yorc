@@ -69,6 +69,12 @@ node_types:
           keys startup-script or startup-script-url can be used to specify a script
           that will be executed by the Compute Node once it starts running.
         required: false
+      address:
+        type: string
+        description: >
+          Assigns the given external address to the instance.
+          If not specified, and no_address is not true, an ephemeral IP address will be assigned.
+        required: false
       no_address:
         type: boolean
         description: >
