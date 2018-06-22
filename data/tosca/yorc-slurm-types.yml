@@ -109,3 +109,11 @@ node_types:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.SlurmJob
+
+  yorc.nodes.slurm.SingularityJob:
+    derived_from: yorc.nodes.slurm.Job
+    properties:
+      exec_command:
+        type: string
+        description: If this property is filled. The specified command is executed with singularity exec instead of default singularity run.
+        required: false
