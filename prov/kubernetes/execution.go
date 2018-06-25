@@ -323,7 +323,7 @@ func (e *executionCommon) checkRepository(ctx context.Context, clientset *kubern
 		return err
 	}
 
-	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.NodeType, e.Operation.Name)
+	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.Operation.ImplementedInNodeTemplate, e.NodeType, e.Operation.Name)
 	if err != nil {
 		return err
 	}
@@ -417,7 +417,7 @@ func (e *executionCommon) deployNode(ctx context.Context, clientset *kubernetes.
 	}
 	inputs := e.parseEnvInputs()
 
-	deployment, service, err := generator.generateDeployment(e.deploymentID, e.NodeName, e.Operation.Name, e.NodeType, e.SecretRepoName, inputs, nbInstances)
+	deployment, service, err := generator.generateDeployment(e.deploymentID, e.NodeName, e.Operation, e.NodeType, e.SecretRepoName, inputs, nbInstances)
 	if err != nil {
 		return err
 	}

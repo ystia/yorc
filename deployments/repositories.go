@@ -24,7 +24,10 @@ import (
 )
 
 // DockerHubURL is the official URL for the docker hub
-const DockerHubURL string = "https://hub.docker.com/"
+const DockerHubURL = "https://hub.docker.com/"
+
+// SingularityHubURL is the official URL for the docker hub
+const SingularityHubURL = "https://singularity-hub.org/"
 
 // GetRepositoryURLFromName allow you to retrieve the url of a repo from is name
 func GetRepositoryURLFromName(kv *api.KV, deploymentID, repoName string) (url string, err error) {

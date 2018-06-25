@@ -17,7 +17,8 @@ package slurm
 import "github.com/ystia/yorc/registry"
 
 const (
-	artifactImplementation = "yorc.artifacts.Deployment.SlurmJobBin"
+	artifactBinImplementation   = "yorc.artifacts.Deployment.SlurmJobBin"
+	artifactImageImplementation = "yorc.artifacts.Deployment.SlurmJobImage"
 )
 
 func init() {
@@ -25,6 +26,7 @@ func init() {
 	reg.RegisterDelegates([]string{`yorc\.nodes\.slurm\..*`}, newExecutor(&slurmGenerator{}), registry.BuiltinOrigin)
 	reg.RegisterOperationExecutor(
 		[]string{
-			artifactImplementation,
+			artifactBinImplementation,
+			artifactImageImplementation,
 		}, &defaultExecutor{}, registry.BuiltinOrigin)
 }
