@@ -26,7 +26,6 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
@@ -150,23 +149,10 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		return err
 	}
 
-	// user is mandatory
-	var user string
-	if _, user, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName,
-		"endpoint", "credentials", "user"); err != nil {
+	// Get connection info (user, private key)
+	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	if err != nil {
 		return err
-	} else if user == "" {
-		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
-	}
-
-	var privateKeyFilePath string
-	if _, privateKeyFilePath, err = deployments.GetCapabilityProperty(kv, deploymentID,
-		nodeName, "endpoint", "credentials", "keys", "0"); err != nil {
-		return err
-	} else if privateKeyFilePath == "" {
-		// Using default value
-		privateKeyFilePath = commons.DefaultSSHPrivateKeyFilePath
-		log.Printf("No private key defined for user %s, using default %s", user, privateKeyFilePath)
 	}
 
 	// Add the compute instance
