@@ -40,6 +40,9 @@ func TestRunConsulAWSPackageTests(t *testing.T) {
 		t.Run("simpleAWSInstance", func(t *testing.T) {
 			testSimpleAWSInstance(t, kv, cfg)
 		})
+		t.Run("simpleAWSInstanceWithPrivateKey", func(t *testing.T) {
+			testSimpleAWSInstanceWithPrivateKey(t, kv, cfg)
+		})
 		t.Run("simpleAWSInstanceFailed", func(t *testing.T) {
 			testSimpleAWSInstanceFailed(t, kv, cfg)
 		})

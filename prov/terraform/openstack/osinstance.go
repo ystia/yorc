@@ -134,11 +134,10 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		instance.Networks = append(instance.Networks, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
 	}
 
-	var user string
-	if _, user, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "endpoint", "credentials", "user"); err != nil {
+	// Get connection info (user, private key)
+	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	if err != nil {
 		return err
-	} else if user == "" {
-		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
 
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
@@ -324,8 +323,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 	nullResource := commons.Resource{}
 	// Do this in order to be sure that ansible will be able to log on the instance
-	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("~/.ssh/yorc.pem")}`}}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
 	var accessIP string
 	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
 		// Use Floating IP for provisioning
