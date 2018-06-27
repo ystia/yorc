@@ -91,6 +91,37 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }
 
+func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+	g := awsGenerator{}
+	infrastructure := commons.Infrastructure{}
+
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	require.Nil(t, err)
+
+	require.Len(t, infrastructure.Resource["aws_instance"], 1)
+	instancesMap := infrastructure.Resource["aws_instance"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "ComputeAWS-0")
+	require.Contains(t, infrastructure.Resource, "null_resource")
+	require.Len(t, infrastructure.Resource["null_resource"], 1)
+	nullResources := infrastructure.Resource["null_resource"].(map[string]interface{})
+
+	require.Contains(t, nullResources, "ComputeAWS-0-ConnectionCheck")
+	nullRes, ok := nullResources["ComputeAWS-0-ConnectionCheck"].(*commons.Resource)
+	require.True(t, ok)
+	require.Len(t, nullRes.Provisioners, 1)
+	mapProv := nullRes.Provisioners[0]
+	require.Contains(t, mapProv, "remote-exec")
+	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
+	require.True(t, ok)
+	require.Equal(t, "centos", rex.Connection.User)
+	require.Equal(t, `${file("/path/to/my-keypair.pem")}`, rex.Connection.PrivateKey)
+
+	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
+}
+
 func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)

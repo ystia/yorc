@@ -22,15 +22,16 @@ import (
 
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 )
 
 // GetOperation returns a Prov.Operation structure describing precisely operation in order to execute it
 func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, operationName, requirementName, operationHost string) (prov.Operation, error) {
 	var (
-		implementingType, requirementIndex string
-		err                                error
-		isRelationshipOp                   bool
+		implementingType, implementingNode, requirementIndex string
+		err                                                  error
+		isRelationshipOp, isNodeImplOpe                      bool
 	)
 	// if requirementName is filled, operation is associated to a relationship
 	isRelationshipOp = requirementName != ""
@@ -47,12 +48,20 @@ func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, opera
 	if isRelationshipOp {
 		implementingType, err = deployments.GetRelationshipTypeImplementingAnOperation(kv, deploymentID, nodeName, operationName, requirementIndex)
 	} else {
-		implementingType, err = deployments.GetNodeTypeImplementingAnOperation(kv, deploymentID, nodeName, operationName)
+		isNodeImplOpe, err = deployments.IsNodeTemplateImplementingOperation(kv, deploymentID, nodeName, operationName)
+		if err != nil {
+			return prov.Operation{}, err
+		}
+		if isNodeImplOpe {
+			implementingNode = nodeName
+		} else {
+			implementingType, err = deployments.GetNodeTypeImplementingAnOperation(kv, deploymentID, nodeName, operationName)
+		}
 	}
 	if err != nil {
 		return prov.Operation{}, err
 	}
-	implArt, err := deployments.GetImplementationArtifactForOperation(kv, deploymentID, nodeName, operationName, isRelationshipOp, requirementIndex)
+	implArt, err := deployments.GetImplementationArtifactForOperation(kv, deploymentID, nodeName, operationName, isNodeImplOpe, isRelationshipOp, requirementIndex)
 	if err != nil {
 		return prov.Operation{}, err
 	}
@@ -68,9 +77,10 @@ func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, opera
 		operationHost = implemOperationHost
 	}
 	op := prov.Operation{
-		Name:                   operationName,
-		ImplementedInType:      implementingType,
-		ImplementationArtifact: implArt,
+		Name:                      operationName,
+		ImplementedInType:         implementingType,
+		ImplementedInNodeTemplate: implementingNode,
+		ImplementationArtifact:    implArt,
 		RelOp: prov.RelationshipOperation{
 			IsRelationshipOperation: isRelationshipOp,
 			RequirementIndex:        requirementIndex,
@@ -79,6 +89,7 @@ func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, opera
 		},
 		OperationHost: operationHost,
 	}
+	log.Debugf("operation:%+v", op)
 	return op, nil
 }
 

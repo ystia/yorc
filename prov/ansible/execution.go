@@ -211,7 +211,7 @@ func (e *executionCommon) resolveOperation() error {
 	if e.operation.RelOp.IsRelationshipOperation {
 		operationNodeType = e.relationshipType
 	}
-	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.deploymentID, operationNodeType, e.operation.Name)
+	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}

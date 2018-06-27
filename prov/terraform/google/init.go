@@ -12,41 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package slurm
+package google
 
-type infrastructure struct {
-	nodes []*nodeAllocation
-}
+import "github.com/ystia/yorc/registry"
+import "github.com/ystia/yorc/prov/terraform"
 
-type nodeAllocation struct {
-	cpu          string
-	memory       string
-	gres         string
-	constraint   string
-	partition    string
-	jobName      string
-	instanceName string
-}
-
-type jobInfo struct {
-	ID        string
-	name      string
-	state     string
-	tasks     int
-	cpus      int
-	nodes     int
-	mem       int
-	maxTime   string
-	batchMode bool
-	opts      []string
-	execArgs  []string
-	outputs   []string
-	inputs    map[string]string
-}
-
-type singularityInfo struct {
-	imageName string
-	imageURI  string
-	command   string
-	exec      string
+func init() {
+	reg := registry.GetRegistry()
+	reg.RegisterDelegates([]string{`yorc\.nodes\.google\..*`}, terraform.NewExecutor(&googleGenerator{}, nil), registry.BuiltinOrigin)
 }

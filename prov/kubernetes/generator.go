@@ -31,6 +31,7 @@ import (
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/prov"
 )
 
 // A k8sGenerator is used to generate the Kubernetes objects for a given TOSCA node
@@ -297,8 +298,8 @@ func getUsedVolumeNodesNames(kv *api.KV, deploymentID, nodeName string) ([]strin
 }
 
 // GenerateDeployment generate Kubernetes Pod and Service to deploy based of given Node
-func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName, operation, nodeType, repoName string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
-	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, nodeType, operation)
+func (k8s *k8sGenerator) generateDeployment(deploymentID, nodeName string, operation prov.Operation, nodeType, repoName string, inputs []v1.EnvVar, nbInstances int32) (v1beta1.Deployment, v1.Service, error) {
+	imgName, err := deployments.GetOperationImplementationFile(k8s.kv, deploymentID, operation.ImplementedInNodeTemplate, nodeType, operation.Name)
 	if err != nil {
 		return v1beta1.Deployment{}, v1.Service{}, err
 	}

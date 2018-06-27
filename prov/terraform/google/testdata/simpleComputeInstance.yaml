@@ -1,0 +1,37 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: ComputeInstanceTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - path: <yorc-google-types.yml>
+topology_template:
+  node_templates:
+    ComputeInstance:
+      type: yorc.nodes.google.Compute
+      properties:
+        machine_type: "n1-standard-1"
+        zone: "europe-west1-b"
+        image_project: "centos-cloud"
+        image_family: "centos-7"
+        no_address: false
+        tags: "tag1, tag2"
+        labels: "key1=value1, key2=value2"
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+            credentials: {user: centos}
+

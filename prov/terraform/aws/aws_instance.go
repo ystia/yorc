@@ -86,12 +86,10 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 		}
 	}
 
-	// user is mandatory
-	var user string
-	if _, user, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "endpoint", "credentials", "user"); err != nil {
+	// Get connection info (user, private key)
+	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	if err != nil {
 		return err
-	} else if user == "" {
-		return errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
 
 	// Check optional provided Elastic IPs
@@ -197,8 +195,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 
 	// Check the connection in order to be sure that ansible will be able to log on the instance
 	nullResource := commons.Resource{}
-	// TODO private key should not be hard-coded
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: `${file("~/.ssh/yorc.pem")}`}}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re

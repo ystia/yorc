@@ -87,12 +87,23 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		VarInputsNames:         make([]string, 0),
 		EnvInputs:              make([]*operations.EnvInput, 0),
 		taskID:                 taskID,
-		OperationRemoteBaseDir: ".yorc",
+		OperationRemoteBaseDir: stringutil.UniqueTimestampedName(".yorc_", ""),
 		jobInfoPolling:         5 * time.Second,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
+
+	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
+	if err != nil {
+		return nil, err
+	}
+
+	if isSingularity {
+		execSingularity := &executionSingularity{executionCommon: execCommon}
+		return execSingularity, execCommon.resolveExecution()
+	}
+
 	return execCommon, execCommon.resolveExecution()
 }
 
@@ -104,7 +115,7 @@ func (e *executionCommon) resolveOperation() error {
 		return err
 	}
 	operationNodeType := e.NodeType
-	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationForNodeType(e.kv, e.deploymentID, operationNodeType, e.operation.Name)
+	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
@@ -148,7 +159,7 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		}
 
 		// Run the command
-		out, err := e.runCommand(ctx)
+		out, err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
@@ -343,7 +354,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
+func (e *executionCommon) fillJobCommandOpts() string {
 	var opts string
 	opts += fmt.Sprintf(" --job-name=%s", e.jobInfo.name)
 
@@ -366,7 +377,11 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 			opts += fmt.Sprintf(" --%s", opt)
 		}
 	}
+	return opts
+}
 
+func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
+	opts := e.fillJobCommandOpts()
 	stopCh := make(chan struct{})
 	errCh := make(chan error)
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
@@ -390,6 +405,7 @@ func (e *executionCommon) runCommand(ctx context.Context) (string, error) {
 
 func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) (string, error) {
 	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
+	cmd = strings.Trim(cmd, "")
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
@@ -454,18 +470,18 @@ func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
 }
 
 func (e *executionCommon) handleBatchOutputs(ctx context.Context) error {
-	var outputDir string
-	if len(e.jobInfo.outputs) > 0 {
-		// Copy the outputs in <JOB_ID>_outputs directory at root level
-		outputDir = fmt.Sprintf("job_" + e.jobInfo.ID + "_outputs")
-		cmd := fmt.Sprintf("mkdir %s", outputDir)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		output, err := e.client.RunCommand(cmd)
-		if err != nil {
-			return errors.Wrap(err, output)
-		}
+	if len(e.jobInfo.outputs) == 0 {
+		e.jobInfo.outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
 	}
-
+	// Copy the outputs in <JOB_ID>_outputs directory at root level
+	outputDir := fmt.Sprintf("job_" + e.jobInfo.ID + "_outputs")
+	cmd := fmt.Sprintf("mkdir %s", outputDir)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	output, err := e.client.RunCommand(cmd)
+	if err != nil {
+		return errors.Wrap(err, output)
+	}
+	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
 	for _, out := range e.jobInfo.outputs {
 		oldPath := path.Join(e.OperationRemoteDir, out)
 		newPath := path.Join(outputDir, out)

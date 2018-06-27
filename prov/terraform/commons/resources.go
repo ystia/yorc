@@ -14,6 +14,19 @@
 
 package commons
 
+import (
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/log"
+)
+
+const (
+	// DefaultSSHPrivateKeyFilePath is the default SSH private Key file path
+	// used to connect to provisioned resources
+	DefaultSSHPrivateKeyFilePath = "~/.ssh/yorc.pem"
+)
+
 // An Infrastructure is the top-level element of a Terraform infrastructure definition
 type Infrastructure struct {
 	Terraform map[string]interface{} `json:"terraform,omitempty"`
@@ -113,4 +126,28 @@ func AddOutput(infrastructure *Infrastructure, outputName string, output *Output
 		infrastructure.Output = make(map[string]*Output)
 	}
 	infrastructure.Output[outputName] = output
+}
+
+// GetConnInfoFromEndpointCredentials allow to retrieve user and private key path for connection needs from endpoint credentials
+func GetConnInfoFromEndpointCredentials(kv *api.KV, deploymentID, nodeName string) (string, string, error) {
+	var (
+		user               string
+		privateKeyFilePath string
+		err                error
+	)
+	if _, user, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "endpoint", "credentials", "user"); err != nil {
+		return "", "", err
+	} else if user == "" {
+		return "", "", errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
+	}
+
+	if _, privateKeyFilePath, err = deployments.GetCapabilityProperty(kv, deploymentID,
+		nodeName, "endpoint", "credentials", "keys", "0"); err != nil {
+		return "", "", err
+	} else if privateKeyFilePath == "" {
+		// Using default value
+		privateKeyFilePath = DefaultSSHPrivateKeyFilePath
+		log.Printf("No private key defined for user %s, using default %s", user, privateKeyFilePath)
+	}
+	return user, privateKeyFilePath, nil
 }
