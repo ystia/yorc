@@ -41,7 +41,7 @@ do
 done
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
 [[[range $artName, $art := .Outputs -]]]
-[[[printf "echo %s,$%s >> $HOME/%s/out.csv" $artName (cut $artName) $.OperationRemotePath]]]
+[[[printf "echo %s,\\\"$%s\\\" >> $HOME/%s/out.csv" $artName (cut $artName) $.OperationRemotePath]]]
 [[[printf "echo $%s" $artName]]]
 [[[end]]]
 [[[if .HaveOutput]]]
