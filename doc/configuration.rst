@@ -201,11 +201,11 @@ Below is an example of configuration file with TLS enabled.
 
 .. _option_sslverify_cfg:
 
-  * ``ssl_verify``: Equivalent to :ref:`--ssl_verify <option_sslverify_cmd>` command-line flag.
+  * ``ssl_verify``: Equivalent to :ref:`--ssl_verify <option_ssl_verify_cmd>` command-line flag.
 
-.. _option_cafile_cfg:
+.. _option_ca_file_cfg:
 
-  * ``ca_file``: Equivalent to :ref:`--ca_file <option_cafile_cmd>` command-line flag.
+  * ``ca_file``: Equivalent to :ref:`--ca_file <option_ca_file_cmd>` command-line flag.
 
 .. _option_plugindir_cfg:
 
@@ -599,11 +599,11 @@ Environment variables
 
 .. _option_sslverify_env:
 
-  * ``YORC_CERT_FILE``: Equivalent to :ref:`--ssl_verify <option_sslverify_cmd>` command-line flag.
+  * ``YORC_SSL_VERIFY``: Equivalent to :ref:`--ssl_verify <option_ssl_verify_cmd>` command-line flag.
 
-.. _option_cafile_env:
+.. _option_ca_file_env:
 
-  * ``YORC_CA_FILE``: Equivalent to :ref:`--ca_file <option_cafile_cmd>` command-line flag.
+  * ``YORC_CA_FILE``: Equivalent to :ref:`--ca_file <option_ca_file_cmd>` command-line flag.
 
 .. _option_plugindir_env:
 
@@ -762,7 +762,7 @@ Google Cloud Platform infrastructure key name is ``google`` in lower case.
 | ``region``                  | The region to operate under                  | string    | no       |                                        |
 +-----------------------------+----------------------------------------------+-----------+----------+----------------------------------------+
 
-*``application_credentials`` is the path (accessible to Yorc server) of a file containing service account private keys in JSON format.
+``application_credentials`` is the path (accessible to Yorc server) of a file containing service account private keys in JSON format.
 This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
 
 If no file path is specified in ``application_credentials`` and no file content is specified in ``credentials``, the orchestrator will fall back to using the `Google Application Default Credentials <https://cloud.google.com/docs/authentication/production>`_ if any.
@@ -923,7 +923,7 @@ Command-line options
 
   * ``--skip_tls_verify``: Controls whether a client verifies the server's certificate chain and host name. If set to true, TLS accepts any certificate presented by the server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing. This implies the use of HTTPS to connect to the Yorc REST API.
 
-.. _option_client_skip_tls_verify_cmd:
+.. _option_client_tls_cmd:
 
   * ``-s`` or ``--ssl_enabled``: Use HTTPS to connect to the Yorc REST API. This is automatically implied if one of ``--ca_file``, ``--ca_path``, ``--cert_file``, ``--key_file`` or ``--skip_tls_verify`` is provided.
 
@@ -958,9 +958,9 @@ The :ref:`--config <option_client_config_cmd>` command line flag allows to speci
 
   * ``skip_tls_verify``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
 
-.. _option_client_skip_tls_verify_cfg:
+.. _option_client_tls_cfg:
 
-  * ``ssl_enabled``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
+  * ``ssl_enabled``: Equivalent to :ref:`--ssl_enabled <option_client_tls_cmd>` command-line flag.
 
 .. _option_client_yorc_api_cfg:
 
@@ -989,9 +989,9 @@ Environment variables
 
   * ``YORC_SKIP_TLS_VERIFY``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
 
-.. _option_client_skip_tls_verify_env:
+.. _option_client_tls_env:
 
-  * ``YORC_SSL_ENABLED``: Equivalent to :ref:`--skip_tls_verify <option_client_skip_tls_verify_cmd>` command-line flag.
+  * ``YORC_SSL_ENABLED``: Equivalent to :ref:`--ssl_enabled <option_client_tls_cmd>` command-line flag.
 
 .. _option_client_yorc_api_env:
 
