@@ -241,7 +241,7 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 		// Delete namespace
 		err = generator.deleteNamespace(namespace, clientset)
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).Registerf("Cannot delete %d k8s Namespace", namespace)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
 			return err
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
