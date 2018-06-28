@@ -378,8 +378,8 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 	}
 
 	hosts := make(map[string]hostConnection)
-
-	for i := len(hostedOnList) - 1; i >= 0; i-- {
+	var found bool
+	for i := len(hostedOnList) - 1; i >= 0 && !found; i-- {
 		host := hostedOnList[i]
 		capType, err := deployments.GetNodeCapabilityType(e.kv, e.deploymentID, host, "endpoint")
 		if err != nil {
@@ -408,6 +408,7 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 						return err
 					}
 					hosts[instanceName] = hostConn
+					found = true
 				}
 			}
 		}
