@@ -250,12 +250,8 @@ func (e *executionCommon) resolveOperation() error {
 		}
 	}
 
-	// Set specific operation host values
-	if e.operation.RelOp.IsRelationshipOperation && e.operation.OperationHost == "TARGET" {
-		e.isRelationshipTargetNode = true
-	} else if e.operation.OperationHost == "ORCHESTRATOR" {
-		e.isOrchestratorOperation = true
-	}
+	e.isOrchestratorOperation = operations.IsOrchestratorHostOperation(e.operation)
+	e.isRelationshipTargetNode = operations.IsRelationshipTargetNodeOperation(e.operation)
 	return e.resolveInstances()
 }
 
@@ -509,6 +505,14 @@ func (e *executionCommon) resolveContext() error {
 
 	}
 
+	capabilitiesCtx, err := operations.GetTargetCapabilityPropertiesAndAttributes(e.ctx, e.kv, e.deploymentID, e.NodeName, e.operation)
+	if err != nil {
+		return err
+	}
+	for k, v := range capabilitiesCtx {
+		execContext[k] = v
+	}
+
 	execContext["DEPLOYMENT_ID"] = e.deploymentID
 	e.Context = execContext
 	return nil
@@ -756,7 +760,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
 	var ansibleRecipePath string
 	if e.operation.RelOp.IsRelationshipOperation {
-		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.TargetRelationship, e.operation.Name, currentInstance)
+		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.RelOp.TargetRelationship, e.operation.Name, currentInstance)
 	} else {
 		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.operation.Name, currentInstance)
 	}

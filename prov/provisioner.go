@@ -44,8 +44,6 @@ type Operation struct {
 	RelOp RelationshipOperation
 	// Node on which operation should be executed
 	OperationHost string
-	// Requirement name in case of relationship
-	TargetRelationship string
 }
 
 // String implements the fmt.Stringer interface
@@ -66,6 +64,8 @@ type RelationshipOperation struct {
 	RequirementIndex string
 	// Name of the target node of the relationship
 	TargetNodeName string
+	// Requirement name in case of relationship
+	TargetRelationship string
 }
 
 // String implements the fmt.Stringer interface

@@ -85,10 +85,26 @@ func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, opera
 			IsRelationshipOperation: isRelationshipOp,
 			RequirementIndex:        requirementIndex,
 			TargetNodeName:          targetNodeName,
+			TargetRelationship:      requirementName,
 		},
-		OperationHost:      operationHost,
-		TargetRelationship: requirementName,
+		OperationHost: operationHost,
 	}
 	log.Debugf("operation:%+v", op)
 	return op, nil
+}
+
+// IsRelationshipOperation checks if an operation is part of a relationship
+func IsRelationshipOperation(op prov.Operation) bool {
+	return op.RelOp.IsRelationshipOperation
+}
+
+// IsRelationshipTargetNodeOperation checks if an operation is part of a relationship and should be
+// executed on the target node
+func IsRelationshipTargetNodeOperation(op prov.Operation) bool {
+	return IsRelationshipOperation(op) && op.OperationHost == "TARGET"
+}
+
+// IsOrchestratorHostOperation checks if the operation should be executed on orchestrator host
+func IsOrchestratorHostOperation(op prov.Operation) bool {
+	return op.OperationHost == "ORCHESTRATOR"
 }
