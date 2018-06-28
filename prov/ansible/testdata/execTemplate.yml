@@ -35,6 +35,8 @@ node_types:
           implementation: /tmp/create.sh
   yorc.types.B:
     derived_from: tosca.nodes.SoftwareComponent
+    capabilities:
+      cap: yorc.types.Cap
 
 relationship_types:
   yorc.types.Rel:
@@ -56,6 +58,24 @@ relationship_types:
             A2: {get_attribute: [TARGET, ip_address]}
           implementation: /tmp/add_source.sh
 
+capability_types:
+  yorc.types.Cap:
+    derived_from: tosca.capabilities.Root
+    properties:
+      Cap1:
+        type: string
+        default: "DCap1"
+      Cap2:
+        type: string
+        default: ""
+    attributes:
+      myattr:
+        # this attribute will be set in test and appear in injected capability attrs
+        type: string
+      myNonSetAttr:
+        # this attribute will not be set in test and wont appear in injected capability attrs
+        type: string
+
 topology_template:
   node_templates:
     NodeA:
@@ -70,10 +90,15 @@ topology_template:
             relationship: tosca.relationships.HostedOn
         - connect:
             node: NodeB
+            capability: yorc.types.Cap
             relationship: yorc.types.Rel
 
     NodeB:
       type: yorc.types.B
+      capabilities:
+        cap:
+          properties:
+            Cap2: "DCap2"
       requirements:
         - host:
             node: ComputeB
