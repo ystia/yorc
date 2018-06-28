@@ -99,6 +99,7 @@ We do this as they can only be retrieved by knowing in advance the actual name o
 very practical when designing a generic operation. As a target component may have several capabilities that match
 the relationship capability type we inject the following variables:
 
+* TARGET_CAPABILITY_NAMES: comma-separated list of matching capabilities names. It could be use to loop over the injected variables
 * TARGET_CAPABILITY_<capabilityName>_TYPE: actual type of the capability
 * TARGET_CAPABILITY_TYPE: actual type of the capability of the first matching capability
 * TARGET_CAPABILITY_<capabilityName>_PROPERTY_<propertyName>: value of a property
