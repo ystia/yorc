@@ -103,6 +103,9 @@ func testExecution(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "0/attributes/state"): []byte("initial"),
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "1/attributes/state"): []byte("initial"),
+
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "0/capabilities/cap/attributes/myattr"): []byte("attr-0"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeBName, "1/capabilities/cap/attributes/myattr"): []byte("attr-1"),
 	})
 
 	t.Run("testExecutionResolveInputsOnNode", func(t *testing.T) {
@@ -417,6 +420,16 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
         SOURCE_NODE: "NodeA"
+		TARGET_CAPABILITY_NodeB_0_ATTRIBUTE_myattr: "attr-0"
+		TARGET_CAPABILITY_NodeB_1_ATTRIBUTE_myattr: "attr-1"
+		TARGET_CAPABILITY_PROPERTY_Cap1: "DCap1"
+		TARGET_CAPABILITY_PROPERTY_Cap2: "DCap2"
+		TARGET_CAPABILITY_TYPE: "yorc.types.Cap"
+		TARGET_CAPABILITY_cap_NodeB_0_ATTRIBUTE_myattr: "attr-0"
+		TARGET_CAPABILITY_cap_NodeB_1_ATTRIBUTE_myattr: "attr-1"
+		TARGET_CAPABILITY_cap_PROPERTY_Cap1: "DCap1"
+		TARGET_CAPABILITY_cap_PROPERTY_Cap2: "DCap2"
+		TARGET_CAPABILITY_cap_TYPE: "yorc.types.Cap"
         TARGET_HOST: "ComputeB"
         TARGET_INSTANCE: "NodeB_0"
         TARGET_INSTANCES: "NodeB_0,NodeB_1"
@@ -547,6 +560,16 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
         SOURCE_NODE: "NodeA"
+		TARGET_CAPABILITY_NodeB_0_ATTRIBUTE_myattr: "attr-0"
+		TARGET_CAPABILITY_NodeB_1_ATTRIBUTE_myattr: "attr-1"
+		TARGET_CAPABILITY_PROPERTY_Cap1: "DCap1"
+		TARGET_CAPABILITY_PROPERTY_Cap2: "DCap2"
+		TARGET_CAPABILITY_TYPE: "yorc.types.Cap"
+		TARGET_CAPABILITY_cap_NodeB_0_ATTRIBUTE_myattr: "attr-0"
+		TARGET_CAPABILITY_cap_NodeB_1_ATTRIBUTE_myattr: "attr-1"
+		TARGET_CAPABILITY_cap_PROPERTY_Cap1: "DCap1"
+		TARGET_CAPABILITY_cap_PROPERTY_Cap2: "DCap2"
+		TARGET_CAPABILITY_cap_TYPE: "yorc.types.Cap"
         TARGET_HOST: "ComputeB"
         TARGET_INSTANCES: "NodeB_0,NodeB_1"
         TARGET_NODE: "NodeB"
