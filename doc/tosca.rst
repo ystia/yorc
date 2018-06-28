@@ -94,7 +94,20 @@ For relationship operation script, the following variables are available:
 * SOURCE_HOST: The node name of the node that host the node that is the source of the relationship.
 * DEPLOYMENT_ID: the unique deployment identifier.
 
-In addition, any inputs parameters defined on the operation definition are also injected.
+In addition, properties and attributes of the target capability of the relationship are injected automatically.
+We do this as they can only be retrieved by knowing in advance the actual name of the capability, which is not
+very practical when designing a generic operation. As a target component may have several capabilities that match
+the relationship capability type we inject the following variables:
+
+* TARGET_CAPABILITY_NAMES: comma-separated list of matching capabilities names. It could be used to loop over the injected variables
+* TARGET_CAPABILITY_<capabilityName>_TYPE: actual type of the capability
+* TARGET_CAPABILITY_TYPE: actual type of the capability of the first matching capability
+* TARGET_CAPABILITY_<capabilityName>_PROPERTY_<propertyName>: value of a property
+* TARGET_CAPABILITY_PROPERTY_<propertyName>: value of a property for the first matching capability
+* TARGET_CAPABILITY_<capabilityName>_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance
+* TARGET_CAPABILITY_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance for the first matching capability
+
+Finally, any inputs parameters defined on the operation definition are also injected.
 
 Attribute and multiple instances
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
