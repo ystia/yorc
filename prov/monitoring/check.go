@@ -17,17 +17,19 @@ package monitoring
 import (
 	"context"
 	"fmt"
+	"net"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tosca"
-	"net"
-	"path"
-	"strings"
-	"time"
 )
 
 // NewCheck allows to instantiate a Check
@@ -145,7 +147,7 @@ func (c *Check) notify() {
 	}
 
 	// Update the node state
-	if err := deployments.SetInstanceState(defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance, nodeState); err != nil {
+	if err := deployments.SetInstanceStateWithContextualLogs(c.ctx, defaultMonManager.cc.KV(), c.Report.DeploymentID, c.Report.NodeName, c.Report.Instance, nodeState); err != nil {
 		log.Printf("[WARN] Unable to update node state due to error:%+v", err)
 	}
 }

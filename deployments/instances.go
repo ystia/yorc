@@ -26,18 +26,34 @@ import (
 )
 
 // SetInstanceStateString stores the state of a given node instance and publishes a status change event
-func SetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
+//
+// Deprecated: use SetInstanceStateStringWithContextualLogs instead
+func SetInstanceStateString(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
+	return SetInstanceStateStringWithContextualLogs(nil, kv, deploymentID, nodeName, instanceName, state)
+}
+
+// SetInstanceStateStringWithContextualLogs stores the state of a given node instance and publishes a status change event
+// context is used to carry contextual information for logging (see events package)
+func SetInstanceStateStringWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
 	_, err := kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes/state"), Value: []byte(state)}, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = events.InstanceStatusChange(kv, deploymentID, nodeName, instanceName, state)
+	_, err = events.PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instanceName, state)
 	return err
 }
 
 // SetInstanceState stores the state of a given node instance and publishes a status change event
+//
+// Deprecated: use SetInstanceStateWithContextualLogs instead
 func SetInstanceState(kv *api.KV, deploymentID, nodeName, instanceName string, state tosca.NodeState) error {
-	return SetInstanceStateString(kv, deploymentID, nodeName, instanceName, state.String())
+	return SetInstanceStateStringWithContextualLogs(nil, kv, deploymentID, nodeName, instanceName, state.String())
+}
+
+// SetInstanceStateWithContextualLogs stores the state of a given node instance and publishes a status change event
+// context is used to carry contextual information for logging (see events package)
+func SetInstanceStateWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName string, state tosca.NodeState) error {
+	return SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName, instanceName, state.String())
 }
 
 // GetInstanceState retrieves the state of a given node instance

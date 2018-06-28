@@ -15,7 +15,7 @@
 package events
 
 import (
-	"fmt"
+	"context"
 	"path"
 	"strconv"
 	"strings"
@@ -32,65 +32,117 @@ import (
 // InstanceStatusChange publishes a status change for a given instance of a given node
 //
 // InstanceStatusChange returns the published event id
+//
+// Deprecated: Use PublishAndLogInstanceStatusChange instead
 func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
+	return PublishAndLogInstanceStatusChange(nil, kv, deploymentID, nodeName, instance, status)
+}
+
+// PublishAndLogInstanceStatusChange publishes a status change for a given instance of a given node and log this change into the log API
+//
+// PublishAndLogInstanceStatusChange returns the published event id
+func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{NodeID: nodeName, InstanceID: instance})
+	}
 	id, err := storeStatusUpdateEvent(kv, deploymentID, InstanceStatusChangeType, nodeName+"\n"+status+"\n"+instance)
 	if err != nil {
 		return "", err
 	}
-	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
+	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for node %q, instance %q changed to %q", nodeName, instance, status)
 	return id, nil
 }
 
 // DeploymentStatusChange publishes a status change for a given deployment
 //
 // DeploymentStatusChange returns the published event id
+//
+// Deprecated: use PublishAndLogDeploymentStatusChange instead
 func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, error) {
+	return PublishAndLogDeploymentStatusChange(context.Background(), kv, deploymentID, status)
+}
+
+// PublishAndLogDeploymentStatusChange publishes a status change for a given deployment and log this change into the log API
+//
+// PublishAndLogDeploymentStatusChange returns the published event id
+func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploymentID, status string) (string, error) {
 	id, err := storeStatusUpdateEvent(kv, deploymentID, DeploymentStatusChangeType, status)
 	if err != nil {
 		return "", err
 	}
-	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for deployment %q changed to %q", deploymentID, status))
+	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for deployment %q changed to %q", deploymentID, status)
 	return id, nil
 }
 
 // CustomCommandStatusChange publishes a status change for a custom command
 //
 // CustomCommandStatusChange returns the published event id
+//
+// Deprecated: use PublishAndLogCustomCommandStatusChange instead
 func CustomCommandStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	return PublishAndLogCustomCommandStatusChange(nil, kv, deploymentID, taskID, status)
+}
+
+// PublishAndLogCustomCommandStatusChange publishes a status change for a custom command and log this change into the log API
+//
+// PublishAndLogCustomCommandStatusChange returns the published event id
+func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
+	}
 	id, err := storeStatusUpdateEvent(kv, deploymentID, CustomCommandStatusChangeType, taskID+"\n"+status)
 	if err != nil {
 		return "", err
 	}
-	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for custom-command %q changed to %q", taskID, status))
+	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for custom-command %q changed to %q", taskID, status)
 	return id, nil
 }
 
 // ScalingStatusChange publishes a status change for a scaling task
 //
 // ScalingStatusChange returns the published event id
+//
+// Deprecated: use PublishAndLogScalingStatusChange instead
 func ScalingStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	return PublishAndLogScalingStatusChange(nil, kv, deploymentID, taskID, status)
+}
+
+// PublishAndLogScalingStatusChange publishes a status change for a scaling task and log this change into the log API
+//
+// PublishAndLogScalingStatusChange returns the published event id
+func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
+	}
 	id, err := storeStatusUpdateEvent(kv, deploymentID, ScalingStatusChangeType, taskID+"\n"+status)
 	if err != nil {
 		return "", err
 	}
-	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for scaling task %q changed to %q", taskID, status))
+	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for scaling task %q changed to %q", taskID, status)
 	return id, nil
 }
 
 // WorkflowStatusChange publishes a status change for a workflow task
 //
 // WorkflowStatusChange returns the published event id
+//
+// Deprecated: use PublishAndLogWorkflowStatusChange instead
 func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	return PublishAndLogWorkflowStatusChange(nil, kv, deploymentID, taskID, status)
+}
+
+// PublishAndLogWorkflowStatusChange publishes a status change for a workflow task and log this change into the log API
+//
+// PublishAndLogWorkflowStatusChange returns the published event id
+func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
+	}
 	id, err := storeStatusUpdateEvent(kv, deploymentID, WorkflowStatusChangeType, taskID+"\n"+status)
 	if err != nil {
 		return "", err
 	}
-	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for workflow task %q changed to %q", taskID, status))
+	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
 	return id, nil
 }
 

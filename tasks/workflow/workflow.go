@@ -139,7 +139,7 @@ func (s *step) isRunnable() (bool, error) {
 	return true, nil
 }
 
-func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) error {
+func setNodeStatus(ctx context.Context, kv *api.KV, taskID, deploymentID, nodeName, status string) error {
 	instancesIDs, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -147,7 +147,7 @@ func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) er
 
 	for _, id := range instancesIDs {
 		// Publish status change event
-		err := deployments.SetInstanceStateString(kv, deploymentID, nodeName, id, status)
+		err := deployments.SetInstanceStateString(ctx, kv, deploymentID, nodeName, id, status)
 		if err != nil {
 			return err
 		}
@@ -249,7 +249,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			}()
 			err := s.runActivity(wfCtx, kv, cfg, deploymentID, bypassErrors, w, activity)
 			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
+				setNodeStatus(wfCtx, kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Step %q: error details: %+v", s.Name, err)
 				if !bypassErrors {
 					s.setStatus(tasks.TaskStepStatusERROR)
@@ -303,7 +303,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
 
 	case ActivityTypeSetState:
-		setNodeStatus(kv, s.t.ID, deploymentID, s.Target, activity.Value())
+		setNodeStatus(wfCtx, kv, s.t.ID, deploymentID, s.Target, activity.Value())
 	case ActivityTypeCallOperation:
 		op, err := operations.GetOperation(wfCtx, kv, s.t.TargetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost)
 		if err != nil {

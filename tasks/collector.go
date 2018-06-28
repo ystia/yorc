@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 )
@@ -116,7 +117,7 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 		}
 	}
 
-	EmitTaskEvent(kv, targetID, taskID, taskType, INITIAL.String())
+	EmitTaskEventWithContextualLogs(nil, kv, targetID, taskID, taskType, INITIAL.String())
 
 	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {
 		log.Debugf("Unlocking newly created task with id %q (target id %q)", taskId, targetId)

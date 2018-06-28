@@ -272,6 +272,9 @@ func NewContext(ctx context.Context, logOptFields LogOptionalFields) context.Con
 // FromContext returns a copy of the LogOptionalFields value stored in ctx, if any.
 func FromContext(ctx context.Context) (LogOptionalFields, bool) {
 	var result LogOptionalFields
+	if ctx == nil {
+		return result, false
+	}
 	lof, ok := ctx.Value(logOptFieldsKey).(LogOptionalFields)
 	if ok {
 		result = make(LogOptionalFields, len(lof))

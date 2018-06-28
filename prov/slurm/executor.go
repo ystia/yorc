@@ -114,7 +114,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 
 func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
+		err := deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
 			return err
 		}
@@ -128,7 +128,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 
 func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
-		err := deployments.SetInstanceState(kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+		err := deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {
 			return err
 		}
@@ -312,7 +312,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}
 
 	// Update the instance state
-	err = deployments.SetInstanceState(kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateStarted)
+	err = deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateStarted)
 	if err != nil {
 		return err
 	}
@@ -339,7 +339,7 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV,
 		}
 	}
 	// Update the instance state
-	err = deployments.SetInstanceState(kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateDeleted)
+	err = deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateDeleted)
 	if err != nil {
 		return err
 	}

@@ -15,19 +15,17 @@
 package events
 
 import (
+	"encoding/json"
+	"fmt"
 	"path"
 	"strings"
 	"testing"
 	"time"
 
-	"fmt"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"encoding/json"
 
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/testutil"
