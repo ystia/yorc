@@ -166,46 +166,63 @@ func GetTargetCapabilityPropertiesAndAttributes(ctx context.Context, kv *api.KV,
 		if i == 0 {
 			props["TARGET_CAPABILITY_TYPE"] = capabilityType
 		}
-		capProps, err := deployments.GetTypeProperties(kv, deploymentID, capabilityType, true)
+
+		err = setCapabilityProperties(ctx, kv, deploymentID, capabilityName, capabilityType, op, i == 0, props)
 		if err != nil {
 			return nil, err
-		}
-		for _, capProp := range capProps {
-			found, value, err := deployments.GetCapabilityProperty(kv, deploymentID, op.RelOp.TargetNodeName, capabilityName, capProp)
-			if err != nil {
-				return nil, err
-			}
-			if !found {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("failed to retrieve property %q for capability %q on node %q. It will not be injected in operation context.", capProp, capabilityName, op.RelOp.TargetNodeName)
-				continue
-			}
-			props["TARGET_CAPABILITY_"+capabilityName+"_PROPERTY_"+capProp] = value
-			if i == 0 {
-				props["TARGET_CAPABILITY_PROPERTY_"+capProp] = value
-			}
 		}
 
-		capAttrs, err := deployments.GetTypeAttributes(kv, deploymentID, capabilityType, true)
+		err = setCapabilityAttributes(ctx, kv, deploymentID, capabilityName, capabilityType, op, targetInstances, i == 0, props)
 		if err != nil {
 			return nil, err
-		}
-		for _, capAttr := range capAttrs {
-			for _, instanceID := range targetInstances {
-				found, value, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, op.RelOp.TargetNodeName, instanceID, capabilityName, capAttr)
-				if err != nil {
-					return nil, err
-				}
-				if !found {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("failed to retrieve attribute %q for capability %q on node %q instance %q. It will not be injected in operation context.", capAttr, capabilityName, op.RelOp.TargetNodeName, instanceID)
-					continue
-				}
-				instanceName := GetInstanceName(op.RelOp.TargetNodeName, instanceID)
-				props[fmt.Sprintf("TARGET_CAPABILITY_%s_%s_ATTRIBUTE_%s", capabilityName, instanceName, capAttr)] = value
-				if i == 0 {
-					props[fmt.Sprintf("TARGET_CAPABILITY_%s_ATTRIBUTE_%s", instanceName, capAttr)] = value
-				}
-			}
 		}
 	}
 	return props, nil
+}
+
+func setCapabilityProperties(ctx context.Context, kv *api.KV, deploymentID, capabilityName, capabilityType string, op prov.Operation, isFirst bool, props map[string]string) error {
+	capProps, err := deployments.GetTypeProperties(kv, deploymentID, capabilityType, true)
+	if err != nil {
+		return err
+	}
+	for _, capProp := range capProps {
+		found, value, err := deployments.GetCapabilityProperty(kv, deploymentID, op.RelOp.TargetNodeName, capabilityName, capProp)
+		if err != nil {
+			return err
+		}
+		if !found {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("failed to retrieve property %q for capability %q on node %q. It will not be injected in operation context.", capProp, capabilityName, op.RelOp.TargetNodeName)
+			continue
+		}
+		props["TARGET_CAPABILITY_"+capabilityName+"_PROPERTY_"+capProp] = value
+		if isFirst {
+			props["TARGET_CAPABILITY_PROPERTY_"+capProp] = value
+		}
+	}
+	return nil
+}
+
+func setCapabilityAttributes(ctx context.Context, kv *api.KV, deploymentID, capabilityName, capabilityType string, op prov.Operation, targetInstances []string, isFirst bool, props map[string]string) error {
+	capAttrs, err := deployments.GetTypeAttributes(kv, deploymentID, capabilityType, true)
+	if err != nil {
+		return err
+	}
+	for _, capAttr := range capAttrs {
+		for _, instanceID := range targetInstances {
+			found, value, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, op.RelOp.TargetNodeName, instanceID, capabilityName, capAttr)
+			if err != nil {
+				return err
+			}
+			if !found {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("failed to retrieve attribute %q for capability %q on node %q instance %q. It will not be injected in operation context.", capAttr, capabilityName, op.RelOp.TargetNodeName, instanceID)
+				continue
+			}
+			instanceName := GetInstanceName(op.RelOp.TargetNodeName, instanceID)
+			props[fmt.Sprintf("TARGET_CAPABILITY_%s_%s_ATTRIBUTE_%s", capabilityName, instanceName, capAttr)] = value
+			if isFirst {
+				props[fmt.Sprintf("TARGET_CAPABILITY_%s_ATTRIBUTE_%s", instanceName, capAttr)] = value
+			}
+		}
+	}
+	return nil
 }
