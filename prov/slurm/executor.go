@@ -114,7 +114,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 
 func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
-		err := deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
+		err := deployments.SetInstanceStateWithContextualLogs(prov.AddInstanceToContextLogFields(ctx, instance), kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
 			return err
 		}
@@ -128,7 +128,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 
 func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
 	for _, instance := range instances {
-		err := deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+		err := deployments.SetInstanceStateWithContextualLogs(prov.AddInstanceToContextLogFields(ctx, instance), kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {
 			return err
 		}
@@ -145,11 +145,11 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Creating the slurm infrastructure")
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
-		func(comp *nodeAllocation) {
+		func(ctx context.Context, comp *nodeAllocation) {
 			g.Go(func() error {
 				return e.createNodeAllocation(ctx, kv, comp, deploymentID, nodeName)
 			})
-		}(compute)
+		}(prov.AddInstanceToContextLogFields(ctx, compute.instanceName), compute)
 	}
 
 	if err := g.Wait(); err != nil {
@@ -167,11 +167,11 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Destroying the slurm infrastructure")
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
-		func(comp *nodeAllocation) {
+		func(ctx context.Context, comp *nodeAllocation) {
 			g.Go(func() error {
 				return e.destroyNodeAllocation(ctx, kv, comp, deploymentID, nodeName)
 			})
-		}(compute)
+		}(prov.AddInstanceToContextLogFields(ctx, compute.instanceName), compute)
 	}
 
 	if err := g.Wait(); err != nil {

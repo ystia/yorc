@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/ystia/yorc/helper/labelsutil"
+	"github.com/ystia/yorc/prov"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -66,26 +67,26 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	switch strings.ToLower(delegateOperation) {
 	case "install":
 		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(ctx, cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
+			deployments.SetInstanceStateWithContextualLogs(prov.AddInstanceToContextLogFields(ctx, instance), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		}
 		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
 		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(ctx, cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateStarted)
+			deployments.SetInstanceStateWithContextualLogs(prov.AddInstanceToContextLogFields(ctx, instance), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateStarted)
 		}
 		return nil
 	case "uninstall":
 		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(ctx, cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+			deployments.SetInstanceStateWithContextualLogs(prov.AddInstanceToContextLogFields(ctx, instance), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		}
 		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
 		for _, instance := range instances {
-			deployments.SetInstanceStateWithContextualLogs(ctx, cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleted)
+			deployments.SetInstanceStateWithContextualLogs(prov.AddInstanceToContextLogFields(ctx, instance), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleted)
 		}
 		return nil
 	}
