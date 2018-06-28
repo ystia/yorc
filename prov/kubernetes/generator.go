@@ -138,6 +138,15 @@ func (k8s *k8sGenerator) createNamespaceIfMissing(deploymentID, namespaceName st
 	return nil
 }
 
+// deleteNamespace delete a Kubernetes namespaces known by its name
+func (k8s *k8sGenerator) deleteNamespace(namespaceName string, client *kubernetes.Clientset) error {
+	err := client.CoreV1().Namespaces().Delete(namespaceName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete namespace "+namespaceName)
+	}
+	return nil
+}
+
 // generatePodName by replacing '_' by '-'
 func generatePodName(nodeName string) string {
 	return strings.Replace(nodeName, "_", "-", -1)
