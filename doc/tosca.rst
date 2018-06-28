@@ -95,8 +95,8 @@ For relationship operation script, the following variables are available:
 * DEPLOYMENT_ID: the unique deployment identifier.
 
 In addition, properties and attributes of the target capability of the relationship are injected automatically.
-We do this as they can only be retieved by knowing in advance the actual name of the capability, which is not
-very practical when designing a generic operation. As a target component may have several capabilties that match
+We do this as they can only be retrieved by knowing in advance the actual name of the capability, which is not
+very practical when designing a generic operation. As a target component may have several capabilities that match
 the relationship capability type we inject the following variables:
 
 * TARGET_CAPABILITY_<capabilityName>_TYPE: actual type of the capability
