@@ -94,6 +94,15 @@ func GetRequirementIndexFromRequirementKey(requirementKey string) string {
 	return path.Base(requirementKey)
 }
 
+// GetRequirementIndexByNameForNode returns the requirement index which name match with defined requirementName for a given node name
+func GetRequirementIndexByNameForNode(kv *api.KV, deploymentID, nodeName, requirementName string) (string, error) {
+	reqPath, err := GetRequirementKeyByNameForNode(kv, deploymentID, nodeName, requirementName)
+	if err != nil {
+		return "", err
+	}
+	return path.Base(reqPath), nil
+}
+
 // GetRequirementsIndexes returns the list of requirements indexes for a given node
 func GetRequirementsIndexes(kv *api.KV, deploymentID, nodeName string) ([]string, error) {
 	reqPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "requirements")
