@@ -22,9 +22,11 @@ import (
 
 	"github.com/antonholmquist/jason"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
 )
 
 func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, []string, error) {
@@ -85,9 +87,9 @@ func checkAndPublishOutput(ctx context.Context, obj *jason.Object, deploymentID,
 	}
 }
 
-type logAnsibleOutputInConsulFn func(context.Context, string, string, *bytes.Buffer) error
+type logAnsibleOutputInConsulFn func(context.Context, string, string, map[string]hostConnection, *bytes.Buffer) error
 
-func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeName string, output *bytes.Buffer) error {
+func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeName string, hostsConn map[string]hostConnection, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -135,12 +137,12 @@ func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeN
 					stdErrLogLevel = events.ERROR
 					logLevel = events.ERROR
 				}
-
-				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "module_stderr", stdErrLogLevel)
-				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "module_stdout", logLevel)
-				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "stderr", stdErrLogLevel)
-				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "stdout", logLevel)
-				checkAndPublishOutput(ctx, obj, deploymentID, nodeName, host, "msg", logLevel)
+				lctx := prov.AddInstanceToContextLogFields(ctx, getInstanceIDFromHosts(hostsConn, host))
+				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "module_stderr", stdErrLogLevel)
+				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "module_stdout", logLevel)
+				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "stderr", stdErrLogLevel)
+				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "stdout", logLevel)
+				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "msg", logLevel)
 			}
 		}
 
@@ -159,7 +161,7 @@ func appendAnsibleOutput(buf *bytes.Buffer, obj *jason.Object, field string) {
 	}
 }
 
-func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string, output *bytes.Buffer) error {
+func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string, hostsConn map[string]hostConnection, output *bytes.Buffer) error {
 
 	v, failedHosts, err := getAnsibleJSONResult(output)
 	if err != nil {
@@ -330,4 +332,16 @@ func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string
 	// Register log entry
 	events.WithContextOptionalFields(ctx).NewLogEntry(logLevel, deploymentID).Register(buf.Bytes())
 	return nil
+}
+
+func getInstanceIDFromHosts(hosts map[string]hostConnection, hostname string) string {
+	if hc, ok := hosts[hostname]; ok {
+		return hc.instanceID
+	}
+	for _, hc := range hosts {
+		if hc.host == hostname {
+			return hc.instanceID
+		}
+	}
+	return ""
 }

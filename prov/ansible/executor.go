@@ -27,6 +27,7 @@ import (
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
 )
 
 type defaultExecutor struct {
@@ -71,6 +72,12 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
+	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	logForAllInstances(ctx, deploymentID, instances, events.INFO, "Start the ansible execution of: %s with operation : %s", nodeName, operation.Name)
+
 	// Execute operation
 	err = exec.execute(ctx, conf.Ansible.ConnectionRetries != 0)
 	if err == nil {
@@ -84,7 +91,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	log.Debugf("Ansible Connection Retries:%d", conf.Ansible.ConnectionRetries)
 	if conf.Ansible.ConnectionRetries > 0 {
 		for i := 0; i < conf.Ansible.ConnectionRetries; i++ {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Caught a retriable error from Ansible: '%v'. Let's retry in few seconds (%d/%d)", err, i+1, conf.Ansible.ConnectionRetries)
+			logForAllInstances(ctx, deploymentID, instances, events.WARN, "Caught a retriable error from Ansible: '%v'. Let's retry in few seconds (%d/%d)", err, i+1, conf.Ansible.ConnectionRetries)
 			time.Sleep(time.Duration(e.r.Int63n(10)) * time.Second)
 			err = exec.execute(ctx, i != 0)
 			if err == nil {
@@ -94,10 +101,15 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 				return err
 			}
 		}
-
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).Registerf("Giving up retries for Ansible error: '%v' (%d/%d)", err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
+		logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Giving up retries for Ansible error: '%v' (%d/%d)", err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
 
 	}
-
+	logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
 	return err
+}
+
+func logForAllInstances(ctx context.Context, deploymentID string, instances []string, level events.LogLevel, msg string, args ...interface{}) {
+	for _, instanceID := range instances {
+		events.WithContextOptionalFields(prov.AddInstanceToContextLogFields(ctx, instanceID)).NewLogEntry(level, deploymentID).Registerf(msg, args...)
+	}
 }
