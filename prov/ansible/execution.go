@@ -353,7 +353,7 @@ func (e *executionCommon) resolveHostsOrchestratorLocal(nodeName string, instanc
 	e.hosts = make(map[string]hostConnection, len(instances))
 	for i := range instances {
 		instanceName := operations.GetInstanceName(nodeName, instances[i])
-		e.hosts[instanceName] = hostConnection{host: instanceName}
+		e.hosts[instanceName] = hostConnection{host: instanceName, instanceID: instances[i]}
 	}
 	return nil
 }
