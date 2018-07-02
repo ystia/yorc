@@ -898,6 +898,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				return err
 			}
 			r := csv.NewReader(fi)
+
+			// If LazyQuotes is true, a quote may appear in an unquoted field
+			// and non-doubled quote may appear in a quoted field.
+			// fix issue: https://github.com/golang/go/issues/21672
+			r.LazyQuotes = true
 			records, err := r.ReadAll()
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
