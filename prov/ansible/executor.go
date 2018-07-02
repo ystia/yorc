@@ -84,6 +84,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return nil
 	}
 	if !IsRetriable(err) {
+		logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
 		return err
 	}
 
@@ -98,11 +99,11 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 				return nil
 			}
 			if !IsRetriable(err) {
+				logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
 				return err
 			}
 		}
 		logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Giving up retries for Ansible error: '%v' (%d/%d)", err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
-
 	}
 	logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
 	return err
