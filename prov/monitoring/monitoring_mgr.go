@@ -58,7 +58,7 @@ func Start(cfg config.Configuration, cc *api.Client) {
 		cc:           cc,
 		chShutdown:   make(chan struct{}),
 		isMonitoring: false,
-		serviceKey:   "service/monitoring/leader",
+		serviceKey:   path.Join(consulutil.YorcServicePrefix, "/monitoring/leader"),
 		cfg:          cfg,
 	}
 
