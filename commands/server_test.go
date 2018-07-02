@@ -165,7 +165,10 @@ func TestConfigFile(t *testing.T) {
 				DebugExec:               true,
 				ConnectionRetries:       10,
 				OperationRemoteBaseDir:  "test_base_dir",
-				KeepOperationRemotePath: true},
+				KeepOperationRemotePath: true,
+				ArchiveArtifacts:        true,
+				FactCaching:             true,
+			},
 			ConsulConfig: config.Consul{
 				Token:          "testToken",
 				Datacenter:     "testDC",
@@ -186,6 +189,8 @@ func TestConfigFile(t *testing.T) {
 				ConnectionRetries:       11,
 				OperationRemoteBaseDir:  "test_base_dir2",
 				KeepOperationRemotePath: true,
+				ArchiveArtifacts:        true,
+				FactCaching:             true,
 			},
 			ConsulConfig: config.Consul{
 				Token:          "testToken2",

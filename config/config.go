@@ -47,8 +47,16 @@ const DefaultPluginDir = "plugins"
 // DefaultServerGracefulShutdownTimeout is the default timeout for a graceful shutdown of a Yorc server before exiting
 const DefaultServerGracefulShutdownTimeout = 5 * time.Minute
 
-//DefaultKeepOperationRemotePath is set to true by default in order to remove path created to store operation artifacts on nodes.
+//DefaultKeepOperationRemotePath is set to false by default in order to remove path created to store operation artifacts on nodes.
 const DefaultKeepOperationRemotePath = false
+
+//DefaultArchiveArtifacts is set to false by default.
+// When ArchiveArtifacts is true, destination hosts need tar to be installed,
+// to be able to unarchive artifacts.
+const DefaultArchiveArtifacts = false
+
+// DefaultFactCaching is set to false by default, meaning ansible facts are not cached by default
+const DefaultFactCaching = false
 
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
@@ -109,6 +117,8 @@ type Ansible struct {
 	ConnectionRetries       int              `mapstructure:"connection_retries"`
 	OperationRemoteBaseDir  string           `mapstructure:"operation_remote_base_dir"`
 	KeepOperationRemotePath bool             `mapstructure:"keep_operation_remote_path"`
+	ArchiveArtifacts        bool             `mapstructure:"archive_artifacts"`
+	FactCaching             bool             `mapstructure:"fact_caching"`
 	HostedOperations        HostedOperations `mapstructure:"hosted_operations"`
 }
 
