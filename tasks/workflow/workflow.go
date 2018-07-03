@@ -131,7 +131,7 @@ func (s *step) isRunnable() (bool, error) {
 		}
 	}
 
-	if s.t.TaskType == tasks.ScaleOut || s.t.TaskType == tasks.ScaleIn {
+	if s.t.TaskType == tasks.TaskTypeScaleOut || s.t.TaskType == tasks.TaskTypeScaleIn {
 		// If not a relationship check the actual node
 		if s.TargetRelationship == "" {
 			return tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
@@ -237,7 +237,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	go func() {
 		select {
 		case <-ctx.Done():
-			if s.t.status != tasks.CANCELED {
+			if s.t.status != tasks.TaskStatusCANCELED {
 				// Temporize to allow current step termination before cancelling context and put step in error
 				log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
 				select {

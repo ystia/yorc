@@ -18,63 +18,28 @@ import (
 	"fmt"
 )
 
-//go:generate stringer -type=TaskStatus,TaskType -output=structs_string.go structs.go
-//go:generate go-enum -f=structs.go --lower
+//go:generate go-enum -f=structs.go
 
-// A TaskType determines the type of a Task
+// TaskType x ENUM(
+// Deploy,
+// UnDeploy,
+// ScaleOut,
+// ScaleIn,
+// Purge,
+// CustomCommand,
+// CustomWorkflow,
+// Query
+// )
 type TaskType int
 
-const (
-	// Deploy defines a Task of type "deploy"
-	Deploy TaskType = iota
-	// UnDeploy defines a Task of type "undeploy"
-	UnDeploy
-	// ScaleOut defines a Task of type "scale-out"
-	ScaleOut
-	// ScaleIn defines a Task of type "scale-in"
-	ScaleIn
-	// Purge defines a Task of type "purge"
-	Purge
-	// CustomCommand defines a Task of type "custom-command"
-	CustomCommand
-	// CustomWorkflow defines a Task of type "CustomWorkflow"
-	CustomWorkflow
-	// Query defines a Task of type "Query"
-	Query
-	// NOTE: if a new task type should be added then change validity check on GetTaskType
-)
-
-// TaskStatus represents the status of a Task
-type TaskStatus int
-
-// TaskStepStatus x ENUM(
+// TaskStatus x ENUM(
 // INITIAL,
 // RUNNING,
 // DONE,
-// ERROR,
+// FAILED,
 // CANCELED
 // )
-type TaskStepStatus int
-
-const (
-	// INITIAL is the initial status of a that haven't run yet
-	INITIAL TaskStatus = iota
-	// RUNNING is the status of a task that is currently processed
-	RUNNING
-	// DONE is the status of a task successful task
-	DONE
-	// FAILED is the status of a failed task
-	FAILED
-	// CANCELED is the status of a canceled task
-	CANCELED
-	// NOTE: if a new status should be added then change validity check on GetTaskStatus
-)
-
-// TaskStep represents a step related to the task
-type TaskStep struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-}
+type TaskStatus int
 
 type anotherLivingTaskAlreadyExistsError struct {
 	taskID   string

@@ -129,7 +129,7 @@ func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, e
 	for scalableNode, nodeInstances := range instancesByNodes {
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
-	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleOut, data)
+	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleOut, data)
 }
 
 func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, error) {
@@ -162,6 +162,6 @@ func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, er
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
 
-	return s.tasksCollector.RegisterTaskWithData(id, tasks.ScaleIn, data)
+	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleIn, data)
 
 }

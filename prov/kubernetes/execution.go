@@ -132,9 +132,9 @@ func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Cli
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
 	case "standard.start":
-		if e.taskType == tasks.ScaleOut {
+		if e.taskType == tasks.TaskTypeScaleOut {
 			log.Println("Scale up node !")
-			err = e.scaleNode(ctx, clientset, tasks.ScaleOut, nbInstances)
+			err = e.scaleNode(ctx, clientset, tasks.TaskTypeScaleOut, nbInstances)
 		} else {
 			log.Println("Deploy node !")
 			err = e.deployNode(ctx, clientset, generator, nbInstances)
@@ -144,9 +144,9 @@ func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Cli
 		}
 		return e.checkNode(ctx, clientset, generator)
 	case "standard.stop":
-		if e.taskType == tasks.ScaleIn {
+		if e.taskType == tasks.TaskTypeScaleIn {
 			log.Println("Scale down node !")
-			return e.scaleNode(ctx, clientset, tasks.ScaleIn, nbInstances)
+			return e.scaleNode(ctx, clientset, tasks.TaskTypeScaleIn, nbInstances)
 		}
 		return e.uninstallNode(ctx, clientset)
 	case "standard.delete":
@@ -389,9 +389,9 @@ func (e *executionCommon) scaleNode(ctx context.Context, clientset *kubernetes.C
 	deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
 	replica := *deployment.Spec.Replicas
-	if scaleType == tasks.ScaleOut {
+	if scaleType == tasks.TaskTypeScaleOut {
 		replica = replica + nbInstances
-	} else if scaleType == tasks.ScaleIn {
+	} else if scaleType == tasks.TaskTypeScaleIn {
 		replica = replica - nbInstances
 	}
 

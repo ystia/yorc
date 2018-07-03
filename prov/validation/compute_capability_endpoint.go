@@ -45,7 +45,7 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 			Registerf("Failed to retrieve task status when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", err)
 		return
 	}
-	if status == tasks.FAILED || status == tasks.CANCELED {
+	if status == tasks.TaskStatusFAILED || status == tasks.TaskStatusCANCELED {
 		return
 	}
 
