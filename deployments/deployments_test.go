@@ -24,19 +24,19 @@ func TestDeploymentStatusFromString(t *testing.T) {
 	// t.Parallel()
 	status, err := DeploymentStatusFromString("initial", true)
 	require.Nil(t, err)
-	require.Equal(t, INITIAL, status)
+	require.Equal(t, DeploymentStatusINITIAL, status)
 
 	status, err = DeploymentStatusFromString("InItIal", true)
 	require.Nil(t, err)
-	require.Equal(t, INITIAL, status)
+	require.Equal(t, DeploymentStatusINITIAL, status)
 
 	status, err = DeploymentStatusFromString("INITIAL", true)
 	require.Nil(t, err)
-	require.Equal(t, INITIAL, status)
+	require.Equal(t, DeploymentStatusINITIAL, status)
 
 	status, err = DeploymentStatusFromString("INITIAL", false)
 	require.Nil(t, err)
-	require.Equal(t, INITIAL, status)
+	require.Equal(t, DeploymentStatusINITIAL, status)
 
 	_, err = DeploymentStatusFromString("initial", false)
 	require.NotNil(t, err)
@@ -49,17 +49,11 @@ func TestDeploymentStatusFromString(t *testing.T) {
 
 	status, err = DeploymentStatusFromString("UNDEPLOYMENT_FAILED", true)
 	require.Nil(t, err)
-	require.Equal(t, UNDEPLOYMENT_FAILED, status)
+	require.Equal(t, DeploymentStatusUNDEPLOYMENT_FAILED, status)
 
 	status, err = DeploymentStatusFromString("undeployment_failed", true)
 	require.Nil(t, err)
-	require.Equal(t, UNDEPLOYMENT_FAILED, status)
-
-	_, err = DeploymentStatusFromString("startOfDepStatusConst", false)
-	require.NotNil(t, err)
-
-	_, err = DeploymentStatusFromString("endOfDepStatusConst", false)
-	require.NotNil(t, err)
+	require.Equal(t, DeploymentStatusUNDEPLOYMENT_FAILED, status)
 
 	_, err = DeploymentStatusFromString("does_not_exist", false)
 	require.NotNil(t, err)

@@ -47,12 +47,7 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 	if ignoreCase {
 		status = strings.ToUpper(status)
 	}
-	for i := startOfDepStatusConst + 1; i < endOfDepStatusConst; i++ {
-		if DeploymentStatus(i).String() == status {
-			return i, nil
-		}
-	}
-	return INITIAL, errors.Errorf("Invalid deployment status %q", status)
+	return ParseDeploymentStatus(status)
 }
 
 // GetDeploymentStatus returns a DeploymentStatus for a given deploymentId
@@ -69,10 +64,10 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 func GetDeploymentStatus(kv *api.KV, deploymentID string) (DeploymentStatus, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), nil)
 	if err != nil {
-		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return DeploymentStatusINITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return INITIAL, deploymentNotFound{deploymentID: deploymentID}
+		return DeploymentStatusINITIAL, deploymentNotFound{deploymentID: deploymentID}
 	}
 	return DeploymentStatusFromString(string(kvp.Value), true)
 }

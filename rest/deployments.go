@@ -204,7 +204,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			log.Panicf("%v", err)
 		}
-		if status == deployments.UNDEPLOYED {
+		if status == deployments.DeploymentStatusUNDEPLOYED {
 			writeError(w, r, newBadRequestMessage("Deployment already undeployed"))
 			return
 		}
@@ -285,7 +285,7 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			if deployments.IsDeploymentNotFoundError(err) {
 				// Deployment purged now
-				status = deployments.UNDEPLOYED
+				status = deployments.DeploymentStatusUNDEPLOYED
 			} else {
 				log.Panic(err)
 			}

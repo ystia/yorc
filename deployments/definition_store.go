@@ -87,7 +87,7 @@ func storeDeployment(ctx context.Context, topology tosca.Topology, deploymentID,
 	errCtx, errGroup, consulStore := consulutil.WithContext(ctx)
 	errCtx = context.WithValue(errCtx, errGrpKey, errGroup)
 	errCtx = context.WithValue(errCtx, consulStoreKey, consulStore)
-	consulStore.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(INITIAL))
+	consulStore.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(DeploymentStatusINITIAL))
 
 	errGroup.Go(func() error {
 		return storeTopology(errCtx, topology, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology"), "", "", rootDefPath)
