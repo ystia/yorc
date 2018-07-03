@@ -48,7 +48,7 @@ var ansibleConfiguration = map[string]interface{}{
 	"ansible.operation_remote_base_dir":  ".yorc",
 	"ansible.keep_operation_remote_path": config.DefaultKeepOperationRemotePath,
 	"ansible.archive_artifacts":          config.DefaultArchiveArtifacts,
-	"ansible.fact_caching":               config.DefaultFactCaching,
+	"ansible.cache_facts":                config.DefaultCacheFacts,
 }
 
 var consulConfiguration = map[string]interface{}{
@@ -224,7 +224,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().String("operation_remote_base_dir", ".yorc", "Name of the temporary directory used by Ansible on the nodes")
 	serverCmd.PersistentFlags().Bool("keep_operation_remote_path", config.DefaultKeepOperationRemotePath, "Define wether the path created to store artifacts on the nodes will be removed at the end of workflow executions.")
 	serverCmd.PersistentFlags().Bool("ansible_archive_artifacts", config.DefaultArchiveArtifacts, "Define wether artifacts should be archived before being copied on remote nodes.")
-	serverCmd.PersistentFlags().Bool("ansible_fact_caching", config.DefaultFactCaching, "Define wether Ansible facts (useful variables about remote hosts) should be cached.")
+	serverCmd.PersistentFlags().Bool("ansible_cache_facts", config.DefaultCacheFacts, "Define wether Ansible facts (useful variables about remote hosts) should be cached.")
 
 	//Bind Consul persistent flags
 	for key := range consulConfiguration {

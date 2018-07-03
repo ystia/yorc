@@ -57,7 +57,6 @@ host_key_checking=False
 timeout=30
 stdout_callback = json
 retry_files_save_path = #PLAY_PATH#
-callback_whitelist = profile_tasks, timer
 `
 const ansibleFactCaching = `
 gathering = smart
@@ -124,7 +123,7 @@ type executionCommon struct {
 	OperationRemotePath      string
 	KeepOperationRemotePath  bool
 	ArchiveArtifacts         string
-	FactCaching              bool
+	CacheFacts               bool
 	EnvInputs                []*operations.EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -159,7 +158,7 @@ func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, tas
 		//KeepOperationRemotePath property is required to be public when resolving templates.
 		KeepOperationRemotePath: cfg.Ansible.KeepOperationRemotePath,
 		ArchiveArtifacts:        strconv.FormatBool(cfg.Ansible.ArchiveArtifacts),
-		FactCaching:             cfg.Ansible.FactCaching,
+		CacheFacts:              cfg.Ansible.CacheFacts,
 		operation:               operation,
 		VarInputsNames:          make([]string, 0),
 		EnvInputs:               make([]*operations.EnvInput, 0),
@@ -884,7 +883,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 
 	ansibleCfgContent := strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)
-	if e.FactCaching {
+	if e.CacheFacts {
 		ansibleCfgCacheContent := strings.Replace(ansibleFactCaching, "#FACTS_CACHE_PATH#", ansiblePath, -1)
 		ansibleCfgContent += ansibleCfgCacheContent
 	}

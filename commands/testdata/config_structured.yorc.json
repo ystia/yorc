@@ -14,7 +14,7 @@
     "operation_remote_base_dir": "test_base_dir2",
     "keep_operation_remote_path": true,
     "archive_artifacts": true,
-    "fact_caching": true
+    "cache_facts": true
   },
   "consul":{
     "address": "http://127.0.0.1:8502",

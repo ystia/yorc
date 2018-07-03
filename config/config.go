@@ -55,8 +55,8 @@ const DefaultKeepOperationRemotePath = false
 // to be able to unarchive artifacts.
 const DefaultArchiveArtifacts = false
 
-// DefaultFactCaching is set to false by default, meaning ansible facts are not cached by default
-const DefaultFactCaching = false
+// DefaultCacheFacts is set to false by default, meaning ansible facts are not cached by default
+const DefaultCacheFacts = false
 
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
@@ -118,7 +118,7 @@ type Ansible struct {
 	OperationRemoteBaseDir  string           `mapstructure:"operation_remote_base_dir"`
 	KeepOperationRemotePath bool             `mapstructure:"keep_operation_remote_path"`
 	ArchiveArtifacts        bool             `mapstructure:"archive_artifacts"`
-	FactCaching             bool             `mapstructure:"fact_caching"`
+	CacheFacts              bool             `mapstructure:"cache_facts"`
 	HostedOperations        HostedOperations `mapstructure:"hosted_operations"`
 }
 

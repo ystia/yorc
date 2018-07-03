@@ -167,7 +167,7 @@ func TestConfigFile(t *testing.T) {
 				OperationRemoteBaseDir:  "test_base_dir",
 				KeepOperationRemotePath: true,
 				ArchiveArtifacts:        true,
-				FactCaching:             true,
+				CacheFacts:              true,
 			},
 			ConsulConfig: config.Consul{
 				Token:          "testToken",
@@ -190,7 +190,7 @@ func TestConfigFile(t *testing.T) {
 				OperationRemoteBaseDir:  "test_base_dir2",
 				KeepOperationRemotePath: true,
 				ArchiveArtifacts:        true,
-				FactCaching:             true,
+				CacheFacts:              true,
 			},
 			ConsulConfig: config.Consul{
 				Token:          "testToken2",
