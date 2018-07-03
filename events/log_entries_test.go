@@ -35,7 +35,7 @@ func TestGenerateValue(t *testing.T) {
 	logEntry := WithOptionalFields(LogOptionalFields{
 		WorkFlowID:    "my_workflowID",
 		OperationName: "my_operationID",
-	}).NewLogEntry(DEBUG, "my_deploymentID")
+	}).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
 
 	logEntry.timestamp = time.Now()
 
@@ -48,7 +48,7 @@ func TestGenerateKey(t *testing.T) {
 	logEntry := WithOptionalFields(LogOptionalFields{
 		WorkFlowID:    "my_workflowID",
 		OperationName: "my_operationID",
-	}).NewLogEntry(DEBUG, "my_deploymentID")
+	}).NewLogEntry(LogLevelDEBUG, "my_deploymentID")
 
 	logEntry.timestamp = time.Now()
 
@@ -58,8 +58,8 @@ func TestGenerateKey(t *testing.T) {
 
 func TestSimpleLogEntry(t *testing.T) {
 	t.Parallel()
-	logEntry := SimpleLogEntry(INFO, "my_deploymentID")
-	require.Equal(t, &LogEntry{level: INFO, deploymentID: "my_deploymentID"}, logEntry)
+	logEntry := SimpleLogEntry(LogLevelINFO, "my_deploymentID")
+	require.Equal(t, &LogEntry{level: LogLevelINFO, deploymentID: "my_deploymentID"}, logEntry)
 }
 
 func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
@@ -71,9 +71,9 @@ func testRegisterLogsInConsul(t *testing.T, kv *api.KV) {
 		wantErr   bool
 		wantValue string
 	}{
-		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: DEBUG, content: []byte("LOG ONE"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG ONE\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"DEBUG\",\"timestamp\":\"\"}"},
-		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: INFO, content: []byte("LOG TWO"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG TWO\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"INFO\",\"timestamp\":\"\"}"},
-		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: ERROR, content: []byte("LOG THREE"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG THREE\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"ERROR\",\"timestamp\":\"\"}"},
+		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: LogLevelDEBUG, content: []byte("LOG ONE"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG ONE\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"DEBUG\",\"timestamp\":\"\"}"},
+		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: LogLevelINFO, content: []byte("LOG TWO"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG TWO\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"INFO\",\"timestamp\":\"\"}"},
+		{name: "TestLevelDebug", args: &LogEntry{deploymentID: deploymentID, level: LogLevelERROR, content: []byte("LOG THREE"), additionalInfo: nil}, wantErr: false, wantValue: "{\"content\":\"LOG THREE\",\"deploymentId\":\"TestRunConsulEventsPackageTests_groupEvents_TestRegisterLogsInConsul\",\"level\":\"ERROR\",\"timestamp\":\"\"}"},
 	}
 
 	for _, tt := range tests {
@@ -114,7 +114,7 @@ func testLogsSortedByTimestamp(t *testing.T, kv *api.KV) {
 	const NumberOfLogs = 100
 	const ContentFormat = "Log id %d"
 	deploymentID := testutil.BuildDeploymentID(t)
-	logEntry := SimpleLogEntry(INFO, deploymentID)
+	logEntry := SimpleLogEntry(LogLevelINFO, deploymentID)
 	for i := 0; i < NumberOfLogs; i++ {
 		logEntry.Registerf(ContentFormat, i)
 	}

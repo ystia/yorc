@@ -161,10 +161,10 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		// Run the command
 		out, err := e.runJobCommand(ctx)
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(out)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(out)
 		log.Debugf("output:%q", out)
 		if !e.jobInfo.batchMode {
 			return e.cleanUp()
@@ -238,7 +238,7 @@ func (e *executionCommon) getJobInfo(ctx context.Context, stopCh chan struct{}, 
 		e.jobInfo.ID = d[0]
 		e.jobInfo.state = d[1]
 		mess := fmt.Sprintf("Job Name:%s, Job ID:%s, Job State:%s", e.jobInfo.name, e.jobInfo.ID, e.jobInfo.state)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(mess)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(mess)
 	} else if e.jobInfo.batchMode {
 		e.endBatchExecution(ctx, stopCh)
 	}
@@ -406,7 +406,7 @@ func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
 func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) (string, error) {
 	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
 	cmd = strings.Trim(cmd, "")
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
@@ -431,7 +431,7 @@ func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile strin
 		exports += export
 	}
 	cmd := fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
@@ -476,7 +476,7 @@ func (e *executionCommon) handleBatchOutputs(ctx context.Context) error {
 	// Copy the outputs in <JOB_ID>_outputs directory at root level
 	outputDir := fmt.Sprintf("job_" + e.jobInfo.ID + "_outputs")
 	cmd := fmt.Sprintf("mkdir %s", outputDir)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		return errors.Wrap(err, output)
@@ -487,19 +487,19 @@ func (e *executionCommon) handleBatchOutputs(ctx context.Context) error {
 		newPath := path.Join(outputDir, out)
 		// Copy the file in the output dir
 		cmd := fmt.Sprintf("cp -f %s %s", oldPath, newPath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 		output, err := e.client.RunCommand(cmd)
 		if err != nil {
 			return errors.Wrap(err, output)
 		}
 		// Log the output
 		cmd = fmt.Sprintf("cat %s", newPath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 		output, err = e.client.RunCommand(cmd)
 		if err != nil {
 			return errors.Wrap(err, output)
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("\n" + output)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString("\n" + output)
 	}
 	return nil
 }

@@ -76,7 +76,7 @@ func (w worker) setDeploymentStatus(deploymentID string, status deployments.Depl
 }
 
 func (w worker) processWorkflow(ctx context.Context, workflowName string, wfSteps []*step, deploymentID string, bypassErrors bool) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Start processing workflow %q", workflowName))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Start processing workflow %q", workflowName))
 	uninstallerrc := make(chan error)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -109,16 +109,16 @@ func (w worker) processWorkflow(ctx context.Context, workflowName string, wfStep
 	errs := <-faninErrCh
 
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
 		return err
 	}
 
 	if len(errs) > 0 {
 		uninstallerr := errors.Errorf("%s", strings.Join(errs, " ; "))
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("One or more error appear in workflow %q, please check : %v", workflowName, uninstallerr))
 		log.Printf("DeploymentID %q One or more error appear workflow %q, please check : %v", deploymentID, workflowName, uninstallerr)
 	} else {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Workflow %q ended without error", workflowName))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Workflow %q ended without error", workflowName))
 		log.Printf("DeploymentID %q Workflow %q ended without error", deploymentID, workflowName)
 	}
 	return nil
@@ -404,7 +404,7 @@ func (w worker) handleTask(t *task) {
 			}
 		default:
 			mess := fmt.Sprintf("Unknown query: %q for Task with id %q", query, t.ID)
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(mess)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(mess)
 			log.Printf(mess)
 			if t.Status() == tasks.RUNNING {
 				t.WithStatus(tasks.FAILED)
@@ -412,7 +412,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 	default:
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", t.TaskType, t.TaskType.String(), t.ID))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", t.TaskType, t.TaskType.String(), t.ID))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", t.TaskType, t.TaskType.String(), t.ID, t.TargetID)
 		if t.Status() == tasks.RUNNING {
 			t.WithStatus(tasks.FAILED)
