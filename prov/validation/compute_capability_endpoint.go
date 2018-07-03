@@ -34,14 +34,14 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 	}
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 			Registerf("Failed to retrieve consul client when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
 		return
 	}
 	kv := cc.KV()
 	status, err := tasks.GetTaskStatus(kv, taskID)
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 			Registerf("Failed to retrieve task status when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", err)
 		return
 	}
@@ -51,7 +51,7 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 
 	isCompute, err := deployments.IsNodeDerivedFrom(kv, deploymentID, target, "yorc.nodes.Compute")
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 			Registerf("Failed to retrieve node type for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
 		return
 	}
@@ -60,7 +60,7 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 	}
 	instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, target)
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 			Registerf("Failed to retrieve node instances for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
 		return
 	}
@@ -71,7 +71,7 @@ func checkAllInstances(ctx context.Context, kv *api.KV, deploymentID, target str
 	for _, instance := range instances {
 		found, _, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, target, instance, "endpoint", "ip_address")
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to retrieve node attribute for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
 			return
 		}
@@ -80,7 +80,7 @@ func checkAllInstances(ctx context.Context, kv *api.KV, deploymentID, target str
 			for _, attr := range []string{"public_ip_address", "public_address", "private_address", "ip_address"} {
 				found, err := setEndpointIPFromAttribute(ctx, kv, deploymentID, target, instance, attr)
 				if err != nil {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 						Registerf("Failed to retrieve node attribute for node %q when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
 					return
 				}

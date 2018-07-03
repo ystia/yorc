@@ -66,14 +66,14 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	var err error
 	e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
 	ansibleGroupsVarsPath := filepath.Join(ansibleRecipePath, "group_vars")
 	if err = os.MkdirAll(ansibleGroupsVarsPath, 0775); err != nil {
 		err = errors.Wrap(err, "Failed to create group_vars directory: ")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	var buffer bytes.Buffer
@@ -104,7 +104,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleGroupsVarsPath, "all.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write global group vars file: ")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -119,7 +119,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		}
 		if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "outputs.csv.j2"), buffer.Bytes(), 0664); err != nil {
 			err = errors.Wrap(err, "Failed to generate operation outputs file: ")
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return err
 		}
 	}
@@ -135,21 +135,21 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	tmpl, err = tmpl.Parse(ansiblePlaybook)
 	if err != nil {
 		err = errors.Wrap(err, "Failed to generate ansible playbook")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook template")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
 
 	return e.executePlaybook(ctx, retry, ansibleRecipePath, logAnsibleOutputInConsul)
 }
