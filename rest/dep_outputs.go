@@ -41,7 +41,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 
 	found, result, err := deployments.GetTopologyOutput(kv, id, opt)
 	if err != nil {
-		if status == deployments.DeploymentStatusDEPLOYMENT_IN_PROGRESS {
+		if status == deployments.DEPLOYMENT_IN_PROGRESS {
 			// Things may not be resolvable yet
 			encodeJSONResponse(w, r, Output{Name: opt, Value: ""})
 			return

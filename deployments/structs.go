@@ -14,7 +14,7 @@
 
 package deployments
 
-//go:generate go-enum -f=structs.go
+//go:generate go-enum --noprefix -f=structs.go
 
 // DeploymentStatus x ENUM(
 // INITIAL,

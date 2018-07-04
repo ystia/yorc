@@ -151,13 +151,13 @@ func (w worker) handleTask(t *task) {
 	}(t, time.Now())
 	switch t.TaskType {
 	case tasks.TaskTypeDeploy:
-		w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYMENT_IN_PROGRESS)
+		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_IN_PROGRESS)
 		err := w.runWorkflows(ctx, t, []string{"install"}, false)
 		if err != nil {
-			w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYMENT_FAILED)
+			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
-		w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYED)
+		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
 	case tasks.TaskTypeUnDeploy, tasks.TaskTypePurge:
 		status, err := deployments.GetDeploymentStatus(kv, t.TargetID)
 		if err != nil {
@@ -165,14 +165,14 @@ func (w worker) handleTask(t *task) {
 			t.WithStatus(tasks.TaskStatusFAILED)
 			return
 		}
-		if status != deployments.DeploymentStatusUNDEPLOYED {
-			w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusUNDEPLOYMENT_IN_PROGRESS)
+		if status != deployments.UNDEPLOYED {
+			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 			err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
 			if err != nil {
-				w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusUNDEPLOYMENT_FAILED)
+				w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYMENT_FAILED)
 				return
 			}
-			w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusUNDEPLOYED)
+			w.setDeploymentStatus(t.TargetID, deployments.UNDEPLOYED)
 		}
 		if t.TaskType == tasks.TaskTypePurge {
 			_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, t.TargetID), nil)
@@ -304,19 +304,19 @@ func (w worker) handleTask(t *task) {
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
 	case tasks.TaskTypeScaleOut:
-		w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusSCALING_IN_PROGRESS)
+		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 
 		err := w.runWorkflows(ctx, t, []string{"install"}, false)
 		if err != nil {
-			w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYMENT_FAILED)
+			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
-		w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYED)
+		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
 	case tasks.TaskTypeScaleIn:
-		w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusSCALING_IN_PROGRESS)
+		w.setDeploymentStatus(t.TargetID, deployments.SCALING_IN_PROGRESS)
 		err := w.runWorkflows(ctx, t, []string{"uninstall"}, true)
 		if err != nil {
-			w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYMENT_FAILED)
+			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
 
@@ -326,10 +326,10 @@ func (w worker) handleTask(t *task) {
 				t.WithStatus(tasks.TaskStatusFAILED)
 			}
 			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYMENT_FAILED)
+			w.setDeploymentStatus(t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
 		}
-		w.setDeploymentStatus(t.TargetID, deployments.DeploymentStatusDEPLOYED)
+		w.setDeploymentStatus(t.TargetID, deployments.DEPLOYED)
 	case tasks.TaskTypeCustomWorkflow:
 		wfName, err := tasks.GetTaskData(kv, t.ID, "workflowName")
 		if err != nil {

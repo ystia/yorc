@@ -64,10 +64,10 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 func GetDeploymentStatus(kv *api.KV, deploymentID string) (DeploymentStatus, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), nil)
 	if err != nil {
-		return DeploymentStatusINITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return INITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return DeploymentStatusINITIAL, deploymentNotFound{deploymentID: deploymentID}
+		return INITIAL, deploymentNotFound{deploymentID: deploymentID}
 	}
 	return DeploymentStatusFromString(string(kvp.Value), true)
 }

@@ -22,22 +22,22 @@ import (
 )
 
 const (
-	// DeploymentStatusINITIAL is a DeploymentStatus of type INITIAL
-	DeploymentStatusINITIAL DeploymentStatus = iota
-	// DeploymentStatusDEPLOYMENT_IN_PROGRESS is a DeploymentStatus of type DEPLOYMENT_IN_PROGRESS
-	DeploymentStatusDEPLOYMENT_IN_PROGRESS
-	// DeploymentStatusDEPLOYED is a DeploymentStatus of type DEPLOYED
-	DeploymentStatusDEPLOYED
-	// DeploymentStatusUNDEPLOYMENT_IN_PROGRESS is a DeploymentStatus of type UNDEPLOYMENT_IN_PROGRESS
-	DeploymentStatusUNDEPLOYMENT_IN_PROGRESS
-	// DeploymentStatusUNDEPLOYED is a DeploymentStatus of type UNDEPLOYED
-	DeploymentStatusUNDEPLOYED
-	// DeploymentStatusDEPLOYMENT_FAILED is a DeploymentStatus of type DEPLOYMENT_FAILED
-	DeploymentStatusDEPLOYMENT_FAILED
-	// DeploymentStatusUNDEPLOYMENT_FAILED is a DeploymentStatus of type UNDEPLOYMENT_FAILED
-	DeploymentStatusUNDEPLOYMENT_FAILED
-	// DeploymentStatusSCALING_IN_PROGRESS is a DeploymentStatus of type SCALING_IN_PROGRESS
-	DeploymentStatusSCALING_IN_PROGRESS
+	// INITIAL is a DeploymentStatus of type INITIAL
+	INITIAL DeploymentStatus = iota
+	// DEPLOYMENT_IN_PROGRESS is a DeploymentStatus of type DEPLOYMENT_IN_PROGRESS
+	DEPLOYMENT_IN_PROGRESS
+	// DEPLOYED is a DeploymentStatus of type DEPLOYED
+	DEPLOYED
+	// UNDEPLOYMENT_IN_PROGRESS is a DeploymentStatus of type UNDEPLOYMENT_IN_PROGRESS
+	UNDEPLOYMENT_IN_PROGRESS
+	// UNDEPLOYED is a DeploymentStatus of type UNDEPLOYED
+	UNDEPLOYED
+	// DEPLOYMENT_FAILED is a DeploymentStatus of type DEPLOYMENT_FAILED
+	DEPLOYMENT_FAILED
+	// UNDEPLOYMENT_FAILED is a DeploymentStatus of type UNDEPLOYMENT_FAILED
+	UNDEPLOYMENT_FAILED
+	// SCALING_IN_PROGRESS is a DeploymentStatus of type SCALING_IN_PROGRESS
+	SCALING_IN_PROGRESS
 )
 
 const _DeploymentStatusName = "INITIALDEPLOYMENT_IN_PROGRESSDEPLOYEDUNDEPLOYMENT_IN_PROGRESSUNDEPLOYEDDEPLOYMENT_FAILEDUNDEPLOYMENT_FAILEDSCALING_IN_PROGRESS"
