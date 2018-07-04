@@ -4,6 +4,7 @@ Performance
 ===========
 
 .. _tosca_operations_performance_section:
+
 TOSCA Operations
 ----------------
 
