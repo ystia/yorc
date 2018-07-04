@@ -12,6 +12,8 @@
   "ansible_connection_retries": 10,
   "operation_remote_base_dir": "test_base_dir",
 	"keep_operation_remote_path": true, 
+  "ansible_archive_artifacts": true,
+  "ansible_cache_facts": true,
   "consul_address": "http://127.0.0.1:8500",
   "consul_datacenter": "testDC",
   "consul_token": "testToken",

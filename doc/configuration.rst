@@ -22,6 +22,14 @@ Globals Command-line options
 
   * ``--ansible_connection_retries``: Number of retries in case of Ansible SSH connection failure.
 
+.. _option_ansible_cache_facts_cmd:
+
+  * ``--ansible_cache_facts``: If set to true, caches Ansible facts (values fetched on remote hosts about network/hardware/OS/virtualization configuration) so that these facts are not recomputed each time a new operation is a run for a given deployment (false by default: no caching).
+
+.. _option_ansible_archive_artifacts_cmd:
+
+  * ``--ansible_archive_artifacts``: If set to true, archives operation bash/python scripts locally, copies this archive and unarchives it on remote hosts (requires tar to be installed on remote hosts), to avoid multiple time consuming remote copy operations of individual scripts (false by default: no archive).
+
 .. _option_operation_remote_base_dir_cmd:
 
   * ``--operation_remote_base_dir``: Specify an alternative working directory for Ansible on provisioned Compute.
@@ -276,6 +284,14 @@ All available configuration options for Ansible are:
 
   * ``connection_retries``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
 
+.. _option_ansible_cache_facts_cfg:
+
+  * ``cache_facts``: Equivalent to :ref:`--ansible_cache_facts <option_ansible_cache_facts_cmd>` command-line flag.
+
+.. _option_ansible_archive_artifacts_cfg:
+
+  * ``archive_artifacts``: Equivalent to :ref:`--ansible_archive_artifacts <option_ansible_archive_artifacts_cmd>` command-line flag.
+
 .. _option_operation_remote_base_dir_cfg:
 
   * ``operation_remote_base_dir``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
@@ -315,6 +331,20 @@ All available configuration options for Ansible are:
       .. _option_ansible_sandbox_hosted_ops_default_sandbox_env_cfg:
 
       * ``env``: An optional list environment variables to set when creating the container. The format of each variable is ``var_name=value``.
+
+
+Ansible performance considerations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As described in TOSCA :ref:`tosca_operations_implementations_section`, Yorc supports these builtin implementations for operations to execute on remote hosts :
+
+  * Bash scripts
+  * Python scripts
+  * Ansible Playbooks
+
+It is recommended to implement operations as Ansible Playbooks to get the best execution performance.
+
+When operations are not implemented using Ansible playbooks, see the Performance section on :ref:`tosca_operations_performance_section` to improve the performance of scripts execution on remote hosts.
 
 .. _yorc_config_file_consul_section:
 
@@ -524,6 +554,14 @@ Environment variables
 .. _option_ansible_connection_retries_env:
 
   * ``YORC_ANSIBLE_CONNECTION_RETRIES``: Equivalent to :ref:`--ansible_connection_retries <option_ansible_connection_retries_cmd>` command-line flag.
+
+.. _option_ansible_cache_facts_env:
+
+  * ``YORC_ANSIBLE_CACHE_FACTS``: Equivalent to :ref:`--ansible_cache_facts <option_ansible_cache_facts_cmd>` command-line flag.
+
+.. _option_ansible_archive_artifacts_env:
+
+  * ``YORC_ANSIBLE_ARCHIVE_ARTIFACTS``: Equivalent to :ref:`--ansible_archive_artifacts <option_ansible_archive_artifacts_cmd>` command-line flag.
 
 .. _option_operation_remote_base_dir_env:
 
