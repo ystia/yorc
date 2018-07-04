@@ -100,25 +100,30 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 	instance.Disks = []Disk{bootDisk}
 
-	// Get boolean parameters
-
-	if instance.NoAddress, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "no_address"); err != nil {
+	// Network definition
+	var noAddress bool
+	if noAddress, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "no_address"); err != nil {
 		return err
 	}
 
-	if instance.Preemptible, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
-		return err
-	}
-
-	// Network interface definition
 	networkInterface := NetworkInterface{Network: "default"}
 	// Define an external access if there will be an external IP address
-	if !instance.NoAddress {
+	if !noAddress {
 		// keeping all default values, except from the external IP address if defined
 		accessConfig := AccessConfig{NatIP: externalAddress}
 		networkInterface.AccessConfigs = []AccessConfig{accessConfig}
 	}
 	instance.NetworkInterfaces = []NetworkInterface{networkInterface}
+
+	// Scheduling definition
+	var preemptible bool
+	if preemptible, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
+		return err
+	}
+
+	if preemptible {
+		instance.Scheduling = Scheduling{Preemptible: true}
+	}
 
 	// Get list of strings parameters
 	var scopes []string
@@ -174,7 +179,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	// Define the public IP using the value exported by Terraform
 	// except if it was specified the instance shouldn't have a public address
 	var accessIP string
-	if instance.NoAddress {
+	if noAddress {
 		accessIP = privateIP
 	} else {
 		accessIP = fmt.Sprintf("${google_compute_instance.%s.network_interface.0.access_config.0.assigned_nat_ip}",
