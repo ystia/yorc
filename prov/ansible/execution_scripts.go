@@ -128,7 +128,13 @@ const shellAnsiblePlaybook = `
     - copy: src="[[[.ScriptToRun]]]" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
+    [[[printf "- unarchive: src=\"%s/%s.tar\" dest=\"{{ ansible_env.HOME}}/%s\"" $.DestFolder $artName $.OperationRemotePath]]]
+    [[[printf "  register: result"]]]
+    [[[printf "  ignore_errors: yes"]]]
+    [[[printf "  when: %s" $.ArchiveArtifacts]]]
+    [[[printf "# Fall back on copy if archive artifacts is disabled or unarchive failed (can happen if tar is missing on remote host)"]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
+    [[[printf "  when: (not %s) or result.failed" $.ArchiveArtifacts]]]
     [[[end]]]
     [[[printf "- shell: \"/bin/bash -l -c {{ ansible_env.HOME}}/%s/wrapper\"" $.OperationRemotePath]]]
       environment:

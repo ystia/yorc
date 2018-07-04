@@ -21,4 +21,5 @@ Yorc |release| Documentation
    ha
    docker
    telemetry
+   performance
 

@@ -15,10 +15,12 @@
 package ansible
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -55,6 +57,11 @@ host_key_checking=False
 timeout=30
 stdout_callback = json
 retry_files_save_path = #PLAY_PATH#
+`
+const ansibleFactCaching = `
+gathering = smart
+fact_caching = jsonfile
+fact_caching_connection = #FACTS_CACHE_PATH#/facts_cache
 `
 
 type ansibleRetriableError struct {
@@ -115,6 +122,8 @@ type executionCommon struct {
 	OperationRemoteBaseDir   string
 	OperationRemotePath      string
 	KeepOperationRemotePath  bool
+	ArchiveArtifacts         string
+	CacheFacts               bool
 	EnvInputs                []*operations.EnvInput
 	VarInputsNames           []string
 	Primary                  string
@@ -148,6 +157,8 @@ func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, tas
 		NodeName:     nodeName,
 		//KeepOperationRemotePath property is required to be public when resolving templates.
 		KeepOperationRemotePath: cfg.Ansible.KeepOperationRemotePath,
+		ArchiveArtifacts:        strconv.FormatBool(cfg.Ansible.ArchiveArtifacts),
+		CacheFacts:              cfg.Ansible.CacheFacts,
 		operation:               operation,
 		VarInputsNames:          make([]string, 0),
 		EnvInputs:               make([]*operations.EnvInput, 0),
@@ -758,16 +769,20 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	logOptFields[events.InstanceID] = currentInstance
 	ctx = events.NewContext(ctx, logOptFields)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
-	var ansibleRecipePath string
-	if e.operation.RelOp.IsRelationshipOperation {
-		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.relationshipType, e.operation.RelOp.TargetRelationship, e.operation.Name, currentInstance)
-	} else {
-		ansibleRecipePath = filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible", e.NodeName, e.operation.Name, currentInstance)
-	}
-	ansibleRecipePath, err := filepath.Abs(ansibleRecipePath)
+
+	ansiblePath := filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible")
+	ansiblePath, err := filepath.Abs(ansiblePath)
 	if err != nil {
 		return err
 	}
+
+	var ansibleRecipePath string
+	if e.operation.RelOp.IsRelationshipOperation {
+		ansibleRecipePath = filepath.Join(ansiblePath, e.NodeName, e.relationshipType, e.operation.RelOp.TargetRelationship, e.operation.Name, currentInstance)
+	} else {
+		ansibleRecipePath = filepath.Join(ansiblePath, e.NodeName, e.operation.Name, currentInstance)
+	}
+
 	if err = os.RemoveAll(ansibleRecipePath); err != nil {
 		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
 		log.Debugf("%+v", err)
@@ -866,7 +881,13 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
-	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)), 0664); err != nil {
+
+	ansibleCfgContent := strings.Replace(ansibleConfig, "#PLAY_PATH#", ansibleRecipePath, -1)
+	if e.CacheFacts {
+		ansibleCfgCacheContent := strings.Replace(ansibleFactCaching, "#FACTS_CACHE_PATH#", ansiblePath, -1)
+		ansibleCfgContent += ansibleCfgCacheContent
+	}
+	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(ansibleCfgContent), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write ansible.cfg file")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
@@ -879,6 +900,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		e.OperationRemotePath = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
 	log.Debugf("OperationRemotePath:%s", e.OperationRemotePath)
+	// Build archives for artifacts
+	for artifactName, artifactPath := range e.Artifacts {
+		tarPath := filepath.Join(ansibleRecipePath, artifactName+".tar")
+		buildArchive(e.OverlayPath, artifactPath, tarPath)
+	}
+
 	err = e.ansibleRunner.runAnsible(ctx, retry, currentInstance, ansibleRecipePath)
 	if err != nil {
 		return err
@@ -991,4 +1018,56 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 	}
 
 	return nil
+}
+
+func buildArchive(rootDir, artifactDir, tarPath string) error {
+
+	srcDir := filepath.Join(rootDir, artifactDir)
+	tarFile, err := os.Create(tarPath)
+	if err != nil {
+		return err
+	}
+	defer tarFile.Close()
+
+	var fileWriter io.WriteCloser = tarFile
+
+	tarfileWriter := tar.NewWriter(fileWriter)
+	defer tarfileWriter.Close()
+
+	_, err = os.Stat(srcDir)
+	if err != nil {
+		return nil
+	}
+
+	return filepath.Walk(srcDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			header, err := tar.FileInfoHeader(info, info.Name())
+			if err != nil {
+				return err
+			}
+
+			if rootDir != "" {
+				header.Name = strings.TrimPrefix(strings.Replace(path, rootDir, "", -1), string(filepath.Separator))
+			}
+
+			if err := tarfileWriter.WriteHeader(header); err != nil {
+				return err
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			file, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+			_, err = io.Copy(tarfileWriter, file)
+			return err
+		})
 }
