@@ -50,7 +50,7 @@ func preDestroyInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configu
 			// False by default
 			msg := fmt.Sprintf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
 			log.Debug(msg)
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(msg)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(msg)
 			return false, nil
 		}
 	}

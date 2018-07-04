@@ -329,7 +329,7 @@ func (e *executionCommon) setHostConnection(kv *api.KV, host, instanceID, capTyp
 		} else {
 			mess := fmt.Sprintf("[Warning] No user set for connection:%+v", conn)
 			log.Printf(mess)
-			events.WithContextOptionalFields(e.ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString(mess)
+			events.WithContextOptionalFields(e.ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString(mess)
 		}
 		found, password, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "token")
 		if err != nil {
@@ -411,7 +411,7 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
 						log.Debug(mess)
-						events.WithContextOptionalFields(e.ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(mess)
+						events.WithContextOptionalFields(e.ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(mess)
 						return err
 					}
 					hosts[instanceName] = hostConn
@@ -710,7 +710,7 @@ func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx con
 		}
 
 		err := errors.Errorf("Ansible provisioning: you are trying to execute an operation on the orchestrator host but %s and execution on the actual orchestrator host is disallowed by configuration", actualRootCause)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).Registerf("%v", err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).Registerf("%v", err)
 		return err
 	}
 	return nil
@@ -728,13 +728,13 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		if sshUser == "" {
 			// Use root as default user
 			sshUser = "root"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
 		}
 		sshPassword := host.password
 		sshPrivateKey := host.privateKey
 		if sshPrivateKey == "" && sshPassword == "" {
 			sshPrivateKey = "~/.ssh/yorc.pem"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
 		}
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
 		if sshPrivateKey != "" {
@@ -768,7 +768,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 	logOptFields[events.InstanceID] = currentInstance
 	ctx = events.NewContext(ctx, logOptFields)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
 
 	ansiblePath := filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible")
 	ansiblePath, err := filepath.Abs(ansiblePath)
@@ -786,12 +786,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	if err = os.RemoveAll(ansibleRecipePath); err != nil {
 		err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
 		log.Debugf("%+v", err)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err = os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
@@ -878,7 +878,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "hosts"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write hosts file")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -889,7 +889,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "ansible.cfg"), []byte(ansibleCfgContent), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write ansible.cfg file")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	// e.OperationRemoteBaseDir is an unique base temp directory for multiple executions
@@ -914,14 +914,14 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		outputsFiles, err := filepath.Glob(filepath.Join(ansibleRecipePath, "*-out.csv"))
 		if err != nil {
 			err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return err
 		}
 		for _, outFile := range outputsFiles {
 			fi, err := os.Open(outFile)
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 				return err
 			}
 			r := csv.NewReader(fi)
@@ -933,7 +933,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 			records, err := r.ReadAll()
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 				return err
 			}
 			for _, line := range records {
@@ -949,7 +949,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 }
 
 func (e *executionCommon) checkAnsibleRetriableError(ctx context.Context, err error) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName).Error())
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName).Error())
 	log.Debugf(err.Error())
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The program has exited with an exit code != 0
@@ -1005,7 +1005,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 	defer close(errCloseCh)
 
 	// Register log entry via error buffer
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
 	defer func(buffer *bytes.Buffer) {
 		if err := logFn(ctx, e.deploymentID, e.NodeName, buffer); err != nil {

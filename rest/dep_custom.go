@@ -75,7 +75,7 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		data[path.Join("inputs", name)] = inputMap.Inputs[name].String()
 	}
 
-	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.CustomCommand, data)
+	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeCustomCommand, data)
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))

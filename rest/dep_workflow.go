@@ -63,7 +63,7 @@ func (s *Server) newWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		data["continueOnError"] = strconv.FormatBool(false)
 	}
 
-	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.CustomWorkflow, data)
+	taskID, err := s.tasksCollector.RegisterTaskWithData(deploymentID, tasks.TaskTypeCustomWorkflow, data)
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))

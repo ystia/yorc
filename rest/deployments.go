@@ -163,7 +163,7 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	data := map[string]string{
 		"workflowName": "install",
 	}
-	taskID, err := s.tasksCollector.RegisterTaskWithData(uid, tasks.Deploy, data)
+	taskID, err := s.tasksCollector.RegisterTaskWithData(uid, tasks.TaskTypeDeploy, data)
 	if err != nil {
 		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
@@ -194,12 +194,12 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	var taskType tasks.TaskType
 	if _, ok := r.URL.Query()["purge"]; ok {
 		log.Debugf("A purge task on deployment:%s has been requested", id)
-		taskType = tasks.Purge
+		taskType = tasks.TaskTypePurge
 	} else {
-		taskType = tasks.UnDeploy
+		taskType = tasks.TaskTypeUnDeploy
 	}
 
-	if taskType == tasks.UnDeploy {
+	if taskType == tasks.TaskTypeUnDeploy {
 		status, err := deployments.GetDeploymentStatus(s.consulClient.KV(), id)
 		if err != nil {
 			log.Panicf("%v", err)

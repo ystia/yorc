@@ -152,14 +152,14 @@ func testGetTaskStatus(t *testing.T, kv *api.KV) {
 		want    TaskStatus
 		wantErr bool
 	}{
-		{"StatusINITIAL", args{kv, "t1"}, INITIAL, false},
-		{"StatusRUNNING", args{kv, "t2"}, RUNNING, false},
-		{"StatusDONE", args{kv, "t3"}, DONE, false},
-		{"StatusFAILED", args{kv, "t4"}, FAILED, false},
-		{"StatusCANCELED", args{kv, "t5"}, CANCELED, false},
-		{"StatusDoesntExist", args{kv, "t6"}, FAILED, true},
-		{"StatusNotInt", args{kv, "tNotInt"}, FAILED, true},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, FAILED, true},
+		{"StatusINITIAL", args{kv, "t1"}, TaskStatusINITIAL, false},
+		{"StatusRUNNING", args{kv, "t2"}, TaskStatusRUNNING, false},
+		{"StatusDONE", args{kv, "t3"}, TaskStatusDONE, false},
+		{"StatusFAILED", args{kv, "t4"}, TaskStatusFAILED, false},
+		{"StatusCANCELED", args{kv, "t5"}, TaskStatusCANCELED, false},
+		{"StatusDoesntExist", args{kv, "t6"}, TaskStatusFAILED, true},
+		{"StatusNotInt", args{kv, "tNotInt"}, TaskStatusFAILED, true},
+		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, TaskStatusFAILED, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -186,16 +186,16 @@ func testGetTaskType(t *testing.T, kv *api.KV) {
 		want    TaskType
 		wantErr bool
 	}{
-		{"TypeDeploy", args{kv, "t1"}, Deploy, false},
-		{"TypeUnDeploy", args{kv, "t2"}, UnDeploy, false},
-		{"TypeScaleOut", args{kv, "t3"}, ScaleOut, false},
-		{"TypeScaleIn", args{kv, "t4"}, ScaleIn, false},
-		{"TypePurge", args{kv, "t5"}, Purge, false},
-		{"TypeCustomCommand", args{kv, "t6"}, CustomCommand, false},
-		{"TypeDoesntExist", args{kv, "t7"}, Deploy, true},
-		{"TypeNotInt", args{kv, "tNotInt"}, Deploy, true},
-		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, Deploy, true},
-		{"TypeCustomWorkflow", args{kv, "tCustomWF"}, CustomWorkflow, false},
+		{"TypeDeploy", args{kv, "t1"}, TaskTypeDeploy, false},
+		{"TypeUnDeploy", args{kv, "t2"}, TaskTypeUnDeploy, false},
+		{"TypeScaleOut", args{kv, "t3"}, TaskTypeScaleOut, false},
+		{"TypeScaleIn", args{kv, "t4"}, TaskTypeScaleIn, false},
+		{"TypePurge", args{kv, "t5"}, TaskTypePurge, false},
+		{"TypeCustomCommand", args{kv, "t6"}, TaskTypeCustomCommand, false},
+		{"TypeDoesntExist", args{kv, "t7"}, TaskTypeDeploy, true},
+		{"TypeNotInt", args{kv, "tNotInt"}, TaskTypeDeploy, true},
+		{"TaskDoesntExist", args{kv, "TaskDoesntExist"}, TaskTypeDeploy, true},
+		{"TypeCustomWorkflow", args{kv, "tCustomWF"}, TaskTypeCustomWorkflow, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -622,7 +622,7 @@ func testResumeTask(t *testing.T, kv *api.KV) {
 				t.Errorf("Invalid task status:")
 			}
 
-			if TaskStatus(status) != INITIAL {
+			if TaskStatus(status) != TaskStatusINITIAL {
 				t.Errorf("status not set to \"INITIAL\" but to:%s", TaskStatus(status))
 				return
 			}
@@ -711,7 +711,7 @@ func testGetQueryTaskIDs(t *testing.T, kv *api.KV) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetQueryTaskIDs(kv, Query, "infra_usage", "slurm")
+			got, err := GetQueryTaskIDs(kv, TaskTypeQuery, "infra_usage", "slurm")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetQueryTaskIDs() error = %v, wantErr %v", err, tt.wantErr)
 				return
