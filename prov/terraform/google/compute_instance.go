@@ -30,7 +30,7 @@ import (
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID, nodeName, instanceName string,
+	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
 	infrastructure *commons.Infrastructure,
 	outputs map[string]string) error {
 
@@ -50,9 +50,10 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Must be a match of regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)'
 	instance.Name = strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
+	instance.Name = strings.Replace(instance.Name, "_", "-", -1)
 
 	// Getting string parameters
-	var imageProject, imageFamily, image, externalAddress, serviceAccount string
+	var imageProject, imageFamily, image, externalAddresses, serviceAccount string
 
 	stringParams := []struct {
 		pAttr        *string
@@ -65,8 +66,8 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		{&imageFamily, "image_family", false},
 		{&image, "image", false},
 		{&instance.Description, "description", false},
-		{&externalAddress, "address", false},
-		{&serviceAccount, "service_acount", false},
+		{&externalAddresses, "addresses", false},
+		{&serviceAccount, "service_account", false},
 	}
 
 	for _, stringParam := range stringParams {
@@ -110,6 +111,13 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	// Define an external access if there will be an external IP address
 	if !noAddress {
 		// keeping all default values, except from the external IP address if defined
+		addresses := strings.Split(externalAddresses, ",")
+		var externalAddress string
+		if len(addresses) > instanceID {
+			externalAddress = strings.TrimSpace(addresses[instanceID])
+		}
+		// else externalAddress is empty, which means an ephemeral external IP
+		// address will be assigned to the instance
 		accessConfig := AccessConfig{NatIP: externalAddress}
 		networkInterface.AccessConfigs = []AccessConfig{accessConfig}
 	}
