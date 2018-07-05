@@ -172,14 +172,38 @@ func (e *executionCommon) manageKubernetesResource(ctx context.Context, clientse
 	}
 }
 
+func (e *executionCommon) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset *kubernetes.Clientset, namespace, rSpec string) (string, error) {
+	_, serviceDepsLookups, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "service_dependency_lookups")
+	if err != nil {
+		return rSpec, err
+	}
+	if serviceDepsLookups != "" {
+		for _, srvLookup := range strings.Split(serviceDepsLookups, ",") {
+			srvLookupArgs := strings.SplitN(srvLookup, ":", 2)
+			srvPlaceholder := "${" + srvLookupArgs[0] + "}"
+			if !strings.Contains(rSpec, srvPlaceholder) || len(srvLookupArgs) != 2 {
+				// No need to make an API call if there is no placeholder to replace
+				// Alien set services lookups on all nodes
+				continue
+			}
+			srvName := srvLookupArgs[1]
+			srv, err := clientset.Services(namespace).Get(srvName, metav1.GetOptions{})
+			if err != nil {
+				return rSpec, errors.Wrapf(err, "failed to retrieve ClusterIP for service %q", srvName)
+			}
+			if srv.Spec.ClusterIP == "" || srv.Spec.ClusterIP == "None" {
+				// Not supported
+				return rSpec, errors.Wrapf(err, "failed to retrieve ClusterIP for service %q, (value=%q)", srvName, srv.Spec.ClusterIP)
+			}
+			rSpec = strings.Replace(rSpec, srvPlaceholder, srv.Spec.ClusterIP, -1)
+		}
+	}
+	return rSpec, nil
+}
+
 func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
-	var deploymentRepr v1beta1.Deployment
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
-	}
-	// Unmarshal JSON to k8s data structs
-	if err = json.Unmarshal([]byte(rSpec), &deploymentRepr); err != nil {
-		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
 	// Manage Namespace creation
@@ -187,6 +211,19 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 	//namespace := deploymentRepr.ObjectMeta.Namespace
 	// (Synchronize with Alien)
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return err
+	}
+	rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespace, rSpec)
+	if err != nil {
+		return err
+	}
+
+	var deploymentRepr v1beta1.Deployment
+	// Unmarshal JSON to k8s data structs
+	if err = json.Unmarshal([]byte(rSpec), &deploymentRepr); err != nil {
+		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
+	}
 
 	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
 	if err != nil {
