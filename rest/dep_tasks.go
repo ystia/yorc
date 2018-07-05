@@ -64,7 +64,7 @@ func (s *Server) cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
 		log.Panic(err)
-	} else if taskStatus != tasks.RUNNING && taskStatus != tasks.INITIAL {
+	} else if taskStatus != tasks.TaskStatusRUNNING && taskStatus != tasks.TaskStatusINITIAL {
 		writeError(w, r, newBadRequestError(errors.Errorf("Cannot cancel a task with status %q", taskStatus.String())))
 		return
 	}
@@ -193,8 +193,8 @@ func (s *Server) resumeTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
 		log.Panic(err)
-	} else if taskStatus != tasks.FAILED {
-		writeError(w, r, newBadRequestError(errors.Errorf("Cannot resume a task with status %q. Only task in %q status can be resumed.", taskStatus.String(), tasks.FAILED.String())))
+	} else if taskStatus != tasks.TaskStatusFAILED {
+		writeError(w, r, newBadRequestError(errors.Errorf("Cannot resume a task with status %q. Only task in %q status can be resumed.", taskStatus.String(), tasks.TaskStatusFAILED.String())))
 		return
 	}
 

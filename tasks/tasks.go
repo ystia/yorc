@@ -84,17 +84,17 @@ func GetTaskResultSet(kv *api.KV, taskID string) (string, error) {
 func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
-		return FAILED, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return TaskStatusFAILED, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return FAILED, errors.Errorf("Missing status for task with id %q", taskID)
+		return TaskStatusFAILED, errors.Errorf("Missing status for task with id %q", taskID)
 	}
 	statusInt, err := strconv.Atoi(string(kvp.Value))
 	if err != nil {
-		return FAILED, errors.Wrapf(err, "Invalid task status:")
+		return TaskStatusFAILED, errors.Wrapf(err, "Invalid task status:")
 	}
-	if statusInt < 0 || statusInt > int(CANCELED) {
-		return FAILED, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
+	if statusInt < 0 || statusInt > int(TaskStatusCANCELED) {
+		return TaskStatusFAILED, errors.Errorf("Invalid status for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskStatus(statusInt), nil
 }
@@ -103,17 +103,17 @@ func GetTaskStatus(kv *api.KV, taskID string) (TaskStatus, error) {
 func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "type"), nil)
 	if err != nil {
-		return Deploy, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return TaskTypeDeploy, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return Deploy, errors.Errorf("Missing type for task with id %q", taskID)
+		return TaskTypeDeploy, errors.Errorf("Missing type for task with id %q", taskID)
 	}
 	typeInt, err := strconv.Atoi(string(kvp.Value))
 	if err != nil {
-		return Deploy, errors.Wrapf(err, "Invalid task type:")
+		return TaskTypeDeploy, errors.Wrapf(err, "Invalid task type:")
 	}
-	if typeInt < 0 || typeInt > int(Query) {
-		return Deploy, errors.Errorf("Invalid type for task with id %q: %q", taskID, string(kvp.Value))
+	if typeInt < 0 || typeInt > int(TaskTypeQuery) {
+		return TaskTypeDeploy, errors.Errorf("Invalid type for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil
 }
@@ -168,7 +168,7 @@ func CancelTask(kv *api.KV, taskID string) error {
 
 // ResumeTask marks a task as Initial to allow it being resumed
 func ResumeTask(kv *api.KV, taskID string) error {
-	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(INITIAL)))}
+	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(TaskStatusINITIAL)))}
 	_, err := kv.Put(kvp, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -207,7 +207,7 @@ func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, er
 				return false, "", "", errors.Wrap(err, "Invalid task status")
 			}
 			switch TaskStatus(statusInt) {
-			case INITIAL, RUNNING:
+			case TaskStatusINITIAL, TaskStatusRUNNING:
 				return true, taskID, TaskStatus(statusInt).String(), nil
 			}
 		}
@@ -273,11 +273,11 @@ func IsTaskRelatedNode(kv *api.KV, taskID, nodeName string) (bool, error) {
 // EmitTaskEvent emits a task event based on task type
 func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (eventID string, err error) {
 	switch taskType {
-	case CustomCommand:
+	case TaskTypeCustomCommand:
 		eventID, err = events.CustomCommandStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
-	case CustomWorkflow:
+	case TaskTypeCustomWorkflow:
 		eventID, err = events.WorkflowStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
-	case ScaleIn, ScaleOut:
+	case TaskTypeScaleIn, TaskTypeScaleOut:
 		eventID, err = events.ScalingStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
 	}
 	return

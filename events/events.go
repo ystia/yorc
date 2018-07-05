@@ -38,7 +38,7 @@ func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status s
 		return "", err
 	}
 	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
+	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for node %q, instance %q changed to %q", nodeName, instance, status))
 	return id, nil
 }
 
@@ -51,7 +51,7 @@ func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, er
 		return "", err
 	}
 	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for deployment %q changed to %q", deploymentID, status))
+	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for deployment %q changed to %q", deploymentID, status))
 	return id, nil
 }
 
@@ -64,7 +64,7 @@ func CustomCommandStatusChange(kv *api.KV, deploymentID, taskID, status string) 
 		return "", err
 	}
 	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for custom-command %q changed to %q", taskID, status))
+	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for custom-command %q changed to %q", taskID, status))
 	return id, nil
 }
 
@@ -77,7 +77,7 @@ func ScalingStatusChange(kv *api.KV, deploymentID, taskID, status string) (strin
 		return "", err
 	}
 	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for scaling task %q changed to %q", taskID, status))
+	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for scaling task %q changed to %q", taskID, status))
 	return id, nil
 }
 
@@ -90,7 +90,7 @@ func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (stri
 		return "", err
 	}
 	//TODO add log Optional fields
-	SimpleLogEntry(INFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for workflow task %q changed to %q", taskID, status))
+	SimpleLogEntry(LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Status for workflow task %q changed to %q", taskID, status))
 	return id, nil
 }
 

@@ -55,12 +55,6 @@ func TestDeploymentStatusFromString(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, UNDEPLOYMENT_FAILED, status)
 
-	_, err = DeploymentStatusFromString("startOfDepStatusConst", false)
-	require.NotNil(t, err)
-
-	_, err = DeploymentStatusFromString("endOfDepStatusConst", false)
-	require.NotNil(t, err)
-
 	_, err = DeploymentStatusFromString("does_not_exist", false)
 	require.NotNil(t, err)
 

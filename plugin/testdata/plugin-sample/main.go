@@ -26,7 +26,7 @@ func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Config
 		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
 	}
 
-	events.SimpleLogEntry(events.INFO, deploymentID).RegisterAsString("Hello from myDelegateExecutor")
+	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myDelegateExecutor")
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Conf
 		log.Printf("Secret key: %q", cfg.Infrastructures["plugin"].GetStringOrDefault("test", "not found!"))
 	}
 
-	events.SimpleLogEntry(events.INFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")
+	events.SimpleLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Hello from myOperationExecutor")
 	return nil
 }
 

@@ -28,9 +28,7 @@ type ComputeInstance struct {
 	Description       string             `json:"description,omitempty"`
 	Labels            map[string]string  `json:"labels,omitempty"`
 	Metadata          map[string]string  `json:"metadata,omitempty"`
-	// NoAdress means no external IP address
-	NoAddress   bool `json:"no_address,omitempty"`
-	Preemptible bool `json:"preemptible,omitempty"`
+	Scheduling        Scheduling         `json:"scheduling,omitempty"`
 	// ServiceAccounts is an array of at most one element
 	ServiceAccounts []ServiceAccount `json:"service_account,omitempty"`
 	Tags            []string         `json:"tags,omitempty"`
@@ -63,4 +61,9 @@ type AccessConfig struct {
 type ServiceAccount struct {
 	Email  string   `json:"email,omitempty"`
 	Scopes []string `json:"scopes,omitempty"`
+}
+
+// Scheduling strategy to use
+type Scheduling struct {
+	Preemptible bool `json:"preemptible,omitempty"`
 }

@@ -19,56 +19,108 @@ package tasks
 
 import (
 	"fmt"
-	"strings"
 )
 
 const (
-	// TaskStepStatusINITIAL is a TaskStepStatus of type INITIAL
-	TaskStepStatusINITIAL TaskStepStatus = iota
-	// TaskStepStatusRUNNING is a TaskStepStatus of type RUNNING
-	TaskStepStatusRUNNING
-	// TaskStepStatusDONE is a TaskStepStatus of type DONE
-	TaskStepStatusDONE
-	// TaskStepStatusERROR is a TaskStepStatus of type ERROR
-	TaskStepStatusERROR
-	// TaskStepStatusCANCELED is a TaskStepStatus of type CANCELED
-	TaskStepStatusCANCELED
+	// TaskStatusINITIAL is a TaskStatus of type INITIAL
+	TaskStatusINITIAL TaskStatus = iota
+	// TaskStatusRUNNING is a TaskStatus of type RUNNING
+	TaskStatusRUNNING
+	// TaskStatusDONE is a TaskStatus of type DONE
+	TaskStatusDONE
+	// TaskStatusFAILED is a TaskStatus of type FAILED
+	TaskStatusFAILED
+	// TaskStatusCANCELED is a TaskStatus of type CANCELED
+	TaskStatusCANCELED
 )
 
-const _TaskStepStatusName = "INITIALRUNNINGDONEERRORCANCELED"
+const _TaskStatusName = "INITIALRUNNINGDONEFAILEDCANCELED"
 
-var _TaskStepStatusMap = map[TaskStepStatus]string{
-	0: _TaskStepStatusName[0:7],
-	1: _TaskStepStatusName[7:14],
-	2: _TaskStepStatusName[14:18],
-	3: _TaskStepStatusName[18:23],
-	4: _TaskStepStatusName[23:31],
+var _TaskStatusMap = map[TaskStatus]string{
+	0: _TaskStatusName[0:7],
+	1: _TaskStatusName[7:14],
+	2: _TaskStatusName[14:18],
+	3: _TaskStatusName[18:24],
+	4: _TaskStatusName[24:32],
 }
 
-func (i TaskStepStatus) String() string {
-	if str, ok := _TaskStepStatusMap[i]; ok {
+func (i TaskStatus) String() string {
+	if str, ok := _TaskStatusMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("TaskStepStatus(%d)", i)
+	return fmt.Sprintf("TaskStatus(%d)", i)
 }
 
-var _TaskStepStatusValue = map[string]TaskStepStatus{
-	_TaskStepStatusName[0:7]:                    0,
-	strings.ToLower(_TaskStepStatusName[0:7]):   0,
-	_TaskStepStatusName[7:14]:                   1,
-	strings.ToLower(_TaskStepStatusName[7:14]):  1,
-	_TaskStepStatusName[14:18]:                  2,
-	strings.ToLower(_TaskStepStatusName[14:18]): 2,
-	_TaskStepStatusName[18:23]:                  3,
-	strings.ToLower(_TaskStepStatusName[18:23]): 3,
-	_TaskStepStatusName[23:31]:                  4,
-	strings.ToLower(_TaskStepStatusName[23:31]): 4,
+var _TaskStatusValue = map[string]TaskStatus{
+	_TaskStatusName[0:7]:   0,
+	_TaskStatusName[7:14]:  1,
+	_TaskStatusName[14:18]: 2,
+	_TaskStatusName[18:24]: 3,
+	_TaskStatusName[24:32]: 4,
 }
 
-// ParseTaskStepStatus attempts to convert a string to a TaskStepStatus
-func ParseTaskStepStatus(name string) (TaskStepStatus, error) {
-	if x, ok := _TaskStepStatusValue[name]; ok {
-		return TaskStepStatus(x), nil
+// ParseTaskStatus attempts to convert a string to a TaskStatus
+func ParseTaskStatus(name string) (TaskStatus, error) {
+	if x, ok := _TaskStatusValue[name]; ok {
+		return TaskStatus(x), nil
 	}
-	return TaskStepStatus(0), fmt.Errorf("%s is not a valid TaskStepStatus", name)
+	return TaskStatus(0), fmt.Errorf("%s is not a valid TaskStatus", name)
+}
+
+const (
+	// TaskTypeDeploy is a TaskType of type Deploy
+	TaskTypeDeploy TaskType = iota
+	// TaskTypeUnDeploy is a TaskType of type UnDeploy
+	TaskTypeUnDeploy
+	// TaskTypeScaleOut is a TaskType of type ScaleOut
+	TaskTypeScaleOut
+	// TaskTypeScaleIn is a TaskType of type ScaleIn
+	TaskTypeScaleIn
+	// TaskTypePurge is a TaskType of type Purge
+	TaskTypePurge
+	// TaskTypeCustomCommand is a TaskType of type CustomCommand
+	TaskTypeCustomCommand
+	// TaskTypeCustomWorkflow is a TaskType of type CustomWorkflow
+	TaskTypeCustomWorkflow
+	// TaskTypeQuery is a TaskType of type Query
+	TaskTypeQuery
+)
+
+const _TaskTypeName = "DeployUnDeployScaleOutScaleInPurgeCustomCommandCustomWorkflowQuery"
+
+var _TaskTypeMap = map[TaskType]string{
+	0: _TaskTypeName[0:6],
+	1: _TaskTypeName[6:14],
+	2: _TaskTypeName[14:22],
+	3: _TaskTypeName[22:29],
+	4: _TaskTypeName[29:34],
+	5: _TaskTypeName[34:47],
+	6: _TaskTypeName[47:61],
+	7: _TaskTypeName[61:66],
+}
+
+func (i TaskType) String() string {
+	if str, ok := _TaskTypeMap[i]; ok {
+		return str
+	}
+	return fmt.Sprintf("TaskType(%d)", i)
+}
+
+var _TaskTypeValue = map[string]TaskType{
+	_TaskTypeName[0:6]:   0,
+	_TaskTypeName[6:14]:  1,
+	_TaskTypeName[14:22]: 2,
+	_TaskTypeName[22:29]: 3,
+	_TaskTypeName[29:34]: 4,
+	_TaskTypeName[34:47]: 5,
+	_TaskTypeName[47:61]: 6,
+	_TaskTypeName[61:66]: 7,
+}
+
+// ParseTaskType attempts to convert a string to a TaskType
+func ParseTaskType(name string) (TaskType, error) {
+	if x, ok := _TaskTypeValue[name]; ok {
+		return TaskType(x), nil
+	}
+	return TaskType(0), fmt.Errorf("%s is not a valid TaskType", name)
 }

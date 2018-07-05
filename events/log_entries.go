@@ -14,6 +14,8 @@
 
 package events
 
+//go:generate go-enum -f=log_entries.go
+
 import (
 	"context"
 	"encoding/json"
@@ -24,8 +26,6 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 )
-
-//go:generate stringer -type=LogLevel -output=log_level_string.go
 
 // LogEntry is the log entry representation
 type LogEntry struct {
@@ -96,22 +96,13 @@ func (ft FieldType) String() string {
 // We approximate all data except the content value to be equal to 1Kb
 const contentMaxAllowedValueSize int = 511 * 1000
 
-// LogLevel represents the log level enumeration
+// LogLevel x ENUM(
+// INFO,
+// DEBUG,
+// WARN,
+// ERROR
+// )
 type LogLevel int
-
-const (
-	// INFO is the informative log level
-	INFO LogLevel = iota
-
-	// DEBUG is the debugging log level
-	DEBUG
-
-	// WARN is the warning log level
-	WARN
-
-	// ERROR is the error log level
-	ERROR
-)
 
 // SimpleLogEntry allows to return a LogEntry instance with log level and deploymentID
 func SimpleLogEntry(level LogLevel, deploymentID string) *LogEntry {

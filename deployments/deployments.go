@@ -47,12 +47,7 @@ func DeploymentStatusFromString(status string, ignoreCase bool) (DeploymentStatu
 	if ignoreCase {
 		status = strings.ToUpper(status)
 	}
-	for i := startOfDepStatusConst + 1; i < endOfDepStatusConst; i++ {
-		if DeploymentStatus(i).String() == status {
-			return i, nil
-		}
-	}
-	return INITIAL, errors.Errorf("Invalid deployment status %q", status)
+	return ParseDeploymentStatus(status)
 }
 
 // GetDeploymentStatus returns a DeploymentStatus for a given deploymentId

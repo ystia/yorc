@@ -55,7 +55,6 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	assert.Equal(t, "europe-west1-b", compute.Zone)
 	require.Len(t, compute.Disks, 1, "Expected one boot disk")
 	assert.Equal(t, "centos-cloud/centos-7", compute.Disks[0].Image, "Unexpected boot disk image")
-	assert.Equal(t, false, compute.NoAddress)
 	require.Len(t, compute.NetworkInterfaces, 1, "Expected one network interface for external access")
 	assert.Equal(t, []string{"tag1", "tag2"}, compute.Tags)
 	assert.Equal(t, map[string]string{"key1": "value1", "key2": "value2"}, compute.Labels)

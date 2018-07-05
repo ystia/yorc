@@ -69,7 +69,7 @@ func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clien
 		}
 
 		if failed, msg := isDeploymentFailed(clientset, deployment); failed {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", deployment.Name, msg)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("Kubernetes deployment %q failed: %s", deployment.Name, msg)
 			return false, errors.Errorf("Kubernetes deployment %q: %s", deployment.Name, msg)
 		}
 		return false, nil
@@ -80,7 +80,7 @@ func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset *k
 	go func() {
 		watcher, err := clientset.Events(deployment.Namespace).Watch(metav1.ListOptions{})
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Failed to monitor Kubernetes deployment events: %v", err)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("Failed to monitor Kubernetes deployment events: %v", err)
 			return
 		}
 		defer watcher.Stop()
@@ -91,34 +91,34 @@ func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset *k
 
 			case e, ok := <-watcher.ResultChan():
 				if !ok {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).RegisterAsString("Failed to monitor Kubernetes deployment events: watch channel closed")
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).RegisterAsString("Failed to monitor Kubernetes deployment events: watch channel closed")
 					return
 				}
 				if e.Type == watch.Error {
 					if status, ok := e.Object.(*metav1.Status); ok {
-						events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Failed to monitor Kubernetes deployment events: %s: %s", status.Reason, status.Message)
+						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("Failed to monitor Kubernetes deployment events: %s: %s", status.Reason, status.Message)
 						return
 					}
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Failed to monitor Kubernetes deployment events:Received unexpected error: %#v", e.Object)
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("Failed to monitor Kubernetes deployment events:Received unexpected error: %#v", e.Object)
 					return
 				}
 				if event, ok := e.Object.(*corev1.Event); ok {
 					if ok, err := isChildOf(clientset, deployment.UID, referenceFromObjectReference(event.InvolvedObject)); err == nil && ok {
 						switch e.Type {
 						case watch.Added, watch.Modified:
-							level := events.DEBUG
+							level := events.LogLevelDEBUG
 							if strings.ToLower(event.Type) == "warning" {
-								level = events.WARN
+								level = events.LogLevelWARN
 							}
 							events.WithContextOptionalFields(ctx).NewLogEntry(level, deploymentID).Registerf("%s (source: component: %q, host: %q)", event.Message, event.Source.Component, event.Source.Host)
 						case watch.Deleted:
 							// Deleted events are silently ignored.
 						default:
-							events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Unknown watchUpdate.Type: %#v", e.Type)
+							events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("Unknown watchUpdate.Type: %#v", e.Type)
 						}
 					}
 				} else {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("Wrong object received: %v", e)
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("Wrong object received: %v", e)
 				}
 			}
 		}

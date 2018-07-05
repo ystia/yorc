@@ -128,7 +128,13 @@ const shellAnsiblePlaybook = `
     - copy: src="[[[.ScriptToRun]]]" dest="{{ ansible_env.HOME}}/[[[.OperationRemotePath]]]" mode=0744
     [[[ range $artName, $art := .Artifacts -]]]
     [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
+    [[[printf "- unarchive: src=\"%s/%s.tar\" dest=\"{{ ansible_env.HOME}}/%s\"" $.DestFolder $artName $.OperationRemotePath]]]
+    [[[printf "  register: result"]]]
+    [[[printf "  ignore_errors: yes"]]]
+    [[[printf "  when: %s" $.ArchiveArtifacts]]]
+    [[[printf "# Fall back on copy if archive artifacts is disabled or unarchive failed (can happen if tar is missing on remote host)"]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
+    [[[printf "  when: (not %s) or result.failed" $.ArchiveArtifacts]]]
     [[[end]]]
     [[[printf "- shell: \"/bin/bash -l -c {{ ansible_env.HOME}}/%s/wrapper\"" $.OperationRemotePath]]]
       environment:
@@ -205,12 +211,12 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	}
 	if err := wrapTemplate.Execute(&buffer, e); err != nil {
 		err = errors.Wrap(err, "Failed to Generate wrapper template")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err := ioutil.WriteFile(e.WrapperLocation, buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -218,17 +224,17 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	if err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err = tmpl.Execute(&buffer, e); err != nil {
 		err = errors.Wrap(err, "Failed to Generate ansible playbook template")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, "run.ansible.yml"), buffer.Bytes(), 0664); err != nil {
 		err = errors.Wrap(err, "Failed to write playbook file")
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, e.deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -237,6 +243,6 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 		return err
 	}
 
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
 	return e.executePlaybook(ctx, retry, ansibleRecipePath, logAnsibleOutputInConsulFromScript)
 }
