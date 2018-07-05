@@ -119,7 +119,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 			return false, nil, nil, err
 		}
 
-		for _, instanceName := range instances {
+		for index, instanceName := range instances {
 			var instanceState tosca.NodeState
 			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 			if err != nil {
@@ -129,7 +129,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 				// Do not generate something for this node instance (will be deleted if exists)
 				continue
 			}
-			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
+			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, index, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, err
 			}

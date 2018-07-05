@@ -41,7 +41,7 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	deploymentID := loadTestYaml(t, kv)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", &infrastructure, make(map[string]string))
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
@@ -55,11 +55,15 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	assert.Equal(t, "europe-west1-b", compute.Zone)
 	require.Len(t, compute.Disks, 1, "Expected one boot disk")
 	assert.Equal(t, "centos-cloud/centos-7", compute.Disks[0].Image, "Unexpected boot disk image")
+
 	require.Len(t, compute.NetworkInterfaces, 1, "Expected one network interface for external access")
+	assert.Equal(t, "1.1.1.1", compute.NetworkInterfaces[0].AccessConfigs[0].NatIP, "Unexpected external IP address")
+
+	require.Len(t, compute.ServiceAccounts, 1, "Expected one service account")
+	assert.Equal(t, "yorc@yorc.net", compute.ServiceAccounts[0].Email, "Unexpected Service Account")
+
 	assert.Equal(t, []string{"tag1", "tag2"}, compute.Tags)
 	assert.Equal(t, map[string]string{"key1": "value1", "key2": "value2"}, compute.Labels)
-
-	require.Len(t, compute.ServiceAccounts, 0, "Expected no service account")
 
 	require.Contains(t, infrastructure.Resource, "null_resource")
 	require.Len(t, infrastructure.Resource["null_resource"], 1)
@@ -83,7 +87,7 @@ func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, kv *api.KV
 	g := googleGenerator{}
 	infrastructure := commons.Infrastructure{}
 
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", &infrastructure, make(map[string]string))
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string))
 	require.Error(t, err, "Expected missing mandatory parameter error, but had no error")
 	assert.Contains(t, err.Error(), "mandatory parameter zone", "Expected an error on missing parameter zone")
 }
