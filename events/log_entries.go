@@ -284,3 +284,17 @@ func FromContext(ctx context.Context) (LogOptionalFields, bool) {
 	}
 	return result, ok
 }
+
+// AddLogOptionalFields adds given log optional fields to existing one in the given context if any
+//
+// Existing fields are overwritten in case of collision
+func AddLogOptionalFields(ctx context.Context, logOptFields LogOptionalFields) context.Context {
+	existing, ok := FromContext(ctx)
+	if !ok {
+		existing = make(LogOptionalFields)
+	}
+	for k, v := range logOptFields {
+		existing[k] = v
+	}
+	return NewContext(ctx, existing)
+}

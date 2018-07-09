@@ -111,6 +111,6 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 
 func logForAllInstances(ctx context.Context, deploymentID string, instances []string, level events.LogLevel, msg string, args ...interface{}) {
 	for _, instanceID := range instances {
-		events.WithContextOptionalFields(prov.AddInstanceToContextLogFields(ctx, instanceID)).NewLogEntry(level, deploymentID).Registerf(msg, args...)
+		events.WithContextOptionalFields(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instanceID})).NewLogEntry(level, deploymentID).Registerf(msg, args...)
 	}
 }

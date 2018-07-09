@@ -26,7 +26,6 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
 )
 
 func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, []string, error) {
@@ -137,7 +136,7 @@ func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeN
 					stdErrLogLevel = events.ERROR
 					logLevel = events.ERROR
 				}
-				lctx := prov.AddInstanceToContextLogFields(ctx, getInstanceIDFromHosts(hostsConn, host))
+				lctx := events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: getInstanceIDFromHosts(hostsConn, host)})
 				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "module_stderr", stdErrLogLevel)
 				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "module_stdout", logLevel)
 				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "stderr", stdErrLogLevel)
