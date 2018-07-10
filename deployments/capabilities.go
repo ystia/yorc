@@ -123,7 +123,7 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 	if err != nil {
 		return false, "", err
 	}
-	found, result, err = GetNodeTypeCapabilityProperty(kv, deploymentID, nodeType, capabilityName, propertyName, propDataType)
+	found, result, err = GetNodeTypeCapabilityProperty(kv, deploymentID, nodeType, capabilityName, propertyName, propDataType, nestedKeys...)
 	if err != nil || found {
 		return found, result, err
 	}
@@ -418,9 +418,9 @@ func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityNam
 // GetNodeTypeCapabilityProperty retrieves the property value of a node type capability identified by its name
 //
 // It explores the type hierarchy (derived_from) to found the given capability.
-func GetNodeTypeCapabilityProperty(kv *api.KV, deploymentID, nodeType, capabilityName, propertyName, propDataType string) (bool, string, error) {
+func GetNodeTypeCapabilityProperty(kv *api.KV, deploymentID, nodeType, capabilityName, propertyName, propDataType string, nestedKeys ...string) (bool, string, error) {
 	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "capabilities", capabilityName, "properties", propertyName)
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, "", "", "", propDataType)
+	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, "", "", "", propDataType, nestedKeys...)
 	if err != nil || found {
 		return found, result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)
 	}
@@ -432,5 +432,5 @@ func GetNodeTypeCapabilityProperty(kv *api.KV, deploymentID, nodeType, capabilit
 	if parentType == "" {
 		return false, "", nil
 	}
-	return GetNodeTypeCapabilityProperty(kv, deploymentID, parentType, capabilityName, propertyName, propDataType)
+	return GetNodeTypeCapabilityProperty(kv, deploymentID, parentType, capabilityName, propertyName, propDataType, nestedKeys...)
 }
