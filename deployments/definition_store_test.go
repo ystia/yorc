@@ -944,12 +944,12 @@ func testTopologyTemplateMetadata(t *testing.T, kv *api.KV) {
 	// This topology template imports a tempologuy template with metatadata
 	// Checking the imported template metadata
 	expectedKeyValuePairs := map[string]string{
-		"topology/metadata/template_name":              "topotest-Environment",
-		"topology/metadata/template_version":           "0.1.0-SNAPSHOT",
-		"topology/metadata/template_author":            "yorcTester",
-		"topology/imports/3/metadata/template_name":    "test-component",
-		"topology/imports/3/metadata/template_version": "2.0.0-SNAPSHOT",
-		"topology/imports/3/metadata/template_author":  "yorcTester",
+		"topology/metadata/template_name":                               "topotest-Environment",
+		"topology/metadata/template_version":                            "0.1.0-SNAPSHOT",
+		"topology/metadata/template_author":                             "yorcTester",
+		"topology/imports/test_component.yml/metadata/template_name":    "test-component",
+		"topology/imports/test_component.yml/metadata/template_version": "2.0.0-SNAPSHOT",
+		"topology/imports/test_component.yml/metadata/template_author":  "yorcTester",
 	}
 
 	for key, expectedValue := range expectedKeyValuePairs {
