@@ -737,12 +737,12 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
 		}
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
+		// Set with priority private key against password
 		if sshPrivateKey != "" {
 			// TODO if not a path store it somewhere
 			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshPrivateKey))
-		}
-		if sshPassword != "" {
+		} else if sshPassword != "" {
 			// TODO use vault
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
 		}
