@@ -49,6 +49,9 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/name": []byte("endpoint"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/type": []byte("tosca.capabilities.Endpoint"),
 
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/properties/credentials":       []byte("credentials"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.1/capabilities/endpoint/properties/credentials/token": []byte(""),
+
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/capabilities/scalable/name": []byte("scalable"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/types/yorc.type.2/capabilities/scalable/type": []byte("tosca.capabilities.Scalable"),
 
@@ -73,6 +76,7 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/type":                                           []byte("yorc.type.1"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/scalable/properties/min_instances": []byte("10"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/endpoint/attributes/attr1":         []byte("attr1"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node1/capabilities/endpoint/properties/credentials":   []byte("credentials"),
 
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/name":                                               []byte("node2"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/node2/type":                                               []byte("yorc.type.2"),
@@ -87,7 +91,8 @@ func testCapabilities(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/NodeWithUndefCap/name": []byte("NodeWithUndefCap"),
 		consulutil.DeploymentKVPrefix + "/cap1/topology/nodes/NodeWithUndefCap/type": []byte("yorc.type.WithUndefCap"),
 
-		consulutil.DeploymentKVPrefix + "/cap1/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address": []byte("0.0.0.0"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/instances/node1/0/capabilities/endpoint/attributes/ip_address":       []byte("0.0.0.0"),
+		consulutil.DeploymentKVPrefix + "/cap1/topology/instances/node1/0/capabilities/endpoint/attributes/credentials/user": []byte("ubuntu"),
 	})
 
 	t.Run("groupDeploymentsCapabilities", func(t *testing.T) {
@@ -224,6 +229,7 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV) {
 		instanceName   string
 		capabilityName string
 		attributeName  string
+		nestedKeys     []string
 	}
 	tests := []struct {
 		name    string
@@ -232,21 +238,25 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV) {
 		want1   string
 		wantErr bool
 	}{
-		{"GetCapabilityAttributeInstancesScopped", args{kv, "cap1", "node1", "0", "endpoint", "ip_address"}, true, "0.0.0.0", false},
-		{"GetCapabilityAttributeNodeScopped", args{kv, "cap1", "node1", "0", "endpoint", "attr1"}, true, "attr1", false},
-		{"GetCapabilityAttributeNodeTypeScopped", args{kv, "cap1", "node1", "0", "endpoint", "attr2"}, true, "attr2", false},
-		{"GetCapabilityAttributeNodeTypeScoppedInInheritance", args{kv, "cap1", "node1", "0", "binding", "bind1"}, true, "bind1", false},
+		{"GetCapabilityAttributeInstancesScopped", args{kv, "cap1", "node1", "0", "endpoint", "ip_address", nil}, true, "0.0.0.0", false},
+		{"GetCapabilityAttributeNodeScopped", args{kv, "cap1", "node1", "0", "endpoint", "attr1", nil}, true, "attr1", false},
+		{"GetCapabilityAttributeNodeTypeScopped", args{kv, "cap1", "node1", "0", "endpoint", "attr2", nil}, true, "attr2", false},
+		{"GetCapabilityAttributeNodeTypeScoppedInInheritance", args{kv, "cap1", "node1", "0", "binding", "bind1", nil}, true, "bind1", false},
 
 		// Test cases for properties as attributes mapping
-		{"GetCapabilityAttributeFromPropertyDefinedInNode", args{kv, "cap1", "node1", "0", "scalable", "min_instances"}, true, "10", false},
-		{"GetCapabilityAttributeFromPropertyDefinedInNodeOfInheritedType", args{kv, "cap1", "node1", "0", "scalable", "default_instances"}, true, "1", false},
-		{"GetCapabilityAttributeFromPropertyDefinedAsCapTypeDefault", args{kv, "cap1", "node1", "0", "scalable", "max_instances"}, true, "100", false},
-		{"GetCapabilityAttributeFromPropertyUndefinedProp", args{kv, "cap1", "node1", "0", "scalable", "udef"}, false, "", false},
-		{"GetCapabilityAttributeFromPropertyUndefinedCap", args{kv, "cap1", "node1", "0", "udef", "udef"}, false, "", false},
+		{"GetCapabilityAttributeFromPropertyDefinedInNode", args{kv, "cap1", "node1", "0", "scalable", "min_instances", nil}, true, "10", false},
+		{"GetCapabilityAttributeFromPropertyDefinedInNodeOfInheritedType", args{kv, "cap1", "node1", "0", "scalable", "default_instances", nil}, true, "1", false},
+		{"GetCapabilityAttributeFromPropertyDefinedAsCapTypeDefault", args{kv, "cap1", "node1", "0", "scalable", "max_instances", nil}, true, "100", false},
+		{"GetCapabilityAttributeFromPropertyUndefinedProp", args{kv, "cap1", "node1", "0", "scalable", "udef", nil}, false, "", false},
+		{"GetCapabilityAttributeFromPropertyUndefinedCap", args{kv, "cap1", "node1", "0", "udef", "udef", nil}, false, "", false},
+
+		// Test cases for properties as attributes mapping
+		{"GetCapabilityAttributeKeyFromPropertyDefinedInInstance", args{kv, "cap1", "node1", "0", "endpoint", "credentials", []string{"user"}}, true, "ubuntu", false},
+		{"GetEmptyCapabilityAttributeKeyFromNotSetProperty", args{kv, "cap1", "node1", "0", "endpoint", "credentials", []string{"token"}}, true, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := GetInstanceCapabilityAttribute(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName)
+			got, got1, err := GetInstanceCapabilityAttribute(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetInstanceCapabilityAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
