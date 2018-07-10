@@ -432,5 +432,5 @@ func GetNodeTypeCapabilityProperty(kv *api.KV, deploymentID, nodeType, capabilit
 	if parentType == "" {
 		return false, "", nil
 	}
-	return GetNodeTypeCapabilityProperty(kv, deploymentID, parentType, capabilityName, propertyName, propDataType)
+	return GetNodeTypeCapabilityProperty(kv, deploymentID, parentType, capabilityName, propertyName, propDataType, nestedKeys...)
 }
