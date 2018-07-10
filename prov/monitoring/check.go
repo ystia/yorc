@@ -138,12 +138,12 @@ func (c *Check) notify() {
 	if c.Report.Status == CheckStatusPASSING {
 		// Back to normal
 		nodeState = tosca.NodeStateStarted
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.INFO, c.Report.DeploymentID).Registerf("Monitoring Check is back to normal for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelINFO, c.Report.DeploymentID).Registerf("Monitoring Check is back to normal for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
 
 	} else if c.Report.Status == CheckStatusCRITICAL {
 		// Node in ERROR
 		nodeState = tosca.NodeStateError
-		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.ERROR, c.Report.DeploymentID).Registerf("Monitoring Check returned a connection failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
+		events.WithContextOptionalFields(c.ctx).NewLogEntry(events.LogLevelERROR, c.Report.DeploymentID).Registerf("Monitoring Check returned a connection failure for node (%s-%s)", c.Report.NodeName, c.Report.Instance)
 	}
 
 	// Update the node state

@@ -141,7 +141,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
 		for _, warn := range warnings {
 			events.WithContextOptionalFields(ctx).
-				NewLogEntry(events.WARN, deploymentID).Registerf(`%v`, warn)
+				NewLogEntry(events.LogLevelWARN, deploymentID).Registerf(`%v`, warn)
 		}
 		if err != nil {
 			return err
@@ -174,7 +174,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		if !ok {
 			privateAddress = host.Connection.Host
 			events.WithContextOptionalFields(ctx).
-				NewLogEntry(events.WARN, deploymentID).Registerf(`no "private_address" label for host %q, we will use the address from the connection section`, hostname)
+				NewLogEntry(events.LogLevelWARN, deploymentID).Registerf(`no "private_address" label for host %q, we will use the address from the connection section`, hostname)
 		}
 		err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "ip_address", privateAddress)
 		if err != nil {
@@ -317,7 +317,7 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 			errs = multierror.Append(errs, err)
 		}
 		if !found {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
 			continue
 		}
 		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID}

@@ -96,7 +96,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 
 	e.client, err = GetSSHClient(cfg)
 	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
@@ -142,7 +142,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 }
 
 func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Creating the slurm infrastructure")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Creating the slurm infrastructure")
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(ctx context.Context, comp *nodeAllocation) {
@@ -155,16 +155,16 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 	if err := g.Wait(); err != nil {
 		err = errors.Wrapf(err, "Failed to create slurm infrastructure for deploymentID:%q, node name:%s", deploymentID, nodeName)
 		log.Debugf("%+v", err)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Successfully creating the slurm infrastructure")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Successfully creating the slurm infrastructure")
 	return nil
 }
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Destroying the slurm infrastructure")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Destroying the slurm infrastructure")
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(ctx context.Context, comp *nodeAllocation) {
@@ -177,16 +177,16 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	if err := g.Wait(); err != nil {
 		err = errors.Wrapf(err, "Failed to destroy slurm infrastructure for deploymentID:%q, node name:%s", deploymentID, nodeName)
 		log.Debugf("%+v", err)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
 	}
 
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Successfully destroying the slurm infrastructure")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Successfully destroying the slurm infrastructure")
 	return nil
 }
 
 func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
 	// salloc cmd
 	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag string
 	if nodeAlloc.cpu != "" {
@@ -231,14 +231,14 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 			} else {
 				mes = fmt.Sprintf("salloc command returned a PENDING job allocation notification with job ID:%q", allocResponse.jobID)
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(mes)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mes)
 			return
 		case err := <-chErr:
 			log.Debug(err.Error())
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString(err.Error())
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 			return
 		case <-time.After(30 * time.Second):
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RegisterAsString("timeout elapsed waiting for jobID parsing after slurm allocation request")
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString("timeout elapsed waiting for jobID parsing after slurm allocation request")
 			return
 		}
 	}()
@@ -322,7 +322,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 }
 
 func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q, instance name:%q", deploymentID, nodeName, nodeAlloc.instanceName))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q, instance name:%q", deploymentID, nodeName, nodeAlloc.instanceName))
 	// scancel cmd
 	found, jobID, err := deployments.GetInstanceAttribute(kv, deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
 	if jobID != "" {
@@ -335,7 +335,7 @@ func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV,
 			if err := cancelJobID(jobID, e.client); err != nil {
 				return err
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
 		}
 	}
 	// Update the instance state

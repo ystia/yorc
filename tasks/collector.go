@@ -92,7 +92,7 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 	if _, err := kv.Put(key, nil); err != nil {
 		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(strconv.Itoa(int(INITIAL)))}
+	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(strconv.Itoa(int(TaskStatusINITIAL)))}
 	if _, err := kv.Put(key, nil); err != nil {
 		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -117,7 +117,7 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 		}
 	}
 
-	EmitTaskEventWithContextualLogs(nil, kv, targetID, taskID, taskType, INITIAL.String())
+	EmitTaskEventWithContextualLogs(nil, kv, targetID, taskID, taskType, TaskStatusINITIAL.String())
 
 	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {
 		log.Debugf("Unlocking newly created task with id %q (target id %q)", taskId, targetId)

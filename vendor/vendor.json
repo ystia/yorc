@@ -824,12 +824,12 @@
 			"versionExact": "v1.2.0"
 		},
 		{
-			"checksumSHA1": "12g3NDgLPvSJcPKEKzU42m6GWVI=",
+			"checksumSHA1": "zIZZJkfCJx0+s6GCdenxvJrBTPM=",
 			"path": "github.com/spf13/cobra",
-			"revision": "a1f051bc3eba734da4772d60e2d677f47cf93ef4",
-			"revisionTime": "2018-03-21T14:39:34Z",
-			"version": "v0.0.2",
-			"versionExact": "v0.0.2"
+			"revision": "ef82de70bb3f60c65fb8eebacbb2d122ef517385",
+			"revisionTime": "2018-04-27T13:45:50Z",
+			"version": "v0.0.3",
+			"versionExact": "v0.0.3"
 		},
 		{
 			"checksumSHA1": "dkruahfhuLXXuyeCuRpsWlcRK+8=",

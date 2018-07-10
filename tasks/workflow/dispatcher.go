@@ -65,7 +65,7 @@ func getNbAndMaxTasksWaitTimeMs(kv *api.KV) (float32, float64, error) {
 		if err != nil {
 			return nb, max, err
 		}
-		if status == tasks.INITIAL {
+		if status == tasks.TaskStatusINITIAL {
 			nb++
 			createDate, err := tasks.GetTaskCreationDate(kv, path.Base(taskKey))
 			if err != nil {
@@ -164,7 +164,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			if status != tasks.INITIAL && status != tasks.RUNNING {
+			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
 				log.Debugf("Skipping task with status %q", status)
 				continue
 			}
@@ -201,7 +201,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			if status != tasks.INITIAL && status != tasks.RUNNING {
+			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
 				log.Debugf("Skipping task with status %q", status)
 				lock.Unlock()
 				lock.Destroy()

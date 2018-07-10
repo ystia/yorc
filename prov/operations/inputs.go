@@ -194,7 +194,7 @@ func setCapabilityProperties(ctx context.Context, kv *api.KV, deploymentID, capa
 			return err
 		}
 		if !found {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("failed to retrieve property %q for capability %q on node %q. It will not be injected in operation context.", capProp, capabilityName, op.RelOp.TargetNodeName)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("failed to retrieve property %q for capability %q on node %q. It will not be injected in operation context.", capProp, capabilityName, op.RelOp.TargetNodeName)
 			continue
 		}
 		props["TARGET_CAPABILITY_"+capabilityName+"_PROPERTY_"+capProp] = value
@@ -217,7 +217,7 @@ func setCapabilityAttributes(ctx context.Context, kv *api.KV, deploymentID, capa
 				return err
 			}
 			if !found {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("failed to retrieve attribute %q for capability %q on node %q instance %q. It will not be injected in operation context.", capAttr, capabilityName, op.RelOp.TargetNodeName, instanceID)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("failed to retrieve attribute %q for capability %q on node %q instance %q. It will not be injected in operation context.", capAttr, capabilityName, op.RelOp.TargetNodeName, instanceID)
 				continue
 			}
 			instanceName := GetInstanceName(op.RelOp.TargetNodeName, instanceID)

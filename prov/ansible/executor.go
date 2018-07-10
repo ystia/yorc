@@ -66,7 +66,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	exec, err := newExecution(ctx, kv, conf, taskID, deploymentID, nodeName, operation, e.cli)
 	if err != nil {
 		if IsOperationNotImplemented(err) {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.DEBUG, deploymentID).Registerf("Voluntary bypassing error: %s", err.Error())
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Voluntary bypassing error: %s", err.Error())
 			return nil
 		}
 		return err
@@ -76,7 +76,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	if err != nil {
 		return err
 	}
-	logForAllInstances(ctx, deploymentID, instances, events.INFO, "Start the ansible execution of: %s with operation : %s", nodeName, operation.Name)
+	logForAllInstances(ctx, deploymentID, instances, events.LogLevelINFO, "Start the ansible execution of: %s with operation : %s", nodeName, operation.Name)
 
 	// Execute operation
 	err = exec.execute(ctx, conf.Ansible.ConnectionRetries != 0)
@@ -84,7 +84,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return nil
 	}
 	if !IsRetriable(err) {
-		logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
+		logForAllInstances(ctx, deploymentID, instances, events.LogLevelERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
 		return err
 	}
 
@@ -92,20 +92,20 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 	log.Debugf("Ansible Connection Retries:%d", conf.Ansible.ConnectionRetries)
 	if conf.Ansible.ConnectionRetries > 0 {
 		for i := 0; i < conf.Ansible.ConnectionRetries; i++ {
-			logForAllInstances(ctx, deploymentID, instances, events.WARN, "Caught a retriable error from Ansible: '%v'. Let's retry in few seconds (%d/%d)", err, i+1, conf.Ansible.ConnectionRetries)
+			logForAllInstances(ctx, deploymentID, instances, events.LogLevelWARN, "Caught a retriable error from Ansible: '%v'. Let's retry in few seconds (%d/%d)", err, i+1, conf.Ansible.ConnectionRetries)
 			time.Sleep(time.Duration(e.r.Int63n(10)) * time.Second)
 			err = exec.execute(ctx, i != 0)
 			if err == nil {
 				return nil
 			}
 			if !IsRetriable(err) {
-				logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
+				logForAllInstances(ctx, deploymentID, instances, events.LogLevelERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
 				return err
 			}
 		}
-		logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Giving up retries for Ansible error: '%v' (%d/%d)", err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
+		logForAllInstances(ctx, deploymentID, instances, events.LogLevelERROR, "Giving up retries for Ansible error: '%v' (%d/%d)", err, conf.Ansible.ConnectionRetries, conf.Ansible.ConnectionRetries)
 	}
-	logForAllInstances(ctx, deploymentID, instances, events.ERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
+	logForAllInstances(ctx, deploymentID, instances, events.LogLevelERROR, "Ansible execution for operation %q on node %q failed", operation.Name, nodeName)
 	return err
 }
 

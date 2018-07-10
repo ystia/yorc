@@ -72,7 +72,7 @@ func GetOperation(ctx context.Context, kv *api.KV, deploymentID, nodeName, opera
 
 	implemOperationHost, err := deployments.GetOperationHostFromTypeOperationByName(kv, deploymentID, implementingType, operationName)
 	if operationHost != "" && implemOperationHost != "" && operationHost != implemOperationHost {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).Registerf("operation host defined in the implementation of operation %q (%q) is different from the one defined in the workflow step (%q). We will use the one from the workflow.", implemOperationHost, operationName, operationHost)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("operation host defined in the implementation of operation %q (%q) is different from the one defined in the workflow step (%q). We will use the one from the workflow.", implemOperationHost, operationName, operationHost)
 	} else if operationHost == "" && implemOperationHost != "" {
 		operationHost = implemOperationHost
 	}

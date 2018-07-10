@@ -49,7 +49,7 @@ func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deployme
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for node %q, instance %q changed to %q", nodeName, instance, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for node %q, instance %q changed to %q", nodeName, instance, status)
 	return id, nil
 }
 
@@ -70,7 +70,7 @@ func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploy
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for deployment %q changed to %q", deploymentID, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for deployment %q changed to %q", deploymentID, status)
 	return id, nil
 }
 
@@ -94,7 +94,7 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for custom-command %q changed to %q", taskID, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for custom-command %q changed to %q", taskID, status)
 	return id, nil
 }
 
@@ -118,7 +118,7 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for scaling task %q changed to %q", taskID, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for scaling task %q changed to %q", taskID, status)
 	return id, nil
 }
 
@@ -142,7 +142,7 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(INFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
 	return id, nil
 }
 

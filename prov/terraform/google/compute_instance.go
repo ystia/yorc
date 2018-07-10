@@ -30,7 +30,7 @@ import (
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID, nodeName, instanceName string,
+	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
 	infrastructure *commons.Infrastructure,
 	outputs map[string]string) error {
 
@@ -50,9 +50,10 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Must be a match of regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)'
 	instance.Name = strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
+	instance.Name = strings.Replace(instance.Name, "_", "-", -1)
 
 	// Getting string parameters
-	var imageProject, imageFamily, image, externalAddress, serviceAccount string
+	var imageProject, imageFamily, image, externalAddresses, serviceAccount string
 
 	stringParams := []struct {
 		pAttr        *string
@@ -65,8 +66,8 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		{&imageFamily, "image_family", false},
 		{&image, "image", false},
 		{&instance.Description, "description", false},
-		{&externalAddress, "address", false},
-		{&serviceAccount, "service_acount", false},
+		{&externalAddresses, "addresses", false},
+		{&serviceAccount, "service_account", false},
 	}
 
 	for _, stringParam := range stringParams {
@@ -100,25 +101,37 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 	instance.Disks = []Disk{bootDisk}
 
-	// Get boolean parameters
-
-	if instance.NoAddress, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "no_address"); err != nil {
+	// Network definition
+	var noAddress bool
+	if noAddress, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "no_address"); err != nil {
 		return err
 	}
 
-	if instance.Preemptible, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
-		return err
-	}
-
-	// Network interface definition
 	networkInterface := NetworkInterface{Network: "default"}
 	// Define an external access if there will be an external IP address
-	if !instance.NoAddress {
+	if !noAddress {
 		// keeping all default values, except from the external IP address if defined
+		addresses := strings.Split(externalAddresses, ",")
+		var externalAddress string
+		if len(addresses) > instanceID {
+			externalAddress = strings.TrimSpace(addresses[instanceID])
+		}
+		// else externalAddress is empty, which means an ephemeral external IP
+		// address will be assigned to the instance
 		accessConfig := AccessConfig{NatIP: externalAddress}
 		networkInterface.AccessConfigs = []AccessConfig{accessConfig}
 	}
 	instance.NetworkInterfaces = []NetworkInterface{networkInterface}
+
+	// Scheduling definition
+	var preemptible bool
+	if preemptible, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
+		return err
+	}
+
+	if preemptible {
+		instance.Scheduling = Scheduling{Preemptible: true}
+	}
 
 	// Get list of strings parameters
 	var scopes []string
@@ -174,7 +187,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	// Define the public IP using the value exported by Terraform
 	// except if it was specified the instance shouldn't have a public address
 	var accessIP string
-	if instance.NoAddress {
+	if noAddress {
 		accessIP = privateIP
 	} else {
 		accessIP = fmt.Sprintf("${google_compute_instance.%s.network_interface.0.access_config.0.assigned_nat_ip}",

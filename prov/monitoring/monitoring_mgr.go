@@ -58,7 +58,7 @@ func Start(cfg config.Configuration, cc *api.Client) {
 		cc:           cc,
 		chShutdown:   make(chan struct{}),
 		isMonitoring: false,
-		serviceKey:   "service/monitoring/leader",
+		serviceKey:   path.Join(consulutil.YorcServicePrefix, "/monitoring/leader"),
 		cfg:          cfg,
 	}
 
@@ -222,7 +222,7 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 		// Check if monitoring is required
 		isMonitorReq, monitoringInterval, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
 			return
 		}
@@ -232,7 +232,7 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 
 		instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
 			return
 		}
@@ -240,18 +240,18 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 		for _, instance := range instances {
 			found, ipAddress, err := deployments.GetInstanceAttribute(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
 			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 					Registerf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
 				return
 			}
 			if !found || ipAddress == "" {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 					Registerf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID", target, instance, deploymentID)
 				return
 			}
 
 			if err := defaultMonManager.registerCheck(deploymentID, target, instance, ipAddress, 22, monitoringInterval); err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 					Registerf("Failed to register check for node name:%q due to: %v", target, err)
 				return
 			}
@@ -270,7 +270,7 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 		// Check if monitoring has been required
 		isMonitorReq, _, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to check if monitoring is required for node name:%q due to: %v", target, err)
 			return
 		}
@@ -280,14 +280,14 @@ func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID,
 
 		instances, err := tasks.GetInstances(defaultMonManager.cc.KV(), taskID, deploymentID, target)
 		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 				Registerf("Failed to retrieve instances for node name:%q due to: %v", target, err)
 			return
 		}
 
 		for _, instance := range instances {
 			if err := defaultMonManager.flagCheckForRemoval(deploymentID, target, instance); err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.WARN, deploymentID).
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 					Registerf("Failed to unregister check for node name:%q due to: %v", target, err)
 				return
 			}

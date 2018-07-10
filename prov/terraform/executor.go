@@ -129,7 +129,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 }
 
 func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, env []string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "init")
 	cmd.Dir = infraPath
@@ -143,8 +143,8 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	defer close(quit)
 
 	// Register log entries via stderr/stdout buffers
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RunBufferedRegistration(out, quit)
 
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "Failed to setup Consul remote backend for terraform")
@@ -196,7 +196,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 		return err
 	}
 
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RegisterAsString("Applying the infrastructure")
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Applying the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	cmd := executil.Command(ctx, "terraform", "apply")
 	cmd.Dir = infraPath
@@ -210,8 +210,8 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	defer close(quit)
 
 	// Register log entries via stderr/stdout buffers
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.ERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.INFO, deploymentID).RunBufferedRegistration(out, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RunBufferedRegistration(errbuf, quit)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RunBufferedRegistration(out, quit)
 
 	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "Failed to apply the infrastructure changes via terraform")

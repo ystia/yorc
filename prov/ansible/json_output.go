@@ -130,11 +130,11 @@ func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeN
 					log.Debugf("%+v", err)
 					continue
 				}
-				stdErrLogLevel := events.WARN
-				logLevel := events.INFO
+				stdErrLogLevel := events.LogLevelWARN
+				logLevel := events.LogLevelINFO
 				if collections.ContainsString(failedHosts, host) {
-					stdErrLogLevel = events.ERROR
-					logLevel = events.ERROR
+					stdErrLogLevel = events.LogLevelERROR
+					logLevel = events.LogLevelERROR
 				}
 				lctx := events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: getInstanceIDFromHosts(hostsConn, host)})
 				checkAndPublishOutput(lctx, obj, deploymentID, nodeName, host, "module_stderr", stdErrLogLevel)
@@ -323,9 +323,9 @@ func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string
 
 	}
 
-	logLevel := events.INFO
+	logLevel := events.LogLevelINFO
 	if len(failedHosts) > 0 {
-		logLevel = events.ERROR
+		logLevel = events.LogLevelERROR
 	}
 
 	// Register log entry

@@ -372,6 +372,10 @@ Lists hosts of the hosts pool managed by this Yorc cluster.
 
 Flags:
   * ``--filter`` or ``-f``: Filter hosts based on their labels. May be specified several time, filters are joined by a logical 'and'. Please refer to :ref:`yorc_infras_hostspool_filters_section` for more details.
+  Note: If the filter expression contains a comma as in "mylabel in (v1,v2)", wrap it with single quotes as in the example below:
+.. code-block:: bash
+
+     yorc hp list -f '"mylabel in (v1, v2)"'
 
 
 Get information on a specific host in the pool
