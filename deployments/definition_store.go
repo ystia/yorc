@@ -208,25 +208,24 @@ func storeDataTypes(ctx context.Context, topology tosca.Topology, topologyPrefix
 // storeImports parses and store imports.
 func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, topologyPrefix, importPath, rootDefPath string) error {
 	errGroup := ctx.Value(errGrpKey).(*errgroup.Group)
-	for i, element := range topology.Imports {
+	for _, element := range topology.Imports {
 
 		importURI := strings.Trim(element.File, " \t")
-		importPrefix := strconv.Itoa(i)
 		importedTopology := tosca.Topology{}
 
 		if strings.HasPrefix(importURI, "<") && strings.HasSuffix(importURI, ">") {
 			// Internal import
-			importURI = strings.Trim(importURI, "<>")
+			importName := strings.Trim(importURI, "<>")
 			var defBytes []byte
 			var err error
-			if defBytes, err = reg.GetToscaDefinition(importURI); err != nil {
+			if defBytes, err = reg.GetToscaDefinition(importName); err != nil {
 				return errors.Errorf("Failed to import internal definition %s: %v", importURI, err)
 			}
 			if err = yaml.Unmarshal(defBytes, &importedTopology); err != nil {
 				return errors.Errorf("Failed to parse internal definition %s: %v", importURI, err)
 			}
 			errGroup.Go(func() error {
-				return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importPrefix), "", rootDefPath)
+				return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importURI), "", rootDefPath)
 			})
 		} else {
 			uploadFile := filepath.Join(rootDefPath, filepath.FromSlash(importPath), filepath.FromSlash(importURI))
@@ -246,7 +245,11 @@ func storeImports(ctx context.Context, topology tosca.Topology, deploymentID, to
 			}
 
 			errGroup.Go(func() error {
-				return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, path.Join("imports", importPath, importPrefix), path.Dir(path.Join(importPath, importURI)), rootDefPath)
+				// Using flat keys under imports, for convenience when searching
+				// for an import containing a given metadata template name
+				// (function getSubstitutableNodeType in this package)
+				importPrefix := path.Join("imports", strings.Replace(path.Join(importPath, importURI), "/", "_", -1))
+				return storeTopology(ctx, importedTopology, deploymentID, topologyPrefix, importPrefix, path.Dir(path.Join(importPath, importURI)), rootDefPath)
 			})
 		}
 	}

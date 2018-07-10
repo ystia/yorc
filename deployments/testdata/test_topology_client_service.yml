@@ -8,11 +8,11 @@ metadata:
 description: ""
 
 imports:
-  - <yorc-types.yml>
-  - <yorc-hostspool-types.yml>
+  - test_client_service_generated_topology.yml
   - test_service_public_types.yml
   - test_client_service_private_types.yml
-  - test_client_service_generated_topology.yml
+  - <yorc-hostspool-types.yml>
+  - <yorc-types.yml>
 
 topology_template:
   node_templates:
