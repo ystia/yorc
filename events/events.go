@@ -42,9 +42,8 @@ func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status s
 //
 // PublishAndLogInstanceStatusChange returns the published event id
 func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
-	if ctx == nil {
-		ctx = NewContext(context.Background(), LogOptionalFields{NodeID: nodeName, InstanceID: instance})
-	}
+	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
+
 	id, err := storeStatusUpdateEvent(kv, deploymentID, InstanceStatusChangeType, nodeName+"\n"+status+"\n"+instance)
 	if err != nil {
 		return "", err

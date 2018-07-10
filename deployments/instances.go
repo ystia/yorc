@@ -28,7 +28,7 @@ import (
 // SetInstanceStateString stores the state of a given node instance and publishes a status change event
 //
 // Deprecated: use SetInstanceStateStringWithContextualLogs instead
-func SetInstanceStateString(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
+func SetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
 	return SetInstanceStateStringWithContextualLogs(nil, kv, deploymentID, nodeName, instanceName, state)
 }
 

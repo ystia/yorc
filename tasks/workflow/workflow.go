@@ -172,7 +172,7 @@ func setNodeStatus(ctx context.Context, kv *api.KV, taskID, deploymentID, nodeNa
 
 	for _, id := range instancesIDs {
 		// Publish status change event
-		err := deployments.SetInstanceStateString(ctx, kv, deploymentID, nodeName, id, status)
+		err := deployments.SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName, id, status)
 		if err != nil {
 			return err
 		}
