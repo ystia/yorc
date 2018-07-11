@@ -63,6 +63,15 @@ softwares should also be installed.
   
   sudo pip install docker-py
 
+To support Ansible SSH password authentication instead of common ssh keys, the sshpass helper program needs to be installed too.
+
+.. code-block:: bash
+
+  # for apt based distributions
+  sudo apt install sshpass
+  # for yum based distributions
+  sudo yum install sshpass
+
 
 Final setup
 -----------
