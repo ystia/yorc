@@ -26,13 +26,14 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"strconv"
+
 	"github.com/dustin/go-humanize"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-	"strconv"
 )
 
 type defaultExecutor struct {
@@ -65,26 +66,26 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	switch strings.ToLower(delegateOperation) {
 	case "install":
 		for _, instance := range instances {
-			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
+			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		}
 		err = e.hostsPoolCreate(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
 		for _, instance := range instances {
-			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateStarted)
+			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateStarted)
 		}
 		return nil
 	case "uninstall":
 		for _, instance := range instances {
-			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
+			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		}
 		err = e.hostsPoolDelete(ctx, cc, cfg, taskID, deploymentID, nodeName, allocatedResources)
 		if err != nil {
 			return err
 		}
 		for _, instance := range instances {
-			deployments.SetInstanceState(cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleted)
+			deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), cc.KV(), deploymentID, nodeName, instance, tosca.NodeStateDeleted)
 		}
 		return nil
 	}

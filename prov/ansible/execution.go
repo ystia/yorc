@@ -364,7 +364,7 @@ func (e *executionCommon) resolveHostsOrchestratorLocal(nodeName string, instanc
 	e.hosts = make(map[string]hostConnection, len(instances))
 	for i := range instances {
 		instanceName := operations.GetInstanceName(nodeName, instances[i])
-		e.hosts[instanceName] = hostConnection{host: instanceName}
+		e.hosts[instanceName] = hostConnection{host: instanceName, instanceID: instances[i]}
 	}
 	return nil
 }
@@ -761,15 +761,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	// Fill log optional fields for log registration
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing context log fields")
-	}
-	logOptFields[events.InstanceID] = currentInstance
-	ctx = events.NewContext(ctx, logOptFields)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString("Start the ansible execution of : " + e.NodeName + " with operation : " + e.operation.Name)
-
 	ansiblePath := filepath.Join(e.cfg.WorkingDirectory, "deployments", e.deploymentID, "ansible")
 	ansiblePath, err := filepath.Abs(ansiblePath)
 	if err != nil {
@@ -949,7 +940,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 }
 
 func (e *executionCommon) checkAnsibleRetriableError(ctx context.Context, err error) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(errors.Wrapf(err, "Ansible execution for operation %q on node %q failed", e.operation.Name, e.NodeName).Error())
 	log.Debugf(err.Error())
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The program has exited with an exit code != 0
@@ -1008,7 +998,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
 	defer func(buffer *bytes.Buffer) {
-		if err := logFn(ctx, e.deploymentID, e.NodeName, buffer); err != nil {
+		if err := logFn(ctx, e.deploymentID, e.NodeName, e.hosts, buffer); err != nil {
 			log.Printf("Failed to publish Ansible log %v", err)
 			log.Debugf("%+v", err)
 		}
