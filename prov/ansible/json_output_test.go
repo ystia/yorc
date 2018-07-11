@@ -309,6 +309,8 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	var buf bytes.Buffer
 	buf.WriteString(data)
 
+	hosts := map[string]hostConnection{"10.197.138.212": hostConnection{instanceID: "0"}}
+
 	logOptFields := events.LogOptionalFields{
 		events.WorkFlowID:    "wfID",
 		events.NodeID:        nodeName,
@@ -316,7 +318,7 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 		events.InterfaceName: "standard",
 	}
 	ctx := events.NewContext(context.Background(), logOptFields)
-	err := logAnsibleOutputInConsul(ctx, deploymentID, nodeName, &buf)
+	err := logAnsibleOutputInConsul(ctx, deploymentID, nodeName, hosts, &buf)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 
@@ -324,7 +326,7 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 	require.Len(t, logs, 1)
 
-	err = logAnsibleOutputInConsulFromScript(ctx, deploymentID, nodeName, &buf)
+	err = logAnsibleOutputInConsulFromScript(ctx, deploymentID, nodeName, hosts, &buf)
 	t.Logf("%+v", err)
 	require.Nil(t, err)
 	logs, _, err = events.LogsEvents(kv, deploymentID, 0, 5*time.Millisecond)

@@ -15,6 +15,7 @@
 package tasks
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strconv"
@@ -271,16 +272,26 @@ func IsTaskRelatedNode(kv *api.KV, taskID, nodeName string) (bool, error) {
 }
 
 // EmitTaskEvent emits a task event based on task type
-func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (eventID string, err error) {
+//
+// Deprecated: use EmitTaskEventWithContextualLogs instead
+func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (string, error) {
+	return EmitTaskEventWithContextualLogs(nil, kv, deploymentID, taskID, taskType, status)
+}
+
+// EmitTaskEventWithContextualLogs emits a task event based on task type
+func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (string, error) {
+	if ctx == nil {
+		ctx = events.NewContext(context.Background(), events.LogOptionalFields{events.ExecutionID: taskID})
+	}
 	switch taskType {
 	case TaskTypeCustomCommand:
-		eventID, err = events.CustomCommandStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+		return events.PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
 	case TaskTypeCustomWorkflow:
-		eventID, err = events.WorkflowStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
 	case TaskTypeScaleIn, TaskTypeScaleOut:
-		eventID, err = events.ScalingStatusChange(kv, deploymentID, taskID, strings.ToLower(status))
+		return events.PublishAndLogScalingStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
 	}
-	return
+	return "", errors.Errorf("unsupported task type: %s", taskType)
 }
 
 // GetTaskRelatedSteps returns the steps of the related workflow

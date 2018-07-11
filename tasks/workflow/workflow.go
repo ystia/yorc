@@ -31,6 +31,7 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/registry"
@@ -163,7 +164,7 @@ func (s *step) isRunnable() (bool, error) {
 	return true, nil
 }
 
-func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) error {
+func setNodeStatus(ctx context.Context, kv *api.KV, taskID, deploymentID, nodeName, status string) error {
 	instancesIDs, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -171,7 +172,7 @@ func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) er
 
 	for _, id := range instancesIDs {
 		// Publish status change event
-		err := deployments.SetInstanceStateString(kv, deploymentID, nodeName, id, status)
+		err := deployments.SetInstanceStateStringWithContextualLogs(ctx, kv, deploymentID, nodeName, id, status)
 		if err != nil {
 			return err
 		}
@@ -181,17 +182,8 @@ func setNodeStatus(kv *api.KV, taskID, deploymentID, nodeName, status string) er
 
 func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool, workflowName string, w worker) error {
 	// Fill log optional fields for log registration
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		logOptFields = make(events.LogOptionalFields)
-	}
-	logOptFields[events.WorkFlowID] = workflowName
-
-	if s.Target != "" {
-		logOptFields[events.NodeID] = s.Target
-	}
-	ctx = events.NewContext(ctx, logOptFields)
-
+	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
+	logOptFields, _ := events.FromContext(ctx)
 	s.setStatus(tasks.TaskStepStatusINITIAL)
 	haveErr := false
 	for i := 0; i < len(s.Previous); i++ {
@@ -274,7 +266,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			}()
 			err := s.runActivity(wfCtx, kv, cfg, deploymentID, bypassErrors, w, activity)
 			if err != nil {
-				setNodeStatus(kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
+				setNodeStatus(wfCtx, kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Step %q: error details: %+v", s.Name, err)
 				if !bypassErrors {
 					s.setStatus(tasks.TaskStepStatusERROR)
@@ -305,6 +297,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 }
 
 func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, bypassErrors bool, w worker, activity Activity) error {
+	// Get activity related instances
+	instances, err := tasks.GetInstances(kv, s.t.ID, deploymentID, s.Target)
+	if err != nil {
+		return err
+	}
+
 	switch activity.Type() {
 	case ActivityTypeDelegate:
 		nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Target)
@@ -316,6 +314,11 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			return err
 		}
 		delegateOp := activity.Value()
+		wfCtx = events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InterfaceName: "delegate", events.OperationName: delegateOp})
+		for _, instanceName := range instances {
+			// TODO: replace this with workflow steps events
+			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("executing delegate operation")
+		}
 		err = func() error {
 			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
 			return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Target, delegateOp)
@@ -323,12 +326,19 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
+			for _, instanceName := range instances {
+				// TODO: replace this with workflow steps events
+				events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("delegate operation failed")
+			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
-
+		for _, instanceName := range instances {
+			// TODO: replace this with workflow steps events
+			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("delegate operation succeeded")
+		}
 	case ActivityTypeSetState:
-		setNodeStatus(kv, s.t.ID, deploymentID, s.Target, activity.Value())
+		setNodeStatus(wfCtx, kv, s.t.ID, deploymentID, s.Target, activity.Value())
 	case ActivityTypeCallOperation:
 		op, err := operations.GetOperation(wfCtx, kv, s.t.TargetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost)
 		if err != nil {
@@ -348,16 +358,28 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			return err
 		}
+		wfCtx = events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InterfaceName: stringutil.GetAllExceptLastElement(op.Name, "."), events.OperationName: stringutil.GetLastElement(op.Name, ".")})
+		for _, instanceName := range instances {
+			// TODO: replace this with workflow steps events
+			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("executing operation")
+		}
 		err = func() error {
 			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
 			return exec.ExecOperation(wfCtx, cfg, s.t.ID, deploymentID, s.Target, op)
 		}()
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
+			for _, instanceName := range instances {
+				// TODO: replace this with workflow steps events
+				events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("operation failed")
+			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
-
+		for _, instanceName := range instances {
+			// TODO: replace this with workflow steps events
+			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("operation succeeded")
+		}
 	case ActivityTypeInline:
 		if err := w.runWorkflows(wfCtx, s.t, []string{activity.Value()}, bypassErrors); err != nil {
 			return err

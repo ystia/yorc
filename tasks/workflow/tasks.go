@@ -15,6 +15,7 @@
 package workflow
 
 import (
+	"context"
 	"path"
 	"strconv"
 
@@ -45,14 +46,14 @@ func (t *task) Status() tasks.TaskStatus {
 	return t.status
 }
 
-func (t *task) WithStatus(status tasks.TaskStatus) error {
+func (t *task) WithStatus(ctx context.Context, status tasks.TaskStatus) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.ID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
 	t.status = status
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = tasks.EmitTaskEvent(t.kv, t.TargetID, t.ID, t.TaskType, t.status.String())
+	_, err = tasks.EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.ID, t.TaskType, t.status.String())
 
 	return err
 }

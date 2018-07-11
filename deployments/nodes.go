@@ -778,7 +778,6 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 		id := strconv.FormatUint(uint64(i), 10)
 		instancesIDs = append(instancesIDs, id)
 		for _, stackNode := range stackNodes {
-
 			createNodeInstance(kv, consulStore, deploymentID, stackNode, id)
 			if _, ok := nodesMap[stackNode]; ok {
 				nodesMap[stackNode] = nodesMap[stackNode] + "," + id
@@ -811,7 +810,7 @@ func createNodeInstance(kv *api.KV, consulStore consulutil.ConsulStore, deployme
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
 	// Publish a status change event
-	events.InstanceStatusChange(kv, deploymentID, nodeName, instanceName, tosca.NodeStateInitial.String())
+	events.PublishAndLogInstanceStatusChange(nil, kv, deploymentID, nodeName, instanceName, tosca.NodeStateInitial.String())
 }
 
 // DoesNodeExist checks if a given node exist in a deployment
