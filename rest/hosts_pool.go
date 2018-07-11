@@ -186,7 +186,6 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 	restHost := Host{Host: host, Links: make([]AtomLink, 1)}
 	restHost.Links[0] = newAtomLink(LinkRelSelf, fmt.Sprintf("/hosts_pool/%s", hostname))
 	encodeJSONResponse(w, r, restHost)
-	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {

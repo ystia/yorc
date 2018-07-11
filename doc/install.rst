@@ -63,6 +63,16 @@ softwares should also be installed.
   
   sudo pip install docker-py
 
+To support :ref:`Hosts Pool <yorc_infras_hostspool_section>` with SSH password authentication instead of common ssh keys, you need
+to install the sshpass helper program.
+
+.. code-block:: bash
+
+  # for apt based distributions
+  sudo apt install sshpass
+  # for yum based distributions
+  sudo yum install sshpass
+
 
 Final setup
 -----------
