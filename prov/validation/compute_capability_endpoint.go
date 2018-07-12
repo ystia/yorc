@@ -35,14 +35,14 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-			Registerf("Failed to retrieve consul client when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", err)
+			Registerf("Failed to retrieve consul client when ensuring that a compute will have it's endpoint ip set. Next operations will likely fail: %v", err)
 		return
 	}
 	kv := cc.KV()
 	status, err := tasks.GetTaskStatus(kv, taskID)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-			Registerf("Failed to retrieve task status when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", err)
+			Registerf("Failed to retrieve task status when ensuring that a compute will have it's endpoint ip set. Next operations will likely fail: %v", err)
 		return
 	}
 	if status == tasks.TaskStatusFAILED || status == tasks.TaskStatusCANCELED {
