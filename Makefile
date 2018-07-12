@@ -47,7 +47,7 @@ dist: buildnformat
 test: generate
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 `go list ./...`
+	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 ./...
 endif
 
 
