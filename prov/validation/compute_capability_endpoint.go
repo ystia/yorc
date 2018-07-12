@@ -35,7 +35,7 @@ func postComputeCreationHook(ctx context.Context, cfg config.Configuration, task
 	cc, err := cfg.GetConsulClient()
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-			Registerf("Failed to retrieve consul client when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", target, err)
+			Registerf("Failed to retrieve consul client when ensuring that a compute will have it's endpoint ip set. Next operations will likely failed: %v", err)
 		return
 	}
 	kv := cc.KV()

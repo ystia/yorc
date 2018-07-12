@@ -154,7 +154,7 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 	// Then look at global node level (not instance-scoped)
 	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
 	if err != nil {
-		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q", attributeName, nodeName, instanceName)
+		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
 	}
 	if found {
 		return true, result, nil
