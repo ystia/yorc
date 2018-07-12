@@ -47,11 +47,11 @@ dist: buildnformat
 test: generate
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 ./... | grep -v vendor
+	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 `go list ./...`
 endif
 
 
-cover: 
+cover:
 	@go test -p 1 -cover $(COVERARGS) ./...  
 
 format:
