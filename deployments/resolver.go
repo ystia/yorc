@@ -23,8 +23,10 @@ import (
 	"github.com/ystia/yorc/log"
 	yaml "gopkg.in/yaml.v2"
 
+	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/tosca"
 )
 
@@ -77,9 +79,9 @@ func withRequirementIndex(reqIndex string) resolverContext {
 	}
 }
 
-func (fr *functionResolver) resolveFunction(fn *tosca.Function) (string, error) {
+func (fr *functionResolver) resolveFunction(fn *tosca.Function) (string, bool, error) {
 	if fn == nil {
-		return "", errors.Errorf("Trying to resolve a nil function")
+		return "", false, errors.Errorf("Trying to resolve a nil function")
 	}
 	operands := make([]string, len(fn.Operands))
 	for i, op := range fn.Operands {
@@ -89,32 +91,36 @@ func (fr *functionResolver) resolveFunction(fn *tosca.Function) (string, error) 
 			if isQuoted(s) {
 				s, err = strconv.Unquote(s)
 				if err != nil {
-					return "", errors.Wrapf(err, "failed to unquote literal operand of function %v", fn)
+					return "", false, errors.Wrapf(err, "failed to unquote literal operand of function %v", fn)
 				}
 			}
 			operands[i] = s
 		} else {
 			subFn := op.(*tosca.Function)
-			r, err := fr.resolveFunction(subFn)
+			r, found, err := fr.resolveFunction(subFn)
 			if err != nil {
-				return "", err
+				return "", false, err
 			}
-			operands[i] = r
+			if found {
+				operands[i] = r
+			}
 		}
 	}
 	switch fn.Operator {
 	case tosca.ConcatOperator:
-		return strings.Join(operands, ""), nil
+		return strings.Join(operands, ""), true, nil
 	case tosca.GetInputOperator:
-		return fr.resolveGetInput(operands)
+		res, err := fr.resolveGetInput(operands)
+		return res, err == nil, err
 	case tosca.GetOperationOutputOperator:
-		return fr.resolveGetOperationOutput(operands)
+		res, err := fr.resolveGetOperationOutput(operands)
+		return res, err == nil, err
 	case tosca.GetPropertyOperator:
 		return fr.resolveGetPropertyOrAttribute("property", operands)
 	case tosca.GetAttributeOperator:
 		return fr.resolveGetPropertyOrAttribute("attribute", operands)
 	}
-	return "", errors.Errorf("Unsupported function %q", string(fn.Operator))
+	return "", false, errors.Errorf("Unsupported function %q", string(fn.Operator))
 }
 
 func (fr *functionResolver) resolveGetInput(operands []string) (string, error) {
@@ -181,20 +187,20 @@ func (fr *functionResolver) resolveGetOperationOutput(operands []string) (string
 	}
 }
 
-func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands []string) (string, error) {
+func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands []string) (string, bool, error) {
 	funcString := fmt.Sprintf("get_%s: [%s]", rType, strings.Join(operands, ", "))
 	if len(operands) < 2 {
-		return "", errors.Errorf("expecting at least two parameters for a get_%s function (%s)", rType, funcString)
+		return "", false, errors.Errorf("expecting at least two parameters for a get_%s function (%s)", rType, funcString)
 	}
 	if rType == "attribute" && fr.instanceName == "" {
-		return "", errors.Errorf(`Can't resolve %q without a specified instance name`, funcString)
+		return "", false, errors.Errorf(`Can't resolve %q without a specified instance name`, funcString)
 	}
 	entity := operands[0]
 
 	if entity == funcKeywordHOST && fr.requirementIndex != "" {
-		return "", errors.Errorf(`Can't resolve %q %s keyword is not supported in the context of a relationship`, funcString, funcKeywordHOST)
+		return "", false, errors.Errorf(`Can't resolve %q %s keyword is not supported in the context of a relationship`, funcString, funcKeywordHOST)
 	} else if fr.requirementIndex == "" && (entity == funcKeywordSOURCE || entity == funcKeywordTARGET || entity == funcKeywordRTARGET) {
-		return "", errors.Errorf(`Can't resolve %q %s keyword is supported only in the context of a relationship`, funcString, entity)
+		return "", false, errors.Errorf(`Can't resolve %q %s keyword is supported only in the context of a relationship`, funcString, entity)
 	}
 	// First get the node on which we should resolve the get_property
 
@@ -206,24 +212,24 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 	case funcKeywordHOST:
 		actualNode, err = GetHostedOnNode(fr.kv, fr.deploymentID, fr.nodeName)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	case funcKeywordTARGET, funcKeywordRTARGET:
 		actualNode, err = GetTargetNodeForRequirement(fr.kv, fr.deploymentID, fr.nodeName, fr.requirementIndex)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	case funcKeywordREQTARGET:
 		actualNode, err = GetTargetNodeForRequirementByName(fr.kv, fr.deploymentID, fr.nodeName, operands[1])
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	default:
 		actualNode = entity
 	}
 
 	if actualNode == "" {
-		return "", errors.Errorf(`Can't resolve %q without a specified node name`, funcString)
+		return "", false, errors.Errorf(`Can't resolve %q without a specified node name`, funcString)
 	}
 	var args []string
 	var found bool
@@ -234,7 +240,7 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 		if len(operands) > 2 {
 			cap, err := GetNodeCapabilityType(fr.kv, fr.deploymentID, actualNode, operands[1])
 			if err != nil {
-				return "", err
+				return "", false, err
 			}
 			if cap != "" {
 				args := getFuncNestedArgs(operands[2:]...)
@@ -244,7 +250,7 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 					found, result, err = GetCapabilityProperty(fr.kv, fr.deploymentID, actualNode, operands[1], args[0], args[1:]...)
 				}
 				if err != nil || found {
-					return result, err
+					return result, false, err
 				}
 				// Else lets continue
 			}
@@ -269,18 +275,19 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 		}
 	}
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	// Always return an empty string when attribute is not found for GetAttribute function
+	// A not found attribute is considered as acceptable for GetAttribute function and so doesn't return any error
 	if !found && rType == "attribute" {
-		log.Debugf("[WARNING] The attribute %q hasn't be found for deployment %q and node %q. So expression %q will return an empty string", args[0], fr.deploymentID, fr.nodeName, funcString)
-		return "", nil
+		ctx := events.NewContext(context.Background(), events.LogOptionalFields{events.NodeID: fr.nodeName, events.InstanceID: fr.instanceName})
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, fr.deploymentID).Registerf("[WARNING] The attribute %q hasn't be found for deployment: %, node: %q, instance: %q in expression %q", args[0], fr.deploymentID, fr.nodeName, fr.instanceName, funcString)
+		return "", false, nil
 	} else if !found {
 		log.Debugf("Deployment %q, node %q, can't resolve expression %q", fr.deploymentID, fr.nodeName, funcString)
-		return "", errors.Errorf("Can't resolve expression %q", funcString)
+		return "", false, errors.Errorf("Can't resolve expression %q", funcString)
 	}
-	return result, nil
+	return result, true, nil
 }
 
 func getFuncNestedArgs(nestedKeys ...string) []string {
@@ -295,15 +302,20 @@ func getFuncNestedArgs(nestedKeys ...string) []string {
 
 func resolveValueAssignmentAsString(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, valueAssignment string, nestedKeys ...string) (string, error) {
 	// Function
+	var found bool
 	va := &tosca.ValueAssignment{}
 	err := yaml.Unmarshal([]byte(valueAssignment), va)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", valueAssignment, nodeName)
 	}
 	r := resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(instanceName), withRequirementIndex(requirementIndex))
-	valueAssignment, err = r.resolveFunction(va.GetFunction())
+	valueAssignment, found, err = r.resolveFunction(va.GetFunction())
 	if err != nil {
 		return "", err
+	}
+	if !found {
+		ctx := events.NewContext(context.Background(), events.LogOptionalFields{events.NodeID: nodeName, events.InstanceID: instanceName})
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("[WARNING] The value assignment %q hasn't be resolved for deployment: %q, node: %q, instance: %q. An empty string is returned instead", valueAssignment, deploymentID, nodeName, instanceName)
 	}
 	return valueAssignment, nil
 }
