@@ -271,7 +271,12 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 	if err != nil {
 		return "", err
 	}
-	if !found {
+
+	// Always return an empty string when attribute is not found for GetAttribute function
+	if !found && rType == "attribute" {
+		log.Debugf("[WARNING] The attribute %q hasn't be found for deployment %q and node %q. So expression %q will return an empty string", args[0], fr.deploymentID, fr.nodeName, funcString)
+		return "", nil
+	} else if !found {
 		log.Debugf("Deployment %q, node %q, can't resolve expression %q", fr.deploymentID, fr.nodeName, funcString)
 		return "", errors.Errorf("Can't resolve expression %q", funcString)
 	}
