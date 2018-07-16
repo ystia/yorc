@@ -40,6 +40,9 @@ const (
 	// TokenOperator     Operator = "token"
 	// GetNodesOfTypeOperator     Operator = "get_nodes_of_type"
 	// GetArtifactOperator        Operator = "get_artifact"
+
+	// GetSecretOperator is the Operator of the get_secret function (non-normative)
+	GetSecretOperator Operator = "get_secret"
 )
 
 // IsOperator checks if a given token is a known TOSCA function keyword
@@ -48,7 +51,8 @@ func IsOperator(op string) bool {
 		op == string(GetAttributeOperator) ||
 		op == string(GetInputOperator) ||
 		op == string(GetOperationOutputOperator) ||
-		op == string(ConcatOperator)
+		op == string(ConcatOperator) ||
+		op == string(GetSecretOperator)
 }
 
 func parseOperator(op string) (Operator, error) {
@@ -63,6 +67,8 @@ func parseOperator(op string) (Operator, error) {
 		return GetOperationOutputOperator, nil
 	case op == string(ConcatOperator):
 		return ConcatOperator, nil
+	case op == string(GetSecretOperator):
+		return GetSecretOperator, nil
 	default:
 		return GetPropertyOperator, errors.Errorf("%q is not a known or supported TOSCA operator", op)
 

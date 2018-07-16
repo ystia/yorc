@@ -21,12 +21,17 @@ import (
 
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/vault"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/tosca"
 )
+
+// DefaultVaultClient is the default Vault Client used to resolve get_secret functions
+// it is nil by default and should be set by the one who created the client
+var DefaultVaultClient vault.Client
 
 const funcKeywordSELF string = "SELF"
 const funcKeywordHOST string = "HOST"
@@ -107,6 +112,8 @@ func (fr *functionResolver) resolveFunction(fn *tosca.Function) (string, error) 
 		return strings.Join(operands, ""), nil
 	case tosca.GetInputOperator:
 		return fr.resolveGetInput(operands)
+	case tosca.GetSecretOperator:
+		return fr.resolveGetSecret(operands)
 	case tosca.GetOperationOutputOperator:
 		return fr.resolveGetOperationOutput(operands)
 	case tosca.GetPropertyOperator:
@@ -305,4 +312,23 @@ func resolveValueAssignmentAsString(kv *api.KV, deploymentID, nodeName, instance
 
 func isQuoted(s string) bool {
 	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
+}
+
+func (fr *functionResolver) resolveGetSecret(operands []string) (string, error) {
+	if len(operands) < 1 {
+		return "", errors.New("expecting at least one parameter for a get_secret function")
+	}
+
+	if DefaultVaultClient == nil {
+		return "", errors.New("can't resolve get_secret function there is no vault client configured")
+	}
+	var options []string
+	if len(operands) > 1 {
+		options = operands[1:]
+	}
+	secret, err := DefaultVaultClient.GetSecret(operands[0], options...)
+	if err != nil {
+		return "", err
+	}
+	return secret.String(), nil
 }
