@@ -497,6 +497,7 @@ type OperationInputResult struct {
 	NodeName     string
 	InstanceName string
 	Value        string
+	IsSecret     bool
 }
 
 // GetOperationInput retrieves the value of an input for a given operation
@@ -536,7 +537,7 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 				return nil, err
 			}
 			for _, ins := range instances {
-				results = append(results, OperationInputResult{ctxNodeName, ins, res})
+				results = append(results, OperationInputResult{ctxNodeName, ins, res, false})
 			}
 			return results, nil
 		}
@@ -556,6 +557,12 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 				hasAttrOnSrcOrSelf = true
 			}
 		}
+
+		var hasSecret bool
+		if len(f.GetFunctionsByOperator(tosca.GetSecretOperator)) > 0 {
+			hasSecret = true
+		}
+
 		if hasAttrOnSrcOrSelf && hasAttrOnTarget {
 			return nil, errors.Errorf("can't resolve input %q for operation %v on node %q: get_attribute functions on TARGET and SELF/SOURCE/HOST at the same time is not supported.", inputName, operation, nodeName)
 		}
@@ -577,7 +584,7 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 			if err != nil {
 				return nil, err
 			}
-			results = append(results, OperationInputResult{ctxNodeName, ins, res})
+			results = append(results, OperationInputResult{ctxNodeName, ins, res, hasSecret})
 		}
 		return results, nil
 
@@ -633,7 +640,7 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 			return nil, err
 		}
 		for _, ins := range instances {
-			results = append(results, OperationInputResult{nodeName, ins, res})
+			results = append(results, OperationInputResult{nodeName, ins, res, false})
 		}
 		return results, nil
 	}

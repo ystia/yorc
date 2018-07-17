@@ -30,15 +30,22 @@ import (
 	"github.com/ystia/yorc/tasks"
 )
 
+// TODO: why do we have both EnvInput and deployments.OperationInputResult? Can't we factorize them?
+
 // An EnvInput represent a TOSCA operation input
 type EnvInput struct {
 	Name         string
 	Value        string
 	InstanceName string
+	IsSecret     bool
 }
 
 func (ei EnvInput) String() string {
-	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q]", ei.Name, ei.Value, ei.InstanceName)
+	value := ei.Value
+	if ei.IsSecret {
+		value = "<retracted>"
+	}
+	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsSecret: %t]", ei.Name, value, ei.InstanceName, ei.IsSecret)
 }
 
 // ResolveInputs allows to resolve inputs for an operation
@@ -89,7 +96,7 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 					return nil, nil, err
 				}
 				for i, iv := range defaultInputValues {
-					envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value})
+					envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value, IsSecret: iv.IsSecret})
 					if i == 0 {
 						varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
 					}
@@ -112,7 +119,7 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 				return nil, nil, err
 			}
 			for i, iv := range inputValues {
-				envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value})
+				envInputs = append(envInputs, &EnvInput{Name: input, InstanceName: GetInstanceName(iv.NodeName, iv.InstanceName), Value: iv.Value, IsSecret: iv.IsSecret})
 				if i == 0 {
 					varInputsNames = append(varInputsNames, provutil.SanitizeForShell(input))
 				}
