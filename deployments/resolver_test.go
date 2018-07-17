@@ -17,16 +17,22 @@ package deployments
 import (
 	"context"
 	"path"
+	"reflect"
 	"testing"
+
+	"github.com/ystia/yorc/prov"
 
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/testutil"
 	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/vault"
 )
 
 func testResolver(t *testing.T, kv *api.KV) {
@@ -159,6 +165,125 @@ func testResolveComplex(t *testing.T, kv *api.KV) {
 				return
 			}
 			if found != tt.wantFound {
+				t.Errorf("resolveFunction() found = %t, wantFound %t", found, tt.wantFound)
+			}
+
+			if err == nil && got != tt.want {
+				t.Errorf("resolveFunction() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+type vaultClientMock struct {
+	result          string
+	expectedOptions []string
+}
+
+func (m *vaultClientMock) GetSecret(id string, options ...string) (vault.Secret, error) {
+	if len(m.expectedOptions) != len(options) {
+		return nil, errors.Errorf("get_secret given options %+v mismatch the expected %+v", options, m.expectedOptions)
+	}
+	if m.expectedOptions != nil && options != nil && !reflect.DeepEqual(m.expectedOptions, options) {
+		return nil, errors.Errorf("get_secret given options %+v mismatch the expected %+v", options, m.expectedOptions)
+	}
+	return &vaultSecretMock{m.result}, nil
+}
+
+func (m *vaultClientMock) Shutdown() error {
+	return nil
+}
+
+type vaultSecretMock struct {
+	result string
+}
+
+func (m *vaultSecretMock) String() string {
+	return m.result
+}
+func (m *vaultSecretMock) Raw() interface{} {
+	return m.result
+}
+
+func testResolveSecret(t *testing.T, kv *api.KV) {
+	// t.Parallel()
+	deploymentID := testutil.BuildDeploymentID(t)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/get_secrets.yaml")
+	require.Nil(t, err, "Failed to parse testdata/value_assignments.yaml definition: %+v", err)
+	_, grp, store := consulutil.WithContext(context.Background())
+	createNodeInstance(kv, store, deploymentID, "Tomcat", "0")
+	require.NoError(t, grp.Wait(), "Failed to create node instances")
+
+	type context struct {
+		nodeName         string
+		instanceName     string
+		requirementIndex string
+	}
+	type resolveFunc func(ctx context) (bool, string, error)
+
+	opInputResolveFn := func(opName, implementedInType, requirementIndex, input string) resolveFunc {
+
+		return func(ctx context) (bool, string, error) {
+			op := prov.Operation{Name: opName, ImplementedInType: implementedInType}
+			if requirementIndex != "" {
+				op.RelOp.IsRelationshipOperation = true
+				op.RelOp.RequirementIndex = requirementIndex
+			}
+
+			inputs, err := GetOperationInput(kv, deploymentID, ctx.nodeName, op, input)
+			if err != nil {
+				return false, "", err
+			}
+			for i := range inputs {
+				if inputs[i].InstanceName == ctx.instanceName {
+					return true, inputs[i].Value, nil
+				}
+			}
+			return false, "", nil
+		}
+	}
+
+	resolverTests := []struct {
+		name        string
+		context     context
+		vaultClient vault.Client
+		resolveFn   resolveFunc
+		wantErr     bool
+		wantFound   bool
+		want        string
+	}{
+		{"ResolvePropWithoutVault", context{"JDK", "", ""}, nil, func(ctx context) (bool, string, error) {
+			return GetNodeProperty(kv, deploymentID, ctx.nodeName, "java_home")
+		}, true, false, ""},
+		{"ResolveCapabilityPropWithoutVault", context{"Tomcat", "", ""}, nil, func(ctx context) (bool, string, error) {
+			return GetCapabilityProperty(kv, deploymentID, ctx.nodeName, "data_endpoint", "port")
+		}, true, false, ""},
+		{"ResolveAttributeWithoutVault", context{"JDK", "0", ""}, nil, func(ctx context) (bool, string, error) {
+			return GetInstanceAttribute(kv, deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
+		}, true, false, ""},
+		{"ResolveOperationInputWithoutVault", context{"Tomcat", "0", ""}, nil, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), true, false, ""},
+		{"ResolveOperationInputRelWithoutVault", context{"Tomcat", "0", "0"}, nil, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), true, false, ""},
+		{"ResolvePropWithVault", context{"JDK", "", ""}, &vaultClientMock{"mysupersecret", []string{"java_opt1=1", "java_opt2=2"}}, func(ctx context) (bool, string, error) {
+			return GetNodeProperty(kv, deploymentID, ctx.nodeName, "java_home")
+		}, false, true, "mysupersecret"},
+		{"ResolveCapabilityPropWithoutVault", context{"Tomcat", "", ""}, &vaultClientMock{"443", []string{"tom_opt1=1", "tom_opt2=2"}}, func(ctx context) (bool, string, error) {
+			return GetCapabilityProperty(kv, deploymentID, ctx.nodeName, "data_endpoint", "port")
+		}, false, true, "443"},
+		{"ResolveAttributeWithoutVault", context{"JDK", "0", ""}, &vaultClientMock{result: "java_supersecret"}, func(ctx context) (bool, string, error) {
+			return GetInstanceAttribute(kv, deploymentID, ctx.nodeName, ctx.instanceName, "java_secret")
+		}, false, true, "java_supersecret"},
+		{"ResolveOperationInputWithoutVault", context{"Tomcat", "0", ""}, &vaultClientMock{"tomcat_supersecret_input", []string{"ji_o"}}, opInputResolveFn("standard.create", "org.alien4cloud.lang.java.jdk.linux.nodes.OracleJDK", "", "JAVA_INPUT_SEC"), false, true, "tomcat_supersecret_input"},
+		{"ResolveOperationInputRelWithoutVault", context{"Tomcat", "0", "0"}, &vaultClientMock{result: "java_supersecret_rel_input"}, opInputResolveFn("configure.post_configure_source", "org.alien4cloud.lang.java.pub.relationships.JavaSoftwareHostedOnJDK", "0", "TOMCAT_SEC"), false, true, "java_supersecret_rel_input"},
+	}
+	for _, tt := range resolverTests {
+		t.Run(tt.name, func(t *testing.T) {
+			DefaultVaultClient = tt.vaultClient
+			found, got, err := tt.resolveFn(tt.context)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("resolveFunction() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil && found != tt.wantFound {
 				t.Errorf("resolveFunction() found = %t, wantFound %t", found, tt.wantFound)
 			}
 

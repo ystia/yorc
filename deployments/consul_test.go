@@ -96,5 +96,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("TestOperationHost", func(t *testing.T) {
 			testOperationHost(t, kv)
 		})
+		t.Run("TestResolveSecret", func(t *testing.T) {
+			testResolveSecret(t, kv)
+		})
 	})
 }
