@@ -21,11 +21,14 @@ import (
 	"strconv"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"context"
+
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/stringutil"
@@ -580,11 +583,16 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		}
 
 		for _, ins := range instances {
-			res, err = resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(f)
+			res, found, err = resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(f)
 			if err != nil {
 				return nil, err
 			}
-			results = append(results, OperationInputResult{ctxNodeName, ins, res, hasSecret})
+			if found {
+				results = append(results, OperationInputResult{ctxNodeName, ins, res, hasSecret})
+			} else {
+				ctx := events.NewContext(context.Background(), events.LogOptionalFields{events.NodeID: nodeName, events.InstanceID: ins})
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("[WARNING] The function %q hasn't be resolved for deployment: %q, node: %q, instance: %q. No operation input variable will be set", f, deploymentID, nodeName, ins)
+			}
 		}
 		return results, nil
 

@@ -63,30 +63,35 @@ func testGetOperationOutput(t *testing.T, kv *api.KV) {
 	require.Nil(t, err)
 	r := resolver(kv, deploymentID)
 
-	result, err := r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`).GetFunction())
+	result, found, err := r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Standard, configure, MY_OUTPUT ] }`).GetFunction())
 	require.Nil(t, err)
+	require.Equal(t, true, found)
 	require.Equal(t, "MY_RESULT", result)
 
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNode/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part1")}, nil)
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("0")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`).GetFunction())
+	result, found, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("0")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_operation_output: [ SELF, Configure, pre_configure_source, PARTITION_NAME ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
+	require.Equal(t, true, found)
 	require.Equal(t, "part1", result)
 
-	result, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, found, err = r.context(withNodeName("GetOPOutputsNode"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
+	require.Equal(t, true, found)
 	require.Equal(t, "part1", result)
 
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeFirstReq/0/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part2")}, nil)
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNodeFirstReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, found, err = r.context(withNodeName("GetOPOutputsNodeFirstReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
+	require.Equal(t, true, found)
 	require.Equal(t, "part2", result)
 
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/GetOPOutputsNodeSecondReq/1/0/outputs/configure/pre_configure_source/PARTITION_NAME"), Value: []byte("part3")}, nil)
 	require.Nil(t, err)
-	result, err = r.context(withNodeName("GetOPOutputsNodeSecondReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
+	result, found, err = r.context(withNodeName("GetOPOutputsNodeSecondReq"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, partition_name ] }`).GetFunction())
 	require.Nil(t, err, "%+v", err)
+	require.Equal(t, true, found)
 	require.Equal(t, "part3", result)
 
 }
@@ -102,8 +107,9 @@ func testGetOperationOutputReal(t *testing.T, kv *api.KV) {
 	_, err = kv.Put(&api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances/PublisherFromDockerVolume/0/0/outputs/configure/post_configure_target/HOST_PATH"), Value: []byte("/mypath")}, nil)
 	require.Nil(t, err)
 
-	result, err := r.context(withNodeName("PublisherFromDockerVolume"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`).GetFunction())
+	result, found, err := r.context(withNodeName("PublisherFromDockerVolume"), withInstanceName("0"), withRequirementIndex("")).resolveFunction(generateToscaValueAssignmentFromString(t, `{ get_attribute: [ SELF, host_path ] }`).GetFunction())
 	require.Nil(t, err)
+	require.Equal(t, true, found)
 	require.Equal(t, "/mypath", result)
 
 }
@@ -124,28 +130,36 @@ func testResolveComplex(t *testing.T, kv *api.KV) {
 		functionAsString string
 	}
 	resolverTests := []struct {
-		name    string
-		context context
-		args    args
-		wantErr bool
-		want    string
+		name      string
+		context   context
+		args      args
+		wantErr   bool
+		wantFound bool
+		want      string
 	}{
-		{"ResolveGetPropertyListAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, list]}`}, false, `["http://","yorc",".io"]`},
-		{"ResolveGetPropertyListIndex0", context{"VANode1", "", ""}, args{`{get_property: [SELF, list, 0]}`}, false, `http://`},
-		{"ResolveGetPropertyListIndex0Alien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "list[0]"]}`}, false, `http://`},
-		{"ResolveGetPropertyMapAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, `{"one":"1","two":"2"}`},
-		{"ResolveGetPropertyMapSubKey", context{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, `1`},
-		{"ResolveGetPropertyMapSubKeyAlien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, `1`},
-		{"ResolveEmpty", context{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, ``},
+		{"ResolveGetPropertyListAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, list]}`}, false, true, `["http://","yorc",".io"]`},
+		{"ResolveGetPropertyListIndex0", context{"VANode1", "", ""}, args{`{get_property: [SELF, list, 0]}`}, false, true, `http://`},
+		{"ResolveGetPropertyListIndex0Alien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "list[0]"]}`}, false, true, `http://`},
+		{"ResolveGetPropertyMapAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, true, `{"one":"1","two":"2"}`},
+		{"ResolveGetPropertyMapSubKey", context{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, true, `1`},
+		{"ResolveGetPropertyMapSubKeyAlien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, true, `1`},
+		{"ResolveEmpty", context{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, true, ``},
+		{"ResolveGetAttributeWithAbsent", context{"VANode1", "0", ""}, args{`{get_attribute: [SELF, absentAttr]}`}, false, false, ``},
+		{"ResolveGetRequirementAttributeWithAbsent", context{"VANode1", "0", "0"}, args{`{get_attribute: [SELF, host, absentAttr]}`}, false, false, ``},
+		{"ResolveGetPropertyWithAbsent", context{"VANode1", "", ""}, args{`{get_property: [SELF, absentAttr]}`}, true, false, ``},
+		{"ResolveGetRequirementPropertyWithAbsent", context{"VANode1", "", "0"}, args{`{get_property: [SELF, host, absentAttr]}`}, true, false, ``},
 	}
 	for _, tt := range resolverTests {
 		t.Run(tt.name, func(t *testing.T) {
 			va := generateToscaValueAssignmentFromString(t, tt.args.functionAsString)
 			require.Equal(t, tosca.ValueAssignmentFunction, va.Type)
-			got, err := r.context(withNodeName(tt.context.nodeName), withInstanceName(tt.context.instanceName), withRequirementIndex(tt.context.requirementIndex)).resolveFunction(va.GetFunction())
+			got, found, err := r.context(withNodeName(tt.context.nodeName), withInstanceName(tt.context.instanceName), withRequirementIndex(tt.context.requirementIndex)).resolveFunction(va.GetFunction())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("resolveFunction() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if found != tt.wantFound {
+				t.Errorf("resolveFunction() found = %t, wantFound %t", found, tt.wantFound)
 			}
 
 			if err == nil && got != tt.want {
