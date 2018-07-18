@@ -19,7 +19,6 @@ import (
 	"context"
 	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"testing"
@@ -60,14 +59,9 @@ func TestTemplates(t *testing.T) {
 		executionCommon: ec,
 	}
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
-
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(ec, ""))
 	tmpl, err := tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(os.Stdout, e)
@@ -302,14 +296,10 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 
 `
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
@@ -447,14 +437,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 
 `
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
@@ -588,14 +574,10 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 
 `
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)

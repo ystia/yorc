@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 
 	"gopkg.in/yaml.v2"
 
@@ -62,6 +63,12 @@ const ansibleFactCaching = `
 gathering = smart
 fact_caching = jsonfile
 fact_caching_connection = #FACTS_CACHE_PATH#/facts_cache
+`
+
+const vaultPassScript = `#!/usr/bin/env python
+
+import os
+print os.environ['VAULT_PASSWORD']
 `
 
 type ansibleRetriableError struct {
@@ -147,6 +154,7 @@ type executionCommon struct {
 	sourceNodeInstances      []string
 	targetNodeInstances      []string
 	cli                      *client.Client
+	vaultToken               string
 }
 
 func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, cli *client.Client) (execution, error) {
@@ -165,6 +173,7 @@ func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, tas
 		taskID:                  taskID,
 		Outputs:                 make(map[string]string),
 		cli:                     cli,
+		vaultToken:              uuid.NewV4().String(),
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -785,6 +794,13 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
+
+	if err = ioutil.WriteFile(filepath.Join(ansibleRecipePath, ".vault_pass"), []byte(vaultPassScript), 0764); err != nil {
+		err = errors.Wrap(err, "Failed to write .vault_pass file")
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
 	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
@@ -820,7 +836,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 			} else {
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput && (envInput.InstanceName == instanceName || e.isPerInstanceOperation && envInput.InstanceName == currentInstance) {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %q\n", varInput, envInput.Value))
+						v, err := e.encodeEnvInputValue(envInput, ansibleRecipePath)
+						if err != nil {
+							return err
+						}
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, v))
 						goto NEXT
 					}
 				}
@@ -837,7 +857,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 							instanceID := instanceName[instanceIDIdx:]
 							for _, envInput := range e.EnvInputs {
 								if envInput.Name == varInput && strings.HasSuffix(envInput.InstanceName, instanceID) {
-									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %q\n", varInput, envInput.Value))
+									v, err := e.encodeEnvInputValue(envInput, ansibleRecipePath)
+									if err != nil {
+										return err
+									}
+									perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, v))
 									goto NEXT
 								}
 							}
@@ -847,7 +871,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				// Not found with the combination inputName/instanceName let's use the first that matches the input name
 				for _, envInput := range e.EnvInputs {
 					if envInput.Name == varInput {
-						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %q\n", varInput, envInput.Value))
+						v, err := e.encodeEnvInputValue(envInput, ansibleRecipePath)
+						if err != nil {
+							return err
+						}
+						perInstanceInputsBuffer.WriteString(fmt.Sprintf("%s: %s\n", varInput, v))
 						goto NEXT
 					}
 				}
@@ -970,8 +998,8 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 }
 
 func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansibleRecipePath string, logFn logAnsibleOutputInConsulFn) error {
-	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml")
-
+	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
+	cmd.Env = append(os.Environ(), "VAULT_PASSWORD="+e.vaultToken)
 	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
@@ -1060,4 +1088,23 @@ func buildArchive(rootDir, artifactDir, tarPath string) error {
 			_, err = io.Copy(tarfileWriter, file)
 			return err
 		})
+}
+
+func (e *executionCommon) encodeEnvInputValue(env *operations.EnvInput, ansibleRecipePath string) (string, error) {
+	if !env.IsSecret {
+		return fmt.Sprintf("%q", env.Value), nil
+	}
+
+	cmd := executil.Command(e.ctx, "ansible-vault", "encrypt_string", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
+
+	cmd.Env = append(os.Environ(), "VAULT_PASSWORD="+e.vaultToken)
+	cmd.Stdin = strings.NewReader(env.Value)
+	outBuf := new(bytes.Buffer)
+	cmd.Stdout = outBuf
+	errBuf := new(bytes.Buffer)
+	cmd.Stderr = errBuf
+
+	err := cmd.Run()
+	return outBuf.String(), errors.Wrapf(err, "failed to encode ansible vault token, stderr: %q", errBuf.String())
+
 }

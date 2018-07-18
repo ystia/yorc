@@ -19,6 +19,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -32,13 +40,6 @@ import (
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"golang.org/x/sync/errgroup"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type execution interface {

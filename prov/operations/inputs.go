@@ -43,7 +43,7 @@ type EnvInput struct {
 func (ei EnvInput) String() string {
 	value := ei.Value
 	if ei.IsSecret {
-		value = "<retracted>"
+		value = "<secret value redacted>"
 	}
 	return fmt.Sprintf("EnvInput: [Name: %q, Value: %q, InstanceName: %q, IsSecret: %t]", ei.Name, value, ei.InstanceName, ei.IsSecret)
 }

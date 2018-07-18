@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/prov/operations"
 )
 
 const scriptCustomWrapper = `#!/usr/bin/env bash
@@ -139,8 +140,8 @@ const shellAnsiblePlaybook = `
     [[[printf "- shell: \"/bin/bash -l -c {{ ansible_env.HOME}}/%s/wrapper\"" $.OperationRemotePath]]]
       environment:
         [[[ range $key, $envInput := .EnvInputs -]]]
-        [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %q" $envInput.InstanceName $envInput.Name $envInput.Value]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
-        [[[end]]][[[else]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s: %q" $envInput.Name $envInput.Value]]][[[else]]]
+        [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %s" $envInput.InstanceName $envInput.Name (encEnvInput $envInput)]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
+        [[[end]]][[[else]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s: %s" $envInput.Name (encEnvInput $envInput)]]][[[else]]]
         [[[printf  "%s: \"\"" $envInput.Name]]]
         [[[end]]][[[end]]]
         [[[end]]][[[ range $artName, $art := .Artifacts -]]]
@@ -171,6 +172,22 @@ func cutAfterLastUnderscore(str string) string {
 	return str[:idx]
 }
 
+// getExecutionScriptTemplateFnMap defined here as it is also used by tests cases
+func getExecutionScriptTemplateFnMap(e *executionCommon, ansibleRecipePath string) template.FuncMap {
+	return template.FuncMap{
+		// The name "path" is what the function will be called in the template text.
+		"path":        filepath.Dir,
+		"abs":         filepath.Abs,
+		"cut":         cutAfterLastUnderscore,
+		"StringsJoin": strings.Join,
+		"qJoin":       quoteAndComaJoin,
+		"qJoinKeys":   quoteAndComaJoinMapKeys,
+		"encEnvInput": func(env *operations.EnvInput) (string, error) {
+			return e.encodeEnvInputValue(env, ansibleRecipePath)
+		},
+	}
+}
+
 func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
 	var err error
 	e.ScriptToRun, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
@@ -186,19 +203,10 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	e.WrapperLocation = filepath.Join(e.DestFolder, "wrapper")
 
 	var buffer bytes.Buffer
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path":        filepath.Dir,
-		"abs":         filepath.Abs,
-		"cut":         cutAfterLastUnderscore,
-		"StringsJoin": strings.Join,
-		"qJoin":       quoteAndComaJoin,
-		"qJoinKeys":   quoteAndComaJoinMapKeys,
-	}
 
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(e.executionCommon, ansibleRecipePath))
 	wrapTemplate := template.New("execTemplate")
 	wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
 	if e.isPython {
