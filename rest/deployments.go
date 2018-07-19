@@ -163,9 +163,9 @@ func (s *Server) newDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	data := map[string]string{
 		"workflowName": "install",
 	}
-	taskID, err := s.tasksCollector.RegisterTaskWithData(uid, tasks_old.TaskTypeDeploy, data)
+	taskID, err := s.tasksCollector.RegisterTaskWithData(uid, tasks.TaskTypeDeploy, data)
 	if err != nil {
-		if ok, _ := tasks_old.IsAnotherLivingTaskAlreadyExistsError(err); ok {
+		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}
@@ -191,15 +191,15 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var taskType tasks_old.TaskType
+	var taskType tasks.TaskType
 	if _, ok := r.URL.Query()["purge"]; ok {
 		log.Debugf("A purge task on deployment:%s has been requested", id)
-		taskType = tasks_old.TaskTypePurge
+		taskType = tasks.TaskTypePurge
 	} else {
-		taskType = tasks_old.TaskTypeUnDeploy
+		taskType = tasks.TaskTypeUnDeploy
 	}
 
-	if taskType == tasks_old.TaskTypeUnDeploy {
+	if taskType == tasks.TaskTypeUnDeploy {
 		status, err := deployments.GetDeploymentStatus(s.consulClient.KV(), id)
 		if err != nil {
 			log.Panicf("%v", err)
@@ -214,7 +214,7 @@ func (s *Server) deleteDeploymentHandler(w http.ResponseWriter, r *http.Request)
 	}
 	if taskID, err := s.tasksCollector.RegisterTaskWithData(id, taskType, data); err != nil {
 		log.Debugln("register task err" + err.Error())
-		if ok, _ := tasks_old.IsAnotherLivingTaskAlreadyExistsError(err); ok {
+		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			log.Debugln("another task is living")
 			writeError(w, r, newBadRequestError(err))
 			return
@@ -252,7 +252,7 @@ func (s *Server) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 		links = append(links, newAtomLink(LinkRelNode, path.Join(r.URL.Path, "nodes", node)))
 	}
 
-	tasksList, err := tasks_old.GetTasksIdsForTarget(kv, id)
+	tasksList, err := tasks.GetTasksIdsForTarget(kv, id)
 	if err != nil {
 		log.Panic(err)
 	}

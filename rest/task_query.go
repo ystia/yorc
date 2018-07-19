@@ -27,7 +27,7 @@ import (
 func (s *Server) taskQueryPreChecks(w http.ResponseWriter, r *http.Request, taskID string) bool {
 	kv := s.consulClient.KV()
 
-	tExists, err := tasks_old.TaskExists(kv, taskID)
+	tExists, err := tasks.TaskExists(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -50,24 +50,24 @@ func (s *Server) getTaskQueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task := Task{ID: taskID}
-	targetID, err := tasks_old.GetTaskTarget(kv, taskID)
+	targetID, err := tasks.GetTaskTarget(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	task.TargetID = targetID
-	status, err := tasks_old.GetTaskStatus(kv, taskID)
+	status, err := tasks.GetTaskStatus(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	task.Status = status.String()
 
-	taskType, err := tasks_old.GetTaskType(kv, taskID)
+	taskType, err := tasks.GetTaskType(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
 	task.Type = taskType.String()
 
-	resultSet, err := tasks_old.GetTaskResultSet(kv, taskID)
+	resultSet, err := tasks.GetTaskResultSet(kv, taskID)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -87,21 +87,21 @@ func (s *Server) deleteTaskQueryHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if taskType, err := tasks_old.GetTaskType(kv, taskID); err != nil {
+	if taskType, err := tasks.GetTaskType(kv, taskID); err != nil {
 		log.Panic(err)
-	} else if taskType != tasks_old.TaskTypeQuery {
+	} else if taskType != tasks.TaskTypeQuery {
 		writeError(w, r, newBadRequestError(errors.Errorf("Cannot delete a non query-typed task (task type is: %q)", taskType.String())))
 		return
 	}
 
-	if taskStatus, err := tasks_old.GetTaskStatus(kv, taskID); err != nil {
+	if taskStatus, err := tasks.GetTaskStatus(kv, taskID); err != nil {
 		log.Panic(err)
-	} else if taskStatus != tasks_old.TaskStatusDONE && taskStatus != tasks_old.TaskStatusFAILED {
+	} else if taskStatus != tasks.TaskStatusDONE && taskStatus != tasks.TaskStatusFAILED {
 		writeError(w, r, newBadRequestError(errors.Errorf("Cannot delete a task with status %q", taskStatus.String())))
 		return
 	}
 
-	if err := tasks_old.DeleteTask(kv, taskID); err != nil {
+	if err := tasks.DeleteTask(kv, taskID); err != nil {
 		log.Panic(err)
 	}
 	w.WriteHeader(http.StatusAccepted)
@@ -117,14 +117,14 @@ func (s *Server) listTaskQueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debugf("Retrieving query tasks with query:%q and target:%q", query, target)
 	kv := s.consulClient.KV()
-	ids, err := tasks_old.GetQueryTaskIDs(kv, tasks_old.TaskTypeQuery, query, target)
+	ids, err := tasks.GetQueryTaskIDs(kv, tasks.TaskTypeQuery, query, target)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	tasksCol := TasksCollection{Tasks: make([]AtomLink, len(ids))}
 	for ind, taskID := range ids {
-		targetID, err := tasks_old.GetTaskTarget(kv, taskID)
+		targetID, err := tasks.GetTaskTarget(kv, taskID)
 		if err != nil {
 			log.Panic(err)
 		}

@@ -72,7 +72,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 
-	instances, err := tasks_old.GetInstances(kv, taskID, deploymentID, nodeName)
+	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}

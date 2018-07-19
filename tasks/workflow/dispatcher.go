@@ -12,20 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tasks
+package workflow
 
 import (
+	"time"
+
+	"sync"
+
+	"math"
+
+	"path"
+
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
-		"math"
-	"path"
-	"sync"
-	"time"
-	)
+	"github.com/ystia/yorc/tasks"
+)
 
 // A Dispatcher is in charge to look for new task executions and dispatch them across available workers
 type Dispatcher struct {
@@ -55,13 +60,13 @@ func getNbAndMaxTasksWaitTimeMs(kv *api.KV) (float32, float64, error) {
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
-		status, err := GetTaskStatus(kv, taskID)
+		status, err := tasks.GetTaskStatus(kv, taskID)
 		if err != nil {
 			return nb, max, err
 		}
-		if status == TaskStatusINITIAL {
+		if status == tasks.TaskStatusINITIAL {
 			nb++
-			createDate, err := GetTaskCreationDate(kv, path.Base(taskKey))
+			createDate, err := tasks.GetTaskCreationDate(kv, path.Base(taskKey))
 			if err != nil {
 				return nb, max, err
 			}
@@ -163,7 +168,7 @@ func (d *Dispatcher) Run() {
 			}
 
 			// Check task status
-			status, err := GetTaskStatus(kv, taskID)
+			status, err := tasks.GetTaskStatus(kv, taskID)
 			if err != nil {
 				log.Print(err)
 				log.Debugf("%+v", err)
@@ -171,7 +176,7 @@ func (d *Dispatcher) Run() {
 				lock.Destroy()
 				continue
 			}
-			if status != TaskStatusINITIAL && status != TaskStatusRUNNING {
+			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
 				log.Debugf("Skipping task with status %q", status)
 				lock.Unlock()
 				lock.Destroy()
@@ -180,19 +185,19 @@ func (d *Dispatcher) Run() {
 
 			log.Debugf("Got processing lock for task %s", taskKey)
 
-			targetID, err := GetTaskTarget(kv, taskID)
+			targetID, err := tasks.GetTaskTarget(kv, taskID)
 			if err != nil {
 				log.Print(err)
 				log.Debugf("%+v", err)
 				continue
 			}
-			taskType, err := GetTaskType(kv, taskID)
+			taskType, err := tasks.GetTaskType(kv, taskID)
 			if err != nil {
 				log.Print(err)
 				log.Debugf("%+v", err)
 				continue
 			}
-			creationDate, err := GetTaskCreationDate(kv, taskID)
+			creationDate, err := tasks.GetTaskCreationDate(kv, taskID)
 			if err != nil {
 				log.Print(err)
 				log.Debugf("%+v", err)
@@ -201,18 +206,18 @@ func (d *Dispatcher) Run() {
 
 			// Retrieve workflow, step and task parentID information in case of workflow step task
 			var workflow, step, parentID string
-			if isWorkflowTask(taskType) {
-				workflow, err = GetTaskWorkflow(kv, taskID)
+			if tasks.IsWorkflowTask(taskType) {
+				workflow, err = tasks.GetTaskWorkflow(kv, taskID)
 				if err != nil {
 					log.Print(err)
 					log.Debugf("%+v", err)
 				}
-				step, err = GetTaskStep(kv, taskID)
+				step, err = tasks.GetTaskStep(kv, taskID)
 				if err != nil {
 					log.Print(err)
 					log.Debugf("%+v", err)
 				}
-				parentID, err = GetTaskParentID(kv, taskID)
+				parentID, err = tasks.GetTaskParentID(kv, taskID)
 				if err != nil {
 					log.Print(err)
 					log.Debugf("%+v", err)
@@ -227,7 +232,7 @@ func (d *Dispatcher) Run() {
 				taskLock:     lock,
 				kv:           kv,
 				creationDate: creationDate,
-				TaskType:     TaskType(taskType),
+				TaskType:     tasks.TaskType(taskType),
 				workflow:     workflow,
 				step:         step,
 				parentID:     parentID,

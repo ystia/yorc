@@ -269,12 +269,12 @@ func (e *executionCommon) resolveOperation() error {
 func (e *executionCommon) resolveInstances() error {
 	var err error
 	if e.operation.RelOp.IsRelationshipOperation {
-		e.targetNodeInstances, err = tasks_old.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
+		e.targetNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.operation.RelOp.TargetNodeName)
 		if err != nil {
 			return err
 		}
 	}
-	e.sourceNodeInstances, err = tasks_old.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+	e.sourceNodeInstances, err = tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 
 	return err
 }

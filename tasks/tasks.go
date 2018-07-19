@@ -32,85 +32,9 @@ import (
 	"github.com/ystia/yorc/log"
 )
 
-//go:generate go-enum -f=tasks.go
-
-type task struct {
-	ID           string
-	TargetID     string
-	status       TaskStatus
-	TaskType     TaskType
-	creationDate time.Time
-	taskLock     *api.Lock
-	kv           *api.KV
-	workflow     string
-	step         string
-	parentID     string
-}
-
-func (t *task) releaseLock() {
-	t.taskLock.Unlock()
-	t.taskLock.Destroy()
-}
-
-func (t *task) Status() TaskStatus {
-	return t.status
-}
-
-func (t *task) WithStatus(ctx context.Context, status TaskStatus) error {
-	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.ID, "status"), Value: []byte(strconv.Itoa(int(status)))}
-	_, err := t.kv.Put(p, nil)
-	t.status = status
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	_, err = EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.ID, t.TaskType, t.status.String())
-
-	return err
-}
-
-// TaskType x ENUM(
-// Deploy,
-// UnDeploy,
-// ScaleOut,
-// ScaleIn,
-// Purge,
-// CustomCommand,
-// CustomWorkflow,
-// Query,
-// )
-type TaskType int
-
-// TaskStatus x ENUM(
-// INITIAL,
-// RUNNING,
-// DONE,
-// FAILED,
-// CANCELED
-// )
-type TaskStatus int
-
-type anotherLivingTaskAlreadyExistsError struct {
-	taskID   string
-	targetID string
-	status   string
-}
-
-func (e anotherLivingTaskAlreadyExistsError) Error() string {
-	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskID, e.status, e.targetID)
-}
-
-func isWorkflowTask(taskType TaskType) bool {
+// IsWorkflowTask returns true if the task type is related to workflow
+func IsWorkflowTask(taskType TaskType) bool {
 	return taskType == TaskTypeDeploy || taskType == TaskTypeUnDeploy || taskType == TaskTypeScaleIn || taskType == TaskTypeScaleOut || taskType == TaskTypeCustomWorkflow
-}
-
-// IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
-// If true, it returns the taskID of the currently running task
-func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
-	e, ok := err.(anotherLivingTaskAlreadyExistsError)
-	if ok {
-		return ok, e.taskID
-	}
-	return ok, ""
 }
 
 type taskDataNotFound struct {

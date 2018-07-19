@@ -1,28 +1,13 @@
-// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package tasks
+package workflow
 
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/log"
-	"path"
-	"strconv"
 	"strings"
+	"strconv"
+	"path"
+	"github.com/ystia/yorc/log"
 )
-
 func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*step) (*step, error) {
 	if visitedMap == nil {
 		visitedMap = make(map[string]*step, 0)
@@ -128,9 +113,9 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*s
 
 }
 
-// Creates a workflow tree from values stored in Consul at the given prefix.
+// ReadWorkFlowFromConsul creates a workflow tree from values stored in Consul at the given prefix.
 // It returns roots (starting) Steps.
-func readWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*step, error) {
+func ReadWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*step, error) {
 	stepsPrefix := wfPrefix + "/steps/"
 	stepsPrefixes, _, err := kv.Keys(stepsPrefix, "/", nil)
 	if err != nil {

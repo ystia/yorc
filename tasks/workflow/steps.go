@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tasks
+package workflow
 
 import (
 	"context"
@@ -33,24 +33,8 @@ import (
 	"path"
 	"strings"
 	"time"
+	"github.com/ystia/yorc/tasks"
 )
-
-//go:generate go-enum -f=steps.go --lower
-
-// StepStatus x ENUM(
-// INITIAL,
-// RUNNING,
-// DONE,
-// ERROR,
-// CANCELED
-// )
-type StepStatus int
-
-// Step represents a step related to a workflow
-type Step struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-}
 
 type step struct {
 	Name               string
@@ -80,7 +64,7 @@ func (s *step) notifyNext() {
 	}
 }
 
-func (s *step) setStatus(status StepStatus) error {
+func (s *step) setStatus(status tasks.StepStatus) error {
 	statusStr := strings.ToLower(status.String())
 	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(statusStr)}
 	_, err := s.kv.Put(kvp, nil)
@@ -129,25 +113,25 @@ func (s *step) isRunnable() (bool, error) {
 	// Check if step is already done
 	status := string(kvp.Value)
 	if status != "" {
-		stepStatus, err := ParseStepStatus(status)
+		stepStatus, err := tasks.ParseStepStatus(status)
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 
-		if kvp != nil && stepStatus == StepStatusDONE {
+		if kvp != nil && stepStatus == tasks.StepStatusDONE {
 			return false, nil
 		}
 	}
 
-	if s.t.TaskType == TaskTypeScaleOut || s.t.TaskType == TaskTypeScaleIn {
+	if s.t.TaskType == tasks.TaskTypeScaleOut || s.t.TaskType == tasks.TaskTypeScaleIn {
 		// If not a relationship check the actual node
 		if s.TargetRelationship == "" {
-			return IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
+			return tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
 		}
 
 		if isSourceOperationOnTarget(s) {
 			// operation on target but Check if Source is implied on scale
-			return IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
+			return tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
 		}
 
 		if isTargetOperationOnSource(s) || strings.ToUpper(s.OperationHost) == "TARGET" {
@@ -160,11 +144,11 @@ func (s *step) isRunnable() (bool, error) {
 			if err != nil {
 				return false, err
 			}
-			return IsTaskRelatedNode(s.kv, s.t.ID, targetNodeName)
+			return tasks.IsTaskRelatedNode(s.kv, s.t.ID, targetNodeName)
 		}
 
 		// otherwise check the actual node is implied
-		return IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
+		return tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
 
 	}
 
@@ -175,7 +159,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
 	logOptFields, _ := events.FromContext(ctx)
-	s.setStatus(StepStatusINITIAL)
+	s.setStatus(tasks.StepStatusINITIAL)
 	haveErr := false
 	// First: we check if step is runnable
 	// TODO for now alien generates a 1 to 1 step/activity model but we should probably test if an activity is runnable
@@ -184,12 +168,12 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	} else if !runnable {
 		log.Debugf("Deployment %q: Skipping Step %q", deploymentID, s.Name)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping Step %q", s.Name))
-		s.setStatus(StepStatusDONE)
+		s.setStatus(tasks.StepStatusDONE)
 		s.notifyNext()
 		return nil
 	}
 
-	s.setStatus(StepStatusRUNNING)
+	s.setStatus(tasks.StepStatusRUNNING)
 
 	// Create a new context to handle gracefully current step termination when an error occurred during another step
 	wfCtx, cancelWf := context.WithCancel(events.NewContext(context.Background(), logOptFields))
@@ -198,14 +182,14 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	go func() {
 		select {
 		case <-ctx.Done():
-			if s.t.status != TaskStatusCANCELED {
+			if s.t.status != tasks.TaskStatusCANCELED {
 				// Temporize to allow current step termination before cancelling context and put step in error
 				log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
 				select {
 				case <-time.After(cfg.WfStepGracefulTerminationTimeout):
 					cancelWf()
 					log.Printf("Step %q not yet finished: we set it on error", s.Name)
-					s.setStatus(StepStatusERROR)
+					s.setStatus(tasks.StepStatusERROR)
 					return
 				case <-waitDoneCh:
 					return
@@ -213,7 +197,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 			} else {
 				// We immediately cancel the step
 				cancelWf()
-				s.setStatus(StepStatusCANCELED)
+				s.setStatus(tasks.StepStatusCANCELED)
 				return
 			}
 		case <-waitDoneCh:
@@ -238,7 +222,7 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 				setNodeStatus(wfCtx, kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("Step %q: error details: %+v", s.Name, err)
 				if !bypassErrors {
-					s.setStatus(StepStatusERROR)
+					s.setStatus(tasks.StepStatusERROR)
 					return err
 				}
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("Step %q: Bypassing error: %v", s.Name, err)
@@ -256,18 +240,18 @@ func (s *step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 
 	if haveErr {
 		log.Debug("Step %s generate an error but workflow continue", s.Name)
-		s.setStatus(StepStatusERROR)
+		s.setStatus(tasks.StepStatusERROR)
 		// Return nil otherwise the rest of the workflow will be canceled
 		return nil
 	}
 	log.Debugf("Step %s done without error.", s.Name)
-	s.setStatus(StepStatusDONE)
+	s.setStatus(tasks.StepStatusDONE)
 	return nil
 }
 
 func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, bypassErrors bool, w worker, activity Activity) error {
 	// Get activity related instances
-	instances, err := GetInstances(kv, s.t.ID, deploymentID, s.Target)
+	instances, err := tasks.GetInstances(kv, s.t.ID, deploymentID, s.Target)
 	if err != nil {
 		return err
 	}

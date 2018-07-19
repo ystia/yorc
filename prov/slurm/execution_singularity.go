@@ -37,7 +37,7 @@ func (e *executionSingularity) execute(ctx context.Context) (err error) {
 	// Only runnable operation is currently supported
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
-	wfName, _ := tasks_old.GetTaskData(e.kv, e.taskID, "workflowName")
+	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
 	logOptFields := events.LogOptionalFields{
 		events.WorkFlowID:    wfName,
 		events.NodeID:        e.NodeName,

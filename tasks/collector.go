@@ -1,29 +1,16 @@
-// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package tasks
 
 import (
+	"github.com/ystia/yorc/tasks/workflow"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"path"
 	"github.com/ystia/yorc/helper/consulutil"
-		"path"
-	"strconv"
-	"strings"
 	"time"
+	"github.com/hashicorp/consul/api"
+	"strconv"
+	"github.com/pkg/errors"
+	"strings"
 )
 
 // A Collector is responsible for registering new tasks
@@ -102,7 +89,7 @@ func (c *Collector) registerTask(targetID string, taskType TaskType, data map[st
 
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
-	if isWorkflowTask(taskType) {
+	if IsWorkflowTask(taskType) {
 		stepOps, err := c.getStepsOperations(taskID, targetID, taskPath, execPath, taskType, creationDate, data)
 		if err != nil {
 			return "", err
@@ -141,7 +128,7 @@ func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath 
 	wfPath := path.Join(consulutil.DeploymentKVPrefix, targetID, path.Join("workflows", wfName))
 
 	initSteps := make([]string, 0)
-	steps, err := readWorkFlowFromConsul(c.consulClient.KV(), wfPath)
+	steps, err := workflow.ReadWorkFlowFromConsul(c.consulClient.KV(), wfPath)
 	if err != nil {
 		return nil, err
 	}

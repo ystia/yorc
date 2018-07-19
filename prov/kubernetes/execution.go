@@ -76,7 +76,7 @@ type executionCommon struct {
 	cfg            config.Configuration
 	deploymentID   string
 	taskID         string
-	taskType       tasks_old.TaskType
+	taskType       tasks.TaskType
 	NodeName       string
 	Operation      prov.Operation
 	NodeType       string
@@ -88,7 +88,7 @@ type executionCommon struct {
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
-	taskType, err := tasks_old.GetTaskType(kv, taskID)
+	taskType, err := tasks.GetTaskType(kv, taskID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (e *executionCommon) resolveOperation() error {
 func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Clientset) (err error) {
 	// TODO is there any reason for recreating a new generator for each execution?
 	generator := newGenerator(e.kv, e.cfg)
-	instances, err := tasks_old.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
 	nbInstances := int32(len(instances))
 
 	// Supporting both fully qualified and short standard operation names, ie.
@@ -132,9 +132,9 @@ func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Cli
 		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
 		return nil
 	case "standard.start":
-		if e.taskType == tasks_old.TaskTypeScaleOut {
+		if e.taskType == tasks.TaskTypeScaleOut {
 			log.Println("Scale up node !")
-			err = e.scaleNode(ctx, clientset, tasks_old.TaskTypeScaleOut, nbInstances)
+			err = e.scaleNode(ctx, clientset, tasks.TaskTypeScaleOut, nbInstances)
 		} else {
 			log.Println("Deploy node !")
 			err = e.deployNode(ctx, clientset, generator, nbInstances)
@@ -144,9 +144,9 @@ func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Cli
 		}
 		return e.checkNode(ctx, clientset, generator)
 	case "standard.stop":
-		if e.taskType == tasks_old.TaskTypeScaleIn {
+		if e.taskType == tasks.TaskTypeScaleIn {
 			log.Println("Scale down node !")
-			return e.scaleNode(ctx, clientset, tasks_old.TaskTypeScaleIn, nbInstances)
+			return e.scaleNode(ctx, clientset, tasks.TaskTypeScaleIn, nbInstances)
 		}
 		return e.uninstallNode(ctx, clientset)
 	case "standard.delete":
@@ -417,7 +417,7 @@ func (e *executionCommon) checkRepository(ctx context.Context, clientset *kubern
 	return nil
 }
 
-func (e *executionCommon) scaleNode(ctx context.Context, clientset *kubernetes.Clientset, scaleType tasks_old.TaskType, nbInstances int32) error {
+func (e *executionCommon) scaleNode(ctx context.Context, clientset *kubernetes.Clientset, scaleType tasks.TaskType, nbInstances int32) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -426,9 +426,9 @@ func (e *executionCommon) scaleNode(ctx context.Context, clientset *kubernetes.C
 	deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
 
 	replica := *deployment.Spec.Replicas
-	if scaleType == tasks_old.TaskTypeScaleOut {
+	if scaleType == tasks.TaskTypeScaleOut {
 		replica = replica + nbInstances
-	} else if scaleType == tasks_old.TaskTypeScaleIn {
+	} else if scaleType == tasks.TaskTypeScaleIn {
 		replica = replica - nbInstances
 	}
 
