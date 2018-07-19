@@ -170,3 +170,10 @@ func referenceFromObjectReference(ref corev1.ObjectReference) reference {
 func referenceFromOwnerReference(namespace string, ref metav1.OwnerReference) reference {
 	return reference{ref.Kind, ref.UID, namespace, ref.Name}
 }
+
+/*
+ * Default k8s namespace policy for Yorc : one namespace for each deployment
+ */
+func defaultNamespace(deploymentID string) (string, error) {
+	return strings.ToLower(deploymentID), nil
+}

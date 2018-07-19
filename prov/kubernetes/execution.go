@@ -210,7 +210,7 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 	// Get it from matadata, or generate it using deploymentID
 	//namespace := deploymentRepr.ObjectMeta.Namespace
 	// (Synchronize with Alien)
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (e *executionCommon) manageServiceResource(ctx context.Context, clientset *
 	// Get it from matadata, or generate it using deploymentID
 	//namespace := deploymentRepr.ObjectMeta.Namespace
 	// (Synchronize with Alien)
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
 	if err != nil {
 		return err
@@ -364,7 +364,7 @@ func (e *executionCommon) parseEnvInputs() []apiv1.EnvVar {
 }
 
 func (e *executionCommon) checkRepository(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -418,7 +418,7 @@ func (e *executionCommon) checkRepository(ctx context.Context, clientset *kubern
 }
 
 func (e *executionCommon) scaleNode(ctx context.Context, clientset *kubernetes.Clientset, scaleType tasks.TaskType, nbInstances int32) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -442,7 +442,7 @@ func (e *executionCommon) scaleNode(ctx context.Context, clientset *kubernetes.C
 }
 
 func (e *executionCommon) deployNode(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, nbInstances int32) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -551,7 +551,7 @@ func (e *executionCommon) setUnDeployHook() error {
 }
 
 func (e *executionCommon) checkNode(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -604,7 +604,7 @@ func (e *executionCommon) checkNode(ctx context.Context, clientset *kubernetes.C
 }
 
 func (e *executionCommon) checkPod(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, podName string) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -679,7 +679,7 @@ func (e *executionCommon) checkPod(ctx context.Context, clientset *kubernetes.Cl
 }
 
 func (e *executionCommon) uninstallNode(ctx context.Context, clientset *kubernetes.Clientset) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -727,8 +727,4 @@ func (e *executionCommon) uninstallNode(ctx context.Context, clientset *kubernet
 
 	log.Printf("Namespace deleted !")
 	return nil
-}
-
-func getNamespace(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	return strings.ToLower(deploymentID), nil
 }
