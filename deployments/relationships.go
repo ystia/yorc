@@ -25,11 +25,11 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 )
 
-// GetRelationshipPropertyFromRequirement returns the value of a relationship's property identified by a requirement index on a node
-func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex, propertyName string, nestedKeys ...string) (bool, string, error) {
+// GetRelationshipPropertyValueFromRequirement returns the value of a relationship's property identified by a requirement index on a node
+func GetRelationshipPropertyValueFromRequirement(kv *api.KV, deploymentID, nodeName, requirementIndex, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
 	relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	var propDataType string
@@ -37,37 +37,33 @@ func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, 
 	if relationshipType != "" {
 		hasProp, err := TypeHasProperty(kv, deploymentID, relationshipType, propertyName, true)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 		if hasProp {
 			propDataType, err = GetTypePropertyDataType(kv, deploymentID, relationshipType, propertyName)
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 		}
 	}
 	reqPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex)
 
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, propDataType, nestedKeys...)
-	if err != nil {
-		return false, "", errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
-	}
-	if found {
-		return true, result, nil
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(reqPrefix, "properties", propertyName), nodeName, "", requirementIndex, propDataType, nestedKeys...)
+	if err != nil || result != nil {
+		return result, errors.Wrapf(err, "Failed to get property %q for requirement %q on node %q", propertyName, requirementIndex, nodeName)
 	}
 
 	// Look at the relationship type to find a default value
 	if relationshipType != "" {
-		found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, relationshipType, propertyName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, relationshipType, propertyName, nestedKeys...)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
-		if found {
+		if result != nil {
 			if !isFunction {
-				return true, result, nil
+				return result, nil
 			}
-			result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", requirementIndex, result, nestedKeys...)
-			return true, result, err
+			return resolveValueAssignment(kv, deploymentID, nodeName, "", requirementIndex, result, nestedKeys...)
 		}
 	}
 
@@ -75,81 +71,80 @@ func GetRelationshipPropertyFromRequirement(kv *api.KV, deploymentID, nodeName, 
 		// Check if the whole property is optional
 		isRequired, err := IsTypePropertyRequired(kv, deploymentID, relationshipType, propertyName)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 		if !isRequired {
 			// For backward compatibility
 			// TODO this doesn't look as a good idea to me
-			return true, "", nil
+			return &TOSCAValue{Value: ""}, nil
 		}
 
 		if len(nestedKeys) > 1 && propDataType != "" {
 			// Check if nested type is optional
 			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 			if !isRequired {
 				// For backward compatibility
 				// TODO this doesn't look as a good idea to me
-				return true, "", nil
+				return &TOSCAValue{Value: ""}, nil
 			}
 		}
 	}
-	return false, "", nil
+	return nil, nil
 }
 
-// GetRelationshipAttributeFromRequirement retrieves the value for a given attribute in a given node instance requirement
+// GetRelationshipAttributeValueFromRequirement retrieves the value for a given attribute in a given node instance requirement
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-func GetRelationshipAttributeFromRequirement(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, nestedKeys ...string) (bool, string, error) {
+func GetRelationshipAttributeValueFromRequirement(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 	relationshipType, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	var attrDataType string
 	if relationshipType != "" {
 		hasProp, err := TypeHasAttribute(kv, deploymentID, relationshipType, attributeName, true)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 		if hasProp {
 			attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, relationshipType, attributeName)
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 		}
 	}
 
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, requirementIndex, attrDataType, nestedKeys...)
-	if err != nil || found {
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, requirementIndex, attrDataType, nestedKeys...)
+	if err != nil || result != nil {
 		// If there is an error or attribute was found
-		return found, result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)
+		return result, errors.Wrapf(err, "Failed to get attribute %q for requirement index %q on node %q (instance %q)", attributeName, requirementIndex, nodeName, instanceName)
 	}
 	// Now look at relationship type for default
-	found, result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
+	result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, relationshipType, attributeName, nestedKeys...)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
-	if found {
+	if result != nil {
 		if !isFunction {
-			return true, result, nil
+			return result, nil
 		}
-		result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
-		return true, result, err
+		return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, result, nestedKeys...)
 	}
 
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-	return GetRelationshipPropertyFromRequirement(kv, deploymentID, nodeName, requirementIndex, attributeName, nestedKeys...)
+	return GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, attributeName, nestedKeys...)
 }
 
 // SetInstanceRelationshipAttribute sets a relationship attribute for a given node instance

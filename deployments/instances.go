@@ -25,13 +25,6 @@ import (
 	"github.com/ystia/yorc/tosca"
 )
 
-// SetInstanceStateString stores the state of a given node instance and publishes a status change event
-//
-// Deprecated: use SetInstanceStateStringWithContextualLogs instead
-func SetInstanceStateString(kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
-	return SetInstanceStateStringWithContextualLogs(nil, kv, deploymentID, nodeName, instanceName, state)
-}
-
 // SetInstanceStateStringWithContextualLogs stores the state of a given node instance and publishes a status change event
 // context is used to carry contextual information for logging (see events package)
 func SetInstanceStateStringWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, state string) error {
@@ -41,13 +34,6 @@ func SetInstanceStateStringWithContextualLogs(ctx context.Context, kv *api.KV, d
 	}
 	_, err = events.PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instanceName, state)
 	return err
-}
-
-// SetInstanceState stores the state of a given node instance and publishes a status change event
-//
-// Deprecated: use SetInstanceStateWithContextualLogs instead
-func SetInstanceState(kv *api.KV, deploymentID, nodeName, instanceName string, state tosca.NodeState) error {
-	return SetInstanceStateStringWithContextualLogs(nil, kv, deploymentID, nodeName, instanceName, state.String())
 }
 
 // SetInstanceStateWithContextualLogs stores the state of a given node instance and publishes a status change event
@@ -78,17 +64,17 @@ func DeleteInstance(kv *api.KV, deploymentID, nodeName, instanceName string) err
 	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
 
-// GetInstanceAttribute retrieves the given attribute for a node instance
+// GetInstanceAttributeValue retrieves the given attribute for a node instance
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If the attribute is still not found then it will explore the HostedOn hierarchy.
 // If still not found then it will check node properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (bool, string, error) {
+func GetInstanceAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
 	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if isSubstitutionMappingAttribute(attributeName) {
 
@@ -102,31 +88,27 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 		// - in the case of a substitutable node, the attribute is available in
 		//   the node attributes (managed in a later block in this function)
 		if !substitutionInstance {
-			found, result, err := getSubstitutionMappingAttribute(kv, deploymentID, nodeName, instanceName, attributeName, nestedKeys...)
-			if err != nil {
-				return false, "", err
-			}
-
-			if found {
-				return true, result, nil
+			result, err := getSubstitutionMappingAttribute(kv, deploymentID, nodeName, instanceName, attributeName, nestedKeys...)
+			if err != nil || result != nil {
+				return result, err
 			}
 		}
 	}
 
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	var attrDataType string
 	hasAttr, err := TypeHasAttribute(kv, deploymentID, nodeType, attributeName, true)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if hasAttr {
 		attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, nodeType, attributeName)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 	}
 
@@ -136,41 +118,34 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 	if substitutionInstance {
 		found, result := getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attributeName)
 		if found {
-			return true, result, nil
+			return &TOSCAValue{Value: result}, nil
 		}
 	} else {
-		found, result, err := getValueAssignmentWithDataType(kv, deploymentID,
+		result, err := getValueAssignmentWithDataType(kv, deploymentID,
 			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName),
 			nodeName, instanceName, "", attrDataType, nestedKeys...)
-		if err != nil {
-			return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)",
+		if err != nil || result != nil {
+			return result, errors.Wrapf(err, "Failed to get attribute %q for node %q (instance %q)",
 				attributeName, nodeName, instanceName)
-		}
-		if found {
-			return true, result, nil
 		}
 	}
 
 	// Then look at global node level (not instance-scoped)
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
-	if err != nil {
-		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
-	}
-	if found {
-		return true, result, nil
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName), nodeName, instanceName, "", attrDataType, nestedKeys...)
+	if err != nil || result != nil {
+		return result, errors.Wrapf(err, "Failed to get attribute %q for node: %q, instance:%q", attributeName, nodeName, instanceName)
 	}
 
 	// Not found look at node type
-	found, defaultValue, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, nodeType, attributeName, nestedKeys...)
+	defaultValue, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, nodeType, attributeName, nestedKeys...)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
-	if found {
+	if defaultValue != nil {
 		if !isFunction {
-			return true, defaultValue, nil
+			return defaultValue, nil
 		}
-		defaultValue, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, "", defaultValue, nestedKeys...)
-		return true, defaultValue, err
+		return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, "", defaultValue, nestedKeys...)
 	}
 
 	// No default found in type hierarchy
@@ -178,17 +153,17 @@ func GetInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attr
 	var host string
 	host, err = GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if host != "" {
-		found, hostValue, err := GetInstanceAttribute(kv, deploymentID, host, instanceName, attributeName, nestedKeys...)
-		if found || err != nil {
-			return found, hostValue, err
+		hostValue, err := GetInstanceAttributeValue(kv, deploymentID, host, instanceName, attributeName, nestedKeys...)
+		if hostValue != nil || err != nil {
+			return hostValue, err
 		}
 	}
 
 	// Now check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-	return GetNodeProperty(kv, deploymentID, nodeName, attributeName, nestedKeys...)
+	return GetNodePropertyValue(kv, deploymentID, nodeName, attributeName, nestedKeys...)
 }
 
 // SetInstanceAttribute sets an instance attribute

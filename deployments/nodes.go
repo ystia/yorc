@@ -285,92 +285,87 @@ func GetNodesHostedOn(kv *api.KV, deploymentID, hostNode string) ([]string, erro
 	return stackNodes, nil
 }
 
-// GetNodeProperty retrieves the value for a given property in a given node
+// GetNodePropertyValue retrieves the value for a given property in a given node
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
-// If the property is still not found then it will explore the HostedOn hierarchy.
-func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, nestedKeys ...string) (bool, string, error) {
+// If the property is still not found then it will explore the HostedOn hierarchy
+func GetNodePropertyValue(kv *api.KV, deploymentID, nodeName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	var propDataType string
 	hasProp, err := TypeHasProperty(kv, deploymentID, nodeType, propertyName, true)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if hasProp {
 		propDataType, err = GetTypePropertyDataType(kv, deploymentID, nodeType, propertyName)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 	}
 	nodePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", propDataType, nestedKeys...)
-	if err != nil {
-		return false, "", errors.Wrapf(err, "Failed to get property %q for node %q", propertyName, nodeName)
-	}
-	if found {
-		return true, result, nil
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(nodePath, "properties", propertyName), nodeName, "", "", propDataType, nestedKeys...)
+	if err != nil || result != nil {
+		return result, errors.Wrapf(err, "Failed to get property %q for node %q", propertyName, nodeName)
 	}
 	// Not found look at node type
-
-	ok, value, isFunction, err := getTypeDefaultProperty(kv, deploymentID, nodeType, propertyName, nestedKeys...)
+	value, isFunction, err := getTypeDefaultProperty(kv, deploymentID, nodeType, propertyName, nestedKeys...)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
-	if ok {
+	if value != nil {
 		if !isFunction {
-			return true, value, nil
+			return value, nil
 		}
-		value, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", "", value, nestedKeys...)
-		return true, value, err
+		return resolveValueAssignment(kv, deploymentID, nodeName, "", "", value, nestedKeys...)
 	}
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
 	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if host != "" {
-		found, result, err = GetNodeProperty(kv, deploymentID, host, propertyName, nestedKeys...)
-		if err != nil || found {
-			return found, result, err
+		value, err := GetNodePropertyValue(kv, deploymentID, host, propertyName, nestedKeys...)
+		if err != nil || value != nil {
+			return value, err
 		}
 	}
 	if hasProp {
 		// Check if the whole property is optional
 		isRequired, err := IsTypePropertyRequired(kv, deploymentID, nodeType, propertyName)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 		if !isRequired {
 			// For backward compatibility
 			// TODO this doesn't look as a good idea to me
-			return true, "", nil
+			return &TOSCAValue{Value: ""}, nil
 		}
 
 		if len(nestedKeys) > 1 && propDataType != "" {
 			// Check if nested type is optional
 			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 			if !isRequired {
 				// For backward compatibility
 				// TODO this doesn't look as a good idea to me
-				return true, "", nil
+				return &TOSCAValue{Value: ""}, nil
 			}
 		}
 	}
 	// Not found anywhere
-	return false, "", nil
+	return nil, nil
 }
 
 // SetNodeProperty sets a node property
@@ -501,13 +496,6 @@ func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string,
 		attributes[instance] = result
 	}
 	return true, attributes, nil
-}
-
-// SetNodeInstanceAttribute sets an attribute value to a node instance
-//
-// Deprecated: Use SetInstanceAttribute
-func SetNodeInstanceAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName, attributeValue string) error {
-	return SetInstanceAttribute(deploymentID, nodeName, instanceName, attributeName, attributeValue)
 }
 
 // GetNodes returns the names of the different nodes for a given deployment.

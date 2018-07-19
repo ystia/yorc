@@ -14,6 +14,8 @@
 
 package deployments
 
+import "encoding/json"
+
 //go:generate go-enum --noprefix -f=structs.go
 
 // DeploymentStatus x ENUM(
@@ -27,3 +29,36 @@ package deployments
 // SCALING_IN_PROGRESS
 // )
 type DeploymentStatus int
+
+// A TOSCAValue is the result of a resolved property or attribute
+type TOSCAValue struct {
+	Value    interface{}
+	IsSecret bool
+}
+
+// String allows to not print secrets in case of involontary usage.
+//
+// If you want to allways have the actual string representation of the value
+// then use RawString instead.
+func (v *TOSCAValue) String() string {
+	if v.IsSecret {
+		return "<secret value redacted>"
+	}
+	return v.RawString()
+}
+
+// RawString returns the native format of the value.
+// If value is a literal then it will be a string.
+// If value is a complex value it will be its JSON representation.
+func (v *TOSCAValue) RawString() string {
+	switch t := v.Value.(type) {
+	case string:
+		return t
+	default:
+		b, err := json.Marshal(t)
+		if err != nil {
+			return err.Error()
+		}
+		return string(b)
+	}
+}

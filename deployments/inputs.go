@@ -29,11 +29,14 @@ import (
 func GetInputValue(kv *api.KV, deploymentID, inputName string, nestedKeys ...string) (string, error) {
 	dataType, err := GetTopologyInputType(kv, deploymentID, inputName)
 
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "value"), "", "", "", dataType, nestedKeys...)
-	if err != nil || found {
-		return result, errors.Wrapf(err, "Failed to get input %q value", inputName)
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "value"), "", "", "", dataType, nestedKeys...)
+	if err != nil || result != nil {
+		return result.RawString(), errors.Wrapf(err, "Failed to get input %q value", inputName)
 	}
-	_, result, err = getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "default"), "", "", "", dataType, nestedKeys...)
+	result, err = getValueAssignmentWithDataType(kv, deploymentID, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/inputs", inputName, "default"), "", "", "", dataType, nestedKeys...)
+	if result == nil {
+		return "", errors.Wrapf(err, "Failed to get input %q value", inputName)
+	}
 
-	return result, errors.Wrapf(err, "Failed to get input %q value", inputName)
+	return result.RawString(), errors.Wrapf(err, "Failed to get input %q value", inputName)
 }
