@@ -43,14 +43,14 @@ func (ei EnvInput) String() string {
 
 // ResolveInputs allows to resolve inputs for an operation
 func ResolveInputs(kv *api.KV, deploymentID, nodeName, taskID string, operation prov.Operation) ([]*EnvInput, []string, error) {
-	sourceInstances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
+	sourceInstances, err := tasks_old.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var targetInstances []string
 	if operation.RelOp.IsRelationshipOperation {
-		targetInstances, err = tasks.GetInstances(kv, taskID, deploymentID, operation.RelOp.TargetNodeName)
+		targetInstances, err = tasks_old.GetInstances(kv, taskID, deploymentID, operation.RelOp.TargetNodeName)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -79,9 +79,9 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 		}
 
 		if isPropDef {
-			inputValue, err := tasks.GetTaskInput(kv, taskID, input)
+			inputValue, err := tasks_old.GetTaskInput(kv, taskID, input)
 			if err != nil {
-				if !tasks.IsTaskDataNotFoundError(err) {
+				if !tasks_old.IsTaskDataNotFoundError(err) {
 					return nil, nil, err
 				}
 				defaultInputValues, err := deployments.GetOperationInputPropertyDefinitionDefault(kv, deploymentID, nodeName, operation, input)

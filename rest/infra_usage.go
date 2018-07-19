@@ -41,10 +41,10 @@ func (s *Server) postInfraUsageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Build a task targetID to describe query
 	targetID := fmt.Sprintf("infra_usage:%s", infraName)
-	taskID, err := s.tasksCollector.RegisterTask(targetID, tasks.TaskTypeQuery)
+	taskID, err := s.tasksCollector.RegisterTask(targetID, tasks_old.TaskTypeQuery)
 	if err != nil {
 		// If any identical query is running : we provide the related task ID
-		if ok, currTaskID := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
+		if ok, currTaskID := tasks_old.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			w.Header().Set("Location", fmt.Sprintf("/infra_usage/%s/tasks/%s", infraName, currTaskID))
 			w.WriteHeader(http.StatusAccepted)
 			return

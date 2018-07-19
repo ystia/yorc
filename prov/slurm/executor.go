@@ -89,7 +89,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	logOptFields[events.InterfaceName] = "delegate"
 	ctx = events.NewContext(ctx, logOptFields)
 
-	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
+	instances, err := tasks_old.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}

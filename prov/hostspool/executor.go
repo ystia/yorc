@@ -55,7 +55,7 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	logOptFields[events.InterfaceName] = "delegate"
 	ctx = events.NewContext(ctx, logOptFields)
 
-	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
+	instances, err := tasks_old.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		}
 	}
 
-	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
+	instances, err := tasks_old.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func createFiltersFromComputeCapabilities(kv *api.KV, deploymentID, nodeName str
 
 func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 	hpManager := NewManager(cc)
-	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
+	instances, err := tasks_old.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}

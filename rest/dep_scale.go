@@ -87,7 +87,7 @@ func (s *Server) scaleHandler(w http.ResponseWriter, r *http.Request) {
 		taskID, err = s.scaleIn(id, nodeName, uint32(-instancesDelta))
 	}
 	if err != nil {
-		if ok, _ := tasks.IsAnotherLivingTaskAlreadyExistsError(err); ok {
+		if ok, _ := tasks_old.IsAnotherLivingTaskAlreadyExistsError(err); ok {
 			writeError(w, r, newBadRequestError(err))
 			return
 		}
@@ -129,7 +129,7 @@ func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, e
 	for scalableNode, nodeInstances := range instancesByNodes {
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
-	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleOut, data)
+	return s.tasksCollector.RegisterTaskWithData(id, tasks_old.TaskTypeScaleOut, data)
 }
 
 func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, error) {
@@ -162,6 +162,6 @@ func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, er
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
 
-	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleIn, data)
+	return s.tasksCollector.RegisterTaskWithData(id, tasks_old.TaskTypeScaleIn, data)
 
 }

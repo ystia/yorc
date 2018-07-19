@@ -80,7 +80,7 @@ type Server struct {
 	router         *router
 	listener       net.Listener
 	consulClient   *api.Client
-	tasksCollector *tasks.Collector
+	tasksCollector *tasks_old.Collector
 	config         config.Configuration
 	hostsPoolMgr   hostspool.Manager
 }
@@ -118,7 +118,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		router:         newRouter(),
 		listener:       listener,
 		consulClient:   client,
-		tasksCollector: tasks.NewCollector(client),
+		tasksCollector: tasks_old.NewCollector(client),
 		config:         configuration,
 		hostsPoolMgr:   hostspool.NewManager(client),
 	}

@@ -32,6 +32,87 @@ import (
 	"github.com/ystia/yorc/log"
 )
 
+//go:generate go-enum -f=tasks.go
+
+type task struct {
+	ID           string
+	TargetID     string
+	status       TaskStatus
+	TaskType     TaskType
+	creationDate time.Time
+	taskLock     *api.Lock
+	kv           *api.KV
+	workflow     string
+	step         string
+	parentID     string
+}
+
+func (t *task) releaseLock() {
+	t.taskLock.Unlock()
+	t.taskLock.Destroy()
+}
+
+func (t *task) Status() TaskStatus {
+	return t.status
+}
+
+func (t *task) WithStatus(ctx context.Context, status TaskStatus) error {
+	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.ID, "status"), Value: []byte(strconv.Itoa(int(status)))}
+	_, err := t.kv.Put(p, nil)
+	t.status = status
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	_, err = EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.ID, t.TaskType, t.status.String())
+
+	return err
+}
+
+// TaskType x ENUM(
+// Deploy,
+// UnDeploy,
+// ScaleOut,
+// ScaleIn,
+// Purge,
+// CustomCommand,
+// CustomWorkflow,
+// Query,
+// )
+type TaskType int
+
+// TaskStatus x ENUM(
+// INITIAL,
+// RUNNING,
+// DONE,
+// FAILED,
+// CANCELED
+// )
+type TaskStatus int
+
+type anotherLivingTaskAlreadyExistsError struct {
+	taskID   string
+	targetID string
+	status   string
+}
+
+func (e anotherLivingTaskAlreadyExistsError) Error() string {
+	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskID, e.status, e.targetID)
+}
+
+func isWorkflowTask(taskType TaskType) bool {
+	return taskType == TaskTypeDeploy || taskType == TaskTypeUnDeploy || taskType == TaskTypeScaleIn || taskType == TaskTypeScaleOut || taskType == TaskTypeCustomWorkflow
+}
+
+// IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
+// If true, it returns the taskID of the currently running task
+func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
+	e, ok := err.(anotherLivingTaskAlreadyExistsError)
+	if ok {
+		return ok, e.taskID
+	}
+	return ok, ""
+}
+
 type taskDataNotFound struct {
 	name   string
 	taskID string
@@ -127,6 +208,42 @@ func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
 		return "", errors.Errorf("Missing targetId for task with id %q", taskID)
+	}
+	return string(kvp.Value), nil
+}
+
+// GetTaskWorkflow retrieves the workflow name of a task in case of a task step
+func GetTaskWorkflow(kv *api.KV, taskID string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "workflow"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Errorf("Missing workflow for task with id %q", taskID)
+	}
+	return string(kvp.Value), nil
+}
+
+// GetTaskParentID retrieves the parent taskID of a task in case of a task step
+func GetTaskParentID(kv *api.KV, taskID string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "parentID"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Errorf("Missing parentID for task with id %q", taskID)
+	}
+	return string(kvp.Value), nil
+}
+
+// GetTaskStep retrieves the step name of a task in case of a task step
+func GetTaskStep(kv *api.KV, taskID string) (string, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "step"), nil)
+	if err != nil {
+		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return "", errors.Errorf("Missing step for task with id %q", taskID)
 	}
 	return string(kvp.Value), nil
 }
@@ -295,8 +412,8 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 }
 
 // GetTaskRelatedSteps returns the steps of the related workflow
-func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
-	steps := make([]TaskStep, 0)
+func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]Step, error) {
+	steps := make([]Step, 0)
 
 	kvps, _, err := kv.List(path.Join(consulutil.WorkflowsPrefix, taskID), nil)
 	if err != nil {
@@ -304,13 +421,13 @@ func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 	}
 
 	for _, kvp := range kvps {
-		steps = append(steps, TaskStep{Name: path.Base(kvp.Key), Status: string(kvp.Value)})
+		steps = append(steps, Step{Name: path.Base(kvp.Key), Status: string(kvp.Value)})
 	}
 	return steps, nil
 }
 
 // TaskStepExists checks if a task step exists with a stepID and related to a given taskID and returns it
-func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) {
+func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *Step, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepID), nil)
 	if err != nil {
 		return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -318,11 +435,11 @@ func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) 
 	if kvp == nil || len(kvp.Value) == 0 {
 		return false, nil, nil
 	}
-	return true, &TaskStep{Name: stepID, Status: string(kvp.Value)}, nil
+	return true, &Step{Name: stepID, Status: string(kvp.Value)}, nil
 }
 
 // UpdateTaskStepStatus allows to update the task step status
-func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
+func UpdateTaskStepStatus(kv *api.KV, taskID string, step *Step) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(step.Status)}
 	_, err := kv.Put(kvp, nil)
 	if err != nil {
@@ -337,16 +454,16 @@ func CheckTaskStepStatusChange(before, after string) (bool, error) {
 	if before == after {
 		return false, errors.New("Final and initial status are identical: nothing to do")
 	}
-	stBefore, err := ParseTaskStepStatus(before)
+	stBefore, err := ParseStepStatus(before)
 	if err != nil {
 		return false, err
 	}
-	stAfter, err := ParseTaskStepStatus(after)
+	stAfter, err := ParseStepStatus(after)
 	if err != nil {
 		return false, err
 	}
 
-	if stBefore != TaskStepStatusERROR || stAfter != TaskStepStatusDONE {
+	if stBefore != StepStatusERROR || stAfter != StepStatusDONE {
 		return false, nil
 	}
 	return true, nil

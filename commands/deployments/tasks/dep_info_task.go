@@ -104,7 +104,7 @@ func displayStepTables(client *httputil.YorcClient, args []string) {
 	}
 	defer response.Body.Close()
 	httputil.HandleHTTPStatusCode(response, args[0], "step", http.StatusOK)
-	var steps []tasks.TaskStep
+	var steps []tasks_old.TaskStep
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		httputil.ErrExit(err)

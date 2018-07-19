@@ -12,28 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workflow
+package tasks
 
 import (
-	"strconv"
-	"time"
-
-	"sync"
-
-	"math"
-
-	"path"
-
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
-)
+		"math"
+	"path"
+	"sync"
+	"time"
+	)
 
-// A Dispatcher is in charge to look for new tasks and dispatch them across available workers
+// A Dispatcher is in charge to look for new task executions and dispatch them across available workers
 type Dispatcher struct {
 	client     *api.Client
 	shutdownCh chan struct{}
@@ -61,13 +55,13 @@ func getNbAndMaxTasksWaitTimeMs(kv *api.KV) (float32, float64, error) {
 	}
 	for _, taskKey := range tasksKeys {
 		taskID := path.Base(taskKey)
-		status, err := tasks.GetTaskStatus(kv, taskID)
+		status, err := GetTaskStatus(kv, taskID)
 		if err != nil {
 			return nb, max, err
 		}
-		if status == tasks.TaskStatusINITIAL {
+		if status == TaskStatusINITIAL {
 			nb++
-			createDate, err := tasks.GetTaskCreationDate(kv, path.Base(taskKey))
+			createDate, err := GetTaskCreationDate(kv, path.Base(taskKey))
 			if err != nil {
 				return nb, max, err
 			}
@@ -106,11 +100,11 @@ func (d *Dispatcher) emitTasksMetrics() {
 	}()
 }
 
-// Run creates workers and waits for new tasks
+// Run creates workers and polls new tasks
 func (d *Dispatcher) Run() {
 
 	for i := 0; i < d.maxWorkers; i++ {
-		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg, d.wg)
+		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
 		worker.Start()
 	}
 	log.Printf("%d worker started", d.maxWorkers)
@@ -129,10 +123,10 @@ func (d *Dispatcher) Run() {
 		default:
 		}
 		q := &api.QueryOptions{WaitIndex: waitIndex}
-		log.Debugf("Long polling task list")
-		tasksKeys, rMeta, err := kv.Keys(consulutil.TasksPrefix+"/", "/", q)
+		log.Debugf("Long polling task executions")
+		tasksKeys, rMeta, err := kv.Keys(path.Join(consulutil.TasksPrefix, "executions", "/"), "/", q)
 		if err != nil {
-			err = errors.Wrap(err, "Error getting tasks list")
+			err = errors.Wrap(err, "Error getting task executions")
 			log.Print(err)
 			log.Debugf("%+v", err)
 			continue
@@ -146,30 +140,7 @@ func (d *Dispatcher) Run() {
 		log.Debugf("Got response new wait index is %d", waitIndex)
 		for _, taskKey := range tasksKeys {
 			taskID := path.Base(taskKey)
-			log.Debugf("Check if createLock exists for task %s", taskKey)
-			for {
-				if createLock, _, _ := kv.Get(taskKey+".createLock", nil); createLock != nil {
-					// Locked in creation let's it finish
-					log.Debugf("CreateLock exists for task %s wait for few ms", taskKey)
-					time.Sleep(100 * time.Millisecond)
-				} else {
-					break
-				}
-			}
-			status, err := tasks.GetTaskStatus(kv, taskID)
-
-			if err != nil {
-				log.Print(err)
-				log.Debugf("%+v", err)
-				continue
-			}
-
-			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
-				log.Debugf("Skipping task with status %q", status)
-				continue
-			}
-
-			log.Debugf("Try to acquire processing lock for task %s", taskKey)
+			log.Debugf("Try to acquire processing lock for task execution %s", taskKey)
 			opts := &api.LockOptions{
 				Key:          taskKey + ".processingLock",
 				Value:        []byte(nodeName),
@@ -191,8 +162,8 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			status, err = tasks.GetTaskStatus(kv, taskID)
-
+			// Check task status
+			status, err := GetTaskStatus(kv, taskID)
 			if err != nil {
 				log.Print(err)
 				log.Debugf("%+v", err)
@@ -200,8 +171,7 @@ func (d *Dispatcher) Run() {
 				lock.Destroy()
 				continue
 			}
-
-			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
+			if status != TaskStatusINITIAL && status != TaskStatusRUNNING {
 				log.Debugf("Skipping task with status %q", status)
 				lock.Unlock()
 				lock.Destroy()
@@ -209,46 +179,44 @@ func (d *Dispatcher) Run() {
 			}
 
 			log.Debugf("Got processing lock for task %s", taskKey)
-			// Got lock
-			kvPairContent, _, err := kv.Get(taskKey+"targetId", nil)
-			if err != nil {
-				log.Printf("Failed to get targetId for key %s: %+v", taskKey, err)
-				continue
-			}
-			if kvPairContent == nil {
-				log.Printf("Failed to get targetId for key %s: nil value", taskKey)
-				continue
-			}
-			targetID := string(kvPairContent.Value)
 
-			kvPairContent, _, err = kv.Get(taskKey+"type", nil)
+			targetID, err := GetTaskTarget(kv, taskID)
 			if err != nil {
-				log.Printf("Failed to get task type for key %s: %+v", taskKey, err)
+				log.Print(err)
+				log.Debugf("%+v", err)
 				continue
 			}
-			if kvPairContent == nil {
-				log.Printf("Failed to get task type for key %s: nil value", taskKey)
-				continue
-			}
-			taskType, err := strconv.Atoi(string(kvPairContent.Value))
+			taskType, err := GetTaskType(kv, taskID)
 			if err != nil {
-				log.Printf("Failed to get task type for key %s: %+v", taskKey, err)
+				log.Print(err)
+				log.Debugf("%+v", err)
 				continue
 			}
-			kvPairContent, _, err = kv.Get(taskKey+"creationDate", nil)
+			creationDate, err := GetTaskCreationDate(kv, taskID)
 			if err != nil {
-				log.Printf("Failed to get task creationDate for key %s: %+v", taskKey, err)
+				log.Print(err)
+				log.Debugf("%+v", err)
 				continue
 			}
-			if kvPairContent == nil {
-				log.Printf("Failed to get task creationDate for key %s: nil value", taskKey)
-				continue
-			}
-			creationDate := time.Time{}
-			err = creationDate.UnmarshalBinary(kvPairContent.Value)
-			if err != nil {
-				log.Printf("Failed to get task creationDate for key %s: %+v", taskKey, err)
-				continue
+
+			// Retrieve workflow, step and task parentID information in case of workflow step task
+			var workflow, step, parentID string
+			if isWorkflowTask(taskType) {
+				workflow, err = GetTaskWorkflow(kv, taskID)
+				if err != nil {
+					log.Print(err)
+					log.Debugf("%+v", err)
+				}
+				step, err = GetTaskStep(kv, taskID)
+				if err != nil {
+					log.Print(err)
+					log.Debugf("%+v", err)
+				}
+				parentID, err = GetTaskParentID(kv, taskID)
+				if err != nil {
+					log.Print(err)
+					log.Debugf("%+v", err)
+				}
 			}
 
 			log.Printf("Processing task %q linked to deployment %q", taskID, targetID)
@@ -259,11 +227,13 @@ func (d *Dispatcher) Run() {
 				taskLock:     lock,
 				kv:           kv,
 				creationDate: creationDate,
-				TaskType:     tasks.TaskType(taskType),
+				TaskType:     TaskType(taskType),
+				workflow:     workflow,
+				step:         step,
+				parentID:     parentID,
 			}
 			log.Debugf("New task created %+v: pushing it to a work channel", t)
-			// try to obtain a worker task channel that is available.
-			// this will block until a worker is idle
+			// try to obtain a worker task channel until timeout
 			select {
 			case taskChannel := <-d.WorkerPool:
 				taskChannel <- t
@@ -276,15 +246,12 @@ func (d *Dispatcher) Run() {
 				log.Printf("Dispatcher received shutdown signal. Exiting...")
 				return
 			case <-time.After(5 * time.Second):
-				// Timeout let another instance a chance to consume this
-				// task
+				// Timeout to let another instance a chance to consume this task
 				lock.Unlock()
 				lock.Destroy()
 				time.Sleep(100 * time.Millisecond)
 				break
 			}
-
 		}
 	}
-
 }

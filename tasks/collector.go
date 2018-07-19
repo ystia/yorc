@@ -16,20 +16,17 @@ package tasks
 
 import (
 	"fmt"
-	"path"
-	"strconv"
-
-	"time"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-
 	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
+		"path"
+	"strconv"
+	"strings"
+	"time"
 )
 
-// A Collector is used to register new tasks in Yorc
+// A Collector is responsible for registering new tasks
 type Collector struct {
 	consulClient *api.Client
 }
@@ -43,14 +40,7 @@ func NewCollector(consulClient *api.Client) *Collector {
 //
 // The task id is returned.
 func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, data map[string]string) (string, error) {
-	destroy, lock, taskID, err := c.registerTaskWithoutDestroyLock(targetID, taskType, data)
-	if destroy != nil {
-		defer destroy(lock, taskID, targetID)
-	}
-	if err != nil {
-		return "", err
-	}
-	return taskID, nil
+	return c.registerTask(targetID, taskType, data)
 }
 
 // RegisterTask register a new Task of a given type.
@@ -61,73 +51,168 @@ func (c *Collector) RegisterTask(targetID string, taskType TaskType) (string, er
 	return c.RegisterTaskWithData(targetID, taskType, nil)
 }
 
-func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType TaskType, data map[string]string) (func(taskLockCreate *api.Lock, taskId, targetId string), *api.Lock, string, error) { // First check if other tasks are running for this target before creating a new one
+func (c *Collector) registerTask(targetID string, taskType TaskType, data map[string]string) (string, error) {
+	// First check if other tasks are running for this target before creating a new one
 	hasLivingTask, livingTaskID, livingTaskStatus, err := TargetHasLivingTasks(c.consulClient.KV(), targetID)
 	if err != nil {
-		return nil, nil, "", err
+		return "", err
 	} else if hasLivingTask {
-		return nil, nil, "", anotherLivingTaskAlreadyExistsError{taskID: livingTaskID, targetID: targetID, status: livingTaskStatus}
+		return "", anotherLivingTaskAlreadyExistsError{taskID: livingTaskID, targetID: targetID, status: livingTaskStatus}
 	}
 	taskID := fmt.Sprint(uuid.NewV4())
-	kv := c.consulClient.KV()
-	taskPrefix := consulutil.TasksPrefix + "/" + taskID
-	// Then use a lock in the task to prevent dispatcher to get the task before finishing task creation
-	taskLockCreate, err := c.consulClient.LockKey(taskPrefix + "/.createLock")
+	taskPath := path.Join(consulutil.TasksPrefix, taskID)
+	execPath := path.Join(consulutil.TasksPrefix, "executions", taskID)
+	creationDate, err := time.Now().MarshalBinary()
 	if err != nil {
-		return nil, nil, taskID, err
-	}
-	stopLockChan := make(chan struct{})
-	defer close(stopLockChan)
-	leaderCh, err := taskLockCreate.Lock(stopLockChan)
-	if err != nil {
-		log.Debugf("Failed to acquire create lock for task with id %q (target id %q): %+v", taskID, targetID, err)
-		return nil, nil, taskID, err
-	}
-	if leaderCh == nil {
-		log.Debugf("Failed to acquire create lock for task with id %q (target id %q).", taskID, targetID)
-		return nil, nil, taskID, errors.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskID, targetID)
+		return "", errors.Wrap(err, "Failed to generate task creation date")
 	}
 
-	key := &api.KVPair{Key: taskPrefix + "/targetId", Value: []byte(targetID)}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	taskOps := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(taskPath, "targetId"),
+			Value: []byte(targetID),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(taskPath, "status"),
+			Value: []byte(strconv.Itoa(int(TaskStatusINITIAL))),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(taskPath, "type"),
+			Value: []byte(strconv.Itoa(int(taskType))),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(taskPath, "creationDate"),
+			Value: creationDate,
+		},
 	}
-	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(strconv.Itoa(int(TaskStatusINITIAL)))}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	key = &api.KVPair{Key: taskPrefix + "/type", Value: []byte(strconv.Itoa(int(taskType)))}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	dateBin, err := time.Now().MarshalBinary()
-	if err != nil {
-		return nil, nil, taskID, errors.Wrap(err, "Failed to generate task creation date")
-	}
-	key = &api.KVPair{Key: taskPrefix + "/creationDate", Value: dateBin}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
+
 	if data != nil {
-		for keyM, valM := range data {
-			key = &api.KVPair{Key: path.Join(taskPrefix, keyM), Value: []byte(valM)}
-			if _, err := kv.Put(key, nil); err != nil {
-				return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
+		for k, v := range data {
+			taskOps = append(taskOps, &api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(taskPath, k),
+				Value: []byte(v),
+			})
 		}
 	}
 
-	EmitTaskEventWithContextualLogs(nil, kv, targetID, taskID, taskType, TaskStatusINITIAL.String())
-
-	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {
-		log.Debugf("Unlocking newly created task with id %q (target id %q)", taskId, targetId)
-		if err := taskLockCreate.Unlock(); err != nil {
-			log.Printf("Can't unlock createLock for task %q (target id %q): %+v", taskId, targetId, err)
+	// Register step tasks for each step in case of workflow
+	// Add executions for each initial steps
+	if isWorkflowTask(taskType) {
+		stepOps, err := c.getStepsOperations(taskID, targetID, taskPath, execPath, taskType, creationDate, data)
+		if err != nil {
+			return "", err
 		}
-		if err := taskLockCreate.Destroy(); err != nil {
-			log.Printf("Can't destroy createLock for task %q (target id %q): %+v", taskId, targetId, err)
-		}
+		taskOps = append(taskOps, stepOps...)
+	} else {
+		// Add execution key for non workflow task
+		taskOps = append(taskOps, &api.KVTxnOp{
+			Verb: api.KVSet,
+			Key:  path.Join(execPath, taskID),
+		})
 	}
 
-	return destroy, taskLockCreate, taskID, nil
+	ok, response, _, err := c.consulClient.KV().Txn(taskOps, nil)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType", targetID, taskType.String())
+	}
+	if !ok {
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType due to:%s", targetID, taskType.String(), strings.Join(errs, ", "))
+	}
+
+	EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, TaskStatusINITIAL.String())
+	return taskID, nil
+}
+
+func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath string, taskType TaskType, creationDate []byte, data map[string]string) (api.KVTxnOps, error) {
+	ops := make(api.KVTxnOps, 0)
+	wfName, err := getWfNameFromTaskType(taskType, data)
+	if err != nil {
+		return nil, err
+	}
+	wfPath := path.Join(consulutil.DeploymentKVPrefix, targetID, path.Join("workflows", wfName))
+
+	initSteps := make([]string, 0)
+	steps, err := readWorkFlowFromConsul(c.consulClient.KV(), wfPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, step := range steps {
+		taskID := fmt.Sprint(uuid.NewV4())
+		stepTaskPath := path.Join(stepTaskPath, taskID)
+		stepOps := api.KVTxnOps{
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepTaskPath, "targetId"),
+				Value: []byte(targetID),
+			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepTaskPath, "status"),
+				Value: []byte(strconv.Itoa(int(TaskStatusINITIAL))),
+			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepTaskPath, "type"),
+				Value: []byte(strconv.Itoa(int(taskType))),
+			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepTaskPath, "creationDate"),
+				Value: creationDate,
+			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepTaskPath, "workflow"),
+				Value: []byte(wfName),
+			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepTaskPath, "step"),
+				Value: []byte(step.Name),
+			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepTaskPath, "parentID"),
+				Value: []byte(taskID),
+			},
+		}
+		ops = append(ops, stepOps...)
+
+		// Add execution key for initial steps
+		if step.Previous == nil {
+			ops = append(ops, &api.KVTxnOp{
+				Verb: api.KVSet,
+				Key:  path.Join(execPath, taskID),
+			})
+			initSteps = append(initSteps, step.Name)
+		}
+	}
+	return ops, nil
+}
+
+func getWfNameFromTaskType(taskType TaskType, data map[string]string) (string, error) {
+	switch taskType {
+	case TaskTypeDeploy, TaskTypeScaleOut:
+		return "install", nil
+	case TaskTypeUnDeploy, TaskTypeScaleIn:
+		return "uninstall", nil
+	case TaskTypeCustomWorkflow:
+		wfName, ok := data["workflowName"]
+		if !ok {
+			return "", errors.Errorf("Workflow name can't be retrieved from data :%v", data)
+		}
+		return wfName, nil
+	default:
+		return "", errors.Errorf("Workflow can't be resolved from task type:%q", TaskType(taskType))
+	}
 }
