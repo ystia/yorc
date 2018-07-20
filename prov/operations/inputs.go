@@ -131,7 +131,7 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 	return envInputs, varInputsNames, nil
 }
 
-// GetTargetCapabilityPropertiesAndAttributes retrieves properties and attributes of the target capability of the relationship (if this operation is related to a relationship)
+// GetTargetCapabilityPropertiesAndAttributesValues retrieves properties and attributes of the target capability of the relationship (if this operation is related to a relationship)
 //
 // It may happen in rare cases that several capabilities match the same requirement.
 // Values are stored in this way:
@@ -142,13 +142,13 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 // 	 * TARGET_CAPABILITY_PROPERTY_<propertyName>: value of a property for the first matching capability
 // 	 * TARGET_CAPABILITY_<capabilityName>_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance
 // 	 * TARGET_CAPABILITY_<instanceName>_ATTRIBUTE_<attributeName>: value of an attribute of a given instance for the first matching capability
-func GetTargetCapabilityPropertiesAndAttributes(ctx context.Context, kv *api.KV, deploymentID, nodeName string, op prov.Operation) (map[string]string, error) {
+func GetTargetCapabilityPropertiesAndAttributesValues(ctx context.Context, kv *api.KV, deploymentID, nodeName string, op prov.Operation) (map[string]*deployments.TOSCAValue, error) {
 	// Only for relationship operations
 	if !IsRelationshipOperation(op) {
 		return nil, nil
 	}
 
-	props := make(map[string]string)
+	props := make(map[string]*deployments.TOSCAValue)
 
 	capabilityType, err := deployments.GetCapabilityForRequirement(kv, deploymentID, nodeName, op.RelOp.RequirementIndex)
 	if err != nil {
@@ -171,9 +171,9 @@ func GetTargetCapabilityPropertiesAndAttributes(ctx context.Context, kv *api.KV,
 		if err != nil {
 			return nil, err
 		}
-		props["TARGET_CAPABILITY_"+capabilityName+"_TYPE"] = capabilityType
+		props["TARGET_CAPABILITY_"+capabilityName+"_TYPE"] = &deployments.TOSCAValue{Value: capabilityType}
 		if i == 0 {
-			props["TARGET_CAPABILITY_TYPE"] = capabilityType
+			props["TARGET_CAPABILITY_TYPE"] = &deployments.TOSCAValue{Value: capabilityType}
 		}
 
 		err = setCapabilityProperties(ctx, kv, deploymentID, capabilityName, capabilityType, op, i == 0, props)
@@ -186,21 +186,21 @@ func GetTargetCapabilityPropertiesAndAttributes(ctx context.Context, kv *api.KV,
 			return nil, err
 		}
 	}
-	props["TARGET_CAPABILITY_NAMES"] = strings.Join(capabilities, ",")
+	props["TARGET_CAPABILITY_NAMES"] = &deployments.TOSCAValue{Value: strings.Join(capabilities, ",")}
 	return props, nil
 }
 
-func setCapabilityProperties(ctx context.Context, kv *api.KV, deploymentID, capabilityName, capabilityType string, op prov.Operation, isFirst bool, props map[string]string) error {
+func setCapabilityProperties(ctx context.Context, kv *api.KV, deploymentID, capabilityName, capabilityType string, op prov.Operation, isFirst bool, props map[string]*deployments.TOSCAValue) error {
 	capProps, err := deployments.GetTypeProperties(kv, deploymentID, capabilityType, true)
 	if err != nil {
 		return err
 	}
 	for _, capProp := range capProps {
-		found, value, err := deployments.GetCapabilityProperty(kv, deploymentID, op.RelOp.TargetNodeName, capabilityName, capProp)
+		value, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, op.RelOp.TargetNodeName, capabilityName, capProp)
 		if err != nil {
 			return err
 		}
-		if !found {
+		if value == nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("failed to retrieve property %q for capability %q on node %q. It will not be injected in operation context.", capProp, capabilityName, op.RelOp.TargetNodeName)
 			continue
 		}
@@ -212,18 +212,18 @@ func setCapabilityProperties(ctx context.Context, kv *api.KV, deploymentID, capa
 	return nil
 }
 
-func setCapabilityAttributes(ctx context.Context, kv *api.KV, deploymentID, capabilityName, capabilityType string, op prov.Operation, targetInstances []string, isFirst bool, props map[string]string) error {
+func setCapabilityAttributes(ctx context.Context, kv *api.KV, deploymentID, capabilityName, capabilityType string, op prov.Operation, targetInstances []string, isFirst bool, props map[string]*deployments.TOSCAValue) error {
 	capAttrs, err := deployments.GetTypeAttributes(kv, deploymentID, capabilityType, true)
 	if err != nil {
 		return err
 	}
 	for _, capAttr := range capAttrs {
 		for _, instanceID := range targetInstances {
-			found, value, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, op.RelOp.TargetNodeName, instanceID, capabilityName, capAttr)
+			value, err := deployments.GetInstanceCapabilityAttributeValue(kv, deploymentID, op.RelOp.TargetNodeName, instanceID, capabilityName, capAttr)
 			if err != nil {
 				return err
 			}
-			if !found {
+			if value == nil {
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("failed to retrieve attribute %q for capability %q on node %q instance %q. It will not be injected in operation context.", capAttr, capabilityName, op.RelOp.TargetNodeName, instanceID)
 				continue
 			}

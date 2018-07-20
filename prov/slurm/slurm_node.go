@@ -36,58 +36,65 @@ func (g *slurmGenerator) generateNodeAllocation(ctx context.Context, kv *api.KV,
 	node := &nodeAllocation{instanceName: instanceName}
 
 	// Set the node CPU and memory property from Tosca Compute 'host' capability property
-	_, cpu, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "num_cpus")
+	cpu, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
 		return err
 	}
-	node.cpu = cpu
+	if cpu != nil {
+		node.cpu = cpu.RawString()
+	}
 
-	_, memory, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "mem_size")
+	memory, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "mem_size")
 	if err != nil {
 		return err
 	}
 	// Only take one letter for defining memory unit and remove the blank space between number and unit.
-	if memory != "" {
+	if memory != nil && memory.RawString() != "" {
 		re := regexp.MustCompile("[[:digit:]]*[[:upper:]]{1}")
-		node.memory = re.FindString(strings.Replace(memory, " ", "", -1))
+		node.memory = re.FindString(strings.Replace(memory.RawString(), " ", "", -1))
 	}
 
 	// Set the job name property
 	// first: with the prop
-	found, jobName, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "job_name")
+	jobName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "job_name")
 	if err != nil {
 		return err
 	}
-	if !found || jobName == "" {
+	if jobName == nil || jobName.RawString() == "" {
 		// Second: with the config
-		jobName = cfg.Infrastructures[infrastructureName].GetString("default_job_name")
-		if jobName == "" {
+		node.jobName = cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+		if node.jobName == "" {
 			// Third: with the deploymentID
-			jobName = deploymentID
+			node.jobName = deploymentID
 		}
+	} else {
+		node.jobName = jobName.RawString()
 	}
-	node.jobName = jobName
 
 	// Set the node gres property from Tosca slurm.Compute property
-	_, gres, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "gres")
+	gres, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "gres")
 	if err != nil {
 		return err
 	}
-	node.gres = gres
-
+	if gres != nil {
+		node.gres = gres.RawString()
+	}
 	// Set the node constraint property from Tosca slurm.Compute property
-	_, constraint, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "constraint")
+	constraint, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "constraint")
 	if err != nil {
 		return err
 	}
-	node.constraint = constraint
-
+	if constraint != nil {
+		node.constraint = constraint.RawString()
+	}
 	// Set the node partition property from Tosca slurm.Compute property
-	_, partition, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "partition")
+	partition, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "partition")
 	if err != nil {
 		return err
 	}
-	node.partition = partition
+	if partition != nil {
+		node.partition = partition.RawString()
+	}
 	infra.nodes = append(infra.nodes, node)
 	return nil
 }

@@ -160,16 +160,16 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range nodePropTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetNodeProperty(kv, deploymentID, tt.args.nodeName, tt.args.propertyName, tt.args.nestedKeys...)
+			got, err := GetNodePropertyValue(kv, deploymentID, tt.args.nodeName, tt.args.propertyName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetNodeProperty() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err == nil && found != tt.wantFound {
-				t.Errorf("GetNodeProperty() found result = %v, want %v", found, tt.wantFound)
+			if err == nil && (got != nil) != tt.wantFound {
+				t.Errorf("GetNodeProperty() found result = %v, want %v", got, tt.wantFound)
 			}
-			if err == nil && got != tt.want {
-				t.Errorf("GetNodeProperty() = %q, want %q", got, tt.want)
+			if got != nil && got.RawString() != tt.want {
+				t.Errorf("GetNodeProperty() = %q, want %q", got.RawString(), tt.want)
 			}
 		})
 	}
@@ -245,16 +245,16 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range nodeAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetInstanceAttribute(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetInstanceAttributeValue(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetInstanceAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err == nil && found != tt.wantFound {
-				t.Errorf("GetInstanceAttribute() found result = %v, want %v", found, tt.wantFound)
+			if err == nil && (got != nil) != tt.wantFound {
+				t.Errorf("GetInstanceAttribute() found result = %v, want %v", got, tt.wantFound)
 			}
-			if err == nil && got != tt.want {
-				t.Errorf("GetInstanceAttribute() = %q, want %q", got, tt.want)
+			if got != nil && got.RawString() != tt.want {
+				t.Errorf("GetInstanceAttribute() = %q, want %q", got.RawString(), tt.want)
 			}
 		})
 	}
@@ -317,16 +317,16 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range relPropTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetRelationshipPropertyFromRequirement(kv, deploymentID, tt.args.nodeName, tt.args.reqIndex, tt.args.propertyName, tt.args.nestedKeys...)
+			got, err := GetRelationshipPropertyValueFromRequirement(kv, deploymentID, tt.args.nodeName, tt.args.reqIndex, tt.args.propertyName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRelationshipPropertyFromRequirement() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err == nil && found != tt.wantFound {
-				t.Errorf("GetRelationshipPropertyFromRequirement() found result = %v, want %v", found, tt.wantFound)
+			if err == nil && (got != nil) != tt.wantFound {
+				t.Errorf("GetRelationshipPropertyFromRequirement() found result = %v, want %v", got, tt.wantFound)
 			}
-			if err == nil && got != tt.want {
-				t.Errorf("GetRelationshipPropertyFromRequirement() = %q, want %q", got, tt.want)
+			if got != nil && got.RawString() != tt.want {
+				t.Errorf("GetRelationshipPropertyFromRequirement() = %q, want %q", got.RawString(), tt.want)
 			}
 		})
 	}
@@ -414,16 +414,16 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range relAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetRelationshipAttributeFromRequirement(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.reqIndex, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetRelationshipAttributeValueFromRequirement(kv, deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.reqIndex, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetRelationshipAttributeFromRequirement() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err == nil && found != tt.wantFound {
-				t.Errorf("GetRelationshipAttributeFromRequirement() found result = %v, want %v", found, tt.wantFound)
+			if err == nil && (got != nil) != tt.wantFound {
+				t.Errorf("GetRelationshipAttributeFromRequirement() found result = %v, want %v", got, tt.wantFound)
 			}
-			if err == nil && got != tt.want {
-				t.Errorf("GetRelationshipAttributeFromRequirement() = %q, want %q", got, tt.want)
+			if got != nil && got.RawString() != tt.want {
+				t.Errorf("GetRelationshipAttributeFromRequirement() = %q, want %q", got.RawString(), tt.want)
 			}
 		})
 	}
@@ -499,16 +499,16 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range capPropTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetCapabilityProperty(kv, deploymentID, tt.args.nodeName, tt.args.capability, tt.args.propertyName, tt.args.nestedKeys...)
+			got, err := GetCapabilityPropertyValue(kv, deploymentID, tt.args.nodeName, tt.args.capability, tt.args.propertyName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetCapabilityProperty() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err == nil && found != tt.wantFound {
-				t.Errorf("GetCapabilityProperty() found result = %v, want %v", found, tt.wantFound)
+			if err == nil && (got != nil) != tt.wantFound {
+				t.Errorf("GetCapabilityProperty() found result = %v, want %v", got, tt.wantFound)
 			}
-			if err == nil && got != tt.want {
-				t.Errorf("GetCapabilityProperty() = %q, want %q", got, tt.want)
+			if got != nil && got.RawString() != tt.want {
+				t.Errorf("GetCapabilityProperty() = %q, want %q", got.RawString(), tt.want)
 			}
 		})
 	}
@@ -614,7 +614,7 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range capAttrTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetInstanceCapabilityAttribute(kv, deploymentID,
+			got, err := GetInstanceCapabilityAttributeValue(kv, deploymentID,
 				tt.args.nodeName, tt.args.instanceName, tt.args.capability,
 				tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
@@ -623,15 +623,15 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 					err, tt.wantErr)
 				return
 			}
-			if err == nil && found != tt.wantFound {
+			if err == nil && (got != nil) != tt.wantFound {
 				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) found result = %v, want %v",
 					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
-					found, tt.wantFound)
+					got, tt.wantFound)
 			}
-			if err == nil && got != tt.want {
+			if got != nil && got.RawString() != tt.want {
 				t.Errorf("GetInstanceCapabilityAttribute(%s, %s, %s, %s) = %q, want %q",
 					tt.args.nodeName, tt.args.instanceName, tt.args.capability, tt.args.attributeName,
-					got, tt.want)
+					got.RawString(), tt.want)
 			}
 		})
 	}
@@ -728,16 +728,16 @@ func testValueAssignments(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range topoOutputTests {
 		t.Run(tt.name, func(t *testing.T) {
-			found, got, err := GetTopologyOutput(kv, deploymentID, tt.args.OutputName, tt.args.nestedKeys...)
+			got, err := GetTopologyOutputValue(kv, deploymentID, tt.args.OutputName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTopologyOutput() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err == nil && found != tt.wantFound {
-				t.Errorf("GetTopologyOutput() found result = %v, want %v", found, tt.wantFound)
+			if err == nil && (got != nil) != tt.wantFound {
+				t.Errorf("GetTopologyOutput() found result = %v, want %v", got, tt.wantFound)
 			}
-			if err == nil && got != tt.want {
-				t.Errorf("GetTopologyOutput() = %q, want %q", got, tt.want)
+			if got != nil && got.RawString() != tt.want {
+				t.Errorf("GetTopologyOutput() = %q, want %q", got.RawString(), tt.want)
 			}
 		})
 	}

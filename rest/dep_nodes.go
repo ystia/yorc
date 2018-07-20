@@ -130,16 +130,16 @@ func (s *Server) getNodeInstanceAttributeHandler(w http.ResponseWriter, r *http.
 		writeError(w, r, newContentNotFoundError(fmt.Sprintf("Instance %q for node %q", instanceID, nodeName)))
 		return
 	}
-	found, instanceAttribute, err := deployments.GetInstanceAttribute(kv, id, nodeName, instanceID, attributeName)
+	instanceAttribute, err := deployments.GetInstanceAttributeValue(kv, id, nodeName, instanceID, attributeName)
 	if err != nil {
 		writeError(w, r, newInternalServerError(err))
 		return
 	}
-	if !found {
+	if instanceAttribute == nil {
 		writeError(w, r, newContentNotFoundError(fmt.Sprintf("Attribute %q for node %q (instance %q)", attributeName, nodeName, instanceID)))
 		return
 	}
-
-	attribute := Attribute{Name: attributeName, Value: instanceAttribute}
+	// TODO: use instanceAttribute.String() instead of RawString to preserve secrets (to be checked if it is really what we want)
+	attribute := Attribute{Name: attributeName, Value: instanceAttribute.String()}
 	encodeJSONResponse(w, r, attribute)
 }

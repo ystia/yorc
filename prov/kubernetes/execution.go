@@ -158,27 +158,31 @@ func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Cli
 }
 
 func (e *executionCommon) manageKubernetesResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, op k8sResourceOperation) error {
-	_, rSpec, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "resource_spec")
+	rSpec, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "resource_spec")
 	if err != nil {
 		return err
 	}
+
+	if rSpec == nil {
+		return errors.Errorf("no resource_spec defined for node %q", e.NodeName)
+	}
 	switch e.NodeType {
 	case deploymentResourceType:
-		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec)
+		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec.RawString())
 	case serviceResourceType:
-		return e.manageServiceResource(ctx, clientset, generator, op, rSpec)
+		return e.manageServiceResource(ctx, clientset, generator, op, rSpec.RawString())
 	default:
 		return errors.Errorf("Unsupported k8s resource type %q", e.NodeType)
 	}
 }
 
 func (e *executionCommon) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset *kubernetes.Clientset, namespace, rSpec string) (string, error) {
-	_, serviceDepsLookups, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "service_dependency_lookups")
+	serviceDepsLookups, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "service_dependency_lookups")
 	if err != nil {
 		return rSpec, err
 	}
-	if serviceDepsLookups != "" {
-		for _, srvLookup := range strings.Split(serviceDepsLookups, ",") {
+	if serviceDepsLookups != nil && serviceDepsLookups.RawString() != "" {
+		for _, srvLookup := range strings.Split(serviceDepsLookups.RawString(), ",") {
 			srvLookupArgs := strings.SplitN(srvLookup, ":", 2)
 			srvPlaceholder := "${" + srvLookupArgs[0] + "}"
 			if !strings.Contains(rSpec, srvPlaceholder) || len(srvLookupArgs) != 2 {

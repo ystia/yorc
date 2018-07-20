@@ -46,54 +46,65 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 	instance.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
-	_, image, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "image")
+	image, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "image")
 	if err != nil {
 		return err
 	}
-	instance.ImageID = image
-	_, image, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "imageName")
+	if image != nil {
+		instance.ImageID = image.RawString()
+	}
+	image, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "imageName")
 	if err != nil {
 		return err
 	}
-	instance.ImageName = image
-	_, flavor, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "flavor")
+	if image != nil {
+		instance.ImageName = image.RawString()
+	}
+	flavor, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "flavor")
 	if err != nil {
 		return err
 	}
-	instance.FlavorID = flavor
-	_, flavor, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "flavorName")
+	if flavor != nil {
+		instance.FlavorID = flavor.RawString()
+	}
+	flavor, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "flavorName")
 	if err != nil {
 		return err
 	}
-	instance.FlavorName = flavor
-
-	_, az, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "availability_zone")
+	if flavor != nil {
+		instance.FlavorName = flavor.RawString()
+	}
+	az, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "availability_zone")
 	if err != nil {
 		return err
 	}
-	instance.AvailabilityZone = az
-	_, region, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "region")
+	if az != nil {
+		instance.AvailabilityZone = az.RawString()
+	}
+	region, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "region")
 	if err != nil {
 		return err
-	} else if region != "" {
-		instance.Region = region
+	} else if region != nil && region.RawString() != "" {
+		instance.Region = region.RawString()
 	} else {
 		instance.Region = cfg.Infrastructures[infrastructureName].GetStringOrDefault("region", defaultOSRegion)
 	}
 
-	_, keyPair, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "key_pair")
+	keyPair, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "key_pair")
 	if err != nil {
 		return err
 	}
-	// TODO if empty use a default one or fail ?
-	instance.KeyPair = keyPair
-
+	if keyPair != nil {
+		// TODO if empty use a default one or fail ?
+		instance.KeyPair = keyPair.RawString()
+	}
 	instance.SecurityGroups = cfg.Infrastructures[infrastructureName].GetStringSlice("default_security_groups")
-	_, secGroups, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "security_groups")
+	secGroups, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "security_groups")
 	if err != nil {
 		return err
-	} else if secGroups != "" {
-		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups), ",") {
+	}
+	if secGroups != nil && secGroups.RawString() != "" {
+		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups.RawString()), ",") {
 			secGroup = strings.TrimSpace(secGroup)
 			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
 		}
@@ -106,24 +117,24 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		return errors.Errorf("Missing mandatory parameter 'flavor' or 'flavorName' node type for %s", nodeName)
 	}
 
-	_, networkName, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "endpoint", "network_name")
+	networkName, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "network_name")
 	if err != nil {
 		return err
 	}
 	defaultPrivateNetName := cfg.Infrastructures[infrastructureName].GetString("private_network_name")
-	if networkName != "" {
+	if networkName != nil && networkName.RawString() != "" {
 		// TODO Deal with networks aliases (PUBLIC)
 		var networkSlice []ComputeNetwork
-		if strings.EqualFold(networkName, "private") {
+		if strings.EqualFold(networkName.RawString(), "private") {
 			if defaultPrivateNetName == "" {
 				return errors.Errorf(`You should either specify a default private network name using the "private_network_name" configuration parameter for the "openstack" infrastructure or specify a "network_name" property in the "endpoint" capability of node %q`, nodeName)
 			}
 			networkSlice = append(networkSlice, ComputeNetwork{Name: defaultPrivateNetName, AccessNetwork: true})
-		} else if strings.EqualFold(networkName, "public") {
+		} else if strings.EqualFold(networkName.RawString(), "public") {
 			//TODO
 			return errors.Errorf("Public Network aliases currently not supported")
 		} else {
-			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName, AccessNetwork: true})
+			networkSlice = append(networkSlice, ComputeNetwork{Name: networkName.RawString(), AccessNetwork: true})
 		}
 		instance.Networks = networkSlice
 	} else {
@@ -154,26 +165,26 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 		} else if volumeNodeName != "" {
 			log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 
-			_, device, err := deployments.GetRelationshipPropertyFromRequirement(kv, deploymentID, nodeName, requirementIndex, "device")
+			device, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "device")
 			if err != nil {
 				return err
 			}
 			log.Debugf("Looking for volume_id")
-			_, volumeID, err := deployments.GetNodeProperty(kv, deploymentID, volumeNodeName, "volume_id")
+			volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
 			if err != nil {
 				return err
 			}
-
-			if volumeID == "" {
+			var volumeID string
+			if volumeIDValue == nil || volumeIDValue.RawString() == "" {
 				resultChan := make(chan string, 1)
 				go func() {
 					for {
 						// ignore errors and retry
-						found, volID, _ := deployments.GetInstanceAttribute(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
+						volID, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, volumeNodeName, instanceName, "volume_id")
 						// As volumeID is an optional property GetInstanceAttribute then GetProperty
 						// may return an empty volumeID so keep checking as long as we have it
-						if found && volID != "" {
-							resultChan <- volID
+						if volID != nil && volID.RawString() != "" {
+							resultChan <- volID.RawString()
 							return
 						}
 						select {
@@ -191,12 +202,16 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 					return ctx.Err()
 
 				}
+			} else {
+				volumeID = volumeIDValue.RawString()
 			}
 			volumeAttach := ComputeVolumeAttach{
-				Region:     region,
+				Region:     instance.Region,
 				VolumeID:   volumeID,
 				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
-				Device:     device,
+			}
+			if device != nil {
+				volumeAttach.Device = device.RawString()
 			}
 			attachName := "Vol" + volumeNodeName + "to" + instance.Name
 			commons.AddResource(infrastructure, "openstack_compute_volume_attach_v2", attachName, &volumeAttach)
@@ -248,8 +263,8 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			resultChan := make(chan string, 1)
 			go func() {
 				for {
-					if _, fip, _ := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, networkNodeName, instanceName, "endpoint", "floating_ip_address"); fip != "" {
-						resultChan <- fip
+					if fip, _ := deployments.GetInstanceCapabilityAttributeValue(kv, deploymentID, networkNodeName, instanceName, "endpoint", "floating_ip_address"); fip != nil && fip.RawString() != "" {
+						resultChan <- fip.RawString()
 						return
 					}
 
@@ -267,7 +282,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 				return ctx.Err()
 			}
 			floatingIPAssociate := ComputeFloatingIPAssociate{
-				Region:     region,
+				Region:     instance.Region,
 				FloatingIP: floatingIP,
 				InstanceID: fmt.Sprintf("${openstack_compute_instance_v2.%s.id}", instance.Name),
 			}
@@ -283,14 +298,14 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 			resultChan := make(chan string, 1)
 			go func() {
 				for {
-					found, nID, err := deployments.GetInstanceAttribute(kv, deploymentID, networkNodeName, instanceName, "network_id")
+					nID, err := deployments.GetInstanceAttributeValue(kv, deploymentID, networkNodeName, instanceName, "network_id")
 					if err != nil {
 						log.Printf("[Warning] bypassing error while waiting for a network id: %v", err)
 					}
 					// As networkID is an optional property GetInstanceAttribute then GetProperty
 					// may return an empty networkID so keep checking as long as we have it
-					if found && nID != "" {
-						resultChan <- nID
+					if nID != nil && nID.RawString() != "" {
+						resultChan <- nID.RawString()
 						return
 					}
 					select {

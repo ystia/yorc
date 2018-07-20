@@ -143,6 +143,7 @@ type executionCommon struct {
 	Artifacts                map[string]string
 	OverlayPath              string
 	Context                  map[string]string
+	CapabilitiesCtx          map[string]*deployments.TOSCAValue
 	Outputs                  map[string]string
 	HaveOutput               bool
 	isRelationshipTargetNode bool
@@ -329,38 +330,38 @@ func (e *executionCommon) setHostConnection(kv *api.KV, host, instanceID, capTyp
 		return err
 	}
 	if hasEndpoint {
-		found, user, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "user")
+		user, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "user")
 		if err != nil {
 			return err
 		}
-		if found {
-			conn.user = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.user", user).(string)
+		if user != nil {
+			conn.user = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.user", user.RawString()).(string)
 		} else {
 			mess := fmt.Sprintf("[Warning] No user set for connection:%+v", conn)
 			log.Printf(mess)
 			events.WithContextOptionalFields(e.ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString(mess)
 		}
-		found, password, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "token")
+		password, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "token")
 		if err != nil {
 			return err
 		}
-		if found && password != "" {
-			conn.password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.password", password).(string)
+		if password != nil && password.RawString() != "" {
+			conn.password = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.password", password.RawString()).(string)
 		}
-		found, privateKey, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "keys", "0")
+		privateKey, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "credentials", "keys", "0")
 		if err != nil {
 			return err
 		}
-		if found && privateKey != "" {
-			conn.privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.privateKey", privateKey).(string)
+		if privateKey != nil && privateKey.RawString() != "" {
+			conn.privateKey = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.privateKey", privateKey.RawString()).(string)
 		}
 
-		found, port, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instanceID, "endpoint", "port")
+		port, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instanceID, "endpoint", "port")
 		if err != nil {
 			return err
 		}
-		if found && port != "" {
-			conn.port, err = strconv.Atoi(port)
+		if port != nil && port.RawString() != "" {
+			conn.port, err = strconv.Atoi(port.RawString())
 			if err != nil {
 				return errors.Wrapf(err, "Failed to convert port value:%q to int", port)
 			}
@@ -408,14 +409,14 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 		}
 		if hasEndpoint {
 			for _, instance := range instances {
-				_, ipAddress, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID, host, instance, "endpoint", "ip_address")
+				ipAddress, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID, host, instance, "endpoint", "ip_address")
 				if err != nil {
 					return err
 				}
-				if ipAddress != "" {
-					ipAddress = config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress).(string)
+				if ipAddress != nil && ipAddress.RawString() != "" {
+					ipAddressStr := config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress.RawString()).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
-					hostConn := hostConnection{host: ipAddress, instanceID: instance}
+					hostConn := hostConnection{host: ipAddressStr, instanceID: instance}
 					err = e.setHostConnection(e.kv, host, instance, capType, &hostConn)
 					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
@@ -525,15 +526,14 @@ func (e *executionCommon) resolveContext() error {
 
 	}
 
-	capabilitiesCtx, err := operations.GetTargetCapabilityPropertiesAndAttributes(e.ctx, e.kv, e.deploymentID, e.NodeName, e.operation)
+	execContext["DEPLOYMENT_ID"] = e.deploymentID
+
+	var err error
+	e.CapabilitiesCtx, err = operations.GetTargetCapabilityPropertiesAndAttributesValues(e.ctx, e.kv, e.deploymentID, e.NodeName, e.operation)
 	if err != nil {
 		return err
 	}
-	for k, v := range capabilitiesCtx {
-		execContext[k] = v
-	}
 
-	execContext["DEPLOYMENT_ID"] = e.deploymentID
 	e.Context = execContext
 	return nil
 }
@@ -1090,15 +1090,26 @@ func buildArchive(rootDir, artifactDir, tarPath string) error {
 		})
 }
 
+func (e *executionCommon) encodeTOSCAValue(value *deployments.TOSCAValue, ansibleRecipePath string) (string, error) {
+	if !value.IsSecret {
+		return fmt.Sprintf("%q", value.RawString()), nil
+	}
+	return e.vaultEncodeString(value.RawString(), ansibleRecipePath)
+
+}
+
 func (e *executionCommon) encodeEnvInputValue(env *operations.EnvInput, ansibleRecipePath string) (string, error) {
 	if !env.IsSecret {
 		return fmt.Sprintf("%q", env.Value), nil
 	}
 
+	return e.vaultEncodeString(env.Value, ansibleRecipePath)
+}
+func (e *executionCommon) vaultEncodeString(s, ansibleRecipePath string) (string, error) {
 	cmd := executil.Command(e.ctx, "ansible-vault", "encrypt_string", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
 
 	cmd.Env = append(os.Environ(), "VAULT_PASSWORD="+e.vaultToken)
-	cmd.Stdin = strings.NewReader(env.Value)
+	cmd.Stdin = strings.NewReader(s)
 	outBuf := new(bytes.Buffer)
 	cmd.Stdout = outBuf
 	errBuf := new(bytes.Buffer)

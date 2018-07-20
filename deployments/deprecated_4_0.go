@@ -115,6 +115,7 @@ func GetTopologyOutput(kv *api.KV, deploymentID, outputName string, nestedKeys .
 // If the property is still not found then it will explore the HostedOn hierarchy.
 //
 // Deprecated: use GetNodePropertyValue instead
+//             will be removed in Yorc 4.0
 func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, nestedKeys ...string) (bool, string, error) {
 	return convertTOSCAValueResultToDeprecated(GetNodePropertyValue(kv, deploymentID, nodeName, propertyName, nestedKeys...))
 }
@@ -126,6 +127,7 @@ func GetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, ne
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
 //
 // Deprecated: use GetRelationshipAttributeValueFromRequirement instead
+//             will be removed in Yorc 4.0
 func GetRelationshipAttributeFromRequirement(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, nestedKeys ...string) (bool, string, error) {
 	return convertTOSCAValueResultToDeprecated(GetRelationshipAttributeValueFromRequirement(kv, deploymentID, nodeName, instanceName, requirementIndex, attributeName, nestedKeys...))
 }
@@ -137,4 +139,31 @@ func convertTOSCAValueResultToDeprecated(v *TOSCAValue, err error) (bool, string
 	}
 	// We return RawString for backward compatibility but we loose the IsSecret context
 	return true, v.RawString(), nil
+}
+
+// GetNodeAttributes retrieves the values for a given attribute in a given node.
+//
+// As a node may have multiple instances and attributes may be instance-scoped, then returned result is a map with the instance name as key
+// and the retrieved attributes as values.
+//
+// It returns true if a value is found false otherwise as first return parameter.
+// If the property is not found in the node then the type hierarchy is explored to find a default value.
+// If the property is still not found then it will explore the HostedOn hierarchy.
+//
+// Deprecated: use GetNodeAttributesValues instead
+//             will be removed in Yorc 4.0
+func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string, nestedKeys ...string) (bool, map[string]string, error) {
+	values, err := GetNodeAttributesValues(kv, deploymentID, nodeName, attributeName, nestedKeys...)
+	if err != nil {
+		return false, nil, err
+	}
+	attrs := make(map[string]string, len(values))
+	for k, v := range values {
+		if v != nil {
+			attrs[k] = v.RawString()
+		} else {
+			attrs[k] = ""
+		}
+	}
+	return true, attrs, nil
 }

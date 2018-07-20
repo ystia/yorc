@@ -40,13 +40,12 @@ func preDestroyInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configu
 	}
 	// TODO  consider making this generic: references to OpenStack should not be found here.
 	if nodeType == "yorc.nodes.openstack.BlockStorage" {
-		var deletable string
-		var found bool
-		found, deletable, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "deletable")
+
+		deletable, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "deletable")
 		if err != nil {
 			return false, err
 		}
-		if !found || strings.ToLower(deletable) != "true" {
+		if deletable == nil || strings.ToLower(deletable.RawString()) != "true" {
 			// False by default
 			msg := fmt.Sprintf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
 			log.Debug(msg)

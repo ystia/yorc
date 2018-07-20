@@ -92,15 +92,13 @@ func getScalablePropertyForNode(kv *api.KV, deploymentID, nodeName, propertyName
 	}
 	if len(capabilities) > 0 {
 		for _, capability := range capabilities {
-			var found bool
-			var nbInst string
-			found, nbInst, err = GetCapabilityProperty(kv, deploymentID, nodeName, capability, propertyName)
+			nbInst, err := GetCapabilityPropertyValue(kv, deploymentID, nodeName, capability, propertyName)
 			if err != nil {
 				return 0, err
 			}
-			if found {
+			if nbInst != nil {
 				var val uint64
-				val, err = strconv.ParseUint(nbInst, 10, 32)
+				val, err = strconv.ParseUint(nbInst.RawString(), 10, 32)
 				if err != nil {
 					return 0, errors.Errorf("Not a valid integer for property %q of %q capability for node %q. Error: %v", propertyName, capability, nodeName, err)
 				}
@@ -382,60 +380,49 @@ func SetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName, propertyV
 // If this value is empty and the argument mandatory is true, an error is returned
 func GetStringNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string, mandatory bool) (string, error) {
 
-	var result string
-	var err error
-	if _, result, err = GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
-		return result, err
+	result, err := GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
+	if err != nil {
+		return "", err
 	}
 
-	if result == "" && mandatory {
-		return result, errors.Errorf("Missing value for mandatory parameter %s of %s",
-			propertyName, nodeName)
+	if result == nil && mandatory {
+		return "", errors.Errorf("Missing value for mandatory parameter %s of %s", propertyName, nodeName)
 	}
-
-	return result, nil
+	r := ""
+	if result != nil {
+		r = result.RawString()
+	}
+	return r, nil
 }
 
 // GetBooleanNodeProperty returns the boolean value of a property (default: false)
 func GetBooleanNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (bool, error) {
-
 	var result bool
-	var strValue string
-	var err error
-	if _, strValue, err = GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
+	strValue, err := GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
+	if err != nil {
 		return result, err
 	}
 
-	if strValue == "" {
-		result = false
-	} else {
-		result, err = strconv.ParseBool(strValue)
+	if strValue != nil && strValue.RawString() != "" {
+		result, err = strconv.ParseBool(strValue.RawString())
 		if err != nil {
-			log.Printf("Unexpected value for %s %s: '%s', considering it is set to 'false'",
-				nodeName, propertyName, strValue)
-			result = false
+			// TODO: who reads logs in production? Should be in app logs
+			log.Printf("Unexpected value for %s %s: '%s', considering it is set to 'false'", nodeName, propertyName, strValue)
 		}
 	}
-
 	return result, nil
 }
 
 // GetStringArrayNodeProperty returns the string Array value of a node property (default: false)
 func GetStringArrayNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) ([]string, error) {
-
 	var result []string
-	var strValue string
-	var found bool
-	var err error
-	if found, strValue, err = GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
+	strValue, err := GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
+	if err != nil {
 		return nil, err
 	}
 
-	if found && strValue != "" {
-		values := strings.Split(strValue, ",")
+	if strValue != nil {
+		values := strings.Split(strValue.RawString(), ",")
 		for _, val := range values {
 			result = append(result, strings.TrimSpace(val))
 		}
@@ -446,23 +433,18 @@ func GetStringArrayNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName
 
 // GetKeyValuePairsNodeProperty returns a key/value string map value of a node property (default: false)
 func GetKeyValuePairsNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) (map[string]string, error) {
-
 	var result map[string]string
-	var strValue string
-	var found bool
-	var err error
-	if found, strValue, err = GetNodeProperty(kv, deploymentID,
-		nodeName, propertyName); err != nil {
+	strValue, err := GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
+	if err != nil {
 		return nil, err
 	}
 
-	if found && strValue != "" {
-		result = make(map[string]string)
-		values := strings.Split(strValue, ",")
+	if strValue != nil && strValue.RawString() != "" {
+		values := strings.Split(strValue.RawString(), ",")
+		result = make(map[string]string, len(values))
 		for _, val := range values {
 			keyValuePair := strings.Split(val, "=")
 			if len(keyValuePair) != 2 {
-
 				return result, errors.Errorf("Expected KEY=VALUE format, got %s for property %s on %s",
 					val, propertyName, nodeName)
 			}
@@ -473,29 +455,28 @@ func GetKeyValuePairsNodeProperty(kv *api.KV, deploymentID, nodeName, propertyNa
 	return result, nil
 }
 
-// GetNodeAttributes retrieves the values for a given attribute in a given node.
+// GetNodeAttributesValues retrieves the values for a given attribute in a given node.
 //
 // As a node may have multiple instances and attributes may be instance-scoped, then returned result is a map with the instance name as key
 // and the retrieved attributes as values.
 //
-// It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
 // If the property is still not found then it will explore the HostedOn hierarchy.
-func GetNodeAttributes(kv *api.KV, deploymentID, nodeName, attributeName string, nestedKeys ...string) (bool, map[string]string, error) {
+func GetNodeAttributesValues(kv *api.KV, deploymentID, nodeName, attributeName string, nestedKeys ...string) (map[string]*TOSCAValue, error) {
 	instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
 
-	attributes := make(map[string]string)
+	attributes := make(map[string]*TOSCAValue)
 	for _, instance := range instances {
-		_, result, err := GetInstanceAttribute(kv, deploymentID, nodeName, instance, attributeName, nestedKeys...)
+		result, err := GetInstanceAttributeValue(kv, deploymentID, nodeName, instance, attributeName, nestedKeys...)
 		if err != nil {
-			return false, nil, err
+			return nil, err
 		}
 		attributes[instance] = result
 	}
-	return true, attributes, nil
+	return attributes, nil
 }
 
 // GetNodes returns the names of the different nodes for a given deployment.

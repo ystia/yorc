@@ -26,6 +26,7 @@ import (
 
 	"strings"
 
+	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov/operations"
 )
@@ -148,6 +149,8 @@ const shellAnsiblePlaybook = `
         [[[printf "%s: \"{{ ansible_env.HOME}}/%s/%s\"" $artName $.OperationRemotePath $art]]]
         [[[end]]][[[ range $contextK, $contextV := .Context -]]]
         [[[printf "%s: %q" $contextK $contextV]]]
+        [[[end]]][[[ range $cContextK, $cContextV := .CapabilitiesCtx -]]]
+        [[[printf "%s: %s" $cContextK (encTOSCAValue $cContextV)]]]
         [[[end]]][[[ range $hostVarIndex, $hostVarValue := .VarInputsNames -]]]
         [[[printf "%s: \" {{%s}}\"" $hostVarValue $hostVarValue]]]
         [[[end]]]
@@ -184,6 +187,9 @@ func getExecutionScriptTemplateFnMap(e *executionCommon, ansibleRecipePath strin
 		"qJoinKeys":   quoteAndComaJoinMapKeys,
 		"encEnvInput": func(env *operations.EnvInput) (string, error) {
 			return e.encodeEnvInputValue(env, ansibleRecipePath)
+		},
+		"encTOSCAValue": func(value *deployments.TOSCAValue) (string, error) {
+			return e.encodeTOSCAValue(value, ansibleRecipePath)
 		},
 	}
 }

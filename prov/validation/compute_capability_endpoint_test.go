@@ -167,9 +167,12 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 			postComputeCreationHook(ctx, cfg, taskID, deploymentID, target, activity)
 
 			for i, check := range tt.checks {
-				_, actualIP, err := deployments.GetInstanceCapabilityAttribute(kv, deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address")
+				actualIP, err := deployments.GetInstanceCapabilityAttributeValue(kv, deploymentID, target, fmt.Sprint(i), "endpoint", "ip_address")
 				require.NoError(t, err)
-				assert.Equal(t, check, actualIP, "postComputeCreationHook: Unexpected value for endpoint.ip_address attribute")
+				if check != "" {
+					require.NotNil(t, actualIP, "postComputeCreationHook: expecting a value for endpoint.ip_address attribute")
+					assert.Equal(t, check, actualIP.RawString(), "postComputeCreationHook: Unexpected value for endpoint.ip_address attribute")
+				}
 			}
 		})
 	}
