@@ -17,17 +17,17 @@ package dispatcher
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"path"
 	"strconv"
 	"strings"
 )
 
-// ReadWorkFlow creates a workflow tree from values stored in Consul at the given prefix.
-// It returns roots (starting) Steps.
-func ReadWorkFlow(kv *api.KV, wfKey string) ([]*Step, error) {
-	stepsPrefix := wfKey + "/steps/"
-	stepsKeys, _, err := kv.Keys(stepsPrefix, "/", nil)
+// ReadWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
+func ReadWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*Step, error) {
+	stepsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps")
+	stepsKeys, _, err := kv.Keys(stepsPath, "/", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
@@ -37,7 +37,7 @@ func ReadWorkFlow(kv *api.KV, wfKey string) ([]*Step, error) {
 	for _, stepPrefix := range stepsKeys {
 		stepName := path.Base(stepPrefix)
 		if visitStep, ok := visitedMap[stepName]; !ok {
-			step, err := readStep(kv, stepsPrefix, stepName, visitedMap)
+			step, err := BuildStep(kv, deploymentID, wfName, stepName, visitedMap)
 			if err != nil {
 				return nil, err
 			}
@@ -49,21 +49,22 @@ func ReadWorkFlow(kv *api.KV, wfKey string) ([]*Step, error) {
 	return steps, nil
 }
 
-func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*Step) (*Step, error) {
+// BuildStep returns a representation of the workflow step
+func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map[string]*Step) (*Step, error) {
+	stepPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps", stepName)
 	if visitedMap == nil {
 		visitedMap = make(map[string]*Step, 0)
 	}
 
-	stepPrefix := stepsPrefix + stepName
-	s := &Step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
-	kvPair, _, err := kv.Get(stepPrefix+"/target_relationship", nil)
+	s := &Step{Name: stepName, kv: kv, stepPrefix: stepPath}
+	kvPair, _, err := kv.Get(stepPath+"/target_relationship", nil)
 	if err != nil {
 		return nil, err
 	}
 	if kvPair != nil {
 		s.TargetRelationship = string(kvPair.Value)
 	}
-	kvPair, _, err = kv.Get(stepPrefix+"/operation_host", nil)
+	kvPair, _, err = kv.Get(stepPath+"/operation_host", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +81,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*S
 		return nil, errors.Errorf("Invalid value %q for operation host with Step %s : only SELF, HOST and ORCHESTRATOR values are accepted", s.OperationHost, stepName)
 	}
 
-	kvKeys, _, err := kv.List(stepPrefix+"/activities/", nil)
+	kvKeys, _, err := kv.List(stepPath+"/activities/", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +92,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*S
 	s.Activities = make([]Activity, 0)
 	targetIsMandatory := false
 	for i, actKV := range kvKeys {
-		keyString := strings.TrimPrefix(actKV.Key, stepPrefix+"/activities/"+strconv.Itoa(i)+"/")
+		keyString := strings.TrimPrefix(actKV.Key, stepPath+"/activities/"+strconv.Itoa(i)+"/")
 		key, err := ParseActivityType(keyString)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unknown activity for Step %q", stepName)
@@ -114,7 +115,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*S
 	}
 
 	// Get the Step's target (mandatory except if all activities are inline)
-	kvPair, _, err = kv.Get(stepPrefix+"/target", nil)
+	kvPair, _, err = kv.Get(stepPath+"/target", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
@@ -126,7 +127,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*S
 		s.Target = string(kvPair.Value)
 	}
 
-	kvPairs, _, err := kv.List(stepPrefix+"/next", nil)
+	kvPairs, _, err := kv.List(stepPath+"/next", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -134,13 +135,13 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*S
 	s.Previous = make([]*Step, 0)
 	for _, nextKV := range kvPairs {
 		var nextStep *Step
-		nextStepName := strings.TrimPrefix(nextKV.Key, stepPrefix+"/next/")
+		nextStepName := strings.TrimPrefix(nextKV.Key, stepPath+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
 			log.Debugf("Found existing Step %s", nextStepName)
 			nextStep = visitStep
 		} else {
 			log.Debugf("Reading new Step %s from Consul", nextStepName)
-			nextStep, err = readStep(kv, stepsPrefix, nextStepName, visitedMap)
+			nextStep, err = BuildStep(kv, deploymentID, wfName, nextStepName, visitedMap)
 			if err != nil {
 				return nil, err
 			}

@@ -27,36 +27,38 @@ import (
 	"github.com/ystia/yorc/tasks"
 )
 
-type task struct {
+type TaskExecution struct {
 	ID           string
+	TaskID       string
 	TargetID     string
 	status       tasks.TaskStatus
 	TaskType     tasks.TaskType
 	creationDate time.Time
-	taskLock     *api.Lock
+	lock         *api.Lock
 	kv           *api.KV
 	workflow     string
 	step         string
 	parentID     string
 }
 
-func (t *task) releaseLock() {
-	t.taskLock.Unlock()
-	t.taskLock.Destroy()
+func (t *TaskExecution) releaseLock() {
+	t.lock.Unlock()
+	t.lock.Destroy()
 }
 
-func (t *task) Status() tasks.TaskStatus {
+func (t *TaskExecution) Status() tasks.TaskStatus {
 	return t.status
 }
 
-func (t *task) WithStatus(ctx context.Context, status tasks.TaskStatus) error {
-	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.ID, "status"), Value: []byte(strconv.Itoa(int(status)))}
+//FIXME need to be done in concurrency context
+func (t *TaskExecution) WithStatus(ctx context.Context, status tasks.TaskStatus) error {
+	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.TaskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
 	t.status = status
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = tasks.EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.ID, t.TaskType, t.status.String())
+	_, err = tasks.EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.TaskID, t.TaskType, t.status.String())
 
 	return err
 }

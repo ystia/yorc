@@ -47,7 +47,7 @@ type Step struct {
 	Previous           []*Step
 	kv                 *api.KV
 	stepPrefix         string
-	t                  *task
+	t                  *TaskExecution
 }
 
 // IsTerminal returns true is the workflow step has no next step
@@ -60,25 +60,13 @@ func (s *Step) IsInitial() bool {
 	return len(s.Previous) == 0
 }
 
-func (s *Step) setTaskID(taskID *task) {
-	s.t = taskID
-}
-
-func (s *Step) notifyNext() {
-	for _, next := range s.Next {
-		log.Debugf("TaskStep %q, notifying Step %q", s.Name, next.Name)
-		// Create execution key for next Step
-	}
-}
-
 func (s *Step) setStatus(status tasks.StepStatus) error {
-	statusStr := strings.ToLower(status.String())
-	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(statusStr)}
+	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(status.String())}
 	_, err := s.kv.Put(kvp, nil)
 	if err != nil {
 		return err
 	}
-	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), Value: []byte(statusStr)}
+	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, s.Name), Value: []byte(status.String())}
 	_, err = s.kv.Put(kvp, nil)
 	return err
 }
@@ -112,7 +100,7 @@ func isSourceOperationOnTarget(s *Step) bool {
 // It first checks if the Step is not already done in this workflow instance
 // And for ScaleOut and ScaleDown it checks if the node or the target node in case of an operation running on the target node is part of the operation
 func (s *Step) isRunnable() (bool, error) {
-	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.t.ID, s.Name), nil)
+	kvp, _, err := s.kv.Get(path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, s.Name), nil)
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
@@ -133,12 +121,12 @@ func (s *Step) isRunnable() (bool, error) {
 	if s.t.TaskType == tasks.TaskTypeScaleOut || s.t.TaskType == tasks.TaskTypeScaleIn {
 		// If not a relationship check the actual node
 		if s.TargetRelationship == "" {
-			return tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
+			return tasks.IsTaskRelatedNode(s.kv, s.t.TaskID, s.Target)
 		}
 
 		if isSourceOperationOnTarget(s) {
 			// operation on target but Check if Source is implied on scale
-			return tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
+			return tasks.IsTaskRelatedNode(s.kv, s.t.TaskID, s.Target)
 		}
 
 		if isTargetOperationOnSource(s) || strings.ToUpper(s.OperationHost) == "TARGET" {
@@ -151,23 +139,22 @@ func (s *Step) isRunnable() (bool, error) {
 			if err != nil {
 				return false, err
 			}
-			return tasks.IsTaskRelatedNode(s.kv, s.t.ID, targetNodeName)
+			return tasks.IsTaskRelatedNode(s.kv, s.t.TaskID, targetNodeName)
 		}
 
 		// otherwise check the actual node is implied
-		return tasks.IsTaskRelatedNode(s.kv, s.t.ID, s.Target)
+		return tasks.IsTaskRelatedNode(s.kv, s.t.TaskID, s.Target)
 
 	}
 
 	return true, nil
 }
 
-func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, ignoredErrsChan chan error, shutdownChan chan struct{}, cfg config.Configuration, bypassErrors bool, workflowName string, w worker) error {
+func (s *Step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, shutdownChan chan struct{}, bypassErrors bool, workflowName string, w worker) error {
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
 	logOptFields, _ := events.FromContext(ctx)
 	s.setStatus(tasks.StepStatusINITIAL)
-	haveErr := false
 	// First: we check if Step is runnable
 	// TODO for now alien generates a 1 to 1 Step/activity model but we should probably test if an activity is runnable
 	if runnable, err := s.isRunnable(); err != nil {
@@ -176,7 +163,6 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		log.Debugf("Deployment %q: Skipping TaskStep %q", deploymentID, s.Name)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping TaskStep %q", s.Name))
 		s.setStatus(tasks.StepStatusDONE)
-		s.notifyNext()
 		return nil
 	}
 
@@ -217,24 +203,22 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 	for _, activity := range s.Activities {
 		err := func() error {
 			for _, hook := range preActivityHooks {
-				hook(wfCtx, cfg, s.t.ID, deploymentID, s.Target, activity)
+				hook(wfCtx, cfg, s.t.TaskID, deploymentID, s.Target, activity)
 			}
 			defer func() {
 				for _, hook := range postActivityHooks {
-					hook(wfCtx, cfg, s.t.ID, deploymentID, s.Target, activity)
+					hook(wfCtx, cfg, s.t.TaskID, deploymentID, s.Target, activity)
 				}
 			}()
 			err := s.runActivity(wfCtx, kv, cfg, deploymentID, bypassErrors, w, activity)
 			if err != nil {
-				setNodeStatus(wfCtx, kv, s.t.ID, deploymentID, s.Target, tosca.NodeStateError.String())
+				setNodeStatus(wfCtx, kv, s.t.TaskID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.Name, err)
 				if !bypassErrors {
 					s.setStatus(tasks.StepStatusERROR)
 					return err
 				}
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("TaskStep %q: Bypassing error: %v", s.Name, err)
-				ignoredErrsChan <- err
-				haveErr = true
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("TaskStep %q: Bypassing error: %v but workflow continue", s.Name, err)
 			}
 			return nil
 		}()
@@ -243,14 +227,6 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 		}
 	}
 
-	s.notifyNext()
-
-	if haveErr {
-		log.Debug("TaskStep %s generate an error but workflow continue", s.Name)
-		s.setStatus(tasks.StepStatusERROR)
-		// Return nil otherwise the rest of the workflow will be canceled
-		return nil
-	}
 	log.Debugf("TaskStep %s done without error.", s.Name)
 	s.setStatus(tasks.StepStatusDONE)
 	return nil
@@ -258,7 +234,7 @@ func (s *Step) run(ctx context.Context, deploymentID string, kv *api.KV, ignored
 
 func (s *Step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, bypassErrors bool, w worker, activity Activity) error {
 	// Get activity related instances
-	instances, err := tasks.GetInstances(kv, s.t.ID, deploymentID, s.Target)
+	instances, err := tasks.GetInstances(kv, s.t.TaskID, deploymentID, s.Target)
 	if err != nil {
 		return err
 	}
@@ -281,7 +257,7 @@ func (s *Step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		}
 		err = func() error {
 			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
-			return provisioner.ExecDelegate(wfCtx, cfg, s.t.ID, deploymentID, s.Target, delegateOp)
+			return provisioner.ExecDelegate(wfCtx, cfg, s.t.TaskID, deploymentID, s.Target, delegateOp)
 		}()
 
 		if err != nil {
@@ -298,7 +274,7 @@ func (s *Step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("delegate operation succeeded")
 		}
 	case ActivityTypeSetState:
-		setNodeStatus(wfCtx, kv, s.t.ID, deploymentID, s.Target, activity.Value())
+		setNodeStatus(wfCtx, kv, s.t.TaskID, deploymentID, s.Target, activity.Value())
 	case ActivityTypeCallOperation:
 		op, err := operations.GetOperation(wfCtx, kv, s.t.TargetID, s.Target, activity.Value(), s.TargetRelationship, s.OperationHost)
 		if err != nil {
@@ -325,7 +301,7 @@ func (s *Step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		}
 		err = func() error {
 			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
-			return exec.ExecOperation(wfCtx, cfg, s.t.ID, deploymentID, s.Target, op)
+			return exec.ExecOperation(wfCtx, cfg, s.t.TaskID, deploymentID, s.Target, op)
 		}()
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)

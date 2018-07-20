@@ -28,7 +28,15 @@ import (
 	"time"
 )
 
-// A Collector is responsible for registering new tasks
+// A Collector is responsible for registering new tasks/workflows/executions
+// A task is an execution for non workflow task
+// A task is n executions for workflow task with n equal to the steps number
+
+// Collector concern is
+// - register in Consul the task (/tasks/)
+// - register in Consul the workflow if task is workflow (/workflows/)
+// - register in Consul the executions for initial steps if task is workflow (/executions/)
+// - register in Consul the execution for task if non workflow task
 type Collector struct {
 	consulClient *api.Client
 }
@@ -63,7 +71,6 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 	}
 	taskID := fmt.Sprint(uuid.NewV4())
 	taskPath := path.Join(consulutil.TasksPrefix, taskID)
-	execPath := path.Join(consulutil.TasksPrefix, "executions", taskID)
 	creationDate, err := time.Now().MarshalBinary()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to generate task creation date")
@@ -105,16 +112,19 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
 	if tasks.IsWorkflowTask(taskType) {
-		stepOps, err := c.getStepsOperations(taskID, targetID, taskPath, execPath, taskType, creationDate, data)
+		stepOps, err := c.buildWfExecutionsOperations(taskID, targetID, taskType, data)
 		if err != nil {
 			return "", err
 		}
 		taskOps = append(taskOps, stepOps...)
 	} else {
 		// Add execution key for non workflow task
+		execID := fmt.Sprint(uuid.NewV4())
+		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 		taskOps = append(taskOps, &api.KVTxnOp{
-			Verb: api.KVSet,
-			Key:  path.Join(execPath, taskID),
+			Verb:  api.KVSet,
+			Key:   path.Join(stepExecPath, "taskID"),
+			Value: []byte(taskID),
 		})
 	}
 
@@ -134,70 +144,47 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 	return taskID, nil
 }
 
-func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath string, taskType tasks.TaskType, creationDate []byte, data map[string]string) (api.KVTxnOps, error) {
+func (c *Collector) buildWfExecutionsOperations(taskID, targetID string, taskType tasks.TaskType, data map[string]string) (api.KVTxnOps, error) {
 	ops := make(api.KVTxnOps, 0)
 	wfName, err := getWfNameFromTaskType(taskType, data)
 	if err != nil {
 		return nil, err
 	}
-	wfPath := path.Join(consulutil.DeploymentKVPrefix, targetID, path.Join("workflows", wfName))
-
-	initSteps := make([]string, 0)
-	steps, err := dispatcher.ReadWorkFlow(c.consulClient.KV(), wfPath)
+	steps, err := dispatcher.ReadWorkFlow(c.consulClient.KV(), targetID, wfName)
 	if err != nil {
 		return nil, err
 	}
 
+	var stepOps api.KVTxnOps
 	for _, step := range steps {
-		taskID := fmt.Sprint(uuid.NewV4())
-		stepTaskPath := path.Join(stepTaskPath, taskID)
-		stepOps := api.KVTxnOps{
-			&api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(stepTaskPath, "targetId"),
-				Value: []byte(targetID),
-			},
-			&api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(stepTaskPath, "status"),
-				Value: []byte(strconv.Itoa(int(tasks.TaskStatusINITIAL))),
-			},
-			&api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(stepTaskPath, "type"),
-				Value: []byte(strconv.Itoa(int(taskType))),
-			},
-			&api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(stepTaskPath, "creationDate"),
-				Value: creationDate,
-			},
-			&api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(stepTaskPath, "workflow"),
-				Value: []byte(wfName),
-			},
-			&api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(stepTaskPath, "step"),
-				Value: []byte(step.Name),
-			},
-			&api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(stepTaskPath, "parentID"),
-				Value: []byte(taskID),
-			},
+		// Add execution key for initial steps only
+		if step.IsInitial() {
+			execID := fmt.Sprint(uuid.NewV4())
+			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
+			stepOps = api.KVTxnOps{
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(stepExecPath, "taskID"),
+					Value: []byte(taskID),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(stepExecPath, "workflow"),
+					Value: []byte(wfName),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(stepExecPath, "step"),
+					Value: []byte(step.Name),
+				},
+				// Register workflow step to handle step statuses
+				&api.KVTxnOp{
+					Verb: api.KVSet,
+					Key:  path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
+				},
+			}
 		}
 		ops = append(ops, stepOps...)
-
-		// Add execution key for initial steps
-		if step.Previous == nil {
-			ops = append(ops, &api.KVTxnOp{
-				Verb: api.KVSet,
-				Key:  path.Join(execPath, taskID),
-			})
-			initSteps = append(initSteps, step.Name)
-		}
 	}
 	return ops, nil
 }

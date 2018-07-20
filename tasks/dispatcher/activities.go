@@ -24,7 +24,7 @@ import (
 //go:generate go-enum -f=activities.go --lower
 
 // An ActivityHook is a function that could be registered as pre or post activity hook and
-// which is called respectively just before or after a workflow activity execution
+// which is called respectively just before or after a workflow activity TaskExecution
 type ActivityHook func(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity Activity)
 
 // ActivityType x ENUM(
