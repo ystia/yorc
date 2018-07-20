@@ -206,26 +206,28 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
 	}
 
-	// Manage Namespace creation
-	// Get it from matadata, or generate it using deploymentID
-	//namespace := deploymentRepr.ObjectMeta.Namespace
-	// (Synchronize with Alien)
-	namespace, err := defaultNamespace(e.deploymentID)
-	if err != nil {
-		return err
-	}
-	rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespace, rSpec)
-	if err != nil {
-		return err
-	}
-
-	var deploymentRepr v1beta1.Deployment
 	// Unmarshal JSON to k8s data structs
+	var deploymentRepr v1beta1.Deployment
 	if err = json.Unmarshal([]byte(rSpec), &deploymentRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
-	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
+	objectMeta := deploymentRepr.ObjectMeta
+	var namespace string
+	var provided bool
+	namespace, provided = getNamespace(e.deploymentID, objectMeta)
+	// Namespace creation/deletion only made at deployment level
+	if !provided {
+		err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
+	}
+
+	// Update resource_spec with actual reference to used services, if necessary
+	rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespace, rSpec)
 	if err != nil {
 		return err
 	}
@@ -275,14 +277,15 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Deployment %s deleted", deploymentName)
 
-		// Delete namespace
-		err = generator.deleteNamespace(namespace, clientset)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
-			return err
+		// Delete namespace if not provided
+		if !provided {
+			err = generator.deleteNamespace(namespace, clientset)
+			if err != nil {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+				return err
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
-
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}
@@ -295,20 +298,16 @@ func (e *executionCommon) manageServiceResource(ctx context.Context, clientset *
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
 	}
+
 	// Unmarshal JSON to k8s data structs
 	if err = json.Unmarshal([]byte(rSpec), &serviceRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
-	// Manage Namespace creation
-	// Get it from matadata, or generate it using deploymentID
-	//namespace := deploymentRepr.ObjectMeta.Namespace
-	// (Synchronize with Alien)
-	namespace, err := defaultNamespace(e.deploymentID)
-	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
-	if err != nil {
-		return err
-	}
+	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
+	objectMeta := serviceRepr.ObjectMeta
+	var namespace string
+	namespace, _ = getNamespace(e.deploymentID, objectMeta)
 
 	switch operationType {
 	case k8sCreateOperation:

@@ -171,9 +171,28 @@ func referenceFromOwnerReference(namespace string, ref metav1.OwnerReference) re
 	return reference{ref.Kind, ref.UID, namespace, ref.Name}
 }
 
-/*
- * Default k8s namespace policy for Yorc : one namespace for each deployment
- */
+// Default k8s namespace policy for Yorc : one namespace for each deployment
 func defaultNamespace(deploymentID string) (string, error) {
 	return strings.ToLower(deploymentID), nil
+}
+
+// Check if a namespace is provided for a deployment.
+// Return it if provided ; return one generated with the default policy, if not provided
+func getNamespace(deploymentID string, objectMeta metav1.ObjectMeta) (string, bool) {
+	var isProvided bool
+	var namespace string
+	var providedNamespace string
+	if &objectMeta != nil {
+		providedNamespace = objectMeta.Namespace
+	}
+
+	if &providedNamespace != nil && providedNamespace != "" {
+		namespace = providedNamespace
+		isProvided = true
+	} else {
+		namespace, _ = defaultNamespace(deploymentID)
+		isProvided = false
+	}
+
+	return namespace, isProvided
 }
