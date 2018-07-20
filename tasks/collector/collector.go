@@ -1,16 +1,31 @@
-package tasks
+// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package collector
 
 import (
-	"github.com/ystia/yorc/tasks/workflow"
 	"fmt"
-	"github.com/satori/go.uuid"
-	"path"
-	"github.com/ystia/yorc/helper/consulutil"
-	"time"
 	"github.com/hashicorp/consul/api"
-	"strconv"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tasks/dispatcher"
+	"path"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // A Collector is responsible for registering new tasks
@@ -26,7 +41,7 @@ func NewCollector(consulClient *api.Client) *Collector {
 // RegisterTaskWithData register a new Task of a given type with some data
 //
 // The task id is returned.
-func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, data map[string]string) (string, error) {
+func (c *Collector) RegisterTaskWithData(targetID string, taskType tasks.TaskType, data map[string]string) (string, error) {
 	return c.registerTask(targetID, taskType, data)
 }
 
@@ -34,17 +49,17 @@ func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, dat
 //
 // The task id is returned.
 // Basically this is a shorthand for RegisterTaskWithData(targetID, taskType, nil)
-func (c *Collector) RegisterTask(targetID string, taskType TaskType) (string, error) {
+func (c *Collector) RegisterTask(targetID string, taskType tasks.TaskType) (string, error) {
 	return c.RegisterTaskWithData(targetID, taskType, nil)
 }
 
-func (c *Collector) registerTask(targetID string, taskType TaskType, data map[string]string) (string, error) {
+func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data map[string]string) (string, error) {
 	// First check if other tasks are running for this target before creating a new one
-	hasLivingTask, livingTaskID, livingTaskStatus, err := TargetHasLivingTasks(c.consulClient.KV(), targetID)
+	hasLivingTask, livingTaskID, livingTaskStatus, err := tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID)
 	if err != nil {
 		return "", err
 	} else if hasLivingTask {
-		return "", anotherLivingTaskAlreadyExistsError{taskID: livingTaskID, targetID: targetID, status: livingTaskStatus}
+		return "", tasks.NewAnotherLivingTaskAlreadyExistsError(livingTaskID, targetID, livingTaskStatus)
 	}
 	taskID := fmt.Sprint(uuid.NewV4())
 	taskPath := path.Join(consulutil.TasksPrefix, taskID)
@@ -63,7 +78,7 @@ func (c *Collector) registerTask(targetID string, taskType TaskType, data map[st
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(taskPath, "status"),
-			Value: []byte(strconv.Itoa(int(TaskStatusINITIAL))),
+			Value: []byte(strconv.Itoa(int(tasks.TaskStatusINITIAL))),
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -89,7 +104,7 @@ func (c *Collector) registerTask(targetID string, taskType TaskType, data map[st
 
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
-	if IsWorkflowTask(taskType) {
+	if tasks.IsWorkflowTask(taskType) {
 		stepOps, err := c.getStepsOperations(taskID, targetID, taskPath, execPath, taskType, creationDate, data)
 		if err != nil {
 			return "", err
@@ -115,11 +130,11 @@ func (c *Collector) registerTask(targetID string, taskType TaskType, data map[st
 		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType due to:%s", targetID, taskType.String(), strings.Join(errs, ", "))
 	}
 
-	EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, TaskStatusINITIAL.String())
+	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, tasks.TaskStatusINITIAL.String())
 	return taskID, nil
 }
 
-func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath string, taskType TaskType, creationDate []byte, data map[string]string) (api.KVTxnOps, error) {
+func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath string, taskType tasks.TaskType, creationDate []byte, data map[string]string) (api.KVTxnOps, error) {
 	ops := make(api.KVTxnOps, 0)
 	wfName, err := getWfNameFromTaskType(taskType, data)
 	if err != nil {
@@ -128,7 +143,7 @@ func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath 
 	wfPath := path.Join(consulutil.DeploymentKVPrefix, targetID, path.Join("workflows", wfName))
 
 	initSteps := make([]string, 0)
-	steps, err := workflow.ReadWorkFlowFromConsul(c.consulClient.KV(), wfPath)
+	steps, err := dispatcher.ReadWorkFlow(c.consulClient.KV(), wfPath)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +160,7 @@ func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath 
 			&api.KVTxnOp{
 				Verb:  api.KVSet,
 				Key:   path.Join(stepTaskPath, "status"),
-				Value: []byte(strconv.Itoa(int(TaskStatusINITIAL))),
+				Value: []byte(strconv.Itoa(int(tasks.TaskStatusINITIAL))),
 			},
 			&api.KVTxnOp{
 				Verb:  api.KVSet,
@@ -187,19 +202,19 @@ func (c *Collector) getStepsOperations(taskID, targetID, stepTaskPath, execPath 
 	return ops, nil
 }
 
-func getWfNameFromTaskType(taskType TaskType, data map[string]string) (string, error) {
+func getWfNameFromTaskType(taskType tasks.TaskType, data map[string]string) (string, error) {
 	switch taskType {
-	case TaskTypeDeploy, TaskTypeScaleOut:
+	case tasks.TaskTypeDeploy, tasks.TaskTypeScaleOut:
 		return "install", nil
-	case TaskTypeUnDeploy, TaskTypeScaleIn:
+	case tasks.TaskTypeUnDeploy, tasks.TaskTypeScaleIn:
 		return "uninstall", nil
-	case TaskTypeCustomWorkflow:
+	case tasks.TaskTypeCustomWorkflow:
 		wfName, ok := data["workflowName"]
 		if !ok {
 			return "", errors.Errorf("Workflow name can't be retrieved from data :%v", data)
 		}
 		return wfName, nil
 	default:
-		return "", errors.Errorf("Workflow can't be resolved from task type:%q", TaskType(taskType))
+		return "", errors.Errorf("Workflow can't be resolved from task type:%q", tasks.TaskType(taskType))
 	}
 }

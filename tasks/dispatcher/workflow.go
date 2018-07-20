@@ -1,20 +1,61 @@
-package workflow
+// Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package dispatcher
 
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"strings"
-	"strconv"
-	"path"
 	"github.com/ystia/yorc/log"
+	"path"
+	"strconv"
+	"strings"
 )
-func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*step) (*step, error) {
+
+// ReadWorkFlow creates a workflow tree from values stored in Consul at the given prefix.
+// It returns roots (starting) Steps.
+func ReadWorkFlow(kv *api.KV, wfKey string) ([]*Step, error) {
+	stepsPrefix := wfKey + "/steps/"
+	stepsKeys, _, err := kv.Keys(stepsPrefix, "/", nil)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	steps := make([]*Step, 0)
+	visitedMap := make(map[string]*Step, len(stepsKeys))
+	for _, stepPrefix := range stepsKeys {
+		stepName := path.Base(stepPrefix)
+		if visitStep, ok := visitedMap[stepName]; !ok {
+			step, err := readStep(kv, stepsPrefix, stepName, visitedMap)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, step)
+		} else {
+			steps = append(steps, visitStep)
+		}
+	}
+	return steps, nil
+}
+
+func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*Step) (*Step, error) {
 	if visitedMap == nil {
-		visitedMap = make(map[string]*step, 0)
+		visitedMap = make(map[string]*Step, 0)
 	}
 
 	stepPrefix := stepsPrefix + stepName
-	s := &step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
+	s := &Step{Name: stepName, kv: kv, stepPrefix: stepPrefix}
 	kvPair, _, err := kv.Get(stepPrefix+"/target_relationship", nil)
 	if err != nil {
 		return nil, err
@@ -31,12 +72,12 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*s
 	}
 	if s.TargetRelationship != "" {
 		if s.OperationHost == "" {
-			return nil, errors.Errorf("Operation host missing for step %s with target relationship %s, this is not allowed", stepName, s.TargetRelationship)
+			return nil, errors.Errorf("Operation host missing for Step %s with target relationship %s, this is not allowed", stepName, s.TargetRelationship)
 		} else if s.OperationHost != "SOURCE" && s.OperationHost != "TARGET" && s.OperationHost != "ORCHESTRATOR" {
-			return nil, errors.Errorf("Invalid value %q for operation host with step %s with target relationship %s : only SOURCE, TARGET and  and ORCHESTRATOR values are accepted", s.OperationHost, stepName, s.TargetRelationship)
+			return nil, errors.Errorf("Invalid value %q for operation host with Step %s with target relationship %s : only SOURCE, TARGET and  and ORCHESTRATOR values are accepted", s.OperationHost, stepName, s.TargetRelationship)
 		}
 	} else if s.OperationHost != "" && s.OperationHost != "SELF" && s.OperationHost != "HOST" && s.OperationHost != "ORCHESTRATOR" {
-		return nil, errors.Errorf("Invalid value %q for operation host with step %s : only SELF, HOST and ORCHESTRATOR values are accepted", s.OperationHost, stepName)
+		return nil, errors.Errorf("Invalid value %q for operation host with Step %s : only SELF, HOST and ORCHESTRATOR values are accepted", s.OperationHost, stepName)
 	}
 
 	kvKeys, _, err := kv.List(stepPrefix+"/activities/", nil)
@@ -44,7 +85,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*s
 		return nil, err
 	}
 	if len(kvKeys) == 0 {
-		return nil, errors.Errorf("Activities missing for step %s, this is not allowed", stepName)
+		return nil, errors.Errorf("Activities missing for Step %s, this is not allowed", stepName)
 	}
 
 	s.Activities = make([]Activity, 0)
@@ -53,7 +94,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*s
 		keyString := strings.TrimPrefix(actKV.Key, stepPrefix+"/activities/"+strconv.Itoa(i)+"/")
 		key, err := ParseActivityType(keyString)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unknown activity for step %q", stepName)
+			return nil, errors.Wrapf(err, "unknown activity for Step %q", stepName)
 		}
 		switch {
 		case key == ActivityTypeDelegate:
@@ -72,14 +113,14 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*s
 		}
 	}
 
-	// Get the step's target (mandatory except if all activities are inline)
+	// Get the Step's target (mandatory except if all activities are inline)
 	kvPair, _, err = kv.Get(stepPrefix+"/target", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
 	if targetIsMandatory && (kvPair == nil || len(kvPair.Value) == 0) {
-		return nil, errors.Errorf("Missing target attribute for step %s", stepName)
+		return nil, errors.Errorf("Missing target attribute for Step %s", stepName)
 	}
 	if kvPair != nil && len(kvPair.Value) > 0 {
 		s.Target = string(kvPair.Value)
@@ -89,16 +130,16 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*s
 	if err != nil {
 		return nil, err
 	}
-	s.Next = make([]*step, 0)
-	s.Previous = make([]*step, 0)
+	s.Next = make([]*Step, 0)
+	s.Previous = make([]*Step, 0)
 	for _, nextKV := range kvPairs {
-		var nextStep *step
+		var nextStep *Step
 		nextStepName := strings.TrimPrefix(nextKV.Key, stepPrefix+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
-			log.Debugf("Found existing step %s", nextStepName)
+			log.Debugf("Found existing Step %s", nextStepName)
 			nextStep = visitStep
 		} else {
-			log.Debugf("Reading new step %s from Consul", nextStepName)
+			log.Debugf("Reading new Step %s from Consul", nextStepName)
 			nextStep, err = readStep(kv, stepsPrefix, nextStepName, visitedMap)
 			if err != nil {
 				return nil, err
@@ -113,33 +154,7 @@ func readStep(kv *api.KV, stepsPrefix, stepName string, visitedMap map[string]*s
 
 }
 
-// ReadWorkFlowFromConsul creates a workflow tree from values stored in Consul at the given prefix.
-// It returns roots (starting) Steps.
-func ReadWorkFlowFromConsul(kv *api.KV, wfPrefix string) ([]*step, error) {
-	stepsPrefix := wfPrefix + "/steps/"
-	stepsPrefixes, _, err := kv.Keys(stepsPrefix, "/", nil)
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-	steps := make([]*step, 0)
-	visitedMap := make(map[string]*step, len(stepsPrefixes))
-	for _, stepPrefix := range stepsPrefixes {
-		stepName := path.Base(stepPrefix)
-		if visitStep, ok := visitedMap[stepName]; !ok {
-			step, err := readStep(kv, stepsPrefix, stepName, visitedMap)
-			if err != nil {
-				return nil, err
-			}
-			steps = append(steps, step)
-		} else {
-			steps = append(steps, visitStep)
-		}
-	}
-	return steps, nil
-}
-
-func getCallOperationsFromStep(s *step) []string {
+func getCallOperationsFromStep(s *Step) []string {
 	ops := make([]string, 0)
 	for _, a := range s.Activities {
 		if a.Type() == ActivityTypeCallOperation {

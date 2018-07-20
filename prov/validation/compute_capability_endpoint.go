@@ -24,12 +24,12 @@ import (
 	"github.com/ystia/yorc/events"
 
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/tasks/workflow"
+	"github.com/ystia/yorc/tasks/dispatcher"
 )
 
-func postComputeCreationHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+func postComputeCreationHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity dispatcher.Activity) {
 
-	if activity.Type() != workflow.ActivityTypeDelegate && activity.Type() != workflow.ActivityTypeCallOperation {
+	if activity.Type() != dispatcher.ActivityTypeDelegate && activity.Type() != dispatcher.ActivityTypeCallOperation {
 		return
 	}
 	cc, err := cfg.GetConsulClient()
@@ -107,5 +107,5 @@ func setEndpointIPFromAttribute(ctx context.Context, kv *api.KV, deploymentID, n
 }
 
 func init() {
-	workflow.RegisterPostActivityHook(postComputeCreationHook)
+	dispatcher.RegisterPostActivityHook(postComputeCreationHook)
 }

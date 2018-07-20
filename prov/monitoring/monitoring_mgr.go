@@ -25,7 +25,7 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/workflow"
+	"github.com/ystia/yorc/tasks/dispatcher"
 	"github.com/ystia/yorc/tosca"
 	"path"
 	"strconv"
@@ -37,8 +37,8 @@ import (
 var defaultMonManager *monitoringMgr
 
 func init() {
-	workflow.RegisterPreActivityHook(removeMonitoringHook)
-	workflow.RegisterPostActivityHook(addMonitoringHook)
+	dispatcher.RegisterPreActivityHook(removeMonitoringHook)
+	dispatcher.RegisterPostActivityHook(addMonitoringHook)
 }
 
 type monitoringMgr struct {
@@ -210,14 +210,14 @@ func (mgr *monitoringMgr) startMonitoring() {
 	}()
 }
 
-func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity dispatcher.Activity) {
 	// Monitoring check are added after (post-hook):
 	// - Delegate activity and install operation
 	// - SetState activity and node state "Started"
 
 	switch {
-	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
-		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
+	case activity.Type() == dispatcher.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "install",
+		activity.Type() == dispatcher.ActivityTypeSetState && activity.Value() == tosca.NodeStateStarted.String():
 
 		// Check if monitoring is required
 		isMonitorReq, monitoringInterval, err := defaultMonManager.isMonitoringRequired(deploymentID, target)
@@ -259,13 +259,13 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 	}
 }
 
-func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+func removeMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity dispatcher.Activity) {
 	// Monitoring check are removed before (pre-hook):
 	// - Delegate activity and uninstall operation
 	// - SetState activity and node state "Deleted"
 	switch {
-	case activity.Type() == workflow.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
-		activity.Type() == workflow.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
+	case activity.Type() == dispatcher.ActivityTypeDelegate && strings.ToLower(activity.Value()) == "uninstall",
+		activity.Type() == dispatcher.ActivityTypeSetState && activity.Value() == tosca.NodeStateDeleted.String():
 
 		// Check if monitoring has been required
 		isMonitorReq, _, err := defaultMonManager.isMonitoringRequired(deploymentID, target)

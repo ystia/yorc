@@ -32,6 +32,31 @@ import (
 	"github.com/ystia/yorc/log"
 )
 
+type anotherLivingTaskAlreadyExistsError struct {
+	taskID   string
+	targetID string
+	status   string
+}
+
+func (e anotherLivingTaskAlreadyExistsError) Error() string {
+	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskID, e.status, e.targetID)
+}
+
+// NewAnotherLivingTaskAlreadyExistsError allows to create a new anotherLivingTaskAlreadyExistsError error
+func NewAnotherLivingTaskAlreadyExistsError(taskID, targetID, status string) error {
+	return &anotherLivingTaskAlreadyExistsError{taskID: taskID, targetID: targetID, status: status}
+}
+
+// IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
+// If true, it returns the taskID of the currently running task
+func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
+	e, ok := err.(anotherLivingTaskAlreadyExistsError)
+	if ok {
+		return ok, e.taskID
+	}
+	return ok, ""
+}
+
 // IsWorkflowTask returns true if the task type is related to workflow
 func IsWorkflowTask(taskType TaskType) bool {
 	return taskType == TaskTypeDeploy || taskType == TaskTypeUnDeploy || taskType == TaskTypeScaleIn || taskType == TaskTypeScaleOut || taskType == TaskTypeCustomWorkflow
@@ -336,8 +361,8 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 }
 
 // GetTaskRelatedSteps returns the steps of the related workflow
-func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]Step, error) {
-	steps := make([]Step, 0)
+func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
+	steps := make([]TaskStep, 0)
 
 	kvps, _, err := kv.List(path.Join(consulutil.WorkflowsPrefix, taskID), nil)
 	if err != nil {
@@ -345,13 +370,13 @@ func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]Step, error) {
 	}
 
 	for _, kvp := range kvps {
-		steps = append(steps, Step{Name: path.Base(kvp.Key), Status: string(kvp.Value)})
+		steps = append(steps, TaskStep{Name: path.Base(kvp.Key), Status: string(kvp.Value)})
 	}
 	return steps, nil
 }
 
 // TaskStepExists checks if a task step exists with a stepID and related to a given taskID and returns it
-func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *Step, error) {
+func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepID), nil)
 	if err != nil {
 		return false, nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
@@ -359,11 +384,11 @@ func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *Step, error) {
 	if kvp == nil || len(kvp.Value) == 0 {
 		return false, nil, nil
 	}
-	return true, &Step{Name: stepID, Status: string(kvp.Value)}, nil
+	return true, &TaskStep{Name: stepID, Status: string(kvp.Value)}, nil
 }
 
 // UpdateTaskStepStatus allows to update the task step status
-func UpdateTaskStepStatus(kv *api.KV, taskID string, step *Step) error {
+func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(step.Status)}
 	_, err := kv.Put(kvp, nil)
 	if err != nil {

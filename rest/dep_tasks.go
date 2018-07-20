@@ -141,7 +141,7 @@ func (s *Server) updateTaskStepStatusHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Check Step/Task existence
+	// Check TaskStep/Task existence
 	kv := s.consulClient.KV()
 	stExists, stepBefore, err := tasks.TaskStepExists(kv, taskID, stepID)
 	if err != nil {

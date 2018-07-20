@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workflow
+package dispatcher
 
 import (
 	"time"
@@ -204,7 +204,7 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 
-			// Retrieve workflow, step and task parentID information in case of workflow step task
+			// Retrieve workflow, Step and task parentID information in case of workflow Step task
 			var workflow, step, parentID string
 			if tasks.IsWorkflowTask(taskType) {
 				workflow, err = tasks.GetTaskWorkflow(kv, taskID)

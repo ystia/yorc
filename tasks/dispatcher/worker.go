@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workflow
+package dispatcher
 
 import (
 	"context"
@@ -30,13 +30,13 @@ import (
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/registry"
-		"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
-	"github.com/ystia/yorc/tasks"
 )
 
 type worker struct {
@@ -95,7 +95,7 @@ func setNodeStatus(ctx context.Context, kv *api.KV, taskID, deploymentID, nodeNa
 	return nil
 }
 
-func GetOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.OperationExecutor, error) {
+func getOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.OperationExecutor, error) {
 	reg := registry.GetRegistry()
 
 	exec, originalErr := reg.GetOperationExecutor(artifact)
@@ -108,7 +108,7 @@ func GetOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.Opera
 		return nil, err
 	}
 	if parentArt != "" {
-		exec, err := GetOperationExecutor(kv, deploymentID, parentArt)
+		exec, err := getOperationExecutor(kv, deploymentID, parentArt)
 		if err == nil {
 			return exec, nil
 		}
@@ -293,7 +293,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 	case tasks.TaskTypeCustomCommand:
-		w.runCustomCommand(t, ctx)
+		w.runCustomCommand(ctx, t)
 	case tasks.TaskTypeScaleOut:
 		w.setDeploymentStatus(ctx, t.TargetID, deployments.SCALING_IN_PROGRESS)
 		err := w.runWorkflowStep(ctx, t)
@@ -340,7 +340,7 @@ func (w worker) handleTask(t *task) {
 			return
 		}
 	case tasks.TaskTypeQuery:
-		w.runQuery(t, ctx)
+		w.runQuery(ctx, t)
 	default:
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown TaskType %d (%s) for task with id %q", t.TaskType, t.TaskType.String(), t.ID))
 		log.Printf("Unknown TaskType %d (%s) for task with id %q and targetId %q", t.TaskType, t.TaskType.String(), t.ID, t.TargetID)
@@ -354,7 +354,7 @@ func (w worker) handleTask(t *task) {
 	}
 }
 
-func (w worker) runCustomCommand(t *task, ctx context.Context) {
+func (w worker) runCustomCommand(ctx context.Context, t *task) {
 	kv := w.consulClient.KV()
 	commandNameKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.ID, "commandName"), nil)
 	if err != nil {
@@ -399,7 +399,7 @@ func (w worker) runCustomCommand(t *task, ctx context.Context) {
 		return
 	}
 
-	exec, err := GetOperationExecutor(kv, t.TargetID, op.ImplementationArtifact)
+	exec, err := getOperationExecutor(kv, t.TargetID, op.ImplementationArtifact)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Command execution failed for node %q: %+v", t.TargetID, t.ID, nodeName, err)
 		err = setNodeStatus(ctx, t.kv, t.ID, t.TargetID, nodeName, tosca.NodeStateError.String())
@@ -426,7 +426,7 @@ func (w worker) runCustomCommand(t *task, ctx context.Context) {
 	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
 }
 
-func (w worker) runQuery(t *task, ctx context.Context) {
+func (w worker) runQuery(ctx context.Context, t *task) {
 	kv := w.consulClient.KV()
 	split := strings.Split(t.TargetID, ":")
 	if len(split) != 2 {
@@ -487,7 +487,7 @@ func (w worker) runQuery(t *task, ctx context.Context) {
 func (w worker) runWorkflowStep(ctx context.Context, t *task) error {
 	// runWorkflows
 	// processWorkflow
-	// Need to retrieve the related step from Consul with stepName and workflow
+	// Need to retrieve the related Step from Consul with stepName and workflow
 	//return s.run(ctx, deploymentID, w.consulClient.KV(), uninstallerrc, w.shutdownCh, w.cfg, bypassErrors, workflowName, w)
 	return nil
 }

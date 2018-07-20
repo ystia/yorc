@@ -49,7 +49,7 @@ var updateTaskStepCmd = &cobra.Command{
 		}
 
 		// The task step status is set to "done"
-		step := &tasks.TaskStep{Name: args[2], Status: strings.ToLower(tasks.TaskStepStatusDONE.String())}
+		step := &tasks.TaskStep{Name: args[2], Status: strings.ToLower(tasks.StepStatusDONE.String())}
 		body, err := json.Marshal(step)
 		if err != nil {
 			log.Panic(err)
