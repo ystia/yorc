@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dispatcher
+package workflow
 
 import (
 	"context"
@@ -48,6 +48,11 @@ type Step struct {
 	kv                 *api.KV
 	stepPrefix         string
 	t                  *TaskExecution
+}
+
+type visitStep struct {
+	refCount int
+	s        *Step
 }
 
 // IsTerminal returns true is the workflow step has no next step
@@ -150,7 +155,8 @@ func (s *Step) isRunnable() (bool, error) {
 	return true, nil
 }
 
-func (s *Step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, shutdownChan chan struct{}, bypassErrors bool, workflowName string, w worker) error {
+// Run allows to execute a workflow step
+func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, shutdownChan chan struct{}, bypassErrors bool, workflowName string, w worker) error {
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
 	logOptFields, _ := events.FromContext(ctx)
@@ -175,7 +181,11 @@ func (s *Step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	go func() {
 		select {
 		case <-ctx.Done():
-			if s.t.status != tasks.TaskStatusCANCELED {
+			status, err := s.t.GetTaskStatus()
+			if err != nil {
+				log.Printf("Failed to retrieve task status due to error:%v", err)
+			}
+			if status != tasks.TaskStatusCANCELED {
 				// Temporize to allow current Step termination before cancelling context and put Step in error
 				log.Printf("An error occurred on another Step while Step %q is running: trying to gracefully finish it.", s.Name)
 				select {
@@ -317,10 +327,8 @@ func (s *Step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("operation succeeded")
 		}
 	case ActivityTypeInline:
-		//TODO Handle inline workflow
-		//if err := w.runWorkflows(wfCtx, s.t, []string{activity.Value()}, bypassErrors); err != nil {
-		//	return err
-		//}
+		// Register inline workflow associated to the original task
+		return w.registerInlineWorkflow(wfCtx, s.t, activity.Value())
 	}
 	return nil
 }

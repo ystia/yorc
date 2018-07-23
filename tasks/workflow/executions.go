@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dispatcher
+package workflow
 
 import (
 	"context"
@@ -24,21 +24,21 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
 )
 
+// A TaskExecution is the unit task of execution. If task is a workflow, it contains as many TaskExecutions as workflow steps
 type TaskExecution struct {
 	ID           string
 	TaskID       string
 	TargetID     string
-	status       tasks.TaskStatus
+	status       tasks.StepStatus
 	TaskType     tasks.TaskType
 	creationDate time.Time
 	lock         *api.Lock
 	kv           *api.KV
-	workflow     string
 	step         string
-	parentID     string
 }
 
 func (t *TaskExecution) releaseLock() {
@@ -46,19 +46,32 @@ func (t *TaskExecution) releaseLock() {
 	t.lock.Destroy()
 }
 
-func (t *TaskExecution) Status() tasks.TaskStatus {
-	return t.status
+func (t *TaskExecution) GetTaskStatus() (tasks.TaskStatus, error) {
+	return tasks.GetTaskStatus(t.kv, t.TaskID)
 }
 
-//FIXME need to be done in concurrency context
-func (t *TaskExecution) WithStatus(ctx context.Context, status tasks.TaskStatus) error {
+func (t *TaskExecution) CheckAndSetTaskStatus(ctx context.Context, requiredStatus, status tasks.TaskStatus) error {
+	status, err := t.GetTaskStatus()
+	if err != nil {
+		return err
+	}
+
+	if status == requiredStatus {
+		return t.SetTaskStatus(ctx, status)
+	} else {
+		return errors.Errorf("Required status is:%q but actual status is:%s", requiredStatus.String(), status.String())
+	}
+	return nil
+}
+
+func (t *TaskExecution) SetTaskStatus(ctx context.Context, status tasks.TaskStatus) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.TaskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
-	t.status = status
 	if err != nil {
+		log.Printf("Failed to set status to %q for taskID:%q due to error:%v", status.String(), t.TaskID, err)
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = tasks.EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.TaskID, t.TaskType, t.status.String())
+	_, err = tasks.EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.TaskID, t.TaskType, status.String())
 
 	return err
 }

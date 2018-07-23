@@ -29,7 +29,7 @@ import (
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/monitoring"
 	"github.com/ystia/yorc/rest"
-	"github.com/ystia/yorc/tasks/dispatcher"
+	"github.com/ystia/yorc/tasks/workflow"
 )
 
 // RunServer starts the Yorc server
@@ -62,7 +62,7 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
 
-	dispatcher := dispatcher.NewDispatcher(configuration, shutdownCh, client, &wg)
+	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
 	go dispatcher.Run()
 	var httpServer *rest.Server
 	pm := newPluginManager()

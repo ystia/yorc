@@ -21,7 +21,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/dispatcher"
+	"github.com/ystia/yorc/tasks/workflow"
 	"path"
 	"strconv"
 	"strings"
@@ -112,7 +112,11 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
 	if tasks.IsWorkflowTask(taskType) {
-		stepOps, err := c.buildWfExecutionsOperations(taskID, targetID, taskType, data)
+		wfName, err := getWfNameFromTaskType(taskType, data)
+		if err != nil {
+			return "", err
+		}
+		stepOps, err := workflow.GetWorkflowInitOperations(c.consulClient.KV(), targetID, taskID, wfName)
 		if err != nil {
 			return "", err
 		}
@@ -142,51 +146,6 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 
 	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, tasks.TaskStatusINITIAL.String())
 	return taskID, nil
-}
-
-func (c *Collector) buildWfExecutionsOperations(taskID, targetID string, taskType tasks.TaskType, data map[string]string) (api.KVTxnOps, error) {
-	ops := make(api.KVTxnOps, 0)
-	wfName, err := getWfNameFromTaskType(taskType, data)
-	if err != nil {
-		return nil, err
-	}
-	steps, err := dispatcher.ReadWorkFlow(c.consulClient.KV(), targetID, wfName)
-	if err != nil {
-		return nil, err
-	}
-
-	var stepOps api.KVTxnOps
-	for _, step := range steps {
-		// Add execution key for initial steps only
-		if step.IsInitial() {
-			execID := fmt.Sprint(uuid.NewV4())
-			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
-			stepOps = api.KVTxnOps{
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(stepExecPath, "taskID"),
-					Value: []byte(taskID),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(stepExecPath, "workflow"),
-					Value: []byte(wfName),
-				},
-				&api.KVTxnOp{
-					Verb:  api.KVSet,
-					Key:   path.Join(stepExecPath, "step"),
-					Value: []byte(step.Name),
-				},
-				// Register workflow step to handle step statuses
-				&api.KVTxnOp{
-					Verb: api.KVSet,
-					Key:  path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
-				},
-			}
-		}
-		ops = append(ops, stepOps...)
-	}
-	return ops, nil
 }
 
 func getWfNameFromTaskType(taskType tasks.TaskType, data map[string]string) (string, error) {

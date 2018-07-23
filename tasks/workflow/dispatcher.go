@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dispatcher
+package workflow
 
 import (
 	"time"
@@ -109,7 +109,7 @@ func (d *Dispatcher) emitTasksMetrics() {
 }
 
 func getExecutionKeyValue(kv *api.KV, execID, execKey string) (string, error) {
-	execPath := path.Join(consulutil.TasksPrefix, "executions", execID)
+	execPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 	kvPairContent, _, err := kv.Get(path.Join(execPath, execKey), nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to get value for key due to error: %+v", path.Join(execPath, execKey), err)
@@ -143,8 +143,8 @@ func (d *Dispatcher) Run() {
 		default:
 		}
 		q := &api.QueryOptions{WaitIndex: waitIndex}
-		log.Debugf("Long polling TaskExecution")
-		execKeys, rMeta, err := kv.Keys(path.Join(consulutil.TasksPrefix, "executions", "/"), "/", q)
+		log.Debugf("Long polling Task Executions")
+		execKeys, rMeta, err := kv.Keys(consulutil.ExecutionsTaskPrefix+"/", "/", q)
 		if err != nil {
 			err = errors.Wrap(err, "Error getting task executions")
 			log.Print(err)
@@ -160,7 +160,8 @@ func (d *Dispatcher) Run() {
 		log.Debugf("Got response new wait index is %d", waitIndex)
 		for _, execKey := range execKeys {
 			execID := path.Base(execKey)
-			taskID, err := getExecutionKeyValue(kv, execID, "TaskID")
+			log.Debugf("handling execution with ID:%q", execID)
+			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
 			if err != nil {
 				log.Printf("%+v", err)
 				continue
@@ -168,9 +169,11 @@ func (d *Dispatcher) Run() {
 
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
 			opts := &api.LockOptions{
-				Key:          execKey + ".processingLock",
-				Value:        []byte(nodeName),
-				LockTryOnce:  true,
+				// Warning: don't use polling path for lock to avoid infinite looping with increasing last index
+				Key:         ".processingLock" + execID,
+				Value:       []byte(nodeName),
+				LockTryOnce: true,
+				// Why a short wait time ?
 				LockWaitTime: 10 * time.Millisecond,
 			}
 			lock, err := d.client.LockOpts(opts)
@@ -218,21 +221,10 @@ func (d *Dispatcher) Run() {
 				log.Debugf("%+v", err)
 				continue
 			}
-			creationDate, err := tasks.GetTaskCreationDate(kv, taskID)
-			if err != nil {
-				log.Print(err)
-				log.Debugf("%+v", err)
-				continue
-			}
 
 			// Retrieve workflow, Step information in case of workflow Step TaskExecution
-			var workflow, step string
+			var step string
 			if tasks.IsWorkflowTask(taskType) {
-				workflow, err = getExecutionKeyValue(kv, execID, "workflow")
-				if err != nil {
-					log.Print(err)
-					log.Debugf("%+v", err)
-				}
 				step, err = getExecutionKeyValue(kv, execID, "step")
 				if err != nil {
 					log.Print(err)
@@ -244,13 +236,11 @@ func (d *Dispatcher) Run() {
 			t := &TaskExecution{
 				ID:           execID,
 				TaskID:       taskID,
-				status:       status,
 				TargetID:     targetID,
 				lock:         lock,
 				kv:           kv,
-				creationDate: creationDate,
+				creationDate: time.Now(),
 				TaskType:     tasks.TaskType(taskType),
-				workflow:     workflow,
 				step:         step,
 			}
 			log.Debugf("New Task Execution created %+v: pushing it to workers channel", t)

@@ -23,7 +23,7 @@ const DeploymentKVPrefix string = yorcPrefix + "/deployments"
 const TasksPrefix = yorcPrefix + "/tasks"
 
 // ExecutionsTaskPrefix is the prefix in Consul KV store for execution task
-const ExecutionsTaskPrefix = TasksPrefix + "/executions"
+const ExecutionsTaskPrefix = yorcPrefix + "/executions"
 
 // TasksLocksPrefix is the prefix in Consul KV store for tasks locks
 const TasksLocksPrefix = yorcPrefix + "/tasks-locks"

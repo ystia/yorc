@@ -352,7 +352,7 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 	switch taskType {
 	case TaskTypeCustomCommand:
 		return events.PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
-	case TaskTypeCustomWorkflow:
+	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy:
 		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
 	case TaskTypeScaleIn, TaskTypeScaleOut:
 		return events.PublishAndLogScalingStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))

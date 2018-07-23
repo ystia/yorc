@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dispatcher
+package workflow
 
 import (
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"path"
@@ -24,16 +26,16 @@ import (
 	"strings"
 )
 
-// ReadWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
-func ReadWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*Step, error) {
+// BuildWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
+func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*Step, error) {
 	stepsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps")
-	stepsKeys, _, err := kv.Keys(stepsPath, "/", nil)
+	stepsKeys, _, err := kv.Keys(stepsPath+"/", "/", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
 	steps := make([]*Step, 0)
-	visitedMap := make(map[string]*Step, len(stepsKeys))
+	visitedMap := make(map[string]*visitStep, len(stepsKeys))
 	for _, stepPrefix := range stepsKeys {
 		stepName := path.Base(stepPrefix)
 		if visitStep, ok := visitedMap[stepName]; !ok {
@@ -43,17 +45,17 @@ func ReadWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*Step, error) {
 			}
 			steps = append(steps, step)
 		} else {
-			steps = append(steps, visitStep)
+			steps = append(steps, visitStep.s)
 		}
 	}
 	return steps, nil
 }
 
 // BuildStep returns a representation of the workflow step
-func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map[string]*Step) (*Step, error) {
+func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
 	stepPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps", stepName)
 	if visitedMap == nil {
-		visitedMap = make(map[string]*Step, 0)
+		visitedMap = make(map[string]*visitStep, 0)
 	}
 
 	s := &Step{Name: stepName, kv: kv, stepPrefix: stepPath}
@@ -138,21 +140,85 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		nextStepName := strings.TrimPrefix(nextKV.Key, stepPath+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
 			log.Debugf("Found existing Step %s", nextStepName)
-			nextStep = visitStep
+			nextStep = visitStep.s
 		} else {
 			log.Debugf("Reading new Step %s from Consul", nextStepName)
 			nextStep, err = BuildStep(kv, deploymentID, wfName, nextStepName, visitedMap)
 			if err != nil {
 				return nil, err
 			}
-			visitedMap[nextStepName] = nextStep
 		}
 
 		s.Next = append(s.Next, nextStep)
 		nextStep.Previous = append(nextStep.Previous, s)
+		visitedMap[nextStepName].refCount++
+		log.Debugf("RefCount for step %s set to %d", nextStepName, visitedMap[nextStepName].refCount)
 	}
+	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
 	return s, nil
 
+}
+
+// GetWorkflowInitOperations returns Consul transactional KV operations for initiating workflow execution
+func GetWorkflowInitOperations(kv *api.KV, deploymentID, taskID, workflowName string) (api.KVTxnOps, error) {
+	ops := make(api.KVTxnOps, 0)
+	steps, err := BuildWorkFlow(kv, deploymentID, workflowName)
+	if err != nil {
+		return nil, err
+	}
+
+	var stepOps api.KVTxnOps
+	for _, step := range steps {
+		// Register workflow step to handle step statuses for all steps
+		stepOps = append(stepOps, &api.KVTxnOp{
+			Verb: api.KVSet,
+			Key:  path.Join(consulutil.WorkflowsPrefix, deploymentID, step.Name),
+		})
+		// Add execution key for initial steps only
+		if step.IsInitial() {
+			execID := fmt.Sprint(uuid.NewV4())
+			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
+			stepOps = api.KVTxnOps{
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(stepExecPath, "taskID"),
+					Value: []byte(taskID),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(stepExecPath, "step"),
+					Value: []byte(step.Name),
+				},
+			}
+		}
+		ops = append(ops, stepOps...)
+	}
+	return ops, nil
+}
+
+// GetWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
+func GetWorkflowStepsOperations(taskID string, steps []*Step) api.KVTxnOps {
+	ops := make(api.KVTxnOps, 0)
+	var stepOps api.KVTxnOps
+	for _, step := range steps {
+		// Add execution key for initial steps only
+		execID := fmt.Sprint(uuid.NewV4())
+		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
+		stepOps = api.KVTxnOps{
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepExecPath, "taskID"),
+				Value: []byte(taskID),
+			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(stepExecPath, "step"),
+				Value: []byte(step.Name),
+			},
+		}
+		ops = append(ops, stepOps...)
+	}
+	return ops
 }
 
 func getCallOperationsFromStep(s *Step) []string {
