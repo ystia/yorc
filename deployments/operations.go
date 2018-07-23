@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 
 	"context"
+
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/helper/consulutil"
@@ -499,6 +500,7 @@ type OperationInputResult struct {
 	NodeName     string
 	InstanceName string
 	Value        string
+	IsSecret     bool
 }
 
 // GetOperationInput retrieves the value of an input for a given operation
@@ -512,20 +514,20 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 
 	operationPath, interfacePath := getOperationAndInterfacePath(deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
 	inputPath := path.Join(operationPath, "inputs", inputName, "data")
-	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
+	res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
 	}
-	if !found {
+	if res == nil {
 		// Check global interface input
 		inputPath = path.Join(interfacePath, "inputs", inputName, "data")
-		found, res, isFunction, err = getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
+		res, isFunction, err = getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 		if err != nil {
 			return nil, err
 		}
 	}
 	results := make([]OperationInputResult, 0)
-	if found {
+	if res != nil {
 		if !isFunction {
 			var ctxNodeName string
 			if operation.RelOp.IsRelationshipOperation && operation.OperationHost == "TARGET" {
@@ -538,12 +540,12 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 				return nil, err
 			}
 			for _, ins := range instances {
-				results = append(results, OperationInputResult{ctxNodeName, ins, res})
+				results = append(results, OperationInputResult{ctxNodeName, ins, res.RawString(), res.IsSecret})
 			}
 			return results, nil
 		}
 		va := &tosca.ValueAssignment{}
-		err = yaml.Unmarshal([]byte(res), va)
+		err = yaml.Unmarshal([]byte(res.RawString()), va)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal TOSCA Function definition %q", res)
 		}
@@ -558,6 +560,12 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 				hasAttrOnSrcOrSelf = true
 			}
 		}
+
+		var hasSecret bool
+		if res.IsSecret || len(f.GetFunctionsByOperator(tosca.GetSecretOperator)) > 0 {
+			hasSecret = true
+		}
+
 		if hasAttrOnSrcOrSelf && hasAttrOnTarget {
 			return nil, errors.Errorf("can't resolve input %q for operation %v on node %q: get_attribute functions on TARGET and SELF/SOURCE/HOST at the same time is not supported.", inputName, operation, nodeName)
 		}
@@ -575,12 +583,12 @@ func GetOperationInput(kv *api.KV, deploymentID, nodeName string, operation prov
 		}
 
 		for _, ins := range instances {
-			res, found, err = resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(f)
+			res, err = resolver(kv, deploymentID).context(withNodeName(nodeName), withInstanceName(ins), withRequirementIndex(operation.RelOp.RequirementIndex)).resolveFunction(f)
 			if err != nil {
 				return nil, err
 			}
-			if found {
-				results = append(results, OperationInputResult{ctxNodeName, ins, res})
+			if res != nil {
+				results = append(results, OperationInputResult{ctxNodeName, ins, res.RawString(), hasSecret || res.IsSecret})
 			} else {
 				ctx := events.NewContext(context.Background(), events.LogOptionalFields{events.NodeID: nodeName, events.InstanceID: ins})
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("[WARNING] The function %q hasn't be resolved for deployment: %q, node: %q, instance: %q. No operation input variable will be set", f, deploymentID, nodeName, ins)
@@ -616,22 +624,22 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 	operationPath, interfacePath := getOperationAndInterfacePath(deploymentID, operation.ImplementedInNodeTemplate, operation.ImplementedInType, operation.Name)
 	inputPath := path.Join(operationPath, "inputs", inputName, "default")
 	// TODO base datatype should be retrieved
-	found, res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
+	res, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 	if err != nil {
 		return nil, err
 	}
 
-	if !found {
+	if res == nil {
 		// Check global interface input
 		inputPath = path.Join(interfacePath, "inputs", inputName, "default")
 		// TODO base datatype should be retrieved
-		found, res, isFunction, err = getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
+		res, isFunction, err = getValueAssignmentWithoutResolve(kv, deploymentID, inputPath, "")
 		if err != nil {
 			return nil, err
 		}
 	}
 	results := make([]OperationInputResult, 0)
-	if found {
+	if res != nil {
 		if isFunction {
 			return nil, errors.Errorf("can't resolve input %q for operation %v on node %q: TOSCA function are not supported for property definition defaults.", inputName, operation, nodeName)
 		}
@@ -640,7 +648,7 @@ func GetOperationInputPropertyDefinitionDefault(kv *api.KV, deploymentID, nodeNa
 			return nil, err
 		}
 		for _, ins := range instances {
-			results = append(results, OperationInputResult{nodeName, ins, res})
+			results = append(results, OperationInputResult{nodeName, ins, res.RawString(), res.IsSecret})
 		}
 		return results, nil
 	}

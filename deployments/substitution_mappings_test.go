@@ -151,9 +151,9 @@ func testSubstitutionClientServiceInstance(t *testing.T, kv *api.KV) {
 	// Get a capability attribute for the capability exposed by this service
 	// here the ip_adress attribute exists as the capability derives from an
 	// endpoint capability
-	found, value, err := GetInstanceCapabilityAttribute(kv, deploymentID, serviceName,
+	value, err := GetInstanceCapabilityAttributeValue(kv, deploymentID, serviceName,
 		substitutableNodeInstance, "appA_capA", "ip_address")
 	require.NoError(t, err, "Failed to get service capability attribute")
-	assert.True(t, found, "Found no ip_address attribute in capability appA_capA exposed by the service")
-	assert.Equal(t, "10.0.0.2", value, "Wrong ip_address attribute in capability appA_capA exposed by the service")
+	require.NotNil(t, value, "Found no ip_address attribute in capability appA_capA exposed by the service")
+	assert.Equal(t, "10.0.0.2", value.RawString(), "Wrong ip_address attribute in capability appA_capA exposed by the service")
 }

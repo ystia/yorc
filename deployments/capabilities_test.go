@@ -204,17 +204,17 @@ func testGetCapabilityProperty(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := GetCapabilityProperty(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
+			got, err := GetCapabilityPropertyValue(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.capabilityName, tt.args.propertyName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetCapabilityProperty() %q error = %v, wantErr %v", tt.name, err, tt.wantErr)
 				return
 			}
-			if got != tt.propFound {
+			if err != nil && (got != nil) != tt.propFound {
 				t.Fatalf("GetCapabilityProperty() %q propFound got = %v, want %v", tt.name, got, tt.propFound)
 				return
 			}
-			if got1 != tt.propValue {
-				t.Fatalf("GetCapabilityProperty() %q propValue got = %v, want %v", tt.name, got1, tt.propValue)
+			if got != nil && got.RawString() != tt.propValue {
+				t.Fatalf("GetCapabilityProperty() %q propValue got = %v, want %v", tt.name, got.RawString(), tt.propValue)
 				return
 			}
 		})
@@ -232,11 +232,11 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV) {
 		nestedKeys     []string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		want1   string
-		wantErr bool
+		name      string
+		args      args
+		wantFound bool
+		want      string
+		wantErr   bool
 	}{
 		{"GetCapabilityAttributeInstancesScopped", args{kv, "cap1", "node1", "0", "endpoint", "ip_address", nil}, true, "0.0.0.0", false},
 		{"GetCapabilityAttributeNodeScopped", args{kv, "cap1", "node1", "0", "endpoint", "attr1", nil}, true, "attr1", false},
@@ -256,16 +256,16 @@ func testGetInstanceCapabilityAttribute(t *testing.T, kv *api.KV) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := GetInstanceCapabilityAttribute(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
+			got, err := GetInstanceCapabilityAttributeValue(tt.args.kv, tt.args.deploymentID, tt.args.nodeName, tt.args.instanceName, tt.args.capabilityName, tt.args.attributeName, tt.args.nestedKeys...)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GetInstanceCapabilityAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Fatalf("GetInstanceCapabilityAttribute() got = %v, want %v", got, tt.want)
+			if err == nil && (got != nil) != tt.wantFound {
+				t.Fatalf("GetInstanceCapabilityAttribute() got = %v, wantFound %v", got, tt.wantFound)
 			}
-			if got1 != tt.want1 {
-				t.Fatalf("GetInstanceCapabilityAttribute() got1 = %v, want %v", got1, tt.want1)
+			if got != nil && got.RawString() != tt.want {
+				t.Fatalf("GetInstanceCapabilityAttribute() got1 = %v, want %v", got.RawString(), tt.want)
 			}
 		})
 	}
@@ -311,15 +311,15 @@ func testGetCapabilityProperties(t *testing.T, kv *api.KV) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/capabilities_properties.yaml")
 	require.Nil(t, err)
-	found, value, err := GetCapabilityProperty(kv, deploymentID, "Tomcat", "data_endpoint", "port")
-	require.Equal(t, found, true)
-	require.Equal(t, value, "8088")
+	value, err := GetCapabilityPropertyValue(kv, deploymentID, "Tomcat", "data_endpoint", "port")
+	require.NotNil(t, value)
+	require.Equal(t, "8088", value.RawString())
 
-	found, value, err = GetCapabilityProperty(kv, deploymentID, "Tomcat", "data_endpoint", "protocol")
-	require.Equal(t, found, true)
-	require.Equal(t, value, "http")
+	value, err = GetCapabilityPropertyValue(kv, deploymentID, "Tomcat", "data_endpoint", "protocol")
+	require.NotNil(t, value)
+	require.Equal(t, "http", value.RawString())
 
-	found, value, err = GetCapabilityProperty(kv, deploymentID, "Tomcat", "data_endpoint", "network_name")
-	require.Equal(t, found, true)
-	require.Equal(t, value, "PRIVATE")
+	value, err = GetCapabilityPropertyValue(kv, deploymentID, "Tomcat", "data_endpoint", "network_name")
+	require.NotNil(t, value)
+	require.Equal(t, "PRIVATE", value.RawString())
 }

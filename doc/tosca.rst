@@ -21,6 +21,21 @@ Bellow are the specificities of Yorc
 TOSCA Operations
 ----------------
 
+Supported TOSCA functions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Yorc supports the following functions that could be used in value assignments (generally for attributes and operation inputs).
+
+- ``get_input: [input_name]``: Will retrieve the value of a Topology's input 
+- ``get_property: [<entity_name>, <optional_cap_name>, <property_name>, <nested_property_name_or_index_1>, ..., <nested_property_name_or_index_n> ]``: Will retrieve 
+  the value of a property in a given entity. ``<entity_name>`` could be the name of a given node or relationship template, ``SELF`` for the entity holding this function,
+  ``HOST`` for one of the hosts (in the hosted-on hierarchy) of the entity holding this function, ``SOURCE``, ``TARGET`` respectively for the source or the target entity
+  in case of a relationship. ``<optional_cap_name>`` is optional and allows to specify that we target a property in a capability rather directly on the node.
+- ``get_attribute: [<entity_name>, <optional_cap_name>, <property_name>, <nested_property_name_or_index_1>, ..., <nested_property_name_or_index_n> ]``: see ``get_property`` above
+- ``concat: [<string_value_expressions_*>]``: concats the result of each nested expression. Ex: ``concat: [ "http://", get_attribute: [ SELF, public_address ], ":", get_attribute: [ SELF, port ] ]``
+- ``get_operation_output: [<modelable_entity_name>, <interface_name>, <operation_name>, <output_variable_name>]``: Retrieves the output of an operation
+- ``get_secret: [<secret_path>, <optional_implementation_specific_options>]``: instructs to look for the value within a connected vault instead of within the Topology. Resulting value is considered as a secret by Yorc.
+
 .. _tosca_operations_implementations_section:
 
 Supported Operations implementations

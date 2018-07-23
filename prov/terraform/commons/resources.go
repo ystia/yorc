@@ -130,24 +130,22 @@ func AddOutput(infrastructure *Infrastructure, outputName string, output *Output
 
 // GetConnInfoFromEndpointCredentials allow to retrieve user and private key path for connection needs from endpoint credentials
 func GetConnInfoFromEndpointCredentials(kv *api.KV, deploymentID, nodeName string) (string, string, error) {
-	var (
-		user               string
-		privateKeyFilePath string
-		err                error
-	)
-	if _, user, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "endpoint", "credentials", "user"); err != nil {
+	user, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "user")
+	if err != nil {
 		return "", "", err
-	} else if user == "" {
+	} else if user == nil || user.RawString() == "" {
 		return "", "", errors.Errorf("Missing mandatory parameter 'user' node type for %s", nodeName)
 	}
-
-	if _, privateKeyFilePath, err = deployments.GetCapabilityProperty(kv, deploymentID,
-		nodeName, "endpoint", "credentials", "keys", "0"); err != nil {
+	var pkfp string
+	privateKeyFilePath, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "keys", "0")
+	if err != nil {
 		return "", "", err
-	} else if privateKeyFilePath == "" {
+	} else if privateKeyFilePath == nil || privateKeyFilePath.RawString() == "" {
 		// Using default value
-		privateKeyFilePath = DefaultSSHPrivateKeyFilePath
-		log.Printf("No private key defined for user %s, using default %s", user, privateKeyFilePath)
+		pkfp = DefaultSSHPrivateKeyFilePath
+		log.Printf("No private key defined for user %s, using default %s", user.RawString(), pkfp)
+	} else {
+		pkfp = privateKeyFilePath.RawString()
 	}
-	return user, privateKeyFilePath, nil
+	return user.RawString(), pkfp, nil
 }

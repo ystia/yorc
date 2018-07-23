@@ -324,19 +324,17 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q, instance name:%q", deploymentID, nodeName, nodeAlloc.instanceName))
 	// scancel cmd
-	found, jobID, err := deployments.GetInstanceAttribute(kv, deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
-	if jobID != "" {
-		if err != nil {
-			return errors.Wrapf(err, "Failed to retrieve Slurm job ID for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
+	jobID, err := deployments.GetInstanceAttributeValue(kv, deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
+	if err != nil {
+		return errors.Wrapf(err, "Failed to retrieve Slurm job ID for node name:%q, instance name:%q", nodeName, nodeAlloc.instanceName)
+	}
+	if jobID == nil || jobID.RawString() == "" {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("No job ID found for node name:%q, instance name:%q. We assume it has already been deleted", nodeName, nodeAlloc.instanceName)
+	} else {
+		if err := cancelJobID(jobID.RawString(), e.client); err != nil {
+			return err
 		}
-		if !found {
-			log.Printf("[Warning]: No job ID found for node name:%q, instance name:%q. We assume it has already been deleted", nodeName, nodeAlloc.instanceName)
-		} else {
-			if err := cancelJobID(jobID, e.client); err != nil {
-				return err
-			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID))
-		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Cancelling Job ID:%q", jobID.RawString()))
 	}
 	// Update the instance state
 	err = deployments.SetInstanceStateWithContextualLogs(ctx, kv, deploymentID, nodeName, nodeAlloc.instanceName, tosca.NodeStateDeleted)

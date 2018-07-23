@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/monitoring"
@@ -48,6 +49,9 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 			"secret": vaultClient.GetSecret,
 		}
 		config.DefaultConfigTemplateResolver.SetTemplatesFunctions(fm)
+
+		// Setup default vault client for TOSCA functions resolver
+		deployments.DefaultVaultClient = vaultClient
 	}
 	var wg sync.WaitGroup
 	client, err := configuration.GetConsulClient()
