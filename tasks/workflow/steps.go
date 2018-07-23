@@ -181,7 +181,7 @@ func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	go func() {
 		select {
 		case <-ctx.Done():
-			status, err := s.t.GetTaskStatus()
+			status, err := s.t.getTaskStatus()
 			if err != nil {
 				log.Printf("Failed to retrieve task status due to error:%v", err)
 			}

@@ -141,7 +141,7 @@ func (w worker) monitorTaskForCancellation(ctx context.Context, cancelFunc conte
 			if err == nil && kvp != nil {
 				if strings.ToLower(string(kvp.Value)) == "true" {
 					log.Debugln("[TASK MONITOR] Task cancellation requested.")
-					t.SetTaskStatus(ctx, tasks.TaskStatusCANCELED)
+					t.setTaskStatus(ctx, tasks.TaskStatusCANCELED)
 					cancelFunc()
 					return
 				}
@@ -202,7 +202,7 @@ func (w worker) handleExecution(t *TaskExecution) {
 	defer t.releaseLock()
 	defer cancelFunc()
 
-	if err := t.SetTaskStatus(ctx, tasks.TaskStatusRUNNING); err != nil {
+	if err := t.setTaskStatus(ctx, tasks.TaskStatusRUNNING); err != nil {
 		log.Printf("Failed to set task status to running due to err:%v", err)
 		return
 	}
@@ -225,7 +225,7 @@ func (w worker) handleExecution(t *TaskExecution) {
 		status, err := deployments.GetDeploymentStatus(kv, t.TargetID)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to get deployment status: %+v", t.TargetID, t.TaskID, err)
-			t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		if status != deployments.UNDEPLOYED {
@@ -242,13 +242,13 @@ func (w worker) handleExecution(t *TaskExecution) {
 			_, err := kv.DeleteTree(path.Join(consulutil.DeploymentKVPrefix, t.TargetID), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge deployment definition: %+v", t.TargetID, t.TaskID, err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 			tasksList, err := tasks.GetTasksIdsForTarget(kv, t.TargetID)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.TaskID, err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 			for _, tid := range tasksList {
@@ -256,14 +256,14 @@ func (w worker) handleExecution(t *TaskExecution) {
 					_, err = kv.DeleteTree(path.Join(consulutil.TasksPrefix, tid), nil)
 					if err != nil {
 						log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.TaskID, err)
-						t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+						t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 						return
 					}
 				}
 				_, err = kv.DeleteTree(path.Join(consulutil.WorkflowsPrefix, tid), nil)
 				if err != nil {
 					log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.TaskID, err)
-					t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+					t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 					return
 				}
 			}
@@ -271,29 +271,29 @@ func (w worker) handleExecution(t *TaskExecution) {
 			_, err = kv.DeleteTree(path.Join(consulutil.EventsPrefix, t.TargetID), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge events: %+v", t.TargetID, t.TaskID, err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 			// Delete logs tree corresponding to the deployment TaskExecution
 			_, err = kv.DeleteTree(path.Join(consulutil.LogsPrefix, t.TargetID), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge logs: %+v", t.TargetID, t.TaskID, err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 			err = os.RemoveAll(filepath.Join(w.cfg.WorkingDirectory, "deployments", t.TargetID))
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.TaskID, err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 			// Now cleanup: mark it as done so nobody will try to run it, clear the processing lock and finally delete the TaskExecution.
-			t.SetTaskStatus(ctx, tasks.TaskStatusDONE)
+			t.setTaskStatus(ctx, tasks.TaskStatusDONE)
 			t.releaseLock()
 			_, err = kv.DeleteTree(path.Join(consulutil.TasksPrefix, t.TaskID), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.TargetID, t.TaskID, err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 			return
@@ -318,7 +318,7 @@ func (w worker) handleExecution(t *TaskExecution) {
 
 		// Cleanup
 		if err = w.cleanupScaledDownNodes(t); err != nil {
-			t.CheckAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
+			t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
 			log.Printf("%v. Aborting", err)
 			w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED)
 			return
@@ -329,26 +329,26 @@ func (w worker) handleExecution(t *TaskExecution) {
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.TaskID, err)
 			log.Debugf("%+v", err)
-			t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		continueOnError, err := tasks.GetTaskData(kv, t.TaskID, "continueOnError")
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.TaskID, err)
 			log.Debugf("%+v", err)
-			t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		bypassErrors, err := strconv.ParseBool(continueOnError)
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q Failed to parse continueOnError parameter: %v", t.TargetID, t.TaskID, err)
 			log.Debugf("%+v", err)
-			t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		err = w.runWorkflowStep(ctx, t, wfName, bypassErrors)
 		if err != nil {
-			t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			log.Printf("%+v", err)
 			return
 		}
@@ -357,7 +357,7 @@ func (w worker) handleExecution(t *TaskExecution) {
 	default:
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Unknown TaskType %d (%s) for TaskExecution with id %q", t.TaskType, t.TaskType.String(), t.TaskID))
 		log.Printf("Unknown TaskType %d (%s) for TaskExecution with id %q and targetId %q", t.TaskType, t.TaskType.String(), t.TaskID, t.TargetID)
-		t.CheckAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
 		return
 	}
 }
@@ -367,24 +367,24 @@ func (w worker) runCustomCommand(ctx context.Context, t *TaskExecution) {
 	commandNameKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.TaskID, "commandName"), nil)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command name: %+v", t.TargetID, t.TaskID, err)
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 	if commandNameKv == nil || len(commandNameKv.Value) == 0 {
 		log.Printf("Deployment id: %q, Task id: %q, Missing commandName attribute for custom command TaskExecution", t.TargetID, t.TaskID)
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 
 	nodes, err := tasks.GetTaskRelatedNodes(kv, t.TaskID)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command node: %+v", t.TargetID, t.TaskID, err)
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 	if len(nodes) != 1 {
 		log.Printf("Deployment id: %q, Task id: %q, Expecting custom command TaskExecution to be related to \"1\" node while it is actually related to \"%d\" nodes", t.TargetID, t.TaskID, len(nodes))
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 
@@ -393,7 +393,7 @@ func (w worker) runCustomCommand(ctx context.Context, t *TaskExecution) {
 	nodeType, err := deployments.GetNodeType(w.consulClient.KV(), t.TargetID, nodeName)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command node type: %+v", t.TargetID, t.TaskID, err)
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 	op, err := operations.GetOperation(ctx, kv, t.TargetID, nodeName, "custom."+commandName, "", "")
@@ -403,7 +403,7 @@ func (w worker) runCustomCommand(ctx context.Context, t *TaskExecution) {
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.TargetID, t.TaskID, nodeName, err)
 		}
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 
@@ -414,7 +414,7 @@ func (w worker) runCustomCommand(ctx context.Context, t *TaskExecution) {
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.TargetID, t.TaskID, nodeName, err)
 		}
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 	err = func() error {
@@ -428,10 +428,10 @@ func (w worker) runCustomCommand(ctx context.Context, t *TaskExecution) {
 		if err != nil {
 			log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.TargetID, t.TaskID, nodeName, err)
 		}
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
-	t.SetTaskStatus(ctx, tasks.TaskStatusDONE)
+	t.setTaskStatus(ctx, tasks.TaskStatusDONE)
 	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.TargetID, nodeType, op.Name, "successes"}), 1)
 }
 
@@ -440,7 +440,7 @@ func (w worker) runQuery(ctx context.Context, t *TaskExecution) {
 	split := strings.Split(t.TargetID, ":")
 	if len(split) != 2 {
 		log.Printf("Query Task (id: %q): unexpected format for targetID: %q", t.TaskID, t.TargetID)
-		t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
 	query := split[0]
@@ -453,14 +453,14 @@ func (w worker) runQuery(ctx context.Context, t *TaskExecution) {
 		if err != nil {
 			log.Printf("Query Task id: %q Failed to retrieve target type: %v", t.TaskID, err)
 			log.Debugf("%+v", err)
-			t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		res, err := collector.GetUsageInfo(ctx, w.cfg, t.TaskID, target)
 		if err != nil {
 			log.Printf("Query Task id: %q Failed to run query: %v", t.TaskID, err)
 			log.Debugf("%+v", err)
-			t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 
@@ -471,14 +471,14 @@ func (w worker) runQuery(ctx context.Context, t *TaskExecution) {
 			if err != nil {
 				log.Printf("Failed to marshal infra usage info [%+v]: due to error:%+v", res, err)
 				log.Debugf("%+v", err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 			kvPair := &api.KVPair{Key: resultPrefix, Value: jsonRes}
 			if _, err := kv.Put(kvPair, nil); err != nil {
 				log.Printf("Query Task id: %q Failed to store result: %v", t.TaskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
 				log.Debugf("%+v", err)
-				t.SetTaskStatus(ctx, tasks.TaskStatusFAILED)
+				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
 		}
@@ -486,10 +486,10 @@ func (w worker) runQuery(ctx context.Context, t *TaskExecution) {
 		mess := fmt.Sprintf("Unknown query: %q for Task with id %q", query, t.TaskID)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(mess)
 		log.Printf(mess)
-		t.CheckAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
 		return
 	}
-	t.SetTaskStatus(ctx, tasks.TaskStatusDONE)
+	t.setTaskStatus(ctx, tasks.TaskStatusDONE)
 }
 
 func (w worker) runWorkflowStep(ctx context.Context, t *TaskExecution, workflowName string, continueOnError bool) error {
@@ -497,14 +497,14 @@ func (w worker) runWorkflowStep(ctx context.Context, t *TaskExecution, workflowN
 
 	s, err := BuildStep(w.consulClient.KV(), t.TargetID, workflowName, t.step, nil)
 	if err != nil {
-		t.CheckAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
 		log.Printf("%v. Aborting", err)
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	s.t = t
 	err = s.Run(ctx, w.cfg, w.consulClient.KV(), t.TargetID, w.shutdownCh, continueOnError, workflowName, w)
 	if err != nil {
-		t.CheckAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
 		return errors.Wrapf(err, "The workflow %s step %s ended with error:%v", workflowName, t.step, err)
 	}
@@ -554,7 +554,7 @@ func (w worker) checkIfWorkflowIsOver(ctx context.Context, t *TaskExecution, wor
 	}
 
 	if len(taskSteps) == cpt {
-		err = t.CheckAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusDONE)
+		err = t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusDONE)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%v", t.TaskID, err)
 		}

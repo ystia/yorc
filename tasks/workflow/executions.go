@@ -46,25 +46,23 @@ func (t *TaskExecution) releaseLock() {
 	t.lock.Destroy()
 }
 
-func (t *TaskExecution) GetTaskStatus() (tasks.TaskStatus, error) {
+func (t *TaskExecution) getTaskStatus() (tasks.TaskStatus, error) {
 	return tasks.GetTaskStatus(t.kv, t.TaskID)
 }
 
-func (t *TaskExecution) CheckAndSetTaskStatus(ctx context.Context, requiredStatus, status tasks.TaskStatus) error {
-	status, err := t.GetTaskStatus()
+func (t *TaskExecution) checkAndSetTaskStatus(ctx context.Context, requiredStatus, status tasks.TaskStatus) error {
+	status, err := t.getTaskStatus()
 	if err != nil {
 		return err
 	}
 
 	if status == requiredStatus {
-		return t.SetTaskStatus(ctx, status)
-	} else {
-		return errors.Errorf("Required status is:%q but actual status is:%s", requiredStatus.String(), status.String())
+		return t.setTaskStatus(ctx, status)
 	}
-	return nil
+	return errors.Errorf("Required status is:%q but actual status is:%s", requiredStatus.String(), status.String())
 }
 
-func (t *TaskExecution) SetTaskStatus(ctx context.Context, status tasks.TaskStatus) error {
+func (t *TaskExecution) setTaskStatus(ctx context.Context, status tasks.TaskStatus) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.TaskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
 	if err != nil {
