@@ -86,14 +86,14 @@ func GetCapabilitiesOfType(kv *api.KV, deploymentID, typeName, capabilityTypeNam
 	return capabilities, nil
 }
 
-// GetCapabilityProperty  retrieves the value for a given property in a given node capability
+// GetCapabilityPropertyValue retrieves the value for a given property in a given node capability
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the property is not found in the node then the type hierarchy is explored to find a default value.
-func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, propertyName string, nestedKeys ...string) (bool, string, error) {
+func GetCapabilityPropertyValue(kv *api.KV, deploymentID, nodeName, capabilityName, propertyName string, nestedKeys ...string) (*TOSCAValue, error) {
 	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	var propDataType string
@@ -101,57 +101,57 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 	if capabilityType != "" {
 		hasProp, err = TypeHasProperty(kv, deploymentID, capabilityType, propertyName, true)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 		if hasProp {
 			propDataType, err = GetTypePropertyDataType(kv, deploymentID, capabilityType, propertyName)
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 		}
 	}
 
 	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "properties", propertyName)
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, nodeName, "", "", propDataType, nestedKeys...)
-	if err != nil || found {
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, nodeName, "", "", propDataType, nestedKeys...)
+	if err != nil || result != nil {
 		// If there is an error or property was found
-		return found, result, errors.Wrapf(err, "Failed to get property %q for capability %q on node %q", propertyName, capabilityName, nodeName)
+		return result, errors.Wrapf(err, "Failed to get property %q for capability %q on node %q", propertyName, capabilityName, nodeName)
 	}
 
 	// Not found: let's look at capability in node type
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
-	found, result, err = GetNodeTypeCapabilityProperty(kv, deploymentID, nodeType, capabilityName, propertyName, propDataType, nestedKeys...)
-	if err != nil || found {
-		return found, result, err
+
+	result, err = GetNodeTypeCapabilityPropertyValue(kv, deploymentID, nodeType, capabilityName, propertyName, propDataType, nestedKeys...)
+	if err != nil || result != nil {
+		return result, err
 	}
 
 	// Not found let's look at capability type for default
 	if capabilityType != "" {
-		found, result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultProperty(kv, deploymentID, capabilityType, propertyName, nestedKeys...)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
-		if found {
+		if result != nil {
 			if !isFunction {
-				return true, result, nil
+				return result, nil
 			}
-			result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, "", "", result, nestedKeys...)
-			return true, result, err
+			return resolveValueAssignment(kv, deploymentID, nodeName, "", "", result, nestedKeys...)
 		}
 	}
 	// No default found in type hierarchy
 	// then traverse HostedOn relationships to find the value
 	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if host != "" {
-		found, result, err = GetCapabilityProperty(kv, deploymentID, host, capabilityName, propertyName, nestedKeys...)
-		if err != nil || found {
-			return found, result, err
+		result, err = GetCapabilityPropertyValue(kv, deploymentID, host, capabilityName, propertyName, nestedKeys...)
+		if err != nil || result != nil {
+			return result, err
 		}
 	}
 
@@ -159,57 +159,57 @@ func GetCapabilityProperty(kv *api.KV, deploymentID, nodeName, capabilityName, p
 		// Check if the whole property is optional
 		isRequired, err := IsTypePropertyRequired(kv, deploymentID, capabilityType, propertyName)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 		if !isRequired {
 			// For backward compatibility
 			// TODO this doesn't look as a good idea to me
-			return true, "", nil
+			return &TOSCAValue{Value: ""}, nil
 		}
 
 		if len(nestedKeys) > 1 && propDataType != "" {
 			// Check if nested type is optional
 			nestedKeyType, err := GetNestedDataType(kv, deploymentID, propDataType, nestedKeys[:len(nestedKeys)-1]...)
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 			isRequired, err = IsTypePropertyRequired(kv, deploymentID, nestedKeyType, nestedKeys[len(nestedKeys)-1])
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 			if !isRequired {
 				// For backward compatibility
 				// TODO this doesn't look as a good idea to me
-				return true, "", nil
+				return &TOSCAValue{Value: ""}, nil
 			}
 		}
 	}
 
 	// Not found anywhere
-	return false, "", nil
+	return nil, nil
 }
 
-// GetInstanceCapabilityAttribute retrieves the value for a given attribute in a given node instance capability
+// GetInstanceCapabilityAttributeValue retrieves the value for a given attribute in a given node instance capability
 //
 // It returns true if a value is found false otherwise as first return parameter.
 // If the attribute is not found in the node then the type hierarchy is explored to find a default value.
 // If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, nestedKeys ...string) (bool, string, error) {
+func GetInstanceCapabilityAttributeValue(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 	capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	var attrDataType string
 	if capabilityType != "" {
 		hasProp, err := TypeHasAttribute(kv, deploymentID, capabilityType, attributeName, true)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
 		if hasProp {
 			attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, capabilityType, attributeName)
 			if err != nil {
-				return false, "", err
+				return nil, err
 			}
 		}
 	}
@@ -218,15 +218,15 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	// deployment are actually available as attributes of the node template
 	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if substitutionInstance {
 
-		found, result, err := getSubstitutionInstanceCapabilityAttribute(kv, deploymentID, nodeName, instanceName, capabilityName, attrDataType, attributeName, nestedKeys...)
-		if err != nil || found {
+		result, err := getSubstitutionInstanceCapabilityAttribute(kv, deploymentID, nodeName, instanceName, capabilityName, attrDataType, attributeName, nestedKeys...)
+		if err != nil || result != nil {
 			// If there is an error or attribute was found, returning
 			// else going back to the generic behavior
-			return found, result, errors.Wrapf(err,
+			return result, errors.Wrapf(err,
 				"Failed to get attribute %q for capability %q on substitutable node %q",
 				attributeName, capabilityName, nodeName)
 		}
@@ -234,32 +234,31 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 
 	// First look at instance scoped attributes
 	capAttrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
-	if err != nil || found {
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, capAttrPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
+	if err != nil || result != nil {
 		// If there is an error or attribute was found
-		return found, result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
+		return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
 	}
 
 	// Then look at global node level
 	nodeCapPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "capabilities", capabilityName, "attributes", attributeName)
-	found, result, err = getValueAssignmentWithDataType(kv, deploymentID, nodeCapPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
-	if err != nil || found {
+	result, err = getValueAssignmentWithDataType(kv, deploymentID, nodeCapPath, nodeName, instanceName, "", attrDataType, nestedKeys...)
+	if err != nil || result != nil {
 		// If there is an error or attribute was found
-		return found, result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
+		return result, errors.Wrapf(err, "Failed to get attribute %q for capability %q on node %q (instance %q)", attributeName, capabilityName, nodeName, instanceName)
 	}
 
 	// Now look at capability type for default
 	if capabilityType != "" {
-		found, result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, capabilityType, attributeName, nestedKeys...)
+		result, isFunction, err := getTypeDefaultAttribute(kv, deploymentID, capabilityType, attributeName, nestedKeys...)
 		if err != nil {
-			return false, "", err
+			return nil, err
 		}
-		if found {
+		if result != nil {
 			if !isFunction {
-				return true, result, nil
+				return result, nil
 			}
-			result, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, "", result, nestedKeys...)
-			return true, result, err
+			return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, "", result, nestedKeys...)
 		}
 	}
 
@@ -267,20 +266,20 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	// then traverse HostedOn relationships to find the value
 	host, hostInstance, err := GetHostedOnNodeInstance(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if host != "" {
-		found, result, err = GetInstanceCapabilityAttribute(kv, deploymentID, host, hostInstance, capabilityName, attributeName, nestedKeys...)
-		if err != nil || found {
+		result, err = GetInstanceCapabilityAttributeValue(kv, deploymentID, host, hostInstance, capabilityName, attributeName, nestedKeys...)
+		if err != nil || result != nil {
 			// If there is an error or attribute was found
-			return found, result, err
+			return result, err
 		}
 	}
 
 	isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
 		tosca.EndpointCapability)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	// TOSCA specification at :
@@ -288,37 +287,37 @@ func GetInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName, instance
 	// describes that the ip_address attribute of an endpoint is the IP address
 	// as propagated up by the associated node’s host (Compute) container.
 	if isEndpoint && attributeName == "ip_address" && host != "" {
-		found, result, err = getIPAddressFromHost(kv, deploymentID, host,
+		result, err = getIPAddressFromHost(kv, deploymentID, host,
 			hostInstance, nodeName, instanceName, capabilityName)
-		if err != nil || found {
-			return found, result, err
+		if err != nil || result != nil {
+			return result, err
 		}
 	}
 
 	// If still not found check properties as the spec states "TOSCA orchestrators will automatically reflect (i.e., make available) any property defined on an entity making it available as an attribute of the entity with the same name as the property."
-	return GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
+	return GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, attributeName, nestedKeys...)
 }
 
 func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance,
-	nodeName, instanceName, capabilityName string) (bool, string, error) {
+	nodeName, instanceName, capabilityName string) (*TOSCAValue, error) {
 
 	// First check the network name in the capability property to find the right
 	// IP address attribute (default: private address)
 	ipAddressAttrName := "private_address"
 
-	found, netName, err := GetCapabilityProperty(kv, deploymentID, nodeName, capabilityName, "network_name")
+	netName, err := GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, "network_name")
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
-	if found && strings.ToLower(netName) == "public" {
+	if netName != nil && strings.ToLower(netName.RawString()) == "public" {
 		ipAddressAttrName = "public_address"
 	}
 
-	found, result, err := GetInstanceAttribute(kv, deploymentID, hostName, hostInstance,
+	result, err := GetInstanceAttributeValue(kv, deploymentID, hostName, hostInstance,
 		ipAddressAttrName)
 
-	if err == nil && found {
+	if err == nil && result != nil {
 		log.Debugf("Found IP address %s for %s %s %s %s on network %s from host %s %s",
 			result, deploymentID, nodeName, instanceName, capabilityName, netName, hostName, hostInstance)
 	} else {
@@ -326,7 +325,7 @@ func getIPAddressFromHost(kv *api.KV, deploymentID, hostName, hostInstance,
 			deploymentID, nodeName, instanceName, capabilityName, netName, hostName, hostInstance)
 	}
 
-	return found, result, err
+	return result, err
 
 }
 
@@ -415,22 +414,22 @@ func GetNodeTypeCapabilityType(kv *api.KV, deploymentID, nodeType, capabilityNam
 	return GetNodeTypeCapabilityType(kv, deploymentID, parentType, capabilityName)
 }
 
-// GetNodeTypeCapabilityProperty retrieves the property value of a node type capability identified by its name
+// GetNodeTypeCapabilityPropertyValue retrieves the property value of a node type capability identified by its name
 //
 // It explores the type hierarchy (derived_from) to found the given capability.
-func GetNodeTypeCapabilityProperty(kv *api.KV, deploymentID, nodeType, capabilityName, propertyName, propDataType string, nestedKeys ...string) (bool, string, error) {
+func GetNodeTypeCapabilityPropertyValue(kv *api.KV, deploymentID, nodeType, capabilityName, propertyName, propDataType string, nestedKeys ...string) (*TOSCAValue, error) {
 	capPropPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "capabilities", capabilityName, "properties", propertyName)
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, "", "", "", propDataType, nestedKeys...)
-	if err != nil || found {
-		return found, result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)
+	result, err := getValueAssignmentWithDataType(kv, deploymentID, capPropPath, "", "", "", propDataType, nestedKeys...)
+	if err != nil || result != nil {
+		return result, errors.Wrapf(err, "Failed to get property %q for capability %q on node type %q", propertyName, capabilityName, nodeType)
 	}
 
 	parentType, err := GetParentType(kv, deploymentID, nodeType)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 	if parentType == "" {
-		return false, "", nil
+		return nil, nil
 	}
-	return GetNodeTypeCapabilityProperty(kv, deploymentID, parentType, capabilityName, propertyName, propDataType, nestedKeys...)
+	return GetNodeTypeCapabilityPropertyValue(kv, deploymentID, parentType, capabilityName, propertyName, propDataType, nestedKeys...)
 }

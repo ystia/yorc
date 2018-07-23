@@ -19,7 +19,6 @@ import (
 	"context"
 	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"testing"
@@ -60,14 +59,9 @@ func TestTemplates(t *testing.T) {
 		executionCommon: ec,
 	}
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
-
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(ec, ""))
 	tmpl, err := tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(os.Stdout, e)
@@ -302,14 +296,10 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 
 `
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
@@ -420,6 +410,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
         SOURCE_NODE: "NodeA"
+        TARGET_HOST: "ComputeB"
+        TARGET_INSTANCE: "NodeB_0"
+        TARGET_INSTANCES: "NodeB_0,NodeB_1"
+        TARGET_NODE: "NodeB"
 		TARGET_CAPABILITY_NAMES: "cap"
 		TARGET_CAPABILITY_NodeB_0_ATTRIBUTE_myattr: "attr-0"
 		TARGET_CAPABILITY_NodeB_1_ATTRIBUTE_myattr: "attr-1"
@@ -431,10 +425,6 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 		TARGET_CAPABILITY_cap_PROPERTY_Cap1: "DCap1"
 		TARGET_CAPABILITY_cap_PROPERTY_Cap2: "DCap2"
 		TARGET_CAPABILITY_cap_TYPE: "yorc.types.Cap"
-        TARGET_HOST: "ComputeB"
-        TARGET_INSTANCE: "NodeB_0"
-        TARGET_INSTANCES: "NodeB_0,NodeB_1"
-        TARGET_NODE: "NodeB"
         A1: " {{A1}}"
         A2: " {{A2}}"
         G1: " {{G1}}"
@@ -447,14 +437,10 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 
 `
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
@@ -561,6 +547,9 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
         SOURCE_HOST: "ComputeA"
         SOURCE_INSTANCES: "NodeA_0,NodeA_1,NodeA_2"
         SOURCE_NODE: "NodeA"
+        TARGET_HOST: "ComputeB"
+        TARGET_INSTANCES: "NodeB_0,NodeB_1"
+		TARGET_NODE: "NodeB"
 		TARGET_CAPABILITY_NAMES: "cap"
 		TARGET_CAPABILITY_NodeB_0_ATTRIBUTE_myattr: "attr-0"
 		TARGET_CAPABILITY_NodeB_1_ATTRIBUTE_myattr: "attr-1"
@@ -572,9 +561,6 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 		TARGET_CAPABILITY_cap_PROPERTY_Cap1: "DCap1"
 		TARGET_CAPABILITY_cap_PROPERTY_Cap2: "DCap2"
 		TARGET_CAPABILITY_cap_TYPE: "yorc.types.Cap"
-        TARGET_HOST: "ComputeB"
-        TARGET_INSTANCES: "NodeB_0,NodeB_1"
-        TARGET_NODE: "NodeB"
         A1: " {{A1}}"
         A2: " {{A2}}"
         G1: " {{G1}}"
@@ -588,14 +574,10 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 
 `
 
-	funcMap := template.FuncMap{
-		// The name "path" is what the function will be called in the template text.
-		"path": filepath.Dir,
-	}
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(funcMap)
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)

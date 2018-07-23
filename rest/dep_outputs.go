@@ -39,7 +39,7 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	found, result, err := deployments.GetTopologyOutput(kv, id, opt)
+	result, err := deployments.GetTopologyOutputValue(kv, id, opt)
 	if err != nil {
 		if status == deployments.DEPLOYMENT_IN_PROGRESS {
 			// Things may not be resolvable yet
@@ -48,12 +48,12 @@ func (s *Server) getOutputHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Panicf("Unable to resolve topology output %q: %v", opt, err)
 	}
-	if !found {
+	if result == nil {
 		writeError(w, r, errNotFound)
 		return
 	}
 
-	encodeJSONResponse(w, r, Output{Name: opt, Value: result})
+	encodeJSONResponse(w, r, Output{Name: opt, Value: result.String()})
 }
 
 func (s *Server) listOutputsHandler(w http.ResponseWriter, r *http.Request) {

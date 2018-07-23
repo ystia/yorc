@@ -150,8 +150,11 @@ func (vc *vaultClient) GetSecret(id string, options ...string) (vault.Secret, er
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read secret %q", id)
 	}
+	if s == nil {
+		return nil, errors.Errorf("secret %q not found", id)
+	}
 	secret := &vaultSecret{Secret: s, options: opts}
-	return secret, err
+	return secret, nil
 }
 
 func (vc *vaultClient) startRenewing() {

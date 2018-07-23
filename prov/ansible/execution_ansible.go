@@ -82,7 +82,11 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 			buffer.WriteString(envInput.InstanceName)
 			buffer.WriteString("_")
 		}
-		buffer.WriteString(fmt.Sprintf("%s: %q", envInput.Name, envInput.Value))
+		v, err := e.encodeEnvInputValue(envInput, ansibleRecipePath)
+		if err != nil {
+			return err
+		}
+		buffer.WriteString(fmt.Sprintf("%s: %s", envInput.Name, v))
 		buffer.WriteString("\n")
 	}
 

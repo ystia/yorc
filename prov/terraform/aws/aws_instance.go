@@ -23,13 +23,14 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"net"
+	"strconv"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/terraform/commons"
-	"net"
-	"strconv"
 )
 
 func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
@@ -47,43 +48,47 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instance.Tags.Name = cfg.ResourcesPrefix + nodeName + "-" + instanceName
 
 	// image_id is mandatory
-	var image string
-	if _, image, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "image_id"); err != nil {
+	image, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "image_id")
+	if err != nil {
 		return err
-	} else if image == "" {
+	}
+	if image == nil || image.RawString() == "" {
 		return errors.Errorf("Missing mandatory parameter 'image_id' node type for %s", nodeName)
 	}
-	instance.ImageID = image
+	instance.ImageID = image.RawString()
 
 	// instance_type is mandatory
-	var instanceType string
-	if _, instanceType, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "instance_type"); err != nil {
+	instanceType, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "instance_type")
+	if err != nil {
 		return err
-	} else if instanceType == "" {
+	}
+	if instanceType == nil || instanceType.RawString() == "" {
 		return errors.Errorf("Missing mandatory parameter 'instance_type' node type for %s", nodeName)
 	}
-	instance.InstanceType = instanceType
+	instance.InstanceType = instanceType.RawString()
 
 	// key_name is mandatory
-	var keyName string
-	if _, keyName, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "key_name"); err != nil {
+	keyName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "key_name")
+	if err != nil {
 		return err
-	} else if keyName == "" {
+	}
+	if keyName == nil || keyName.RawString() == "" {
 		return errors.Errorf("Missing mandatory parameter 'key_name' node type for %s", nodeName)
 	}
-	instance.KeyName = keyName
+	instance.KeyName = keyName.RawString()
 
 	// security_groups needs to contain a least one occurrence
-	var secGroups string
-	if _, secGroups, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "security_groups"); err != nil {
+	secGroups, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "security_groups")
+	if err != nil {
 		return err
-	} else if secGroups == "" {
+	}
+	if secGroups == nil || secGroups.RawString() == "" {
 		return errors.Errorf("Missing mandatory parameter 'security_groups' node type for %s", nodeName)
-	} else {
-		for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups), ",") {
-			secGroup = strings.TrimSpace(secGroup)
-			instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
-		}
+	}
+
+	for _, secGroup := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(secGroups.RawString()), ",") {
+		secGroup = strings.TrimSpace(secGroup)
+		instance.SecurityGroups = append(instance.SecurityGroups, secGroup)
 	}
 
 	// Get connection info (user, private key)
@@ -93,11 +98,12 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	}
 
 	// Check optional provided Elastic IPs
-	var eips string
-	if _, eips, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "elastic_ips"); err != nil {
+	eips, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "elastic_ips")
+	if err != nil {
 		return err
-	} else if eips != "" {
-		for _, eip := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(eips), ",") {
+	}
+	if eips != nil && eips.RawString() != "" {
+		for _, eip := range strings.Split(strings.NewReplacer("\"", "", "'", "").Replace(eips.RawString()), ",") {
 			eip = strings.TrimSpace(eip)
 			if net.ParseIP(eip) == nil {
 				return errors.Errorf("Malformed provided Elastic IP: %s", eip)
@@ -108,10 +114,12 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 
 	// Check if the root block device must be deleted on termination
 	deleteVolumeOnTermination := true // Default is deleting root block device on compute termination
-	if _, s, err := deployments.GetNodeProperty(kv, deploymentID, nodeName, "delete_volume_on_termination"); err != nil {
+	s, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "delete_volume_on_termination")
+	if err != nil {
 		return err
-	} else if s != "" {
-		deleteVolumeOnTermination, err = strconv.ParseBool(s)
+	}
+	if s != nil && s.RawString() != "" {
+		deleteVolumeOnTermination, err = strconv.ParseBool(s.RawString())
 		if err != nil {
 			return err
 		}
@@ -119,19 +127,22 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	instance.RootBlockDevice = BlockDevice{DeleteOnTermination: deleteVolumeOnTermination}
 
 	// Optional property to select availability zone of the compute instance
-	var availabilityZone string
-	if _, availabilityZone, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "availability_zone"); err != nil {
+	availabilityZone, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "availability_zone")
+	if err != nil {
 		return err
 	}
-	instance.AvailabilityZone = availabilityZone
+	if availabilityZone != nil {
+		instance.AvailabilityZone = availabilityZone.RawString()
+	}
 
 	// Optional property to add the compute to a logical grouping of instances
-	var placementGroup string
-	if _, placementGroup, err = deployments.GetNodeProperty(kv, deploymentID, nodeName, "placement_group"); err != nil {
+	placementGroup, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "placement_group")
+	if err != nil {
 		return err
 	}
-	instance.PlacementGroup = placementGroup
-
+	if placementGroup != nil {
+		instance.PlacementGroup = placementGroup.RawString()
+	}
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
 

@@ -15,7 +15,6 @@
 package deployments
 
 import (
-	"encoding/json"
 	"net/url"
 	"path"
 	"sort"
@@ -36,61 +35,47 @@ func urlEscapeAll(keys []string) []string {
 	return t
 }
 
-func getValueAssignmentWithoutResolve(kv *api.KV, deploymentID, vaPath, baseDatatype string, nestedKeys ...string) (bool, string, bool, error) {
+func getValueAssignmentWithoutResolve(kv *api.KV, deploymentID, vaPath, baseDatatype string, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	keyPath := path.Join(vaPath, path.Join(urlEscapeAll(nestedKeys)...))
 	kvp, _, err := kv.Get(keyPath, nil)
 	if err != nil {
-		return false, "", false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return nil, false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp != nil {
 		vat := tosca.ValueAssignmentType(kvp.Flags)
-		if err != nil {
-			return false, "", false, err
-		}
-
 		switch vat {
 		case tosca.ValueAssignmentLiteral, tosca.ValueAssignmentFunction:
-			return true, string(kvp.Value), vat == tosca.ValueAssignmentFunction, nil
+			return &TOSCAValue{Value: string(kvp.Value)}, vat == tosca.ValueAssignmentFunction, nil
 		case tosca.ValueAssignmentList, tosca.ValueAssignmentMap:
 			res, err := readComplexVA(kv, vat, deploymentID, keyPath, baseDatatype, nestedKeys...)
 			if err != nil {
-				return false, "", false, err
+				return nil, false, err
 			}
-			j, err := json.Marshal(res)
-			if err != nil {
-				return false, "", false, errors.Wrapf(err, "Failed to generate JSON representation of the complex value assignment key %q", path.Base(vaPath))
-			}
-			return true, string(j), false, nil
+			return &TOSCAValue{Value: res}, false, nil
 		}
 	}
 	if baseDatatype != "" && !strings.HasPrefix(baseDatatype, "list:") && !strings.HasPrefix(baseDatatype, "map:") && len(nestedKeys) > 0 {
-		found, result, isFunc, err := getTypeDefaultProperty(kv, deploymentID, baseDatatype, nestedKeys[0], nestedKeys[1:]...)
-		if err != nil {
-			return false, "", false, err
-		}
-		if found {
-			return true, result, isFunc, nil
+		result, isFunc, err := getTypeDefaultProperty(kv, deploymentID, baseDatatype, nestedKeys[0], nestedKeys[1:]...)
+		if err != nil || result != nil {
+			return result, isFunc, err
 		}
 	}
 	// not found
-	return false, "", false, nil
+	return nil, false, nil
 }
 
-func getValueAssignment(kv *api.KV, deploymentID, vaPath, nodeName, instanceName, requirementIndex string, nestedKeys ...string) (bool, string, error) {
+func getValueAssignment(kv *api.KV, deploymentID, vaPath, nodeName, instanceName, requirementIndex string, nestedKeys ...string) (*TOSCAValue, error) {
 	return getValueAssignmentWithDataType(kv, deploymentID, vaPath, nodeName, instanceName, requirementIndex, "", nestedKeys...)
 }
 
-func getValueAssignmentWithDataType(kv *api.KV, deploymentID, vaPath, nodeName, instanceName, requirementIndex, baseDatatype string, nestedKeys ...string) (bool, string, error) {
+func getValueAssignmentWithDataType(kv *api.KV, deploymentID, vaPath, nodeName, instanceName, requirementIndex, baseDatatype string, nestedKeys ...string) (*TOSCAValue, error) {
 
-	found, value, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, vaPath, baseDatatype, nestedKeys...)
-	if err != nil || !found || !isFunction {
-		return found, value, err
+	value, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, vaPath, baseDatatype, nestedKeys...)
+	if err != nil || value == nil || !isFunction {
+		return value, err
 	}
-	value, err = resolveValueAssignmentAsString(kv, deploymentID, nodeName, instanceName, requirementIndex, value, nestedKeys...)
-	if err != nil {
-		return false, "", err
-	}
-	return true, value, nil
+	return resolveValueAssignment(kv, deploymentID, nodeName, instanceName, requirementIndex, value, nestedKeys...)
+
 }
 
 func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, keyPath, baseDatatype string, nestedKeys ...string) (interface{}, error) {
@@ -154,12 +139,13 @@ func readComplexVA(kv *api.KV, vaType tosca.ValueAssignmentType, deploymentID, k
 			for _, prop := range dtProps {
 				if _, ok := castedResult[prop]; !ok {
 					// not found check default
-					found, result, _, err := getTypeDefaultProperty(kv, deploymentID, currentDatatype, prop)
+					result, _, err := getTypeDefaultProperty(kv, deploymentID, currentDatatype, prop)
 					if err != nil {
 						return nil, err
 					}
-					if found {
-						castedResult[prop] = result
+					if result != nil {
+						// TODO: should we get the /fmt.Stringer/ wrapped value or the original value?????
+						castedResult[prop] = result.Value
 					}
 				}
 			}
