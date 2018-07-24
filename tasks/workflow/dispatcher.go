@@ -33,8 +33,8 @@ import (
 )
 
 // Dispatcher concern is polling executions task and dispatch them across available workers
-// It has to acquire a lock on the execution task as distributed dispatchers can try to do the same
-// If it get the lock, it instantiate an execution task and push it to workers pool
+// It has to acquire a lock on the execution task as other distributed dispatchers can try to do the same
+// If it gets the lock, it instantiates an execution task and push it to workers pool
 // If it receives a message from shutdown channel, it has to spread the shutdown to workers
 type Dispatcher struct {
 	client     *api.Client
@@ -95,7 +95,7 @@ func (d *Dispatcher) emitTasksMetrics() {
 					if now.Sub(lastWarn) > 5*time.Minute {
 						// Do not print each time
 						lastWarn = now
-						log.Printf("Warning: Failed to get Max Blocked duration for tasks: %v", err)
+						log.Printf("Warning: Failed to get Max Blocked duration for tasks: %+v", err)
 					}
 					continue
 				}
@@ -118,6 +118,16 @@ func getExecutionKeyValue(kv *api.KV, execID, execKey string) (string, error) {
 		return "", errors.Errorf("No key:%q", path.Join(execPath, execKey))
 	}
 	return string(kvPairContent.Value), nil
+}
+
+func (d *Dispatcher) deleteExecutionTree(execID string) {
+	// remove execution kv tree
+	log.Debugf("Remove task execution tree with ID:%q", execID)
+	_, err := d.client.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, execID), nil)
+	if err != nil {
+		log.Printf("Failed to remove execution KV tree with ID:%q due to error:%+v", execID, err)
+		return
+	}
 }
 
 // Run creates workers and polls new task executions
@@ -160,20 +170,28 @@ func (d *Dispatcher) Run() {
 		log.Debugf("Got response new wait index is %d", waitIndex)
 		for _, execKey := range execKeys {
 			execID := path.Base(execKey)
+			// Check if a processing lock exists
+			if processingLock, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskLocksPrefix, ".processingLock"+execID), nil); processingLock != nil {
+				log.Debugf("Ignoring execution with ID:%q because already processed", execID)
+				continue
+			}
+			// Check if execution is marked to be deleted
+			if markedToDelete, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskPrefix, execID, ".markedToDelete"), nil); markedToDelete != nil {
+				d.deleteExecutionTree(execID)
+				continue
+			}
 			log.Debugf("handling execution with ID:%q", execID)
 			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
 			if err != nil {
-				log.Printf("%+v", err)
+				log.Printf("Ignore execution with ID:%q due to error:%v", execID, err)
 				continue
 			}
-
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
 			opts := &api.LockOptions{
 				// Warning: don't use polling path for lock to avoid infinite looping with increasing last index
-				Key:         ".processingLock" + execID,
-				Value:       []byte(nodeName),
-				LockTryOnce: true,
-				// Why a short wait time ?
+				Key:          path.Join(consulutil.ExecutionsTaskLocksPrefix, ".processingLock"+execID),
+				Value:        []byte(nodeName),
+				LockTryOnce:  true,
 				LockWaitTime: 10 * time.Millisecond,
 			}
 			lock, err := d.client.LockOpts(opts)
@@ -190,7 +208,6 @@ func (d *Dispatcher) Run() {
 				log.Debugf("Another instance got the lock for key %s", execKey)
 				continue
 			}
-
 			// Check TaskExecution status
 			status, err := tasks.GetTaskStatus(kv, taskID)
 			if err != nil {
@@ -206,9 +223,7 @@ func (d *Dispatcher) Run() {
 				lock.Destroy()
 				continue
 			}
-
 			log.Debugf("Got processing lock for Task Execution %s", execKey)
-
 			targetID, err := tasks.GetTaskTarget(kv, taskID)
 			if err != nil {
 				log.Print(err)
@@ -221,7 +236,6 @@ func (d *Dispatcher) Run() {
 				log.Debugf("%+v", err)
 				continue
 			}
-
 			// Retrieve workflow, Step information in case of workflow Step TaskExecution
 			var step string
 			if tasks.IsWorkflowTask(taskType) {
@@ -229,9 +243,9 @@ func (d *Dispatcher) Run() {
 				if err != nil {
 					log.Print(err)
 					log.Debugf("%+v", err)
+					continue
 				}
 			}
-
 			log.Printf("Processing Task Execution %q linked to deployment %q", taskID, targetID)
 			t := &TaskExecution{
 				ID:           execID,

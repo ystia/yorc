@@ -50,26 +50,24 @@ func (t *TaskExecution) getTaskStatus() (tasks.TaskStatus, error) {
 	return tasks.GetTaskStatus(t.kv, t.TaskID)
 }
 
-func (t *TaskExecution) checkAndSetTaskStatus(ctx context.Context, requiredStatus, status tasks.TaskStatus) error {
+func (t *TaskExecution) checkAndSetTaskStatus(ctx context.Context, initialStatus, finalStatus tasks.TaskStatus) error {
 	status, err := t.getTaskStatus()
 	if err != nil {
 		return err
 	}
 
-	if status == requiredStatus {
-		return t.setTaskStatus(ctx, status)
+	if initialStatus == status {
+		return t.setTaskStatus(ctx, finalStatus)
 	}
-	return errors.Errorf("Required status is:%q but actual status is:%s", requiredStatus.String(), status.String())
+	return errors.Errorf("required status to be updated is:%q but actual status is:%s", initialStatus.String(), status.String())
 }
 
 func (t *TaskExecution) setTaskStatus(ctx context.Context, status tasks.TaskStatus) error {
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.TaskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	_, err := t.kv.Put(p, nil)
 	if err != nil {
-		log.Printf("Failed to set status to %q for taskID:%q due to error:%v", status.String(), t.TaskID, err)
+		log.Printf("Failed to set status to %q for taskID:%q due to error:%+v", status.String(), t.TaskID, err)
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	_, err = tasks.EmitTaskEventWithContextualLogs(ctx, t.kv, t.TargetID, t.TaskID, t.TaskType, status.String())
-
 	return err
 }

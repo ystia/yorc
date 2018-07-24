@@ -121,7 +121,7 @@ func getOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.Opera
 	return nil, originalErr
 }
 
-func (w worker) monitorTaskForCancellation(ctx context.Context, cancelFunc context.CancelFunc, t *TaskExecution) {
+func (w worker) monitorTaskCancellation(ctx context.Context, cancelFunc context.CancelFunc, t *TaskExecution) {
 	go func() {
 		var lastIndex uint64
 		for {
@@ -179,11 +179,25 @@ func (w worker) cleanupScaledDownNodes(t *TaskExecution) error {
 	return nil
 }
 
-func (w worker) setDeploymentStatus(ctx context.Context, deploymentID string, status deployments.DeploymentStatus) {
-	p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), Value: []byte(fmt.Sprint(status))}
-	kv := w.consulClient.KV()
-	kv.Put(p, nil)
-	events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
+func (w worker) checkAndSetDeploymentStatus(ctx context.Context, deploymentID string, finalStatus deployments.DeploymentStatus, initialStatuses ...deployments.DeploymentStatus) error {
+	depStatus, err := deployments.GetDeploymentStatus(w.consulClient.KV(), deploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "%+v. Failed to get deployment statusIn for deploymentID:%q", deploymentID)
+	}
+
+	for _, statusIn := range initialStatuses {
+		if depStatus == statusIn {
+			p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), Value: []byte(fmt.Sprint(finalStatus))}
+			kv := w.consulClient.KV()
+			_, err := kv.Put(p, nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", finalStatus.String(), deploymentID)
+			}
+			events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(finalStatus.String()))
+			break
+		}
+	}
+	return nil
 }
 
 func (w worker) handleExecution(t *TaskExecution) {
@@ -197,30 +211,44 @@ func (w worker) handleExecution(t *TaskExecution) {
 		events.ExecutionID: t.TaskID,
 	}
 	ctx := events.NewContext(context.Background(), logOptFields)
-
 	ctx, cancelFunc := context.WithCancel(ctx)
-	defer t.releaseLock()
-	defer cancelFunc()
+	defer func() {
+		t.releaseLock()
+		cancelFunc()
+		// Mark task execution to be deleted
+		kvPair := &api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, t.ID, ".markedToDelete")}
+		if _, err := kv.Put(kvPair, nil); err != nil {
+			log.Printf("Failed to mark task execution to be deleted with ID:%q, deploymentID:%q, taskID:%q due to error:%+v", t.ID, t.TargetID, t.TaskID, err)
+			return
+		}
+	}()
 
-	if err := t.setTaskStatus(ctx, tasks.TaskStatusRUNNING); err != nil {
-		log.Printf("Failed to set task status to running due to err:%v", err)
-		return
-	}
+	t.checkAndSetTaskStatus(ctx, tasks.TaskStatusINITIAL, tasks.TaskStatusRUNNING)
 
-	w.monitorTaskForCancellation(ctx, cancelFunc, t)
+	w.monitorTaskCancellation(ctx, cancelFunc, t)
 	defer func(t *TaskExecution, start time.Time) {
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"TaskExecution", t.TargetID, t.TaskType.String()}), 1)
 		metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"TaskExecution", t.TargetID, t.TaskType.String()}), start)
 	}(t, time.Now())
 	switch t.TaskType {
 	case tasks.TaskTypeDeploy:
-		w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_IN_PROGRESS)
-		err := w.runWorkflowStep(ctx, t, "install", false)
+		err := w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_IN_PROGRESS, deployments.INITIAL)
 		if err != nil {
-			w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED)
+			log.Printf("%+v", err)
 			return
 		}
-		w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYED)
+		done, err := w.runWorkflowStep(ctx, t, "install", false)
+		if err != nil {
+			w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED, deployments.DEPLOYMENT_IN_PROGRESS)
+			return
+		}
+		if done {
+			err = w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYED, deployments.DEPLOYMENT_IN_PROGRESS)
+			if err != nil {
+				log.Printf("%+v", err)
+				return
+			}
+		}
 	case tasks.TaskTypeUnDeploy, tasks.TaskTypePurge:
 		status, err := deployments.GetDeploymentStatus(kv, t.TargetID)
 		if err != nil {
@@ -229,13 +257,23 @@ func (w worker) handleExecution(t *TaskExecution) {
 			return
 		}
 		if status != deployments.UNDEPLOYED {
-			w.setDeploymentStatus(ctx, t.TargetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
-			err := w.runWorkflowStep(ctx, t, "uninstall", true)
+			err = w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.UNDEPLOYMENT_IN_PROGRESS, deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
 			if err != nil {
-				w.setDeploymentStatus(ctx, t.TargetID, deployments.UNDEPLOYMENT_FAILED)
+				log.Printf("%+v", err)
 				return
 			}
-			w.setDeploymentStatus(ctx, t.TargetID, deployments.UNDEPLOYED)
+			done, err := w.runWorkflowStep(ctx, t, "uninstall", true)
+			if err != nil {
+				w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.UNDEPLOYMENT_FAILED, deployments.UNDEPLOYMENT_IN_PROGRESS)
+				return
+			}
+			if done {
+				err = w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.UNDEPLOYED, deployments.DEPLOYMENT_FAILED, deployments.UNDEPLOYMENT_IN_PROGRESS)
+				if err != nil {
+					log.Printf("%+v", err)
+					return
+				}
+			}
 		}
 
 		if t.TaskType == tasks.TaskTypePurge {
@@ -274,7 +312,7 @@ func (w worker) handleExecution(t *TaskExecution) {
 				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
 			}
-			// Delete logs tree corresponding to the deployment TaskExecution
+			// Delete logs tree corresponding to the deployment
 			_, err = kv.DeleteTree(path.Join(consulutil.LogsPrefix, t.TargetID), nil)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge logs: %+v", t.TargetID, t.TaskID, err)
@@ -301,52 +339,71 @@ func (w worker) handleExecution(t *TaskExecution) {
 	case tasks.TaskTypeCustomCommand:
 		w.runCustomCommand(ctx, t)
 	case tasks.TaskTypeScaleOut:
-		w.setDeploymentStatus(ctx, t.TargetID, deployments.SCALING_IN_PROGRESS)
-		err := w.runWorkflowStep(ctx, t, "install", false)
+		err := w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.SCALING_IN_PROGRESS, deployments.DEPLOYED)
 		if err != nil {
-			w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED)
+			log.Printf("%+v", err)
 			return
 		}
-		w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYED)
+		done, err := w.runWorkflowStep(ctx, t, "install", false)
+		if err != nil {
+			w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED, deployments.SCALING_IN_PROGRESS)
+			return
+		}
+		if done {
+			err = w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYED, deployments.SCALING_IN_PROGRESS)
+			if err != nil {
+				log.Printf("%+v", err)
+				return
+			}
+		}
 	case tasks.TaskTypeScaleIn:
-		w.setDeploymentStatus(ctx, t.TargetID, deployments.SCALING_IN_PROGRESS)
-		err := w.runWorkflowStep(ctx, t, "uninstall", true)
+		err := w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.SCALING_IN_PROGRESS, deployments.DEPLOYED)
 		if err != nil {
-			w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED)
+			log.Printf("%+v", err)
 			return
 		}
-
-		// Cleanup
-		if err = w.cleanupScaledDownNodes(t); err != nil {
-			t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
-			log.Printf("%v. Aborting", err)
-			w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED)
+		done, err := w.runWorkflowStep(ctx, t, "uninstall", true)
+		if err != nil {
+			w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED, deployments.SCALING_IN_PROGRESS)
 			return
 		}
-		w.setDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYED)
+		if done {
+			// Cleanup
+			if err = w.cleanupScaledDownNodes(t); err != nil {
+				t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
+				log.Printf("%+v. Aborting", err)
+				w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYMENT_FAILED, deployments.SCALING_IN_PROGRESS)
+				return
+			}
+			err = w.checkAndSetDeploymentStatus(ctx, t.TargetID, deployments.DEPLOYED, deployments.SCALING_IN_PROGRESS)
+			if err != nil {
+				log.Printf("%+v", err)
+				return
+			}
+		}
 	case tasks.TaskTypeCustomWorkflow:
 		wfName, err := tasks.GetTaskData(kv, t.TaskID, "workflowName")
 		if err != nil {
-			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.TaskID, err)
+			log.Printf("Deployment id: %q, Task id: %q Failed: %+v", t.TargetID, t.TaskID, err)
 			log.Debugf("%+v", err)
 			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		continueOnError, err := tasks.GetTaskData(kv, t.TaskID, "continueOnError")
 		if err != nil {
-			log.Printf("Deployment id: %q, Task id: %q Failed: %v", t.TargetID, t.TaskID, err)
+			log.Printf("Deployment id: %q, Task id: %q Failed: %+v", t.TargetID, t.TaskID, err)
 			log.Debugf("%+v", err)
 			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		bypassErrors, err := strconv.ParseBool(continueOnError)
 		if err != nil {
-			log.Printf("Deployment id: %q, Task id: %q Failed to parse continueOnError parameter: %v", t.TargetID, t.TaskID, err)
+			log.Printf("Deployment id: %q, Task id: %q Failed to parse continueOnError parameter: %+v", t.TargetID, t.TaskID, err)
 			log.Debugf("%+v", err)
 			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
-		err = w.runWorkflowStep(ctx, t, wfName, bypassErrors)
+		_, err = w.runWorkflowStep(ctx, t, wfName, bypassErrors)
 		if err != nil {
 			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			log.Printf("%+v", err)
@@ -451,14 +508,14 @@ func (w worker) runQuery(ctx context.Context, t *TaskExecution) {
 		var reg = registry.GetRegistry()
 		collector, err := reg.GetInfraUsageCollector(target)
 		if err != nil {
-			log.Printf("Query Task id: %q Failed to retrieve target type: %v", t.TaskID, err)
+			log.Printf("Query Task id: %q Failed to retrieve target type: %+v", t.TaskID, err)
 			log.Debugf("%+v", err)
 			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
 		}
 		res, err := collector.GetUsageInfo(ctx, w.cfg, t.TaskID, target)
 		if err != nil {
-			log.Printf("Query Task id: %q Failed to run query: %v", t.TaskID, err)
+			log.Printf("Query Task id: %q Failed to run query: %+v", t.TaskID, err)
 			log.Debugf("%+v", err)
 			t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 			return
@@ -476,7 +533,7 @@ func (w worker) runQuery(ctx context.Context, t *TaskExecution) {
 			}
 			kvPair := &api.KVPair{Key: resultPrefix, Value: jsonRes}
 			if _, err := kv.Put(kvPair, nil); err != nil {
-				log.Printf("Query Task id: %q Failed to store result: %v", t.TaskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
+				log.Printf("Query Task id: %q Failed to store result: %+v", t.TaskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
 				log.Debugf("%+v", err)
 				t.setTaskStatus(ctx, tasks.TaskStatusFAILED)
 				return
@@ -492,76 +549,78 @@ func (w worker) runQuery(ctx context.Context, t *TaskExecution) {
 	t.setTaskStatus(ctx, tasks.TaskStatusDONE)
 }
 
-func (w worker) runWorkflowStep(ctx context.Context, t *TaskExecution, workflowName string, continueOnError bool) error {
+func (w worker) runWorkflowStep(ctx context.Context, t *TaskExecution, workflowName string, continueOnError bool) (bool, error) {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.TargetID).RegisterAsString(fmt.Sprintf("Start processing workflow step %s:%s", workflowName, t.step))
-
 	s, err := BuildStep(w.consulClient.KV(), t.TargetID, workflowName, t.step, nil)
 	if err != nil {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
-		log.Printf("%v. Aborting", err)
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		log.Printf("%+v. Failed to build step:%q for workflow:%q due to err:%+v", t.step, workflowName, err)
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	s.t = t
-	err = s.Run(ctx, w.cfg, w.consulClient.KV(), t.TargetID, w.shutdownCh, continueOnError, workflowName, w)
+	err = s.Run(ctx, w.cfg, w.consulClient.KV(), t.TargetID, continueOnError, workflowName, w)
 	if err != nil {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusFAILED)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Error '%v' happened in workflow %q.", err, workflowName))
-		return errors.Wrapf(err, "The workflow %s step %s ended with error:%v", workflowName, t.step, err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Error '%+v' happened in workflow %q.", err, workflowName))
+		return false, errors.Wrapf(err, "The workflow %s step %s ended with error:%+v", workflowName, t.step, err)
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.TargetID).RegisterAsString(fmt.Sprintf("DeploymentID:%q, Workflow:%q, step:%q ended without error", t.TargetID, workflowName, t.step))
-	return w.notifyNextSteps(ctx, s, workflowName)
+	return w.registerNextSteps(ctx, s, workflowName)
 }
 
-func (w worker) notifyNextSteps(ctx context.Context, s *Step, workflowName string) error {
+func (w worker) registerNextSteps(ctx context.Context, s *Step, workflowName string) (bool, error) {
 	// If step is terminal, we check if workflow is done
 	if s.IsTerminal() {
-		return w.checkIfWorkflowIsOver(ctx, s.t, workflowName)
+		log.Debugf("Step:%q is terminal: check if workflow %q is done", s.Name, s.workflowName)
+		return w.checkIfWorkflowIsDone(ctx, s.t, workflowName)
 	}
 
 	// Register workflow step to handle step statuses for next steps
-	ops := GetWorkflowStepsOperations(s.t.TaskID, s.Next)
+	ops := CreateWorkflowStepsOperations(s.t.TaskID, s.Next)
 	ok, response, _, err := w.consulClient.KV().Txn(ops, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.TaskID)
+		return false, errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.TaskID)
 	}
 	if !ok {
 		errs := make([]string, 0)
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q due to:%s", s.t.TaskID, strings.Join(errs, ", "))
+		return false, errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q due to:%s", s.t.TaskID, strings.Join(errs, ", "))
 	}
-	return nil
+	return false, nil
 }
 
-func (w worker) checkIfWorkflowIsOver(ctx context.Context, t *TaskExecution, workflowName string) error {
+func (w worker) checkIfWorkflowIsDone(ctx context.Context, t *TaskExecution, workflowName string) (bool, error) {
 	taskSteps, err := tasks.GetTaskRelatedSteps(w.consulClient.KV(), t.TaskID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to retrieve workflow step statuses from t with TaskID:%q", t.TaskID)
+		return false, errors.Wrapf(err, "Failed to retrieve workflow step statuses from t with TaskID:%q", t.TaskID)
 	}
 	cpt := 0
 	for _, step := range taskSteps {
 		stepStatus, err := tasks.ParseStepStatus(step.Status)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to retrieve workflow step statuses from t with TaskID:%q", t.TaskID)
+			return false, errors.Wrapf(err, "Failed to retrieve workflow step statuses from t with TaskID:%q", t.TaskID)
 		}
 		if stepStatus == tasks.StepStatusDONE {
 			cpt++
 		} else if stepStatus == tasks.StepStatusCANCELED || stepStatus == tasks.StepStatusERROR {
-			return errors.Errorf("An error has been detected on other step:%q for workflow:%q, deploymentID:%q. No more steps will be executed", t.step, workflowName, t.TargetID)
+			return false, errors.Errorf("An error has been detected on other step:%q for workflow:%q, deploymentID:%q. No more steps will be executed", t.step, workflowName, t.TargetID)
 		}
 	}
 
 	if len(taskSteps) == cpt {
+		log.Debugf("All steps of workflow:%q are done, so workflow is defined as done", workflowName)
 		err = t.checkAndSetTaskStatus(ctx, tasks.TaskStatusRUNNING, tasks.TaskStatusDONE)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%v", t.TaskID, err)
+			return false, errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%+v", t.TaskID, err)
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.TargetID).RegisterAsString(fmt.Sprintf("Workflow %q ended without error", workflowName))
+		return true, nil
 	}
 
-	return nil
+	return false, nil
 }
 
 func (w worker) registerInlineWorkflow(ctx context.Context, t *TaskExecution, workflowName string) error {

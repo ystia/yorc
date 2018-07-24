@@ -46,7 +46,7 @@ type Step struct {
 	Next               []*Step
 	Previous           []*Step
 	kv                 *api.KV
-	stepPrefix         string
+	workflowName       string
 	t                  *TaskExecution
 }
 
@@ -66,7 +66,8 @@ func (s *Step) IsInitial() bool {
 }
 
 func (s *Step) setStatus(status tasks.StepStatus) error {
-	kvp := &api.KVPair{Key: path.Join(s.stepPrefix, "status"), Value: []byte(status.String())}
+	// Is this KV used ?
+	kvp := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, s.t.TargetID, "workflows", s.workflowName, "steps", s.Name, "status"), Value: []byte(status.String())}
 	_, err := s.kv.Put(kvp, nil)
 	if err != nil {
 		return err
@@ -156,13 +157,11 @@ func (s *Step) isRunnable() (bool, error) {
 }
 
 // Run allows to execute a workflow step
-func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, shutdownChan chan struct{}, bypassErrors bool, workflowName string, w worker) error {
+func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, bypassErrors bool, workflowName string, w worker) error {
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
-	logOptFields, _ := events.FromContext(ctx)
 	s.setStatus(tasks.StepStatusINITIAL)
 	// First: we check if Step is runnable
-	// TODO for now alien generates a 1 to 1 Step/activity model but we should probably test if an activity is runnable
 	if runnable, err := s.isRunnable(); err != nil {
 		return err
 	} else if !runnable {
@@ -171,64 +170,27 @@ func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 		s.setStatus(tasks.StepStatusDONE)
 		return nil
 	}
-
 	s.setStatus(tasks.StepStatusRUNNING)
-
-	// Create a new context to handle gracefully current Step termination when an error occurred during another Step
-	wfCtx, cancelWf := context.WithCancel(events.NewContext(context.Background(), logOptFields))
-	waitDoneCh := make(chan struct{})
-	defer close(waitDoneCh)
-	go func() {
-		select {
-		case <-ctx.Done():
-			status, err := s.t.getTaskStatus()
-			if err != nil {
-				log.Printf("Failed to retrieve task status due to error:%v", err)
-			}
-			if status != tasks.TaskStatusCANCELED {
-				// Temporize to allow current Step termination before cancelling context and put Step in error
-				log.Printf("An error occurred on another Step while Step %q is running: trying to gracefully finish it.", s.Name)
-				select {
-				case <-time.After(cfg.WfStepGracefulTerminationTimeout):
-					cancelWf()
-					log.Printf("TaskStep %q not yet finished: we set it on error", s.Name)
-					s.setStatus(tasks.StepStatusERROR)
-					return
-				case <-waitDoneCh:
-					return
-				}
-			} else {
-				// We immediately cancel the Step
-				cancelWf()
-				s.setStatus(tasks.StepStatusCANCELED)
-				return
-			}
-		case <-waitDoneCh:
-			return
-		}
-	}()
-	defer cancelWf()
-
 	log.Debugf("Processing Step %q", s.Name)
 	for _, activity := range s.Activities {
 		err := func() error {
 			for _, hook := range preActivityHooks {
-				hook(wfCtx, cfg, s.t.TaskID, deploymentID, s.Target, activity)
+				hook(ctx, cfg, s.t.TaskID, deploymentID, s.Target, activity)
 			}
 			defer func() {
 				for _, hook := range postActivityHooks {
-					hook(wfCtx, cfg, s.t.TaskID, deploymentID, s.Target, activity)
+					hook(ctx, cfg, s.t.TaskID, deploymentID, s.Target, activity)
 				}
 			}()
-			err := s.runActivity(wfCtx, kv, cfg, deploymentID, bypassErrors, w, activity)
+			err := s.runActivity(ctx, kv, cfg, deploymentID, bypassErrors, w, activity)
 			if err != nil {
-				setNodeStatus(wfCtx, kv, s.t.TaskID, deploymentID, s.Target, tosca.NodeStateError.String())
+				setNodeStatus(ctx, kv, s.t.TaskID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.Name, err)
 				if !bypassErrors {
 					s.setStatus(tasks.StepStatusERROR)
 					return err
 				}
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("TaskStep %q: Bypassing error: %v but workflow continue", s.Name, err)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("TaskStep %q: Bypassing error: %+v but workflow continue", s.Name, err)
 			}
 			return nil
 		}()
@@ -237,7 +199,7 @@ func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 		}
 	}
 
-	log.Debugf("TaskStep %s done without error.", s.Name)
+	log.Debugf("Task execution:%q for step:%q, workflow:%q, taskID:%q done without error.", s.t.ID, s.Name, s.workflowName, s.t.TaskID)
 	s.setStatus(tasks.StepStatusDONE)
 	return nil
 }

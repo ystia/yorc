@@ -58,7 +58,7 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		visitedMap = make(map[string]*visitStep, 0)
 	}
 
-	s := &Step{Name: stepName, kv: kv, stepPrefix: stepPath}
+	s := &Step{Name: stepName, kv: kv, workflowName: wfName}
 	kvPair, _, err := kv.Get(stepPath+"/target_relationship", nil)
 	if err != nil {
 		return nil, err
@@ -139,10 +139,8 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		var nextStep *Step
 		nextStepName := strings.TrimPrefix(nextKV.Key, stepPath+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
-			log.Debugf("Found existing Step %s", nextStepName)
 			nextStep = visitStep.s
 		} else {
-			log.Debugf("Reading new Step %s from Consul", nextStepName)
 			nextStep, err = BuildStep(kv, deploymentID, wfName, nextStepName, visitedMap)
 			if err != nil {
 				return nil, err
@@ -152,7 +150,6 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		s.Next = append(s.Next, nextStep)
 		nextStep.Previous = append(nextStep.Previous, s)
 		visitedMap[nextStepName].refCount++
-		log.Debugf("RefCount for step %s set to %d", nextStepName, visitedMap[nextStepName].refCount)
 	}
 	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
 	return s, nil
@@ -172,11 +169,12 @@ func GetWorkflowInitOperations(kv *api.KV, deploymentID, taskID, workflowName st
 		// Register workflow step to handle step statuses for all steps
 		stepOps = append(stepOps, &api.KVTxnOp{
 			Verb: api.KVSet,
-			Key:  path.Join(consulutil.WorkflowsPrefix, deploymentID, step.Name),
+			Key:  path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
 		})
 		// Add execution key for initial steps only
 		if step.IsInitial() {
 			execID := fmt.Sprint(uuid.NewV4())
+			log.Debugf("Create initial task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.Name)
 			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 			stepOps = api.KVTxnOps{
 				&api.KVTxnOp{
@@ -196,13 +194,14 @@ func GetWorkflowInitOperations(kv *api.KV, deploymentID, taskID, workflowName st
 	return ops, nil
 }
 
-// GetWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
-func GetWorkflowStepsOperations(taskID string, steps []*Step) api.KVTxnOps {
+// CreateWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
+func CreateWorkflowStepsOperations(taskID string, steps []*Step) api.KVTxnOps {
 	ops := make(api.KVTxnOps, 0)
 	var stepOps api.KVTxnOps
 	for _, step := range steps {
 		// Add execution key for initial steps only
 		execID := fmt.Sprint(uuid.NewV4())
+		log.Debugf("Create task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.Name)
 		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 		stepOps = api.KVTxnOps{
 			&api.KVTxnOp{
