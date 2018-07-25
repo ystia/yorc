@@ -55,7 +55,7 @@ func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*Step, error) {
 func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
 	stepPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps", stepName)
 	if visitedMap == nil {
-		visitedMap = make(map[string]*visitStep, 0)
+		visitedMap = make(map[string]*visitStep)
 	}
 
 	s := &Step{Name: stepName, kv: kv, workflowName: wfName}
