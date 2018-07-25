@@ -21,6 +21,7 @@ import (
 
 	"time"
 
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
@@ -50,16 +51,23 @@ func (t *TaskExecution) getTaskStatus() (tasks.TaskStatus, error) {
 	return tasks.GetTaskStatus(t.kv, t.TaskID)
 }
 
-func (t *TaskExecution) checkAndSetTaskStatus(ctx context.Context, initialStatus, finalStatus tasks.TaskStatus) error {
+func (t *TaskExecution) checkAndSetTaskStatus(ctx context.Context, finalStatus tasks.TaskStatus) error {
 	status, err := t.getTaskStatus()
 	if err != nil {
+		log.Printf("Failed to get status for taskID:%q due to error:%+v", t.TaskID, err)
 		return err
 	}
 
-	if initialStatus == status {
+	if status == tasks.TaskStatusFAILED && finalStatus != tasks.TaskStatusFAILED {
+		mess := fmt.Sprintf("Can't set task with taskID:%q to status:%q because status is already:%q", t.TaskID, finalStatus.String(), tasks.TaskStatusFAILED.String())
+		log.Printf(mess)
+		return errors.Errorf(mess)
+	}
+
+	if finalStatus != status {
 		return t.setTaskStatus(ctx, finalStatus)
 	}
-	return errors.Errorf("required status to be updated is:%q but actual status is:%s", initialStatus.String(), status.String())
+	return nil
 }
 
 func (t *TaskExecution) setTaskStatus(ctx context.Context, status tasks.TaskStatus) error {

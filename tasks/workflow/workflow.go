@@ -21,6 +21,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 	"path"
 	"strconv"
 	"strings"
@@ -164,19 +165,19 @@ func GetWorkflowInitOperations(kv *api.KV, deploymentID, taskID, workflowName st
 		return nil, err
 	}
 
-	var stepOps api.KVTxnOps
 	for _, step := range steps {
 		// Register workflow step to handle step statuses for all steps
-		stepOps = append(stepOps, &api.KVTxnOp{
-			Verb: api.KVSet,
-			Key:  path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
+		ops = append(ops, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
+			Value: []byte(tasks.StepStatusINITIAL.String()),
 		})
 		// Add execution key for initial steps only
 		if step.IsInitial() {
 			execID := fmt.Sprint(uuid.NewV4())
 			log.Debugf("Create initial task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.Name)
 			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
-			stepOps = api.KVTxnOps{
+			stepOps := api.KVTxnOps{
 				&api.KVTxnOp{
 					Verb:  api.KVSet,
 					Key:   path.Join(stepExecPath, "taskID"),
@@ -188,8 +189,8 @@ func GetWorkflowInitOperations(kv *api.KV, deploymentID, taskID, workflowName st
 					Value: []byte(step.Name),
 				},
 			}
+			ops = append(ops, stepOps...)
 		}
-		ops = append(ops, stepOps...)
 	}
 	return ops, nil
 }

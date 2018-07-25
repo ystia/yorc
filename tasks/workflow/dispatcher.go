@@ -170,14 +170,14 @@ func (d *Dispatcher) Run() {
 		log.Debugf("Got response new wait index is %d", waitIndex)
 		for _, execKey := range execKeys {
 			execID := path.Base(execKey)
-			// Check if a processing lock exists
-			if processingLock, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskLocksPrefix, ".processingLock"+execID), nil); processingLock != nil {
-				log.Debugf("Ignoring execution with ID:%q because already processed", execID)
-				continue
-			}
 			// Check if execution is marked to be deleted
 			if markedToDelete, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskPrefix, execID, ".markedToDelete"), nil); markedToDelete != nil {
 				d.deleteExecutionTree(execID)
+				continue
+			}
+			// Check if a processing lock exists
+			if processingLock, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskLocksPrefix, ".processingLock"+execID), nil); processingLock != nil {
+				log.Debugf("Ignoring execution with ID:%q because already processed", execID)
 				continue
 			}
 			log.Debugf("handling execution with ID:%q", execID)

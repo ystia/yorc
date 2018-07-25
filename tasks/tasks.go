@@ -375,6 +375,18 @@ func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 	return steps, nil
 }
 
+// GetTaskStepStatus returns the step status of the related step name
+func GetTaskStepStatus(kv *api.KV, taskID, stepName string) (StepStatus, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepName), nil)
+	if err != nil {
+		return StepStatusINITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return StepStatusINITIAL, nil
+	}
+	return ParseStepStatus(string(kvp.Value))
+}
+
 // TaskStepExists checks if a task step exists with a stepID and related to a given taskID and returns it
 func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepID), nil)

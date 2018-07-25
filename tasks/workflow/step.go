@@ -66,7 +66,6 @@ func (s *Step) IsInitial() bool {
 }
 
 func (s *Step) setStatus(status tasks.StepStatus) error {
-	// Is this KV used ?
 	kvp := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, s.t.TargetID, "workflows", s.workflowName, "steps", s.Name, "status"), Value: []byte(status.String())}
 	_, err := s.kv.Put(kvp, nil)
 	if err != nil {

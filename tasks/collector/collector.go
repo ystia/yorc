@@ -134,14 +134,14 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 
 	ok, response, _, err := c.consulClient.KV().Txn(taskOps, nil)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType", targetID, taskType.String())
+		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q", targetID, taskType.String())
 	}
 	if !ok {
 		errs := make([]string, 0)
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType due to:%s", targetID, taskType.String(), strings.Join(errs, ", "))
+		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error:%s", targetID, taskType.String(), strings.Join(errs, ", "))
 	}
 
 	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, tasks.TaskStatusINITIAL.String())
