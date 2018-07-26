@@ -250,7 +250,7 @@ func testRunStep(t *testing.T, kv *api.KV) {
 
 			s.Next = nil
 			s.t = &TaskExecution{ID: "taskID", TargetID: deploymentID}
-			err = s.Run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, worker{})
+			err = s.Run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("step.run() error = %v, wantErr %v", err, tt.wantErr)
 				return

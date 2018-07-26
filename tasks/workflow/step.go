@@ -156,7 +156,7 @@ func (s *Step) isRunnable() (bool, error) {
 }
 
 // Run allows to execute a workflow step
-func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, bypassErrors bool, workflowName string, w worker) error {
+func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, bypassErrors bool, workflowName string, w *worker) error {
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
 	s.setStatus(tasks.StepStatusINITIAL)
@@ -203,7 +203,7 @@ func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	return nil
 }
 
-func (s *Step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, bypassErrors bool, w worker, activity Activity) error {
+func (s *Step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, bypassErrors bool, w *worker, activity Activity) error {
 	// Get activity related instances
 	instances, err := tasks.GetInstances(kv, s.t.TaskID, deploymentID, s.Target)
 	if err != nil {
