@@ -401,8 +401,12 @@ func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) 
 
 // UpdateTaskStepStatus allows to update the task step status
 func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
-	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(step.Status)}
-	_, err := kv.Put(kvp, nil)
+	status, err := ParseStepStatus(step.Status)
+	if err != nil {
+		return err
+	}
+	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(status.String())}
+	_, err = kv.Put(kvp, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}

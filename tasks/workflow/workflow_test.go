@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/registry"
@@ -194,7 +195,7 @@ func (m *mockActivityHook) hook(ctx context.Context, cfg config.Configuration, t
 	m.activity = activity
 }
 
-func testRunStep(t *testing.T, kv *api.KV) {
+func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/workflow.yaml")
 	require.Nil(t, err)
@@ -249,7 +250,9 @@ func testRunStep(t *testing.T, kv *api.KV) {
 			require.NoError(t, err)
 
 			s.Next = nil
-			s.t = &TaskExecution{ID: "taskID", TargetID: deploymentID}
+			s.t = &TaskExecution{ID: "taskExecutionID", TaskID: "taskID", TargetID: deploymentID}
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, "WFNode_create"), []byte("initial"))
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, "Compute_install"), []byte("initial"))
 			err = s.Run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("step.run() error = %v, wantErr %v", err, tt.wantErr)

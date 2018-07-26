@@ -109,9 +109,15 @@ func (s *Step) isRunnable() (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	// Set default task step status to Initial if not set
+	var status string
+	if kvp != nil && string(kvp.Value) != "" {
+		status = string(kvp.Value)
+	} else {
+		status = tasks.StepStatusINITIAL.String()
+	}
 
 	// Check if Step is already done
-	status := string(kvp.Value)
 	if status != "" {
 		stepStatus, err := tasks.ParseStepStatus(status)
 		if err != nil {
@@ -159,7 +165,6 @@ func (s *Step) isRunnable() (bool, error) {
 func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, bypassErrors bool, workflowName string, w *worker) error {
 	// Fill log optional fields for log registration
 	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
-	s.setStatus(tasks.StepStatusINITIAL)
 	// First: we check if Step is runnable
 	if runnable, err := s.isRunnable(); err != nil {
 		return err

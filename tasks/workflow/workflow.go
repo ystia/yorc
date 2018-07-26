@@ -157,8 +157,8 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 
 }
 
-// GetWorkflowInitOperations returns Consul transactional KV operations for initiating workflow execution
-func GetWorkflowInitOperations(kv *api.KV, deploymentID, taskID, workflowName string) (api.KVTxnOps, error) {
+// BuildInitExecutionOperations returns Consul transactional KV operations for initiating workflow execution
+func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName string, registerWorkflow bool) (api.KVTxnOps, error) {
 	ops := make(api.KVTxnOps, 0)
 	steps, err := BuildWorkFlow(kv, deploymentID, workflowName)
 	if err != nil {
@@ -166,12 +166,15 @@ func GetWorkflowInitOperations(kv *api.KV, deploymentID, taskID, workflowName st
 	}
 
 	for _, step := range steps {
-		// Register workflow step to handle step statuses for all steps
-		ops = append(ops, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
-			Value: []byte(tasks.StepStatusINITIAL.String()),
-		})
+		if registerWorkflow {
+			// Register workflow step to handle step statuses for all steps
+			ops = append(ops, &api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
+				Value: []byte(tasks.StepStatusINITIAL.String()),
+			})
+		}
+
 		// Add execution key for initial steps only
 		if step.IsInitial() {
 			execID := fmt.Sprint(uuid.NewV4())

@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/workflow"
@@ -59,6 +60,53 @@ func (c *Collector) RegisterTaskWithData(targetID string, taskType tasks.TaskTyp
 // Basically this is a shorthand for RegisterTaskWithData(targetID, taskType, nil)
 func (c *Collector) RegisterTask(targetID string, taskType tasks.TaskType) (string, error) {
 	return c.RegisterTaskWithData(targetID, taskType, nil)
+}
+
+// ResumeTask allows to resume a task previously failed
+func (c *Collector) ResumeTask(taskID string) error {
+	taskType, err := tasks.GetTaskType(c.consulClient.KV(), taskID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
+	}
+	targetID, err := tasks.GetTaskTarget(c.consulClient.KV(), taskID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
+	}
+	var workflowName string
+	if tasks.IsWorkflowTask(taskType) {
+		workflowName, err = tasks.GetTaskData(c.consulClient.KV(), taskID, "workflowName")
+		if err != nil {
+			return errors.Wrapf(err, "Failed to resume task with taskID;%q", taskID)
+		}
+	}
+
+	// Set task status to initial
+	taskPath := path.Join(consulutil.TasksPrefix, taskID)
+	taskOps := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(taskPath, "status"),
+			Value: []byte(strconv.Itoa(int(tasks.TaskStatusINITIAL))),
+		},
+	}
+	// Set deployment status to initial for some task types
+	switch taskType {
+	case tasks.TaskTypeDeploy, tasks.TaskTypeUnDeploy, tasks.TaskTypeScaleIn, tasks.TaskTypeScaleOut:
+		taskOps = append(taskOps, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(consulutil.DeploymentKVPrefix, targetID, "status"),
+			Value: []byte(deployments.INITIAL.String()),
+		})
+	}
+
+	// Get operations to register executions
+	err = c.prepareForRegistration(taskOps, taskType, taskID, targetID, workflowName, false)
+	if err != nil {
+		return err
+	}
+
+	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, tasks.TaskStatusINITIAL.String())
+	return nil
 }
 
 func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data map[string]string) (string, error) {
@@ -108,59 +156,54 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 			})
 		}
 	}
-
-	// Register step tasks for each step in case of workflow
-	// Add executions for each initial steps
+	var workflowName string
 	if tasks.IsWorkflowTask(taskType) {
-		wfName, err := getWfNameFromTaskType(taskType, data)
-		if err != nil {
-			return "", err
+		var ok bool
+		workflowName, ok = data["workflowName"]
+		if !ok {
+			return "", errors.Errorf("Workflow name can't be retrieved from data :%v", data)
 		}
-		stepOps, err := workflow.GetWorkflowInitOperations(c.consulClient.KV(), targetID, taskID, wfName)
-		if err != nil {
-			return "", err
-		}
-		taskOps = append(taskOps, stepOps...)
-	} else {
-		// Add execution key for non workflow task
-		execID := fmt.Sprint(uuid.NewV4())
-		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
-		taskOps = append(taskOps, &api.KVTxnOp{
-			Verb:  api.KVSet,
-			Key:   path.Join(stepExecPath, "taskID"),
-			Value: []byte(taskID),
-		})
 	}
 
-	ok, response, _, err := c.consulClient.KV().Txn(taskOps, nil)
+	err = c.prepareForRegistration(taskOps, taskType, taskID, targetID, workflowName, true)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q", targetID, taskType.String())
-	}
-	if !ok {
-		errs := make([]string, 0)
-		for _, e := range response.Errors {
-			errs = append(errs, e.What)
-		}
-		return "", errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error:%s", targetID, taskType.String(), strings.Join(errs, ", "))
+		return "", err
 	}
 
 	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, tasks.TaskStatusINITIAL.String())
 	return taskID, nil
 }
 
-func getWfNameFromTaskType(taskType tasks.TaskType, data map[string]string) (string, error) {
-	switch taskType {
-	case tasks.TaskTypeDeploy, tasks.TaskTypeScaleOut:
-		return "install", nil
-	case tasks.TaskTypeUnDeploy, tasks.TaskTypeScaleIn:
-		return "uninstall", nil
-	case tasks.TaskTypeCustomWorkflow:
-		wfName, ok := data["workflowName"]
-		if !ok {
-			return "", errors.Errorf("Workflow name can't be retrieved from data :%v", data)
+func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tasks.TaskType, taskID, targetID, workflowName string, registerWorkflow bool) error {
+	// Register step tasks for each step in case of workflow
+	// Add executions for each initial steps
+	if workflowName != "" {
+		stepOps, err := workflow.BuildInitExecutionOperations(c.consulClient.KV(), targetID, taskID, workflowName, registerWorkflow)
+		if err != nil {
+			return err
 		}
-		return wfName, nil
-	default:
-		return "", errors.Errorf("Workflow can't be resolved from task type:%q", tasks.TaskType(taskType))
+		operations = append(operations, stepOps...)
+	} else {
+		// Add execution key for non workflow task
+		execID := fmt.Sprint(uuid.NewV4())
+		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
+		operations = append(operations, &api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(stepExecPath, "taskID"),
+			Value: []byte(taskID),
+		})
 	}
+
+	ok, response, _, err := c.consulClient.KV().Txn(operations, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q", targetID, taskType.String())
+	}
+	if !ok {
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error:%s", targetID, taskType.String(), strings.Join(errs, ", "))
+	}
+	return nil
 }

@@ -196,7 +196,7 @@ func (w *worker) checkAndSetDeploymentStatus(ctx context.Context, deploymentID s
 	}
 
 	if finalStatus != depStatus {
-		p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), Value: []byte(fmt.Sprint(finalStatus))}
+		p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), Value: []byte(finalStatus.String())}
 		kv := w.consulClient.KV()
 		_, err := kv.Put(p, nil)
 		if err != nil {
@@ -709,7 +709,7 @@ func (w *worker) checkIfWorkflowIsDone(ctx context.Context, t *TaskExecution, wo
 
 func (w *worker) registerInlineWorkflow(ctx context.Context, t *TaskExecution, workflowName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.TargetID).RegisterAsString(fmt.Sprintf("Register workflow %q from taskID:%q, deploymentID:%q", workflowName, t.TaskID, t.TargetID))
-	wfOps, err := GetWorkflowInitOperations(t.kv, t.TargetID, t.TaskID, workflowName)
+	wfOps, err := BuildInitExecutionOperations(t.kv, t.TargetID, t.TaskID, workflowName, true)
 	if err != nil {
 		return err
 	}

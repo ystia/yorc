@@ -198,7 +198,7 @@ func (s *Server) resumeTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := tasks.ResumeTask(kv, taskID); err != nil {
+	if err := s.tasksCollector.ResumeTask(taskID); err != nil {
 		log.Panic(err)
 	}
 	w.WriteHeader(http.StatusAccepted)

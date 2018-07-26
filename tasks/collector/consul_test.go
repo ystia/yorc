@@ -12,35 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workflow
+package collector
 
 import (
 	"testing"
 
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulWorkflowPackageTests(t *testing.T) {
+func TestRunConsulCollectorPackageTests(t *testing.T) {
+	t.Parallel()
+	log.SetDebug(true)
+
 	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
 	defer srv.Stop()
 
-	t.Run("groupWorkflow", func(t *testing.T) {
-		t.Run("testBuildStepWithNext", func(t *testing.T) {
-			testBuildStepWithNext(t, srv, kv)
-		})
-		t.Run("testBuildStep", func(t *testing.T) {
-			testBuildStep(t, srv, kv)
-		})
-		t.Run("testBuildWorkFlow", func(t *testing.T) {
-			testBuildWorkFlow(t, srv, kv)
-		})
-		t.Run("testBuildStepWithFailure", func(t *testing.T) {
-			testBuildStepWithFailure(t, srv, kv)
-		})
-		t.Run("testRunStep", func(t *testing.T) {
-			testRunStep(t, srv, kv)
+	populateKV(t, srv)
+
+	t.Run("groupCollector", func(t *testing.T) {
+		t.Run("testResumeTask", func(t *testing.T) {
+			testResumeTask(t, client)
 		})
 	})
 }
