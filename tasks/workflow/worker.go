@@ -133,7 +133,7 @@ func (w *worker) monitorTaskCancellation(ctx context.Context, cancelFunc context
 
 			select {
 			case <-ctx.Done():
-				log.Debugln("[TASK MONITOR] Task monitor exiting as Task Execution ended...")
+				log.Debugln("[MONITOR TASK CANCELLATION] Task cancellation monitoring exiting as Task Execution ended...")
 				return
 			default:
 			}
@@ -144,10 +144,42 @@ func (w *worker) monitorTaskCancellation(ctx context.Context, cancelFunc context
 
 			if err == nil && kvp != nil {
 				if strings.ToLower(string(kvp.Value)) == "true" {
-					log.Debugln("[TASK MONITOR] Task cancellation requested.")
+					log.Debugln("[MONITOR TASK CANCELLATION] Task cancellation requested.")
 					t.setTaskStatus(ctx, tasks.TaskStatusCANCELED)
 					cancelFunc()
 					return
+				}
+			}
+		}
+	}()
+}
+
+func (w *worker) monitorTaskFailure(ctx context.Context, cancelFunc context.CancelFunc, t *TaskExecution) {
+	go func() {
+		var lastIndex uint64
+		for {
+			kvp, qMeta, err := w.consulClient.KV().Get(path.Join(consulutil.TasksPrefix, t.TaskID, "status"), &api.QueryOptions{WaitIndex: lastIndex})
+			select {
+			case <-ctx.Done():
+				log.Debugf("[MONITOR TASK FAILURE] Task monitor failure exiting as Task Execution ended for task:%q, step:%q", t.TaskID, t.step)
+				return
+			default:
+			}
+
+			if qMeta != nil {
+				lastIndex = qMeta.LastIndex
+			}
+
+			if err == nil && kvp != nil {
+				statusInt, err := strconv.Atoi(string(kvp.Value))
+				if err == nil && statusInt == int(tasks.TaskStatusFAILED) {
+					log.Debugln("[MONITOR TASK FAILURE] Task failure has been detected.")
+					// Temporize to allow current step termination before cancelling context and put step in error
+					log.Printf("An error occurred on another execution while actual %q is running: trying to gracefully finish it.", t.step)
+					time.AfterFunc(w.cfg.WfStepGracefulTerminationTimeout, func() {
+						log.Printf("Now, finish the step:%q", t.step)
+						cancelFunc()
+					})
 				}
 			}
 		}
@@ -248,6 +280,7 @@ func (w *worker) handleExecution(t *TaskExecution) {
 		return
 	}
 	w.monitorTaskCancellation(ctx, cancelFunc, t)
+	w.monitorTaskFailure(ctx, cancelFunc, t)
 	defer func(t *TaskExecution, start time.Time) {
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"TaskExecution", t.TargetID, t.TaskType.String()}), 1)
 		metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"TaskExecution", t.TargetID, t.TaskType.String()}), start)

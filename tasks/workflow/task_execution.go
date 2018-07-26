@@ -34,7 +34,6 @@ type TaskExecution struct {
 	ID           string
 	TaskID       string
 	TargetID     string
-	status       tasks.StepStatus
 	TaskType     tasks.TaskType
 	creationDate time.Time
 	lock         *api.Lock
