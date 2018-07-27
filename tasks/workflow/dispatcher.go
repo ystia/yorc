@@ -215,6 +215,8 @@ func (d *Dispatcher) Run() {
 				log.Debugf("%+v", err)
 				lock.Unlock()
 				lock.Destroy()
+				log.Printf("Seems this execution is no longer relevant and will be removed.")
+				d.deleteExecutionTree(execID)
 				continue
 			}
 			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {

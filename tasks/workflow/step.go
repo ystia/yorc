@@ -175,6 +175,48 @@ func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 		return nil
 	}
 	s.setStatus(tasks.StepStatusRUNNING)
+
+	logOptFields, _ := events.FromContext(ctx)
+	// Create a new context to handle gracefully current step termination when an error occurred during another step
+	wfCtx, cancelWf := context.WithCancel(events.NewContext(context.Background(), logOptFields))
+	waitDoneCh := make(chan struct{})
+	defer close(waitDoneCh)
+	go func() {
+		select {
+		case <-w.shutdownCh:
+			log.Printf("Shutdown signal has been sent.Step %q will be canceled", s.Name)
+			s.setStatus(tasks.StepStatusCANCELED)
+			cancelWf()
+			return
+		case <-ctx.Done():
+			status, err := s.t.getTaskStatus()
+			if err != nil {
+				log.Debugf("Failed to get task status with taskID:%q due to error:%+v", s.t.TaskID, err)
+			}
+			if status == tasks.TaskStatusCANCELED {
+				// We immediately cancel the step
+				cancelWf()
+				log.Printf("Cancel event has been sent.Step %q will be canceled", s.Name)
+				s.setStatus(tasks.StepStatusCANCELED)
+				return
+			} else if status == tasks.TaskStatusFAILED {
+				log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.Name)
+				select {
+				case <-time.After(cfg.WfStepGracefulTerminationTimeout):
+					cancelWf()
+					log.Printf("Step %q not yet finished: we set it on error", s.Name)
+					s.setStatus(tasks.StepStatusERROR)
+					return
+				case <-waitDoneCh:
+					return
+				}
+			}
+		case <-waitDoneCh:
+			return
+		}
+	}()
+	defer cancelWf()
+
 	log.Debugf("Processing Step %q", s.Name)
 	for _, activity := range s.Activities {
 		err := func() error {
@@ -186,9 +228,9 @@ func (s *Step) Run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 					hook(ctx, cfg, s.t.TaskID, deploymentID, s.Target, activity)
 				}
 			}()
-			err := s.runActivity(ctx, kv, cfg, deploymentID, bypassErrors, w, activity)
+			err := s.runActivity(wfCtx, kv, cfg, deploymentID, bypassErrors, w, activity)
 			if err != nil {
-				setNodeStatus(ctx, kv, s.t.TaskID, deploymentID, s.Target, tosca.NodeStateError.String())
+				setNodeStatus(wfCtx, kv, s.t.TaskID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.Name, err)
 				if !bypassErrors {
 					s.setStatus(tasks.StepStatusERROR)
