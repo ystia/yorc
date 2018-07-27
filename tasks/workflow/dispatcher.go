@@ -175,12 +175,7 @@ func (d *Dispatcher) Run() {
 				d.deleteExecutionTree(execID)
 				continue
 			}
-			// Check if a processing lock exists
-			if processingLock, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskLocksPrefix, ".processingLock"+execID), nil); processingLock != nil {
-				log.Debugf("Ignoring execution with ID:%q because already processed", execID)
-				continue
-			}
-			log.Debugf("handling execution with ID:%q", execID)
+			log.Debugf("handling task execution with ID:%q", execID)
 			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
 			if err != nil {
 				log.Printf("Ignore execution with ID:%q due to error:%v", execID, err)
@@ -272,8 +267,8 @@ func (d *Dispatcher) Run() {
 				lock.Destroy()
 				log.Printf("Dispatcher received shutdown signal. Exiting...")
 				return
-			case <-time.After(5 * time.Second):
-				// Timeout to let another instance a chance to consume this Task Execution
+			case <-time.After(2 * time.Second):
+				log.Debugf("Release the lock for execID:%q to let another yorc instance worker take the execution", execID)
 				lock.Unlock()
 				lock.Destroy()
 				time.Sleep(100 * time.Millisecond)
