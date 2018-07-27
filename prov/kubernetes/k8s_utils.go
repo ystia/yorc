@@ -186,12 +186,11 @@ func getNamespace(deploymentID string, objectMeta metav1.ObjectMeta) (string, bo
 		providedNamespace = objectMeta.Namespace
 	}
 
-	if &providedNamespace != nil && providedNamespace != "" {
+	if providedNamespace != "" {
 		namespace = providedNamespace
 		isProvided = true
 	} else {
 		namespace, _ = defaultNamespace(deploymentID)
-		isProvided = false
 	}
 
 	return namespace, isProvided
