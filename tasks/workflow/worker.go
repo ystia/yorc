@@ -636,8 +636,7 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *TaskExecution, workflow
 	s, err := BuildStep(w.consulClient.KV(), t.TargetID, workflowName, t.step, nil)
 	if err != nil {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
-		log.Printf("%+v. Failed to build step:%q for workflow:%q due to err:%+v", t.step, workflowName, err)
-		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return false, errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}
 	s.t = t
 	err = s.Run(ctx, w.cfg, w.consulClient.KV(), t.TargetID, continueOnError, workflowName, w)
