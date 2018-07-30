@@ -214,28 +214,26 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 
 	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
 	objectMeta := deploymentRepr.ObjectMeta
-	var namespace string
-	var provided bool
-	namespace, provided = getNamespace(e.deploymentID, objectMeta)
-	// Namespace creation/deletion only made at deployment level
-	if !provided {
-		err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
-		if err != nil {
-			return err
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
-	}
-
-	// Update resource_spec with actual reference to used services, if necessary
-	rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespace, rSpec)
-	if err != nil {
-		return err
-	}
+	var namespaceName string
+	var namespaceProvided bool
+	namespaceName, namespaceProvided = getNamespace(e.deploymentID, objectMeta)
 
 	switch operationType {
 	case k8sCreateOperation:
+		if !namespaceProvided {
+			err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
+			if err != nil {
+				return err
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespaceName)
+		}
+		// Update resource_spec with actual reference to used services, if necessary
+		rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespaceName, rSpec)
+		if err != nil {
+			return err
+		}
 		// Create Deployment k8s resource
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Create(&deploymentRepr)
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespaceName).Create(&deploymentRepr)
 		if err != nil {
 			return err
 		}
@@ -247,14 +245,14 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 			return err
 		}
 
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s created in namespace %s", deployment.Name, namespace)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s created in namespace %s", deployment.Name, namespaceName)
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
 		var deploymentName string
 		deploymentName = deploymentRepr.Name
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Delete k8s Deployment %s", deploymentName)
 
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(deploymentName, metav1.GetOptions{})
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespaceName).Get(deploymentName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -262,7 +260,7 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 
 		deletePolicy := metav1.DeletePropagationForeground
 		var gracePeriod int64 = 5
-		if err = clientset.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{
+		if err = clientset.ExtensionsV1beta1().Deployments(namespaceName).Delete(deploymentName, &metav1.DeleteOptions{
 			GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy}); err != nil {
 			return err
 		}
@@ -277,14 +275,25 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Deployment %s deleted", deploymentName)
 
-		// Delete namespace if not provided
-		if !provided {
-			err = generator.deleteNamespace(namespace, clientset)
+		// Delete namespace if it was not provided
+		if !namespaceProvided {
+			// Check if other deployments exist in the namespace
+			// In that case nothing to do
+			nbDeployments, err := deploymentsInNamespace(clientset, namespaceName)
 			if err != nil {
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespaceName)
 				return err
 			}
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
+			if nbDeployments > 0 {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Do not delete %s namespace as %d deployments exist", namespaceName, nbDeployments)
+			} else {
+				err = deleteNamespace(namespaceName, clientset)
+				if err != nil {
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespaceName)
+					return err
+				}
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespaceName)
 		}
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
@@ -446,7 +455,7 @@ func (e *executionCommon) deployNode(ctx context.Context, clientset *kubernetes.
 		return err
 	}
 
-	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+	err = createNamespaceIfMissing(e.deploymentID, namespace, clientset)
 	if err != nil {
 		return err
 	}

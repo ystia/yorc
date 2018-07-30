@@ -156,6 +156,23 @@ func isChildOf(clientset *kubernetes.Clientset, parent types.UID, ref reference)
 	return false, nil
 }
 
+func deploymentsInNamespace(clientset *kubernetes.Clientset, namespace string) (int, error) {
+	var nbDeployments int
+	deploymentsList, err := clientset.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return nbDeployments, err
+	}
+	for _, dep := range deploymentsList.Items {
+		//depName := dep.GetName()
+		depNamespace := dep.GetNamespace()
+		//events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Found %s deployment in k8s Namespace %s", depName, depNamespace)
+		if depNamespace == namespace {
+			nbDeployments++
+		}
+	}
+	return nbDeployments, nil
+}
+
 type reference struct {
 	Kind      string
 	UID       types.UID
@@ -169,6 +186,33 @@ func referenceFromObjectReference(ref corev1.ObjectReference) reference {
 
 func referenceFromOwnerReference(namespace string, ref metav1.OwnerReference) reference {
 	return reference{ref.Kind, ref.UID, namespace, ref.Name}
+}
+
+// CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
+func createNamespaceIfMissing(deploymentID, namespaceName string, client *kubernetes.Clientset) error {
+	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			_, err := client.CoreV1().Namespaces().Create(&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: namespaceName},
+			})
+			if err != nil && !strings.Contains(err.Error(), "already exists") {
+				return errors.Wrap(err, "Failed to create namespace")
+			}
+		} else {
+			return errors.Wrap(err, "Failed to create namespace")
+		}
+	}
+	return nil
+}
+
+// deleteNamespace delete a Kubernetes namespaces known by its name
+func deleteNamespace(namespaceName string, client *kubernetes.Clientset) error {
+	err := client.CoreV1().Namespaces().Delete(namespaceName, &metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete namespace "+namespaceName)
+	}
+	return nil
 }
 
 // Default k8s namespace policy for Yorc : one namespace for each deployment
