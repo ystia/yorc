@@ -17,6 +17,12 @@ package monitoring
 import (
 	"context"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -27,11 +33,6 @@ import (
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/workflow"
 	"github.com/ystia/yorc/tosca"
-	"path"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 var defaultMonManager *monitoringMgr
@@ -238,19 +239,19 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 		}
 
 		for _, instance := range instances {
-			found, ipAddress, err := deployments.GetInstanceAttribute(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
+			ipAddress, err := deployments.GetInstanceAttributeValue(defaultMonManager.cc.KV(), deploymentID, target, instance, "ip_address")
 			if err != nil {
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 					Registerf("Failed to retrieve ip_address for node name:%q due to: %v", target, err)
 				return
 			}
-			if !found || ipAddress == "" {
+			if ipAddress == nil || ipAddress.RawString() == "" {
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 					Registerf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID:%q", target, instance, deploymentID)
 				return
 			}
 
-			if err := defaultMonManager.registerCheck(deploymentID, target, instance, ipAddress, 22, monitoringInterval); err != nil {
+			if err := defaultMonManager.registerCheck(deploymentID, target, instance, ipAddress.RawString(), 22, monitoringInterval); err != nil {
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
 					Registerf("Failed to register check for node name:%q due to: %v", target, err)
 				return

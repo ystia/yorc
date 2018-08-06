@@ -158,7 +158,7 @@ func TypeHasAttribute(kv *api.KV, deploymentID, typeName, attributeName string, 
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 // The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultProperty(kv *api.KV, deploymentID, typeName, propertyName string, nestedKeys ...string) (bool, string, bool, error) {
+func getTypeDefaultProperty(kv *api.KV, deploymentID, typeName, propertyName string, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, propertyName, true, nestedKeys...)
 }
 
@@ -167,7 +167,7 @@ func getTypeDefaultProperty(kv *api.KV, deploymentID, typeName, propertyName str
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 // The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultAttribute(kv *api.KV, deploymentID, typeName, attributeName string, nestedKeys ...string) (bool, string, bool, error) {
+func getTypeDefaultAttribute(kv *api.KV, deploymentID, typeName, attributeName string, nestedKeys ...string) (*TOSCAValue, bool, error) {
 	return getTypeDefaultAttributeOrProperty(kv, deploymentID, typeName, attributeName, false, nestedKeys...)
 }
 
@@ -175,7 +175,7 @@ func getTypeDefaultAttribute(kv *api.KV, deploymentID, typeName, attributeName s
 // It returns true if a default value is found false otherwise as first return parameter.
 // If no default value is found in a given type then the derived_from hierarchy is explored to find the default value.
 // The second boolean result indicates if the result is a TOSCA Function that should be evaluated in the caller context.
-func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, propertyName string, isProperty bool, nestedKeys ...string) (bool, string, bool, error) {
+func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, propertyName string, isProperty bool, nestedKeys ...string) (*TOSCAValue, bool, error) {
 
 	// If this type doesn't contains the property lets continue to explore the type hierarchy
 	var hasProp bool
@@ -186,7 +186,7 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, prope
 		hasProp, err = TypeHasAttribute(kv, deploymentID, typeName, propertyName, false)
 	}
 	if err != nil {
-		return false, "", false, err
+		return nil, false, err
 	}
 	if hasProp {
 		typePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "types", typeName)
@@ -200,25 +200,19 @@ func getTypeDefaultAttributeOrProperty(kv *api.KV, deploymentID, typeName, prope
 
 		baseDataType, err := getTypePropertyOrAttributeDataType(kv, deploymentID, typeName, propertyName, isProperty)
 		if err != nil {
-			return false, "", false, err
+			return nil, false, err
 		}
 
-		found, result, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, defaultPath, baseDataType, nestedKeys...)
-		if err != nil {
-			return false, "", false, errors.Wrapf(err, "Failed to get default %s %q for type %q", t, propertyName, typeName)
-		}
-		if found {
-			return true, result, isFunction, nil
+		result, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, defaultPath, baseDataType, nestedKeys...)
+		if err != nil || result != nil {
+			return result, isFunction, errors.Wrapf(err, "Failed to get default %s %q for type %q", t, propertyName, typeName)
 		}
 	}
 	// No default in this type
 	// Lets look at parent type
 	parentType, err := GetParentType(kv, deploymentID, typeName)
-	if err != nil {
-		return false, "", false, err
-	}
-	if parentType == "" {
-		return false, "", false, nil
+	if err != nil || parentType == "" {
+		return nil, false, err
 	}
 	return getTypeDefaultAttributeOrProperty(kv, deploymentID, parentType, propertyName, isProperty, nestedKeys...)
 }

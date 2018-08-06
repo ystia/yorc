@@ -21,8 +21,6 @@ VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
 VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 COMMIT_HASH=$(shell git rev-parse HEAD)
 
-buildnformat: build header format
-
 build: test
 	@echo "--> Running go build"
 	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags '-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH)'
@@ -37,14 +35,14 @@ header:
 	@echo "--> Adding licensing headers if necessary"
 	@./build/header.sh
 
-dist: buildnformat
+dist: build
 	@rm -rf ./dist && mkdir -p ./dist
 	@echo "--> Creating an archive"
 	@tar czvf yorc.tgz yorc && echo "TODO: clean this part after CI update" &&  cp yorc yorc.tgz dist/
 	@cd doc && make html latexpdf && cd _build && cp -r html latex/Yorc.pdf ../../dist
 	@cd ./dist && zip -r yorc-server-$(VERSION)-documentation.zip html Yorc.pdf && zip yorc-server-$(VERSION)-distrib.zip yorc yorc-server-$(VERSION)-documentation.zip
 
-test: generate
+test: generate header format
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
 	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 ./...
@@ -79,4 +77,4 @@ savedeps: checks
 restoredeps: checks
 	@godep restore -v
 
-.PHONY: buildnformat build cov checks test cover format vet tools dist
+.PHONY: build cov checks test cover format vet tools dist

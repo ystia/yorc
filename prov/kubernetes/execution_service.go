@@ -57,11 +57,11 @@ func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress
 	// Keep instances exposing the port
 	instancesToUpdate := make([]string, 0)
 	for _, instance := range instances {
-		found, ports, err := deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, instance, "docker_ports")
+		ports, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, instance, "docker_ports")
 		if err != nil {
 			return err
 		}
-		if found && strings.Contains(ports, strconv.Itoa(int(port))) {
+		if ports != nil && strings.Contains(ports.RawString(), strconv.Itoa(int(port))) {
 			instancesToUpdate = append(instancesToUpdate, instance)
 		}
 
@@ -73,12 +73,12 @@ func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress
 			// First check this is an endpoint declaring this port
 			// the port provided here is the docker mapping port, not
 			// the port in the container
-			found, result, err := deployments.GetInstanceCapabilityAttribute(e.kv, e.deploymentID,
+			result, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID,
 				e.NodeName, instance, capName, DockerBridgePortMapping)
 			if err != nil {
 				return err
 			}
-			if !found || result != strconv.Itoa(int(port)) {
+			if result == nil || result.RawString() != strconv.Itoa(int(port)) {
 				// This endpoint is using another port
 				continue
 			}

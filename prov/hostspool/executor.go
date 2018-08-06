@@ -95,15 +95,15 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.Client, cfg config.Configuration, taskID, deploymentID, nodeName string, allocatedResources map[string]string) error {
 	hpManager := NewManager(cc)
 
-	_, jsonProp, err := deployments.GetNodeProperty(cc.KV(), deploymentID, nodeName, "filters")
+	jsonProp, err := deployments.GetNodePropertyValue(cc.KV(), deploymentID, nodeName, "filters")
 	if err != nil {
 		return err
 	}
 	var filtersString []string
-	if jsonProp != "" {
-		err = json.Unmarshal([]byte(jsonProp), &filtersString)
+	if jsonProp != nil && jsonProp.RawString() != "" {
+		err = json.Unmarshal([]byte(jsonProp.RawString()), &filtersString)
 		if err != nil {
-			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, nodeName, jsonProp)
+			return errors.Wrapf(err, `failed to parse property "filter" for node %q as json %q`, nodeName, jsonProp.String())
 		}
 	}
 	filters, err := createFiltersFromComputeCapabilities(cc.KV(), deploymentID, nodeName)
@@ -119,10 +119,10 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 	}
 
 	shareable := false
-	if _, s, err := deployments.GetNodeProperty(cc.KV(), deploymentID, nodeName, "shareable"); err != nil {
+	if s, err := deployments.GetNodePropertyValue(cc.KV(), deploymentID, nodeName, "shareable"); err != nil {
 		return err
-	} else if s != "" {
-		shareable, err = strconv.ParseBool(s)
+	} else if s != nil && s.RawString() != "" {
+		shareable, err = strconv.ParseBool(s.RawString())
 		if err != nil {
 			return err
 		}
@@ -222,39 +222,39 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 
 func (e *defaultExecutor) getAllocatedResourcesFromHostCapabilities(kv *api.KV, deploymentID, nodeName string) (map[string]string, error) {
 	res := make(map[string]string, 0)
-	found, p, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "num_cpus")
+	p, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "num_cpus")
 	if err != nil {
 		return nil, err
 	}
-	if found && p != "" {
-		res["host.num_cpus"] = p
+	if p != nil && p.RawString() != "" {
+		res["host.num_cpus"] = p.RawString()
 	}
 
-	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "mem_size")
+	p, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "mem_size")
 	if err != nil {
 		return nil, err
 	}
-	if found && p != "" {
-		res["host.mem_size"] = p
+	if p != nil && p.RawString() != "" {
+		res["host.mem_size"] = p.RawString()
 	}
 
-	found, p, err = deployments.GetCapabilityProperty(kv, deploymentID, nodeName, "host", "disk_size")
+	p, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "host", "disk_size")
 	if err != nil {
 		return nil, err
 	}
-	if found && p != "" {
-		res["host.disk_size"] = p
+	if p != nil && p.RawString() != "" {
+		res["host.disk_size"] = p.RawString()
 	}
 	return res, nil
 }
 
 func appendCapabilityFilter(kv *api.KV, deploymentID, nodeName, capName, propName, op string, filters []labelsutil.Filter) ([]labelsutil.Filter, error) {
-	found, p, err := deployments.GetCapabilityProperty(kv, deploymentID, nodeName, capName, propName)
+	p, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capName, propName)
 	if err != nil {
 		return filters, err
 	}
-	if found && p != "" {
-		f, err := labelsutil.CreateFilter(capName + "." + propName + " " + op + " " + p)
+	if p != nil && p.RawString() != "" {
+		f, err := labelsutil.CreateFilter(capName + "." + propName + " " + op + " " + p.RawString())
 		if err != nil {
 			return filters, err
 		}
@@ -312,20 +312,20 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 		logOptFields, _ := events.FromContext(originalCtx)
 		logOptFields[events.InstanceID] = instance
 		ctx := events.NewContext(originalCtx, logOptFields)
-		found, hostname, err := deployments.GetInstanceAttribute(cc.KV(), deploymentID, nodeName, instance, "hostname")
+		hostname, err := deployments.GetInstanceAttributeValue(cc.KV(), deploymentID, nodeName, instance, "hostname")
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		if !found {
+		if hostname == nil || hostname.RawString() == "" {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("instance %q of node %q does not have a registered hostname. This may be due to an error at creation time. Should be checked.", instance, nodeName)
 			continue
 		}
 		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID}
-		err = hpManager.Release(hostname, allocation)
+		err = hpManager.Release(hostname.RawString(), allocation)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-		return hpManager.UpdateResourcesLabels(hostname, allocatedResources, add, updateResourcesLabels)
+		return hpManager.UpdateResourcesLabels(hostname.RawString(), allocatedResources, add, updateResourcesLabels)
 
 	}
 	return errors.Wrap(errs, "errors encountered during hosts pool node release. Some hosts maybe not properly released.")

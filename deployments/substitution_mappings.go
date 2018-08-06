@@ -429,10 +429,10 @@ func isSubstitutionMappingAttribute(attributeName string) bool {
 // by Alien4Cloud, using the format capabilities.<capability name>.<attributr name>,
 // this function returns the the vqlue of the corresponding instance capability
 // attribute
-func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (bool, string, error) {
+func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
 	if !isSubstitutionMappingAttribute(attributeName) {
-		return false, "", nil
+		return nil, nil
 	}
 
 	log.Debugf("Attempting to substitute attribute %s in %s %s %s", attributeName, deploymentID, nodeName, instanceName)
@@ -446,17 +446,17 @@ func getSubstitutionMappingAttribute(kv *api.KV, deploymentID, nodeName, instanc
 	attributesSet := make(map[string]struct{})
 	err := storeSubstitutionMappingAttributeNamesInSet(kv, deploymentID, nodeName, attributesSet)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	if _, ok := attributesSet[attributeName]; ok {
 		// This attribute is exposed, returning its value
 		log.Debugf("Substituting attribute %s by its instance capability attribute in %s %s %s %s", attributeName, deploymentID, nodeName, instanceName)
-		return GetInstanceCapabilityAttribute(
+		return GetInstanceCapabilityAttributeValue(
 			kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, nestedKeys...)
 	}
 
-	return false, "", nil
+	return nil, nil
 }
 
 // getSubstitutionNodeInstancesIds returns for a substitutable node, a fake
@@ -553,16 +553,12 @@ func getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attr
 // capabilities.<capability name>.<attribute name>
 // See http://alien4cloud.github.io/#/documentation/2.0.0/user_guide/services_management.html
 func getSubstitutionInstanceCapabilityAttribute(kv *api.KV, deploymentID, nodeName,
-	instanceName, capabilityName, attributeType, attributeName string, nestedKeys ...string) (bool, string, error) {
+	instanceName, capabilityName, attributeType, attributeName string, nestedKeys ...string) (*TOSCAValue, error) {
 
 	nodeAttrName := fmt.Sprintf(capabilityFormat, capabilityName, attributeName)
-	found, result, err := getValueAssignmentWithDataType(kv, deploymentID,
+	result, err := getValueAssignmentWithDataType(kv, deploymentID,
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes",
 			nodeName, "attributes", nodeAttrName),
 		nodeName, instanceName, "", attributeType, nestedKeys...)
-	if err != nil {
-		return false, "", errors.Wrapf(err, "Failed to get attribute %q for node %q", nodeAttrName, nodeName)
-	}
-
-	return found, result, nil
+	return result, errors.Wrapf(err, "Failed to get attribute %q for node %q", nodeAttrName, nodeName)
 }

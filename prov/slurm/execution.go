@@ -19,6 +19,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -32,13 +40,6 @@ import (
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"golang.org/x/sync/errgroup"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type execution interface {
@@ -260,78 +261,75 @@ func (e *executionCommon) endBatchExecution(ctx context.Context, stopCh chan str
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	job := jobInfo{}
 	// Get main properties from node
-	found, jobName, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "name")
+	jobName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "name")
 	if err != nil {
 		return err
 	}
-	if !found || jobName == "" {
-		jobName = e.cfg.Infrastructures[infrastructureName].GetString("default_job_name")
-		if jobName == "" {
-			jobName = e.deploymentID
+	if jobName == nil || jobName.RawString() == "" {
+		job.name = e.cfg.Infrastructures[infrastructureName].GetString("default_job_name")
+		if job.name == "" {
+			job.name = e.deploymentID
 		}
+	} else {
+		job.name = jobName.RawString()
 	}
-	job.name = jobName
 
-	var tsks = 0
-	if _, ts, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "tasks"); err != nil {
+	if ts, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "tasks"); err != nil {
 		return err
-	} else if ts != "" {
-		if tsks, err = strconv.Atoi(ts); err != nil {
+	} else if ts != nil && ts.RawString() != "" {
+		if job.tasks, err = strconv.Atoi(ts.RawString()); err != nil {
 			return err
 		}
 	}
-	job.tasks = tsks
 
 	var nodes = 1
-	if _, ns, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "nodes"); err != nil {
+	if ns, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "nodes"); err != nil {
 		return err
-	} else if ns != "" {
-		if nodes, err = strconv.Atoi(ns); err != nil {
+	} else if ns != nil && ns.RawString() != "" {
+		if nodes, err = strconv.Atoi(ns.RawString()); err != nil {
 			return err
 		}
 	}
 	job.nodes = nodes
 
-	var mem = 0
-	if _, m, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "mem_per_node"); err != nil {
+	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "mem_per_node"); err != nil {
 		return err
-	} else if m != "" {
-		if mem, err = strconv.Atoi(m); err != nil {
+	} else if m != nil && m.RawString() != "" {
+		if job.mem, err = strconv.Atoi(m.RawString()); err != nil {
 			return err
 		}
 	}
-	job.mem = mem
 
-	var cpus = 0
-	if _, c, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "cpus_per_task"); err != nil {
+	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "cpus_per_task"); err != nil {
 		return err
-	} else if c != "" {
-		if cpus, err = strconv.Atoi(c); err != nil {
+	} else if c != nil && c.RawString() != "" {
+		if job.cpus, err = strconv.Atoi(c.RawString()); err != nil {
 			return err
 		}
 	}
-	job.cpus = cpus
 
-	if _, job.maxTime, err = deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "time"); err != nil {
+	if maxTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "time"); err != nil {
 		return err
+	} else if maxTime != nil {
+		job.maxTime = maxTime.RawString()
 	}
 
 	// BatchMode default is true
 	var batchMode = true
-	if _, bm, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "batch"); err != nil {
+	if bm, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "batch"); err != nil {
 		return err
-	} else if bm != "" {
-		if batchMode, err = strconv.ParseBool(bm); err != nil {
+	} else if bm != nil && bm.RawString() != "" {
+		if batchMode, err = strconv.ParseBool(bm.RawString()); err != nil {
 			return err
 		}
 	}
 	job.batchMode = batchMode
 
 	var extraOpts []string
-	if _, extra, err := deployments.GetNodeProperty(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
+	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
 		return err
-	} else if extra != "" {
-		if err = json.Unmarshal([]byte(extra), &extraOpts); err != nil {
+	} else if extra != nil && extra.RawString() != "" {
+		if err = json.Unmarshal([]byte(extra.RawString()), &extraOpts); err != nil {
 			return err
 		}
 	}
