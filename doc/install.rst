@@ -40,7 +40,7 @@ Now you can proceed with the installation of softwares used by Yorc.
 
 .. parsed-literal::
 
-    sudo pip install ansible==\ |ansible_version| netaddr
+    sudo pip install ansible==\ |ansible_version|
     wget \https://releases.hashicorp.com/consul/\ |consul_version|\ /consul\_\ |consul_version|\ _linux_amd64.zip
     sudo unzip consul\_\ |consul_version|\ _linux_amd64.zip -d /usr/local/bin
     wget \https://releases.hashicorp.com/terraform/\ |terraform_version|\ /terraform\_\ |terraform_version|\ _linux_amd64.zip
@@ -62,6 +62,15 @@ softwares should also be installed.
   sudo systemctl start docker
   
   sudo pip install docker-py
+
+For a complete Ansible experience please install the following python libs:
+
+.. code-block:: bash
+
+  # To support json_query filter for jinja2
+  sudo pip install jmespath
+  # To works easily with CIDRs
+  sudo pip install netaddr
 
 To support Ansible SSH password authentication instead of common ssh keys, the sshpass helper program needs to be installed too.
 
