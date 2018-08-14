@@ -213,22 +213,24 @@ func TestValueAssignment_UnmarshalYAML(t *testing.T) {
 		yaml string
 	}
 	tests := []struct {
-		name     string
-		args     args
-		wantErr  bool
-		wantType ValueAssignmentType
+		name      string
+		args      args
+		wantErr   bool
+		wantType  ValueAssignmentType
+		wantValue string
 	}{
-		{"StringLiteral", args{"1"}, false, ValueAssignmentLiteral},
-		{"FunctionSimple", args{"{ get_property: [SELF, port] }"}, false, ValueAssignmentFunction},
-		{"FunctionNested", args{`{concat: [get_attribute: [SELF, ip_address], ":", get_property: [SELF, port]]}`}, false, ValueAssignmentFunction},
-		{"FunctionNestedErr", args{`{ concat: [get_attribute: [SELF, ip_address], ":", get_property: [SELF, port] }`}, true, ValueAssignmentFunction},
-		{"ListShort", args{`["1", "two"]`}, false, ValueAssignmentList},
+		{"VersionLiteral", args{`1.10`}, false, ValueAssignmentLiteral, "1.10"},
+		{"StringLiteral", args{"1"}, false, ValueAssignmentLiteral, "1"},
+		{"FunctionSimple", args{"{ get_property: [SELF, port] }"}, false, ValueAssignmentFunction, "get_property: [SELF, port]"},
+		{"FunctionNested", args{`{concat: [get_attribute: [SELF, ip_address], ":", get_property: [SELF, port]]}`}, false, ValueAssignmentFunction, `concat: [get_attribute: [SELF, ip_address], ":", get_property: [SELF, port]]`},
+		{"FunctionNestedErr", args{`{ concat: [get_attribute: [SELF, ip_address], ":", get_property: [SELF, port] }`}, true, ValueAssignmentFunction, `concat: [get_attribute: [SELF, ip_address], ":", get_property: [SELF, port]"`},
+		{"ListShort", args{`["1", "two"]`}, false, ValueAssignmentList, `["1", "two"]`},
 		{"ListExpend", args{`- "1"
 - "two"
-`}, false, ValueAssignmentList},
-		{"MapShort", args{`{"1": "one", 2: "two"}`}, false, ValueAssignmentMap},
+`}, false, ValueAssignmentList, `["1", "two"]`},
+		{"MapShort", args{`{"1": "one", 2: "two"}`}, false, ValueAssignmentMap, `{"1": "one", 2: "two"}`},
 		{"MapExpend", args{`"1": "one"
-2: "two"`}, false, ValueAssignmentMap},
+2: "two"`}, false, ValueAssignmentMap, `{"1": "one", 2: "two"}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -241,6 +243,15 @@ func TestValueAssignment_UnmarshalYAML(t *testing.T) {
 			}
 			if err == nil {
 				require.Equal(t, tt.wantType, p.Type)
+				if tt.wantType != ValueAssignmentMap {
+					// Maps can't be tested reliably as we can't ensure keys order
+					assert.Equal(t, tt.wantValue, p.String())
+				} else {
+					var m map[interface{}]interface{}
+					err := yaml.Unmarshal([]byte(tt.wantValue), &m)
+					require.NoError(t, err)
+					assert.Equal(t, m, p.Value)
+				}
 			}
 		})
 	}
@@ -365,6 +376,7 @@ func TestValueAssignment_UnmarshalJSON(t *testing.T) {
 		wantType  ValueAssignmentType
 		wantValue interface{}
 	}{
+		{"IntLiteral", `1.10`, ValueAssignmentLiteral, 1.10},
 		{"StringLiteral", `"abc"`, ValueAssignmentLiteral, "abc"},
 		{"List", `["1", "two"]`, ValueAssignmentList, []interface{}{"1", "two"}},
 		{"Map", `{"one":"val1","two":"val2"}`, ValueAssignmentMap,
@@ -382,7 +394,7 @@ func TestValueAssignment_UnmarshalJSON(t *testing.T) {
 				assert.Equal(t, tt.wantType.String(), v.Type.String(),
 					"Unexpected type error unmarshalling %s", tt.jsonVal)
 				assert.Equal(t, tt.wantValue, v.Value,
-					"Unexpected value error unmarshalling %s", tt.jsonVal)
+					"Unexpected value error unmarshalling %s (%t)", tt.jsonVal, v.Value)
 			}
 		})
 	}
