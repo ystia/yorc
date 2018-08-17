@@ -102,6 +102,14 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		buffer.WriteString(fmt.Sprintf("%s: %q", contextKey, contextValue))
 		buffer.WriteString("\n")
 	}
+	for contextKey, contextValue := range e.CapabilitiesCtx {
+		v, err := e.encodeTOSCAValue(contextValue, ansibleRecipePath)
+		if err != nil {
+			return err
+		}
+		buffer.WriteString(fmt.Sprintf("%s: %s", contextKey, v))
+		buffer.WriteString("\n")
+	}
 	buffer.WriteString("dest_folder: \"")
 	buffer.WriteString(ansibleRecipePath)
 	buffer.WriteString("\"\n")
