@@ -246,7 +246,7 @@ func addMonitoringHook(ctx context.Context, cfg config.Configuration, taskID, de
 			}
 			if !found || ipAddress == "" {
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).
-					Registerf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID", target, instance, deploymentID)
+					Registerf("No attribute ip_address has been found for nodeName:%q, instance:%q with deploymentID:%q", target, instance, deploymentID)
 				return
 			}
 

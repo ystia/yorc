@@ -51,7 +51,7 @@ ifndef SKIP_TESTS
 endif
 
 
-cover: 
+cover:
 	@go test -p 1 -cover $(COVERARGS) ./...  
 
 format:
