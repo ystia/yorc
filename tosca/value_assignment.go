@@ -165,7 +165,21 @@ func (p ValueAssignment) String() string {
 
 // UnmarshalYAML unmarshals a yaml into a ValueAssignment
 func (p *ValueAssignment) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return p.unmarshalYAMLJSON(unmarshal)
+	if err := p.unmarshalYAMLJSON(unmarshal); err == nil {
+		return nil
+	}
+
+	// Not a List nor a TOSCA function, nor a map or complex type, let's try literal
+	// For YAML parsing literals are always considered as string
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+
+	p.Value = s
+	p.Type = ValueAssignmentLiteral
+	return nil
+
 }
 
 // UnmarshalJSON unmarshals json into a ValueAssignment
@@ -174,7 +188,20 @@ func (p *ValueAssignment) UnmarshalJSON(b []byte) error {
 	jsonUnmarshal := func(itf interface{}) error {
 		return json.Unmarshal(b, itf)
 	}
-	return p.unmarshalYAMLJSON(jsonUnmarshal)
+	if err := p.unmarshalYAMLJSON(jsonUnmarshal); err == nil {
+		return nil
+	}
+
+	// Not a List nor a TOSCA function, nor a map or complex type, let's try literal
+	// For JSON it could be any type
+	var s interface{}
+	if err := jsonUnmarshal(&s); err != nil {
+		return err
+	}
+
+	p.Value = s
+	p.Type = ValueAssignmentLiteral
+	return nil
 }
 
 // unmarshalYAMLJSON unmarshals yaml or json into a ValueAssignment
@@ -210,20 +237,12 @@ func (p *ValueAssignment) unmarshalYAMLJSON(unmarshal func(interface{}) error) e
 
 	// JSON map unmarshaling expects a map[string]interface{}
 	var strMap map[string]interface{}
-	if err := unmarshal(&strMap); err == nil {
-		p.Value = strMap
-		p.Type = ValueAssignmentMap
-		return nil
-	}
-
-	// Not a List nor a TOSCA function, nor a map or complex type, let's try literal
-	var s interface{}
-	if err := unmarshal(&s); err != nil {
+	if err := unmarshal(&strMap); err != nil {
 		return err
 	}
 
-	p.Value = s
-	p.Type = ValueAssignmentLiteral
+	p.Value = strMap
+	p.Type = ValueAssignmentMap
 	return nil
 }
 
