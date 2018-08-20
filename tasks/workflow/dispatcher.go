@@ -39,7 +39,7 @@ import (
 type Dispatcher struct {
 	client     *api.Client
 	shutdownCh chan struct{}
-	WorkerPool chan chan *TaskExecution
+	WorkerPool chan chan *taskExecution
 	maxWorkers int
 	cfg        config.Configuration
 	wg         *sync.WaitGroup
@@ -47,7 +47,7 @@ type Dispatcher struct {
 
 // NewDispatcher create a new Dispatcher with a given number of workers
 func NewDispatcher(cfg config.Configuration, shutdownCh chan struct{}, client *api.Client, wg *sync.WaitGroup) *Dispatcher {
-	pool := make(chan chan *TaskExecution, cfg.WorkersNumber)
+	pool := make(chan chan *taskExecution, cfg.WorkersNumber)
 	dispatcher := &Dispatcher{WorkerPool: pool, client: client, shutdownCh: shutdownCh, maxWorkers: cfg.WorkersNumber, cfg: cfg, wg: wg}
 	dispatcher.emitTasksMetrics()
 	return dispatcher
@@ -244,14 +244,14 @@ func (d *Dispatcher) Run() {
 				}
 			}
 			log.Printf("Processing Task Execution %q linked to deployment %q", taskID, targetID)
-			t := &TaskExecution{
-				ID:           execID,
-				TaskID:       taskID,
-				TargetID:     targetID,
+			t := &taskExecution{
+				id:           execID,
+				taskID:       taskID,
+				targetID:     targetID,
 				lock:         lock,
 				kv:           kv,
 				creationDate: time.Now(),
-				TaskType:     tasks.TaskType(taskType),
+				taskType:     tasks.TaskType(taskType),
 				step:         step,
 			}
 			log.Debugf("New Task Execution created %+v: pushing it to workers channel", t)

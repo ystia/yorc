@@ -252,9 +252,9 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 			require.NoError(t, err)
 
 			s.next = nil
-			s.t = &TaskExecution{ID: "taskExecutionID", TaskID: "taskID", TargetID: deploymentID}
-			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, "WFNode_create"), []byte("initial"))
-			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, "Compute_install"), []byte("initial"))
+			s.t = &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "WFNode_create"), []byte("initial"))
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "Compute_install"), []byte("initial"))
 			err = s.run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("step.run() error = %v, wantErr %v", err, tt.wantErr)
@@ -271,8 +271,8 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 				if mah.deploymentID != deploymentID {
 					t.Errorf("step.run() pre_activity_hook.deploymentID = %v, want %v", mah.deploymentID, deploymentID)
 				}
-				if mah.taskID != s.t.TaskID {
-					t.Errorf("step.run() pre_activity_hook.taskID = %v, want %v", mah.taskID, s.t.ID)
+				if mah.taskID != s.t.taskID {
+					t.Errorf("step.run() pre_activity_hook.taskID = %v, want %v", mah.taskID, s.t.id)
 				}
 				if mah.target != s.target {
 					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.target)
@@ -286,8 +286,8 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 				if mah.deploymentID != deploymentID {
 					t.Errorf("step.run() post_activity_hook.deploymentID = %v, want %v", mah.deploymentID, deploymentID)
 				}
-				if mah.taskID != s.t.TaskID {
-					t.Errorf("step.run() post_activity_hook.taskID = %v, want %v", mah.taskID, s.t.ID)
+				if mah.taskID != s.t.taskID {
+					t.Errorf("step.run() post_activity_hook.taskID = %v, want %v", mah.taskID, s.t.id)
 				}
 				if mah.target != s.target {
 					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.target)
