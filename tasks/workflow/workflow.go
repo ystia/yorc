@@ -16,31 +16,33 @@ package workflow
 
 import (
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
+
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 )
 
-// BuildWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
-func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*Step, error) {
+// buildWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
+func buildWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*step, error) {
 	stepsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps")
 	stepsKeys, _, err := kv.Keys(stepsPath+"/", "/", nil)
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
-	steps := make([]*Step, 0)
+	steps := make([]*step, 0)
 	visitedMap := make(map[string]*visitStep, len(stepsKeys))
 	for _, stepPrefix := range stepsKeys {
 		stepName := path.Base(stepPrefix)
 		if visitStep, ok := visitedMap[stepName]; !ok {
-			step, err := BuildStep(kv, deploymentID, wfName, stepName, visitedMap)
+			step, err := buildStep(kv, deploymentID, wfName, stepName, visitedMap)
 			if err != nil {
 				return nil, err
 			}
@@ -52,36 +54,36 @@ func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*Step, error) {
 	return steps, nil
 }
 
-// BuildStep returns a representation of the workflow step
-func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map[string]*visitStep) (*Step, error) {
+// buildStep returns a representation of the workflow step
+func buildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map[string]*visitStep) (*step, error) {
 	stepPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps", stepName)
 	if visitedMap == nil {
 		visitedMap = make(map[string]*visitStep)
 	}
 
-	s := &Step{Name: stepName, kv: kv, workflowName: wfName}
+	s := &step{name: stepName, kv: kv, workflowName: wfName}
 	kvPair, _, err := kv.Get(stepPath+"/target_relationship", nil)
 	if err != nil {
 		return nil, err
 	}
 	if kvPair != nil {
-		s.TargetRelationship = string(kvPair.Value)
+		s.targetRelationship = string(kvPair.Value)
 	}
 	kvPair, _, err = kv.Get(stepPath+"/operation_host", nil)
 	if err != nil {
 		return nil, err
 	}
 	if kvPair != nil {
-		s.OperationHost = string(kvPair.Value)
+		s.operationHost = string(kvPair.Value)
 	}
-	if s.TargetRelationship != "" {
-		if s.OperationHost == "" {
-			return nil, errors.Errorf("Operation host missing for Step %s with target relationship %s, this is not allowed", stepName, s.TargetRelationship)
-		} else if s.OperationHost != "SOURCE" && s.OperationHost != "TARGET" && s.OperationHost != "ORCHESTRATOR" {
-			return nil, errors.Errorf("Invalid value %q for operation host with Step %s with target relationship %s : only SOURCE, TARGET and  and ORCHESTRATOR values are accepted", s.OperationHost, stepName, s.TargetRelationship)
+	if s.targetRelationship != "" {
+		if s.operationHost == "" {
+			return nil, errors.Errorf("Operation host missing for Step %s with target relationship %s, this is not allowed", stepName, s.targetRelationship)
+		} else if s.operationHost != "SOURCE" && s.operationHost != "TARGET" && s.operationHost != "ORCHESTRATOR" {
+			return nil, errors.Errorf("Invalid value %q for operation host with Step %s with target relationship %s : only SOURCE, TARGET and  and ORCHESTRATOR values are accepted", s.operationHost, stepName, s.targetRelationship)
 		}
-	} else if s.OperationHost != "" && s.OperationHost != "SELF" && s.OperationHost != "HOST" && s.OperationHost != "ORCHESTRATOR" {
-		return nil, errors.Errorf("Invalid value %q for operation host with Step %s : only SELF, HOST and ORCHESTRATOR values are accepted", s.OperationHost, stepName)
+	} else if s.operationHost != "" && s.operationHost != "SELF" && s.operationHost != "HOST" && s.operationHost != "ORCHESTRATOR" {
+		return nil, errors.Errorf("Invalid value %q for operation host with Step %s : only SELF, HOST and ORCHESTRATOR values are accepted", s.operationHost, stepName)
 	}
 
 	kvKeys, _, err := kv.List(stepPath+"/activities/", nil)
@@ -92,7 +94,7 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		return nil, errors.Errorf("Activities missing for Step %s, this is not allowed", stepName)
 	}
 
-	s.Activities = make([]Activity, 0)
+	s.activities = make([]Activity, 0)
 	targetIsMandatory := false
 	for i, actKV := range kvKeys {
 		keyString := strings.TrimPrefix(actKV.Key, stepPath+"/activities/"+strconv.Itoa(i)+"/")
@@ -102,16 +104,16 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		}
 		switch {
 		case key == ActivityTypeDelegate:
-			s.Activities = append(s.Activities, delegateActivity{delegate: string(actKV.Value)})
+			s.activities = append(s.activities, delegateActivity{delegate: string(actKV.Value)})
 			targetIsMandatory = true
 		case key == ActivityTypeSetState:
-			s.Activities = append(s.Activities, setStateActivity{state: string(actKV.Value)})
+			s.activities = append(s.activities, setStateActivity{state: string(actKV.Value)})
 			targetIsMandatory = true
 		case key == ActivityTypeCallOperation:
-			s.Activities = append(s.Activities, callOperationActivity{operation: string(actKV.Value)})
+			s.activities = append(s.activities, callOperationActivity{operation: string(actKV.Value)})
 			targetIsMandatory = true
 		case key == ActivityTypeInline:
-			s.Activities = append(s.Activities, inlineActivity{inline: string(actKV.Value)})
+			s.activities = append(s.activities, inlineActivity{inline: string(actKV.Value)})
 		default:
 			return nil, errors.Errorf("Unsupported activity type: %s", key)
 		}
@@ -127,29 +129,29 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		return nil, errors.Errorf("Missing target attribute for Step %s", stepName)
 	}
 	if kvPair != nil && len(kvPair.Value) > 0 {
-		s.Target = string(kvPair.Value)
+		s.target = string(kvPair.Value)
 	}
 
 	kvPairs, _, err := kv.List(stepPath+"/next", nil)
 	if err != nil {
 		return nil, err
 	}
-	s.Next = make([]*Step, 0)
-	s.Previous = make([]*Step, 0)
+	s.next = make([]*step, 0)
+	s.previous = make([]*step, 0)
 	for _, nextKV := range kvPairs {
-		var nextStep *Step
+		var nextStep *step
 		nextStepName := strings.TrimPrefix(nextKV.Key, stepPath+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
 			nextStep = visitStep.s
 		} else {
-			nextStep, err = BuildStep(kv, deploymentID, wfName, nextStepName, visitedMap)
+			nextStep, err = buildStep(kv, deploymentID, wfName, nextStepName, visitedMap)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		s.Next = append(s.Next, nextStep)
-		nextStep.Previous = append(nextStep.Previous, s)
+		s.next = append(s.next, nextStep)
+		nextStep.previous = append(nextStep.previous, s)
 		visitedMap[nextStepName].refCount++
 	}
 	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
@@ -161,7 +163,7 @@ func BuildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName string, registerWorkflow bool) (api.KVTxnOps, error) {
 	//FIXME number of operations in a Consul transaction is limited to 64: it can be an issue for large workflow. Need to increase this param if configurable or split transactions
 	ops := make(api.KVTxnOps, 0)
-	steps, err := BuildWorkFlow(kv, deploymentID, workflowName)
+	steps, err := buildWorkFlow(kv, deploymentID, workflowName)
 	if err != nil {
 		return nil, err
 	}
@@ -171,15 +173,15 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 			// Register workflow step to handle step statuses for all steps
 			ops = append(ops, &api.KVTxnOp{
 				Verb:  api.KVSet,
-				Key:   path.Join(consulutil.WorkflowsPrefix, taskID, step.Name),
+				Key:   path.Join(consulutil.WorkflowsPrefix, taskID, step.name),
 				Value: []byte(tasks.StepStatusINITIAL.String()),
 			})
 		}
 
 		// Add execution key for initial steps only
-		if step.IsInitial() {
+		if step.isInitial() {
 			execID := fmt.Sprint(uuid.NewV4())
-			log.Debugf("Create initial task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.Name)
+			log.Debugf("Create initial task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.name)
 			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 			stepOps := api.KVTxnOps{
 				&api.KVTxnOp{
@@ -190,7 +192,7 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 				&api.KVTxnOp{
 					Verb:  api.KVSet,
 					Key:   path.Join(stepExecPath, "step"),
-					Value: []byte(step.Name),
+					Value: []byte(step.name),
 				},
 			}
 			ops = append(ops, stepOps...)
@@ -200,13 +202,13 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 }
 
 // CreateWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
-func CreateWorkflowStepsOperations(taskID string, steps []*Step) api.KVTxnOps {
+func CreateWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 	ops := make(api.KVTxnOps, 0)
 	var stepOps api.KVTxnOps
 	for _, step := range steps {
 		// Add execution key for initial steps only
 		execID := fmt.Sprint(uuid.NewV4())
-		log.Debugf("Create task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.Name)
+		log.Debugf("Create task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.name)
 		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 		stepOps = api.KVTxnOps{
 			&api.KVTxnOp{
@@ -217,7 +219,7 @@ func CreateWorkflowStepsOperations(taskID string, steps []*Step) api.KVTxnOps {
 			&api.KVTxnOp{
 				Verb:  api.KVSet,
 				Key:   path.Join(stepExecPath, "step"),
-				Value: []byte(step.Name),
+				Value: []byte(step.name),
 			},
 		}
 		ops = append(ops, stepOps...)
@@ -225,9 +227,9 @@ func CreateWorkflowStepsOperations(taskID string, steps []*Step) api.KVTxnOps {
 	return ops
 }
 
-func getCallOperationsFromStep(s *Step) []string {
+func getCallOperationsFromStep(s *step) []string {
 	ops := make([]string, 0)
-	for _, a := range s.Activities {
+	for _, a := range s.activities {
 		if a.Type() == ActivityTypeCallOperation {
 			ops = append(ops, a.Value())
 		}

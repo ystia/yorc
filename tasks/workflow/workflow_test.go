@@ -16,19 +16,21 @@ package workflow
 
 import (
 	"context"
+	"path"
+	"strings"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/registry"
-	"path"
-	"strings"
-	"testing"
 )
 
 func testBuildStepWithFailure(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -41,7 +43,7 @@ func testBuildStepWithFailure(t *testing.T, srv1 *testutil.TestServer, kv *api.K
 	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
 	srv1.SetKV(t, prefix+"/steps/stepName/activities/0/delegate", []byte("install"))
 
-	step, err := BuildStep(kv, deploymentID, wfName, "stepName", nil)
+	step, err := buildStep(kv, deploymentID, wfName, "stepName", nil)
 	t.Log(err)
 	require.Nil(t, step)
 	require.Error(t, err)
@@ -66,24 +68,24 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	srv1.PopulateKV(t, data)
 
 	visitedMap := make(map[string]*visitStep)
-	step, err := BuildStep(kv, deploymentID, wfName, "stepName", visitedMap)
+	step, err := buildStep(kv, deploymentID, wfName, "stepName", visitedMap)
 	require.Nil(t, err)
-	require.Equal(t, "nodeName", step.Target)
-	require.Equal(t, "stepName", step.Name)
-	require.Len(t, step.Activities, 3)
-	require.Contains(t, step.Activities, delegateActivity{delegate: "install"})
-	require.Contains(t, step.Activities, setStateActivity{state: "installed"})
-	require.Contains(t, step.Activities, callOperationActivity{operation: "script.sh"})
+	require.Equal(t, "nodeName", step.target)
+	require.Equal(t, "stepName", step.name)
+	require.Len(t, step.activities, 3)
+	require.Contains(t, step.activities, delegateActivity{delegate: "install"})
+	require.Contains(t, step.activities, setStateActivity{state: "installed"})
+	require.Contains(t, step.activities, callOperationActivity{operation: "script.sh"})
 	require.Len(t, visitedMap, 1)
 	require.Contains(t, visitedMap, "stepName")
 
 	visitedMap = make(map[string]*visitStep)
-	step, err = BuildStep(kv, deploymentID, wfName, "Some_other_inline", visitedMap)
+	step, err = buildStep(kv, deploymentID, wfName, "Some_other_inline", visitedMap)
 	require.Nil(t, err)
-	require.Equal(t, "", step.Target)
-	require.Equal(t, "Some_other_inline", step.Name)
-	require.Len(t, step.Activities, 1)
-	require.Contains(t, step.Activities, inlineActivity{inline: "my_custom_wf"})
+	require.Equal(t, "", step.target)
+	require.Equal(t, "Some_other_inline", step.name)
+	require.Len(t, step.activities, 1)
+	require.Contains(t, step.activities, inlineActivity{inline: "my_custom_wf"})
 	require.Len(t, visitedMap, 1)
 	require.Contains(t, visitedMap, "Some_other_inline")
 }
@@ -107,11 +109,11 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) 
 	srv1.PopulateKV(t, data)
 
 	visitedMap := make(map[string]*visitStep)
-	step, err := BuildStep(kv, deploymentID, wfName, "stepName", visitedMap)
+	step, err := buildStep(kv, deploymentID, wfName, "stepName", visitedMap)
 	require.Nil(t, err)
-	require.Equal(t, "nodeName", step.Target)
-	require.Equal(t, "stepName", step.Name)
-	require.Len(t, step.Activities, 1)
+	require.Equal(t, "nodeName", step.target)
+	require.Equal(t, "stepName", step.name)
+	require.Len(t, step.activities, 1)
 
 	require.Len(t, visitedMap, 2)
 	require.Contains(t, visitedMap, "stepName")
@@ -154,7 +156,7 @@ func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	srv1.PopulateKV(t, data)
 
-	steps, err := BuildWorkFlow(kv, deploymentID, wfName)
+	steps, err := buildWorkFlow(kv, deploymentID, wfName)
 	require.Nil(t, err, "oups")
 	require.Len(t, steps, 6)
 }
@@ -246,14 +248,14 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 			mockExecutor.delegateCalled = false
 			mockExecutor.errorsDelegate = tt.args.errorsDelegate
 
-			s, err := BuildStep(kv, deploymentID, tt.args.workflowName, tt.args.stepName, make(map[string]*visitStep))
+			s, err := buildStep(kv, deploymentID, tt.args.workflowName, tt.args.stepName, make(map[string]*visitStep))
 			require.NoError(t, err)
 
-			s.Next = nil
+			s.next = nil
 			s.t = &TaskExecution{ID: "taskExecutionID", TaskID: "taskID", TargetID: deploymentID}
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, "WFNode_create"), []byte("initial"))
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.TaskID, "Compute_install"), []byte("initial"))
-			err = s.Run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
+			err = s.run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("step.run() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -272,11 +274,11 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 				if mah.taskID != s.t.TaskID {
 					t.Errorf("step.run() pre_activity_hook.taskID = %v, want %v", mah.taskID, s.t.ID)
 				}
-				if mah.target != s.Target {
-					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.Target)
+				if mah.target != s.target {
+					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.target)
 				}
-				if mah.activity != s.Activities[0] {
-					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
+				if mah.activity != s.activities[0] {
+					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.activities[0])
 				}
 			}
 			for _, mah := range postAH {
@@ -287,11 +289,11 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 				if mah.taskID != s.t.TaskID {
 					t.Errorf("step.run() post_activity_hook.taskID = %v, want %v", mah.taskID, s.t.ID)
 				}
-				if mah.target != s.Target {
-					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.Target)
+				if mah.target != s.target {
+					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.target)
 				}
-				if mah.activity != s.Activities[0] {
-					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
+				if mah.activity != s.activities[0] {
+					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.activities[0])
 				}
 			}
 		})

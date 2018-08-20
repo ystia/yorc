@@ -18,9 +18,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
@@ -32,12 +40,6 @@ import (
 	"github.com/ystia/yorc/registry"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // worker concern is to execute a task execution received from the dispatcher
@@ -633,13 +635,13 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *TaskExecution) {
 
 func (w *worker) runWorkflowStep(ctx context.Context, t *TaskExecution, workflowName string, continueOnError bool) (bool, error) {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.TargetID).RegisterAsString(fmt.Sprintf("Start processing workflow step %s:%s", workflowName, t.step))
-	s, err := BuildStep(w.consulClient.KV(), t.TargetID, workflowName, t.step, nil)
+	s, err := buildStep(w.consulClient.KV(), t.TargetID, workflowName, t.step, nil)
 	if err != nil {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return false, errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
 	}
 	s.t = t
-	err = s.Run(ctx, w.cfg, w.consulClient.KV(), t.TargetID, continueOnError, workflowName, w)
+	err = s.run(ctx, w.cfg, w.consulClient.KV(), t.TargetID, continueOnError, workflowName, w)
 	if err != nil {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.TargetID).RegisterAsString(fmt.Sprintf("Error '%+v' happened in workflow %q.", err, workflowName))
@@ -649,18 +651,18 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *TaskExecution, workflow
 	return w.registerNextSteps(ctx, s, t, workflowName)
 }
 
-func (w *worker) registerNextSteps(ctx context.Context, s *Step, t *TaskExecution, workflowName string) (bool, error) {
+func (w *worker) registerNextSteps(ctx context.Context, s *step, t *TaskExecution, workflowName string) (bool, error) {
 	// If step is terminal, we check if workflow is done
-	if s.IsTerminal() {
-		log.Debugf("Step:%q is terminal: check if workflow %q is done", s.Name, s.workflowName)
+	if s.isTerminal() {
+		log.Debugf("Step:%q is terminal: check if workflow %q is done", s.name, s.workflowName)
 		return w.checkIfWorkflowIsDone(ctx, s.t, workflowName)
 	}
 
 	// Register workflow step to handle step statuses for next steps
-	regSteps := make([]*Step, 0)
-	for _, nStep := range s.Next {
+	regSteps := make([]*step, 0)
+	for _, nStep := range s.next {
 		// In case of join, check each previous status step
-		if len(nStep.Previous) > 1 {
+		if len(nStep.previous) > 1 {
 			done, err := w.checkIfPreviousOfNextStepAreDone(ctx, nStep, t, workflowName)
 			if err != nil {
 				return false, err
@@ -687,23 +689,23 @@ func (w *worker) registerNextSteps(ctx context.Context, s *Step, t *TaskExecutio
 	return false, nil
 }
 
-func (w *worker) checkIfPreviousOfNextStepAreDone(ctx context.Context, s *Step, t *TaskExecution, workflowName string) (bool, error) {
+func (w *worker) checkIfPreviousOfNextStepAreDone(ctx context.Context, s *step, t *TaskExecution, workflowName string) (bool, error) {
 	cpt := 0
-	for _, step := range s.Previous {
-		stepStatus, err := tasks.GetTaskStepStatus(w.consulClient.KV(), t.TaskID, step.Name)
+	for _, step := range s.previous {
+		stepStatus, err := tasks.GetTaskStepStatus(w.consulClient.KV(), t.TaskID, step.name)
 		if err != nil {
-			return false, errors.Wrapf(err, "Failed to retrieve step status with TaskID:%q, step:%q", t.TaskID, step.Name)
+			return false, errors.Wrapf(err, "Failed to retrieve step status with TaskID:%q, step:%q", t.TaskID, step.name)
 		}
 		if stepStatus == tasks.StepStatusDONE {
 			cpt++
 		} else if stepStatus == tasks.StepStatusCANCELED || stepStatus == tasks.StepStatusERROR {
-			return false, errors.Errorf("An error has been detected on other step:%q for workflow:%q, deploymentID:%q, taskID:%q. No more steps will be executed", step.Name, workflowName, t.TargetID, t.TaskID)
+			return false, errors.Errorf("An error has been detected on other step:%q for workflow:%q, deploymentID:%q, taskID:%q. No more steps will be executed", step.name, workflowName, t.TargetID, t.TaskID)
 		}
 	}
 
 	// In case of workflow join, the last done of previous steps will register the join step
-	if len(s.Previous) == cpt {
-		log.Debugf("All previous steps of step:%q are done, so it can be registered to be executed", s.Name)
+	if len(s.previous) == cpt {
+		log.Debugf("All previous steps of step:%q are done, so it can be registered to be executed", s.name)
 		return true, nil
 	}
 	return false, nil
