@@ -635,10 +635,15 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution) {
 
 func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflowName string, continueOnError bool) (bool, error) {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("Start processing workflow step %s:%s", workflowName, t.step))
-	s, err := buildStep(w.consulClient.KV(), t.targetID, workflowName, t.step, nil)
+	wfSteps, err := buildWorkFlow(w.consulClient.KV(), t.targetID, workflowName)
 	if err != nil {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return false, errors.Wrapf(err, "Failed to build step:%q for workflow:%q", t.step, workflowName)
+	}
+	s, ok := wfSteps[t.step]
+	if !ok {
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		return false, errors.Errorf("Failed to build step: %q for workflow: %q, unknown step", t.step, workflowName)
 	}
 	s.t = t
 	err = s.run(ctx, w.cfg, w.consulClient.KV(), t.targetID, continueOnError, workflowName, w)

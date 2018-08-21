@@ -17,134 +17,84 @@ package workflow
 import (
 	"fmt"
 	"path"
-	"strconv"
-	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 
+	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 // buildWorkFlow creates a workflow tree from values for a specified workflow name and deploymentID
-func buildWorkFlow(kv *api.KV, deploymentID, wfName string) ([]*step, error) {
-	stepsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps")
-	stepsKeys, _, err := kv.Keys(stepsPath+"/", "/", nil)
+func buildWorkFlow(kv *api.KV, deploymentID, wfName string) (map[string]*step, error) {
+	wf, err := deployments.ReadWorkflow(kv, deploymentID, wfName)
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
-	steps := make([]*step, 0)
-	visitedMap := make(map[string]*visitStep, len(stepsKeys))
-	for _, stepPrefix := range stepsKeys {
-		stepName := path.Base(stepPrefix)
+
+	steps := make(map[string]*step, len(wf.Steps))
+	visitedMap := make(map[string]*visitStep, len(wf.Steps))
+	for stepName := range wf.Steps {
 		if visitStep, ok := visitedMap[stepName]; !ok {
-			step, err := buildStep(kv, deploymentID, wfName, stepName, visitedMap)
+			s, err := buildStepFromWFStep(kv, deploymentID, wfName, stepName, wf.Steps, visitedMap)
 			if err != nil {
 				return nil, err
 			}
-			steps = append(steps, step)
+			steps[stepName] = s
 		} else {
-			steps = append(steps, visitStep.s)
+			steps[stepName] = visitStep.s
 		}
 	}
 	return steps, nil
 }
 
-// buildStep returns a representation of the workflow step
-func buildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map[string]*visitStep) (*step, error) {
-	stepPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", wfName, "steps", stepName)
-	if visitedMap == nil {
-		visitedMap = make(map[string]*visitStep)
+func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSteps map[string]tosca.Step, visitedMap map[string]*visitStep) (*step, error) {
+	wfStep := wfSteps[stepName]
+	s := &step{
+		name:               stepName,
+		kv:                 kv,
+		workflowName:       wfName,
+		operationHost:      wfStep.OperationHost,
+		targetRelationship: wfStep.TargetRelationShip,
+		target:             wfStep.Target,
+		activities:         make([]Activity, 0, len(wfStep.Activities)),
 	}
-
-	s := &step{name: stepName, kv: kv, workflowName: wfName}
-	kvPair, _, err := kv.Get(stepPath+"/target_relationship", nil)
-	if err != nil {
-		return nil, err
-	}
-	if kvPair != nil {
-		s.targetRelationship = string(kvPair.Value)
-	}
-	kvPair, _, err = kv.Get(stepPath+"/operation_host", nil)
-	if err != nil {
-		return nil, err
-	}
-	if kvPair != nil {
-		s.operationHost = string(kvPair.Value)
-	}
-	if s.targetRelationship != "" {
-		if s.operationHost == "" {
-			return nil, errors.Errorf("Operation host missing for Step %s with target relationship %s, this is not allowed", stepName, s.targetRelationship)
-		} else if s.operationHost != "SOURCE" && s.operationHost != "TARGET" && s.operationHost != "ORCHESTRATOR" {
-			return nil, errors.Errorf("Invalid value %q for operation host with Step %s with target relationship %s : only SOURCE, TARGET and  and ORCHESTRATOR values are accepted", s.operationHost, stepName, s.targetRelationship)
-		}
-	} else if s.operationHost != "" && s.operationHost != "SELF" && s.operationHost != "HOST" && s.operationHost != "ORCHESTRATOR" {
-		return nil, errors.Errorf("Invalid value %q for operation host with Step %s : only SELF, HOST and ORCHESTRATOR values are accepted", s.operationHost, stepName)
-	}
-
-	kvKeys, _, err := kv.List(stepPath+"/activities/", nil)
-	if err != nil {
-		return nil, err
-	}
-	if len(kvKeys) == 0 {
-		return nil, errors.Errorf("Activities missing for Step %s, this is not allowed", stepName)
-	}
-
-	s.activities = make([]Activity, 0)
-	targetIsMandatory := false
-	for i, actKV := range kvKeys {
-		keyString := strings.TrimPrefix(actKV.Key, stepPath+"/activities/"+strconv.Itoa(i)+"/")
-		key, err := ParseActivityType(keyString)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unknown activity for Step %q", stepName)
-		}
-		switch {
-		case key == ActivityTypeDelegate:
-			s.activities = append(s.activities, delegateActivity{delegate: string(actKV.Value)})
+	var targetIsMandatory bool
+	for _, wfActivity := range wfStep.Activities {
+		if wfActivity.Delegate != "" {
 			targetIsMandatory = true
-		case key == ActivityTypeSetState:
-			s.activities = append(s.activities, setStateActivity{state: string(actKV.Value)})
+			s.activities = append(s.activities, delegateActivity{delegate: wfActivity.Delegate})
+		} else if wfActivity.CallOperation != "" {
 			targetIsMandatory = true
-		case key == ActivityTypeCallOperation:
-			s.activities = append(s.activities, callOperationActivity{operation: string(actKV.Value)})
+			s.activities = append(s.activities, callOperationActivity{operation: wfActivity.CallOperation})
+		} else if wfActivity.SetState != "" {
 			targetIsMandatory = true
-		case key == ActivityTypeInline:
-			s.activities = append(s.activities, inlineActivity{inline: string(actKV.Value)})
-		default:
-			return nil, errors.Errorf("Unsupported activity type: %s", key)
+			s.activities = append(s.activities, setStateActivity{state: wfActivity.SetState})
+		} else if wfActivity.Inline != "" {
+			s.activities = append(s.activities, inlineActivity{inline: wfActivity.Inline})
+		} else {
+			return nil, errors.Errorf("Unsupported activity type for step: %q", stepName)
 		}
 	}
 
-	// Get the Step's target (mandatory except if all activities are inline)
-	kvPair, _, err = kv.Get(stepPath+"/target", nil)
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-	if targetIsMandatory && (kvPair == nil || len(kvPair.Value) == 0) {
+	if s.target == "" && targetIsMandatory {
 		return nil, errors.Errorf("Missing target attribute for Step %s", stepName)
 	}
-	if kvPair != nil && len(kvPair.Value) > 0 {
-		s.target = string(kvPair.Value)
-	}
 
-	kvPairs, _, err := kv.List(stepPath+"/next", nil)
-	if err != nil {
-		return nil, err
-	}
 	s.next = make([]*step, 0)
 	s.previous = make([]*step, 0)
-	for _, nextKV := range kvPairs {
+	for _, nextStepName := range wfStep.OnSuccess {
 		var nextStep *step
-		nextStepName := strings.TrimPrefix(nextKV.Key, stepPath+"/next/")
 		if visitStep, ok := visitedMap[nextStepName]; ok {
 			nextStep = visitStep.s
 		} else {
-			nextStep, err = buildStep(kv, deploymentID, wfName, nextStepName, visitedMap)
+			var err error
+			nextStep, err = buildStepFromWFStep(kv, deploymentID, wfName, nextStepName, wfSteps, visitedMap)
 			if err != nil {
 				return nil, err
 			}
@@ -155,8 +105,8 @@ func buildStep(kv *api.KV, deploymentID, wfName, stepName string, visitedMap map
 		visitedMap[nextStepName].refCount++
 	}
 	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
-	return s, nil
 
+	return s, nil
 }
 
 // BuildInitExecutionOperations returns Consul transactional KV operations for initiating workflow execution

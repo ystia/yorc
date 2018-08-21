@@ -28,26 +28,9 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/registry"
 )
-
-func testBuildStepWithFailure(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	log.SetDebug(true)
-
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	deploymentID := "dep_" + path.Base(t.Name())
-	wfName := "wf_" + path.Base(t.Name())
-	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	srv1.SetKV(t, prefix+"/steps/stepName/activities/0/delegate", []byte("install"))
-
-	step, err := buildStep(kv, deploymentID, wfName, "stepName", nil)
-	t.Log(err)
-	require.Nil(t, step)
-	require.Error(t, err)
-}
 
 func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
@@ -67,27 +50,23 @@ func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 	srv1.PopulateKV(t, data)
 
-	visitedMap := make(map[string]*visitStep)
-	step, err := buildStep(kv, deploymentID, wfName, "stepName", visitedMap)
+	wfSteps, err := buildWorkFlow(kv, deploymentID, wfName)
 	require.Nil(t, err)
+	step := wfSteps["stepName"]
+	require.NotNil(t, step)
 	require.Equal(t, "nodeName", step.target)
 	require.Equal(t, "stepName", step.name)
 	require.Len(t, step.activities, 3)
 	require.Contains(t, step.activities, delegateActivity{delegate: "install"})
 	require.Contains(t, step.activities, setStateActivity{state: "installed"})
 	require.Contains(t, step.activities, callOperationActivity{operation: "script.sh"})
-	require.Len(t, visitedMap, 1)
-	require.Contains(t, visitedMap, "stepName")
 
-	visitedMap = make(map[string]*visitStep)
-	step, err = buildStep(kv, deploymentID, wfName, "Some_other_inline", visitedMap)
-	require.Nil(t, err)
+	step = wfSteps["Some_other_inline"]
+	require.NotNil(t, step)
 	require.Equal(t, "", step.target)
 	require.Equal(t, "Some_other_inline", step.name)
 	require.Len(t, step.activities, 1)
 	require.Contains(t, step.activities, inlineActivity{inline: "my_custom_wf"})
-	require.Len(t, visitedMap, 1)
-	require.Contains(t, visitedMap, "Some_other_inline")
 }
 
 func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -108,19 +87,15 @@ func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) 
 
 	srv1.PopulateKV(t, data)
 
-	visitedMap := make(map[string]*visitStep)
-	step, err := buildStep(kv, deploymentID, wfName, "stepName", visitedMap)
+	wfSteps, err := buildWorkFlow(kv, deploymentID, wfName)
 	require.Nil(t, err)
+	step := wfSteps["stepName"]
+	require.NotNil(t, step)
+
 	require.Equal(t, "nodeName", step.target)
 	require.Equal(t, "stepName", step.name)
 	require.Len(t, step.activities, 1)
 
-	require.Len(t, visitedMap, 2)
-	require.Contains(t, visitedMap, "stepName")
-	require.Contains(t, visitedMap, "downstream")
-
-	require.Equal(t, 0, visitedMap["stepName"].refCount)
-	require.Equal(t, 1, visitedMap["downstream"].refCount)
 }
 
 func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
@@ -248,8 +223,10 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 			mockExecutor.delegateCalled = false
 			mockExecutor.errorsDelegate = tt.args.errorsDelegate
 
-			s, err := buildStep(kv, deploymentID, tt.args.workflowName, tt.args.stepName, make(map[string]*visitStep))
-			require.NoError(t, err)
+			wfSteps, err := buildWorkFlow(kv, deploymentID, tt.args.workflowName)
+			require.Nil(t, err)
+			s := wfSteps[tt.args.stepName]
+			require.NotNil(t, s)
 
 			s.next = nil
 			s.t = &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}

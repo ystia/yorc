@@ -36,9 +36,6 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 		t.Run("testBuildWorkFlow", func(t *testing.T) {
 			testBuildWorkFlow(t, srv, kv)
 		})
-		t.Run("testBuildStepWithFailure", func(t *testing.T) {
-			testBuildStepWithFailure(t, srv, kv)
-		})
 		t.Run("testRunStep", func(t *testing.T) {
 			testRunStep(t, srv, kv)
 		})
