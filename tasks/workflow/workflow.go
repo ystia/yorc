@@ -15,6 +15,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"path"
 
@@ -117,15 +118,13 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 	if err != nil {
 		return nil, err
 	}
-
+	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, step := range steps {
 		if registerWorkflow {
 			// Register workflow step to handle step statuses for all steps
-			ops = append(ops, &api.KVTxnOp{
-				Verb:  api.KVSet,
-				Key:   path.Join(consulutil.WorkflowsPrefix, taskID, step.name),
-				Value: []byte(tasks.StepStatusINITIAL.String()),
-			})
+			// Do not use the transaction here just the async rate-limited behavior
+			// This should decrease pressure on the 64 ops limit for transactions
+			store.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, taskID, step.name), tasks.StepStatusINITIAL.String())
 		}
 
 		// Add execution key for initial steps only
@@ -148,7 +147,7 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 			ops = append(ops, stepOps...)
 		}
 	}
-	return ops, nil
+	return ops, errGrp.Wait()
 }
 
 // CreateWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
