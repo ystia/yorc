@@ -1,5 +1,13 @@
 # Yorc Changelog
 
+## UNRELEASED
+
+### BUG FIXES
+
+* Fix build issues on go1.11 (GH-144 backport of GH-72)
+* Parse of TOSCA value assignment literals as string. This prevents issues on strings being interpreted as float and rounded when converted back into strings (GH-143 backport of GH-137)
+* Install missing dependency `jmespath` required by the `json_query` filter of Ansible (GH-145 backport of GH-139)
+
 ## 3.0.0 (July 11, 2018)
 
 ### Naming & Open Source community
@@ -14,8 +22,8 @@ Alien4Cloud released recently a fantastic major release with new features levera
 
 Among many features, the ones we will focus on below are:
 
-- UI redesign: Alien4Cloud 2.0.0 includes various changes in UI in order to make it more consistent and easier to use.
-- Topology modifiers: Alien4Cloud 2.0.0 allows to define modifiers that could be executed in various phases prior to the deployment. Those modifiers allow to transform a given TOSCA topology.
+* UI redesign: Alien4Cloud 2.0.0 includes various changes in UI in order to make it more consistent and easier to use.
+* Topology modifiers: Alien4Cloud 2.0.0 allows to define modifiers that could be executed in various phases prior to the deployment. Those modifiers allow to transform a given TOSCA topology.
 
 ### New GCP infrastructure
 
@@ -33,8 +41,8 @@ For more informations about the Hosts Pool infrastructure, check out [our dedica
 
 We made some improvements with our Slurm integration:
 
-- We now support Slurm "features" (which are basically tags on nodes) and "constraints" syntax to allocate nodes. [Examples here](https://wiki.rc.usf.edu/index.php/SLURM_Using_Features_and_Constraints).
-- Support of srun and sbatch commands (see Jobs scheduling below)
+* We now support Slurm "features" (which are basically tags on nodes) and "constraints" syntax to allocate nodes. [Examples here](https://wiki.rc.usf.edu/index.php/SLURM_Using_Features_and_Constraints).
+* Support of srun and sbatch commands (see Jobs scheduling below)
 
 ### Refactoring Kubernetes infrastructure support
 
@@ -64,9 +72,9 @@ This release brings a tech preview support of jobs scheduling. It allows to desi
 
 In this release we mainly focused on the integration with Slurm for supporting this feature (but we are also working on Kubernetes for the next release :smile:). Bellow are new supported TOSCA types and implementations:
 
-- SlurmJobs: will lead to issuing a srun command with a given executable file.  
-- SlurmBatch: will lead to issuing a sbatch command with a given batch file and associated executables
-- Singularity integration: allows to execute a Singularity container instead of an executable file.
+* SlurmJobs: will lead to issuing a srun command with a given executable file.  
+* SlurmBatch: will lead to issuing a sbatch command with a given batch file and associated executables
+* Singularity integration: allows to execute a Singularity container instead of an executable file.
 
 ### Mutual SSL auth between Alien & Yorc
 
