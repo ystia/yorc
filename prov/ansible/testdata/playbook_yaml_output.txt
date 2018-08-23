@@ -1,0 +1,89 @@
+Using /var/yorc/work/deployments/essai-Environment/ansible/LongStartupAnsible/standard.start/ansible.cfg as config file
+
+PLAY [Upload artifacts] ********************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [10.0.0.132]
+ok: [10.0.0.133]
+
+PLAY [Print number of iterations in first task, iterate in second task] ********
+
+TASK [Gathering Facts] *********************************************************
+ok: [10.0.0.132]
+ok: [10.0.0.133]
+
+TASK [First task] **************************************************************
+changed: [10.0.0.132] => changed=true 
+  cmd: ~/create.sh
+  delta: '0:00:00.007934'
+  end: '2018-08-20 13:33:26.273514'
+  rc: 0
+  start: '2018-08-20 13:33:26.265580'
+  stderr: ''
+  stderr_lines: []
+  stdout: Created component to iterate 12 times, with a pause of 2 seconds after each iteration
+  stdout_lines: <omitted>
+changed: [10.0.0.133] => changed=true 
+  cmd: ~/create.sh
+  delta: '0:00:00.008048'
+  end: '2018-08-20 13:33:26.106354'
+  rc: 0
+  start: '2018-08-20 13:33:26.098306'
+  stderr: |-
+    Writing to stderr line 1
+    Writing to stderr line 2
+  stderr_lines:
+  - Writing to stderr line 1
+  - Writing to stderr line 2
+  stdout: Created component to iterate 12 times, with a pause of 2 seconds after each iteration
+  stdout_lines: <omitted>
+
+TASK [Second task] *************************************************************
+changed: [10.0.0.132] => changed=true 
+  cmd: ~/iterate.sh
+  delta: '0:00:24.035580'
+  end: '2018-08-20 13:33:50.928420'
+  rc: 0
+  start: '2018-08-20 13:33:26.892840'
+  stderr: ''
+  stderr_lines: []
+  stdout: |-
+    Long startup component iteration 1
+    Long startup component iteration 2
+    Long startup component iteration 3
+    Long startup component iteration 4
+    Long startup component iteration 5
+    Long startup component iteration 6
+    Long startup component iteration 7
+    Long startup component iteration 8
+    Long startup component iteration 9
+    Long startup component iteration 10
+    Long startup component iteration 11
+    Long startup component iteration 12
+  stdout_lines: <omitted>
+changed: [10.0.0.133] => changed=true 
+  cmd: ~/iterate.sh
+  delta: '0:00:24.035839'
+  end: '2018-08-20 13:33:50.784309'
+  rc: 0
+  start: '2018-08-20 13:33:26.748470'
+  stderr: ''
+  stderr_lines: []
+  stdout: |-
+    Long startup component iteration 1
+    Long startup component iteration 2
+    Long startup component iteration 3
+    Long startup component iteration 4
+    Long startup component iteration 5
+    Long startup component iteration 6
+    Long startup component iteration 7
+    Long startup component iteration 8
+    Long startup component iteration 9
+    Long startup component iteration 10
+    Long startup component iteration 11
+    Long startup component iteration 12
+  stdout_lines: <omitted>
+
+PLAY RECAP *********************************************************************
+10.0.0.132                 : ok=4    changed=2    unreachable=0    failed=0   
+10.0.0.133                 : ok=4    changed=2    unreachable=0    failed=0   
