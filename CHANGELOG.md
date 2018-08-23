@@ -4,9 +4,23 @@
 
 ### BUG FIXES
 
-* Fix build issues on go1.11 (GH-144 backport of GH-72)
-* Parse of TOSCA value assignment literals as string. This prevents issues on strings being interpreted as float and rounded when converted back into strings (GH-143 backport of GH-137)
-* Install missing dependency `jmespath` required by the `json_query` filter of Ansible (GH-145 backport of GH-139)
+* Parse of TOSCA value assignment literals as string. This prevents issues on strings being interpreted as float and rounded when converted back into strings (GH-137)
+* Install missing dependency `jmespath` required by the `json_query` filter of Ansible (GH-139)
+* Capabilities context props & attribute are not injected anymore for Ansible recipes implementation (GH-141)
+
+## 3.1.0-M1 (August 6, 2018)
+
+### FEATURES
+
+* Manage applications secrets (GH-134)
+
+### IMPROVEMENTS
+
+* Relax errors on TOSCA get_attributes function resolution that may produce empty results instead of errors (GH-75)
+
+### BUG FIXES
+
+* Fix build issues on go1.11 (GH-72)
 
 ## 3.0.0 (July 11, 2018)
 
