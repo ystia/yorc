@@ -1019,9 +1019,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 		}
 	}
 	cmd.Dir = ansibleRecipePath
-	//	var outbuf bytes.Buffer
 	errbuf := events.NewBufferedLogEntryWriter()
-	//	cmd.Stdout = &outbuf
 	cmd.Stderr = errbuf
 
 	errCloseCh := make(chan bool)
