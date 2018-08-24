@@ -4,7 +4,7 @@
 
 ### DEPENDENCIES
 
-* The orchestrator requires now at least Ansible 2.5 (use of the Ansible yaml callback plugin, introduced in [GH-146](https://github.com/ystia/yorc/issues/146))
+* The orchestrator requires now at least Ansible 2.6.3 (upgrade from 2.4.1 introduced in [GH-146](https://github.com/ystia/yorc/issues/146))
 
 ### IMPROVEMENTS
 
