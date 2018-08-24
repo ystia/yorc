@@ -1,5 +1,7 @@
 # Yorc Changelog
 
+## UNRELEASED
+
 ## 3.1.0-M2 (August 24, 2018)
 
 ### DEPENDENCIES
