@@ -2,6 +2,14 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* The orchestrator requires now at least Ansible 2.6.3 (upgrade from 2.4.1 introduced in [GH-146](https://github.com/ystia/yorc/issues/146))
+
+### IMPROVEMENTS
+
+* Providing Ansible task output in Yorc logs as soon as the task has finished ([GH-146](https://github.com/ystia/yorc/issues/146))
+
 ### BUG FIXES
 
 * Parse of TOSCA value assignment literals as string. This prevents issues on strings being interpreted as float and rounded when converted back into strings (GH-137)

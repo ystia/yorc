@@ -34,4 +34,10 @@ func TestRunConsulAnsiblePackageTests(t *testing.T) {
 	t.Run("TestLogAnsibleOutputInConsul", func(t *testing.T) {
 		testLogAnsibleOutputInConsul(t, kv)
 	})
+	t.Run("TestLogAnsibleOutputInConsulFromScript", func(t *testing.T) {
+		testLogAnsibleOutputInConsulFromScript(t, kv)
+	})
+	t.Run("TestLogAnsibleOutputInConsulFromScriptFailure", func(t *testing.T) {
+		testLogAnsibleOutputInConsulFromScriptFailure(t, kv)
+	})
 }

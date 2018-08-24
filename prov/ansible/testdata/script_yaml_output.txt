@@ -1,0 +1,136 @@
+Using /var/yorc/work/deployments/essai-Environment/ansible/LongStartupBash/standard.start/ansible.cfg as config file
+
+PLAY [Executing script /var/yorc/work/deployments/essai-Environment/overlay/org.ystia.yorc.samples.tests.iterations/1.0.0/scripts/iterate.sh] ***
+
+TASK [Gathering Facts] **************************************************************************************************************
+ok: [10.0.0.132]
+ok: [10.0.0.133]
+
+TASK [file] *************************************************************************************************************************
+ok: [10.0.0.132] => changed=false 
+  gid: 1000
+  group: centos
+  mode: '0755'
+  owner: centos
+  path: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start
+  secontext: unconfined_u:object_r:user_home_t:s0
+  size: 39
+  state: directory
+  uid: 1000
+ok: [10.0.0.133] => changed=false 
+  gid: 1000
+  group: centos
+  mode: '0755'
+  owner: centos
+  path: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start
+  secontext: unconfined_u:object_r:user_home_t:s0
+  size: 39
+  state: directory
+  uid: 1000
+
+TASK [copy] *************************************************************************************************************************
+ok: [10.0.0.132] => changed=false 
+  checksum: eef5057c0e6cb91958a218231a0360eac3bd9882
+  dest: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/wrapper
+  gid: 1000
+  group: centos
+  mode: '0744'
+  owner: centos
+  path: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/wrapper
+  secontext: unconfined_u:object_r:user_home_t:s0
+  size: 689
+  state: file
+  uid: 1000
+ok: [10.0.0.133] => changed=false 
+  checksum: eef5057c0e6cb91958a218231a0360eac3bd9882
+  dest: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/wrapper
+  gid: 1000
+  group: centos
+  mode: '0744'
+  owner: centos
+  path: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/wrapper
+  secontext: unconfined_u:object_r:user_home_t:s0
+  size: 689
+  state: file
+  uid: 1000
+
+TASK [copy] *************************************************************************************************************************
+ok: [10.0.0.132] => changed=false 
+  checksum: bab97d6e99f1e58340eea7323ce8aa285bf00510
+  dest: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/iterate.sh
+  gid: 1000
+  group: centos
+  mode: '0744'
+  owner: centos
+  path: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/iterate.sh
+  secontext: unconfined_u:object_r:user_home_t:s0
+  size: 187
+  state: file
+  uid: 1000
+ok: [10.0.0.133] => changed=false 
+  checksum: bab97d6e99f1e58340eea7323ce8aa285bf00510
+  dest: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/iterate.sh
+  gid: 1000
+  group: centos
+  mode: '0744'
+  owner: centos
+  path: /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/iterate.sh
+  secontext: unconfined_u:object_r:user_home_t:s0
+  size: 187
+  state: file
+  uid: 1000
+
+TASK [command] **********************************************************************************************************************
+changed: [10.0.0.132] => changed=true 
+  cmd: /bin/bash -l -c /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/wrapper
+  delta: '0:00:24.057868'
+  end: '2018-08-21 15:41:57.697327'
+  rc: 0
+  start: '2018-08-21 15:41:33.639459'
+  stderr: ''
+  stderr_lines: []
+  stdout: |-
+    Long startup component iteration 1
+    Long startup component iteration 2
+    Long startup component iteration 3
+    Long startup component iteration 4
+    Long startup component iteration 5
+    Long startup component iteration 6
+    Long startup component iteration 7
+    Long startup component iteration 8
+    Long startup component iteration 9
+    Long startup component iteration 10
+    Long startup component iteration 11
+    Long startup component iteration 12
+  stdout_lines: <omitted>
+changed: [10.0.0.133] => changed=true 
+  cmd: /bin/bash -l -c /home/centos/.yorc_1534771865102603289/LongStartupBash/standard.start/wrapper
+  delta: '0:00:24.059536'
+  end: '2018-08-21 15:41:57.514080'
+  rc: 0
+  start: '2018-08-21 15:41:33.454544'
+  stderr: |-
+    Writing to stderr line 1
+    Writing to stderr line 2
+  stderr_lines:
+  - Writing to stderr line 1
+  - Writing to stderr line 2
+  stdout: |-
+    Long startup component iteration 1
+    Long startup component iteration 2
+    Long startup component iteration 3
+    Long startup component iteration 4
+    Long startup component iteration 5
+    Long startup component iteration 6
+    Long startup component iteration 7
+    Long startup component iteration 8
+    Long startup component iteration 9
+    Long startup component iteration 10
+    Long startup component iteration 11
+    Long startup component iteration 12
+  stdout_lines: <omitted>
+
+PLAY RECAP **************************************************************************************************************************
+10.0.0.132                 : ok=5    changed=1    unreachable=0    failed=0   
+10.0.0.133                 : ok=5    changed=1    unreachable=0    failed=0   
+
