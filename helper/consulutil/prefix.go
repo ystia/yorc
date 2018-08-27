@@ -25,9 +25,6 @@ const TasksPrefix = yorcPrefix + "/tasks"
 // ExecutionsTaskPrefix is the prefix in Consul KV store for execution task
 const ExecutionsTaskPrefix = yorcPrefix + "/executions"
 
-// ExecutionsTaskLocksPrefix is the prefix in Consul KV store for execution tasks locks
-const ExecutionsTaskLocksPrefix = yorcPrefix + "/executions-locks"
-
 // WorkflowsPrefix is the prefix in Consul KV store for workflows runtime data
 const WorkflowsPrefix = yorcPrefix + "/workflows"
 

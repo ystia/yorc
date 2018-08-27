@@ -183,8 +183,7 @@ func (d *Dispatcher) Run() {
 			}
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
 			opts := &api.LockOptions{
-				// Warning: don't use polling path for lock to avoid infinite looping with increasing last index
-				Key:          path.Join(consulutil.ExecutionsTaskLocksPrefix, ".processingLock"+execID),
+				Key:          path.Join(consulutil.ExecutionsTaskPrefix, ".processingLock"+execID),
 				Value:        []byte(nodeName),
 				LockTryOnce:  true,
 				LockWaitTime: 10 * time.Millisecond,
