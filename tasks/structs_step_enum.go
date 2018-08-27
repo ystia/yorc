@@ -23,52 +23,52 @@ import (
 )
 
 const (
-	// StepStatusINITIAL is a StepStatus of type INITIAL
-	StepStatusINITIAL StepStatus = iota
-	// StepStatusRUNNING is a StepStatus of type RUNNING
-	StepStatusRUNNING
-	// StepStatusDONE is a StepStatus of type DONE
-	StepStatusDONE
-	// StepStatusERROR is a StepStatus of type ERROR
-	StepStatusERROR
-	// StepStatusCANCELED is a StepStatus of type CANCELED
-	StepStatusCANCELED
+	// TaskStepStatusINITIAL is a TaskStepStatus of type INITIAL
+	TaskStepStatusINITIAL TaskStepStatus = iota
+	// TaskStepStatusRUNNING is a TaskStepStatus of type RUNNING
+	TaskStepStatusRUNNING
+	// TaskStepStatusDONE is a TaskStepStatus of type DONE
+	TaskStepStatusDONE
+	// TaskStepStatusERROR is a TaskStepStatus of type ERROR
+	TaskStepStatusERROR
+	// TaskStepStatusCANCELED is a TaskStepStatus of type CANCELED
+	TaskStepStatusCANCELED
 )
 
-const _StepStatusName = "INITIALRUNNINGDONEERRORCANCELED"
+const _TaskStepStatusName = "INITIALRUNNINGDONEERRORCANCELED"
 
-var _StepStatusMap = map[StepStatus]string{
-	0: _StepStatusName[0:7],
-	1: _StepStatusName[7:14],
-	2: _StepStatusName[14:18],
-	3: _StepStatusName[18:23],
-	4: _StepStatusName[23:31],
+var _TaskStepStatusMap = map[TaskStepStatus]string{
+	0: _TaskStepStatusName[0:7],
+	1: _TaskStepStatusName[7:14],
+	2: _TaskStepStatusName[14:18],
+	3: _TaskStepStatusName[18:23],
+	4: _TaskStepStatusName[23:31],
 }
 
-func (i StepStatus) String() string {
-	if str, ok := _StepStatusMap[i]; ok {
+func (i TaskStepStatus) String() string {
+	if str, ok := _TaskStepStatusMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("StepStatus(%d)", i)
+	return fmt.Sprintf("TaskStepStatus(%d)", i)
 }
 
-var _StepStatusValue = map[string]StepStatus{
-	_StepStatusName[0:7]:                    0,
-	strings.ToLower(_StepStatusName[0:7]):   0,
-	_StepStatusName[7:14]:                   1,
-	strings.ToLower(_StepStatusName[7:14]):  1,
-	_StepStatusName[14:18]:                  2,
-	strings.ToLower(_StepStatusName[14:18]): 2,
-	_StepStatusName[18:23]:                  3,
-	strings.ToLower(_StepStatusName[18:23]): 3,
-	_StepStatusName[23:31]:                  4,
-	strings.ToLower(_StepStatusName[23:31]): 4,
+var _TaskStepStatusValue = map[string]TaskStepStatus{
+	_TaskStepStatusName[0:7]:                    0,
+	strings.ToLower(_TaskStepStatusName[0:7]):   0,
+	_TaskStepStatusName[7:14]:                   1,
+	strings.ToLower(_TaskStepStatusName[7:14]):  1,
+	_TaskStepStatusName[14:18]:                  2,
+	strings.ToLower(_TaskStepStatusName[14:18]): 2,
+	_TaskStepStatusName[18:23]:                  3,
+	strings.ToLower(_TaskStepStatusName[18:23]): 3,
+	_TaskStepStatusName[23:31]:                  4,
+	strings.ToLower(_TaskStepStatusName[23:31]): 4,
 }
 
-// ParseStepStatus attempts to convert a string to a StepStatus
-func ParseStepStatus(name string) (StepStatus, error) {
-	if x, ok := _StepStatusValue[name]; ok {
-		return StepStatus(x), nil
+// ParseTaskStepStatus attempts to convert a string to a TaskStepStatus
+func ParseTaskStepStatus(name string) (TaskStepStatus, error) {
+	if x, ok := _TaskStepStatusValue[name]; ok {
+		return TaskStepStatus(x), nil
 	}
-	return StepStatus(0), fmt.Errorf("%s is not a valid StepStatus", name)
+	return TaskStepStatus(0), fmt.Errorf("%s is not a valid TaskStepStatus", name)
 }

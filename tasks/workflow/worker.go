@@ -701,9 +701,9 @@ func (w *worker) checkIfPreviousOfNextStepAreDone(ctx context.Context, s *step, 
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to retrieve step status with TaskID:%q, step:%q", t.taskID, step.name)
 		}
-		if stepStatus == tasks.StepStatusDONE {
+		if stepStatus == tasks.TaskStepStatusDONE {
 			cpt++
-		} else if stepStatus == tasks.StepStatusCANCELED || stepStatus == tasks.StepStatusERROR {
+		} else if stepStatus == tasks.TaskStepStatusCANCELED || stepStatus == tasks.TaskStepStatusERROR {
 			return false, errors.Errorf("An error has been detected on other step:%q for workflow:%q, deploymentID:%q, taskID:%q. No more steps will be executed", step.name, workflowName, t.targetID, t.taskID)
 		}
 	}
@@ -723,13 +723,13 @@ func (w *worker) checkIfWorkflowIsDone(ctx context.Context, t *taskExecution, wo
 	}
 	cpt := 0
 	for _, step := range taskSteps {
-		stepStatus, err := tasks.ParseStepStatus(step.Status)
+		stepStatus, err := tasks.ParseTaskStepStatus(step.Status)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", t.taskID)
 		}
-		if stepStatus == tasks.StepStatusDONE {
+		if stepStatus == tasks.TaskStepStatusDONE {
 			cpt++
-		} else if stepStatus == tasks.StepStatusCANCELED || stepStatus == tasks.StepStatusERROR {
+		} else if stepStatus == tasks.TaskStepStatusCANCELED || stepStatus == tasks.TaskStepStatusERROR {
 			return false, errors.Errorf("An error has been detected on other step:%q for workflow:%q, deploymentID:%q. No more steps will be executed", t.step, workflowName, t.targetID)
 		}
 	}

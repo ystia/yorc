@@ -67,7 +67,7 @@ func (s *step) isInitial() bool {
 	return len(s.previous) == 0
 }
 
-func (s *step) setStatus(status tasks.StepStatus) error {
+func (s *step) setStatus(status tasks.TaskStepStatus) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, s.t.targetID, "workflows", s.workflowName, "steps", s.name, "status"), Value: []byte(status.String())}
 	_, err := s.kv.Put(kvp, nil)
 	if err != nil {
@@ -116,17 +116,17 @@ func (s *step) isRunnable() (bool, error) {
 	if kvp != nil && string(kvp.Value) != "" {
 		status = string(kvp.Value)
 	} else {
-		status = tasks.StepStatusINITIAL.String()
+		status = tasks.TaskStepStatusINITIAL.String()
 	}
 
 	// Check if Step is already done
 	if status != "" {
-		stepStatus, err := tasks.ParseStepStatus(status)
+		stepStatus, err := tasks.ParseTaskStepStatus(status)
 		if err != nil {
 			return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 
-		if kvp != nil && stepStatus == tasks.StepStatusDONE {
+		if kvp != nil && stepStatus == tasks.TaskStepStatusDONE {
 			return false, nil
 		}
 	}
@@ -173,10 +173,10 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	} else if !runnable {
 		log.Debugf("Deployment %q: Skipping TaskStep %q", deploymentID, s.name)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Skipping TaskStep %q", s.name))
-		s.setStatus(tasks.StepStatusDONE)
+		s.setStatus(tasks.TaskStepStatusDONE)
 		return nil
 	}
-	s.setStatus(tasks.StepStatusRUNNING)
+	s.setStatus(tasks.TaskStepStatusRUNNING)
 
 	logOptFields, _ := events.FromContext(ctx)
 	// Create a new context to handle gracefully current step termination when an error occurred during another step
@@ -187,7 +187,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 		select {
 		case <-w.shutdownCh:
 			log.Printf("Shutdown signal has been sent.Step %q will be canceled", s.name)
-			s.setStatus(tasks.StepStatusCANCELED)
+			s.setStatus(tasks.TaskStepStatusCANCELED)
 			cancelWf()
 			return
 		case <-ctx.Done():
@@ -199,7 +199,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 				// We immediately cancel the step
 				cancelWf()
 				log.Printf("Cancel event has been sent.Step %q will be canceled", s.name)
-				s.setStatus(tasks.StepStatusCANCELED)
+				s.setStatus(tasks.TaskStepStatusCANCELED)
 				return
 			} else if status == tasks.TaskStatusFAILED {
 				log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.name)
@@ -207,7 +207,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 				case <-time.After(cfg.WfStepGracefulTerminationTimeout):
 					cancelWf()
 					log.Printf("Step %q not yet finished: we set it on error", s.name)
-					s.setStatus(tasks.StepStatusERROR)
+					s.setStatus(tasks.TaskStepStatusERROR)
 					return
 				case <-waitDoneCh:
 					return
@@ -235,7 +235,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 				setNodeStatus(wfCtx, kv, s.t.taskID, deploymentID, s.target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.name, err)
 				if !bypassErrors {
-					s.setStatus(tasks.StepStatusERROR)
+					s.setStatus(tasks.TaskStepStatusERROR)
 					return err
 				}
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("TaskStep %q: Bypassing error: %+v but workflow continue", s.name, err)
@@ -248,7 +248,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	}
 
 	log.Debugf("Task execution:%q for step:%q, workflow:%q, taskID:%q done without error.", s.t.id, s.name, s.workflowName, s.t.taskID)
-	s.setStatus(tasks.StepStatusDONE)
+	s.setStatus(tasks.TaskStepStatusDONE)
 	return nil
 }
 

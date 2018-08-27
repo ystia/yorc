@@ -112,7 +112,6 @@ func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSt
 
 // BuildInitExecutionOperations returns Consul transactional KV operations for initiating workflow execution
 func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName string, registerWorkflow bool) (api.KVTxnOps, error) {
-	//FIXME number of operations in a Consul transaction is limited to 64: it can be an issue for large workflow. Need to increase this param if configurable or split transactions
 	ops := make(api.KVTxnOps, 0)
 	steps, err := buildWorkFlow(kv, deploymentID, workflowName)
 	if err != nil {
@@ -124,7 +123,7 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 			// Register workflow step to handle step statuses for all steps
 			// Do not use the transaction here just the async rate-limited behavior
 			// This should decrease pressure on the 64 ops limit for transactions
-			store.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, taskID, step.name), tasks.StepStatusINITIAL.String())
+			store.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, taskID, step.name), tasks.TaskStepStatusINITIAL.String())
 		}
 
 		// Add execution key for initial steps only

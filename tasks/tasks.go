@@ -376,15 +376,15 @@ func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 }
 
 // GetTaskStepStatus returns the step status of the related step name
-func GetTaskStepStatus(kv *api.KV, taskID, stepName string) (StepStatus, error) {
+func GetTaskStepStatus(kv *api.KV, taskID, stepName string) (TaskStepStatus, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepName), nil)
 	if err != nil {
-		return StepStatusINITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return TaskStepStatusINITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return StepStatusINITIAL, nil
+		return TaskStepStatusINITIAL, nil
 	}
-	return ParseStepStatus(string(kvp.Value))
+	return ParseTaskStepStatus(string(kvp.Value))
 }
 
 // TaskStepExists checks if a task step exists with a stepID and related to a given taskID and returns it
@@ -401,7 +401,7 @@ func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) 
 
 // UpdateTaskStepStatus allows to update the task step status
 func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
-	status, err := ParseStepStatus(step.Status)
+	status, err := ParseTaskStepStatus(step.Status)
 	if err != nil {
 		return err
 	}
@@ -419,16 +419,16 @@ func CheckTaskStepStatusChange(before, after string) (bool, error) {
 	if before == after {
 		return false, errors.New("Final and initial status are identical: nothing to do")
 	}
-	stBefore, err := ParseStepStatus(before)
+	stBefore, err := ParseTaskStepStatus(before)
 	if err != nil {
 		return false, err
 	}
-	stAfter, err := ParseStepStatus(after)
+	stAfter, err := ParseTaskStepStatus(after)
 	if err != nil {
 		return false, err
 	}
 
-	if stBefore != StepStatusERROR || stAfter != StepStatusDONE {
+	if stBefore != TaskStepStatusERROR || stAfter != TaskStepStatusDONE {
 		return false, nil
 	}
 	return true, nil
