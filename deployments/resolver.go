@@ -301,7 +301,7 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 	// A not found attribute is considered as acceptable for GetAttribute function and so doesn't return any error
 	if rType == "attribute" {
 		ctx := events.NewContext(context.Background(), events.LogOptionalFields{events.NodeID: fr.nodeName, events.InstanceID: fr.instanceName})
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, fr.deploymentID).Registerf("[WARNING] The attribute %q hasn't be found for deployment: %, node: %q, instance: %q in expression %q", args[0], fr.deploymentID, fr.nodeName, fr.instanceName, funcString)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, fr.deploymentID).Registerf("[WARNING] The attribute %q hasn't be found for deployment: %q, node: %q, instance: %q in expression %q", args[0], fr.deploymentID, fr.nodeName, fr.instanceName, funcString)
 		return nil, nil
 	}
 	log.Debugf("Deployment %q, node %q, can't resolve expression %q", fr.deploymentID, fr.nodeName, funcString)
