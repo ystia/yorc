@@ -197,6 +197,8 @@ func (d *Dispatcher) Run() {
 			}
 			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
 				log.Debugf("Skipping Task Execution with status %q", status)
+				// Delete useless execution
+				d.deleteExecutionTree(execID)
 				continue
 			}
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
