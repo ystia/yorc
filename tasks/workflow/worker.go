@@ -252,19 +252,31 @@ func (w *worker) setDeploymentStatus(ctx context.Context, deploymentID string, f
 	return nil
 }
 
-func (w *worker) releaseExecution(t *taskExecution) {
-	// Mark task execution to be deleted
-	log.Debugf("Mark the task execution ID:%q with taskID:%q, step:%q to delete", t.id, t.taskID, t.step)
-	kvPair := &api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, t.id, ".markedToDelete")}
+func (w *worker) markExecutionAsProcessing(t *taskExecution) {
+	log.Debugf("Mark the task execution ID:%q with taskID:%q, step:%q as processing", t.id, t.taskID, t.step)
+	kvPair := &api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, t.id, ".processing")}
 	if _, err := w.consulClient.KV().Put(kvPair, nil); err != nil {
-		log.Printf("Failed to mark task execution to be deleted with ID:%q, deploymentID:%q, taskID:%q due to error:%+v", t.id, t.targetID, t.taskID, err)
+		log.Printf("Failed to mark task execution as processing with ID:%q, deploymentID:%q, taskID:%q due to error:%+v", t.id, t.targetID, t.taskID, err)
 	}
+}
+
+func (w *worker) releaseAndDeleteExecution(t *taskExecution) {
+	// First release the lock as the key still exists
 	t.releaseLock()
+
+	// Remove the key execution tree
+	log.Debugf("Delete task execution tree with ID:%q", t.id)
+	_, err := w.consulClient.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, t.id), nil)
+	if err != nil {
+		log.Printf("Failed to remove execution KV tree with ID:%q due to error:%+v", t.id, err)
+		return
+	}
 }
 
 func (w *worker) handleExecution(t *taskExecution) {
-	// As the execution is handled by worker, the key is released
-	w.releaseExecution(t)
+	log.Debugf("Handle task execution:%+v", t)
+	w.markExecutionAsProcessing(t)
+	defer w.releaseAndDeleteExecution(t)
 	metrics.MeasureSince([]string{"TaskExecution", "wait"}, t.creationDate)
 	kv := w.consulClient.KV()
 	// Fill log optional fields for log registration
@@ -679,7 +691,7 @@ func (w *worker) registerNextSteps(ctx context.Context, s *step, t *taskExecutio
 			regSteps = append(regSteps, nStep)
 		}
 	}
-	ops := CreateWorkflowStepsOperations(s.t.taskID, regSteps)
+	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
 	ok, response, _, err := w.consulClient.KV().Txn(ops, nil)
 	if err != nil {
 		return false, errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)

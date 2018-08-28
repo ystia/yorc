@@ -15,6 +15,7 @@
 package workflow
 
 import (
+	"strings"
 	"time"
 
 	"sync"
@@ -31,6 +32,8 @@ import (
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
 )
+
+const executionLockPrefix = ".processingLock-"
 
 // Dispatcher concern is polling executions task and dispatch them across available workers
 // It has to acquire a lock on the execution task as other distributed dispatchers can try to do the same
@@ -170,20 +173,35 @@ func (d *Dispatcher) Run() {
 		log.Debugf("Got response new wait index is %d", waitIndex)
 		for _, execKey := range execKeys {
 			execID := path.Base(execKey)
-			// Check if execution is marked to be deleted
-			if markedToDelete, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskPrefix, execID, ".markedToDelete"), nil); markedToDelete != nil {
-				d.deleteExecutionTree(execID)
+			// Ignore locks
+			if strings.HasPrefix(execID, executionLockPrefix) {
 				continue
 			}
-			log.Debugf("handling task execution with ID:%q", execID)
+			// Ignore processing execution to avoid useless treatment
+			if processingExecution, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskPrefix, execID, ".processing"), nil); processingExecution != nil {
+				continue
+			}
 			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
 			if err != nil {
 				log.Printf("Ignore execution with ID:%q due to error:%v", execID, err)
 				continue
 			}
+			// Check TaskExecution status
+			status, err := tasks.GetTaskStatus(kv, taskID)
+			if err != nil {
+				log.Print(err)
+				log.Debugf("%+v", err)
+				log.Printf("Seems this task execution is no longer relevant and will be removed.")
+				d.deleteExecutionTree(execID)
+				continue
+			}
+			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
+				log.Debugf("Skipping Task Execution with status %q", status)
+				continue
+			}
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
 			opts := &api.LockOptions{
-				Key:          path.Join(consulutil.ExecutionsTaskPrefix, ".processingLock"+execID),
+				Key:          path.Join(consulutil.ExecutionsTaskPrefix, executionLockPrefix+execID),
 				Value:        []byte(nodeName),
 				LockTryOnce:  true,
 				LockWaitTime: 10 * time.Millisecond,
@@ -200,23 +218,6 @@ func (d *Dispatcher) Run() {
 			}
 			if leaderChan == nil {
 				log.Debugf("Another instance got the lock for key %s", execKey)
-				continue
-			}
-			// Check TaskExecution status
-			status, err := tasks.GetTaskStatus(kv, taskID)
-			if err != nil {
-				log.Print(err)
-				log.Debugf("%+v", err)
-				lock.Unlock()
-				lock.Destroy()
-				log.Printf("Seems this execution is no longer relevant and will be removed.")
-				d.deleteExecutionTree(execID)
-				continue
-			}
-			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
-				log.Debugf("Skipping Task Execution with status %q", status)
-				lock.Unlock()
-				lock.Destroy()
 				continue
 			}
 			log.Debugf("Got processing lock for Task Execution %s", execKey)
@@ -242,7 +243,7 @@ func (d *Dispatcher) Run() {
 					continue
 				}
 			}
-			log.Printf("Processing Task Execution %q linked to deployment %q", taskID, targetID)
+			log.Printf("Processing Task Execution %q linked to deployment %q", execID, targetID)
 			t := &taskExecution{
 				id:           execID,
 				taskID:       taskID,

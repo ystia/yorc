@@ -17,11 +17,10 @@ package workflow
 import (
 	"context"
 	"fmt"
-	"path"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"path"
 
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
@@ -149,8 +148,8 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 	return ops, errGrp.Wait()
 }
 
-// CreateWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
-func CreateWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
+// createWorkflowStepsOperations returns Consul transactional KV operations for initiating workflow execution
+func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 	ops := make(api.KVTxnOps, 0)
 	var stepOps api.KVTxnOps
 	for _, step := range steps {
