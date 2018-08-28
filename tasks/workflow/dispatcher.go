@@ -115,7 +115,7 @@ func getExecutionKeyValue(kv *api.KV, execID, execKey string) (string, error) {
 	execPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 	kvPairContent, _, err := kv.Get(path.Join(execPath, execKey), nil)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get value for key due to error: %+v", path.Join(execPath, execKey), err)
+		return "", errors.Wrapf(err, "Failed to get value for key %q due to error: %+v", path.Join(execPath, execKey), err)
 	}
 	if kvPairContent == nil {
 		return "", errors.Errorf("No key:%q", path.Join(execPath, execKey))

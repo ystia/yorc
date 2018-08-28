@@ -49,7 +49,6 @@ import (
 // If workflow is done, the task and deployment statuses need to be updated
 // If an error occurred during the step execution, task status need to be updated
 // Each done step will register the next ones. In case of join, the last done of previous steps will register the next step
-//FIXME do we need to poll the task status to cancel running execution if another one has failed ?
 type worker struct {
 	workerPool   chan chan *taskExecution
 	TaskChannel  chan *taskExecution
