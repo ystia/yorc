@@ -187,8 +187,8 @@ func initConfig() {
 func setConfig() {
 	host, err := os.Hostname()
 	if err != nil {
-		log.Println("Failed to get hostname %q", err)
 		host = "server_0"
+		log.Printf("Failed to get system hostname: %v. We will try to use the default id (%q) for this instance.", err, host)
 	}
 
 	//Flags definition for Yorc server
