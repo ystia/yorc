@@ -140,7 +140,7 @@ func (d *Dispatcher) Run() {
 		worker := newWorker(d.WorkerPool, d.shutdownCh, d.client, d.cfg)
 		worker.Start()
 	}
-	log.Printf("%d worker started", d.maxWorkers)
+	log.Printf("%d workers started", d.maxWorkers)
 	var waitIndex uint64
 	kv := d.client.KV()
 	nodeName, err := d.client.Agent().NodeName()

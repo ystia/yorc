@@ -161,42 +161,6 @@ func GetTaskTarget(kv *api.KV, taskID string) (string, error) {
 	return string(kvp.Value), nil
 }
 
-// GetTaskWorkflow retrieves the workflow name of a task in case of a task step
-func GetTaskWorkflow(kv *api.KV, taskID string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "workflow"), nil)
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return "", errors.Errorf("Missing workflow for task with id %q", taskID)
-	}
-	return string(kvp.Value), nil
-}
-
-// GetTaskParentID retrieves the parent taskID of a task in case of a task step
-func GetTaskParentID(kv *api.KV, taskID string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "parentID"), nil)
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return "", errors.Errorf("Missing parentID for task with id %q", taskID)
-	}
-	return string(kvp.Value), nil
-}
-
-// GetTaskStep retrieves the step name of a task in case of a task step
-func GetTaskStep(kv *api.KV, taskID string) (string, error) {
-	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "step"), nil)
-	if err != nil {
-		return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if kvp == nil || len(kvp.Value) == 0 {
-		return "", errors.Errorf("Missing step for task with id %q", taskID)
-	}
-	return string(kvp.Value), nil
-}
-
 // GetTaskCreationDate retrieves the creationDate of a task
 func GetTaskCreationDate(kv *api.KV, taskID string) (time.Time, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "creationDate"), nil)
