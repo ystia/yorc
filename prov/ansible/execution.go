@@ -56,7 +56,7 @@ import (
 const ansibleConfig = `[defaults]
 host_key_checking=False
 timeout=30
-stdout_callback = json
+stdout_callback = yaml
 retry_files_save_path = #PLAY_PATH#
 `
 const ansibleFactCaching = `
@@ -1005,7 +1005,12 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 	}
 	if e.cfg.Ansible.DebugExec {
 		cmd.Args = append(cmd.Args, "-vvvv")
+	} else {
+		// One verbosity level is needed to get tasks output in playbooks yaml
+		// output
+		cmd.Args = append(cmd.Args, "-v")
 	}
+
 	if !e.isOrchestratorOperation {
 		if e.cfg.Ansible.UseOpenSSH {
 			cmd.Args = append(cmd.Args, "-c", "ssh")
@@ -1014,9 +1019,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 		}
 	}
 	cmd.Dir = ansibleRecipePath
-	var outbuf bytes.Buffer
 	errbuf := events.NewBufferedLogEntryWriter()
-	cmd.Stdout = &outbuf
 	cmd.Stderr = errbuf
 
 	errCloseCh := make(chan bool)
@@ -1025,12 +1028,12 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 	// Register log entry via error buffer
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
-	defer func(buffer *bytes.Buffer) {
-		if err := logFn(ctx, e.deploymentID, e.NodeName, e.hosts, buffer); err != nil {
-			log.Printf("Failed to publish Ansible log %v", err)
-			log.Debugf("%+v", err)
-		}
-	}(&outbuf)
+	cmdReader, err := cmd.Cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	go logFn(ctx, e.deploymentID, e.NodeName, e.hosts, cmdReader)
+
 	if err := cmd.Run(); err != nil {
 		return e.checkAnsibleRetriableError(ctx, err)
 	}

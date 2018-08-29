@@ -103,6 +103,14 @@ if [[ "develop" == "${branch}" ]] && [[ -z "${prerelease}" ]]; then
 fi
 
 # Now checks are passed then tag, build, release and cleanup :)
+cherries=()
+# Update changelog Release date
+if [[ -e CHANGELOG.md ]]; then
+    sed -i -e "s/^## UNRELEASED.*$/## ${version} ($(LC_ALL=C date +'%B %d, %Y'))/g" CHANGELOG.md
+    git commit -m "Update changelog for release ${version}" CHANGELOG.md
+    cherries+=("$(git log -1 --pretty=format:"%h")")
+fi
+
 if [[ -e versions.yaml ]]; then
     # Update version
     sed -i -e "/${componentVersionName}: /c${componentVersionName}: ${version}" versions.yaml
@@ -110,6 +118,13 @@ if [[ -e versions.yaml ]]; then
 fi
 
 git tag -a v${version} -m "Release tag v${version}"
+
+# Update changelog Release date
+if [[ -e CHANGELOG.md ]]; then
+    sed -i -e "2a## UNRELEASED\n" CHANGELOG.md
+    git commit -m "Update changelog for future release" CHANGELOG.md
+    cherries+=("$(git log -1 --pretty=format:"%h")")
+fi
 
 if [[ -e versions.yaml ]]; then
     # Update version
@@ -131,6 +146,11 @@ fi
 if [[ "develop" == "${branch}" ]] && [[ -z "${prerelease}" ]]; then
     # merge back to develop
     git checkout develop
+
+    if [[ ${#cherries[@]} -gt 0 ]] ; then
+        git cherry-pick ${cherries[@]}
+    fi
+    
     if [[ -e versions.yaml ]]; then
         # Update version
         nextDevelopmentVersion=$(python -c "import semantic_version; v=semantic_version.Version('${version}'); print v.next_minor()" )
