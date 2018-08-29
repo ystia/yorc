@@ -198,6 +198,8 @@ func CancelTask(kv *api.KV, taskID string) error {
 }
 
 // ResumeTask marks a task as Initial to allow it being resumed
+//
+// Deprecated: use (c *collector.Collector) ResumeTask instead
 func ResumeTask(kv *api.KV, taskID string) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(TaskStatusINITIAL)))}
 	_, err := kv.Put(kvp, nil)
