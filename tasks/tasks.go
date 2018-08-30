@@ -59,7 +59,7 @@ func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
 
 // IsWorkflowTask returns true if the task type is related to workflow
 func IsWorkflowTask(taskType TaskType) bool {
-	return taskType == TaskTypeDeploy || taskType == TaskTypeUnDeploy || taskType == TaskTypeScaleIn || taskType == TaskTypeScaleOut || taskType == TaskTypeCustomWorkflow
+	return taskType == TaskTypeDeploy || taskType == TaskTypeUnDeploy || taskType == TaskTypePurge || taskType == TaskTypeScaleIn || taskType == TaskTypeScaleOut || taskType == TaskTypeCustomWorkflow
 }
 
 type taskDataNotFound struct {

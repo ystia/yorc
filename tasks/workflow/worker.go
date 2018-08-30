@@ -494,9 +494,11 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) {
 				log.Printf("%+v", err)
 				return
 			}
+			if t.taskType == tasks.TaskTypePurge {
+				w.runPurge(ctx, t)
+			}
 		}
-	}
-	if t.taskType == tasks.TaskTypePurge {
+	} else if t.taskType == tasks.TaskTypePurge {
 		w.runPurge(ctx, t)
 	}
 }

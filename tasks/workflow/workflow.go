@@ -128,7 +128,7 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 		// Add execution key for initial steps only
 		if step.isInitial() {
 			execID := fmt.Sprint(uuid.NewV4())
-			log.Debugf("Create initial task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.name)
+			log.Debugf("Register initial task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.name)
 			stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 			stepOps := api.KVTxnOps{
 				&api.KVTxnOp{
@@ -155,7 +155,7 @@ func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 	for _, step := range steps {
 		// Add execution key for initial steps only
 		execID := fmt.Sprint(uuid.NewV4())
-		log.Debugf("Create task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.name)
+		log.Debugf("Register task execution with ID:%q, taskID:%q and step:%q", execID, taskID, step.name)
 		stepExecPath := path.Join(consulutil.ExecutionsTaskPrefix, execID)
 		stepOps = api.KVTxnOps{
 			&api.KVTxnOp{
