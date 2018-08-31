@@ -276,6 +276,11 @@ func (w *worker) handleExecution(t *taskExecution) {
 	log.Debugf("Handle task execution:%+v", t)
 	w.markExecutionAsProcessing(t)
 	defer w.releaseAndDeleteExecution(t)
+
+	if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus == tasks.TaskStatusINITIAL {
+		metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
+	}
+
 	metrics.MeasureSince([]string{"TaskExecution", "wait"}, t.creationDate)
 	kv := w.consulClient.KV()
 	// Fill log optional fields for log registration
@@ -295,8 +300,10 @@ func (w *worker) handleExecution(t *taskExecution) {
 	w.monitorTaskCancellation(ctx, cancelFunc, t)
 	w.monitorTaskFailure(ctx, cancelFunc, t)
 	defer func(t *taskExecution, start time.Time) {
-		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"TaskExecution", t.id, t.targetID, t.taskType.String(), t.step}), 1)
-		metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"TaskExecution", t.id, t.targetID, t.taskType.String(), t.step}), start)
+		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
+			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String(), taskStatus.String()}), 1)
+			metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"task", t.targetID, t.taskType.String()}), start)
+		}
 	}(t, time.Now())
 	switch t.taskType {
 	case tasks.TaskTypeDeploy:
