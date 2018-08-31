@@ -65,9 +65,14 @@ func (t *taskExecution) checkAndSetTaskStatus(ctx context.Context, finalStatus t
 	}
 
 	status := tasks.TaskStatus(st)
+	// TaskStatusFAILED and TaskStatusCANCELED are terminal status and can't be changed
 	if finalStatus != status {
 		if status == tasks.TaskStatusFAILED {
 			mess := fmt.Sprintf("Can't set task status with taskID:%q to:%q because task status is FAILED", t.taskID, finalStatus.String())
+			log.Printf(mess)
+			return errors.Errorf(mess)
+		} else if status == tasks.TaskStatusCANCELED {
+			mess := fmt.Sprintf("Can't set task status with taskID:%q to:%q because task status is CANCELED", t.taskID, finalStatus.String())
 			log.Printf(mess)
 			return errors.Errorf(mess)
 		}

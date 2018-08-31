@@ -78,6 +78,16 @@ func (s *step) setStatus(status tasks.TaskStepStatus) error {
 	return err
 }
 
+func (s *step) cancelNextSteps() {
+	for _, ns := range s.next {
+		log.Debugf("cancel step name:%q", ns.name)
+		// bind next canceled execution to actual one
+		ns.t = s.t
+		ns.setStatus(tasks.TaskStepStatusCANCELED)
+		ns.cancelNextSteps()
+	}
+}
+
 func isTargetOperationOnSource(s *step) bool {
 	if strings.ToUpper(s.operationHost) != "SOURCE" {
 		return false
@@ -198,8 +208,8 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 			if status == tasks.TaskStatusCANCELED {
 				// We immediately cancel the step
 				cancelWf()
-				log.Printf("Cancel event has been sent.Step %q will be canceled", s.name)
-				s.setStatus(tasks.TaskStepStatusCANCELED)
+				log.Printf("Cancel event has been sent.This step will fail and next ones %q will be canceled", s.name)
+				s.cancelNextSteps()
 				return
 			} else if status == tasks.TaskStatusFAILED {
 				log.Printf("An error occurred on another step while step %q is running: trying to gracefully finish it.", s.name)

@@ -183,15 +183,14 @@ func (d *Dispatcher) Run() {
 			}
 			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
 			if err != nil {
-				log.Printf("Ignore execution with ID:%q due to error:%v", execID, err)
+				log.Debugf("Ignore execution with ID:%q due to error:%v", execID, err)
+				d.deleteExecutionTree(execID)
 				continue
 			}
 			// Check TaskExecution status
 			status, err := tasks.GetTaskStatus(kv, taskID)
 			if err != nil {
-				log.Print(err)
-				log.Debugf("%+v", err)
-				log.Printf("Seems this task execution is no longer relevant and will be removed.")
+				log.Debugf("Seems the task with id:%q is no longer relevant due to error:%s so related execution will be removed", taskID, err)
 				d.deleteExecutionTree(execID)
 				continue
 			}
