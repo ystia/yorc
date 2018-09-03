@@ -17,6 +17,7 @@ package ansible
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"regexp"
@@ -61,7 +62,7 @@ func TestTemplates(t *testing.T) {
 
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(ec, ""))
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(ec, "", func() string { return "" }))
 	tmpl, err := tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(os.Stdout, e)
@@ -231,6 +232,12 @@ func compareStringsIgnoreWhitespace(t *testing.T, expected, actual string) {
 	require.Equal(t, expected, actual)
 }
 
+func getWrappedCommandFunc(path string) func() string {
+	return func() string {
+		return fmt.Sprintf("{{ ansible_env.HOME}}/%s/wrapper", path)
+	}
+}
+
 func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeName, operation string) {
 	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, operation, "", "")
 	require.Nil(t, err)
@@ -299,7 +306,8 @@ func testExecutionGenerateOnNode(t *testing.T, kv *api.KV, deploymentID, nodeNam
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, "",
+		getWrappedCommandFunc(execution.(*executionScript).OperationRemotePath)))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
@@ -440,7 +448,8 @@ func testExecutionGenerateOnRelationshipSource(t *testing.T, kv *api.KV, deploym
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, "",
+		getWrappedCommandFunc(execution.(*executionScript).OperationRemotePath)))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
@@ -577,7 +586,8 @@ func testExecutionGenerateOnRelationshipTarget(t *testing.T, kv *api.KV, deploym
 	var writer bytes.Buffer
 	tmpl := template.New("execTest")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, ""))
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(execution.(*executionScript).executionCommon, "",
+		getWrappedCommandFunc(execution.(*executionScript).OperationRemotePath)))
 	tmpl, err = tmpl.Parse(shellAnsiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(&writer, execution)
