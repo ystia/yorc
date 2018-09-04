@@ -108,6 +108,12 @@ type hostConnection struct {
 	password   string
 }
 
+type sshCredentials struct {
+	user       string
+	privateKey string
+	password   string
+}
+
 type execution interface {
 	resolveExecution() error
 	execute(ctx context.Context, retry bool) error
@@ -731,6 +737,22 @@ func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx con
 	return nil
 }
 
+func (e *executionCommon) getSSHCredentials(ctx context.Context, host hostConnection, warnOfMissingValues bool) sshCredentials {
+	sshUser := host.user
+	if sshUser == "" {
+		// Use root as default user
+		sshUser = "root"
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
+	}
+	sshPassword := host.password
+	sshPrivateKey := host.privateKey
+	if sshPrivateKey == "" && sshPassword == "" {
+		sshPrivateKey = "~/.ssh/yorc.pem"
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
+	}
+	return sshCredentials{user: sshUser, password: sshPassword, privateKey: sshPrivateKey}
+}
+
 func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host hostConnection) error {
 	buffer.WriteString(host.host)
 	if e.isOrchestratorOperation {
@@ -739,29 +761,17 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 			return err
 		}
 	} else {
-		sshUser := host.user
-		if sshUser == "" {
-			// Use root as default user
-			sshUser = "root"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
-		}
-		sshPassword := host.password
-		sshPrivateKey := host.privateKey
-		if sshPrivateKey == "" && sshPassword == "" {
-			sshPrivateKey = "~/.ssh/yorc.pem"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
-		}
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
+		sshCredentials := e.getSSHCredentials(ctx, host, true)
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
 		// Set with priority private key against password
-		if sshPrivateKey != "" {
+		if sshCredentials.privateKey != "" {
 			// TODO if not a path store it somewhere
 			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshPrivateKey))
-		} else if sshPassword != "" {
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
+		} else if sshCredentials.password != "" {
 			// TODO use vault
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshCredentials.password))
 		}
-
 		// Specify SSH port when different than default 22
 		if host.port != 0 && host.port != 22 {
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_port=%d", host.port))
