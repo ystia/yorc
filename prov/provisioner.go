@@ -78,8 +78,12 @@ func (ro RelationshipOperation) String() string {
 // ExecOperation executes the given TOSCA operation for given nodeName on the given deploymentID.
 // The taskID identifies the task that requested to execute this operation.
 // The given ctx may be used to check for cancellation, conf is the server Configuration.
+//
+// ExecAsyncOperation does the same as ExecOperation in asynchronous way.
+// It needs to return the referenceID related to the operation execution in order to monitor it
 type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
+	ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) (string, error)
 }
 
 // InfraUsageCollector is the interface for collecting information about infrastructure usage

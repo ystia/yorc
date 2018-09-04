@@ -33,7 +33,7 @@ type executionSingularity struct {
 	singularityInfo *singularityInfo
 }
 
-func (e *executionSingularity) execute(ctx context.Context) (err error) {
+func (e *executionSingularity) execute(ctx context.Context, resultCh chan string, errCh chan error) {
 	// Only runnable operation is currently supported
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
@@ -51,29 +51,32 @@ func (e *executionSingularity) execute(ctx context.Context) (err error) {
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
-			return errors.Wrap(err, "failed to build job information")
+			errCh <- errors.Wrap(err, "failed to build job information")
 		}
 
 		// Build singularity information
 		if err := e.buildSingularityInfo(ctx); err != nil {
-			return errors.Wrap(err, "failed to build singularity information")
+			errCh <- errors.Wrap(err, "failed to build singularity information")
 		}
 
 		// Run the command
 		out, err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			return errors.Wrap(err, "failed to run command")
+			errCh <- errors.Wrap(err, "failed to run command")
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(out)
 		log.Debugf("output:%q", out)
 		if !e.jobInfo.batchMode {
-			return e.cleanUp()
+			err := e.cleanUp()
+			if err != nil {
+				errCh <- err
+			}
 		}
+		resultCh <- e.jobInfo.ID
 	default:
-		return errors.Errorf("Unsupported operation %q", e.operation.Name)
+		errCh <- errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
-	return nil
 }
 
 func (e *executionSingularity) runJobCommand(ctx context.Context) (string, error) {
@@ -87,14 +90,14 @@ func (e *executionSingularity) runJobCommand(ctx context.Context) (string, error
 		if err != nil {
 			return "", err
 		}
-		go e.pollBatchJobInfo(ctx, stopCh, errCh)
+		go e.pollJobInfo(ctx, stopCh, errCh)
 		out, err := e.runBatchMode(ctx, opts)
 		return out, err
 	}
-	go e.pollInteractiveJobInfo(ctx, stopCh, errCh)
+
+	// In interactive mode, we need to retrieve the jobID elsewhere than in the output
+	go e.retrieveJobID(ctx, stopCh, errCh)
 	out, err := e.runInteractiveMode(ctx, opts)
-	// Stop polling information in interactive mode
-	close(stopCh)
 	return out, err
 }
 

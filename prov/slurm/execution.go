@@ -44,15 +44,23 @@ import (
 
 type execution interface {
 	resolveExecution() error
-	execute(ctx context.Context) error
+	execute(ctx context.Context, resultCh chan string, errCh chan error)
 }
 
 type operationNotImplemented struct {
 	msg string
 }
 
+type jobIsDone struct {
+	msg string
+}
+
 func (oni operationNotImplemented) Error() string {
 	return oni.msg
+}
+
+func (jid jobIsDone) Error() string {
+	return jid.msg
 }
 
 type executionCommon struct {
@@ -128,7 +136,7 @@ func (e *executionCommon) resolveOperation() error {
 	return e.resolveInstances()
 }
 
-func (e *executionCommon) execute(ctx context.Context) (err error) {
+func (e *executionCommon) execute(ctx context.Context, resultCh chan string, errCh chan error) {
 	// Only runnable operation is currently supported
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
@@ -146,37 +154,40 @@ func (e *executionCommon) execute(ctx context.Context) (err error) {
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
-			return errors.Wrap(err, "failed to upload artifact")
+			errCh <- errors.Wrap(err, "failed to upload artifact")
 		}
 
 		// Copy the operation implementation
 		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-			return errors.Wrap(err, "failed to upload operation implementation")
+			errCh <- errors.Wrap(err, "failed to upload operation implementation")
 		}
 
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
-			return errors.Wrap(err, "failed to build job information")
+			errCh <- errors.Wrap(err, "failed to build job information")
 		}
 
 		// Run the command
 		out, err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			return errors.Wrap(err, "failed to run command")
+			errCh <- errors.Wrap(err, "failed to run command")
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(out)
 		log.Debugf("output:%q", out)
 		if !e.jobInfo.batchMode {
-			return e.cleanUp()
+			err := e.cleanUp()
+			if err != nil {
+				errCh <- err
+			}
 		}
+		resultCh <- e.jobInfo.ID
 	default:
-		return errors.Errorf("Unsupported operation %q", e.operation.Name)
+		errCh <- errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
-	return nil
 }
 
-func (e *executionCommon) pollInteractiveJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
+func (e *executionCommon) pollJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
 	ticker := time.NewTicker(e.jobInfoPolling)
 	for {
 		select {
@@ -193,15 +204,28 @@ func (e *executionCommon) pollInteractiveJobInfo(ctx context.Context, stopCh cha
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			e.getJobInfo(ctx, stopCh, errCh)
+			err := e.getJobInfo(ctx)
+			if err != nil {
+				log.Printf("stderr:%q", err)
+				_, jobIsDone := err.(jobIsDone)
+				if jobIsDone {
+					e.endBatchExecution(ctx, stopCh)
+				} else {
+					errCh <- err
+				}
+			}
 		}
 	}
 }
 
-func (e *executionCommon) pollBatchJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
+func (e *executionCommon) retrieveJobID(ctx context.Context, stopCh chan struct{}, errCh chan error) {
 	ticker := time.NewTicker(e.jobInfoPolling)
 	for {
 		select {
+		case <-ctx.Done():
+			log.Debugf("Task has been cancelled. The job information polling is stopping now")
+			ticker.Stop()
+			return
 		case <-stopCh:
 			log.Debugf("The job is done so job information polling is stopping now")
 			ticker.Stop()
@@ -211,12 +235,18 @@ func (e *executionCommon) pollBatchJobInfo(ctx context.Context, stopCh chan stru
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			e.getJobInfo(ctx, stopCh, errCh)
+			err := e.getJobInfo(ctx)
+			if err != nil {
+				errCh <- err
+			} else {
+				// JobID has been retrieved
+				ticker.Stop()
+			}
 		}
 	}
 }
 
-func (e *executionCommon) getJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
+func (e *executionCommon) getJobInfo(ctx context.Context) error {
 	var cmd string
 	if e.jobInfo.ID != "" {
 		cmd = fmt.Sprintf("squeue --noheader --job=%s -o \"%%A,%%T\"", e.jobInfo.ID)
@@ -226,23 +256,23 @@ func (e *executionCommon) getJobInfo(ctx context.Context, stopCh chan struct{}, 
 
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
-		log.Printf("stderr:%q", output)
-		errCh <- errors.Wrap(err, output)
+		return errors.Wrap(err, output)
 	}
 	out := strings.Trim(output, "\" \t\n\x00")
 	if out != "" {
 		d := strings.Split(out, ",")
 		if len(d) != 2 {
 			log.Debugf("Unexpected format job information:%q", out)
-			errCh <- errors.Errorf("Unexpected format job information:%q", out)
+			return errors.Errorf("Unexpected format job information:%q", out)
 		}
 		e.jobInfo.ID = d[0]
 		e.jobInfo.state = d[1]
 		mess := fmt.Sprintf("Job Name:%s, Job ID:%s, Job State:%s", e.jobInfo.name, e.jobInfo.ID, e.jobInfo.state)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(mess)
 	} else if e.jobInfo.batchMode {
-		e.endBatchExecution(ctx, stopCh)
+		return &jobIsDone{msg: "No more job info in squeue command"}
 	}
+	return nil
 }
 
 func (e *executionCommon) endBatchExecution(ctx context.Context, stopCh chan struct{}) {
@@ -380,8 +410,6 @@ func (e *executionCommon) fillJobCommandOpts() string {
 
 func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
 	opts := e.fillJobCommandOpts()
-	stopCh := make(chan struct{})
-	errCh := make(chan error)
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
 	e.OperationRemoteDir = path.Dir(execFile)
 	if e.jobInfo.batchMode {
@@ -390,14 +418,15 @@ func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		go e.pollBatchJobInfo(ctx, stopCh, errCh)
+		//go e.pollJobInfo(ctx, stopCh, errCh)
 		out, err := e.runBatchMode(ctx, opts, execFile)
 		return out, err
 	}
-	go e.pollInteractiveJobInfo(ctx, stopCh, errCh)
+	// In interactive mode, we need to retrieve the jobID elsewhere than in the output
+	stopCh := make(chan struct{})
+	errCh := make(chan error)
+	go e.retrieveJobID(ctx, stopCh, errCh)
 	out, err := e.runInteractiveMode(ctx, opts, execFile)
-	// Stop polling information in interactive mode
-	close(stopCh)
 	return out, err
 }
 

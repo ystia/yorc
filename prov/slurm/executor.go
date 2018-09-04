@@ -52,25 +52,37 @@ func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
-	log.Debugf("Slurm defaultExecutor: Execute the operation:%+v", operation)
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (string, error) {
+	log.Debugf("Slurm defaultExecutor: Execute the operation async:%+v", operation)
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {
-		return err
+		return "", err
 	}
 	kv := consulClient.KV()
 	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	// Execute operation
-	err = exec.execute(ctx)
-	if err != nil {
-		return err
+	// Execute operation asynchronously
+	errCh := make(chan error)
+	resultCh := make(chan string)
+	ctxExec, cancelExec := context.WithCancel(ctx)
+	go exec.execute(ctxExec, resultCh, errCh)
+	select {
+	case <-ctx.Done():
+		cancelExec()
+		return "", errors.New("cancellation signal has been sent: job is canceled")
+	case err := <-errCh:
+		return "", err
+	case jobID := <-resultCh:
+		log.Debugf("jobID is:%q", jobID)
+		return jobID, nil
 	}
+}
 
-	return nil
+func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+	return errors.New("only asynchronous operations are handled by this executor")
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {

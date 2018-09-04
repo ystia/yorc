@@ -38,6 +38,10 @@ type mockOperationExecutor struct {
 	lof                            events.LogOptionalFields
 }
 
+func (m *mockOperationExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (string, error) {
+	return "", errors.New("asynchronous operation is not yet handled by this executor")
+}
+
 func (m *mockOperationExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	m.execoperationCalled = true
 	m.ctx = ctx
@@ -76,7 +80,7 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 
 	plugin := raw.(prov.OperationExecutor)
 	op := prov.Operation{
-		Name:                   "myOps",
+		Name: "myOps",
 		ImplementationArtifact: "tosca.artifacts.Implementation.Bash",
 		RelOp: prov.RelationshipOperation{
 			IsRelationshipOperation: true,
@@ -120,7 +124,7 @@ func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 
 	plugin := raw.(prov.OperationExecutor)
 	op := prov.Operation{
-		Name:                   "myOps",
+		Name: "myOps",
 		ImplementationArtifact: "tosca.artifacts.Implementation.Bash",
 		RelOp: prov.RelationshipOperation{
 			IsRelationshipOperation: true,
