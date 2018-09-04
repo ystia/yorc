@@ -16,6 +16,12 @@ artifact_types:
     mime_type: application/x-yaml
     file_ext: [ yml, yaml ]
 
+  org.alien4cloud.artifacts.AnsiblePlaybook:
+    description: "null"
+    derived_from: tosca.artifacts.Implementation
+    mime_type: application/zip
+    file_ext: [ansible]
+
 data_types:
   yorc.datatypes.ProvisioningCredential:
     derived_from: tosca.datatypes.Credential
