@@ -79,9 +79,11 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 			}
 		}
 		if playbook == "" {
-			return errors.New("No PLAYBOOK_ENTRY input found for an alien4cloud ansible implementation")
+			err = errors.New("No PLAYBOOK_ENTRY input found for an alien4cloud ansible implementation")
 		}
-		e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, filepath.Dir(e.Primary), playbook))
+		if err == nil {
+			e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, filepath.Dir(e.Primary), playbook))
+		}
 	}
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
