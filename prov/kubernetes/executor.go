@@ -19,6 +19,7 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/ystia/yorc/config"
@@ -79,6 +80,13 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 	conf.TLSClientConfig.CAFile = kubConf.GetString("ca_file")
 	conf.TLSClientConfig.CertFile = kubConf.GetString("cert_file")
 	conf.TLSClientConfig.KeyFile = kubConf.GetString("key_file")
+
+	if kubConf == nil {
+		conf, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to build kubernetes InClusterConfig")
+		}
+	}
 
 	clientset, err := kubernetes.NewForConfig(conf)
 	return clientset, errors.Wrap(err, "Failed to create kubernetes clientset from config")
