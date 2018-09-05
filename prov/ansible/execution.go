@@ -1018,7 +1018,7 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 }
 
 func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
-	ansibleRecipePath string, outputHandler outputHandler) error {
+	ansibleRecipePath string, handler outputHandler) error {
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
 	cmd.Env = append(os.Environ(), "VAULT_PASSWORD="+e.vaultToken)
 	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
@@ -1054,13 +1054,13 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 		return err
 	}
 
-	err = outputHandler.start(cmdReader)
+	err = handler.start(cmdReader)
 	if err != nil {
 		log.Printf("[Warning] Could not start output handler: %s", err.Error())
 	}
 
 	err = cmd.Run()
-	handlerErr := outputHandler.stop()
+	handlerErr := handler.stop()
 	if handlerErr != nil {
 		log.Printf("[Warning] Could not stop output handler: %s", err.Error())
 	}
