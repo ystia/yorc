@@ -210,7 +210,7 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 
 	e.WrapperLocation = filepath.Join(e.DestFolder, "wrapper")
 
-	outputHandler := &scriptOutputHandler{execution: e, context: ctx}
+	outputHandler := &scriptOutputHandler{execution: e, context: ctx, instanceName: currentInstance}
 
 	var buffer bytes.Buffer
 

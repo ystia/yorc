@@ -28,8 +28,9 @@ import (
 // The handler is started before the script is run by the orchestrator,
 // and stopped once the script was run.
 type scriptOutputHandler struct {
-	execution *executionScript
-	context   context.Context
+	execution    *executionScript
+	context      context.Context
+	instanceName string
 }
 
 func (h *scriptOutputHandler) getWrappedCommand() string {
