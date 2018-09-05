@@ -92,3 +92,17 @@ type OperationExecutor interface {
 type InfraUsageCollector interface {
 	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error)
 }
+
+// Action represents an executable action
+type Action struct {
+	ID         string
+	ActionType string
+	Data       map[string]string
+}
+
+// ActionOperator is the interface for executing an action
+//
+// ExecAction allows to execute the action
+type ActionOperator interface {
+	ExecAction(ctx context.Context, conf config.Configuration, action Action, deploymentID string) error
+}

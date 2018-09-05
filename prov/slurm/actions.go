@@ -14,21 +14,33 @@
 
 package slurm
 
-import "github.com/ystia/yorc/registry"
-
-const (
-	artifactBinImplementation   = "yorc.artifacts.Deployment.SlurmJobBin"
-	artifactImageImplementation = "yorc.artifacts.Deployment.SlurmJobImage"
+import (
+	"context"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/prov"
 )
 
-func init() {
-	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.slurm\..*`}, newExecutor(&slurmGenerator{}), registry.BuiltinOrigin)
-	reg.RegisterOperationExecutor(
-		[]string{
-			artifactBinImplementation,
-			artifactImageImplementation,
-		}, &defaultExecutor{}, registry.BuiltinOrigin)
+type actionOperator struct {
+	client *sshutil.SSHClient
+}
 
-	reg.RegisterActionOperator([]string{"job-monitoring"}, &actionOperator{}, registry.BuiltinOrigin)
+func (o actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, action prov.Action, deploymentID string) error {
+	var err error
+	o.client, err = GetSSHClient(cfg)
+	if err != nil {
+		return err
+	}
+	switch action.ActionType {
+	case "job-monitoring":
+		return o.monitorJob()
+	default:
+		return errors.Errorf("Unsupported actionType %q", action.ActionType)
+	}
+	return nil
+}
+
+func (o actionOperator) monitorJob() error {
+	return nil
 }

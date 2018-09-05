@@ -51,6 +51,7 @@ type step struct {
 	kv                 *api.KV
 	workflowName       string
 	t                  *taskExecution
+	async              bool
 }
 
 type visitStep struct {
@@ -264,9 +265,10 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 			return err
 		}
 	}
-
-	log.Debugf("Task execution:%q for step:%q, workflow:%q, taskID:%q done without error.", s.t.id, s.name, s.workflowName, s.t.taskID)
-	s.setStatus(tasks.TaskStepStatusDONE)
+	if !s.async {
+		log.Debugf("Task execution:%q for step:%q, workflow:%q, taskID:%q done without error.", s.t.id, s.name, s.workflowName, s.t.taskID)
+		s.setStatus(tasks.TaskStepStatusDONE)
+	}
 	return nil
 }
 
@@ -339,6 +341,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		}
 		// In function of the operation, the execution is sync or async
 		if isAsyncOperation(op) {
+			s.async = true
 			err = func() error {
 				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
 				refID, err := exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.target, op)

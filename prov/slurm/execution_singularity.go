@@ -90,7 +90,7 @@ func (e *executionSingularity) runJobCommand(ctx context.Context) (string, error
 		if err != nil {
 			return "", err
 		}
-		go e.pollJobInfo(ctx, stopCh, errCh)
+		//go e.pollJobInfo(ctx, stopCh, errCh)
 		out, err := e.runBatchMode(ctx, opts)
 		return out, err
 	}
