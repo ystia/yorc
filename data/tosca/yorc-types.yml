@@ -17,7 +17,7 @@ artifact_types:
     file_ext: [ yml, yaml ]
 
   org.alien4cloud.artifacts.AnsiblePlaybook:
-    description: "null"
+    description: "Alien4Cloud Ansible Playbook artifact type"
     derived_from: tosca.artifacts.Implementation
     mime_type: application/zip
     file_ext: [ansible]
