@@ -17,6 +17,7 @@ package scheduling
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
@@ -45,6 +46,56 @@ type scheduler struct {
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
 func RegisterAction(deploymentID string, timeInterval time.Duration, action *prov.Action) error {
+	id := uuid.NewV4().String()
+
+	// Check mandatory parameters
+	if deploymentID == "" {
+		return errors.New("deploymentID is mandatory parameter to register scheduled action.")
+	}
+	if action == nil || action.ActionType == "" {
+		return errors.New("action.actionType is mandatory parameter to register scheduled action.")
+	}
+	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
+	scaOps := api.KVTxnOps{
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(scaPath, "deploymentID"),
+			Value: []byte(action.ActionType),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(scaPath, "type"),
+			Value: []byte(action.ActionType),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(scaPath, "interval"),
+			Value: []byte(timeInterval.String()),
+		},
+	}
+
+	if action.Data != nil {
+		for k, v := range action.Data {
+			scaOps = append(scaOps, &api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(scaPath, k),
+				Value: []byte(v),
+			})
+		}
+	}
+
+	ok, response, _, err := defaultScheduler.cc.KV().Txn(scaOps, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to register scheduled action for deploymentID:%q, type:%q, id:%q", deploymentID, action.ActionType, id)
+	}
+	if !ok {
+		// Check the response
+		errs := make([]string, 0)
+		for _, e := range response.Errors {
+			errs = append(errs, e.What)
+		}
+		return errors.Errorf("Failed to register scheduled action for deploymentID:%q, type:%q, id:% due to:%s", deploymentID, action.ActionType, id, strings.Join(errs, ", "))
+	}
 	return nil
 }
 
