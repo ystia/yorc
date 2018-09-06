@@ -44,6 +44,12 @@ type jobInfo struct {
 	inputs    map[string]string
 }
 
+type jobInfoShort struct {
+	ID    string
+	name  string
+	state string
+}
+
 type singularityInfo struct {
 	imageName string
 	imageURI  string

@@ -46,3 +46,6 @@ const MonitoringKVPrefix string = yorcPrefix + "/monitoring"
 
 // YorcServicePrefix is the prefix used for storing services keys
 const YorcServicePrefix = yorcPrefix + "/service"
+
+// SchedulingKVPrefix is the prefix in Consul KV store for scheduling
+const SchedulingKVPrefix string = yorcPrefix + "/scheduling"

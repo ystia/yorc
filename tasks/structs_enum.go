@@ -84,9 +84,11 @@ const (
 	TaskTypeCustomWorkflow
 	// TaskTypeQuery is a TaskType of type Query
 	TaskTypeQuery
+	// TaskTypeAction is a TaskType of type Action
+	TaskTypeAction
 )
 
-const _TaskTypeName = "DeployUnDeployScaleOutScaleInPurgeCustomCommandCustomWorkflowQuery"
+const _TaskTypeName = "DeployUnDeployScaleOutScaleInPurgeCustomCommandCustomWorkflowQueryAction"
 
 var _TaskTypeMap = map[TaskType]string{
 	0: _TaskTypeName[0:6],
@@ -97,6 +99,7 @@ var _TaskTypeMap = map[TaskType]string{
 	5: _TaskTypeName[34:47],
 	6: _TaskTypeName[47:61],
 	7: _TaskTypeName[61:66],
+	8: _TaskTypeName[66:72],
 }
 
 func (i TaskType) String() string {
@@ -115,6 +118,7 @@ var _TaskTypeValue = map[string]TaskType{
 	_TaskTypeName[34:47]: 5,
 	_TaskTypeName[47:61]: 6,
 	_TaskTypeName[61:66]: 7,
+	_TaskTypeName[66:72]: 8,
 }
 
 // ParseTaskType attempts to convert a string to a TaskType

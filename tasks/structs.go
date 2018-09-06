@@ -25,6 +25,7 @@ package tasks
 // CustomCommand,
 // CustomWorkflow,
 // Query,
+// Action
 // )
 type TaskType int
 
