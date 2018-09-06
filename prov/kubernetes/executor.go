@@ -68,24 +68,26 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 	kubConf := cfg.Infrastructures["kubernetes"]
 	kubMasterIP := kubConf.GetString("master_url")
 
-	if kubMasterIP == "" {
-		return nil, errors.New(`Missing or invalid mandatory parameter master_url in the "kubernetes" infrastructure configuration`)
-	}
-	conf, err := clientcmd.BuildConfigFromFlags(kubMasterIP, "")
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to build kubernetes config")
-	}
-
-	conf.TLSClientConfig.Insecure = kubConf.GetBool("insecure")
-	conf.TLSClientConfig.CAFile = kubConf.GetString("ca_file")
-	conf.TLSClientConfig.CertFile = kubConf.GetString("cert_file")
-	conf.TLSClientConfig.KeyFile = kubConf.GetString("key_file")
-
+	var conf *rest.Config
+	var err error
+	
 	if kubConf == nil {
 		conf, err = rest.InClusterConfig()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build kubernetes InClusterConfig")
 		}
+	}else{
+		if kubMasterIP == "" {
+			return nil, errors.New(`Missing or invalid mandatory parameter master_url in the "kubernetes" infrastructure configuration`)
+		}
+		conf, err = clientcmd.BuildConfigFromFlags(kubMasterIP, "")
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to build kubernetes config")
+		}
+		conf.TLSClientConfig.Insecure = kubConf.GetBool("insecure")
+		conf.TLSClientConfig.CAFile = kubConf.GetString("ca_file")
+		conf.TLSClientConfig.CertFile = kubConf.GetString("cert_file")
+		conf.TLSClientConfig.KeyFile = kubConf.GetString("key_file")
 	}
 
 	clientset, err := kubernetes.NewForConfig(conf)
