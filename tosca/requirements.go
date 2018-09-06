@@ -158,10 +158,11 @@ func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error)
 	}
 
 	var ra struct {
-		Capability      string `yaml:"capability"`
-		Node            string `yaml:"node,omitempty"`
-		Relationship    string `yaml:"relationship,omitempty"`
-		TypeRequirement string `yaml:"type_requirement,omitempty"`
+		Capability      string                      `yaml:"capability"`
+		Node            string                      `yaml:"node,omitempty"`
+		Relationship    string                      `yaml:"relationship,omitempty"`
+		TypeRequirement string                      `yaml:"type_requirement,omitempty"`
+		Properties      map[string]*ValueAssignment `yaml:"properties,omitempty"`
 	}
 
 	if err := unmarshal(&ra); err == nil {
@@ -169,6 +170,7 @@ func (r *RequirementAssignment) UnmarshalYAML(unmarshal func(interface{}) error)
 		r.Node = ra.Node
 		r.Relationship = ra.Relationship
 		r.TypeRequirement = ra.TypeRequirement
+		r.RelationshipProps = ra.Properties
 		return nil
 	}
 
