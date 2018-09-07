@@ -70,13 +70,13 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 
 	var conf *rest.Config
 	var err error
-	
+
 	if kubConf == nil {
 		conf, err = rest.InClusterConfig()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build kubernetes InClusterConfig")
 		}
-	}else{
+	} else {
 		if kubMasterIP == "" {
 			return nil, errors.New(`Missing or invalid mandatory parameter master_url in the "kubernetes" infrastructure configuration`)
 		}
