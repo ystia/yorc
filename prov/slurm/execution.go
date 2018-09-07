@@ -19,6 +19,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -32,13 +40,6 @@ import (
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"golang.org/x/sync/errgroup"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type execution interface {
@@ -404,7 +405,14 @@ func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
 }
 
 func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) (string, error) {
-	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
+	// Add inputs as env variables
+	var exports string
+	for k, v := range e.jobInfo.inputs {
+		log.Debugf("Add env var with key:%q and value:%q", k, v)
+		export := fmt.Sprintf("export %s=%s;", k, v)
+		exports += export
+	}
+	cmd := fmt.Sprintf("%s; srun %s %s %s", exports, opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
 	cmd = strings.Trim(cmd, "")
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
