@@ -26,20 +26,3 @@ for p in $(curl -s -u "${BINTRAY_USER}:${BINTRAY_API_KEY}" "https://api.bintray.
 	curl -s -u "${BINTRAY_USER}:${BINTRAY_API_KEY}" "https://api.bintray.com/content/ystia/yorc-engine/${p}" -X DELETE | jq '.message' -r
 	echo
 done
-
-echo "cleanup plugin snapshots older than ${date_lang}"
-
-for p in $(curl -s -u "${BINTRAY_USER}:${BINTRAY_API_KEY}" "https://api.bintray.com/packages/ystia/yorc-a4c-plugin/distributions/files" | jq ".[] | select((.path | startswith(\"snapshots\")) and ( .path | startswith(\"snapshots/develop\") | not ) and (.created < \"${purge_date}\" )) | .path" -r) ; do
-	echo "deleting path $p"
-	curl -s -u "${BINTRAY_USER}:${BINTRAY_API_KEY}" "https://api.bintray.com/content/ystia/yorc-a4c-plugin/${p}" -X DELETE | jq '.message' -r
-	echo
-done
-
-echo "cleanup forge snapshots older than ${date_lang}"
-
-for p in $(curl -s -u "${BINTRAY_USER}:${BINTRAY_API_KEY}" "https://api.bintray.com/packages/ystia/forge/distributions/files" | jq ".[] | select((.path | startswith(\"snapshots\")) and ( .path | startswith(\"snapshots/develop\") | not ) and (.created < \"${purge_date}\" )) | .path" -r) ; do
-        echo "deleting path $p"
-        curl -s -u "${BINTRAY_USER}:${BINTRAY_API_KEY}" "https://api.bintray.com/content/ystia/forge/${p}" -X DELETE | jq '.message' -r
-        echo
-done
-
