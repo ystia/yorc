@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* REQ_TARGET keyword into TOSCA functions was broken. This was introduced during the upgrade to Alien4Cloud 2.0 that changed how requirements definition on node templates ([GH-159](https://github.com/ystia/yorc/issues/159))
+
 ### ENHANCEMENTS
 
 * Concurrent workflows and custom commands executions are now allowed except when a deployment/undeployment/scaling operation is in progress ([GH-182](https://github.com/ystia/yorc/issues/182))
