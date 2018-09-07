@@ -22,7 +22,6 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/collector"
 	"path"
 	"strings"
@@ -46,6 +45,7 @@ type scheduler struct {
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
 func RegisterAction(deploymentID string, timeInterval time.Duration, action *prov.Action) error {
+	log.Debugf("Action:%+v has been requested to be registered for scheduling with [deploymentID:%q, timeInterval:%q]", action, deploymentID, timeInterval.String())
 	id := uuid.NewV4().String()
 
 	// Check mandatory parameters
@@ -53,7 +53,7 @@ func RegisterAction(deploymentID string, timeInterval time.Duration, action *pro
 		return errors.New("deploymentID is mandatory parameter to register scheduled action.")
 	}
 	if action == nil || action.ActionType == "" {
-		return errors.New("action.actionType is mandatory parameter to register scheduled action.")
+		return errors.New("actionType is mandatory parameter to register scheduled action.")
 	}
 	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
 	scaOps := api.KVTxnOps{
@@ -94,23 +94,34 @@ func RegisterAction(deploymentID string, timeInterval time.Duration, action *pro
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to register scheduled action for deploymentID:%q, type:%q, id:% due to:%s", deploymentID, action.ActionType, id, strings.Join(errs, ", "))
+		return errors.Errorf("Failed to register scheduled action for deploymentID:%q, type:%q, id:%q due to:%s", deploymentID, action.ActionType, id, strings.Join(errs, ", "))
 	}
 	return nil
 }
 
 // UnregisterAction allows to unregister a scheduled action and to stop scheduling it
 func UnregisterAction(id string) error {
+	return defaultScheduler.flagForRemoval(id)
+}
+
+// unregisterAction allows to unregister a scheduled action
+func (sc *scheduler) unregisterAction(id string) error {
+	log.Debugf("Removing scheduled action with id:%q", id)
+	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
+	_, err := sc.cc.KV().DeleteTree(scaPath, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to delete scheduled action with id:%q", id)
+	}
 	return nil
 }
 
-func run(sca *scheduledAction) error {
-	taskID, err := defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.action.Data)
-	if err != nil {
-		return err
-	}
-	log.Debugf("Run scheduled action:%+v with taskID:%q", sca, taskID)
-	return nil
+// flagForRemoval allows to flag a scheduled action for removal
+func (sc *scheduler) flagForRemoval(id string) error {
+	log.Debugf("Flag for removal scheduled action with id:%q", id)
+	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
+	kvp := &api.KVPair{Key: path.Join(scaPath, ".unregisterFlag"), Value: []byte("true")}
+	_, err := sc.cc.KV().Put(kvp, nil)
+	return errors.Wrap(err, "Failed to flag scheduled action for removal")
 }
 
 // Start allows to instantiate a default scheduler, poll for scheduled actions and schedule them
@@ -168,8 +179,8 @@ func (sc scheduler) startScheduling() {
 			}
 
 			q := &api.QueryOptions{WaitIndex: waitIndex}
-			checks, rMeta, err := sc.cc.KV().Keys(path.Join(consulutil.SchedulingKVPrefix, "actions")+"/", "/", q)
-			log.Debugf("Found %d actions", len(checks))
+			actions, rMeta, err := sc.cc.KV().Keys(path.Join(consulutil.SchedulingKVPrefix, "actions")+"/", "/", q)
+			log.Debugf("Found %d actions", len(actions))
 			if err != nil {
 				handleError(err)
 				continue
@@ -181,14 +192,8 @@ func (sc scheduler) startScheduling() {
 			}
 			waitIndex = rMeta.LastIndex
 			log.Debugf("Scheduling Wait index: %d", waitIndex)
-			for _, key := range checks {
+			for _, key := range actions {
 				id := path.Base(key)
-				action := &scheduledAction{}
-				if err != nil {
-					handleError(err)
-					continue
-				}
-
 				// Handle unregistration
 				kvp, _, err := sc.cc.KV().Get(path.Join(key, ".unregisterFlag"), nil)
 				if err != nil {
@@ -196,37 +201,28 @@ func (sc scheduler) startScheduling() {
 					continue
 				}
 				if kvp != nil && len(kvp.Value) > 0 && strings.ToLower(string(kvp.Value)) == "true" {
-					log.Debugf("Scheduled action with id:%q has been requested to be stopped and unregister", id)
+					log.Debugf("Scheduled action with id:%q has been requested to be stopped and unregistered", id)
 					actionToStop, is := sc.actions[id]
 					if is {
 						// Stop the scheduled action
 						actionToStop.stop()
-						// Remove it from the manager checks
+						// Remove it from actions
 						delete(sc.actions, id)
 						// Unregister it definitively
-						UnregisterAction(id)
+						sc.unregisterAction(id)
 					}
 					continue
 				}
-
-				kvp, _, err = sc.cc.KV().Get(path.Join(key, "interval"), nil)
+				sca, err := sc.buildScheduledAction(id)
 				if err != nil {
 					handleError(err)
 					continue
 				}
-				if kvp != nil && len(kvp.Value) > 0 {
-					d, err := time.ParseDuration(string(kvp.Value))
-					if err != nil {
-						handleError(err)
-						continue
-					}
-					action.timeInterval = d
-				}
 				// Store the action if not already present and start it
 				_, is := sc.actions[id]
 				if !is {
-					sc.actions[action.id] = action
-					action.start()
+					sc.actions[sca.ID] = sca
+					sca.start()
 				}
 			}
 		}
@@ -246,4 +242,39 @@ func (sc scheduler) stopScheduling() {
 			action.stop()
 		}
 	}
+}
+
+func (sc scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
+	kvps, _, err := sc.cc.KV().List(path.Join(consulutil.SchedulingKVPrefix, "actions", id), nil)
+	if err != nil {
+		return nil, err
+	}
+	sca := &scheduledAction{}
+	sca.ID = id
+	sca.Data = make(map[string]string)
+	for _, kvp := range kvps {
+		switch kvp.Key {
+		case "deploymentID":
+			if kvp != nil && len(kvp.Value) > 0 {
+				sca.deploymentID = string(kvp.Value)
+			}
+		case "type":
+			if kvp != nil && len(kvp.Value) > 0 {
+				sca.ActionType = string(kvp.Value)
+			}
+		case "interval":
+			if kvp != nil && len(kvp.Value) > 0 {
+				d, err := time.ParseDuration(string(kvp.Value))
+				if err != nil {
+					return nil, err
+				}
+				sca.timeInterval = d
+			}
+		default:
+			if kvp != nil && len(kvp.Value) > 0 {
+				sca.Data[kvp.Key] = string(kvp.Value)
+			}
+		}
+	}
+	return sca, nil
 }

@@ -344,9 +344,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			s.async = true
 			err = func() error {
 				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
-				refID, err := exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.target, op)
-				log.Debugf("jobID:%q has been retrieved and must be used for polling job information in next time", refID)
-				return err
+				return exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.target, op)
 			}()
 		} else {
 			err = func() error {

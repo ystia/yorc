@@ -17,28 +17,19 @@ package scheduling
 import (
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
 	"sync"
 	"time"
 )
 
 type scheduledAction struct {
-	id           string
+	prov.Action
 	deploymentID string
 	timeInterval time.Duration
-	action       prov.Action
 
 	stopScheduling     bool
 	stopSchedulingLock sync.Mutex
 	chStop             chan struct{}
-}
-
-func newScheduledAction(id, deploymentID string, timeInterval time.Duration, action prov.Action) *scheduledAction {
-	return &scheduledAction{
-		id:           id,
-		deploymentID: deploymentID,
-		timeInterval: timeInterval,
-		action:       action,
-	}
 }
 
 func (sca *scheduledAction) start() {
@@ -66,15 +57,26 @@ func (sca *scheduledAction) schedule() {
 	for {
 		select {
 		case <-sca.chStop:
-			log.Debugf("Stop scheduling action with id:%s", sca.id)
+			log.Debugf("Stop scheduling action with id:%s", sca.ID)
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			err := run(sca)
+			err := sca.proceed()
 			if err != nil {
 				log.Printf("Failed to schedule action:%+v due to err:%+v", sca, err)
 				ticker.Stop()
 			}
 		}
 	}
+}
+
+func (sca *scheduledAction) proceed() error {
+	// To fit with Task Manager, pass the actionType in data
+	sca.Data["type"] = sca.ActionType
+	taskID, err := defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Proceed scheduled action:%+v with taskID:%q", sca, taskID)
+	return nil
 }

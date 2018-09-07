@@ -24,16 +24,17 @@ import (
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/scheduling"
 	"github.com/ystia/yorc/tasks"
 )
 
 type actionOperator struct {
 	client *sshutil.SSHClient
 	kv     *api.KV
-	action prov.Action
+	action *prov.Action
 }
 
-func (o actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, action prov.Action, deploymentID string) error {
+func (o actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) error {
 	var err error
 	o.client, err = GetSSHClient(cfg)
 	if err != nil {
@@ -82,6 +83,10 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 			// If batch job, cleanup needs to be processed
 			//e.endBatchExecution(ctx, stopCh)
 			// action scheduling needs to be unregistered
+			err = scheduling.UnregisterAction(o.action.ID)
+			if err != nil {
+				return errors.Wrapf(err, "failed to unregister job Monitoring job info with actionID:%q, jobID:%q", o.action.ID, jobID)
+			}
 			// job running step must be set to done and workflow must be resumed
 
 		} else {

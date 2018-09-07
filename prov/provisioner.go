@@ -83,7 +83,7 @@ func (ro RelationshipOperation) String() string {
 // It needs to return the referenceID related to the operation execution in order to monitor it
 type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
-	ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) (string, error)
+	ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
 }
 
 // InfraUsageCollector is the interface for collecting information about infrastructure usage
@@ -104,5 +104,5 @@ type Action struct {
 //
 // ExecAction allows to execute the action
 type ActionOperator interface {
-	ExecAction(ctx context.Context, conf config.Configuration, action Action, deploymentID string) error
+	ExecAction(ctx context.Context, conf config.Configuration, taskID, deploymentID string, action *Action) error
 }

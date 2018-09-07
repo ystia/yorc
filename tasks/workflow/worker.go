@@ -320,6 +320,8 @@ func (w *worker) handleExecution(t *taskExecution) {
 		w.runCustomWorkflow(ctx, t)
 	case tasks.TaskTypeQuery:
 		w.runQuery(ctx, t)
+	case tasks.TaskTypeAction:
+		w.runAction(ctx, t)
 	default:
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).RegisterAsString(fmt.Sprintf("Unknown TaskType %d (%s) for TaskExecution with id %q", t.taskType, t.taskType.String(), t.taskID))
 		log.Printf("Unknown TaskType %d (%s) for TaskExecution with id %q and targetId %q", t.taskType, t.taskType.String(), t.taskID, t.targetID)
@@ -395,6 +397,39 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 	}
 	t.checkAndSetTaskStatus(ctx, tasks.TaskStatusDONE)
 	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "successes"}), 1)
+}
+
+func (w *worker) runAction(ctx context.Context, t *taskExecution) {
+	kv := w.consulClient.KV()
+	actionType, err := tasks.GetTaskData(kv, t.taskID, "type")
+	if err != nil {
+		log.Printf("Deployment id: %q, Task id: %q Failed: %+v", t.targetID, t.taskID, err)
+		log.Debugf("%+v", err)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		return
+	}
+
+	// Find an actionOperator which match with this actionType
+	var reg = registry.GetRegistry()
+	operator, err := reg.GetActionOperator(actionType)
+	if err != nil {
+		log.Printf("Action Task id: %q Failed to find matching operator: %+v", t.taskID, err)
+		log.Debugf("%+v", err)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		return
+	}
+
+	action := &prov.Action{}
+	//FIXME retrieve data
+	err = operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
+	if err != nil {
+		log.Printf("Action Task id: %q Failed to run action: %+v", t.taskID, err)
+		log.Debugf("%+v", err)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		return
+	}
+	t.checkAndSetTaskStatus(ctx, tasks.TaskStatusDONE)
+	log.Printf("Action:%+v successfully executed", action)
 }
 
 func (w *worker) runQuery(ctx context.Context, t *taskExecution) {

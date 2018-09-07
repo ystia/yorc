@@ -17,6 +17,7 @@ package slurm
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/prov/scheduling"
 	"strings"
 
 	"sync"
@@ -52,16 +53,16 @@ func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
 }
 
-func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (string, error) {
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Debugf("Slurm defaultExecutor: Execute the operation async:%+v", operation)
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {
-		return "", err
+		return err
 	}
 	kv := consulClient.KV()
 	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// Execute operation asynchronously
@@ -72,13 +73,26 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 	select {
 	case <-ctx.Done():
 		cancelExec()
-		return "", errors.New("cancellation signal has been sent: job is canceled")
+		return errors.New("cancellation signal has been sent: job is canceled")
 	case err := <-errCh:
-		return "", err
+		return err
 	case jobID := <-resultCh:
-		log.Debugf("jobID is:%q", jobID)
-		return jobID, nil
+		log.Debugf("Register job monitoring for jobID:%q", jobID)
+		return e.RegisterJobMonitoringAction(ctx, conf, taskID, deploymentID, nodeName, jobID, operation)
 	}
+}
+
+func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, jobID string, operation prov.Operation) error {
+	// Fill all used data for job monitoring
+	data := make(map[string]string)
+	data["nodeName"] = nodeName
+	data["operationName"] = operation.Name
+	data["taskID"] = taskID
+	data["jobID"] = jobID
+
+	jobMonitoringAction := &prov.Action{ActionType: "job-monitoring", Data: data}
+	//FIXME jobMonitoring interval should be a job property or a config param
+	return scheduling.RegisterAction(deploymentID, 5*time.Second, jobMonitoringAction)
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
