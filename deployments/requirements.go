@@ -201,7 +201,7 @@ func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requi
 	}
 
 	for _, req := range kvp {
-		reqKv, _, err := kv.Get(req+"/name", nil)
+		reqKv, _, err := kv.Get(req+"/type_requirement", nil)
 		if err != nil || kv == nil {
 			return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
