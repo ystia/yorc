@@ -41,6 +41,7 @@ type scheduler struct {
 	isActiveLock     sync.Mutex
 	cfg              config.Configuration
 	actions          map[string]*scheduledAction
+	actionsLock      sync.RWMutex
 }
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
@@ -50,17 +51,17 @@ func RegisterAction(deploymentID string, timeInterval time.Duration, action *pro
 
 	// Check mandatory parameters
 	if deploymentID == "" {
-		return errors.New("deploymentID is mandatory parameter to register scheduled action.")
+		return errors.New("deploymentID is mandatory parameter to register scheduled action")
 	}
 	if action == nil || action.ActionType == "" {
-		return errors.New("actionType is mandatory parameter to register scheduled action.")
+		return errors.New("actionType is mandatory parameter to register scheduled action")
 	}
 	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
 	scaOps := api.KVTxnOps{
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(scaPath, "deploymentID"),
-			Value: []byte(action.ActionType),
+			Value: []byte(deploymentID),
 		},
 		&api.KVTxnOp{
 			Verb:  api.KVSet,
@@ -207,7 +208,9 @@ func (sc scheduler) startScheduling() {
 						// Stop the scheduled action
 						actionToStop.stop()
 						// Remove it from actions
+						sc.actionsLock.Lock()
 						delete(sc.actions, id)
+						sc.actionsLock.Unlock()
 						// Unregister it definitively
 						sc.unregisterAction(id)
 					}
@@ -219,9 +222,17 @@ func (sc scheduler) startScheduling() {
 					continue
 				}
 				// Store the action if not already present and start it
+				sc.actionsLock.RLock()
+				for k, v := range sc.actions {
+					log.Debugf("actions k:%q, v:%+v", k, v)
+				}
 				_, is := sc.actions[id]
+				sc.actionsLock.RUnlock()
 				if !is {
-					sc.actions[sca.ID] = sca
+					log.Debugf("start action id:%q", id)
+					sc.actionsLock.Lock()
+					sc.actions[id] = sca
+					sc.actionsLock.Unlock()
 					sca.start()
 				}
 			}
@@ -253,7 +264,8 @@ func (sc scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 	sca.ID = id
 	sca.Data = make(map[string]string)
 	for _, kvp := range kvps {
-		switch kvp.Key {
+		key := path.Base(kvp.Key)
+		switch key {
 		case "deploymentID":
 			if kvp != nil && len(kvp.Value) > 0 {
 				sca.deploymentID = string(kvp.Value)
@@ -272,7 +284,7 @@ func (sc scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 			}
 		default:
 			if kvp != nil && len(kvp.Value) > 0 {
-				sca.Data[kvp.Key] = string(kvp.Value)
+				sca.Data[key] = string(kvp.Value)
 			}
 		}
 	}

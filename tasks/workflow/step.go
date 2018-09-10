@@ -344,7 +344,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			s.async = true
 			err = func() error {
 				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
-				return exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.target, op)
+				return exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.target, op, s.name)
 			}()
 		} else {
 			err = func() error {

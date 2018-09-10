@@ -316,7 +316,7 @@ func getJobInfo(client *sshutil.SSHClient, jobID, jobName string) (*jobInfoShort
 	out := strings.Trim(output, "\" \t\n\x00")
 	if out != "" {
 		d := strings.Split(out, ",")
-		if len(d) != 2 {
+		if len(d) != 3 {
 			log.Debugf("Unexpected format job information:%q", out)
 			return nil, errors.Errorf("Unexpected format:%q for command:%q", cmd, out)
 		}

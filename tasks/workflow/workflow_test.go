@@ -157,7 +157,7 @@ func (m *mockExecutor) ExecOperation(ctx context.Context, conf config.Configurat
 	}
 	return nil
 }
-func (m *mockExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+func (m *mockExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) error {
 	return errors.New("Asynchronous operation is not yet handled by this executor")
 }
 

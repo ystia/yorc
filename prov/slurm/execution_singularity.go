@@ -83,7 +83,7 @@ func (e *executionSingularity) runJobCommand(ctx context.Context) (string, error
 	opts := e.fillJobCommandOpts()
 	stopCh := make(chan struct{})
 	errCh := make(chan error)
-	e.OperationRemoteDir = e.OperationRemoteBaseDir
+	e.OperationRemoteExecDir = e.OperationRemoteBaseDir
 	if e.jobInfo.batchMode {
 		// get outputs for batch mode
 		err := e.searchForBatchOutputs(ctx)

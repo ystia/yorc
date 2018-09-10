@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ystia/yorc/prov/scheduling"
+	"strconv"
 	"strings"
 
 	"sync"
@@ -53,7 +54,7 @@ func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
 }
 
-func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) error {
 	log.Debugf("Slurm defaultExecutor: Execute the operation async:%+v", operation)
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {
@@ -78,17 +79,22 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 		return err
 	case jobID := <-resultCh:
 		log.Debugf("Register job monitoring for jobID:%q", jobID)
-		return e.RegisterJobMonitoringAction(ctx, conf, taskID, deploymentID, nodeName, jobID, operation)
+		return e.RegisterJobMonitoringAction(ctx, conf, taskID, deploymentID, nodeName, jobID, operation, stepName, exec.getExecutionProperties())
 	}
 }
 
-func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, jobID string, operation prov.Operation) error {
+func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, jobID string, operation prov.Operation, stepName string, props *executionProperties) error {
 	// Fill all used data for job monitoring
 	data := make(map[string]string)
 	data["nodeName"] = nodeName
 	data["operationName"] = operation.Name
 	data["taskID"] = taskID
 	data["jobID"] = jobID
+	data["stepName"] = stepName
+	data["isBatch"] = strconv.FormatBool(props.isBatch)
+	data["remoteBaseDirectory"] = props.remoteBaseDirectory
+	data["remoteExecDirectory"] = props.remoteExecDirectory
+	data["outputs"] = props.outputs
 
 	jobMonitoringAction := &prov.Action{ActionType: "job-monitoring", Data: data}
 	//FIXME jobMonitoring interval should be a job property or a config param

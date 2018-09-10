@@ -110,13 +110,16 @@ func (c *Collector) ResumeTask(taskID string) error {
 }
 
 func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data map[string]string) (string, error) {
-	// First check if other tasks are running for this target before creating a new one
-	hasLivingTask, livingTaskID, livingTaskStatus, err := tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID)
-	if err != nil {
-		return "", err
-	} else if hasLivingTask {
-		return "", tasks.NewAnotherLivingTaskAlreadyExistsError(livingTaskID, targetID, livingTaskStatus)
+	// First check if other tasks are running for this target before creating a new one except for Action tasks
+	if tasks.TaskTypeAction != taskType {
+		hasLivingTask, livingTaskID, livingTaskStatus, err := tasks.TargetHasLivingTasks(c.consulClient.KV(), targetID)
+		if err != nil {
+			return "", err
+		} else if hasLivingTask {
+			return "", tasks.NewAnotherLivingTaskAlreadyExistsError(livingTaskID, targetID, livingTaskStatus)
+		}
 	}
+
 	taskID := fmt.Sprint(uuid.NewV4())
 	taskPath := path.Join(consulutil.TasksPrefix, taskID)
 	creationDate, err := time.Now().MarshalBinary()

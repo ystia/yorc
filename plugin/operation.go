@@ -68,7 +68,7 @@ type OperationExecutorClient struct {
 
 // ExecAsyncOperation is public for use by reflexion and should be considered as private to this package.
 // Please do not use it directly.
-func (c *OperationExecutorClient) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+func (c *OperationExecutorClient) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) error {
 	return errors.New("Asynchronous operation is not yet handled by this executor")
 }
 

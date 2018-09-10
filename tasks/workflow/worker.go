@@ -400,18 +400,39 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 }
 
 func (w *worker) runAction(ctx context.Context, t *taskExecution) {
-	kv := w.consulClient.KV()
-	actionType, err := tasks.GetTaskData(kv, t.taskID, "type")
+	action := &prov.Action{}
+	action.Data = make(map[string]string)
+	kvps, _, err := w.consulClient.KV().List(path.Join(consulutil.TasksPrefix, t.taskID), nil)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q Failed: %+v", t.targetID, t.taskID, err)
 		log.Debugf("%+v", err)
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
+	for _, kvp := range kvps {
+		key := path.Base(kvp.Key)
+		switch key {
+		case "id":
+			if kvp != nil && len(kvp.Value) > 0 {
+				action.ID = string(kvp.Value)
+			}
+		case "actionType":
+			if kvp != nil && len(kvp.Value) > 0 {
+				action.ActionType = string(kvp.Value)
+			}
+		case "creationDate", "status", "targetId", "type":
+			// Ignore task specific keys
+			continue
+		default:
+			if kvp != nil && len(kvp.Value) > 0 {
+				action.Data[key] = string(kvp.Value)
+			}
+		}
+	}
 
 	// Find an actionOperator which match with this actionType
 	var reg = registry.GetRegistry()
-	operator, err := reg.GetActionOperator(actionType)
+	operator, err := reg.GetActionOperator(action.ActionType)
 	if err != nil {
 		log.Printf("Action Task id: %q Failed to find matching operator: %+v", t.taskID, err)
 		log.Debugf("%+v", err)
@@ -419,8 +440,6 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) {
 		return
 	}
 
-	action := &prov.Action{}
-	//FIXME retrieve data
 	err = operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
 	if err != nil {
 		log.Printf("Action Task id: %q Failed to run action: %+v", t.taskID, err)

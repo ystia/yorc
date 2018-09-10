@@ -31,7 +31,7 @@ type defaultExecutor struct {
 	clientset *kubernetes.Clientset
 }
 
-func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) error {
 	return errors.New("Asynchronous operation is not yet handled by this executor")
 }
 

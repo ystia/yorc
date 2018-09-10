@@ -45,6 +45,7 @@ import (
 type execution interface {
 	resolveExecution() error
 	execute(ctx context.Context, resultCh chan string, errCh chan error)
+	getExecutionProperties() *executionProperties
 }
 
 type operationNotImplemented struct {
@@ -59,8 +60,15 @@ func (oni operationNotImplemented) Error() string {
 	return oni.msg
 }
 
-func (jid jobIsDone) Error() string {
+func (jid *jobIsDone) Error() string {
 	return jid.msg
+}
+
+type executionProperties struct {
+	isBatch             bool
+	remoteBaseDirectory string
+	remoteExecDirectory string
+	outputs             string
 }
 
 type executionCommon struct {
@@ -84,7 +92,7 @@ type executionCommon struct {
 	jobInfo                *jobInfo
 	lof                    events.LogOptionalFields
 	jobInfoPolling         time.Duration
-	OperationRemoteDir     string
+	OperationRemoteExecDir string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
@@ -114,6 +122,15 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 
 	return execCommon, execCommon.resolveExecution()
+}
+
+func (e *executionCommon) getExecutionProperties() *executionProperties {
+	return &executionProperties{
+		outputs:             strings.Join(e.jobInfo.outputs, ","),
+		isBatch:             e.jobInfo.batchMode,
+		remoteBaseDirectory: e.OperationRemoteBaseDir,
+		remoteExecDirectory: e.OperationRemoteExecDir,
+	}
 }
 
 func (e *executionCommon) resolveOperation() error {
@@ -187,37 +204,6 @@ func (e *executionCommon) execute(ctx context.Context, resultCh chan string, err
 	}
 }
 
-func (e *executionCommon) pollJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
-	ticker := time.NewTicker(e.jobInfoPolling)
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debugf("Task has been cancelled. The job information polling is stopping now")
-			ticker.Stop()
-			return
-		case <-stopCh:
-			log.Debugf("The job is done so job information polling is stopping now")
-			ticker.Stop()
-			return
-		case m := <-errCh:
-			log.Debugf("Unblocking error occurred retrieving job information due to:%s", m)
-			ticker.Stop()
-			return
-		case <-ticker.C:
-			err := e.getJobInfo(ctx)
-			if err != nil {
-				log.Printf("stderr:%q", err)
-				_, jobIsDone := err.(jobIsDone)
-				if jobIsDone {
-					e.endBatchExecution(ctx, stopCh)
-				} else {
-					errCh <- err
-				}
-			}
-		}
-	}
-}
-
 func (e *executionCommon) retrieveJobID(ctx context.Context, stopCh chan struct{}, errCh chan error) {
 	ticker := time.NewTicker(e.jobInfoPolling)
 	for {
@@ -273,19 +259,6 @@ func (e *executionCommon) getJobInfo(ctx context.Context) error {
 		return &jobIsDone{msg: "No more job info in squeue command"}
 	}
 	return nil
-}
-
-func (e *executionCommon) endBatchExecution(ctx context.Context, stopCh chan struct{}) {
-	// We consider job is done and we stop the polling
-	close(stopCh)
-	err := e.handleBatchOutputs(ctx)
-	if err != nil {
-		log.Printf("%+v", err)
-	}
-	err = e.cleanUp()
-	if err != nil {
-		log.Printf("%+v", err)
-	}
 }
 
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
@@ -411,7 +384,7 @@ func (e *executionCommon) fillJobCommandOpts() string {
 func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
 	opts := e.fillJobCommandOpts()
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
-	e.OperationRemoteDir = path.Dir(execFile)
+	e.OperationRemoteExecDir = path.Dir(execFile)
 	if e.jobInfo.batchMode {
 		// get outputs for batch mode
 		err := e.searchForBatchOutputs(ctx)
@@ -500,41 +473,6 @@ func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
 	}
 	e.jobInfo.outputs = append(outputs, o...)
 	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
-	return nil
-}
-
-func (e *executionCommon) handleBatchOutputs(ctx context.Context) error {
-	if len(e.jobInfo.outputs) == 0 {
-		e.jobInfo.outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
-	}
-	// Copy the outputs in <JOB_ID>_outputs directory at root level
-	outputDir := fmt.Sprintf("job_" + e.jobInfo.ID + "_outputs")
-	cmd := fmt.Sprintf("mkdir %s", outputDir)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		return errors.Wrap(err, output)
-	}
-	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
-	for _, out := range e.jobInfo.outputs {
-		oldPath := path.Join(e.OperationRemoteDir, out)
-		newPath := path.Join(outputDir, out)
-		// Copy the file in the output dir
-		cmd := fmt.Sprintf("cp -f %s %s", oldPath, newPath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		output, err := e.client.RunCommand(cmd)
-		if err != nil {
-			return errors.Wrap(err, output)
-		}
-		// Log the output
-		cmd = fmt.Sprintf("cat %s", newPath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		output, err = e.client.RunCommand(cmd)
-		if err != nil {
-			return errors.Wrap(err, output)
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString("\n" + output)
-	}
 	return nil
 }
 

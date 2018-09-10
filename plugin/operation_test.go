@@ -38,7 +38,7 @@ type mockOperationExecutor struct {
 	lof                            events.LogOptionalFields
 }
 
-func (m *mockOperationExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+func (m *mockOperationExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) error {
 	return errors.New("asynchronous operation is not yet handled by this executor")
 }
 

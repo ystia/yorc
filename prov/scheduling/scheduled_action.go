@@ -71,8 +71,9 @@ func (sca *scheduledAction) schedule() {
 }
 
 func (sca *scheduledAction) proceed() error {
-	// To fit with Task Manager, pass the actionType in data
-	sca.Data["type"] = sca.ActionType
+	// To fit with Task Manager, pass the id/actionType in data
+	sca.Data["actionType"] = sca.ActionType
+	sca.Data["id"] = sca.ID
 	taskID, err := defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
 	if err != nil {
 		return err
