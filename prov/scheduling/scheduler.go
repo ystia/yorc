@@ -132,7 +132,7 @@ func Start(cfg config.Configuration, cc *api.Client) {
 		collector:  collector.NewCollector(cc),
 		chShutdown: make(chan struct{}),
 		isActive:   false,
-		serviceKey: path.Join(consulutil.YorcServicePrefix, "/monitoring/leader"),
+		serviceKey: path.Join(consulutil.YorcServicePrefix, "/scheduling/leader"),
 		cfg:        cfg,
 	}
 	// Watch leader election for scheduler
