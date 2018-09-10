@@ -162,6 +162,7 @@ type executionCommon struct {
 	sourceNodeInstances      []string
 	targetNodeInstances      []string
 	cli                      *client.Client
+	containerID              string
 	vaultToken               string
 }
 
@@ -720,12 +721,13 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 
 func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx context.Context, buffer *bytes.Buffer) error {
 	if e.cli != nil && e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
-		containerID, err := createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID)
+		var err error
+		e.containerID, err = createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID)
 		if err != nil {
 			return err
 		}
 		buffer.WriteString(" ansible_connection=docker ansible_host=")
-		buffer.WriteString(containerID)
+		buffer.WriteString(e.containerID)
 	} else if e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
 		buffer.WriteString(" ansible_connection=local")
 	} else {
