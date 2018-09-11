@@ -41,7 +41,7 @@ type scheduler struct {
 	isActiveLock     sync.Mutex
 	cfg              config.Configuration
 	actions          map[string]*scheduledAction
-	actionsLock      sync.RWMutex
+	actionsLock      sync.Mutex
 }
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
@@ -154,13 +154,11 @@ func handleError(err error) {
 	log.Debugf("%+v", err)
 }
 
-func (sc scheduler) startScheduling() {
+func (sc *scheduler) startScheduling() {
 	if sc.isActive {
 		log.Println("Scheduling service is already running.")
 		return
 	}
-	log.Debugf("Scheduling service is now running.")
-
 	sc.isActiveLock.Lock()
 	sc.isActive = true
 	sc.isActiveLock.Unlock()
@@ -222,12 +220,7 @@ func (sc scheduler) startScheduling() {
 					continue
 				}
 				// Store the action if not already present and start it
-				sc.actionsLock.RLock()
-				for k, v := range sc.actions {
-					log.Debugf("actions k:%q, v:%+v", k, v)
-				}
 				_, is := sc.actions[id]
-				sc.actionsLock.RUnlock()
 				if !is {
 					log.Debugf("start action id:%q", id)
 					sc.actionsLock.Lock()
@@ -240,7 +233,7 @@ func (sc scheduler) startScheduling() {
 	}()
 }
 
-func (sc scheduler) stopScheduling() {
+func (sc *scheduler) stopScheduling() {
 	if defaultScheduler.isActive {
 		log.Debugf("Scheduling service is about to be stopped")
 		close(defaultScheduler.chStopScheduling)
@@ -255,7 +248,7 @@ func (sc scheduler) stopScheduling() {
 	}
 }
 
-func (sc scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
+func (sc *scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 	kvps, _, err := sc.cc.KV().List(path.Join(consulutil.SchedulingKVPrefix, "actions", id), nil)
 	if err != nil {
 		return nil, err

@@ -110,6 +110,13 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 	if err != nil {
 		_, done := err.(*jobIsDone)
 		if done {
+			defer func() {
+				// action scheduling needs to be unregistered
+				err = scheduling.UnregisterAction(o.action.ID)
+				if err != nil {
+					log.Printf("failed to unregister job Monitoring job info with actionID:%q, jobID:%q due to error:%+v", o.action.ID, jobID, err)
+				}
+			}()
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Job with JobID:%s is DONE", jobID))
 			// If batch job, cleanup needs to be processed after logging output files
 			if isBatch {
@@ -121,11 +128,7 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 				}
 				o.cleanUp(remoteBaseDirectory)
 			}
-			// action scheduling needs to be unregistered
-			err = scheduling.UnregisterAction(o.action.ID)
-			if err != nil {
-				return errors.Wrapf(err, "failed to unregister job Monitoring job info with actionID:%q, jobID:%q", o.action.ID, jobID)
-			}
+
 			// job running step must be set to done and workflow must be resumed
 			step := &tasks.TaskStep{Status: tasks.TaskStepStatusDONE.String(), Name: stepName}
 			err = tasks.UpdateTaskStepStatus(o.consulClient.KV(), taskID, step)
