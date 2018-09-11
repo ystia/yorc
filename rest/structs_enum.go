@@ -36,11 +36,12 @@ var _MapEntryOperationMap = map[MapEntryOperation]string{
 	1: _MapEntryOperationName[3:9],
 }
 
-func (i MapEntryOperation) String() string {
-	if str, ok := _MapEntryOperationMap[i]; ok {
+// String implements the Stringer interface.
+func (x MapEntryOperation) String() string {
+	if str, ok := _MapEntryOperationMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("MapEntryOperation(%d)", i)
+	return fmt.Sprintf("MapEntryOperation(%d)", x)
 }
 
 var _MapEntryOperationValue = map[string]MapEntryOperation{
@@ -53,7 +54,7 @@ var _MapEntryOperationValue = map[string]MapEntryOperation{
 // ParseMapEntryOperation attempts to convert a string to a MapEntryOperation
 func ParseMapEntryOperation(name string) (MapEntryOperation, error) {
 	if x, ok := _MapEntryOperationValue[name]; ok {
-		return MapEntryOperation(x), nil
+		return x, nil
 	}
 	return MapEntryOperation(0), fmt.Errorf("%s is not a valid MapEntryOperation", name)
 }

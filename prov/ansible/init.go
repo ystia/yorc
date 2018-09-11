@@ -17,9 +17,10 @@ package ansible
 import "github.com/ystia/yorc/registry"
 
 const (
-	implementationArtifactBash    = "tosca.artifacts.Implementation.Bash"
-	implementationArtifactPython  = "tosca.artifacts.Implementation.Python"
-	implementationArtifactAnsible = "tosca.artifacts.Implementation.Ansible"
+	implementationArtifactBash         = "tosca.artifacts.Implementation.Bash"
+	implementationArtifactPython       = "tosca.artifacts.Implementation.Python"
+	implementationArtifactAnsible      = "tosca.artifacts.Implementation.Ansible"
+	implementationArtifactAnsibleAlien = "org.alien4cloud.artifacts.AnsiblePlaybook"
 )
 
 func init() {
@@ -29,5 +30,6 @@ func init() {
 			implementationArtifactBash,
 			implementationArtifactPython,
 			implementationArtifactAnsible,
+			implementationArtifactAnsibleAlien,
 		}, NewExecutor(), registry.BuiltinOrigin)
 }

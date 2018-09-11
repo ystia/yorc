@@ -152,6 +152,7 @@ func testResolveComplex(t *testing.T, kv *api.KV) {
 		{"ResolveGetPropertyMapAll", context{"VANode1", "", ""}, args{`{get_property: [SELF, map]}`}, false, true, `{"one":"1","two":"2"}`},
 		{"ResolveGetPropertyMapSubKey", context{"VANode1", "", ""}, args{`{get_property: [SELF, map, one]}`}, false, true, `1`},
 		{"ResolveGetPropertyMapSubKeyAlien", context{"VANode1", "", ""}, args{`{get_property: [SELF, "map.one"]}`}, false, true, `1`},
+		{"ResolveGetPropertyLiteralRelationship", context{"VANode2", "0", "0"}, args{`{get_property: [SELF, "literal"]}`}, false, true, `user rel literal`},
 		{"ResolveEmpty", context{"VANode1", "", ""}, args{`{get_property: [SELF, empty]}`}, false, true, ``},
 		// Attribute are resolvable even if absent - returns an empty string
 		{"ResolveGetAttributeWithAbsent", context{"VANode1", "0", ""}, args{`{get_attribute: [SELF, absentAttr]}`}, false, false, ``},
