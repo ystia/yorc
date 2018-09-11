@@ -23,16 +23,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func TestGroupedRequirementParallel(t *testing.T) {
-	t.Run("groupRequirement", func(t *testing.T) {
-		t.Run("TestrequirementAssignmentComplex", requirementAssignmentComplex)
-		t.Run("TestrequirementAssignmentSimple", requirementAssignmentSimple)
-		t.Run("TestrequirementAssignmentSimpleRelationship", requirementAssignmentSimpleRelationship)
-		t.Run("TestrequirementDefinitionStandard", requirementDefinitionStandard)
-		t.Run("TestrequirementDefinitionAlien", requirementDefinitionAlien)
-	})
-}
-
 type ReqTestNode struct {
 	Requirements []RequirementAssignmentMap `yaml:"requirements,omitempty"`
 }
@@ -41,7 +31,7 @@ type ReqDefTestNode struct {
 	Requirements []RequirementDefinitionMap `yaml:"requirements,omitempty"`
 }
 
-func requirementAssignmentComplex(t *testing.T) {
+func TestRequirementAssignmentComplex(t *testing.T) {
 	t.Parallel()
 	data := `Compute:
   requirements:
@@ -68,7 +58,7 @@ func requirementAssignmentComplex(t *testing.T) {
 	assert.Contains(t, lc.TypeRequirement, "host")
 }
 
-func requirementAssignmentSimple(t *testing.T) {
+func TestRequirementAssignmentSimple(t *testing.T) {
 	t.Parallel()
 	data := `Compute:
   requirements:
@@ -85,14 +75,18 @@ func requirementAssignmentSimple(t *testing.T) {
 	assert.Equal(t, "nodeName", req.Node)
 }
 
-func requirementAssignmentSimpleRelationship(t *testing.T) {
+func TestRequirementAssignmentSimpleRelationship(t *testing.T) {
 	t.Parallel()
-	data := `Compute:
+	data := `
+Compute:
   requirements:
     - req:
         node: nodeName
         capability: tosca.capabilities.cap
-        relationship: tosca.relationships.rs`
+        relationship: tosca.relationships.rs
+        properties:
+          literal: "value"
+`
 	nodes := make(map[string]ReqTestNode)
 	err := yaml.Unmarshal([]byte(data), &nodes)
 	assert.Nil(t, err)
@@ -105,9 +99,11 @@ func requirementAssignmentSimpleRelationship(t *testing.T) {
 	assert.Equal(t, "nodeName", req.Node)
 	assert.Equal(t, "tosca.capabilities.cap", req.Capability)
 	assert.Equal(t, "tosca.relationships.rs", req.Relationship)
+	assert.NotNil(t, req.RelationshipProps["literal"])
+	assert.Equal(t, "value", req.RelationshipProps["literal"].GetLiteral())
 }
 
-func requirementDefinitionStandard(t *testing.T) {
+func TestRequirementDefinitionStandard(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 	data := `NodeType:
@@ -160,7 +156,7 @@ func requirementDefinitionStandard(t *testing.T) {
 
 }
 
-func requirementDefinitionAlien(t *testing.T) {
+func TestRequirementDefinitionAlien(t *testing.T) {
 	t.Parallel()
 	log.SetDebug(true)
 	data := `NodeType:

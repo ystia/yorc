@@ -132,7 +132,7 @@ Globals Command-line options
 
 .. _option_server_id_cmd:
 
-  * ``--server_id``: Specify the server ID used to identify the server node in a cluster. The default is ``server_0``.
+  * ``--server_id``: Specify the server ID used to identify the server node in a cluster. The default is the hostname.
 
 
 .. _yorc_config_file_section:

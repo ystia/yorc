@@ -185,6 +185,11 @@ func initConfig() {
 }
 
 func setConfig() {
+	host, err := os.Hostname()
+	if err != nil {
+		host = "server_0"
+		log.Printf("Failed to get system hostname: %v. We will try to use the default id (%q) for this instance.", err, host)
+	}
 
 	//Flags definition for Yorc server
 	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/yorc/config.yorc.json)")
@@ -194,7 +199,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Duration("graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout, "Timeout to  wait for a graceful shutdown of the Yorc server. After this delay the server immediately exits.")
 	serverCmd.PersistentFlags().StringP("resources_prefix", "x", "", "Prefix created resources (like Computes and so on)")
 	serverCmd.PersistentFlags().Duration("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout, "Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error.")
-	serverCmd.PersistentFlags().String("server_id", config.DefaultServerID, "The server ID used to identify the server node in a cluster.")
+	serverCmd.PersistentFlags().String("server_id", host, "The server ID used to identify the server node in a cluster.")
 
 	// Flags definition for Yorc HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
@@ -292,7 +297,7 @@ func setConfig() {
 	viper.SetDefault("resources_prefix", "yorc-")
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
-	viper.SetDefault("server_id", config.DefaultServerID)
+	viper.SetDefault("server_id", host)
 
 	// Consul configuration default settings
 	for key, value := range consulConfiguration {
