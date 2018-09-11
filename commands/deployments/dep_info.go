@@ -17,6 +17,7 @@ package deployments
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/tasks"
 	"io/ioutil"
 	"strings"
 
@@ -161,7 +162,10 @@ func tableBasedDeploymentRendering(client *httputil.YorcClient, dep rest.Deploym
 				tasksTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 				continue
 			}
-			tasksTable.AddRow(task.ID, task.Type, GetColoredTaskStatus(colorize, task.Status))
+			// Ignore TaskTypeAction
+			if tasks.TaskTypeAction.String() != task.Type {
+				tasksTable.AddRow(task.ID, task.Type, GetColoredTaskStatus(colorize, task.Status))
+			}
 		} else if atomLink.Rel == rest.LinkRelOutput {
 			var output rest.Output
 
