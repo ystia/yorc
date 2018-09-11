@@ -60,18 +60,10 @@ func (e *executionSingularity) execute(ctx context.Context, resultCh chan string
 		}
 
 		// Run the command
-		out, err := e.runJobCommand(ctx)
+		err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			errCh <- errors.Wrap(err, "failed to run command")
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(out)
-		log.Debugf("output:%q", out)
-		if !e.jobInfo.batchMode {
-			err := e.cleanUp()
-			if err != nil {
-				errCh <- err
-			}
 		}
 		resultCh <- e.jobInfo.ID
 	default:
@@ -79,26 +71,25 @@ func (e *executionSingularity) execute(ctx context.Context, resultCh chan string
 	}
 }
 
-func (e *executionSingularity) runJobCommand(ctx context.Context) (string, error) {
+func (e *executionSingularity) runJobCommand(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
-	stopCh := make(chan struct{})
-	errCh := make(chan error)
 	e.OperationRemoteExecDir = e.OperationRemoteBaseDir
 	if e.jobInfo.batchMode {
 		// get outputs for batch mode
 		err := e.searchForBatchOutputs(ctx)
 		if err != nil {
-			return "", err
+			return err
 		}
-		//go e.pollJobInfo(ctx, stopCh, errCh)
-		out, err := e.runBatchMode(ctx, opts)
-		return out, err
+		return e.runBatchMode(ctx, opts)
 	}
 
-	// In interactive mode, we need to retrieve the jobID elsewhere than in the output
-	go e.retrieveJobID(ctx, stopCh, errCh)
-	out, err := e.runInteractiveMode(ctx, opts)
-	return out, err
+	err := e.runInteractiveMode(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	// retrieve jobInfo
+	return e.retrieveJobID(ctx)
 }
 
 func (e *executionSingularity) searchForBatchOutputs(ctx context.Context) error {
@@ -108,33 +99,43 @@ func (e *executionSingularity) searchForBatchOutputs(ctx context.Context) error 
 	return nil
 }
 
-func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) (string, error) {
+func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) error {
 	innerCmd := fmt.Sprintf("srun %s singularity %s %s %s", opts, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
 	cmd := fmt.Sprintf("mkdir -p %s;cd %s;sbatch --wrap=\"%s\"", e.OperationRemoteBaseDir, e.OperationRemoteBaseDir, innerCmd)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
-		return "", errors.Wrap(err, output)
+		return errors.Wrap(err, output)
 	}
 	output = strings.Trim(output, "\n")
 	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
-		return "", err
+		return err
 	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
-	return output, nil
+	return nil
 }
 
-func (e *executionSingularity) runInteractiveMode(ctx context.Context, opts string) (string, error) {
-	cmd := fmt.Sprintf("srun %s singularity %s %s %s %s", opts, e.singularityInfo.command, strings.Join(e.jobInfo.execArgs, " "), e.singularityInfo.imageURI, e.singularityInfo.exec)
+func (e *executionSingularity) runInteractiveMode(ctx context.Context, opts string) error {
+	// Add inputs as env variables
+	var exports string
+	for k, v := range e.jobInfo.inputs {
+		log.Debugf("Add env var with key:%q and value:%q", k, v)
+		export := fmt.Sprintf("export %s=%s;", k, v)
+		exports += export
+	}
+	redirectFile := stringutil.UniqueTimestampedName("yorc_", "")
+	e.jobInfo.outputs = []string{redirectFile}
+
+	cmd := fmt.Sprintf("%ssrun %s singularity %s %s %s %s > %s &", exports, opts, e.singularityInfo.command, strings.Join(e.jobInfo.execArgs, " "), e.singularityInfo.imageURI, e.singularityInfo.exec, redirectFile)
 	cmd = strings.Trim(cmd, "")
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
-		return "", errors.Wrap(err, output)
+		return errors.Wrap(err, output)
 	}
-	return output, nil
+	return nil
 }
 
 func (e *executionSingularity) buildSingularityInfo(ctx context.Context) error {

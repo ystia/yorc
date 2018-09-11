@@ -41,7 +41,6 @@ type scheduler struct {
 	isActiveLock     sync.Mutex
 	cfg              config.Configuration
 	actions          map[string]*scheduledAction
-	actionsLock      sync.Mutex
 }
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
@@ -206,9 +205,7 @@ func (sc *scheduler) startScheduling() {
 						// Stop the scheduled action
 						actionToStop.stop()
 						// Remove it from actions
-						sc.actionsLock.Lock()
 						delete(sc.actions, id)
-						sc.actionsLock.Unlock()
 						// Unregister it definitively
 						sc.unregisterAction(id)
 					}
@@ -223,9 +220,7 @@ func (sc *scheduler) startScheduling() {
 				_, is := sc.actions[id]
 				if !is {
 					log.Debugf("start action id:%q", id)
-					sc.actionsLock.Lock()
 					sc.actions[id] = sca
-					sc.actionsLock.Unlock()
 					sca.start()
 				}
 			}

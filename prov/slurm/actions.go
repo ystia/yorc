@@ -53,7 +53,15 @@ func (o actionOperator) ExecAction(ctx context.Context, cfg config.Configuration
 	o.action = action
 	switch action.ActionType {
 	case "job-monitoring":
-		return o.monitorJob(ctx, deploymentID)
+		err = o.monitorJob(ctx, deploymentID)
+		if err != nil {
+			// action scheduling needs to be unregistered
+			errSche := scheduling.UnregisterAction(o.action.ID)
+			if errSche != nil {
+				log.Printf("failed to unregister job Monitoring job info with actionID:%q due to error:%+v", o.action.ID, errSche)
+			}
+			return err
+		}
 	default:
 		return errors.Errorf("Unsupported actionType %q", action.ActionType)
 	}
@@ -108,7 +116,7 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 
 	info, err := getJobInfo(o.client, jobID, "")
 	if err != nil {
-		_, done := err.(*jobIsDone)
+		_, done := err.(*noJobFound)
 		if done {
 			defer func() {
 				// action scheduling needs to be unregistered
@@ -127,6 +135,16 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 					return errors.Wrapf(err, "failed to handle batch outputs with jobID:%q", jobID)
 				}
 				o.cleanUp(remoteBaseDirectory)
+			} else {
+				outputs, _ := o.action.Data["outputs"]
+				outputsSlice := strings.Split(outputs, ",")
+				if len(outputsSlice) != 1 {
+					return errors.Errorf("Incorrect outputs files nb for interactive job with id:%q. Only one is required.", jobID)
+				}
+				err = o.handleInteractiveOutput(ctx, deploymentID, jobID, outputsSlice[0])
+				if err != nil {
+					return errors.Wrapf(err, "failed to handle interactive output with jobID:%q", jobID)
+				}
 			}
 
 			// job running step must be set to done and workflow must be resumed
@@ -176,9 +194,9 @@ func (o *actionOperator) handleBatchOutputs(ctx context.Context, deploymentID, j
 		if err != nil {
 			return errors.Wrap(err, output)
 		}
-		for _, output := range relOutputs {
-			oldPath := path.Join(execDirectory, output)
-			newPath := path.Join(outputDir, output)
+		for _, relOutput := range relOutputs {
+			oldPath := path.Join(execDirectory, relOutput)
+			newPath := path.Join(outputDir, relOutput)
 			// Copy the file in the output dir
 			cmd := fmt.Sprintf("cp -f %s %s", oldPath, newPath)
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
@@ -189,6 +207,29 @@ func (o *actionOperator) handleBatchOutputs(ctx context.Context, deploymentID, j
 			o.logFile(ctx, deploymentID, newPath)
 		}
 	}
+	return nil
+}
+
+func (o *actionOperator) handleInteractiveOutput(ctx context.Context, deploymentID, jobID string, outputFileName string) error {
+	// rename the output file and copy it into specific output folder
+	newName := fmt.Sprintf("slurm-%s.out", jobID)
+	outputDir := fmt.Sprintf("job_" + jobID + "_outputs")
+	cmd := fmt.Sprintf("mkdir %s", outputDir)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	output, err := o.client.RunCommand(cmd)
+	if err != nil {
+		return errors.Wrap(err, output)
+	}
+
+	newPath := path.Join(outputDir, newName)
+	// Copy the file in the output dir
+	cmd = fmt.Sprintf("cp -f %s %s", outputFileName, newPath)
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	output, err = o.client.RunCommand(cmd)
+	if err != nil {
+		return errors.Wrap(err, output)
+	}
+	o.logFile(ctx, deploymentID, newPath)
 	return nil
 }
 

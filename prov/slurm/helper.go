@@ -323,5 +323,5 @@ func getJobInfo(client *sshutil.SSHClient, jobID, jobName string) (*jobInfoShort
 		info := &jobInfoShort{name: d[0], ID: d[1], state: d[2]}
 		return info, nil
 	}
-	return nil, &jobIsDone{msg: fmt.Sprintf("no information found for job with id:%q, name:%q", jobID, jobName)}
+	return nil, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q, name:%q", jobID, jobName)}
 }

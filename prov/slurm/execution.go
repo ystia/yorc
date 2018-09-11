@@ -52,7 +52,7 @@ type operationNotImplemented struct {
 	msg string
 }
 
-type jobIsDone struct {
+type noJobFound struct {
 	msg string
 }
 
@@ -60,7 +60,7 @@ func (oni operationNotImplemented) Error() string {
 	return oni.msg
 }
 
-func (jid *jobIsDone) Error() string {
+func (jid *noJobFound) Error() string {
 	return jid.msg
 }
 
@@ -185,18 +185,10 @@ func (e *executionCommon) execute(ctx context.Context, resultCh chan string, err
 		}
 
 		// Run the command
-		out, err := e.runJobCommand(ctx)
+		err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			errCh <- errors.Wrap(err, "failed to run command")
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(out)
-		log.Debugf("output:%q", out)
-		if !e.jobInfo.batchMode {
-			err := e.cleanUp()
-			if err != nil {
-				errCh <- err
-			}
 		}
 		resultCh <- e.jobInfo.ID
 	default:
@@ -204,61 +196,30 @@ func (e *executionCommon) execute(ctx context.Context, resultCh chan string, err
 	}
 }
 
-func (e *executionCommon) retrieveJobID(ctx context.Context, stopCh chan struct{}, errCh chan error) {
-	ticker := time.NewTicker(e.jobInfoPolling)
+func (e *executionCommon) retrieveJobID(ctx context.Context) error {
+	ticker := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-ctx.Done():
 			log.Debugf("Task has been cancelled. The job information polling is stopping now")
 			ticker.Stop()
-			return
-		case <-stopCh:
-			log.Debugf("The job is done so job information polling is stopping now")
-			ticker.Stop()
-			return
-		case m := <-errCh:
-			log.Debugf("Unblocking error occurred retrieving job information due to:%s", m)
-			ticker.Stop()
-			return
+			return nil
 		case <-ticker.C:
-			err := e.getJobInfo(ctx)
+			jobInfo, err := getJobInfo(e.client, "", e.jobInfo.name)
 			if err != nil {
-				errCh <- err
-			} else {
+				_, notFound := err.(*noJobFound)
+				// If job is not found, we assume it still hasn't be created
+				if !notFound {
+					return err
+				}
+			} else if jobInfo.ID != "" {
 				// JobID has been retrieved
+				e.jobInfo.ID = jobInfo.ID
 				ticker.Stop()
+				return nil
 			}
 		}
 	}
-}
-
-func (e *executionCommon) getJobInfo(ctx context.Context) error {
-	var cmd string
-	if e.jobInfo.ID != "" {
-		cmd = fmt.Sprintf("squeue --noheader --job=%s -o \"%%A,%%T\"", e.jobInfo.ID)
-	} else {
-		cmd = fmt.Sprintf("squeue --noheader --name=%s -o \"%%A,%%T\"", e.jobInfo.name)
-	}
-
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		return errors.Wrap(err, output)
-	}
-	out := strings.Trim(output, "\" \t\n\x00")
-	if out != "" {
-		d := strings.Split(out, ",")
-		if len(d) != 2 {
-			log.Debugf("Unexpected format job information:%q", out)
-			return errors.Errorf("Unexpected format job information:%q", out)
-		}
-		e.jobInfo.ID = d[0]
-		e.jobInfo.state = d[1]
-		mess := fmt.Sprintf("Job Name:%s, Job ID:%s, Job State:%s", e.jobInfo.name, e.jobInfo.ID, e.jobInfo.state)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(mess)
-	} else if e.jobInfo.batchMode {
-		return &jobIsDone{msg: "No more job info in squeue command"}
-	}
-	return nil
 }
 
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
@@ -381,7 +342,7 @@ func (e *executionCommon) fillJobCommandOpts() string {
 	return opts
 }
 
-func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
+func (e *executionCommon) runJobCommand(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
 	e.OperationRemoteExecDir = path.Dir(execFile)
@@ -389,21 +350,19 @@ func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
 		// get outputs for batch mode
 		err := e.searchForBatchOutputs(ctx)
 		if err != nil {
-			return "", err
+			return err
 		}
-		//go e.pollJobInfo(ctx, stopCh, errCh)
-		out, err := e.runBatchMode(ctx, opts, execFile)
-		return out, err
+		return e.runBatchMode(ctx, opts, execFile)
 	}
-	// In interactive mode, we need to retrieve the jobID elsewhere than in the stdout
-	stopCh := make(chan struct{})
-	errCh := make(chan error)
-	go e.retrieveJobID(ctx, stopCh, errCh)
-	out, err := e.runInteractiveMode(ctx, opts, execFile)
-	return out, err
+	err := e.runInteractiveMode(ctx, opts, execFile)
+	if err != nil {
+		return err
+	}
+	// retrieve jobInfo
+	return e.retrieveJobID(ctx)
 }
 
-func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) (string, error) {
+func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) error {
 	// Add inputs as env variables
 	var exports string
 	for k, v := range e.jobInfo.inputs {
@@ -411,18 +370,21 @@ func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile
 		export := fmt.Sprintf("export %s=%s;", k, v)
 		exports += export
 	}
-	cmd := fmt.Sprintf("%s; srun %s %s %s", exports, opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
+	// srun stdout/stderr is redirected on output file and run in asynchronous mode
+	redirectFile := stringutil.UniqueTimestampedName("yorc_", "")
+	e.jobInfo.outputs = []string{redirectFile}
+	cmd := fmt.Sprintf("%ssrun %s %s %s > %s &", exports, opts, execFile, strings.Join(e.jobInfo.execArgs, " "), redirectFile)
 	cmd = strings.Trim(cmd, "")
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
-		return "", errors.Wrap(err, output)
+		return errors.Wrap(err, output)
 	}
-	return output, nil
+	return nil
 }
 
-func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile string) (string, error) {
+func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile string) error {
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for _, arg := range e.jobInfo.execArgs {
@@ -442,14 +404,14 @@ func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile strin
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
-		return "", errors.Wrap(err, output)
+		return errors.Wrap(err, output)
 	}
 	output = strings.Trim(output, "\n")
 	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
-		return "", err
+		return err
 	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
-	return output, nil
+	return nil
 }
 
 func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
@@ -473,16 +435,6 @@ func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
 	}
 	e.jobInfo.outputs = append(outputs, o...)
 	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
-	return nil
-}
-
-func (e *executionCommon) cleanUp() error {
-	log.Debugf("Cleanup the operation remote base directory")
-	cmd := fmt.Sprintf("rm -rf %s", e.OperationRemoteBaseDir)
-	_, err := e.client.RunCommand(cmd)
-	if err != nil {
-		return errors.Wrap(err, "failed to cleanup remote base directory")
-	}
 	return nil
 }
 
