@@ -22,7 +22,7 @@ import (
 // Handler implementing the interface outputHandler.
 // This handler logs ansible playbook outputs.
 // It is started before the playbook is run,
-// and stopped at the end of the playbook.
+// and stopped once the playbook was run.
 type playbookOutputHandler struct {
 	execution *executionAnsible
 	context   context.Context

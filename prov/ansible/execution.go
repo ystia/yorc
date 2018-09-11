@@ -166,7 +166,7 @@ type executionCommon struct {
 	vaultToken               string
 }
 
-// Handling a comand standard output and standard error
+// Handling a command standard output and standard error
 type outputHandler interface {
 	start(cmd *exec.Cmd) error
 	stop() error
@@ -1054,12 +1054,12 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 
 	// Start handling the stdout and stderr for this command
 	if err := handler.start(cmd.Cmd); err != nil {
-		log.Printf("[Warning] Could not start output handler: %s", err.Error())
+		log.Printf("Error starting output handler: %s", err.Error())
 	}
 
 	err := cmd.Run()
 	if handlerErr := handler.stop(); handlerErr != nil {
-		log.Printf("[Warning] Could not stop output handler: %s", err.Error())
+		log.Printf("Error stopping output handler: %s", err.Error())
 	}
 	if err != nil {
 		return e.checkAnsibleRetriableError(ctx, err)
