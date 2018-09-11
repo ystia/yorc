@@ -16,7 +16,7 @@ package ansible
 
 import (
 	"context"
-	"io"
+	"os/exec"
 )
 
 // Handler implementing the interface outputHandler.
@@ -28,12 +28,20 @@ type playbookOutputHandler struct {
 	context   context.Context
 }
 
-func (h *playbookOutputHandler) start(cmdReader io.ReadCloser) error {
+// start - starts handling the output for the command in argument
+func (h *playbookOutputHandler) start(cmd *exec.Cmd) error {
+
+	cmdReader, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
 	go logAnsibleOutputInConsul(h.context, h.execution.deploymentID,
 		h.execution.NodeName, h.execution.hosts, cmdReader)
 	return nil
 }
 
+// stop - stops handling the output of a command
 func (h *playbookOutputHandler) stop() error {
 	return nil
 }

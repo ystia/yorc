@@ -19,7 +19,7 @@ package ansible
 import (
 	"context"
 	"fmt"
-	"io"
+	"os/exec"
 )
 
 // Open source version of a handler implementing the interface outputHandler.
@@ -39,12 +39,19 @@ func (h *scriptOutputHandler) getWrappedCommand() string {
 	return wrappedCmd
 }
 
-func (h *scriptOutputHandler) start(cmdReader io.ReadCloser) error {
+// start - starts handling the output for the command in argument
+func (h *scriptOutputHandler) start(cmd *exec.Cmd) error {
+
+	cmdReader, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
 	go logAnsibleOutputInConsulFromScript(h.context, h.execution.deploymentID,
 		h.execution.NodeName, h.execution.hosts, cmdReader)
 	return nil
 }
 
+// stop - stops handling the output of a command
 func (h *scriptOutputHandler) stop() error {
 	return nil
 }
