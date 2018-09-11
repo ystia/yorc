@@ -79,11 +79,11 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 		return err
 	case jobID := <-resultCh:
 		log.Debugf("Register job monitoring for jobID:%q", jobID)
-		return e.RegisterJobMonitoringAction(ctx, conf, taskID, deploymentID, nodeName, jobID, operation, stepName, exec.getExecutionProperties())
+		return e.RegisterJobMonitoringAction(ctx, conf, taskID, deploymentID, nodeName, jobID, operation, stepName, exec.getMonitoringProperties())
 	}
 }
 
-func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, jobID string, operation prov.Operation, stepName string, props *executionProperties) error {
+func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, jobID string, operation prov.Operation, stepName string, props *monitoringProperties) error {
 	// Fill all used data for job monitoring
 	data := make(map[string]string)
 	data["nodeName"] = nodeName
@@ -97,8 +97,7 @@ func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf 
 	data["outputs"] = props.outputs
 
 	jobMonitoringAction := &prov.Action{ActionType: "job-monitoring", Data: data}
-	//FIXME jobMonitoring interval should be a job property or a config param
-	return scheduling.RegisterAction(deploymentID, 5*time.Second, jobMonitoringAction)
+	return scheduling.RegisterAction(deploymentID, props.timeInterval, jobMonitoringAction)
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {

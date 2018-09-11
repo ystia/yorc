@@ -45,7 +45,7 @@ import (
 type execution interface {
 	resolveExecution() error
 	execute(ctx context.Context, resultCh chan string, errCh chan error)
-	getExecutionProperties() *executionProperties
+	getMonitoringProperties() *monitoringProperties
 }
 
 type operationNotImplemented struct {
@@ -64,11 +64,12 @@ func (jid *noJobFound) Error() string {
 	return jid.msg
 }
 
-type executionProperties struct {
+type monitoringProperties struct {
 	isBatch             bool
 	remoteBaseDirectory string
 	remoteExecDirectory string
 	outputs             string
+	timeInterval        time.Duration
 }
 
 type executionCommon struct {
@@ -91,7 +92,6 @@ type executionCommon struct {
 	nodeInstances          []string
 	jobInfo                *jobInfo
 	lof                    events.LogOptionalFields
-	jobInfoPolling         time.Duration
 	OperationRemoteExecDir string
 }
 
@@ -105,7 +105,6 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		EnvInputs:              make([]*operations.EnvInput, 0),
 		taskID:                 taskID,
 		OperationRemoteBaseDir: stringutil.UniqueTimestampedName(".yorc_", ""),
-		jobInfoPolling:         5 * time.Second,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -124,13 +123,30 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	return execCommon, execCommon.resolveExecution()
 }
 
-func (e *executionCommon) getExecutionProperties() *executionProperties {
-	return &executionProperties{
+func (e *executionCommon) getMonitoringProperties() *monitoringProperties {
+	props := &monitoringProperties{
 		outputs:             strings.Join(e.jobInfo.outputs, ","),
 		isBatch:             e.jobInfo.batchMode,
 		remoteBaseDirectory: e.OperationRemoteBaseDir,
 		remoteExecDirectory: e.OperationRemoteExecDir,
+		timeInterval:        5 * time.Second,
 	}
+
+	// Override timeInterval property with job info or slurm infrastructure configuration
+	if e.jobInfo.monitoringTimeInterval != 0 {
+		props.timeInterval = e.jobInfo.monitoringTimeInterval
+	} else {
+		ti := e.cfg.Infrastructures[infrastructureName].GetString("job_monitoring_time_interval")
+		if ti != "" {
+			jmti, err := time.ParseDuration(ti)
+			if err != nil {
+				log.Printf("Invalid format for job monitoring time interval configuration:%q. Default 5s time interval will be used instead.", ti)
+			}
+			props.timeInterval = jmti
+		}
+	}
+
+	return props
 }
 
 func (e *executionCommon) resolveOperation() error {
@@ -197,7 +213,7 @@ func (e *executionCommon) execute(ctx context.Context, resultCh chan string, err
 }
 
 func (e *executionCommon) retrieveJobID(ctx context.Context) error {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(500 * time.Millisecond)
 	for {
 		select {
 		case <-ctx.Done():
@@ -276,6 +292,15 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	} else if maxTime != nil {
 		job.maxTime = maxTime.RawString()
+	}
+
+	if monitoringTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "monitoring_time_interval"); err != nil {
+		return err
+	} else if monitoringTime != nil && monitoringTime.RawString() != "" {
+		job.monitoringTimeInterval, err = time.ParseDuration(monitoringTime.RawString())
+		if err != nil {
+			return err
+		}
 	}
 
 	// BatchMode default is true
