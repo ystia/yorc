@@ -191,13 +191,17 @@ func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, tas
 	if err != nil {
 		return nil, err
 	}
+	isAlienAnsible, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, "org.alien4cloud.artifacts.AnsiblePlaybook")
+	if err != nil {
+		return nil, err
+	}
 	var exec execution
 	if isBash || isPython {
 		execScript := &executionScript{executionCommon: execCommon, isPython: isPython}
 		execCommon.ansibleRunner = execScript
 		exec = execScript
-	} else if isAnsible {
-		execAnsible := &executionAnsible{executionCommon: execCommon}
+	} else if isAnsible || isAlienAnsible {
+		execAnsible := &executionAnsible{executionCommon: execCommon, isAlienAnsible: isAlienAnsible}
 		execCommon.ansibleRunner = execAnsible
 		exec = execAnsible
 	} else {
