@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### IMPROVEMENTS
+
+* Allow yorc user to omit kubernetes related config if they deploy yorc on kubernetes pod and give it cluster-admin ClusterRole (GH-156)
+
 ## 3.1.0-M2 (August 24, 2018)
 
 ### DEPENDENCIES
