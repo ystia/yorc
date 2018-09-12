@@ -297,7 +297,7 @@ func parseKeyValue(str string) (bool, string, string) {
 	return false, "", ""
 }
 
-func getJobInfo(client *sshutil.SSHClient, jobID, jobName string) (*jobInfoShort, error) {
+func getJobInfo(client sshutil.Client, jobID, jobName string) (*jobInfoShort, error) {
 	var cmd string
 	if jobID != "" {
 		cmd = fmt.Sprintf("squeue --noheader --job=%s -o \"%%j,%%A,%%T\"", jobID)

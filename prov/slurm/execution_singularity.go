@@ -100,7 +100,14 @@ func (e *executionSingularity) searchForBatchOutputs(ctx context.Context) error 
 }
 
 func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) error {
-	innerCmd := fmt.Sprintf("srun %s singularity %s %s %s", opts, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
+	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
+	var exports string
+	for k, v := range e.jobInfo.inputs {
+		log.Debugf("Add env var with key:%q and value:%q", k, v)
+		export := fmt.Sprintf("export %s=%s;", k, v)
+		exports += export
+	}
+	innerCmd := fmt.Sprintf("%ssrun %s singularity %s %s %s", exports, opts, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
 	cmd := fmt.Sprintf("mkdir -p %s;cd %s;sbatch --wrap=\"%s\"", e.OperationRemoteBaseDir, e.OperationRemoteBaseDir, innerCmd)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)

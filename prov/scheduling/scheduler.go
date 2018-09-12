@@ -44,16 +44,16 @@ type scheduler struct {
 }
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
-func RegisterAction(deploymentID string, timeInterval time.Duration, action *prov.Action) error {
+func RegisterAction(deploymentID string, timeInterval time.Duration, action *prov.Action) (string, error) {
 	log.Debugf("Action:%+v has been requested to be registered for scheduling with [deploymentID:%q, timeInterval:%q]", action, deploymentID, timeInterval.String())
 	id := uuid.NewV4().String()
 
 	// Check mandatory parameters
 	if deploymentID == "" {
-		return errors.New("deploymentID is mandatory parameter to register scheduled action")
+		return "", errors.New("deploymentID is mandatory parameter to register scheduled action")
 	}
 	if action == nil || action.ActionType == "" {
-		return errors.New("actionType is mandatory parameter to register scheduled action")
+		return "", errors.New("actionType is mandatory parameter to register scheduled action")
 	}
 	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
 	scaOps := api.KVTxnOps{
@@ -86,7 +86,7 @@ func RegisterAction(deploymentID string, timeInterval time.Duration, action *pro
 
 	ok, response, _, err := defaultScheduler.cc.KV().Txn(scaOps, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to register scheduled action for deploymentID:%q, type:%q, id:%q", deploymentID, action.ActionType, id)
+		return "", errors.Wrapf(err, "Failed to register scheduled action for deploymentID:%q, type:%q, id:%q", deploymentID, action.ActionType, id)
 	}
 	if !ok {
 		// Check the response
@@ -94,9 +94,9 @@ func RegisterAction(deploymentID string, timeInterval time.Duration, action *pro
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return errors.Errorf("Failed to register scheduled action for deploymentID:%q, type:%q, id:%q due to:%s", deploymentID, action.ActionType, id, strings.Join(errs, ", "))
+		return "", errors.Errorf("Failed to register scheduled action for deploymentID:%q, type:%q, id:%q due to:%s", deploymentID, action.ActionType, id, strings.Join(errs, ", "))
 	}
-	return nil
+	return id, nil
 }
 
 // UnregisterAction allows to unregister a scheduled action and to stop scheduling it
@@ -247,6 +247,9 @@ func (sc *scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 	kvps, _, err := sc.cc.KV().List(path.Join(consulutil.SchedulingKVPrefix, "actions", id), nil)
 	if err != nil {
 		return nil, err
+	}
+	if len(kvps) == 0 {
+		return nil, errors.Errorf("No scheduled action found with id:%q", id)
 	}
 	sca := &scheduledAction{}
 	sca.ID = id

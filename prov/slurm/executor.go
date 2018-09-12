@@ -97,7 +97,8 @@ func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf 
 	data["outputs"] = props.outputs
 
 	jobMonitoringAction := &prov.Action{ActionType: "job-monitoring", Data: data}
-	return scheduling.RegisterAction(deploymentID, props.timeInterval, jobMonitoringAction)
+	_, err := scheduling.RegisterAction(deploymentID, props.timeInterval, jobMonitoringAction)
+	return err
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
