@@ -222,8 +222,8 @@ func (o *actionOperator) handleInteractiveOutput(ctx context.Context, deployment
 	}
 
 	newPath := path.Join(outputDir, newName)
-	// Copy the file in the output dir
-	cmd = fmt.Sprintf("cp -f %s %s", outputFileName, newPath)
+	// Move the file in the output dir
+	cmd = fmt.Sprintf("mv %s %s", outputFileName, newPath)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err = o.client.RunCommand(cmd)
 	if err != nil {
