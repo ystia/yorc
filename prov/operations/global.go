@@ -15,10 +15,19 @@
 package operations
 
 import (
+	"strings"
+
 	"github.com/ystia/yorc/helper/provutil"
 )
 
 // GetInstanceName returns the built instance name from nodeName and instanceID
 func GetInstanceName(nodeName, instanceID string) string {
 	return provutil.SanitizeForShell(nodeName + "_" + instanceID)
+}
+
+// GetInstanceID returns the instance ID from an instance name
+func GetInstanceID(instanceName string) string {
+
+	lastIndex := strings.LastIndex(instanceName, "_")
+	return instanceName[lastIndex+1 : len(instanceName)]
 }
