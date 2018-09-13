@@ -370,10 +370,9 @@ func (e *executionCommon) fillJobCommandOpts() string {
 func (e *executionCommon) runJobCommand(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
-	e.OperationRemoteExecDir = path.Dir(execFile)
 	if e.jobInfo.batchMode {
-		// get outputs for batch mode
-		err := e.searchForBatchOutputs(ctx)
+		e.OperationRemoteExecDir = path.Dir(execFile)
+		err := e.findBatchOutput(ctx)
 		if err != nil {
 			return err
 		}
@@ -435,11 +434,15 @@ func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile strin
 	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
 		return err
 	}
+	// Set default output if nothing is specified by user
+	if len(e.jobInfo.outputs) == 0 {
+		e.jobInfo.outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
+	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
 	return nil
 }
 
-func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
+func (e *executionCommon) findBatchOutput(ctx context.Context) error {
 	pathExecFile := path.Join(e.OverlayPath, e.Primary)
 	script, err := os.Open(pathExecFile)
 	if err != nil {
