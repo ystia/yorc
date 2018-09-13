@@ -44,8 +44,7 @@ import (
 
 type execution interface {
 	resolveExecution() error
-	execute(ctx context.Context, resultCh chan string, errCh chan error)
-	getMonitoringProperties() *monitoringProperties
+	executeAsync(ctx context.Context) (*prov.Action, time.Duration, error)
 }
 
 type operationNotImplemented struct {
@@ -62,14 +61,6 @@ func (oni operationNotImplemented) Error() string {
 
 func (jid *noJobFound) Error() string {
 	return jid.msg
-}
-
-type monitoringProperties struct {
-	isBatch             bool
-	remoteBaseDirectory string
-	remoteExecDirectory string
-	outputs             string
-	timeInterval        time.Duration
 }
 
 type executionCommon struct {
@@ -93,9 +84,10 @@ type executionCommon struct {
 	jobInfo                *jobInfo
 	lof                    events.LogOptionalFields
 	OperationRemoteExecDir string
+	stepName               string
 }
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, stepName string, operation prov.Operation) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		cfg:                    cfg,
 		deploymentID:           deploymentID,
@@ -105,6 +97,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		EnvInputs:              make([]*operations.EnvInput, 0),
 		taskID:                 taskID,
 		OperationRemoteBaseDir: stringutil.UniqueTimestampedName(".yorc_", ""),
+		stepName:               stepName,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -123,30 +116,47 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	return execCommon, execCommon.resolveExecution()
 }
 
-func (e *executionCommon) getMonitoringProperties() *monitoringProperties {
-	props := &monitoringProperties{
-		outputs:             strings.Join(e.jobInfo.outputs, ","),
-		isBatch:             e.jobInfo.batchMode,
-		remoteBaseDirectory: e.OperationRemoteBaseDir,
-		remoteExecDirectory: e.OperationRemoteExecDir,
-		timeInterval:        5 * time.Second,
+func (e *executionCommon) executeAsync(ctx context.Context) (*prov.Action, time.Duration, error) {
+	// Only runnable operation is currently supported
+	log.Debugf("Execute the operation:%+v", e.operation)
+	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
+	logOptFields := events.LogOptionalFields{
+		events.WorkFlowID:    wfName,
+		events.NodeID:        e.NodeName,
+		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
+		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
 	}
+	ctx = events.NewContext(ctx, logOptFields)
 
-	// Override timeInterval property with job info or slurm infrastructure configuration
-	if e.jobInfo.monitoringTimeInterval != 0 {
-		props.timeInterval = e.jobInfo.monitoringTimeInterval
-	} else {
-		ti := e.cfg.Infrastructures[infrastructureName].GetString("job_monitoring_time_interval")
-		if ti != "" {
-			jmti, err := time.ParseDuration(ti)
-			if err != nil {
-				log.Printf("Invalid format for job monitoring time interval configuration:%q. Default 5s time interval will be used instead.", ti)
-			}
-			props.timeInterval = jmti
+	switch strings.ToLower(e.operation.Name) {
+	case "tosca.interfaces.node.lifecycle.runnable.run":
+		log.Printf("Running the job: %s", e.operation.Name)
+		// Copy the artifacts
+		if err := e.uploadArtifacts(ctx); err != nil {
+			return nil, 0, errors.Wrap(err, "failed to upload artifact")
 		}
-	}
 
-	return props
+		// Copy the operation implementation
+		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
+			return nil, 0, errors.Wrap(err, "failed to upload operation implementation")
+		}
+
+		// Build Job Information
+		if err := e.buildJobInfo(ctx); err != nil {
+			return nil, 0, errors.Wrap(err, "failed to build job information")
+		}
+
+		// Run the command
+		err := e.runJobCommand(ctx)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
+			return nil, 0, errors.Wrap(err, "failed to run command")
+		}
+		return e.buildJobMonitoringAction(), e.jobInfo.monitoringTimeInterval, nil
+	default:
+		return nil, 0, errors.Errorf("Unsupported operation %q", e.operation.Name)
+	}
 }
 
 func (e *executionCommon) resolveOperation() error {
@@ -169,47 +179,19 @@ func (e *executionCommon) resolveOperation() error {
 	return e.resolveInstances()
 }
 
-func (e *executionCommon) execute(ctx context.Context, resultCh chan string, errCh chan error) {
-	// Only runnable operation is currently supported
-	log.Debugf("Execute the operation:%+v", e.operation)
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID:    wfName,
-		events.NodeID:        e.NodeName,
-		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
-		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
-	}
-	ctx = events.NewContext(ctx, logOptFields)
-
-	switch strings.ToLower(e.operation.Name) {
-	case "tosca.interfaces.node.lifecycle.runnable.run":
-		log.Printf("Running the job: %s", e.operation.Name)
-		// Copy the artifacts
-		if err := e.uploadArtifacts(ctx); err != nil {
-			errCh <- errors.Wrap(err, "failed to upload artifact")
-		}
-
-		// Copy the operation implementation
-		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-			errCh <- errors.Wrap(err, "failed to upload operation implementation")
-		}
-
-		// Build Job Information
-		if err := e.buildJobInfo(ctx); err != nil {
-			errCh <- errors.Wrap(err, "failed to build job information")
-		}
-
-		// Run the command
-		err := e.runJobCommand(ctx)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			errCh <- errors.Wrap(err, "failed to run command")
-		}
-		resultCh <- e.jobInfo.ID
-	default:
-		errCh <- errors.Errorf("Unsupported operation %q", e.operation.Name)
-	}
+func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
+	// Fill all used data for job monitoring
+	data := make(map[string]string)
+	data["nodeName"] = e.NodeName
+	data["operationName"] = e.operation.Name
+	data["taskID"] = e.taskID
+	data["jobID"] = e.jobInfo.ID
+	data["stepName"] = e.stepName
+	data["isBatch"] = strconv.FormatBool(e.jobInfo.batchMode)
+	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
+	data["remoteExecDirectory"] = e.OperationRemoteExecDir
+	data["outputs"] = strings.Join(e.jobInfo.outputs, ",")
+	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
 func (e *executionCommon) retrieveJobID(ctx context.Context) error {
@@ -300,6 +282,19 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		job.monitoringTimeInterval, err = time.ParseDuration(monitoringTime.RawString())
 		if err != nil {
 			return err
+		}
+	}
+	if job.monitoringTimeInterval == 0 {
+		ti := e.cfg.Infrastructures[infrastructureName].GetString("job_monitoring_time_interval")
+		if ti != "" {
+			jmti, err := time.ParseDuration(ti)
+			if err != nil {
+				log.Printf("Invalid format for job monitoring time interval configuration:%q. Default 5s time interval will be used instead.", ti)
+			}
+			job.monitoringTimeInterval = jmti
+		} else {
+			// Default value
+			job.monitoringTimeInterval = 5 * time.Second
 		}
 	}
 

@@ -63,7 +63,7 @@ func (o actionOperator) ExecAction(ctx context.Context, cfg config.Configuration
 		err = o.monitorJob(ctx, deploymentID)
 		if err != nil {
 			// action scheduling needs to be unregistered
-			errSche := scheduling.UnregisterAction(o.action.ID)
+			errSche := scheduling.UnregisterAction(o.consulClient, o.action.ID)
 			if errSche != nil {
 				log.Printf("failed to unregister job Monitoring job info with actionID:%q due to error:%+v", o.action.ID, errSche)
 			}
@@ -157,7 +157,7 @@ func (o *actionOperator) endJob(ctx context.Context, deploymentID string) error 
 	// job run step is set to done and workflow resumed
 	// we assume errors in monitoring doesn't affect job run step status
 	defer func() {
-		err := scheduling.UnregisterAction(o.action.ID)
+		err := scheduling.UnregisterAction(o.consulClient, o.action.ID)
 		if err != nil {
 			log.Printf("failed to unregister job Monitoring job info with actionID:%q, jobID:%q due to error:%+v", o.action.ID, o.jobID, err)
 		}
@@ -190,8 +190,8 @@ func (o *actionOperator) resumeWorkflow() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to update step status to DONE for taskID:%q, stepName:%q", o.taskID, o.stepName)
 	}
-	collector := collector.NewCollector(o.consulClient)
-	err = collector.ResumeTask(o.taskID)
+	coll := collector.NewCollector(o.consulClient)
+	err = coll.ResumeTask(o.taskID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to resume task with taskID:%q", o.taskID)
 	}

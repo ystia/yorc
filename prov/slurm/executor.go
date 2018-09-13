@@ -17,8 +17,6 @@ package slurm
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/prov/scheduling"
-	"strconv"
 	"strings"
 
 	"sync"
@@ -54,51 +52,18 @@ func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
 }
 
-func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) error {
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
 	log.Debugf("Slurm defaultExecutor: Execute the operation async:%+v", operation)
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 	kv := consulClient.KV()
-	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, stepName, operation)
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
-
-	// Execute operation asynchronously
-	errCh := make(chan error)
-	resultCh := make(chan string)
-	ctxExec, cancelExec := context.WithCancel(ctx)
-	go exec.execute(ctxExec, resultCh, errCh)
-	select {
-	case <-ctx.Done():
-		cancelExec()
-		return errors.New("cancellation signal has been sent: job is canceled")
-	case err := <-errCh:
-		return err
-	case jobID := <-resultCh:
-		log.Debugf("Register job monitoring for jobID:%q", jobID)
-		return e.RegisterJobMonitoringAction(ctx, conf, taskID, deploymentID, nodeName, jobID, operation, stepName, exec.getMonitoringProperties())
-	}
-}
-
-func (e *defaultExecutor) RegisterJobMonitoringAction(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName, jobID string, operation prov.Operation, stepName string, props *monitoringProperties) error {
-	// Fill all used data for job monitoring
-	data := make(map[string]string)
-	data["nodeName"] = nodeName
-	data["operationName"] = operation.Name
-	data["taskID"] = taskID
-	data["jobID"] = jobID
-	data["stepName"] = stepName
-	data["isBatch"] = strconv.FormatBool(props.isBatch)
-	data["remoteBaseDirectory"] = props.remoteBaseDirectory
-	data["remoteExecDirectory"] = props.remoteExecDirectory
-	data["outputs"] = props.outputs
-
-	jobMonitoringAction := &prov.Action{ActionType: "job-monitoring", Data: data}
-	_, err := scheduling.RegisterAction(deploymentID, props.timeInterval, jobMonitoringAction)
-	return err
+	return exec.executeAsync(ctx)
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {

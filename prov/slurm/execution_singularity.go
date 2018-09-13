@@ -22,10 +22,12 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 )
 
 type executionSingularity struct {
@@ -33,7 +35,7 @@ type executionSingularity struct {
 	singularityInfo *singularityInfo
 }
 
-func (e *executionSingularity) execute(ctx context.Context, resultCh chan string, errCh chan error) {
+func (e *executionSingularity) executeAsync(ctx context.Context) (*prov.Action, time.Duration, error) {
 	// Only runnable operation is currently supported
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
@@ -51,23 +53,23 @@ func (e *executionSingularity) execute(ctx context.Context, resultCh chan string
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
-			errCh <- errors.Wrap(err, "failed to build job information")
+			return nil, 0, errors.Wrap(err, "failed to build job information")
 		}
 
 		// Build singularity information
 		if err := e.buildSingularityInfo(ctx); err != nil {
-			errCh <- errors.Wrap(err, "failed to build singularity information")
+			return nil, 0, errors.Wrap(err, "failed to build singularity information")
 		}
 
 		// Run the command
 		err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			errCh <- errors.Wrap(err, "failed to run command")
+			return nil, 0, errors.Wrap(err, "failed to run command")
 		}
-		resultCh <- e.jobInfo.ID
+		return e.buildJobMonitoringAction(), e.jobInfo.monitoringTimeInterval, nil
 	default:
-		errCh <- errors.Errorf("Unsupported operation %q", e.operation.Name)
+		return nil, 0, errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
 }
 
@@ -205,12 +207,12 @@ func (e *executionSingularity) buildImageURI(prefix string) error {
 		if repoURL == deployments.DockerHubURL || repoURL == deployments.SingularityHubURL {
 			e.singularityInfo.imageURI = e.singularityInfo.imageName
 		} else if repoURL != "" {
-			url, err := url.Parse(repoURL)
+			urlStruct, err := url.Parse(repoURL)
 			if err != nil {
 				return err
 			}
 			tabs := strings.Split(e.singularityInfo.imageName, prefix)
-			imageURI := prefix + path.Join(url.Host, tabs[1])
+			imageURI := prefix + path.Join(urlStruct.Host, tabs[1])
 			log.Debugf("imageURI:%q", imageURI)
 			e.singularityInfo.imageURI = imageURI
 		} else {

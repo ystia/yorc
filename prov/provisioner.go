@@ -17,6 +17,7 @@ package prov
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ystia/yorc/config"
 )
@@ -80,10 +81,10 @@ func (ro RelationshipOperation) String() string {
 // The given ctx may be used to check for cancellation, conf is the server Configuration.
 //
 // ExecAsyncOperation does the same as ExecOperation in asynchronous way.
-// It needs to return the referenceID related to the operation execution in order to monitor it
+// It needs to return action, time interval related to the operation execution in order to schedule its monitoring
 type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
-	ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation, stepName string) error
+	ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation, stepName string) (*Action, time.Duration, error)
 }
 
 // InfraUsageCollector is the interface for collecting information about infrastructure usage

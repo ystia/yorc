@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/scheduling"
 	"path"
 	"strings"
 	"time"
@@ -344,7 +345,17 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			s.async = true
 			err = func() error {
 				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
-				return exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.target, op, s.name)
+				action, timeInterval, err := exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.target, op, s.name)
+				if err != nil {
+					return err
+				}
+				// Register scheduled action for asynchronous execution
+				id, err := scheduling.RegisterAction(w.consulClient, deploymentID, timeInterval, action)
+				log.Debugf("Scheduled action;%+v has been registered with timeInterval:%s and ID:%q", action, timeInterval.String(), id)
+				if err != nil {
+					return err
+				}
+				return nil
 			}()
 		} else {
 			err = func() error {

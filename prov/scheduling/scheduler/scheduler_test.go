@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scheduling
+package scheduler
 
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/scheduling"
 	"path"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func testRegisterAction(t *testing.T, client *api.Client) {
 	ti := 1 * time.Second
 	actionType := "test-action"
 	action := &prov.Action{ActionType: actionType, Data: map[string]string{"key1": "val1", "key2": "val2", "key3": "val3"}}
-	id, err := RegisterAction(deploymentID, ti, action)
+	id, err := scheduling.RegisterAction(client, deploymentID, ti, action)
 	require.Nil(t, err, "Unexpected error while registering action")
 	require.NotEmpty(t, id, "id is not expected to be empty")
 
@@ -52,7 +53,7 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 	ti := 1 * time.Second
 	actionType := "test-action"
 	action := &prov.Action{ActionType: actionType, Data: map[string]string{"key1": "val1", "key2": "val2", "key3": "val3"}}
-	id, err := RegisterAction(deploymentID, ti, action)
+	id, err := scheduling.RegisterAction(client, deploymentID, ti, action)
 	require.Nil(t, err, "Unexpected error while registering action")
 	require.NotEmpty(t, id, "id is not expected to be empty")
 
@@ -114,11 +115,11 @@ func testUnregisterAction(t *testing.T, client *api.Client) {
 	ti := 1 * time.Second
 	actionType := "test-action"
 	action := &prov.Action{ActionType: actionType, Data: map[string]string{"key1": "val1", "key2": "val2", "key3": "val3"}}
-	id, err := RegisterAction(deploymentID, ti, action)
+	id, err := scheduling.RegisterAction(client, deploymentID, ti, action)
 	require.Nil(t, err, "Unexpected error while registering action")
 	require.NotEmpty(t, id, "id is not expected to be empty")
 
-	err = UnregisterAction(id)
+	err = scheduling.UnregisterAction(client, id)
 	require.Nil(t, err, "Unexpected error while unregistering action")
 
 	kvp, _, err := client.KV().Get(path.Join(consulutil.SchedulingKVPrefix, "actions", id, ".unregisterFlag"), nil)

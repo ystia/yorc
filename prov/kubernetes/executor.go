@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
@@ -31,8 +32,8 @@ type defaultExecutor struct {
 	clientset *kubernetes.Clientset
 }
 
-func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) error {
-	return errors.New("Asynchronous operation is not yet handled by this executor")
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
+	return nil, 0, errors.New("Asynchronous operation is not yet handled by this executor")
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
