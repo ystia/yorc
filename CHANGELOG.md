@@ -4,7 +4,7 @@
 
 ### IMPROVEMENTS
 
-* Allow yorc user to omit kubernetes related config if they deploy yorc on kubernetes pod and give it cluster-admin ClusterRole (GH-156)
+* Allow to use 'In cluster' authentication when Yorc is deployed on Kubernetes. This allows to use credentials provided by Kubernetes itself. ([GH-156](https://github.com/ystia/yorc/issues/156))
 
 ### BUG FIXES
 
