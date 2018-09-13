@@ -108,6 +108,12 @@ type hostConnection struct {
 	password   string
 }
 
+type sshCredentials struct {
+	user       string
+	privateKey string
+	password   string
+}
+
 type execution interface {
 	resolveExecution() error
 	execute(ctx context.Context, retry bool) error
@@ -116,6 +122,7 @@ type execution interface {
 type ansibleRunner interface {
 	runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error
 }
+
 type executionCommon struct {
 	kv                       *api.KV
 	cfg                      config.Configuration
@@ -155,7 +162,14 @@ type executionCommon struct {
 	sourceNodeInstances      []string
 	targetNodeInstances      []string
 	cli                      *client.Client
+	containerID              string
 	vaultToken               string
+}
+
+// Handling a command standard output and standard error
+type outputHandler interface {
+	start(cmd *exec.Cmd) error
+	stop() error
 }
 
 func newExecution(ctx context.Context, kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, cli *client.Client) (execution, error) {
@@ -708,12 +722,13 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 
 func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx context.Context, buffer *bytes.Buffer) error {
 	if e.cli != nil && e.cfg.Ansible.HostedOperations.DefaultSandbox != nil {
-		containerID, err := createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID)
+		var err error
+		e.containerID, err = createSandbox(ctx, e.cli, e.cfg.Ansible.HostedOperations.DefaultSandbox, e.deploymentID)
 		if err != nil {
 			return err
 		}
 		buffer.WriteString(" ansible_connection=docker ansible_host=")
-		buffer.WriteString(containerID)
+		buffer.WriteString(e.containerID)
 	} else if e.cfg.Ansible.HostedOperations.UnsandboxedOperationsAllowed {
 		buffer.WriteString(" ansible_connection=local")
 	} else {
@@ -729,6 +744,22 @@ func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx con
 	return nil
 }
 
+func (e *executionCommon) getSSHCredentials(ctx context.Context, host hostConnection, warnOfMissingValues bool) sshCredentials {
+	sshUser := host.user
+	if sshUser == "" {
+		// Use root as default user
+		sshUser = "root"
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
+	}
+	sshPassword := host.password
+	sshPrivateKey := host.privateKey
+	if sshPrivateKey == "" && sshPassword == "" {
+		sshPrivateKey = "~/.ssh/yorc.pem"
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
+	}
+	return sshCredentials{user: sshUser, password: sshPassword, privateKey: sshPrivateKey}
+}
+
 func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host hostConnection) error {
 	buffer.WriteString(host.host)
 	if e.isOrchestratorOperation {
@@ -737,29 +768,17 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 			return err
 		}
 	} else {
-		sshUser := host.user
-		if sshUser == "" {
-			// Use root as default user
-			sshUser = "root"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh user information, trying to use root user.")
-		}
-		sshPassword := host.password
-		sshPrivateKey := host.privateKey
-		if sshPrivateKey == "" && sshPassword == "" {
-			sshPrivateKey = "~/.ssh/yorc.pem"
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
-		}
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshUser))
+		sshCredentials := e.getSSHCredentials(ctx, host, true)
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
 		// Set with priority private key against password
-		if sshPrivateKey != "" {
+		if sshCredentials.privateKey != "" {
 			// TODO if not a path store it somewhere
 			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshPrivateKey))
-		} else if sshPassword != "" {
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
+		} else if sshCredentials.password != "" {
 			// TODO use vault
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshPassword))
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshCredentials.password))
 		}
-
 		// Specify SSH port when different than default 22
 		if host.port != 0 && host.port != 22 {
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_port=%d", host.port))
@@ -1001,7 +1020,8 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 	return "", errors.Errorf("Unknown host %q", host)
 }
 
-func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansibleRecipePath string, logFn logAnsibleOutputInConsulFn) error {
+func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
+	ansibleRecipePath string, handler outputHandler) error {
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
 	cmd.Env = append(os.Environ(), "VAULT_PASSWORD="+e.vaultToken)
 	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
@@ -1032,16 +1052,18 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool, ansib
 	// Register log entry via error buffer
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RunBufferedRegistration(errbuf, errCloseCh)
 
-	cmdReader, err := cmd.Cmd.StdoutPipe()
-	if err != nil {
-		return err
+	// Start handling the stdout and stderr for this command
+	if err := handler.start(cmd.Cmd); err != nil {
+		log.Printf("Error starting output handler: %s", err.Error())
 	}
-	go logFn(ctx, e.deploymentID, e.NodeName, e.hosts, cmdReader)
 
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	if handlerErr := handler.stop(); handlerErr != nil {
+		log.Printf("Error stopping output handler: %s", err.Error())
+	}
+	if err != nil {
 		return e.checkAnsibleRetriableError(ctx, err)
 	}
-
 	return nil
 }
 
