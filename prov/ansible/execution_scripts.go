@@ -138,7 +138,7 @@ const shellAnsiblePlaybook = `
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
     [[[printf "  when: (not %s) or result.failed" $.ArchiveArtifacts]]]
     [[[end]]]
-    [[[printf "- shell: \"/bin/bash -l -c {{ ansible_env.HOME}}/%s/wrapper\"" $.OperationRemotePath]]]
+    [[[printf "- shell: \"/bin/bash -l -c %s\"" (getWrappedCommand)]]]
       environment:
         [[[ range $key, $envInput := .EnvInputs -]]]
         [[[ if (len $envInput.InstanceName) gt 0]]][[[ if (len $envInput.Value) gt 0]]][[[printf  "%s_%s: %s" $envInput.InstanceName $envInput.Name (encEnvInput $envInput)]]][[[else]]][[[printf  "%s_%s: \"\"" $envInput.InstanceName $envInput.Name]]]
@@ -176,15 +176,17 @@ func cutAfterLastUnderscore(str string) string {
 }
 
 // getExecutionScriptTemplateFnMap defined here as it is also used by tests cases
-func getExecutionScriptTemplateFnMap(e *executionCommon, ansibleRecipePath string) template.FuncMap {
+func getExecutionScriptTemplateFnMap(e *executionCommon, ansibleRecipePath string,
+	getWrappedCommandFunc func() string) template.FuncMap {
 	return template.FuncMap{
 		// The name "path" is what the function will be called in the template text.
-		"path":        filepath.Dir,
-		"abs":         filepath.Abs,
-		"cut":         cutAfterLastUnderscore,
-		"StringsJoin": strings.Join,
-		"qJoin":       quoteAndComaJoin,
-		"qJoinKeys":   quoteAndComaJoinMapKeys,
+		"path":              filepath.Dir,
+		"abs":               filepath.Abs,
+		"cut":               cutAfterLastUnderscore,
+		"StringsJoin":       strings.Join,
+		"getWrappedCommand": getWrappedCommandFunc,
+		"qJoin":             quoteAndComaJoin,
+		"qJoinKeys":         quoteAndComaJoinMapKeys,
 		"encEnvInput": func(env *operations.EnvInput) (string, error) {
 			return e.encodeEnvInputValue(env, ansibleRecipePath)
 		},
@@ -208,11 +210,13 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 
 	e.WrapperLocation = filepath.Join(e.DestFolder, "wrapper")
 
+	outputHandler := &scriptOutputHandler{execution: e, context: ctx, instanceName: currentInstance}
+
 	var buffer bytes.Buffer
 
 	tmpl := template.New("execTemplate")
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(e.executionCommon, ansibleRecipePath))
+	tmpl = tmpl.Funcs(getExecutionScriptTemplateFnMap(e.executionCommon, ansibleRecipePath, outputHandler.getWrappedCommand))
 	wrapTemplate := template.New("execTemplate")
 	wrapTemplate = wrapTemplate.Delims("[[[", "]]]")
 	if e.isPython {
@@ -258,5 +262,5 @@ func (e *executionScript) runAnsible(ctx context.Context, retry bool, currentIns
 	}
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(scriptPath)))
-	return e.executePlaybook(ctx, retry, ansibleRecipePath, logAnsibleOutputInConsulFromScript)
+	return e.executePlaybook(ctx, retry, ansibleRecipePath, outputHandler)
 }
