@@ -67,6 +67,7 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 	kubConf := cfg.Infrastructures["kubernetes"]
 	kubMasterIP := kubConf.GetString("master_url")
+	kubeConfigPath := kubConf.GetString("kubeconfig_file")
 
 	var conf *rest.Config
 	var err error
