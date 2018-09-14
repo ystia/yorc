@@ -1,4 +1,4 @@
 yorc_version: 3.1.0-SNAPSHOT
-consul_version: 1.0.6
+consul_version: 1.2.3
 terraform_version: 0.9.11
 ansible_version: 2.6.3
