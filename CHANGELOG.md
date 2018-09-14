@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### IMPROVEMENTS
+
+* Split workflow execution unit to step in order to allow a unique workflow to be executed by multiple Yorc instances. ([GH-93](https://github.com/ystia/yorc/issues/93))
+
 ## 3.1.0-M3 (September 14, 2018)
 
 ### IMPROVEMENTS
@@ -11,10 +15,6 @@
 ### BUG FIXES
 
 * REQ_TARGET keyword into TOSCA functions was broken. This was introduced during the upgrade to Alien4Cloud 2.0 that changed how requirements definition on node templates ([GH-159](https://github.com/ystia/yorc/issues/159))
-
-### IMPROVEMENTS
-
-* Split workflow execution unit to step in order to allow a unique workflow to be executed by multiple Yorc instances. ([GH-93](https://github.com/ystia/yorc/issues/93))
 
 ## 3.1.0-M2 (August 24, 2018)
 
