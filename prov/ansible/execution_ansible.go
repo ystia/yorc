@@ -30,7 +30,7 @@ import (
 	"github.com/ystia/yorc/events"
 )
 
-const ansiblePlaybook = `
+const uploadArtifactsPlaybook = `
 - name: Upload artifacts
   hosts: all
   strategy: free
@@ -38,6 +38,9 @@ const ansiblePlaybook = `
 [[[ range $artName, $art := .Artifacts ]]]    [[[printf "- file: path=\"{{ ansible_env.HOME}}/%s/%s\" state=directory mode=0755" $.OperationRemotePath (path $art)]]]
     [[[printf "- copy: src=\"%s/%s\" dest=\"{{ ansible_env.HOME}}/%s/%s\"" $.OverlayPath $art $.OperationRemotePath (path $art)]]]
 [[[end]]]
+`
+
+const ansiblePlaybook = `
 - import_playbook: [[[.PlaybookPath]]]
 [[[if .HaveOutput]]]
 - name: Retrieving Operation outputs
@@ -59,12 +62,29 @@ const ansiblePlaybook = `
 
 type executionAnsible struct {
 	*executionCommon
-	PlaybookPath string
+	PlaybookPath   string
+	isAlienAnsible bool
 }
 
 func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentInstance, ansibleRecipePath string) error {
 	var err error
-	e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
+	if !e.isAlienAnsible {
+		e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, e.Primary))
+	} else {
+		var playbook string
+		for _, envInput := range e.EnvInputs {
+			if envInput.Name == "PLAYBOOK_ENTRY" {
+				playbook = envInput.Value
+				break
+			}
+		}
+		if playbook == "" {
+			err = errors.New("No PLAYBOOK_ENTRY input found for an alien4cloud ansible implementation")
+		}
+		if err == nil {
+			e.PlaybookPath, err = filepath.Abs(filepath.Join(e.OverlayPath, filepath.Dir(e.Primary), playbook))
+		}
+	}
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
@@ -90,13 +110,24 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		buffer.WriteString("\n")
 	}
 
-	for artName, art := range e.Artifacts {
-		buffer.WriteString(artName)
-		buffer.WriteString(": \"{{ansible_env.HOME}}/")
-		buffer.WriteString(e.OperationRemotePath)
-		buffer.WriteString("/")
-		buffer.WriteString(art)
-		buffer.WriteString("\"\n")
+	if !e.isAlienAnsible {
+		for artName, art := range e.Artifacts {
+			buffer.WriteString(artName)
+			buffer.WriteString(": \"{{ansible_env.HOME}}/")
+			buffer.WriteString(e.OperationRemotePath)
+			buffer.WriteString("/")
+			buffer.WriteString(art)
+			buffer.WriteString("\"\n")
+		}
+	} else {
+		for artName, art := range e.Artifacts {
+			buffer.WriteString(artName)
+			buffer.WriteString(": \"")
+			buffer.WriteString(e.OverlayPath)
+			buffer.WriteString("/")
+			buffer.WriteString(art)
+			buffer.WriteString("\"\n")
+		}
 	}
 	for contextKey, contextValue := range e.Context {
 		buffer.WriteString(fmt.Sprintf("%s: %q", contextKey, contextValue))
@@ -144,7 +175,13 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 		"cut":  cutAfterLastUnderscore,
 	}
 	tmpl := template.New("execTemplate").Delims("[[[", "]]]").Funcs(funcMap)
-	tmpl, err = tmpl.Parse(ansiblePlaybook)
+	var playbook string
+	if e.isAlienAnsible {
+		playbook = ansiblePlaybook
+	} else {
+		playbook = uploadArtifactsPlaybook + ansiblePlaybook
+	}
+	tmpl, err = tmpl.Parse(playbook)
 	if err != nil {
 		err = errors.Wrap(err, "Failed to generate ansible playbook")
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
@@ -163,5 +200,6 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Ansible recipe for node %q: executing %q on remote host(s)", e.NodeName, filepath.Base(e.PlaybookPath)))
 
-	return e.executePlaybook(ctx, retry, ansibleRecipePath, logAnsibleOutputInConsul)
+	outputHandler := &playbookOutputHandler{execution: e, context: ctx}
+	return e.executePlaybook(ctx, retry, ansibleRecipePath, outputHandler)
 }
