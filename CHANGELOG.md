@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 3.1.0-M3 (September 14, 2018)
+
 ### IMPROVEMENTS
 
 * Allow to use 'In cluster' authentication when Yorc is deployed on Kubernetes. This allows to use credentials provided by Kubernetes itself. ([GH-156](https://github.com/ystia/yorc/issues/156))
