@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 3.1.0-M3 (September 14, 2018)
 
 ### IMPROVEMENTS
 
