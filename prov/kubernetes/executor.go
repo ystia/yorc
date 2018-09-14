@@ -18,14 +18,14 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov"
+	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type defaultExecutor struct {
@@ -81,7 +81,7 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 		if kubMasterIP == "" {
 			return nil, errors.New(`Missing or invalid mandatory parameter master_url in the "kubernetes" infrastructure configuration`)
 		}
-		conf, err = clientcmd.BuildConfigFromFlags(kubMasterIP, "")
+		conf, err = clientcmd.BuildConfigFromFlags(kubMasterIP, kubeConfigPath)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build kubernetes config")
 		}

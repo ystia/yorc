@@ -76,7 +76,7 @@ func TestOperationExecutorExecOperation(t *testing.T) {
 
 	plugin := raw.(prov.OperationExecutor)
 	op := prov.Operation{
-		Name:                   "myOps",
+		Name: "myOps",
 		ImplementationArtifact: "tosca.artifacts.Implementation.Bash",
 		RelOp: prov.RelationshipOperation{
 			IsRelationshipOperation: true,
@@ -120,7 +120,7 @@ func TestOperationExecutorExecOperationWithFailure(t *testing.T) {
 
 	plugin := raw.(prov.OperationExecutor)
 	op := prov.Operation{
-		Name:                   "myOps",
+		Name: "myOps",
 		ImplementationArtifact: "tosca.artifacts.Implementation.Bash",
 		RelOp: prov.RelationshipOperation{
 			IsRelationshipOperation: true,
