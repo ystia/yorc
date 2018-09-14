@@ -20,7 +20,6 @@
 ### BUG FIXES
 
 * REQ_TARGET keyword into TOSCA functions was broken. This was introduced during the upgrade to Alien4Cloud 2.0 that changed how requirements definition on node templates ([GH-159](https://github.com/ystia/yorc/issues/159))
-* inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
 
 ## 3.1.0-M2 (August 24, 2018)
 
