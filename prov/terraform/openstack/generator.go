@@ -35,6 +35,8 @@ import (
 	"github.com/ystia/yorc/tosca"
 )
 
+const terraformPluginVersion = "~> 1.9"
+
 type osGenerator struct {
 }
 
@@ -111,6 +113,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"openstack": map[string]interface{}{
+			"version":     terraformPluginVersion,
 			"tenant_name": cfg.Infrastructures[infrastructureName].GetString("tenant_name"),
 			"insecure":    cfg.Infrastructures[infrastructureName].GetString("insecure"),
 			"cacert_file": cfg.Infrastructures[infrastructureName].GetString("cacert_file"),
@@ -118,6 +121,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			"key":         cfg.Infrastructures[infrastructureName].GetString("key"),
 		},
 		"consul": map[string]interface{}{
+			"version":   commons.TerraformConsulPluginVersion,
 			"address":   consulAddress,
 			"scheme":    consulScheme,
 			"ca_file":   consulCA,

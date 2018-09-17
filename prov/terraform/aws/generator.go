@@ -32,7 +32,10 @@ import (
 	"github.com/ystia/yorc/tosca"
 )
 
-const infrastructureName = "aws"
+const (
+	infrastructureName     = "aws"
+	terraformPluginVersion = "~> 1.36"
+)
 
 type awsGenerator struct {
 }
@@ -85,9 +88,11 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"aws": map[string]interface{}{
-			"region": cfg.Infrastructures[infrastructureName].GetString("region"),
+			"region":  cfg.Infrastructures[infrastructureName].GetString("region"),
+			"version": terraformPluginVersion,
 		},
 		"consul": map[string]interface{}{
+			"version":   commons.TerraformConsulPluginVersion,
 			"address":   consulAddress,
 			"scheme":    consulScheme,
 			"ca_file":   consulCA,

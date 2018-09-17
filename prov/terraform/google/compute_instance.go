@@ -95,11 +95,11 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		bootImage = imageFamily
 	}
 
-	var bootDisk Disk
+	var bootDisk BootDisk
 	if bootImage != "" {
-		bootDisk.Image = bootImage
+		bootDisk.InitializeParams = InitializeParams{Image: bootImage}
 	}
-	instance.Disks = []Disk{bootDisk}
+	instance.BootDisk = bootDisk
 
 	// Network definition
 	var noAddress bool

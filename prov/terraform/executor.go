@@ -131,7 +131,13 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, env []string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
-	cmd := executil.Command(ctx, "terraform", "init")
+	var cmd *executil.Cmd
+	if cfg.Terraform.PluginsDir != "" {
+		cmd = executil.Command(ctx, "terraform", "init", "-input=false", "-plugin-dir="+cfg.Terraform.PluginsDir)
+	} else {
+		cmd = executil.Command(ctx, "terraform", "init")
+	}
+
 	cmd.Dir = infraPath
 	cmd.Env = mergeEnvironments(env)
 	errbuf := events.NewBufferedLogEntryWriter()
@@ -198,7 +204,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Applying the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
-	cmd := executil.Command(ctx, "terraform", "apply")
+	cmd := executil.Command(ctx, "terraform", "apply", "-auto-approve")
 	cmd.Dir = infraPath
 	cmd.Env = mergeEnvironments(env)
 	errbuf := events.NewBufferedLogEntryWriter()
