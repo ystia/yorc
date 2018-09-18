@@ -132,6 +132,8 @@ func (e *defaultExecutor) remoteConfigInfrastructure(ctx context.Context, kv *ap
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Remote configuring the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
 	var cmd *executil.Cmd
+	// Use pre-installed Terraform providers plugins if plugins directory exists
+	// https://www.terraform.io/guides/running-terraform-in-automation.html#pre-installed-plugins
 	if cfg.Terraform.PluginsDir != "" {
 		cmd = executil.Command(ctx, "terraform", "init", "-input=false", "-plugin-dir="+cfg.Terraform.PluginsDir)
 	} else {
@@ -204,7 +206,7 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Applying the infrastructure")
 	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
-	cmd := executil.Command(ctx, "terraform", "apply", "-auto-approve")
+	cmd := executil.Command(ctx, "terraform", "apply", "-input=false", "-auto-approve")
 	cmd.Dir = infraPath
 	cmd.Env = mergeEnvironments(env)
 	errbuf := events.NewBufferedLogEntryWriter()

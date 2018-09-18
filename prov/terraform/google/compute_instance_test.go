@@ -53,8 +53,8 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	require.True(t, ok, "computeinstance-0 is not a ComputeInstance")
 	assert.Equal(t, "n1-standard-1", compute.MachineType)
 	assert.Equal(t, "europe-west1-b", compute.Zone)
-	require.Len(t, compute.BootDisk, 1, "Expected one boot disk")
-	assert.Equal(t, "centos-cloud/centos-7", compute.BootDisk[0].InitializeParams.Image, "Unexpected boot disk image")
+	require.NotNil(t, compute.BootDisk, 1, "Expected boot disk")
+	assert.Equal(t, "centos-cloud/centos-7", compute.BootDisk.InitializeParams.Image, "Unexpected boot disk image")
 
 	require.Len(t, compute.NetworkInterfaces, 1, "Expected one network interface for external access")
 	assert.Equal(t, "1.1.1.1", compute.NetworkInterfaces[0].AccessConfigs[0].NatIP, "Unexpected external IP address")

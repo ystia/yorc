@@ -74,6 +74,10 @@ Globals Command-line options
 
   * ``--consul_ssl_verify``: If set to false, disable Consul certificate checking (true by default is ssl enabled).
 
+.. _option_terraform_plugins_dir_cmd:
+
+  * ``--terraform_plugins_dir``: Specify the directory where to find Terraform pre-installed providers plugins. If no specified, required plugins will be downloaded during deployment. See https://www.terraform.io/guides/running-terraform-in-automation.html#pre-installed-plugins for more information.
+
 .. _option_pub_routines_cmd:
 
   * ``--consul_publisher_max_routines``: Maximum number of parallelism used to store key/values in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value (500) will be used.
@@ -416,6 +420,38 @@ All available configuration options for Consul are:
 
   * ``publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
+.. _yorc_config_file_terraform_section:
+
+Terraform configuration
+~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of configuration file with Terraform configuration options.
+
+.. code-block:: JSON
+
+    {
+      "resources_prefix": "yorc1-",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      },
+      "terraform": {
+        "plugins_dir": "home/yorc/terraform_plugins_directory",
+      }
+    }
+
+All available configuration options for Consul are:
+
+.. _option_plugins_dir_cfg:
+
+  * ``plugins_dir``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
+
 .. _yorc_config_file_telemetry_section:
 
 Telemetry configuration
@@ -606,6 +642,10 @@ Environment variables
 .. _option_pub_routines_env:
 
   * ``YORC_CONSUL_PUBLISHER_MAX_ROUTINES``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
+
+.. _option_terraform_plugins_dir:
+
+  * ``YORC_TERRAFORM_PLUGINS_DIR``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
 
 .. _option_shut_timeout_env:
 

@@ -35,7 +35,7 @@ import (
 
 const (
 	infrastructureName     = "google"
-	terraformPluginVersion = "~> 1.17"
+	terraformPluginVersion = "~> 1.18"
 )
 
 type googleGenerator struct {
