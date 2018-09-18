@@ -108,7 +108,7 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
             "ca_cert": "{PATH_TO_CA_PEM}",
             "key_file": "{PATH_TO_CONSUL_CLIENT_KEY}",
             "cert_file": "{PATH_TO_CONSUL_CLIENT_PEM}",
-            "address": "127.0.0.1:8543",
+            "address": "127.0.0.1:8543"
         },
         "resources_prefix": "yorc1-",
         "key_file": "{PATH_TO_YORC_SERVER_KEY}",
@@ -124,6 +124,30 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
                 "default_security_groups": ["default"]
             }
         }
+    }
+
+If you enable SSL verification for Yorc (ssl_verify set to true), the Consul Agent must be enabled to use TLS configuration files for HTTP health checks. Otherwise, the TLS handshake may fail.
+You can find below the Consul agent's configuration:
+
+.. code-block:: json
+
+    {
+      "domain": "starlings",
+      "data_dir": "/tmp/work",
+      "client_addr": "0.0.0.0",
+      "advertise_addr": "{IP}",
+      "ui": true,
+      "retry_join": [ "{SERVER_IP}" ],
+      "encrypt": "{ENCRYPT_KEY}",
+      "ports": {
+        "https": 8543
+      },
+      "key_file": "{PATH_TO_CONSUL_CLIENT_KEY}",
+      "cert_file": "{PATH_TO_CONSUL_CLIENT_PEM}",
+      "ca_file": "{PATH_TO_CA_PEM}",
+      "enable_agent_tls_for_checks": true,
+      "verify_incoming_rpc": true,
+      "verify_outgoing": true
     }
 
 As for Consul, you may need to install CA certificate in the OS, in case you get errors about trusting the signing authority.
