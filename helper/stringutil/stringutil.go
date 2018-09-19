@@ -15,6 +15,8 @@
 package stringutil
 
 import (
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -43,4 +45,34 @@ func GetAllExceptLastElement(str string, separator string) string {
 // UniqueTimestampedName generates a time-stamped name for temporary file or directory by instance
 func UniqueTimestampedName(prefix string, suffix string) string {
 	return prefix + strconv.FormatInt(time.Now().UnixNano(), 10) + suffix
+}
+
+// GetFilePath takes in argument a string which can be a path to a file or the
+// content of a file (some config values can be either a path or a content)
+// If the argument is a file path, this function returns immediately this path value,
+// and a boolean set to true meaning the argument was a path.
+// If the argument is not a path, a new file will be created, the argument will be
+// written in this file, the function will return the path to this new file,
+// and a boolean value set to false meaning the argument wasn't a path
+func GetFilePath(pathOrContent string) (string, bool, error) {
+	if _, err := os.Stat(pathOrContent); err == nil {
+		// This is a path
+		return pathOrContent, true, err
+	}
+
+	// Create a file and write the argument in this file
+	file, err := ioutil.TempFile("", "yorc")
+	if err != nil {
+		return "", false, err
+	}
+
+	filepath := file.Name()
+	if _, err := file.WriteString(pathOrContent); err != nil {
+		file.Close()
+		return "", false, err
+	}
+
+	file.Sync()
+
+	return filepath, false, file.Close()
 }

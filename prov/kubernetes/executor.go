@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"context"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -23,6 +24,8 @@ import (
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov"
 	"k8s.io/client-go/kubernetes"
+
+	// Loading the gcp plugin to authenticate against GKE clusters
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -66,8 +69,6 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 
 func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 	kubConf := cfg.Infrastructures["kubernetes"]
-	kubMasterIP := kubConf.GetString("master_url")
-	kubeConfigPath := kubConf.GetString("kubeconfig_file")
 
 	var conf *rest.Config
 	var err error
@@ -78,17 +79,66 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 			return nil, errors.Wrap(err, "Failed to build kubernetes InClusterConfig")
 		}
 	} else {
-		if kubMasterIP == "" {
-			return nil, errors.New(`Missing or invalid mandatory parameter master_url in the "kubernetes" infrastructure configuration`)
+		kubeMasterIP := kubConf.GetString("master_url")
+		kubeConfigPathOrContent := kubConf.GetString("kubeconfig")
+		if kubeConfigPathOrContent == "" && kubeMasterIP == "" {
+			return nil, errors.New(`Missing  mandatory parameter in the "kubernetes" infrastructure configuration, either kubeconfig or master_url must be defined`)
 		}
-		conf, err = clientcmd.BuildConfigFromFlags(kubMasterIP, kubeConfigPath)
+
+		// kubeconfig yorc configuration parameter is either a path to a file
+		// or a string providing the Kubernetes configuration details.
+		// The kubernetes go API expects to get a file, creating it if necessary
+		var kubeConfigPath string
+		var wasPath bool
+		if kubeConfigPathOrContent != "" {
+			if kubeConfigPath, wasPath, err = stringutil.GetFilePath(kubeConfigPathOrContent); err != nil {
+				return nil, err
+			}
+			if !wasPath {
+				defer os.Remove(kubeConfigPath)
+			}
+		}
+
+		// Google Application credentials are needed when attempting to access
+		// Kubernetes Engine outside the Kubernetes cluster from a host where gcloud
+		// is not installed.
+		// The application_credentials yorc configuration parameter is either a
+		// path to a file or a string providing the credentials.
+		// Google API expects a path to a file to be provided in an environment
+		// variable GOOGLE_APPLICATION_CREDENTIALS.
+		// So creating a file if necessary
+
+		applicationCredsPathOrContent := kubConf.GetString("application_credentials")
+		if applicationCredsPathOrContent != "" {
+
+			applicationCredsPath, wasPath, err := stringutil.GetFilePath(applicationCredsPathOrContent)
+			if err != nil {
+				return nil, err
+			}
+			if !wasPath {
+				defer os.Remove(applicationCredsPath)
+			}
+
+			os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", applicationCredsPath)
+			defer os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+		}
+
+		conf, err = clientcmd.BuildConfigFromFlags(kubeMasterIP, kubeConfigPath)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build kubernetes config")
 		}
-		conf.TLSClientConfig.Insecure = kubConf.GetBool("insecure")
-		conf.TLSClientConfig.CAFile = kubConf.GetString("ca_file")
-		conf.TLSClientConfig.CertFile = kubConf.GetString("cert_file")
-		conf.TLSClientConfig.KeyFile = kubConf.GetString("key_file")
+
+		if kubeConfigPath == "" {
+			conf.TLSClientConfig.Insecure = kubConf.GetBool("insecure")
+			conf.TLSClientConfig.CAFile = kubConf.GetString("ca_file")
+			conf.TLSClientConfig.CertFile = kubConf.GetString("cert_file")
+			conf.TLSClientConfig.KeyFile = kubConf.GetString("key_file")
+		} else if conf.AuthProvider != nil && conf.AuthProvider.Name == "gcp" {
+			// When application credentials are set, using these creds
+			// and not attempting to rely on the local host gcloud command to
+			// access tokens
+			delete(conf.AuthProvider.Config, "cmd-path")
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(conf)
