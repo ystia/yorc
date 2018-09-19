@@ -25,8 +25,8 @@ const (
 	// DefaultSSHPrivateKeyFilePath is the default SSH private Key file path
 	// used to connect to provisioned resources
 	DefaultSSHPrivateKeyFilePath = "~/.ssh/yorc.pem"
-	// TerraformConsulPluginVersion is the Terraform Consul plugin version used
-	TerraformConsulPluginVersion = "~> 2.1"
+	// NullPluginVersionConstraint is the Terraform null plugin version constraint
+	NullPluginVersionConstraint = "~> 1.0"
 )
 
 // An Infrastructure is the top-level element of a Terraform infrastructure definition

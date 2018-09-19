@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* The orchestrator requires now at least Terraform 0.11.8 and following Terraform plugins (with corresponding version constraints): Consul (~> 2.1), AWS (~> 1.36), OpenStack (~> 1.9), Google (~ 1.18) and null provider (~ 1.0). (Terraform upgrade from 0.9.11 introduced in [GH-82](https://github.com/ystia/yorc/issues/82))
+
 ## 3.1.0-M3 (September 14, 2018)
 
 ### IMPROVEMENTS

@@ -76,7 +76,23 @@ Globals Command-line options
 
 .. _option_terraform_plugins_dir_cmd:
 
-  * ``--terraform_plugins_dir``: Specify the directory where to find Terraform pre-installed providers plugins. If no specified, required plugins will be downloaded during deployment. See https://www.terraform.io/guides/running-terraform-in-automation.html#pre-installed-plugins for more information.
+  * ``--terraform_plugins_dir``: Specify the directory where to find Terraform pre-installed providers plugins. If not specified, required plugins will be downloaded during deployment. See https://www.terraform.io/guides/running-terraform-in-automation.html#pre-installed-plugins for more information.
+
+.. _option_terraform_aws_plugin_version_constraint_cmd:
+
+  * ``--terraform_aws_plugin_version_constraint``: Specify the Terraform AWS plugin version constraint. Default one compatible with our source code is ``"~> 1.36"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
+.. _option_terraform_consul_plugin_version_constraint_cmd:
+
+  * ``--terraform_consul_plugin_version_constraint``: Specify the Terraform Consul plugin version constraint. Default one compatible with our source code is ``"~> 2.1"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
+.. _option_terraform_google_plugin_version_constraint_cmd:
+
+  * ``--terraform_google_plugin_version_constraint``: Specify the Terraform Google plugin version constraint. Default one compatible with our source code is ``"~> 1.18"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
+.. _option_terraform_openstack_plugin_version_constraint_cmd:
+
+  * ``--terraform_openstack_plugin_version_constraint``: Specify the Terraform OpenStack plugin version constraint. Default one compatible with our source code is ``"~> 1.9"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
 
 .. _option_pub_routines_cmd:
 
@@ -423,7 +439,7 @@ All available configuration options for Consul are:
 .. _yorc_config_file_terraform_section:
 
 Terraform configuration
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Below is an example of configuration file with Terraform configuration options.
 
@@ -451,6 +467,22 @@ All available configuration options for Consul are:
 .. _option_plugins_dir_cfg:
 
   * ``plugins_dir``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
+
+.. _option_aws_plugin_version_constraint_cfg:
+
+  * ``aws_plugin_version_constraint``: Equivalent to :ref:`--terraform_aws_plugin_version_constraint <option_terraform_aws_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_consul_plugin_version_constraint_cfg:
+
+  * ``consul_plugin_version_constraint``: Equivalent to :ref:`--terraform_consul_plugin_version_constraint <option_terraform_consul_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_google_plugin_version_constraint_cfg:
+
+  * ``google_plugin_version_constraint``: Equivalent to :ref:`--terraform_google_plugin_version_constraint <option_terraform_google_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_openstack_plugin_version_constraint_cfg:
+
+  * ``openstack_plugin_version_constraint``: Equivalent to :ref:`--terraform_openstack_plugin_version_constraint <option_terraform_openstack_plugin_version_constraint_cmd>` command-line flag.
 
 .. _yorc_config_file_telemetry_section:
 
@@ -643,10 +675,6 @@ Environment variables
 
   * ``YORC_CONSUL_PUBLISHER_MAX_ROUTINES``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
-.. _option_terraform_plugins_dir:
-
-  * ``YORC_TERRAFORM_PLUGINS_DIR``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
-
 .. _option_shut_timeout_env:
 
   * ``YORC_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT``: Equivalent to :ref:`--graceful_shutdown_timeout <option_shut_timeout_cmd>` command-line flag.
@@ -714,6 +742,26 @@ Environment variables
 .. _option_aws_secret_key:
 
   * ``YORC_INFRA_AWS_SECRET_KEY``: The AWS secret key credential.
+
+.. _option_terraform_plugins_dir_env:
+
+  * ``YORC_TERRAFORM_PLUGINS_DIR``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
+
+.. _option_terraform_aws_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_AWS_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_aws_plugin_version_constraint <option_terraform_aws_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_terraform_consul_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_CONSUL_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_consul_plugin_version_constraint <option_terraform_consul_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_terraform_google_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_GOOGLE_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_google_plugin_version_constraint <option_terraform_google_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_terraform_openstack_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_OPENSTACK_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_openstack_plugin_version_constraint <option_terraform_openstack_plugin_version_constraint_cmd>` command-line flag.
  
 
 Infrastructures configuration

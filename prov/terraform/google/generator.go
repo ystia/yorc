@@ -33,10 +33,7 @@ import (
 	"github.com/ystia/yorc/tosca"
 )
 
-const (
-	infrastructureName     = "google"
-	terraformPluginVersion = "~> 1.18"
-)
+const infrastructureName = "google"
 
 type googleGenerator struct {
 }
@@ -99,15 +96,18 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"google": map[string]interface{}{
-			"version": terraformPluginVersion,
+			"version": cfg.Terraform.GooglePluginVersionConstraint,
 		},
 		"consul": map[string]interface{}{
-			"version":   commons.TerraformConsulPluginVersion,
+			"version":   cfg.Terraform.ConsulPluginVersionConstraint,
 			"address":   consulAddress,
 			"scheme":    consulScheme,
 			"ca_file":   consulCA,
 			"cert_file": consulCert,
 			"key_file":  consulKey,
+		},
+		"null": map[string]interface{}{
+			"version": commons.NullPluginVersionConstraint,
 		},
 	}
 
