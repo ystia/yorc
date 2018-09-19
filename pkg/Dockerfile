@@ -1,4 +1,4 @@
-FROM laurentg/alpine-consul:1.0.4_consul-1.0.6
+FROM ystia/alpine-consul:1.0.4_consul-1.2.3
 ARG TERRAFORM_VERSION
 ARG ANSIBLE_VERSION
 # Update terraform default when possible
