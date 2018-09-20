@@ -110,11 +110,27 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	networkInterface := NetworkInterface{Network: "default"}
 	// Define an external access if there will be an external IP address
 	if !noAddress {
-		// keeping all default values, except from the external IP address if defined
-		addresses := strings.Split(externalAddresses, ",")
+		var hasStaticAddressReq = externalAddresses != ""
+		if !hasStaticAddressReq {
+			hasStaticAddressReq, err = commons.HasNetworkRequirement(kv, deploymentID, nodeName, "yorc.nodes.google.PublicNetwork")
+			if err != nil {
+				return err
+			}
+		}
 		var externalAddress string
-		if len(addresses) > instanceID {
-			externalAddress = strings.TrimSpace(addresses[instanceID])
+		// External IP address can be static if required
+		if hasStaticAddressReq {
+			// keeping all default values, except from the external IP address if defined
+			addresses := strings.Split(externalAddresses, ",")
+			if len(addresses) > instanceID {
+				externalAddress = strings.TrimSpace(addresses[instanceID])
+			} else {
+				// Need to create external address and associate it to the compute instance
+				// Add the compute address and associate it to compute default network
+				address := &Address{Name: fmt.Sprintf("%s-%d-static-address", nodeName, instanceID)}
+				commons.AddResource(infrastructure, "google_compute_address", address.Name, &address)
+				externalAddress = fmt.Sprintf("${google_compute_address.%s.address}", address.Name)
+			}
 		}
 		// else externalAddress is empty, which means an ephemeral external IP
 		// address will be assigned to the instance
@@ -153,7 +169,6 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 
 	// Get list of key/value pairs parameters
-
 	if instance.Labels, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "labels"); err != nil {
 		return err
 	}

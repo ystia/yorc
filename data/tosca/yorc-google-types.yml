@@ -106,3 +106,6 @@ node_types:
           the instances to which network firewall rules will apply.
         required: false
 
+  yorc.nodes.google.PublicNetwork:
+    derived_from: tosca.nodes.Network
+
