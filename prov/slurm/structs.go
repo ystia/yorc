@@ -14,6 +14,8 @@
 
 package slurm
 
+import "time"
+
 type infrastructure struct {
 	nodes []*nodeAllocation
 }
@@ -29,19 +31,26 @@ type nodeAllocation struct {
 }
 
 type jobInfo struct {
-	ID        string
-	name      string
-	state     string
-	tasks     int
-	cpus      int
-	nodes     int
-	mem       int
-	maxTime   string
-	batchMode bool
-	opts      []string
-	execArgs  []string
-	outputs   []string
-	inputs    map[string]string
+	ID                     string
+	name                   string
+	state                  string
+	tasks                  int
+	cpus                   int
+	nodes                  int
+	mem                    int
+	maxTime                string
+	batchMode              bool
+	opts                   []string
+	execArgs               []string
+	outputs                []string
+	inputs                 map[string]string
+	monitoringTimeInterval time.Duration
+}
+
+type jobInfoShort struct {
+	ID    string
+	name  string
+	state string
 }
 
 type singularityInfo struct {

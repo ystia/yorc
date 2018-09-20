@@ -32,6 +32,36 @@ import (
 	"github.com/ystia/yorc/log"
 )
 
+type anotherLivingTaskAlreadyExistsError struct {
+	taskID   string
+	targetID string
+	status   string
+}
+
+func (e anotherLivingTaskAlreadyExistsError) Error() string {
+	return fmt.Sprintf("Task with id %q and status %q already exists for target %q", e.taskID, e.status, e.targetID)
+}
+
+// NewAnotherLivingTaskAlreadyExistsError allows to create a new anotherLivingTaskAlreadyExistsError error
+func NewAnotherLivingTaskAlreadyExistsError(taskID, targetID, status string) error {
+	return &anotherLivingTaskAlreadyExistsError{taskID: taskID, targetID: targetID, status: status}
+}
+
+// IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
+// If true, it returns the taskID of the currently running task
+func IsAnotherLivingTaskAlreadyExistsError(err error) (bool, string) {
+	e, ok := err.(anotherLivingTaskAlreadyExistsError)
+	if ok {
+		return ok, e.taskID
+	}
+	return ok, ""
+}
+
+// IsWorkflowTask returns true if the task type is related to workflow
+func IsWorkflowTask(taskType TaskType) bool {
+	return taskType == TaskTypeDeploy || taskType == TaskTypeUnDeploy || taskType == TaskTypePurge || taskType == TaskTypeScaleIn || taskType == TaskTypeScaleOut || taskType == TaskTypeCustomWorkflow
+}
+
 type taskDataNotFound struct {
 	name   string
 	taskID string
@@ -113,7 +143,7 @@ func GetTaskType(kv *api.KV, taskID string) (TaskType, error) {
 	if err != nil {
 		return TaskTypeDeploy, errors.Wrapf(err, "Invalid task type:")
 	}
-	if typeInt < 0 || typeInt > int(TaskTypeQuery) {
+	if typeInt < 0 || typeInt > int(TaskTypeAction) {
 		return TaskTypeDeploy, errors.Errorf("Invalid type for task with id %q: %q", taskID, string(kvp.Value))
 	}
 	return TaskType(typeInt), nil
@@ -168,6 +198,8 @@ func CancelTask(kv *api.KV, taskID string) error {
 }
 
 // ResumeTask marks a task as Initial to allow it being resumed
+//
+// Deprecated: use (c *collector.Collector) ResumeTask instead
 func ResumeTask(kv *api.KV, taskID string) error {
 	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(TaskStatusINITIAL)))}
 	_, err := kv.Put(kvp, nil)
@@ -286,7 +318,7 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 	switch taskType {
 	case TaskTypeCustomCommand:
 		return events.PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
-	case TaskTypeCustomWorkflow:
+	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy:
 		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
 	case TaskTypeScaleIn, TaskTypeScaleOut:
 		return events.PublishAndLogScalingStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
@@ -309,6 +341,18 @@ func GetTaskRelatedSteps(kv *api.KV, taskID string) ([]TaskStep, error) {
 	return steps, nil
 }
 
+// GetTaskStepStatus returns the step status of the related step name
+func GetTaskStepStatus(kv *api.KV, taskID, stepName string) (TaskStepStatus, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepName), nil)
+	if err != nil {
+		return TaskStepStatusINITIAL, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		return TaskStepStatusINITIAL, nil
+	}
+	return ParseTaskStepStatus(string(kvp.Value))
+}
+
 // TaskStepExists checks if a task step exists with a stepID and related to a given taskID and returns it
 func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.WorkflowsPrefix, taskID, stepID), nil)
@@ -323,8 +367,12 @@ func TaskStepExists(kv *api.KV, taskID, stepID string) (bool, *TaskStep, error) 
 
 // UpdateTaskStepStatus allows to update the task step status
 func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
-	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(step.Status)}
-	_, err := kv.Put(kvp, nil)
+	status, err := ParseTaskStepStatus(step.Status)
+	if err != nil {
+		return err
+	}
+	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(status.String())}
+	_, err = kv.Put(kvp, nil)
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
