@@ -771,7 +771,7 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
 +=============================+=================================================================================+===========+==========+=========+
 | ``kubeconfig``              | Path or content of Kubernetes cluster configuration file*                       | string    | no       |         |
 +-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``application_credentials`` | Path or content of file containing credentials*                                 | string    | no       |         |
+| ``application_credentials`` | Path or content of file containing credentials**                                | string    | no       |         |
 +-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
 | ``master_url``              | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | no       |         |
 +-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
@@ -784,7 +784,7 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
 | ``insecure``                | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
 +-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
 
-``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
+*``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
 cluster configuration file.
 When ``kubeconfig`` is defined, other infrastructure configuration properties (``master_url``, 
 keys or certificates) don't have to be defined here. 
@@ -793,7 +793,7 @@ If neither ``kubeconfig`` nor ``master_url`` is specified, the Orchestrator will
 consider it is running within a Kubernetes Cluster and will attempt to authenticate
 inside this cluster.
 
-``application_credentials`` is the path (accessible to Yorc server) or the content
+**``application_credentials`` is the path (accessible to Yorc server) or the content
 of a file containing Google service account private keys in JSON format.
 This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
 It is needed to authenticate against Google Cloud when the ``kubeconfig`` property
