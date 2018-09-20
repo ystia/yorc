@@ -798,7 +798,7 @@ of a file containing Google service account private keys in JSON format.
 This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
 It is needed to authenticate against Google Cloud when the ``kubeconfig`` property
 above refers to a Kubernetes Cluster created on Google Kubernetes Engine, and the orchestrator is running on a host
-where [gcloud](https://cloud.google.com/sdk/gcloud/) is not installed.
+where `gcloud <https://cloud.google.com/sdk/gcloud/>`_ is not installed.
 
 .. _option_infra_google:
 
