@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### IMPROVEMENTS
+
+* Added configuration parameters in Kubernetes infrastructure allowing to connect from outside to a cluster created on Google Kubernetes Engine ([GH-162](https://github.com/ystia/yorc/issues/162))
+
 ## 3.1.0-M3 (September 14, 2018)
 
 ### IMPROVEMENTS
