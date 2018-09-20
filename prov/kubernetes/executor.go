@@ -18,6 +18,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/ystia/yorc/log"
+
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
@@ -72,27 +74,33 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 
 	var conf *rest.Config
 	var err error
+	var kubeMasterIP string
+	var kubeConfigPathOrContent string
 
-	if kubConf == nil {
+	if kubConf != nil {
+		kubeMasterIP = kubConf.GetString("master_url")
+		kubeConfigPathOrContent = kubConf.GetString("kubeconfig")
+	}
+
+	if kubeConfigPathOrContent == "" && kubeMasterIP == "" {
+		// No details on the kubernetes cluster in orchestrator configuration.
+		// Considering this is a configuration where the orchestrator runs within
+		// the Kubernetes Cluster
+		log.Debugf("No Kubernetes cluster specified in configuration, attempting to authenticate inside the cluster")
 		conf, err = rest.InClusterConfig()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build kubernetes InClusterConfig")
 		}
 	} else {
-		kubeMasterIP := kubConf.GetString("master_url")
-		kubeConfigPathOrContent := kubConf.GetString("kubeconfig")
-		if kubeConfigPathOrContent == "" && kubeMasterIP == "" {
-			return nil, errors.New(`Missing  mandatory parameter in the "kubernetes" infrastructure configuration, either kubeconfig or master_url must be defined`)
-		}
 
-		// kubeconfig yorc configuration parameter is either a path to a file
-		// or a string providing the Kubernetes configuration details.
+		// kubeconfig yorc infrastructure config parameter is either a path to a
+		// file or a string providing the Kubernetes configuration details.
 		// The kubernetes go API expects to get a file, creating it if necessary
 		var kubeConfigPath string
 		var wasPath bool
 		if kubeConfigPathOrContent != "" {
 			if kubeConfigPath, wasPath, err = stringutil.GetFilePath(kubeConfigPathOrContent); err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to get Kubernetes config file")
 			}
 			if !wasPath {
 				defer os.Remove(kubeConfigPath)
@@ -101,9 +109,9 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 
 		// Google Application credentials are needed when attempting to access
 		// Kubernetes Engine outside the Kubernetes cluster from a host where gcloud
-		// is not installed.
-		// The application_credentials yorc configuration parameter is either a
-		// path to a file or a string providing the credentials.
+		// SDK is not installed.
+		// The application_credentials yorc infrastructure config parameter is
+		// either a path to a file or a string providing the credentials.
 		// Google API expects a path to a file to be provided in an environment
 		// variable GOOGLE_APPLICATION_CREDENTIALS.
 		// So creating a file if necessary
@@ -113,7 +121,7 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 
 			applicationCredsPath, wasPath, err := stringutil.GetFilePath(applicationCredsPathOrContent)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to get application credentials file")
 			}
 			if !wasPath {
 				defer os.Remove(applicationCredsPath)
@@ -136,7 +144,7 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 		} else if conf.AuthProvider != nil && conf.AuthProvider.Name == "gcp" {
 			// When application credentials are set, using these creds
 			// and not attempting to rely on the local host gcloud command to
-			// access tokens
+			// access tokens, as gcloud mauy not be installed on yorc host
 			delete(conf.AuthProvider.Config, "cmd-path")
 		}
 	}
