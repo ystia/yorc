@@ -122,12 +122,21 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		if hasStaticAddressReq {
 			// keeping all default values, except from the external IP address if defined
 			addresses := strings.Split(externalAddresses, ",")
-			if len(addresses) > instanceID {
+			if externalAddresses != "" && len(addresses) > instanceID {
 				externalAddress = strings.TrimSpace(addresses[instanceID])
 			} else {
 				// Need to create external address and associate it to the compute instance
 				// Add the compute address and associate it to compute default network
-				address := &Address{Name: fmt.Sprintf("%s-%d-static-address", nodeName, instanceID)}
+				// Name must match regexp "^(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)$"
+				address := &Address{Name: fmt.Sprintf("%s-%d-static-address", strings.ToLower(nodeName), instanceID)}
+				// Region must be set if not provided in config by extracting it from compute instance zone
+				if cfg.Infrastructures[infrastructureName].GetString("region") == "" {
+					region, err := extractRegionFromZone(instance.Zone)
+					if err != nil {
+						return err
+					}
+					address.Region = region
+				}
 				commons.AddResource(infrastructure, "google_compute_address", address.Name, &address)
 				externalAddress = fmt.Sprintf("${google_compute_address.%s.address}", address.Name)
 			}
@@ -245,4 +254,13 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
 	return nil
+}
+
+func extractRegionFromZone(zone string) (string, error) {
+	// for a zone defined as europe-west1-b, region is europe-west1
+	tab := strings.Split(zone, "-")
+	if len(tab) != 3 {
+		return "", errors.Errorf("unexpected zone format : failed to extract region from zone:%q", zone)
+	}
+	return fmt.Sprintf("%s-%s", tab[0], tab[1]), nil
 }

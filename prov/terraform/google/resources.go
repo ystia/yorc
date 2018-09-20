@@ -74,5 +74,6 @@ type Scheduling struct {
 // Address represents a Google compute static IP address
 // See https://www.terraform.io/docs/providers/google/d/datasource_compute_address.html for more information
 type Address struct {
-	Name              string             `json:"name"`
+	Name   string `json:"name"`
+	Region string `json:"region"`
 }
