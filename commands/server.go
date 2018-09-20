@@ -64,6 +64,14 @@ var consulConfiguration = map[string]interface{}{
 	"consul.publisher_max_routines": config.DefaultConsulPubMaxRoutines,
 }
 
+var terraformConfiguration = map[string]interface{}{
+	"terraform.plugins_dir":                         "",
+	"terraform.consul_plugin_version_constraint":    config.DefaultTFConsulPluginVersionConstraint,
+	"terraform.aws_plugin_version_constraint":       config.DefaultTFAWSPluginVersionConstraint,
+	"terraform.google_plugin_version_constraint":    config.DefaultTFGooglePluginVersionConstraint,
+	"terraform.openstack_plugin_version_constraint": config.DefaultTFOpenStackPluginVersionConstraint,
+}
+
 var cfgFile string
 
 var resolvedServerExtraParams []*serverExtraParams
@@ -231,6 +239,13 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("ansible_archive_artifacts", config.DefaultArchiveArtifacts, "Define wether artifacts should be archived before being copied on remote nodes (requires tar to be installed on remote nodes).")
 	serverCmd.PersistentFlags().Bool("ansible_cache_facts", config.DefaultCacheFacts, "Define wether Ansible facts (useful variables about remote hosts) should be cached.")
 
+	//Flags definition for Terraform
+	serverCmd.PersistentFlags().StringP("terraform_plugins_dir", "", "", "The directory where to find Terraform plugins")
+	serverCmd.PersistentFlags().StringP("terraform_consul_plugin_version_constraint", "", config.DefaultTFConsulPluginVersionConstraint, "Terraform Consul plugin version constraint.")
+	serverCmd.PersistentFlags().StringP("terraform_aws_plugin_version_constraint", "", config.DefaultTFAWSPluginVersionConstraint, "Terraform AWS plugin version constraint.")
+	serverCmd.PersistentFlags().StringP("terraform_openstack_plugin_version_constraint", "", config.DefaultTFOpenStackPluginVersionConstraint, "Terraform OpenStack plugin version constraint.")
+	serverCmd.PersistentFlags().StringP("terraform_google_plugin_version_constraint", "", config.DefaultTFGooglePluginVersionConstraint, "Terraform Google plugin version constraint.")
+
 	//Bind Consul persistent flags
 	for key := range consulConfiguration {
 		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
@@ -256,6 +271,11 @@ func setConfig() {
 
 	//Bind Ansible persistent flags
 	for key := range ansibleConfiguration {
+		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
+	}
+
+	//Bind Terraform persistent flags
+	for key := range terraformConfiguration {
 		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
 	}
 
@@ -288,6 +308,11 @@ func setConfig() {
 		viper.BindEnv(key, toEnvVar(key))
 	}
 
+	//Bind Terraform environment variables flags
+	for key := range terraformConfiguration {
+		viper.BindEnv(key, toEnvVar(key))
+	}
+
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("server_graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout)
@@ -306,6 +331,11 @@ func setConfig() {
 
 	// Ansible configuration default settings
 	for key, value := range ansibleConfiguration {
+		viper.SetDefault(key, value)
+	}
+
+	// Terraform configuration default settings
+	for key, value := range terraformConfiguration {
 		viper.SetDefault(key, value)
 	}
 

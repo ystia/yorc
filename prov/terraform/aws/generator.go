@@ -85,14 +85,19 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"aws": map[string]interface{}{
-			"region": cfg.Infrastructures[infrastructureName].GetString("region"),
+			"region":  cfg.Infrastructures[infrastructureName].GetString("region"),
+			"version": cfg.Terraform.AWSPluginVersionConstraint,
 		},
 		"consul": map[string]interface{}{
+			"version":   cfg.Terraform.ConsulPluginVersionConstraint,
 			"address":   consulAddress,
 			"scheme":    consulScheme,
 			"ca_file":   consulCA,
 			"cert_file": consulCert,
 			"key_file":  consulKey,
+		},
+		"null": map[string]interface{}{
+			"version": commons.NullPluginVersionConstraint,
 		},
 	}
 

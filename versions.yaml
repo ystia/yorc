@@ -1,4 +1,8 @@
 yorc_version: 3.1.0-SNAPSHOT
 consul_version: 1.0.6
-terraform_version: 0.9.11
+terraform_version: 0.11.8
 ansible_version: 2.6.3
+tf_consul_plugin_version: 2.1.0
+tf_aws_consul_plugin_version: 1.36.0
+tf_openstack_plugin_version: 1.9.0
+tf_google_plugin_version: 1.18.0

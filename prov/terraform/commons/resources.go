@@ -25,6 +25,8 @@ const (
 	// DefaultSSHPrivateKeyFilePath is the default SSH private Key file path
 	// used to connect to provisioned resources
 	DefaultSSHPrivateKeyFilePath = "~/.ssh/yorc.pem"
+	// NullPluginVersionConstraint is the Terraform null plugin version constraint
+	NullPluginVersionConstraint = "~> 1.0"
 )
 
 // An Infrastructure is the top-level element of a Terraform infrastructure definition

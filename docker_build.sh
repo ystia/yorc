@@ -32,6 +32,10 @@ fi
 tf_version=$(grep terraform_version ${script_dir}/versions.yaml | awk '{print $2}')
 ansible_version=$(grep ansible_version ${script_dir}/versions.yaml | awk '{print $2}')
 yorc_version=$(grep yorc_version "${script_dir}/versions.yaml" | awk '{print $2}')
+tf_consul_plugin_version=$(grep tf_consul_plugin_version ${script_dir}/versions.yaml | awk '{print $2}')
+tf_aws_consul_plugin_version=$(grep tf_aws_consul_plugin_version ${script_dir}/versions.yaml | awk '{print $2}')
+tf_openstack_plugin_version=$(grep tf_openstack_plugin_version ${script_dir}/versions.yaml | awk '{print $2}')
+tf_google_plugin_version=$(grep tf_google_plugin_version ${script_dir}/versions.yaml | awk '{print $2}')
 
 if [[ "${TRAVIS}" == "true" ]]; then
     if [[ "${TRAVIS_PULL_REQUEST}" == "false" ]] ; then
@@ -60,6 +64,10 @@ docker build ${BUILD_ARGS} \
         --build-arg "TERRAFORM_VERSION=${tf_version}" \
         --build-arg "ANSIBLE_VERSION=${ansible_version}" \
         --build-arg "YORC_VERSION=${yorc_version}" \
+        --build-arg "TF_CONSUL_PLUGIN_VERSION=${tf_consul_plugin_version}" \
+        --build-arg "TF_AWS_PLUGIN_VERSION=${tf_aws_consul_plugin_version}" \
+        --build-arg "TF_OPENSTACK_PLUGIN_VERSION=${tf_openstack_plugin_version}" \
+        --build-arg "TF_GOOGLE_PLUGIN_VERSION=${tf_google_plugin_version}" \
         -t "ystia/yorc:${DOCKER_TAG:-latest}" .
 
 if [[ "${TRAVIS}" == "true" ]]; then

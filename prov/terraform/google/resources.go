@@ -23,7 +23,7 @@ type ComputeInstance struct {
 	Name              string             `json:"name"`
 	MachineType       string             `json:"machine_type"`
 	Zone              string             `json:"zone"`
-	Disks             []Disk             `json:"disk,omitempty"`
+	BootDisk          BootDisk           `json:"boot_disk,omitempty"`
 	NetworkInterfaces []NetworkInterface `json:"network_interface"`
 	Description       string             `json:"description,omitempty"`
 	Labels            map[string]string  `json:"labels,omitempty"`
@@ -34,10 +34,15 @@ type ComputeInstance struct {
 	Tags            []string         `json:"tags,omitempty"`
 }
 
-// Disk represents a disk attached to the compute instance
-type Disk struct {
+// BootDisk represents the required boot disk for compute instance
+type BootDisk struct {
 	AutoDelete bool `json:"auto_delete,omitempty"`
 	// InitializeParams is an array of at most one element
+	InitializeParams InitializeParams `json:"initialize_params,omitempty"`
+}
+
+// InitializeParams represents the initialize params
+type InitializeParams struct {
 	Image string `json:"image,omitempty"`
 }
 
