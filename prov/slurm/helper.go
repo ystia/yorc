@@ -296,3 +296,32 @@ func parseKeyValue(str string) (bool, string, string) {
 	}
 	return false, "", ""
 }
+
+func getJobInfo(client sshutil.Client, jobID, jobName string) (*jobInfoShort, error) {
+	var cmd string
+	if jobID != "" {
+		cmd = fmt.Sprintf("squeue --noheader --job=%s -o \"%%j,%%A,%%T\"", jobID)
+	} else if jobName != "" {
+		cmd = fmt.Sprintf("squeue --noheader --name=%s -o \"%%j,%%A,%%T\"", jobName)
+	}
+
+	if cmd == "" {
+		return nil, errors.New("getJobInfo needs jobID or jobName parameters to be run")
+	}
+
+	output, err := client.RunCommand(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, output)
+	}
+	out := strings.Trim(output, "\" \t\n\x00")
+	if out != "" {
+		d := strings.Split(out, ",")
+		if len(d) != 3 {
+			log.Debugf("Unexpected format job information:%q", out)
+			return nil, errors.Errorf("Unexpected format:%q for command:%q", cmd, out)
+		}
+		info := &jobInfoShort{name: d[0], ID: d[1], state: d[2]}
+		return info, nil
+	}
+	return nil, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q, name:%q", jobID, jobName)}
+}

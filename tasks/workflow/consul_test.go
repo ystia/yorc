@@ -27,20 +27,17 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
-		t.Run("testReadStepWithNext", func(t *testing.T) {
-			testReadStepWithNext(t, srv, kv)
+		t.Run("testBuildStepWithNext", func(t *testing.T) {
+			testBuildStepWithNext(t, srv, kv)
 		})
-		t.Run("testReadStepFromConsul", func(t *testing.T) {
-			testReadStepFromConsul(t, srv, kv)
+		t.Run("testBuildStep", func(t *testing.T) {
+			testBuildStep(t, srv, kv)
 		})
-		t.Run("testReadWorkFlowFromConsul", func(t *testing.T) {
-			testReadWorkFlowFromConsul(t, srv, kv)
+		t.Run("testBuildWorkFlow", func(t *testing.T) {
+			testBuildWorkFlow(t, srv, kv)
 		})
-		t.Run("testReadStepFromConsulFailing", func(t *testing.T) {
-			testReadStepFromConsulFailing(t, srv, kv)
-		})
-		t.Run("testRunWorkflow", func(t *testing.T) {
-			testRunWorkflow(t, kv)
+		t.Run("testRunStep", func(t *testing.T) {
+			testRunStep(t, srv, kv)
 		})
 	})
 }

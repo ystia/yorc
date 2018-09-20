@@ -52,25 +52,22 @@ func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator}
 }
 
-func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
-	log.Debugf("Slurm defaultExecutor: Execute the operation:%+v", operation)
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
+	log.Debugf("Slurm defaultExecutor: Execute the operation async:%+v", operation)
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 	kv := consulClient.KV()
-	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, stepName, operation)
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
+	return exec.executeAsync(ctx)
+}
 
-	// Execute operation
-	err = exec.execute(ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
+	return errors.New("only asynchronous operations are handled by this executor")
 }
 
 func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName, delegateOperation string) error {
