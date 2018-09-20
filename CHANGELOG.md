@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* The orchestrator requires now at least Terraform 0.11.8 and following Terraform plugins (with corresponding version constraints): Consul (~> 2.1), AWS (~> 1.36), OpenStack (~> 1.9), Google (~ 1.18) and null provider (~ 1.0). (Terraform upgrade from 0.9.11 introduced in [GH-82](https://github.com/ystia/yorc/issues/82))
+
 ### IMPROVEMENTS
 
 * Split workflow execution unit to step in order to allow a unique workflow to be executed by multiple Yorc instances. ([GH-93](https://github.com/ystia/yorc/issues/93))
@@ -10,10 +14,6 @@
 ### BUG FIXES
 
 * inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
-
-### DEPENDENCIES
-
-* The orchestrator requires now at least Terraform 0.11.8 and following Terraform plugins (with corresponding version constraints): Consul (~> 2.1), AWS (~> 1.36), OpenStack (~> 1.9), Google (~ 1.18) and null provider (~ 1.0). (Terraform upgrade from 0.9.11 introduced in [GH-82](https://github.com/ystia/yorc/issues/82))
 
 ## 3.1.0-M3 (September 14, 2018)
 
