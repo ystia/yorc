@@ -414,6 +414,7 @@ func GetBooleanNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName str
 }
 
 // GetStringArrayNodeProperty returns the string Array value of a node property (default: false)
+// This function returns a nil array for an empty string property value
 func GetStringArrayNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName string) ([]string, error) {
 	var result []string
 	strValue, err := GetNodePropertyValue(kv, deploymentID, nodeName, propertyName)
@@ -421,7 +422,7 @@ func GetStringArrayNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName
 		return nil, err
 	}
 
-	if strValue != nil {
+	if strValue != nil && strValue.RawString() != "" {
 		values := strings.Split(strValue.RawString(), ",")
 		for _, val := range values {
 			result = append(result, strings.TrimSpace(val))

@@ -46,7 +46,7 @@ func TestAnsibleTemplate(t *testing.T) {
 	}
 	tmpl := template.New("execTest").Funcs(funcMap)
 	tmpl = tmpl.Delims("[[[", "]]]")
-	tmpl, err := tmpl.Parse(ansiblePlaybook)
+	tmpl, err := tmpl.Parse(uploadArtifactsPlaybook + ansiblePlaybook)
 	require.Nil(t, err)
 	err = tmpl.Execute(os.Stdout, e)
 	t.Log(err)

@@ -45,11 +45,12 @@ var _TaskStepStatusMap = map[TaskStepStatus]string{
 	4: _TaskStepStatusName[23:31],
 }
 
-func (i TaskStepStatus) String() string {
-	if str, ok := _TaskStepStatusMap[i]; ok {
+// String implements the Stringer interface.
+func (x TaskStepStatus) String() string {
+	if str, ok := _TaskStepStatusMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("TaskStepStatus(%d)", i)
+	return fmt.Sprintf("TaskStepStatus(%d)", x)
 }
 
 var _TaskStepStatusValue = map[string]TaskStepStatus{
@@ -68,7 +69,7 @@ var _TaskStepStatusValue = map[string]TaskStepStatus{
 // ParseTaskStepStatus attempts to convert a string to a TaskStepStatus
 func ParseTaskStepStatus(name string) (TaskStepStatus, error) {
 	if x, ok := _TaskStepStatusValue[name]; ok {
-		return TaskStepStatus(x), nil
+		return x, nil
 	}
 	return TaskStepStatus(0), fmt.Errorf("%s is not a valid TaskStepStatus", name)
 }

@@ -3,7 +3,7 @@ ARG TERRAFORM_VERSION
 ARG ANSIBLE_VERSION
 # Update terraform default when possible
 ENV TERRAFORM_VERSION ${TERRAFORM_VERSION:-0.9.8}
-ENV ANSIBLE_VERSION ${ANSIBLE_VERSION:-2.4.1.0}
+ENV ANSIBLE_VERSION ${ANSIBLE_VERSION:-2.6.3}
 
 ADD rootfs /
 
@@ -12,7 +12,7 @@ ADD rootfs /
 RUN apk add --update make openssh-client python python-dev py-pip gcc musl-dev libffi-dev openssl-dev && \
     mkdir /tmp/docker && apk fetch -o /tmp/docker docker && \
     tar xzf /tmp/docker/*.apk -C / usr/bin/docker && \
-    pip install ansible==${ANSIBLE_VERSION} docker-py netaddr && \
+    pip install ansible==${ANSIBLE_VERSION} docker-py netaddr jmespath && \
     cd /tmp && \
     curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     cd /usr/local/bin && \

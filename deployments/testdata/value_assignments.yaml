@@ -480,29 +480,28 @@ topology_template:
         - host:
             node: VANode1
             capability: yorc.tests.capabilities.ValueAssignmentContainer
-            relationship: 
-              type: yorc.tests.relationships.ValueAssignmentHostedOn
-              properties:
-                literal: "user rel literal"
-                mapProp: {"U1": "V1", "U2": "V2"}
-                listProp: ["UV1", "UV2", "UV3"]
-                complex:
-                  literal: 5
-                  literalDefault: VANode2ToVANode1
-                baseComplex:
-                  nestedType:
-                    listofstring: ["VANode2ToVANode1L1", "VANode2ToVANode1L2"]
-                    subcomplex:
-                      literal: 2
-                    listofcomplex:
-                      - literal: 2
-                        mymap: {"VANode2ToVANode1": 1}
-                      - literal: 3
-                        mymap: {"VANode2ToVANode1": 2}
-                    mapofcomplex:
-                      m1: 
-                        literal: 4
-                        mymap: {"VANode2ToVANode1": 3}
+            relationship: yorc.tests.relationships.ValueAssignmentHostedOn
+            properties:
+              literal: "user rel literal"
+              mapProp: {"U1": "V1", "U2": "V2"}
+              listProp: ["UV1", "UV2", "UV3"]
+              complex:
+                literal: 5
+                literalDefault: VANode2ToVANode1
+              baseComplex:
+                nestedType:
+                  listofstring: ["VANode2ToVANode1L1", "VANode2ToVANode1L2"]
+                  subcomplex:
+                    literal: 2
+                  listofcomplex:
+                    - literal: 2
+                      mymap: {"VANode2ToVANode1": 1}
+                    - literal: 3
+                      mymap: {"VANode2ToVANode1": 2}
+                  mapofcomplex:
+                    m1: 
+                      literal: 4
+                      mymap: {"VANode2ToVANode1": 3}
 
 
 

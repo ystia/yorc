@@ -61,9 +61,6 @@ const DefaultCacheFacts = false
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
-// DefaultServerID is the default server ID used to identify the server node in a cluster
-const DefaultServerID = "server_0"
-
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible               `mapstructure:"ansible"`

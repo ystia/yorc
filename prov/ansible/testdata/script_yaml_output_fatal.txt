@@ -1,0 +1,65 @@
+Using /var/yorc/work/deployments/essai-Environment/ansible/ShortStartupBash/standard.start/ansible.cfg as config file
+
+PLAY [Executing script /var/yorc/work/deployments/essai-Environment/overlay/org.ystia.yorc.samples.tests.iterations/1.0.0/scripts/iterate.sh] ****************************************************************************************
+
+TASK [Gathering Facts] ***************************************************************************************************************************************************************************************************************
+ok: [192.168.2.11]
+
+TASK [file] **************************************************************************************************************************************************************************************************************************
+ok: [192.168.2.11] => changed=false 
+  gid: 1234
+  group: test
+  mode: '0755'
+  owner: test
+  path: /home/test/.yorc_1534971355530505229/ShortStartupBash/standard.start
+  size: 4096
+  state: directory
+  uid: 1234
+
+TASK [copy] **************************************************************************************************************************************************************************************************************************
+ok: [192.168.2.11] => changed=false 
+  checksum: 01e9fc8e0da8b5046b65461c8e3c1ab53c837197
+  dest: /home/test/.yorc_1534971355530505229/ShortStartupBash/standard.start/wrapper
+  gid: 1234
+  group: test
+  mode: '0744'
+  owner: test
+  path: /home/test/.yorc_1534971355530505229/ShortStartupBash/standard.start/wrapper
+  size: 690
+  state: file
+  uid: 1234
+
+TASK [copy] **************************************************************************************************************************************************************************************************************************
+changed: [192.168.2.11] => changed=true 
+  checksum: 320e2767b842aa64ce287e63f90aa0f0287b1e42
+  dest: /home/test/.yorc_1534971355530505229/ShortStartupBash/standard.start/iterate.sh
+  gid: 1234
+  group: test
+  md5sum: 424bcd9a80a2070ac9db58d44c6cc464
+  mode: '0744'
+  owner: test
+  size: 225
+  src: /home/test/.ansible/tmp/ansible-tmp-1534971830.6-172156204763624/source
+  state: file
+  uid: 1234
+
+TASK [command] ***********************************************************************************************************************************************************************************************************************
+fatal: [192.168.2.11]: FAILED! => changed=true 
+  cmd: /bin/bash -l -c /home/test/.yorc_1534971355530505229/ShortStartupBash/standard.start/wrapper
+  delta: '0:00:02.009720'
+  end: '2018-08-22 21:03:53.564635'
+  msg: non-zero return code
+  rc: 1
+  start: '2018-08-22 21:03:51.554915'
+  stderr: Message on stderr
+  stderr_lines:
+  - Message on stderr
+  stdout: |-
+    Short startup component iteration 1
+    Short startup component iteration 2
+  stdout_lines: <omitted>
+	to retry, use: --limit @/var/yorc/work/deployments/essai-Environment/ansible/ShortStartupBash/standard.start/run.ansible.retry
+
+PLAY RECAP ***************************************************************************************************************************************************************************************************************************
+192.168.2.11               : ok=4    changed=1    unreachable=0    failed=1
+
