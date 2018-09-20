@@ -61,16 +61,16 @@ const DefaultCacheFacts = false
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
-// DefaultTfConsulPluginVersion is the default Terraform Consul plugin version
+// DefaultTFConsulPluginVersionConstraint is the default Terraform Consul plugin version
 const DefaultTFConsulPluginVersionConstraint = "~> 2.1"
 
-// DefaultTfAWSPluginVersion is the default Terraform AWS plugin version
+// DefaultTFAWSPluginVersionConstraint is the default Terraform AWS plugin version
 const DefaultTFAWSPluginVersionConstraint = "~> 1.36"
 
-// DefaultTFOpenStackPluginVersion is the default Terraform OpenStack plugin version
+// DefaultTFOpenStackPluginVersionConstraint is the default Terraform OpenStack plugin version
 const DefaultTFOpenStackPluginVersionConstraint = "~> 1.9"
 
-// DefaultTFGooglePluginVersion is the default Terraform Google plugin version
+// DefaultTFGooglePluginVersionConstraint is the default Terraform Google plugin version
 const DefaultTFGooglePluginVersionConstraint = "~> 1.18"
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
