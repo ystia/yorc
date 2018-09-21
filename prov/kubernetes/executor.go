@@ -19,19 +19,18 @@ import (
 	"os"
 	"time"
 
-	"github.com/ystia/yorc/log"
-
 	"github.com/pkg/errors"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	// Loading the gcp plugin to authenticate against GKE clusters
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
-	"k8s.io/client-go/kubernetes"
-
-	// Loading the gcp plugin to authenticate against GKE clusters
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type defaultExecutor struct {
