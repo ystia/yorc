@@ -4,8 +4,10 @@ Run Yorc in Secured mode
 To run Yorc in secured mode, the following issues have to be addressed:
 
 * Setup a secured Consul cluster
-* Setup a secured Yorc server and configure it to use a secured Consul client
-* Setup Alien4Cloud security and configure it to use the secured Yorc server
+* Setup a secured Yorc server and configure it to use a secured Consul client.
+* Setup Alien4Cloud security and configure it to use a secured Yorc server
+
+In the case of Yorc HA setup (see :ref:`ha`), all the Yorc servers composing the cluster need to be secured.
 
 To secure the components listed above, and enable TLS, Multi-Domain (SAN) certificates need to be generated.
 A short list of commands based on openSSL is provided below.
@@ -22,9 +24,10 @@ You might already have one, otherwise, create it using OpenSSL commands below:
 
 Generate certificates signed by your CA
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You need to generate certificates for all the software component to be secured (Consul, Yorc, Alien4Cloud).
+You need to generate certificates for all the software component to be secured (Consul agents, Yorc servers, Alien4Cloud).
 
-Use the commands below for each component instance (where <IP> represents host's IP address used to connect to):
+Use the commands below for each component instance (where <IP> represents IP address used to connect to the component).
+Replace ``comp`` by a string of your choise for each of the components to be secured.
 
 .. code-block:: bash
 
@@ -36,26 +39,26 @@ In the sections below, the ``comp.key`` and ``comp.pem`` files are used to defin
 
 Secured Consul cluster Setup
 ----------------------------
-Create a ``consul.key`` and ``consul.pem`` for all the Consul agents within the Consul cluster you setup:
+.. note:: You need to generate cerificates for all the Consul agents within the Consul cluster you setup.
 
- * the server (you may need 3 servers for HA),
- * and the client (you need one client on each host where a Yorc server is running).
+Use the above commands to create the ``comp.key`` and a ``comp.pem`` files, and replace <IP> by the host's IP address.
 
-Use the above commands and replace <IP> and <SERVER_IP> by the host's IP address.
+In a High Availability cluster, you need to setup at least 3 consul servers, and one consul client on each host where a Yorc server is running. 
 
 Check Consul documentation for details about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_ and `network traffic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
 
-You may find below a typical configuration file for a consul server:
+You may find below a typical configuration file for a consul server. Start by creating a ``consul_server.key`` and ``consul_server.pem`` using the above commands.
 
 .. code-block:: json
 
     {
-      "domain": "starlings",
+      "domain": "yorc",
       "data_dir": "/tmp/work",
       "client_addr": "0.0.0.0",
       "advertise_addr": "{SERVER_IP}",
       "server": true,
       "bootstrap": true,
+      "ui": true,
       "encrypt": "{ENCRYPT_KEY}",
       "ports": {
         "https": 8543
@@ -67,16 +70,15 @@ You may find below a typical configuration file for a consul server:
       "verify_outgoing": true
     }
 
-And below, one for a consul client.
+And below, a typical configuration file for a consul client. Start by creating a ``consul_client.key`` and ``consul_client.pem``.
 
 .. code-block:: json
 
     {
-      "domain": "starlings",
+      "domain": "yorc",
       "data_dir": "/tmp/work",
       "client_addr": "0.0.0.0",
       "advertise_addr": "{IP}",
-      "ui": true,
       "retry_join": [ "{SERVER_IP}" ],
       "encrypt": "{ENCRYPT_KEY}",
       "ports": {
@@ -89,14 +91,13 @@ And below, one for a consul client.
       "verify_outgoing": true
     }
 
-
 You can also consult this `Blog <http://russellsimpkins.blogspot.fr/2015/10/consul-adding-tls-using-self-signed.html>`_. 
 You may found useful information about how to install CA certificate in the OS, in case you get errors about trusting the signing authority.
 
 Secured Yorc Setup
 ------------------
 
-Create a ``yorc-server.key`` and ``yorc-server.pem`` using the above commands and replace <IP> by the host's IP address.
+Create a ``yorc_server.key`` and ``yorc_server.pem`` using the above commands and replace <IP> by the host's IP address.
 
 Bellow is an example of configuration file with TLS enabled and using the collocated and secured Consul client.
 
@@ -126,13 +127,13 @@ Bellow is an example of configuration file with TLS enabled and using the colloc
         }
     }
 
-If you enable SSL verification for Yorc (ssl_verify set to true), the Consul Agent must be enabled to use TLS configuration files for HTTP health checks. Otherwise, the TLS handshake may fail.
+In the above example SSL verification is enabled for Yorc (ssl_verify set to true). In this case, the Consul Agent must be enabled to use TLS configuration files for HTTP health checks. Otherwise, the TLS handshake may fail.
 You can find below the Consul agent's configuration:
 
 .. code-block:: json
 
     {
-      "domain": "starlings",
+      "domain": "yorc",
       "data_dir": "/tmp/work",
       "client_addr": "0.0.0.0",
       "advertise_addr": "{IP}",
@@ -155,9 +156,9 @@ As for Consul, you may need to install CA certificate in the OS, in case you get
 Secured Yorc CLI Setup
 ----------------------
 
-If ``ssl_verify`` is enabled for Yorc server the Yorc CLI have to provide a client certificate signed by the Yorc's Certificate Authority.
+If ``ssl_verify`` is enabled for Yorc server, the Yorc CLI have to provide a client certificate signed by the Yorc's Certificate Authority.
 
-So, create a ``yorc-client.key`` and ``yorc-client.pem`` using the above commands and replace <IP> by the host's IP address.
+So, create a ``yorc_client.key`` and ``yorc_client.pem`` using the above commands and replace <IP> by the host's IP address.
 
 Bellow is an example of configuration file with TLS enabled. Refer to :ref:`yorc_config_client_section` for more information.
 
