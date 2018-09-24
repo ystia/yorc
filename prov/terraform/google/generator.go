@@ -95,13 +95,19 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
-		"google": map[string]interface{}{},
+		"google": map[string]interface{}{
+			"version": cfg.Terraform.GooglePluginVersionConstraint,
+		},
 		"consul": map[string]interface{}{
+			"version":   cfg.Terraform.ConsulPluginVersionConstraint,
 			"address":   consulAddress,
 			"scheme":    consulScheme,
 			"ca_file":   consulCA,
 			"cert_file": consulCert,
 			"key_file":  consulKey,
+		},
+		"null": map[string]interface{}{
+			"version": commons.NullPluginVersionConstraint,
 		},
 	}
 

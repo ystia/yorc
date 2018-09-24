@@ -77,6 +77,16 @@ type Registry interface {
 
 	// ListInfraUsageCollectors returns a list of registered infrastructure usage collectors origin
 	ListInfraUsageCollectors() []InfraUsageCollector
+
+	// RegisterActionOperator register a list of actionTypes that should be used along with the given
+	// prov.ActionOperator. Origin is the origin of the operator (builtin for builtin operators or the plugin name in case of a plugin)
+	RegisterActionOperator(actionTypes []string, operator prov.ActionOperator, origin string)
+	// Returns the first prov.ActionOperator that matches the given actionType
+	//
+	// If the given actionType can't match any prov.ActionOperator, an error is returned
+	GetActionOperator(actionType string) (prov.ActionOperator, error)
+	// ListActionOperators returns a map of actionTypes matches to prov.ActionOperator origin
+	ListActionOperators() []ActionTypeMatch
 }
 
 var defaultReg Registry
@@ -104,6 +114,13 @@ type OperationExecMatch struct {
 	Origin   string                 `json:"origin"`
 }
 
+// ActionTypeMatch represents a matching between an actionType and an ActionOperator from a given origin
+type ActionTypeMatch struct {
+	ActionType string              `json:"action_type"`
+	Operator   prov.ActionOperator `json:"-"`
+	Origin     string              `json:"origin"`
+}
+
 // Definition represents a TOSCA definition with its Name, Origin and Data content
 type Definition struct {
 	Name   string `json:"name"`
@@ -128,6 +145,7 @@ type InfraUsageCollector struct {
 type defaultRegistry struct {
 	delegateMatches          []DelegateMatch
 	operationMatches         []OperationExecMatch
+	actionTypeMatches        []ActionTypeMatch
 	definitions              []Definition
 	vaultClientBuilders      []VaultClientBuilder
 	infraUsageCollectors     []InfraUsageCollector
@@ -136,6 +154,7 @@ type defaultRegistry struct {
 	definitionsLock          sync.RWMutex
 	vaultsLock               sync.RWMutex
 	infraUsageCollectorsLock sync.RWMutex
+	actionOperatorsLock      sync.RWMutex
 }
 
 func (r *defaultRegistry) RegisterDelegates(matches []string, executor prov.DelegateExecutor, origin string) {
@@ -279,5 +298,37 @@ func (r *defaultRegistry) ListInfraUsageCollectors() []InfraUsageCollector {
 	defer r.infraUsageCollectorsLock.RUnlock()
 	result := make([]InfraUsageCollector, len(r.infraUsageCollectors))
 	copy(result, r.infraUsageCollectors)
+	return result
+}
+
+func (r *defaultRegistry) RegisterActionOperator(actionTypes []string, operator prov.ActionOperator, origin string) {
+	r.actionOperatorsLock.Lock()
+	defer r.actionOperatorsLock.Unlock()
+	if len(actionTypes) > 0 {
+		newActionOpMatch := make([]ActionTypeMatch, len(actionTypes))
+		for i := range actionTypes {
+			newActionOpMatch[i] = ActionTypeMatch{ActionType: actionTypes[i], Operator: operator, Origin: origin}
+		}
+		// Put them at the beginning
+		r.actionTypeMatches = append(newActionOpMatch, r.actionTypeMatches...)
+	}
+}
+
+func (r *defaultRegistry) GetActionOperator(actionType string) (prov.ActionOperator, error) {
+	r.actionOperatorsLock.RLock()
+	defer r.actionOperatorsLock.RUnlock()
+	for _, m := range r.actionTypeMatches {
+		if actionType == m.ActionType {
+			return m.Operator, nil
+		}
+	}
+	return nil, errors.Errorf("Unsupported actionType:%q for any registered action operators", actionType)
+}
+
+func (r *defaultRegistry) ListActionOperators() []ActionTypeMatch {
+	r.actionOperatorsLock.RLock()
+	defer r.actionOperatorsLock.RUnlock()
+	result := make([]ActionTypeMatch, len(r.actionTypeMatches))
+	copy(result, r.actionTypeMatches)
 	return result
 }

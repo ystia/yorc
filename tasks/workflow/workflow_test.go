@@ -16,142 +16,123 @@ package workflow
 
 import (
 	"context"
+	"path"
 	"strings"
 	"testing"
-
-	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/registry"
-
-	"github.com/ystia/yorc/helper/consulutil"
-
-	"path"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/registry"
 )
 
-func testReadStepFromConsulFailing(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	log.SetDebug(true)
-
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	wfName := "wf_" + path.Base(t.Name())
-	srv1.SetKV(t, wfName+"/steps/stepName/activities/0/delegate", []byte("install"))
-
-	step, err := readStep(kv, wfName+"/steps/", "stepName", nil)
-	t.Log(err)
-	require.Nil(t, step)
-	require.Error(t, err)
-}
-
-func testReadStepFromConsul(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
+	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
+	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
 	data := make(map[string][]byte)
-	data[wfName+"/steps/stepName/activities/0/delegate"] = []byte("install")
-	data[wfName+"/steps/stepName/activities/1/set-state"] = []byte("installed")
-	data[wfName+"/steps/stepName/activities/2/call-operation"] = []byte("script.sh")
-	data[wfName+"/steps/stepName/target"] = []byte("nodeName")
+	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/stepName/activities/1/set-state"] = []byte("installed")
+	data[prefix+"/steps/stepName/activities/2/call-operation"] = []byte("script.sh")
+	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
 
-	data[wfName+"/steps/Some_other_inline/activities/0/inline"] = []byte("my_custom_wf")
+	data[prefix+"/steps/Some_other_inline/activities/0/inline"] = []byte("my_custom_wf")
 
 	srv1.PopulateKV(t, data)
 
-	visitedMap := make(map[string]*visitStep)
-	step, err := readStep(kv, wfName+"/steps/", "stepName", visitedMap)
+	wfSteps, err := buildWorkFlow(kv, deploymentID, wfName)
 	require.Nil(t, err)
-	require.Equal(t, "nodeName", step.Target)
-	require.Equal(t, "stepName", step.Name)
-	require.Len(t, step.Activities, 3)
-	require.Contains(t, step.Activities, delegateActivity{delegate: "install"})
-	require.Contains(t, step.Activities, setStateActivity{state: "installed"})
-	require.Contains(t, step.Activities, callOperationActivity{operation: "script.sh"})
-	require.Len(t, visitedMap, 1)
-	require.Contains(t, visitedMap, "stepName")
+	step := wfSteps["stepName"]
+	require.NotNil(t, step)
+	require.Equal(t, "nodeName", step.target)
+	require.Equal(t, "stepName", step.name)
+	require.Len(t, step.activities, 3)
+	require.Contains(t, step.activities, delegateActivity{delegate: "install"})
+	require.Contains(t, step.activities, setStateActivity{state: "installed"})
+	require.Contains(t, step.activities, callOperationActivity{operation: "script.sh"})
 
-	visitedMap = make(map[string]*visitStep)
-	step, err = readStep(kv, wfName+"/steps/", "Some_other_inline", visitedMap)
-	require.Nil(t, err)
-	require.Equal(t, "", step.Target)
-	require.Equal(t, "Some_other_inline", step.Name)
-	require.Len(t, step.Activities, 1)
-	require.Contains(t, step.Activities, inlineActivity{inline: "my_custom_wf"})
-	require.Len(t, visitedMap, 1)
-	require.Contains(t, visitedMap, "Some_other_inline")
+	step = wfSteps["Some_other_inline"]
+	require.NotNil(t, step)
+	require.Equal(t, "", step.target)
+	require.Equal(t, "Some_other_inline", step.name)
+	require.Len(t, step.activities, 1)
+	require.Contains(t, step.activities, inlineActivity{inline: "my_custom_wf"})
 }
 
-func testReadStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
 
 	t.Log("Registering Key")
 	// Create a test key/value pair
+	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
+	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
 	data := make(map[string][]byte)
-	data[wfName+"/steps/stepName/activities/0/delegate"] = []byte("install")
-	data[wfName+"/steps/stepName/next/downstream"] = []byte("")
-	data[wfName+"/steps/stepName/target"] = []byte("nodeName")
+	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/stepName/next/downstream"] = []byte("")
+	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
 
-	data[wfName+"/steps/downstream/activities/0/call-operation"] = []byte("script.sh")
-	data[wfName+"/steps/downstream/target"] = []byte("downstream")
+	data[prefix+"/steps/downstream/activities/0/call-operation"] = []byte("script.sh")
+	data[prefix+"/steps/downstream/target"] = []byte("downstream")
 
 	srv1.PopulateKV(t, data)
 
-	visitedMap := make(map[string]*visitStep)
-	step, err := readStep(kv, wfName+"/steps/", "stepName", visitedMap)
+	wfSteps, err := buildWorkFlow(kv, deploymentID, wfName)
 	require.Nil(t, err)
-	require.Equal(t, "nodeName", step.Target)
-	require.Equal(t, "stepName", step.Name)
-	require.Len(t, step.Activities, 1)
+	step := wfSteps["stepName"]
+	require.NotNil(t, step)
 
-	require.Len(t, visitedMap, 2)
-	require.Contains(t, visitedMap, "stepName")
-	require.Contains(t, visitedMap, "downstream")
+	require.Equal(t, "nodeName", step.target)
+	require.Equal(t, "stepName", step.name)
+	require.Len(t, step.activities, 1)
 
-	require.Equal(t, 0, visitedMap["stepName"].refCount)
-	require.Equal(t, 1, visitedMap["downstream"].refCount)
 }
 
-func testReadWorkFlowFromConsul(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	t.Parallel()
-
 	t.Log("Registering Keys")
+
 	// Create a test key/value pair
+	deploymentID := "dep_" + path.Base(t.Name())
 	wfName := "wf_" + path.Base(t.Name())
+	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
 	data := make(map[string][]byte)
 
-	data[wfName+"/steps/step11/activities/0/delegate"] = []byte("install")
-	data[wfName+"/steps/step11/next/step10"] = []byte("")
-	data[wfName+"/steps/step11/next/step12"] = []byte("")
-	data[wfName+"/steps/step11/target"] = []byte("nodeName")
+	data[prefix+"/steps/step11/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/step11/next/step10"] = []byte("")
+	data[prefix+"/steps/step11/next/step12"] = []byte("")
+	data[prefix+"/steps/step11/target"] = []byte("nodeName")
 
-	data[wfName+"/steps/step10/activities/0/delegate"] = []byte("install")
-	data[wfName+"/steps/step10/next/step13"] = []byte("")
-	data[wfName+"/steps/step10/target"] = []byte("nodeName")
+	data[prefix+"/steps/step10/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/step10/next/step13"] = []byte("")
+	data[prefix+"/steps/step10/target"] = []byte("nodeName")
 
-	data[wfName+"/steps/step12/activities/0/delegate"] = []byte("install")
-	data[wfName+"/steps/step12/next/step13"] = []byte("")
-	data[wfName+"/steps/step12/target"] = []byte("nodeName")
+	data[prefix+"/steps/step12/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/step12/next/step13"] = []byte("")
+	data[prefix+"/steps/step12/target"] = []byte("nodeName")
 
-	data[wfName+"/steps/step13/activities/0/delegate"] = []byte("install")
-	data[wfName+"/steps/step13/target"] = []byte("nodeName")
+	data[prefix+"/steps/step13/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/step13/target"] = []byte("nodeName")
 
-	data[wfName+"/steps/step15/activities/0/inline"] = []byte("inception")
+	data[prefix+"/steps/step15/activities/0/inline"] = []byte("inception")
 
-	data[wfName+"/steps/step20/activities/0/delegate"] = []byte("install")
-	data[wfName+"/steps/step20/target"] = []byte("nodeName")
+	data[prefix+"/steps/step20/activities/0/delegate"] = []byte("install")
+	data[prefix+"/steps/step20/target"] = []byte("nodeName")
 
 	srv1.PopulateKV(t, data)
 
-	steps, err := readWorkFlowFromConsul(kv, wfName)
+	steps, err := buildWorkFlow(kv, deploymentID, wfName)
 	require.Nil(t, err, "oups")
 	require.Len(t, steps, 6)
 }
@@ -177,6 +158,9 @@ func (m *mockExecutor) ExecOperation(ctx context.Context, conf config.Configurat
 	}
 	return nil
 }
+func (m *mockExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
+	return nil, 0, errors.New("Asynchronous operation is not yet handled by this executor")
+}
 
 type mockActivityHook struct {
 	taskID       string
@@ -192,7 +176,7 @@ func (m *mockActivityHook) hook(ctx context.Context, cfg config.Configuration, t
 	m.activity = activity
 }
 
-func testRunWorkflow(t *testing.T, kv *api.KV) {
+func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/workflow.yaml")
 	require.Nil(t, err)
@@ -242,14 +226,17 @@ func testRunWorkflow(t *testing.T, kv *api.KV) {
 			mockExecutor.errorsCallOps = tt.args.errorsCallOps
 			mockExecutor.delegateCalled = false
 			mockExecutor.errorsDelegate = tt.args.errorsDelegate
-			stepsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", tt.args.workflowName, "steps") + "/"
 
-			s, err := readStep(kv, stepsPrefix, tt.args.stepName, make(map[string]*visitStep))
-			require.NoError(t, err)
+			wfSteps, err := buildWorkFlow(kv, deploymentID, tt.args.workflowName)
+			require.Nil(t, err)
+			s := wfSteps[tt.args.stepName]
+			require.NotNil(t, s)
 
-			s.Next = nil
-			s.SetTaskID(&task{ID: "taskID", TargetID: deploymentID})
-			err = s.run(context.Background(), deploymentID, kv, make(chan error, 10), make(chan struct{}), config.Configuration{}, tt.args.bypassErrors, tt.args.workflowName, worker{})
+			s.next = nil
+			s.t = &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "WFNode_create"), []byte("initial"))
+			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "Compute_install"), []byte("initial"))
+			err = s.run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("step.run() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -265,14 +252,14 @@ func testRunWorkflow(t *testing.T, kv *api.KV) {
 				if mah.deploymentID != deploymentID {
 					t.Errorf("step.run() pre_activity_hook.deploymentID = %v, want %v", mah.deploymentID, deploymentID)
 				}
-				if mah.taskID != s.t.ID {
-					t.Errorf("step.run() pre_activity_hook.taskID = %v, want %v", mah.taskID, s.t.ID)
+				if mah.taskID != s.t.taskID {
+					t.Errorf("step.run() pre_activity_hook.taskID = %v, want %v", mah.taskID, s.t.id)
 				}
-				if mah.target != s.Target {
-					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.Target)
+				if mah.target != s.target {
+					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.target)
 				}
-				if mah.activity != s.Activities[0] {
-					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
+				if mah.activity != s.activities[0] {
+					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.activities[0])
 				}
 			}
 			for _, mah := range postAH {
@@ -280,14 +267,14 @@ func testRunWorkflow(t *testing.T, kv *api.KV) {
 				if mah.deploymentID != deploymentID {
 					t.Errorf("step.run() post_activity_hook.deploymentID = %v, want %v", mah.deploymentID, deploymentID)
 				}
-				if mah.taskID != s.t.ID {
-					t.Errorf("step.run() post_activity_hook.taskID = %v, want %v", mah.taskID, s.t.ID)
+				if mah.taskID != s.t.taskID {
+					t.Errorf("step.run() post_activity_hook.taskID = %v, want %v", mah.taskID, s.t.id)
 				}
-				if mah.target != s.Target {
-					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.Target)
+				if mah.target != s.target {
+					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.target)
 				}
-				if mah.activity != s.Activities[0] {
-					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
+				if mah.activity != s.activities[0] {
+					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.activities[0])
 				}
 			}
 		})

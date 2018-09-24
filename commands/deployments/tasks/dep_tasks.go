@@ -17,6 +17,7 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ystia/yorc/tasks"
 	"io/ioutil"
 	"os"
 	"path"
@@ -91,7 +92,10 @@ var tasksCmd = &cobra.Command{
 					tasksTable.AddRow(path.Base(atomLink.Href), commErrorMsg)
 					continue
 				}
-				tasksTable.AddRow(task.ID, task.Type, deployments.GetColoredTaskStatus(colorize, task.Status))
+				// Ignore TaskTypeAction
+				if tasks.TaskTypeAction.String() != task.Type {
+					tasksTable.AddRow(task.ID, task.Type, deployments.GetColoredTaskStatus(colorize, task.Status))
+				}
 			}
 		}
 		fmt.Println(tasksTable.Render())

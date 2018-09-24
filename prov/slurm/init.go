@@ -29,4 +29,6 @@ func init() {
 			artifactBinImplementation,
 			artifactImageImplementation,
 		}, &defaultExecutor{}, registry.BuiltinOrigin)
+
+	reg.RegisterActionOperator([]string{"job-monitoring"}, &actionOperator{}, registry.BuiltinOrigin)
 }

@@ -61,6 +61,18 @@ const DefaultCacheFacts = false
 // DefaultWfStepGracefulTerminationTimeout is the default timeout for a graceful termination of a workflow step during concurrent workflow step failure
 const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
+// DefaultTFConsulPluginVersionConstraint is the default Terraform Consul plugin version
+const DefaultTFConsulPluginVersionConstraint = "~> 2.1"
+
+// DefaultTFAWSPluginVersionConstraint is the default Terraform AWS plugin version
+const DefaultTFAWSPluginVersionConstraint = "~> 1.36"
+
+// DefaultTFOpenStackPluginVersionConstraint is the default Terraform OpenStack plugin version
+const DefaultTFOpenStackPluginVersionConstraint = "~> 1.9"
+
+// DefaultTFGooglePluginVersionConstraint is the default Terraform Google plugin version
+const DefaultTFGooglePluginVersionConstraint = "~> 1.18"
+
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
 	Ansible                          Ansible               `mapstructure:"ansible"`
@@ -82,6 +94,7 @@ type Configuration struct {
 	Vault                            DynamicMap            `mapstructure:"vault"`
 	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
 	ServerID                         string                `mapstructure:"server_id"`
+	Terraform                        Terraform             `mapstructure:"terraform"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -141,6 +154,15 @@ type Telemetry struct {
 	ServiceName             string `mapstructure:"service_name"`
 	DisableHostName         bool   `mapstructure:"disable_hostname"`
 	DisableGoRuntimeMetrics bool   `mapstructure:"disable_go_runtime_metrics"`
+}
+
+// Terraform configuration
+type Terraform struct {
+	PluginsDir                       string `mapstructure:"plugins_dir"`
+	ConsulPluginVersionConstraint    string `mapstructure:"consul_plugin_version_constraint"`
+	AWSPluginVersionConstraint       string `mapstructure:"aws_plugin_version_constraint"`
+	GooglePluginVersionConstraint    string `mapstructure:"google_plugin_version_constraint"`
+	OpenStackPluginVersionConstraint string `mapstructure:"openstack_plugin_version_constraint"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.

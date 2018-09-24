@@ -46,6 +46,10 @@ func NewExecutor() prov.OperationExecutor {
 	return &defaultExecutor{r: rand.New(rand.NewSource(time.Now().UnixNano())), cli: cli}
 }
 
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
+	return nil, 0, errors.New("asynchronous operation is not yet handled by this executor")
+}
+
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	consulClient, err := conf.GetConsulClient()
 	if err != nil {

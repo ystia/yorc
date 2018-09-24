@@ -129,6 +129,8 @@ func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, e
 	for scalableNode, nodeInstances := range instancesByNodes {
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
+	// Add related workflow
+	data["workflowName"] = "install"
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleOut, data)
 }
 
@@ -161,6 +163,8 @@ func (s *Server) scaleIn(id, nodeName string, instancesDelta uint32) (string, er
 	for scalableNode, nodeInstances := range instancesByNodes {
 		data[path.Join("nodes", scalableNode)] = nodeInstances
 	}
+	// Add related workflow
+	data["workflowName"] = "uninstall"
 
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleIn, data)
 

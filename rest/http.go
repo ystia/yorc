@@ -29,7 +29,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/hostspool"
-	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tasks/collector"
 )
 
 type router struct {
@@ -80,7 +80,7 @@ type Server struct {
 	router         *router
 	listener       net.Listener
 	consulClient   *api.Client
-	tasksCollector *tasks.Collector
+	tasksCollector *collector.Collector
 	config         config.Configuration
 	hostsPoolMgr   hostspool.Manager
 }
@@ -118,7 +118,7 @@ func NewServer(configuration config.Configuration, client *api.Client, shutdownC
 		router:         newRouter(),
 		listener:       listener,
 		consulClient:   client,
-		tasksCollector: tasks.NewCollector(client),
+		tasksCollector: collector.NewCollector(client),
 		config:         configuration,
 		hostsPoolMgr:   hostspool.NewManager(client),
 	}
