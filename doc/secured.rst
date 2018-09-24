@@ -4,10 +4,10 @@ Run Yorc in Secured mode
 To run Yorc in secured mode, the following issues have to be addressed:
 
 * Setup a secured Consul cluster
-* Setup a secured Yorc server and configure it to use a secured Consul client.
+* Setup a secured Yorc server and configure it to use a secured Consul client
 * Setup Alien4Cloud security and configure it to use a secured Yorc server
 
-In the case of Yorc HA setup (see :ref:`ha`), all the Yorc servers composing the cluster need to be secured.
+In the case of Yorc HA setup (see :ref:`yorc_ha`), all the Yorc servers composing the cluster need to be secured.
 
 To secure the components listed above, and enable TLS, Multi-Domain (SAN) certificates need to be generated.
 A short list of commands based on openSSL is provided below.
@@ -27,7 +27,7 @@ Generate certificates signed by your CA
 You need to generate certificates for all the software component to be secured (Consul agents, Yorc servers, Alien4Cloud).
 
 Use the commands below for each component instance (where <IP> represents IP address used to connect to the component).
-Replace ``comp`` by a string of your choise for each of the components to be secured.
+Replace ``comp`` by a string of your choise corresponding to the components to be secured.
 
 .. code-block:: bash
 
@@ -35,19 +35,17 @@ Replace ``comp`` by a string of your choise for each of the components to be sec
     openssl req -new -sha256 -key comp.key  -subj "/C=FR/O=Atos/CN=127.0.0.1" -reqexts SAN -config <(cat /etc/pki/tls/openssl.cnf <(printf "[SAN]\nsubjectAltName=IP:127.0.0.1,IP:<IP>,DNS:localhost")) -out comp.csr
     openssl x509 -req -in comp.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out comp.pem -days 2048 -extensions SAN -extfile <(cat /etc/pki/tls/openssl.cnf <(printf "[SAN]\nsubjectAltName=IP:127.0.0.1,IP:<IP>,DNS:localhost"))
 
-In the sections below, the ``comp.key`` and ``comp.pem`` files are used to define the different components' configuration.
+In the sections below, the ``comp.key`` and ``comp.pem`` files path are used in the components' configuration file.
 
 Secured Consul cluster Setup
 ----------------------------
 .. note:: You need to generate cerificates for all the Consul agents within the Consul cluster you setup.
 
-Use the above commands to create the ``comp.key`` and a ``comp.pem`` files, and replace <IP> by the host's IP address.
-
 In a High Availability cluster, you need to setup at least 3 consul servers, and one consul client on each host where a Yorc server is running. 
 
 Check Consul documentation for details about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_ and `network traffic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
 
-You may find below a typical configuration file for a consul server. Start by creating a ``consul_server.key`` and ``consul_server.pem`` using the above commands.
+You may find below a typical configuration file for a consul server ; to be updated after having generated the ``consul_server.key`` and ``consul_server.pem`` files.
 
 .. code-block:: json
 
@@ -59,7 +57,6 @@ You may find below a typical configuration file for a consul server. Start by cr
       "server": true,
       "bootstrap": true,
       "ui": true,
-      "encrypt": "{ENCRYPT_KEY}",
       "ports": {
         "https": 8543
       },
@@ -70,7 +67,7 @@ You may find below a typical configuration file for a consul server. Start by cr
       "verify_outgoing": true
     }
 
-And below, a typical configuration file for a consul client. Start by creating a ``consul_client.key`` and ``consul_client.pem``.
+And below, a typical configuration file for a consul client.
 
 .. code-block:: json
 
@@ -80,7 +77,6 @@ And below, a typical configuration file for a consul client. Start by creating a
       "client_addr": "0.0.0.0",
       "advertise_addr": "{IP}",
       "retry_join": [ "{SERVER_IP}" ],
-      "encrypt": "{ENCRYPT_KEY}",
       "ports": {
         "https": 8543
       },
@@ -97,7 +93,7 @@ You may found useful information about how to install CA certificate in the OS, 
 Secured Yorc Setup
 ------------------
 
-Create a ``yorc_server.key`` and ``yorc_server.pem`` using the above commands and replace <IP> by the host's IP address.
+Generate a ``yorc_server.key`` and ``yorc_server.pem`` using the above commands and replace <IP> by the host's IP address.
 
 Bellow is an example of configuration file with TLS enabled and using the collocated and secured Consul client.
 
