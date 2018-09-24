@@ -409,36 +409,36 @@
 			"revisionTime": "2016-07-22T20:42:12Z"
 		},
 		{
-			"checksumSHA1": "ivSpuvm7dkBBC1kWyDWTZ9yF3Rs=",
+			"checksumSHA1": "SB7wK1wwrVUhTK4Ozu1oXpYJkTI=",
 			"path": "github.com/hashicorp/consul/api",
-			"revision": "9a494b5fb9c86180a5702e29c485df1507a47198",
-			"revisionTime": "2018-02-09T18:00:27Z",
-			"version": "=v1.0.6",
-			"versionExact": "v1.0.6"
+			"revision": "48d287ef690ada66634885640f3444dbf7b71d18",
+			"revisionTime": "2018-09-13T15:22:25Z",
+			"version": "v1.2.3",
+			"versionExact": "v1.2.3"
 		},
 		{
 			"checksumSHA1": "E28E4zR1FN2v1Xiq4FUER7KVN9M=",
 			"path": "github.com/hashicorp/consul/lib/freeport",
-			"revision": "9a494b5fb9c86180a5702e29c485df1507a47198",
-			"revisionTime": "2018-02-09T18:00:27Z",
-			"version": "=v1.0.6",
-			"versionExact": "v1.0.6"
+			"revision": "48d287ef690ada66634885640f3444dbf7b71d18",
+			"revisionTime": "2018-09-13T15:22:25Z",
+			"version": "v1.2.3",
+			"versionExact": "v1.2.3"
 		},
 		{
-			"checksumSHA1": "gjN5oVYQR1K7hCbUq2ED4KBWuys=",
+			"checksumSHA1": "6XdtbiIzDZ1b5aSS6OoU111/z3g=",
 			"path": "github.com/hashicorp/consul/testutil",
-			"revision": "9a494b5fb9c86180a5702e29c485df1507a47198",
-			"revisionTime": "2018-02-09T18:00:27Z",
-			"version": "=v1.0.6",
-			"versionExact": "v1.0.6"
+			"revision": "48d287ef690ada66634885640f3444dbf7b71d18",
+			"revisionTime": "2018-09-13T15:22:25Z",
+			"version": "v1.2.3",
+			"versionExact": "v1.2.3"
 		},
 		{
 			"checksumSHA1": "SCb2b91UYiB/23+SNDBlU5OZfFA=",
 			"path": "github.com/hashicorp/consul/testutil/retry",
-			"revision": "9a494b5fb9c86180a5702e29c485df1507a47198",
-			"revisionTime": "2018-02-09T18:00:27Z",
-			"version": "=v1.0.6",
-			"versionExact": "v1.0.6"
+			"revision": "48d287ef690ada66634885640f3444dbf7b71d18",
+			"revisionTime": "2018-09-13T15:22:25Z",
+			"version": "v1.2.3",
+			"versionExact": "v1.2.3"
 		},
 		{
 			"checksumSHA1": "cdOCt0Yb+hdErz8NAQqayxPmRsY=",
