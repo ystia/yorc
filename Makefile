@@ -20,10 +20,18 @@ VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
 
 VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 COMMIT_HASH=$(shell git rev-parse HEAD)
+TF_CONSUL_PLUGIN_VERSION=$(shell grep "tf_consul_plugin_version" versions.yaml | awk '{print $$2}')
+TF_AWS_PLUGIN_VERSION=$(shell grep "tf_aws_plugin_version" versions.yaml | awk '{print $$2}')
+TF_OPENSTACK_PLUGIN_VERSION=$(shell grep "tf_openstack_plugin_version" versions.yaml | awk '{print $$2}')
+TF_GOOGLE_PLUGIN_VERSION=$(shell grep "tf_google_plugin_version" versions.yaml | awk '{print $$2}')
 
 build: test
 	@echo "--> Running go build"
-	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags '-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH)'
+	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags "-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH) \
+	 -X github.com/ystia/yorc/commands.tfConsulPluginVersion=$(TF_CONSUL_PLUGIN_VERSION) \
+	 -X github.com/ystia/yorc/commands.tfAWSPluginVersion=$(TF_AWS_PLUGIN_VERSION) \
+	 -X github.com/ystia/yorc/commands.tfOpenStackPluginVersion=$(TF_OPENSTACK_PLUGIN_VERSION) \
+	 -X github.com/ystia/yorc/commands.tfGooglePluginVersion=$(TF_GOOGLE_PLUGIN_VERSION)"
 
 generate: checks
 	@go generate ./...
