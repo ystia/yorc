@@ -26,7 +26,7 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 )
 
-const defaultConsulPubMaxRoutinesForTest int = 50
+const defaultConsulPubMaxRoutinesForTest int = 100
 
 // NewTestConsulInstance allows to :
 //  - creates and returns a new Consul server and client
