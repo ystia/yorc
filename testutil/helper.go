@@ -23,9 +23,10 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 )
+
+const defaultConsulPubMaxRoutinesForTest int = 50
 
 // NewTestConsulInstance allows to :
 //  - creates and returns a new Consul server and client
@@ -52,7 +53,7 @@ func NewTestConsulInstance(t *testing.T) (*testutil.TestServer, *api.Client) {
 	assert.Nil(t, err)
 
 	kv := client.KV()
-	consulutil.InitConsulPublisher(config.DefaultConsulPubMaxRoutines, kv)
+	consulutil.InitConsulPublisher(defaultConsulPubMaxRoutinesForTest, kv)
 	return srv1, client
 }
 
