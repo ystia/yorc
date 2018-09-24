@@ -7,7 +7,7 @@ To run Yorc in secured mode, the following issues have to be addressed:
 * Setup a secured Yorc server and configure it to use a secured Consul client
 * Setup Alien4Cloud security and configure it to use a secured Yorc server
 
-In the case of Yorc HA setup (see :ref:`yorc_ha`), all the Yorc servers composing the cluster need to be secured.
+In the case of Yorc HA setup (see :ref:`yorc_ha_section`), all the Yorc servers composing the cluster need to be secured.
 
 To secure the components listed above, and enable TLS, Multi-Domain (SAN) certificates need to be generated.
 A short list of commands based on openSSL is provided below.

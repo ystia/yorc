@@ -1,7 +1,8 @@
 Run Yorc in High Availability (HA) mode
 =======================================
 
-.. _yorc_ha:
+.. _yorc_ha_section:
+
 High level view of a typical HA installation
 --------------------------------------------
 
