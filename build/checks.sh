@@ -41,12 +41,12 @@ install_consul() {
 }
 
 
-if [[ -z "$GOROOT" ]]; then
-    error_exit "GOROOT env var should be set..."
+if [[ -z "$(which go)" ]]; then
+    error_exit "go program should be present in your path"
 fi
 
 if [[ -z "$GOPATH" ]]; then
-    error_exit "GOPATH env var should be set..."
+    export GOPATH="$(go env GOPATH)"
 fi
 
 for tool in $@; do
