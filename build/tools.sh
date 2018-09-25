@@ -16,6 +16,14 @@
 #set -x
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+if [[ -z "$(which go)" ]]; then
+    error_exit "go program should be present in your path"
+fi
+
+if [[ -z "$GOPATH" ]]; then
+    export GOPATH="$(go env GOPATH)"
+fi
+
 error_exit () {
     >&2 echo "${1}"
     if [[ $# -gt 1 ]]
@@ -27,9 +35,6 @@ error_exit () {
 }
 
 copy_tools () {
-    if [[ -z "$GOPATH" ]]; then
-        error_exit "GOPATH env var should be set..."
-    fi
     for tool in $@; do
         tool="${tool%%/...*}"
         if [[ ! -x $GOPATH/bin/${tool##*/} ]]; then
