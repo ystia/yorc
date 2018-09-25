@@ -101,7 +101,7 @@ func Println(v ...interface{}) {
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
-	a[0] = "[FATAL]"
+	a[0] = "[FATAL] "
 	std.Fatal(append(a, v...)...)
 }
 
@@ -113,14 +113,14 @@ func Fatalf(format string, v ...interface{}) {
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
 func Fatalln(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
-	a[0] = "[FATAL]"
+	a[0] = "[FATAL] "
 	std.Fatalln(append(a, v...)...)
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
 func Panic(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
-	a[0] = "[PANIC]"
+	a[0] = "[PANIC] "
 	std.Panic(append(a, v...)...)
 }
 
@@ -132,7 +132,7 @@ func Panicf(format string, v ...interface{}) {
 // Panicln is equivalent to Println() followed by a call to panic().
 func Panicln(v ...interface{}) {
 	a := make([]interface{}, 1, len(v)+1)
-	a[0] = "[PANIC]"
+	a[0] = "[PANIC] "
 	std.Panicln(append(a, v...)...)
 }
 
@@ -152,7 +152,7 @@ func Output(calldepth int, s string) error {
 func Debug(v ...interface{}) {
 	if debug {
 		a := make([]interface{}, 1, len(v)+1)
-		a[0] = "[DEBUG]"
+		a[0] = "[DEBUG] "
 		std.Print(append(a, v...)...)
 	}
 
@@ -171,7 +171,7 @@ func Debugf(format string, v ...interface{}) {
 func Debugln(v ...interface{}) {
 	if debug {
 		a := make([]interface{}, 1, len(v)+1)
-		a[0] = "[DEBUG]"
+		a[0] = "[DEBUG] "
 		std.Println(append(a, v...)...)
 	}
 }
