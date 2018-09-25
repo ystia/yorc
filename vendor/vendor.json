@@ -86,6 +86,14 @@
 			"revisionTime": "2016-08-04T10:47:26Z"
 		},
 		{
+			"checksumSHA1": "OT4XN9z5k69e2RsMSpwW74B+yk4=",
+			"path": "github.com/blang/semver",
+			"revision": "2ee87856327ba09384cabd113bc6b5d174e9ec0f",
+			"revisionTime": "2017-07-27T06:48:18Z",
+			"version": "v3.5.1",
+			"versionExact": "v3.5.1"
+		},
+		{
 			"checksumSHA1": "L8dGGeIbMgYJDz15yH7SL66Kw6s=",
 			"path": "github.com/bramvdbogaerde/go-scp",
 			"revision": "e1fc87afa32536b6f2a58fc9cf937432aeff91e7",
