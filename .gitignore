@@ -21,6 +21,7 @@ work
 **/debug
 build/consul
 /doc/_build/*
+/doc/.doctrees
 /dist
 /plugin/testdata/plugin-sample/plugin-sample
 build/coverprofiles/*

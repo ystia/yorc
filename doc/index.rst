@@ -22,4 +22,5 @@ Yorc |release| Documentation
    docker
    telemetry
    performance
+   upgrade
 
