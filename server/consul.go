@@ -62,7 +62,6 @@ func synchronizeDBUpdate(client *api.Client) (*api.Lock, <-chan struct{}, error)
 }
 
 func setupConsulDBSchema(client *api.Client) error {
-	// TODO should be done on only one Yorc instance and others should wait for it to be done
 	lock, leaderCh, err := synchronizeDBUpdate(client)
 	if err != nil {
 		return err
