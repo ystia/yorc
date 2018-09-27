@@ -8,6 +8,10 @@ metadata:
 imports:
   - yorc: <yorc-types.yml>
 
+capability_types:
+  yorc.capabilities.google.Assignable:
+    derived_from: tosca.capabilities.Root
+
 node_types:
   yorc.nodes.google.Compute:
     derived_from: yorc.nodes.Compute
@@ -106,6 +110,32 @@ node_types:
           the instances to which network firewall rules will apply.
         required: false
 
-  yorc.nodes.google.PublicNetwork:
+  yorc.nodes.google.Network:
     derived_from: tosca.nodes.Network
+
+  yorc.nodes.google.StaticIP:
+    derived_from: tosca.nodes.Root
+    properties:
+    # See https://www.terraform.io/docs/providers/google/r/compute_address.html
+      name:
+        type: string
+        description: >
+          Name of the resource. The name must be 1-63 characters long, and comply with RFC1035.
+          Specifically, the name must be 1-63 characters long and match the regular expression [a-z]([-a-z0-9]*[a-z0-9])?
+          which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.
+        required: true
+      address:
+        type: string
+        description: >
+          The static external IP address represented by this resource. Only IPv4 is supported. An address may only be specified for INTERNAL address types.
+          The IP address must be inside the specified subnetwork, if any.
+        required: false
+      labels:
+        type: string
+        description: >
+          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Address.
+        required: false
+    capabilities:
+      assignment:
+        type: yorc.capabilities.google.Assignable
 
