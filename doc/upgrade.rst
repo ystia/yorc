@@ -7,7 +7,7 @@ Upgrades of Yorc that preserve already deployed applications are available start
 It is safe to upgrade from Yorc 3.0.0 but upgrading from previous releases can lead to unpredictable results.
 
 An upgrade leads to a service interruption. Currently the standard process is to stop all running instances of Yorc.
-To upgrade dependencies like Consul, Terraform, Ansible for instance then to upgrade Yorc itself and restart it.
+Upgrade dependencies like Consul, Terraform, Ansible for instance, then upgrade Yorc itself and restart it.
 Yorc will automatically take care of upgrading its database schema by its own from version 3.0.0 up to its
 current version.
 
