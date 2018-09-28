@@ -46,6 +46,32 @@ Now you can proceed with the installation of softwares used by Yorc.
     wget \https://releases.hashicorp.com/terraform/\ |terraform_version|\ /terraform\_\ |terraform_version|\ _linux_amd64.zip
     sudo unzip terraform\_\ |terraform_version|\ _linux_amd64.zip -d /usr/local/bin
 
+As Terraform uses plugins for required providers, you can pre-installed them in a directory you specify with the Yorc Server
+configuration option (:ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>`).
+Here are the command lines for installing all providers in ``/var/terraform/plugins``.
+See https://www.terraform.io/guides/running-terraform-in-automation.html#pre-installed-plugins for more information.
+
+.. parsed-literal::
+    sudo mkdir -p /var/terraform/plugins
+
+    wget \https://releases.hashicorp.com/terraform-provider-consul/\ |tf_consul_plugin_version|\ /terraform-provider-consul\_\ |tf_consul_plugin_version|\ _linux_amd64.zip
+    sudo unzip terraform-provider-consul\_\ |tf_consul_plugin_version|\ _linux_amd64.zip -d /var/terraform/plugins
+
+    wget \https://releases.hashicorp.com/terraform-provider-null/1.0.0/terraform-provider-null_1.0.0_linux_amd64.zip
+    sudo unzip terraform-provider-null_1.0.0_linux_amd64.zip -d /var/terraform/plugins
+
+    wget \https://releases.hashicorp.com/terraform-provider-aws/\ |tf_aws_plugin_version|\ /terraform-provider-aws\_\ |tf_aws_plugin_version|\ _linux_amd64.zip
+    sudo unzip terraform-provider-aws\_\ |tf_aws_plugin_version|\ _linux_amd64.zip -d /var/terraform/plugins
+
+    wget \https://releases.hashicorp.com/terraform-provider-google/\ |tf_google_plugin_version|\ /terraform-provider-google\_\ |tf_google_plugin_version|\ _linux_amd64.zip
+    sudo unzip terraform-provider-google\_\ |tf_google_plugin_version|\ _linux_amd64.zip -d /var/terraform/plugins
+
+    wget \https://releases.hashicorp.com/terraform-provider-openstack/\ |tf_openstack_plugin_version|\ /terraform-provider-openstack\_\ |tf_openstack_plugin_version|\ _linux_amd64.zip
+    sudo unzip terraform-provider-openstack\_\ |tf_openstack_plugin_version|\ _linux_amd64.zip -d /var/terraform/plugins
+
+    sudo chmod 775 /var/terraform/plugins/*
+
+
 Finally you can install the Yorc binary into ``/usr/local/bin``.
 
 To support :ref:`Orchestrator-hosted operations <tosca_orchestrator_hosted_operations>` sandboxed into Docker containers the following
