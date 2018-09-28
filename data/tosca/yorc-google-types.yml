@@ -8,10 +8,6 @@ metadata:
 imports:
   - yorc: <yorc-types.yml>
 
-capability_types:
-  yorc.capabilities.google.Assignable:
-    derived_from: tosca.capabilities.Root
-
 node_types:
   yorc.nodes.google.Compute:
     derived_from: yorc.nodes.Compute
@@ -73,12 +69,6 @@ node_types:
           keys startup-script or startup-script-url can be used to specify a script
           that will be executed by the Compute Node once it starts running.
         required: false
-      addresses:
-        type: string
-        description: >
-          Comma-separated list of external addresses. One external address will be assigned to each scalable Compute Node instance.
-          If not specified or if there aren't enough addresses specified for the number of scalable instances to create, and no_address is not true, an ephemeral IP address will be assigned.
-        required: false
       no_address:
         type: boolean
         description: >
@@ -109,12 +99,18 @@ node_types:
           Comma-separated list of tags to apply to the instances for identifying
           the instances to which network firewall rules will apply.
         required: false
+    requirements:
+      - assignment:
+          capability: yorc.capabilities.Assignable
+          node: yorc.nodes.google.StaticIP
+          relationship: yorc.relationships.AssignsTo
+          occurrences: [0, UNBOUNDED]
 
   yorc.nodes.google.Network:
     derived_from: tosca.nodes.Network
 
   yorc.nodes.google.StaticIP:
-    derived_from: tosca.nodes.Root
+    derived_from: tosca.nodes.network.Port
     properties:
     # See https://www.terraform.io/docs/providers/google/r/compute_address.html
       name:
@@ -124,10 +120,10 @@ node_types:
           Specifically, the name must be 1-63 characters long and match the regular expression [a-z]([-a-z0-9]*[a-z0-9])?
           which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.
         required: true
-      address:
+      addresses:
         type: string
         description: >
-          The static external IP address represented by this resource. Only IPv4 is supported. An address may only be specified for INTERNAL address types.
+          Comma-separated list of static external addresses. Only IPv4 is supported.
           The IP address must be inside the specified subnetwork, if any.
         required: false
       labels:
@@ -137,5 +133,5 @@ node_types:
         required: false
     capabilities:
       assignment:
-        type: yorc.capabilities.google.Assignable
+        type: yorc.capabilities.Assignable
 

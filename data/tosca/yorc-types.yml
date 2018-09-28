@@ -62,6 +62,14 @@ capability_types:
     #     type: yorc.datatypes.ProvisioningCredential
     #     description: Credentials used to provision the resource
     #     required: false
+  yorc.capabilities.Assignable:
+    derived_from: tosca.capabilities.Root
+
+relationship_types:
+  yorc.relationships.AssignsTo:
+    derived_from: tosca.relationships.Root
+    description: This type represents an IP address assignment to a Compute node type.
+    valid_target_types: [ yorc.capabilities.Assignable ]
 
 node_types:
   yorc.nodes.Compute:
