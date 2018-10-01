@@ -8,6 +8,10 @@ metadata:
 imports:
   - yorc: <yorc-types.yml>
 
+artifact_types:
+  yorc.artifacts.google.Deployment.Address:
+    derived_from: tosca.artifacts.Deployment
+
 node_types:
   yorc.nodes.google.Compute:
     derived_from: yorc.nodes.Compute
@@ -110,7 +114,7 @@ node_types:
     derived_from: tosca.nodes.Network
 
   yorc.nodes.google.StaticIP:
-    derived_from: tosca.nodes.network.Port
+    derived_from: tosca.nodes.Root
     properties:
     # See https://www.terraform.io/docs/providers/google/r/compute_address.html
       name:
@@ -134,4 +138,14 @@ node_types:
     capabilities:
       assignment:
         type: yorc.capabilities.Assignable
+    interfaces:
+      Standard:
+        create:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.google.Deployment.Address
+        delete:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.google.Deployment.Address
 

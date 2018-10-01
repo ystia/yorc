@@ -14,14 +14,27 @@
 
 package google
 
-import "github.com/ystia/yorc/registry"
-import "github.com/ystia/yorc/prov/terraform"
+import (
+	"context"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/prov/terraform/commons"
+)
 
-const deploymentAddressArtifact = "yorc.artifacts.google.Deployment.Address"
+func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV,
+	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
+	infrastructure *commons.Infrastructure,
+	outputs map[string]string) error {
 
-func init() {
-	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.google\..*`}, terraform.NewExecutor(&googleGenerator{}, nil), registry.BuiltinOrigin)
-	reg.RegisterOperationExecutor(
-		[]string{deploymentAddressArtifact}, &defaultExecutor{}, registry.BuiltinOrigin)
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	if nodeType != "yorc.nodes.google.StaticIP" {
+		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
+	}
+
+	return nil
 }
