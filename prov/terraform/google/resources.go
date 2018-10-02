@@ -71,9 +71,16 @@ type Scheduling struct {
 	Preemptible bool `json:"preemptible,omitempty"`
 }
 
-// Address represents a Google compute static IP address
-// See https://www.terraform.io/docs/providers/google/d/datasource_compute_address.html for more information
-type Address struct {
-	Name   string `json:"name"`
-	Region string `json:"region"`
+// ComputeAddress represents a Google compute static IP address
+// See https://www.terraform.io/docs/providers/google/r/compute_address.html for more information
+type ComputeAddress struct {
+	Name        string            `json:"name"`
+	Region      string            `json:"region"`
+	Address     string            `json:"address,omitempty"`
+	AddressType string            `json:"address_type,omitempty"`
+	Description string            `json:"description,omitempty"`
+	NetworkTier string            `json:"network_tier,omitempty"`
+	SubNetwork  string            `json:"subnetwork,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Project     string            `json:"project,omitempty"`
 }

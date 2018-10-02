@@ -16,6 +16,8 @@ package google
 
 import (
 	"context"
+	"github.com/hashicorp/consul/testutil"
+	"github.com/ystia/yorc/helper/consulutil"
 	"path"
 	"testing"
 
@@ -57,7 +59,7 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	assert.Equal(t, "centos-cloud/centos-7", compute.BootDisk.InitializeParams.Image, "Unexpected boot disk image")
 
 	require.Len(t, compute.NetworkInterfaces, 1, "Expected one network interface for external access")
-	assert.Equal(t, "1.1.1.1", compute.NetworkInterfaces[0].AccessConfigs[0].NatIP, "Unexpected external IP address")
+	assert.Equal(t, "", compute.NetworkInterfaces[0].AccessConfigs[0].NatIP, "Unexpected external IP address")
 
 	require.Len(t, compute.ServiceAccounts, 1, "Expected one service account")
 	assert.Equal(t, "yorc@yorc.net", compute.ServiceAccounts[0].Email, "Unexpected Service Account")
@@ -90,4 +92,35 @@ func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, kv *api.KV
 	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string))
 	require.Error(t, err, "Expected missing mandatory parameter error, but had no error")
 	assert.Contains(t, err.Error(), "mandatory parameter zone", "Expected an error on missing parameter zone")
+}
+
+func testSimpleComputeInstanceWithAddress(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	// Simulate the google address "ip_address" attribute registration
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix + deploymentID + "/topology/nodes/address_Compute/type"):                        []byte("yorc.nodes.google.Address"),
+		path.Join(consulutil.DeploymentKVPrefix + deploymentID + "/topology/instances/address_Compute/0/attributes/ip_address"): []byte("1.2.3.4"),
+	})
+
+	//infrastructure := commons.Infrastructure{}
+	//g := googleGenerator{}
+	//err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string))
+	//require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
+	//
+	//require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
+	//instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
+	//require.Len(t, instancesMap, 1)
+	//require.Contains(t, instancesMap, "compute-0")
+	//
+	//compute, ok := instancesMap["compute-0"].(*ComputeInstance)
+	//require.True(t, ok, "compute-0 is not a ComputeInstance")
+	//assert.Equal(t, "n1-standard-1", compute.MachineType)
+	//assert.Equal(t, "europe-west1-b", compute.Zone)
+	//require.NotNil(t, compute.BootDisk, 1, "Expected boot disk")
+	//assert.Equal(t, "centos-cloud/centos-7", compute.BootDisk.InitializeParams.Image, "Unexpected boot disk image")
+	//
+	//require.Len(t, compute.NetworkInterfaces, 1, "Expected one network interface for external access")
+	//assert.Equal(t, "1.2.3.4", compute.NetworkInterfaces[0].AccessConfigs[0].NatIP, "Unexpected external IP address")
 }

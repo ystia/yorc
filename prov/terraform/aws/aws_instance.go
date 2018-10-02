@@ -162,7 +162,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	// Check existing network requirement otherwise
 	var isElasticIP = len(instance.ElasticIps) > 0
 	if !isElasticIP {
-		isElasticIP, err = commons.HasNetworkRequirement(kv, deploymentID, nodeName, "yorc.nodes.aws.PublicNetwork")
+		isElasticIP, _, err = commons.HasAnyRequirement(kv, deploymentID, nodeName, "yorc.nodes.aws.PublicNetwork", "network")
 		if err != nil {
 			return err
 		}

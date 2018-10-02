@@ -152,32 +152,35 @@ func GetConnInfoFromEndpointCredentials(kv *api.KV, deploymentID, nodeName strin
 	return user.RawString(), pkfp, nil
 }
 
-// HasNetworkRequirement returns true id node has a Tosca.nodes.Network requirement type derived from the specified type
-func HasNetworkRequirement(kv *api.KV, deploymentID, nodeName, derivedType string) (bool, error) {
-	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
+// HasAnyRequirement returns true and the the node name providing the capability if node has a defined requirement type derived from the specified type or equal to the specified type
+func HasAnyRequirement(kv *api.KV, deploymentID, nodeName, derivedType, requirement string) (bool, string, error) {
+	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	for _, networkReqPrefix := range networkKeys {
 		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(networkReqPrefix)
 		capability, err := deployments.GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
 		if err != nil {
-			return false, err
+			return false, "", err
 		}
-		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		relatedNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
 		if err != nil {
-			return false, err
+			return false, "", err
 		}
 
 		if capability != "" {
-			is, err := deployments.IsNodeDerivedFrom(kv, deploymentID, networkNodeName, derivedType)
+			if capability == derivedType {
+				return true, relatedNodeName, nil
+			}
+			is, err := deployments.IsNodeDerivedFrom(kv, deploymentID, relatedNodeName, derivedType)
 			if err != nil {
-				return false, err
+				return false, "", err
 			} else if is {
-				return is, nil
+				return is, relatedNodeName, nil
 			}
 		}
 	}
 
-	return false, nil
+	return false, "", nil
 }

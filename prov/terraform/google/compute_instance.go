@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -53,7 +54,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	instance.Name = strings.Replace(instance.Name, "_", "-", -1)
 
 	// Getting string parameters
-	var imageProject, imageFamily, image, externalAddresses, serviceAccount string
+	var imageProject, imageFamily, image, serviceAccount string
 
 	stringParams := []struct {
 		pAttr        *string
@@ -66,7 +67,6 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		{&imageFamily, "image_family", false},
 		{&image, "image", false},
 		{&instance.Description, "description", false},
-		{&externalAddresses, "addresses", false},
 		{&serviceAccount, "service_account", false},
 	}
 
@@ -110,35 +110,17 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	networkInterface := NetworkInterface{Network: "default"}
 	// Define an external access if there will be an external IP address
 	if !noAddress {
-		var hasStaticAddressReq = externalAddresses != ""
-		if !hasStaticAddressReq {
-			hasStaticAddressReq, err = commons.HasNetworkRequirement(kv, deploymentID, nodeName, "yorc.nodes.google.PublicNetwork")
-			if err != nil {
-				return err
-			}
+		hasStaticAddressReq, addressNode, err := commons.HasAnyRequirement(kv, deploymentID, nodeName, "yorc.capabilities.Assignable", "assignment")
+		if err != nil {
+			return err
 		}
 		var externalAddress string
 		// External IP address can be static if required
 		if hasStaticAddressReq {
-			// keeping all default values, except from the external IP address if defined
-			addresses := strings.Split(externalAddresses, ",")
-			if externalAddresses != "" && len(addresses) > instanceID {
-				externalAddress = strings.TrimSpace(addresses[instanceID])
-			} else {
-				// Need to create external address and associate it to the compute instance
-				// Add the compute address and associate it to compute default network
-				// Name must match regexp "^(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)$"
-				address := &Address{Name: fmt.Sprintf("%s-%d-static-address", strings.ToLower(nodeName), instanceID)}
-				// Region must be set if not provided in config by extracting it from compute instance zone
-				if cfg.Infrastructures[infrastructureName].GetString("region") == "" {
-					region, err := extractRegionFromZone(instance.Zone)
-					if err != nil {
-						return err
-					}
-					address.Region = region
-				}
-				commons.AddResource(infrastructure, "google_compute_address", address.Name, &address)
-				externalAddress = fmt.Sprintf("${google_compute_address.%s.address}", address.Name)
+			// Address Lookup
+			externalAddress, err = addressLookup(ctx, kv, deploymentID, instanceName, addressNode)
+			if err != nil {
+				return err
 			}
 		}
 		// else externalAddress is empty, which means an ephemeral external IP
@@ -228,7 +210,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 			consulKeyPublicIPAddr)
 	}
 
-	// IP Address capability
+	// IP ComputeAddress capability
 	capabilityIPAddr := commons.ConsulKey{
 		Path:  path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"),
 		Value: accessIP}
@@ -256,11 +238,28 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	return nil
 }
 
-func extractRegionFromZone(zone string) (string, error) {
-	// for a zone defined as europe-west1-b, region is europe-west1
-	tab := strings.Split(zone, "-")
-	if len(tab) != 3 {
-		return "", errors.Errorf("unexpected zone format : failed to extract region from zone:%q", zone)
+func addressLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, addressNodeName string) (string, error) {
+	var address string
+	res := make(chan string, 1)
+	go func() {
+		for {
+			if address, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, addressNodeName, instanceName, "ip_address"); address != nil && address.RawString() != "" {
+				res <- address.RawString()
+				return
+			}
+
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	select {
+	case address = <-res:
+		return address, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
 	}
-	return fmt.Sprintf("%s-%s", tab[0], tab[1]), nil
 }

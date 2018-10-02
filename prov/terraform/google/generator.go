@@ -146,7 +146,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 		case "yorc.nodes.google.PublicNetwork":
 			// Nothing to do
-		case "yorc.nodes.google.StaticIP":
+		case "yorc.nodes.google.Address":
 			err = g.generateComputeAddress(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, err
