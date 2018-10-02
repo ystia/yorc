@@ -111,6 +111,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	// Management of variables for Terraform
 	infrastructure.Provider = map[string]interface{}{
 		"openstack": map[string]interface{}{
+			"version":     cfg.Terraform.OpenStackPluginVersionConstraint,
 			"tenant_name": cfg.Infrastructures[infrastructureName].GetString("tenant_name"),
 			"insecure":    cfg.Infrastructures[infrastructureName].GetString("insecure"),
 			"cacert_file": cfg.Infrastructures[infrastructureName].GetString("cacert_file"),
@@ -118,11 +119,15 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 			"key":         cfg.Infrastructures[infrastructureName].GetString("key"),
 		},
 		"consul": map[string]interface{}{
+			"version":   cfg.Terraform.ConsulPluginVersionConstraint,
 			"address":   consulAddress,
 			"scheme":    consulScheme,
 			"ca_file":   consulCA,
 			"cert_file": consulCert,
 			"key_file":  consulKey,
+		},
+		"null": map[string]interface{}{
+			"version": commons.NullPluginVersionConstraint,
 		},
 	}
 

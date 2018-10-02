@@ -7,23 +7,6 @@
   "http_port": 8800,
   "http_address": "0.0.0.0",
   "resources_prefix": "yorc-",
-  "telemetry":{
-    "statsd_address": "127.0.0.1:8125",
-    "expose_prometheus_endpoint": true
-  },
-  "vault": {
-    "type": "hashicorp",
-    "address": "http://127.0.0.1:8200",
-    "max_retries": "5",
-    "timeout": "5m",
-    "ca_cert": "/etc/pki/yorc/vault/ca/ca.pem",
-    "ca_path": "/etc/pki/yorc/vault/ca/",
-    "client_cert": "/etc/pki/yorc/vault/client/client.pem",
-    "client_key": "/etc/pki/yorc/vault/client/client.key",
-    "tls_server_name": "vault.yorc.rocks",
-    "tls_skip_verify": false,
-    "token": "blabla"
-  },
   "infrastructures":{
     "openstack": {
       "auth_url": "http://openstack:5000/v2.0",
@@ -46,7 +29,17 @@
       "region": "us-east-2"
     },
     "slurm":{
-      "default_job_name": "xBD"
+      "user_name": "benoists",
+      "password": "changeme",
+      "name": "slurm",
+      "url": "10.197.80.20",
+      "port": 22,
+      "default_job_name": "SBE"
     }
+  },
+  "ansible": {
+    "use_openssh": true,
+    "cache_facts": true,
+    "archive_artifacts": true
   }
 }

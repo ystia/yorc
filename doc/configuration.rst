@@ -74,6 +74,26 @@ Globals Command-line options
 
   * ``--consul_ssl_verify``: If set to false, disable Consul certificate checking (true by default is ssl enabled).
 
+.. _option_terraform_plugins_dir_cmd:
+
+  * ``--terraform_plugins_dir``: Specify the directory where to find Terraform pre-installed providers plugins. If not specified, required plugins will be downloaded during deployment. See https://www.terraform.io/guides/running-terraform-in-automation.html#pre-installed-plugins for more information.
+
+.. _option_terraform_aws_plugin_version_constraint_cmd:
+
+  * ``--terraform_aws_plugin_version_constraint``: Specify the Terraform AWS plugin version constraint. Default one compatible with our source code is ``"~> 1.36"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
+.. _option_terraform_consul_plugin_version_constraint_cmd:
+
+  * ``--terraform_consul_plugin_version_constraint``: Specify the Terraform Consul plugin version constraint. Default one compatible with our source code is ``"~> 2.1"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
+.. _option_terraform_google_plugin_version_constraint_cmd:
+
+  * ``--terraform_google_plugin_version_constraint``: Specify the Terraform Google plugin version constraint. Default one compatible with our source code is ``"~> 1.18"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
+.. _option_terraform_openstack_plugin_version_constraint_cmd:
+
+  * ``--terraform_openstack_plugin_version_constraint``: Specify the Terraform OpenStack plugin version constraint. Default one compatible with our source code is ``"~> 1.9"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
 .. _option_pub_routines_cmd:
 
   * ``--consul_publisher_max_routines``: Maximum number of parallelism used to store key/values in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value (500) will be used.
@@ -416,6 +436,54 @@ All available configuration options for Consul are:
 
   * ``publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
 
+.. _yorc_config_file_terraform_section:
+
+Terraform configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of configuration file with Terraform configuration options.
+
+.. code-block:: JSON
+
+    {
+      "resources_prefix": "yorc1-",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      },
+      "terraform": {
+        "plugins_dir": "home/yorc/terraform_plugins_directory",
+      }
+    }
+
+All available configuration options for Consul are:
+
+.. _option_plugins_dir_cfg:
+
+  * ``plugins_dir``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
+
+.. _option_aws_plugin_version_constraint_cfg:
+
+  * ``aws_plugin_version_constraint``: Equivalent to :ref:`--terraform_aws_plugin_version_constraint <option_terraform_aws_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_consul_plugin_version_constraint_cfg:
+
+  * ``consul_plugin_version_constraint``: Equivalent to :ref:`--terraform_consul_plugin_version_constraint <option_terraform_consul_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_google_plugin_version_constraint_cfg:
+
+  * ``google_plugin_version_constraint``: Equivalent to :ref:`--terraform_google_plugin_version_constraint <option_terraform_google_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_openstack_plugin_version_constraint_cfg:
+
+  * ``openstack_plugin_version_constraint``: Equivalent to :ref:`--terraform_openstack_plugin_version_constraint <option_terraform_openstack_plugin_version_constraint_cmd>` command-line flag.
+
 .. _yorc_config_file_telemetry_section:
 
 Telemetry configuration
@@ -674,6 +742,26 @@ Environment variables
 .. _option_aws_secret_key:
 
   * ``YORC_INFRA_AWS_SECRET_KEY``: The AWS secret key credential.
+
+.. _option_terraform_plugins_dir_env:
+
+  * ``YORC_TERRAFORM_PLUGINS_DIR``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
+
+.. _option_terraform_aws_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_AWS_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_aws_plugin_version_constraint <option_terraform_aws_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_terraform_consul_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_CONSUL_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_consul_plugin_version_constraint <option_terraform_consul_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_terraform_google_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_GOOGLE_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_google_plugin_version_constraint <option_terraform_google_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_terraform_openstack_plugin_version_constraint:
+
+  * ``YORC_TERRAFORM_OPENSTACK_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_openstack_plugin_version_constraint <option_terraform_openstack_plugin_version_constraint_cmd>` command-line flag.
  
 
 Infrastructures configuration
@@ -765,20 +853,40 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
    http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
 .. tabularcolumns:: |l|L|L|L|L|
 
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-|  Option Name   |                                   Description                                   | Data Type | Required | Default |
-|                |                                                                                 |           |          |         |
-+================+=================================================================================+===========+==========+=========+
-| ``master_url`` | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | yes      |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``ca_file``    | Path to a trusted root certificates for server                                  | string    | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``cert_file``  | Path to the TLS client certificate used for authentication                      | string    | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``key_file``   | Path to the TLS client key used for authentication                              | string    | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``insecure``   | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+|  Option Name                |                                   Description                                   | Data Type | Required | Default |
+|                             |                                                                                 |           |          |         |
++=============================+=================================================================================+===========+==========+=========+
+| ``kubeconfig``              | Path or content of Kubernetes cluster configuration file*                       | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``application_credentials`` | Path or content of file containing credentials**                                | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``master_url``              | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``ca_file``                 | Path to a trusted root certificates for server                                  | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``cert_file``               | Path to the TLS client certificate used for authentication                      | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``key_file``                | Path to the TLS client key used for authentication                              | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``insecure``                | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+
+*``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
+cluster configuration file.
+When ``kubeconfig`` is defined, other infrastructure configuration properties (``master_url``, 
+keys or certificates) don't have to be defined here. 
+
+If neither ``kubeconfig`` nor ``master_url`` is specified, the Orchestrator will
+consider it is running within a Kubernetes Cluster and will attempt to authenticate
+inside this cluster.
+
+**``application_credentials`` is the path (accessible to Yorc server) or the content
+of a file containing Google service account private keys in JSON format.
+This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
+It is needed to authenticate against Google Cloud when the ``kubeconfig`` property
+above refers to a Kubernetes Cluster created on Google Kubernetes Engine, and the orchestrator is running on a host
+where `gcloud <https://cloud.google.com/sdk/gcloud/>`_ is not installed.
 
 .. _option_infra_google:
 
@@ -830,23 +938,24 @@ Slurm
 
 Slurm infrastructure key name is ``slurm`` in lower case.
 
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-|     Option Name      |                          Description                             | Data Type |                     Required                      | Default |
-|                      |                                                                  |           |                                                   |         |
-+======================+==================================================================+===========+===================================================+=========+
-| ``user_name``        | SSH Username to be used to connect to the Slurm Client's node    | string    | yes                                               |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``password``         | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``private_key``      | SSH Private key to be used to connect to the Slurm Client's node | string    | Either this or ``password`` should be provided    |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``url``              | IP address of the Slurm Client's node                            | string    | yes                                               |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``port``             | SSH Port to be used to connect to the Slurm Client's node        | string    | yes                                               |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``default_job_name`` | Default name for the job allocation.                             | string    | no                                                |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+|     Option Name                  |                          Description                             | Data Type |                     Required                      | Default |
+|                                  |                                                                  |           |                                                   |         |
++==================================+==================================================================+===========+===================================================+=========+
+| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes                                               |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``password``                     | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``private_key``                  | SSH Private key to be used to connect to the Slurm Client's node | string    | Either this or ``password`` should be provided    |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``url``                          | IP address of the Slurm Client's node                            | string    | yes                                               |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``port``                         | SSH Port to be used to connect to the Slurm Client's node        | string    | yes                                               |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``default_job_name``             | Default name for the job allocation.                             | string    | no                                                |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                | string    | no                                                |   5s    |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 Vault configuration
 -------------------

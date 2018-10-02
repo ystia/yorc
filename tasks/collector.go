@@ -16,25 +16,26 @@ package tasks
 
 import (
 	"fmt"
-	"path"
-	"strconv"
-
-	"time"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"path"
+	"strconv"
+	"time"
 )
 
 // A Collector is used to register new tasks in Yorc
+//
+// Deprecated: use *collector.Collector instead
 type Collector struct {
 	consulClient *api.Client
 }
 
 // NewCollector creates a Collector
+//
+// Deprecated: use collector.NewCollector instead
 func NewCollector(consulClient *api.Client) *Collector {
 	return &Collector{consulClient: consulClient}
 }
@@ -42,6 +43,8 @@ func NewCollector(consulClient *api.Client) *Collector {
 // RegisterTaskWithData register a new Task of a given type with some data
 //
 // The task id is returned.
+//
+// Deprecated: use (c *collector.Collector) RegisterTaskWithData instead
 func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, data map[string]string) (string, error) {
 	destroy, lock, taskID, err := c.registerTaskWithoutDestroyLock(targetID, taskType, data)
 	if destroy != nil {
@@ -57,6 +60,8 @@ func (c *Collector) RegisterTaskWithData(targetID string, taskType TaskType, dat
 //
 // The task id is returned.
 // Basically this is a shorthand for RegisterTaskWithData(targetID, taskType, nil)
+//
+// Deprecated: use (c *collector.Collector) RegisterTask instead
 func (c *Collector) RegisterTask(targetID string, taskType TaskType) (string, error) {
 	return c.RegisterTaskWithData(targetID, taskType, nil)
 }

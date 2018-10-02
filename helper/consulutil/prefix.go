@@ -22,8 +22,8 @@ const DeploymentKVPrefix string = yorcPrefix + "/deployments"
 // TasksPrefix is the prefix in Consul KV store for tasks
 const TasksPrefix = yorcPrefix + "/tasks"
 
-// TasksLocksPrefix is the prefix in Consul KV store for tasks locks
-const TasksLocksPrefix = yorcPrefix + "/tasks-locks"
+// ExecutionsTaskPrefix is the prefix in Consul KV store for execution task
+const ExecutionsTaskPrefix = yorcPrefix + "/executions"
 
 // WorkflowsPrefix is the prefix in Consul KV store for workflows runtime data
 const WorkflowsPrefix = yorcPrefix + "/workflows"
@@ -46,3 +46,6 @@ const MonitoringKVPrefix string = yorcPrefix + "/monitoring"
 
 // YorcServicePrefix is the prefix used for storing services keys
 const YorcServicePrefix = yorcPrefix + "/service"
+
+// SchedulingKVPrefix is the prefix in Consul KV store for scheduling
+const SchedulingKVPrefix string = yorcPrefix + "/scheduling"

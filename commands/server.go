@@ -41,6 +41,20 @@ const (
 	environmentVariablePrefix = "YORC"
 )
 
+var (
+	tfConsulPluginVersion           = "tf Consul plugin version"
+	tfConsulPluginVersionConstraint = versionToConstraint("~>", tfConsulPluginVersion, "minor")
+
+	tfAWSPluginVersion           = "tf AWS plugin version"
+	tfAWSPluginVersionConstraint = versionToConstraint("~>", tfAWSPluginVersion, "minor")
+
+	tfOpenStackPluginVersion           = "tf OpenStack plugin version"
+	tfOpenStackPluginVersionConstraint = versionToConstraint("~>", tfOpenStackPluginVersion, "minor")
+
+	tfGooglePluginVersion           = "tf Google plugin version"
+	tfGooglePluginVersionConstraint = versionToConstraint("~>", tfGooglePluginVersion, "minor")
+)
+
 var ansibleConfiguration = map[string]interface{}{
 	"ansible.use_openssh":                false,
 	"ansible.debug":                      false,
@@ -62,6 +76,14 @@ var consulConfiguration = map[string]interface{}{
 	"consul.ssl":                    false,
 	"consul.ssl_verify":             true,
 	"consul.publisher_max_routines": config.DefaultConsulPubMaxRoutines,
+}
+
+var terraformConfiguration = map[string]interface{}{
+	"terraform.plugins_dir":                         "",
+	"terraform.consul_plugin_version_constraint":    tfConsulPluginVersionConstraint,
+	"terraform.aws_plugin_version_constraint":       tfAWSPluginVersionConstraint,
+	"terraform.google_plugin_version_constraint":    tfGooglePluginVersionConstraint,
+	"terraform.openstack_plugin_version_constraint": tfOpenStackPluginVersionConstraint,
 }
 
 var cfgFile string
@@ -228,8 +250,15 @@ func setConfig() {
 	serverCmd.PersistentFlags().Int("ansible_connection_retries", 5, "Number of retries in case of Ansible SSH connection failure")
 	serverCmd.PersistentFlags().String("operation_remote_base_dir", ".yorc", "Name of the temporary directory used by Ansible on the nodes")
 	serverCmd.PersistentFlags().Bool("keep_operation_remote_path", config.DefaultKeepOperationRemotePath, "Define wether the path created to store artifacts on the nodes will be removed at the end of workflow executions.")
-	serverCmd.PersistentFlags().Bool("ansible_archive_artifacts", config.DefaultArchiveArtifacts, "Define wether artifacts should be archived before being copied on remote nodes (requires tar to be installed on remote nodes).")
+	serverCmd.PersistentFlags().Bool("ansible_archive_artifacts", config.DefaultArchiveArtifacts, "Define wether artifacts should be ./archived before being copied on remote nodes (requires tar to be installed on remote nodes).")
 	serverCmd.PersistentFlags().Bool("ansible_cache_facts", config.DefaultCacheFacts, "Define wether Ansible facts (useful variables about remote hosts) should be cached.")
+
+	//Flags definition for Terraform
+	serverCmd.PersistentFlags().StringP("terraform_plugins_dir", "", "", "The directory where to find Terraform plugins")
+	serverCmd.PersistentFlags().StringP("terraform_consul_plugin_version_constraint", "", tfConsulPluginVersionConstraint, "Terraform Consul plugin version constraint.")
+	serverCmd.PersistentFlags().StringP("terraform_aws_plugin_version_constraint", "", tfAWSPluginVersionConstraint, "Terraform AWS plugin version constraint.")
+	serverCmd.PersistentFlags().StringP("terraform_openstack_plugin_version_constraint", "", tfOpenStackPluginVersionConstraint, "Terraform OpenStack plugin version constraint.")
+	serverCmd.PersistentFlags().StringP("terraform_google_plugin_version_constraint", "", tfGooglePluginVersionConstraint, "Terraform Google plugin version constraint.")
 
 	//Bind Consul persistent flags
 	for key := range consulConfiguration {
@@ -256,6 +285,11 @@ func setConfig() {
 
 	//Bind Ansible persistent flags
 	for key := range ansibleConfiguration {
+		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
+	}
+
+	//Bind Terraform persistent flags
+	for key := range terraformConfiguration {
 		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
 	}
 
@@ -288,6 +322,11 @@ func setConfig() {
 		viper.BindEnv(key, toEnvVar(key))
 	}
 
+	//Bind Terraform environment variables flags
+	for key := range terraformConfiguration {
+		viper.BindEnv(key, toEnvVar(key))
+	}
+
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("server_graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout)
@@ -306,6 +345,11 @@ func setConfig() {
 
 	// Ansible configuration default settings
 	for key, value := range ansibleConfiguration {
+		viper.SetDefault(key, value)
+	}
+
+	// Terraform configuration default settings
+	for key, value := range terraformConfiguration {
 		viper.SetDefault(key, value)
 	}
 
@@ -448,4 +492,34 @@ func toEnvVar(key string) string {
 
 	name := environmentVariablePrefix + "_" + toFlatKey(key)
 	return strings.ToUpper(name)
+}
+
+// For a defined constraint symbol, a defined version as major.minor.patch ans a defined constraint level, it returns the version constraint
+func versionToConstraint(constraint, version, level string) string {
+	switch strings.ToLower(level) {
+	case "major":
+		// returns the constraint + major digit a
+		tab := strings.Split(version, ".")
+		if len(tab) > 1 {
+			return fmt.Sprintf("%s %s", strings.TrimSpace(constraint), tab[0])
+		}
+		return fmt.Sprintf("%s %s", strings.TrimSpace(constraint), version)
+	case "minor":
+		// returns the constraint + major and minor digits a.b
+		tab := strings.Split(version, ".")
+		if len(tab) > 2 {
+			return fmt.Sprintf("%s %s.%s", strings.TrimSpace(constraint), tab[0], tab[1])
+		}
+		return fmt.Sprintf("%s %s", strings.TrimSpace(constraint), version)
+	case "patch":
+		// returns the constraint + major,minor and patch digits a.b.c
+		tab := strings.Split(version, ".")
+		if len(tab) > 3 {
+			return fmt.Sprintf("%s %s.%s.%s", strings.TrimSpace(constraint), tab[0], tab[1], tab[2])
+		}
+		return fmt.Sprintf("%s %s", strings.TrimSpace(constraint), version)
+	default:
+		panic("unable to build related constraint for constraint:%q, version:%q and level:%q. Unknown level")
+	}
+
 }

@@ -82,6 +82,7 @@ type Configuration struct {
 	Vault                            DynamicMap            `mapstructure:"vault"`
 	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
 	ServerID                         string                `mapstructure:"server_id"`
+	Terraform                        Terraform             `mapstructure:"terraform"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -141,6 +142,15 @@ type Telemetry struct {
 	ServiceName             string `mapstructure:"service_name"`
 	DisableHostName         bool   `mapstructure:"disable_hostname"`
 	DisableGoRuntimeMetrics bool   `mapstructure:"disable_go_runtime_metrics"`
+}
+
+// Terraform configuration
+type Terraform struct {
+	PluginsDir                       string `mapstructure:"plugins_dir"`
+	ConsulPluginVersionConstraint    string `mapstructure:"consul_plugin_version_constraint"`
+	AWSPluginVersionConstraint       string `mapstructure:"aws_plugin_version_constraint"`
+	GooglePluginVersionConstraint    string `mapstructure:"google_plugin_version_constraint"`
+	OpenStackPluginVersionConstraint string `mapstructure:"openstack_plugin_version_constraint"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.

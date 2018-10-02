@@ -22,7 +22,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/prov/hostspool"
-	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tasks/collector"
 	"github.com/ystia/yorc/testutil"
 	"golang.org/x/crypto/ssh"
 	"net/http"
@@ -52,7 +52,7 @@ func newTestHTTPRouter(client *api.Client, req *http.Request) *http.Response {
 		router:         router,
 		consulClient:   client,
 		hostsPoolMgr:   hostspool.NewManagerWithSSHFactory(client, mockSSHClientFactory),
-		tasksCollector: tasks.NewCollector(client),
+		tasksCollector: collector.NewCollector(client),
 		config:         config.Configuration{},
 	}
 	httpSrv.registerHandlers()

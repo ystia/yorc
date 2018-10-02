@@ -15,6 +15,7 @@
 package server
 
 import (
+	"github.com/ystia/yorc/prov/scheduling/scheduler"
 	"os"
 	"os/signal"
 	"sync"
@@ -91,6 +92,10 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	// Start monitoring
 	monitoring.Start(configuration, client)
 	defer monitoring.Stop()
+
+	// Start scheduler
+	scheduler.Start(configuration, client)
+	defer scheduler.Stop()
 
 WAIT:
 	signalCh := make(chan os.Signal, 4)

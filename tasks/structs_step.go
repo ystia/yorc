@@ -25,7 +25,7 @@ package tasks
 // )
 type TaskStepStatus int
 
-// TaskStep represents a step related to the task
+// TaskStep represents a step related to a workflow
 type TaskStep struct {
 	Name   string `json:"name"`
 	Status string `json:"status"`

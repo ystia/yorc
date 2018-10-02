@@ -58,7 +58,7 @@ deploy:
     api_key:
       secure: N4G6gM4QaEUNn0DqgLazDeUh99VZzoKhbUF/v3sqvQLBLAQqL7k6pCfocuv8lLjhP4W1Xp+KpvUPC3jm8cWVApyuw0Ye9N4RBmpMNueujBO16beXXQf9oRWSCK7l9gcT++RjgIZNErcImQ99qObNB22XWzgVxvgRrqrsom+48qW/Vznh03Euv20xDBp96fvBkoTWKWW4nWZWg6sNx26c23vNZRPv49/sxa5brVdod7HD5x0QB3ZjeiChUQV7nOVfGJRtHiQuBZYGNOzStYUiLXClTB4xO5dywJ31pwLMJaOk2qLosHw+Kng5z1BghwzCfPhzMmJwVXdhUDqaVoXDRYMIHRyQFP48l3mYq0pw66JyoWyS82TnVjF4xvhbvUh7VW76kJWA15tyyM6kQ12o/14YG6GNgKp/qwRaTl5OiyH7G+8mt6ifHH/SIMkfpWQp4kTx4fHgrC6OYTuQe0YIvHt7SxRBAEXfj2wlosK7aLLzQ8OrVga/FDri85LfONE4U7anxpoDjAn8IzZrp2hFDyvZd6S7v7f6IusE0QJhSqDT1hsP9OTeKyrZSHYy9pVaZbmPKvmoz/xhx2hSEaa5gVACuPNMEfcy401SLunvrQqWQQq+qFdpTFRwCNtldWOJZeJlECZmJfz8CKbvYtJFixp+YvyjXzviO9RV83ZcY1U=
     file:
-      - dist/yorc.tgz
+      - dist/yorc-*.tgz
       - dist/yorc-server-*-distrib.zip
       - pkg/docker-ystia-yorc-*.tgz
     skip_cleanup: true
