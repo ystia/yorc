@@ -128,7 +128,7 @@ func upgradeFromVersion(kv *api.KV, leaderCh <-chan struct{}, fromVersion string
 			}
 		}
 	case -1:
-		return errors.Errorf("this version of Yorc is too old compared to the DB schema, an upgrade is needed.")
+		return errors.Errorf("this version of Yorc is too old compared to the current DB schema (%s), an upgrade is needed.", vCurrent)
 
 	}
 
