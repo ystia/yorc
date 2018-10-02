@@ -43,7 +43,7 @@ Secured Consul cluster Setup
 
 In a High Availability cluster, you need to setup at least 3 consul servers, and one consul client on each host where a Yorc server is running. 
 
-Check Consul documentation for details about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_ and `network traffic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
+Check Consul documentation for details about `agent's configuration <https://www.consul.io/docs/agent/options.html>`_.
 
 You may find below a typical configuration file for a consul server ; to be updated after having generated the ``consul_server.key`` and ``consul_server.pem`` files.
 
@@ -57,6 +57,7 @@ You may find below a typical configuration file for a consul server ; to be upda
       "server": true,
       "bootstrap": true,
       "ui": true,
+      "encrypt": "{ENCRYPT_KEY},
       "ports": {
         "https": 8543
       },
@@ -77,6 +78,7 @@ And below, a typical configuration file for a consul client.
       "client_addr": "0.0.0.0",
       "advertise_addr": "{IP}",
       "retry_join": [ "{SERVER_IP}" ],
+      "encrypt": "{ENCRYPT_KEY},
       "ports": {
         "https": 8543
       },
@@ -86,6 +88,8 @@ And below, a typical configuration file for a consul client.
       "verify_incoming_rpc": true,
       "verify_outgoing": true
     }
+
+In the above example, the encryption is enabled for the gossip traffic inside the Consul cluster. Check Consul documentation for details `network traffic encryption <https://www.consul.io/docs/agent/encryption.html>`_.
 
 You can also consult this `Blog <http://russellsimpkins.blogspot.fr/2015/10/consul-adding-tls-using-self-signed.html>`_. 
 You may found useful information about how to install CA certificate in the OS, in case you get errors about trusting the signing authority.
