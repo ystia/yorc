@@ -5,6 +5,7 @@
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Terraform 0.11.8 and following Terraform plugins (with corresponding version constraints): `Consul (~> 2.1)`, `AWS (~> 1.36)`, `OpenStack (~> 1.9)`, `Google (~ 1.18)` and `null provider (~ 1.0)`. (Terraform upgrade from 0.9.11 introduced in [GH-82](https://github.com/ystia/yorc/issues/82))
+* Consul version updated to 1.2.3
 
 ### IMPROVEMENTS
 
@@ -15,7 +16,8 @@
 
 ### BUG FIXES
 
-* inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
+* Inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
+* Yorc consul service registration fails if using TLS ([GH-153](https://github.com/ystia/yorc/issues/153))
 
 ## 3.1.0-M3 (September 14, 2018)
 

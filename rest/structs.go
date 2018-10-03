@@ -73,6 +73,11 @@ func newAtomLink(rel, href string) AtomLink {
 	return AtomLink{Rel: rel, Href: href, LinkType: "application/json"}
 }
 
+// Health of a Yorc instance
+type Health struct {
+	Value string `json:"value"`
+}
+
 // Deployment is the representation of a Yorc deployment
 //
 // Deployment's links may be of type LinkRelSelf, LinkRelNode, LinkRelTask, LinkRelOutput.
