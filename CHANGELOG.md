@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Retrieving operation output when provisioning several instances resolves to the same value for all instances even if they are actually different ([GH-171](https://github.com/ystia/yorc/issues/171))
+
 ### ENHANCEMENTS
 
 * Concurrent workflows and custom commands executions are now allowed except when a deployment/undeployment/scaling operation is in progress ([GH-182](https://github.com/ystia/yorc/issues/182))
