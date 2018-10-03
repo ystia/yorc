@@ -21,6 +21,7 @@ import (
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/terraform"
+	"time"
 )
 
 type defaultExecutor struct {
@@ -42,4 +43,8 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 
 	delegate := terraform.NewExecutor(e.generator, nil)
 	return delegate.ExecDelegate(ctx, conf, taskID, deploymentID, nodeName, delegateOp)
+}
+
+func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
+	return nil, 0, errors.New("asynchronous operation is not yet handled by this executor")
 }

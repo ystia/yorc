@@ -17,6 +17,7 @@ package google
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/log"
 	"path"
 	"strings"
 	"time"
@@ -239,6 +240,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 }
 
 func addressLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, addressNodeName string) (string, error) {
+	log.Debugf("Address lookup for deploymentID:%q, address node name:%q, instance:%q", deploymentID, addressNodeName, instanceName)
 	var address string
 	res := make(chan string, 1)
 	go func() {

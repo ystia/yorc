@@ -73,7 +73,7 @@ func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV
 		return err
 	}
 
-	name := strings.ToLower(nodeName + "-" + instanceName)
+	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
 	computeAddress.Name = strings.Replace(name, "_", "-", -1)
 
 	if computeAddress.Region == "" {
