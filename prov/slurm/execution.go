@@ -44,15 +44,23 @@ import (
 
 type execution interface {
 	resolveExecution() error
-	execute(ctx context.Context) error
+	executeAsync(ctx context.Context) (*prov.Action, time.Duration, error)
 }
 
 type operationNotImplemented struct {
 	msg string
 }
 
+type noJobFound struct {
+	msg string
+}
+
 func (oni operationNotImplemented) Error() string {
 	return oni.msg
+}
+
+func (jid *noJobFound) Error() string {
+	return jid.msg
 }
 
 type executionCommon struct {
@@ -75,11 +83,11 @@ type executionCommon struct {
 	nodeInstances          []string
 	jobInfo                *jobInfo
 	lof                    events.LogOptionalFields
-	jobInfoPolling         time.Duration
-	OperationRemoteDir     string
+	OperationRemoteExecDir string
+	stepName               string
 }
 
-func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (execution, error) {
+func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, stepName string, operation prov.Operation) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
 		cfg:                    cfg,
 		deploymentID:           deploymentID,
@@ -89,7 +97,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		EnvInputs:              make([]*operations.EnvInput, 0),
 		taskID:                 taskID,
 		OperationRemoteBaseDir: stringutil.UniqueTimestampedName(".yorc_", ""),
-		jobInfoPolling:         5 * time.Second,
+		stepName:               stepName,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -106,6 +114,49 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 
 	return execCommon, execCommon.resolveExecution()
+}
+
+func (e *executionCommon) executeAsync(ctx context.Context) (*prov.Action, time.Duration, error) {
+	// Only runnable operation is currently supported
+	log.Debugf("Execute the operation:%+v", e.operation)
+	// Fill log optional fields for log registration
+	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
+	logOptFields := events.LogOptionalFields{
+		events.WorkFlowID:    wfName,
+		events.NodeID:        e.NodeName,
+		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
+		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
+	}
+	ctx = events.NewContext(ctx, logOptFields)
+
+	switch strings.ToLower(e.operation.Name) {
+	case "tosca.interfaces.node.lifecycle.runnable.run":
+		log.Printf("Running the job: %s", e.operation.Name)
+		// Copy the artifacts
+		if err := e.uploadArtifacts(ctx); err != nil {
+			return nil, 0, errors.Wrap(err, "failed to upload artifact")
+		}
+
+		// Copy the operation implementation
+		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
+			return nil, 0, errors.Wrap(err, "failed to upload operation implementation")
+		}
+
+		// Build Job Information
+		if err := e.buildJobInfo(ctx); err != nil {
+			return nil, 0, errors.Wrap(err, "failed to build job information")
+		}
+
+		// Run the command
+		err := e.runJobCommand(ctx)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
+			return nil, 0, errors.Wrap(err, "failed to run command")
+		}
+		return e.buildJobMonitoringAction(), e.jobInfo.monitoringTimeInterval, nil
+	default:
+		return nil, 0, errors.Errorf("Unsupported operation %q", e.operation.Name)
+	}
 }
 
 func (e *executionCommon) resolveOperation() error {
@@ -128,133 +179,44 @@ func (e *executionCommon) resolveOperation() error {
 	return e.resolveInstances()
 }
 
-func (e *executionCommon) execute(ctx context.Context) (err error) {
-	// Only runnable operation is currently supported
-	log.Debugf("Execute the operation:%+v", e.operation)
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID:    wfName,
-		events.NodeID:        e.NodeName,
-		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
-		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
-	}
-	ctx = events.NewContext(ctx, logOptFields)
-
-	switch strings.ToLower(e.operation.Name) {
-	case "tosca.interfaces.node.lifecycle.runnable.run":
-		log.Printf("Running the job: %s", e.operation.Name)
-		// Copy the artifacts
-		if err := e.uploadArtifacts(ctx); err != nil {
-			return errors.Wrap(err, "failed to upload artifact")
-		}
-
-		// Copy the operation implementation
-		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-			return errors.Wrap(err, "failed to upload operation implementation")
-		}
-
-		// Build Job Information
-		if err := e.buildJobInfo(ctx); err != nil {
-			return errors.Wrap(err, "failed to build job information")
-		}
-
-		// Run the command
-		out, err := e.runJobCommand(ctx)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			return errors.Wrap(err, "failed to run command")
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(out)
-		log.Debugf("output:%q", out)
-		if !e.jobInfo.batchMode {
-			return e.cleanUp()
-		}
-	default:
-		return errors.Errorf("Unsupported operation %q", e.operation.Name)
-	}
-	return nil
+func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
+	// Fill all used data for job monitoring
+	data := make(map[string]string)
+	data["nodeName"] = e.NodeName
+	data["operationName"] = e.operation.Name
+	data["taskID"] = e.taskID
+	data["jobID"] = e.jobInfo.ID
+	data["stepName"] = e.stepName
+	data["isBatch"] = strconv.FormatBool(e.jobInfo.batchMode)
+	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
+	data["remoteExecDirectory"] = e.OperationRemoteExecDir
+	data["outputs"] = strings.Join(e.jobInfo.outputs, ",")
+	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
-func (e *executionCommon) pollInteractiveJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
-	ticker := time.NewTicker(e.jobInfoPolling)
+func (e *executionCommon) retrieveJobID(ctx context.Context) error {
+	ticker := time.NewTicker(500 * time.Millisecond)
 	for {
 		select {
 		case <-ctx.Done():
 			log.Debugf("Task has been cancelled. The job information polling is stopping now")
 			ticker.Stop()
-			return
-		case <-stopCh:
-			log.Debugf("The job is done so job information polling is stopping now")
-			ticker.Stop()
-			return
-		case m := <-errCh:
-			log.Debugf("Unblocking error occurred retrieving job information due to:%s", m)
-			ticker.Stop()
-			return
+			return nil
 		case <-ticker.C:
-			e.getJobInfo(ctx, stopCh, errCh)
+			jobInfo, err := getJobInfo(e.client, "", e.jobInfo.name)
+			if err != nil {
+				_, notFound := err.(*noJobFound)
+				// If job is not found, we assume it still hasn't be created
+				if !notFound {
+					return err
+				}
+			} else if jobInfo.ID != "" {
+				// JobID has been retrieved
+				e.jobInfo.ID = jobInfo.ID
+				ticker.Stop()
+				return nil
+			}
 		}
-	}
-}
-
-func (e *executionCommon) pollBatchJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
-	ticker := time.NewTicker(e.jobInfoPolling)
-	for {
-		select {
-		case <-stopCh:
-			log.Debugf("The job is done so job information polling is stopping now")
-			ticker.Stop()
-			return
-		case m := <-errCh:
-			log.Debugf("Unblocking error occurred retrieving job information due to:%s", m)
-			ticker.Stop()
-			return
-		case <-ticker.C:
-			e.getJobInfo(ctx, stopCh, errCh)
-		}
-	}
-}
-
-func (e *executionCommon) getJobInfo(ctx context.Context, stopCh chan struct{}, errCh chan error) {
-	var cmd string
-	if e.jobInfo.ID != "" {
-		cmd = fmt.Sprintf("squeue --noheader --job=%s -o \"%%A,%%T\"", e.jobInfo.ID)
-	} else {
-		cmd = fmt.Sprintf("squeue --noheader --name=%s -o \"%%A,%%T\"", e.jobInfo.name)
-	}
-
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		log.Printf("stderr:%q", output)
-		errCh <- errors.Wrap(err, output)
-	}
-	out := strings.Trim(output, "\" \t\n\x00")
-	if out != "" {
-		d := strings.Split(out, ",")
-		if len(d) != 2 {
-			log.Debugf("Unexpected format job information:%q", out)
-			errCh <- errors.Errorf("Unexpected format job information:%q", out)
-		}
-		e.jobInfo.ID = d[0]
-		e.jobInfo.state = d[1]
-		mess := fmt.Sprintf("Job Name:%s, Job ID:%s, Job State:%s", e.jobInfo.name, e.jobInfo.ID, e.jobInfo.state)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(mess)
-	} else if e.jobInfo.batchMode {
-		e.endBatchExecution(ctx, stopCh)
-	}
-}
-
-func (e *executionCommon) endBatchExecution(ctx context.Context, stopCh chan struct{}) {
-	// We consider job is done and we stop the polling
-	close(stopCh)
-	err := e.handleBatchOutputs(ctx)
-	if err != nil {
-		log.Printf("%+v", err)
-	}
-	err = e.cleanUp()
-	if err != nil {
-		log.Printf("%+v", err)
 	}
 }
 
@@ -312,6 +274,28 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	} else if maxTime != nil {
 		job.maxTime = maxTime.RawString()
+	}
+
+	if monitoringTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "monitoring_time_interval"); err != nil {
+		return err
+	} else if monitoringTime != nil && monitoringTime.RawString() != "" {
+		job.monitoringTimeInterval, err = time.ParseDuration(monitoringTime.RawString())
+		if err != nil {
+			return err
+		}
+	}
+	if job.monitoringTimeInterval == 0 {
+		ti := e.cfg.Infrastructures[infrastructureName].GetString("job_monitoring_time_interval")
+		if ti != "" {
+			jmti, err := time.ParseDuration(ti)
+			if err != nil {
+				log.Printf("Invalid format for job monitoring time interval configuration:%q. Default 5s time interval will be used instead.", ti)
+			}
+			job.monitoringTimeInterval = jmti
+		} else {
+			// Default value
+			job.monitoringTimeInterval = 5 * time.Second
+		}
 	}
 
 	// BatchMode default is true
@@ -378,42 +362,48 @@ func (e *executionCommon) fillJobCommandOpts() string {
 	return opts
 }
 
-func (e *executionCommon) runJobCommand(ctx context.Context) (string, error) {
+func (e *executionCommon) runJobCommand(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
-	stopCh := make(chan struct{})
-	errCh := make(chan error)
 	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
-	e.OperationRemoteDir = path.Dir(execFile)
 	if e.jobInfo.batchMode {
-		// get outputs for batch mode
-		err := e.searchForBatchOutputs(ctx)
+		e.OperationRemoteExecDir = path.Dir(execFile)
+		err := e.findBatchOutput(ctx)
 		if err != nil {
-			return "", err
+			return err
 		}
-		go e.pollBatchJobInfo(ctx, stopCh, errCh)
-		out, err := e.runBatchMode(ctx, opts, execFile)
-		return out, err
+		return e.runBatchMode(ctx, opts, execFile)
 	}
-	go e.pollInteractiveJobInfo(ctx, stopCh, errCh)
-	out, err := e.runInteractiveMode(ctx, opts, execFile)
-	// Stop polling information in interactive mode
-	close(stopCh)
-	return out, err
+	err := e.runInteractiveMode(ctx, opts, execFile)
+	if err != nil {
+		return err
+	}
+	// retrieve jobInfo
+	return e.retrieveJobID(ctx)
 }
 
-func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) (string, error) {
-	cmd := fmt.Sprintf("srun %s %s %s", opts, execFile, strings.Join(e.jobInfo.execArgs, " "))
+func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) error {
+	// Add inputs as env variables
+	var exports string
+	for k, v := range e.jobInfo.inputs {
+		log.Debugf("Add env var with key:%q and value:%q", k, v)
+		export := fmt.Sprintf("export %s=%s;", k, v)
+		exports += export
+	}
+	// srun stdout/stderr is redirected on output file and run in asynchronous mode
+	redirectFile := stringutil.UniqueTimestampedName("yorc_", "")
+	e.jobInfo.outputs = []string{redirectFile}
+	cmd := fmt.Sprintf("%ssrun %s %s %s > %s &", exports, opts, execFile, strings.Join(e.jobInfo.execArgs, " "), redirectFile)
 	cmd = strings.Trim(cmd, "")
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
-		return "", errors.Wrap(err, output)
+		return errors.Wrap(err, output)
 	}
-	return output, nil
+	return nil
 }
 
-func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile string) (string, error) {
+func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile string) error {
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for _, arg := range e.jobInfo.execArgs {
@@ -433,17 +423,21 @@ func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile strin
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
-		return "", errors.Wrap(err, output)
+		return errors.Wrap(err, output)
 	}
 	output = strings.Trim(output, "\n")
 	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
-		return "", err
+		return err
+	}
+	// Set default output if nothing is specified by user
+	if len(e.jobInfo.outputs) == 0 {
+		e.jobInfo.outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
 	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
-	return output, nil
+	return nil
 }
 
-func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
+func (e *executionCommon) findBatchOutput(ctx context.Context) error {
 	pathExecFile := path.Join(e.OverlayPath, e.Primary)
 	script, err := os.Open(pathExecFile)
 	if err != nil {
@@ -464,51 +458,6 @@ func (e *executionCommon) searchForBatchOutputs(ctx context.Context) error {
 	}
 	e.jobInfo.outputs = append(outputs, o...)
 	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
-	return nil
-}
-
-func (e *executionCommon) handleBatchOutputs(ctx context.Context) error {
-	if len(e.jobInfo.outputs) == 0 {
-		e.jobInfo.outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
-	}
-	// Copy the outputs in <JOB_ID>_outputs directory at root level
-	outputDir := fmt.Sprintf("job_" + e.jobInfo.ID + "_outputs")
-	cmd := fmt.Sprintf("mkdir %s", outputDir)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		return errors.Wrap(err, output)
-	}
-	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
-	for _, out := range e.jobInfo.outputs {
-		oldPath := path.Join(e.OperationRemoteDir, out)
-		newPath := path.Join(outputDir, out)
-		// Copy the file in the output dir
-		cmd := fmt.Sprintf("cp -f %s %s", oldPath, newPath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		output, err := e.client.RunCommand(cmd)
-		if err != nil {
-			return errors.Wrap(err, output)
-		}
-		// Log the output
-		cmd = fmt.Sprintf("cat %s", newPath)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		output, err = e.client.RunCommand(cmd)
-		if err != nil {
-			return errors.Wrap(err, output)
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString("\n" + output)
-	}
-	return nil
-}
-
-func (e *executionCommon) cleanUp() error {
-	log.Debugf("Cleanup the operation remote base directory")
-	cmd := fmt.Sprintf("rm -rf %s", e.OperationRemoteBaseDir)
-	_, err := e.client.RunCommand(cmd)
-	if err != nil {
-		return errors.Wrap(err, "failed to cleanup remote base directory")
-	}
 	return nil
 }
 

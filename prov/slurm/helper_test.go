@@ -20,6 +20,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
+	"github.com/ystia/yorc/helper/sshutil"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -353,4 +356,57 @@ func TestParseKeyValue(t *testing.T) {
 		})
 	}
 
+}
+
+func TestGetJobInfo(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		sshCli  sshutil.Client
+		jobID   string
+		jobName string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    *jobInfoShort
+		wantErr bool
+		err     error
+	}{
+		{"TestWithJobID", args{&MockSSHClient{
+			MockRunCommand: func(cmd string) (string, error) {
+				return "my_test,123,RUNNING", nil
+			}}, "123", ""}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING"}, false, nil},
+		{"TestWithJobName", args{&MockSSHClient{
+			MockRunCommand: func(cmd string) (string, error) {
+				return "my_test,123,RUNNING", nil
+			}}, "", "my_test"}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING"}, false, nil},
+		{"TestWithoutParams", args{&MockSSHClient{
+			MockRunCommand: func(cmd string) (string, error) {
+				return "", nil
+			}}, "", ""}, nil, true, nil},
+		{"TestWithMalformedOutput", args{&MockSSHClient{
+			MockRunCommand: func(cmd string) (string, error) {
+				return "MALFORMED", nil
+			}}, "123", ""}, nil, true, nil},
+		{"TestWithJobNotFound", args{&MockSSHClient{
+			MockRunCommand: func(cmd string) (string, error) {
+				return "", nil
+			}}, "123", ""}, nil, true, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q, name:%q", "123", "")}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			info, err := getJobInfo(tt.args.sshCli, tt.args.jobID, tt.args.jobName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TestGetJobInfo() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil && tt.err != nil && !reflect.DeepEqual(err, tt.err) {
+				t.Errorf("TestGetJobInfo() error = %v, expected err:%v", err, tt.err)
+			}
+			if !reflect.DeepEqual(info, tt.want) {
+				t.Fatalf("TestGetJobInfo() = %v, want %v", info, tt.want)
+			}
+		})
+	}
 }

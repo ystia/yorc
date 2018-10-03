@@ -15,8 +15,12 @@
 package stringutil
 
 import (
-	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetLastElement(t *testing.T) {
@@ -77,4 +81,30 @@ func TestTimestampedName(t *testing.T) {
 	for _, tt := range tests {
 		require.Contains(t, UniqueTimestampedName(tt.args.prefix, tt.args.suffix), tt.args.prefix, tt.args.suffix)
 	}
+}
+
+func TestGetFilePath(t *testing.T) {
+	t.Parallel()
+
+	f, err := ioutil.TempFile("", "yorctest")
+	require.NoError(t, err, "Error creating a temp file")
+	fname := f.Name()
+	f.Close()
+
+	path, wasPath, err := GetFilePath(fname)
+	require.NoError(t, err, "Error calling GetFilePath(%s)", fname)
+	defer os.Remove(fname)
+	assert.True(t, wasPath, "Unexpected boolean value returned by GetFilePath()")
+	assert.Equal(t, fname, path, "Unexpected path returned by GetFilePath()")
+
+	content := "A string value"
+	path, wasPath, err = GetFilePath(content)
+	require.NoError(t, err, "Error calling GetFilePath(%s)", content)
+	defer os.Remove(path)
+	assert.False(t, wasPath, "Unexpected boolean value returned by GetFilePath()")
+
+	read, err := ioutil.ReadFile(path)
+	require.NoError(t, err, "Error calattempting to read %s", path)
+	result := string(read)
+	assert.Equal(t, content, result, "Unexpected content of file returned by GetFilePath()")
 }

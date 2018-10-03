@@ -429,3 +429,31 @@ func testResetConfig() {
 	viper.Reset()
 	serverCmd.ResetFlags()
 }
+
+func TestVersionToConstraint(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		constraint string
+		version    string
+		level      string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "MinorConstraint", args: args{level: "minor", version: "1.2.3", constraint: "~>"}, want: "~> 1.2"},
+		{name: "PatchConstraint", args: args{level: "patch", version: "1.2.3", constraint: "->"}, want: "-> 1.2.3"},
+		{name: "MajorConstraint", args: args{level: "major", version: "1.2.3", constraint: ">="}, want: ">= 1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := versionToConstraint(tt.args.constraint, tt.args.version, tt.args.level); got != tt.want {
+				t.Errorf("versionToConstraint got:%q, want:%q", got, tt.want)
+			}
+		})
+	}
+}

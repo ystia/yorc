@@ -43,7 +43,7 @@ bintray_snapshots_pr_path="snapshots/@BRANCH@/pr/@PR_ID@"
 bintray_snapshots_path="snapshots/@BRANCH@"
 
 #### Artifacts Variables
-artifacts_list="dist/yorc.tgz dist/yorc-server-*-distrib.zip"
+artifacts_list="dist/yorc-*.tgz dist/yorc-server-*-distrib.zip"
 distrib_artifact_dir="./dist"
 distrib_artifact_basename="yorc-server-"
 

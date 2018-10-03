@@ -1,4 +1,4 @@
-FROM laurentg/alpine-consul:1.0.4_consul-1.0.6
+FROM ystia/alpine-consul:1.0.4_consul-1.2.3
 ARG TERRAFORM_VERSION
 ARG ANSIBLE_VERSION
 ARG TF_CONSUL_PLUGIN_VERSION
@@ -33,8 +33,7 @@ RUN apk add --update make openssh-client python python-dev py-pip gcc musl-dev l
     umask 0022 && \
     chown -R yorc:yorc /var/yorc && \
     chmod 400 /var/yorc/.ssh/*.pem && \
-
-    # Copy Terraform providers plugins
+    echo "Copy Terraform providers plugins" && \
     cd ${YORC_TERRAFORM_PLUGINS_DIR} && \
     curl -O https://releases.hashicorp.com/terraform-provider-consul/${TF_CONSUL_PLUGIN_VERSION}/terraform-provider-consul_${TF_CONSUL_PLUGIN_VERSION}_linux_amd64.zip && \
     unzip terraform-provider-consul_${TF_CONSUL_PLUGIN_VERSION}_linux_amd64.zip && \
@@ -46,9 +45,8 @@ RUN apk add --update make openssh-client python python-dev py-pip gcc musl-dev l
     unzip terraform-provider-google_${TF_GOOGLE_PLUGIN_VERSION}_linux_amd64.zip && \
     curl -O https://releases.hashicorp.com/terraform-provider-openstack/${TF_OPENSTACK_PLUGIN_VERSION}/terraform-provider-openstack_${TF_OPENSTACK_PLUGIN_VERSION}_linux_amd64.zip && \
     unzip terraform-provider-openstack_${TF_OPENSTACK_PLUGIN_VERSION}_linux_amd64.zip && \
-    rm -rf ${YORC_TERRAFORM_PLUGINS_DIR}/*.zip && \
     chmod 775 ${YORC_TERRAFORM_PLUGINS_DIR}/* && \
-
+    echo "Cleaning up" && \
     apk del make py-pip python-dev gcc musl-dev libffi-dev openssl-dev && \
     rm -rf /var/cache/apk/* && \
     rm -fr /tmp/*

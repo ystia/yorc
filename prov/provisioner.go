@@ -17,6 +17,7 @@ package prov
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ystia/yorc/config"
 )
@@ -78,8 +79,12 @@ func (ro RelationshipOperation) String() string {
 // ExecOperation executes the given TOSCA operation for given nodeName on the given deploymentID.
 // The taskID identifies the task that requested to execute this operation.
 // The given ctx may be used to check for cancellation, conf is the server Configuration.
+//
+// ExecAsyncOperation does the same as ExecOperation in asynchronous way.
+// It needs to return action, time interval related to the operation execution in order to schedule its monitoring
 type OperationExecutor interface {
 	ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation) error
+	ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation Operation, stepName string) (*Action, time.Duration, error)
 }
 
 // InfraUsageCollector is the interface for collecting information about infrastructure usage
@@ -87,4 +92,18 @@ type OperationExecutor interface {
 // GetUsageInfo returns data about infrastructure usage for defined infrastructure
 type InfraUsageCollector interface {
 	GetUsageInfo(ctx context.Context, cfg config.Configuration, taskID, infraName string) (map[string]interface{}, error)
+}
+
+// Action represents an executable action
+type Action struct {
+	ID         string
+	ActionType string
+	Data       map[string]string
+}
+
+// ActionOperator is the interface for executing an action
+//
+// ExecAction allows to execute the action
+type ActionOperator interface {
+	ExecAction(ctx context.Context, conf config.Configuration, taskID, deploymentID string, action *Action) error
 }

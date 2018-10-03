@@ -853,20 +853,40 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
    http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
 .. tabularcolumns:: |l|L|L|L|L|
 
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-|  Option Name   |                                   Description                                   | Data Type | Required | Default |
-|                |                                                                                 |           |          |         |
-+================+=================================================================================+===========+==========+=========+
-| ``master_url`` | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | yes      |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``ca_file``    | Path to a trusted root certificates for server                                  | string    | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``cert_file``  | Path to the TLS client certificate used for authentication                      | string    | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``key_file``   | Path to the TLS client key used for authentication                              | string    | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``insecure``   | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
-+----------------+---------------------------------------------------------------------------------+-----------+----------+---------+
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+|  Option Name                |                                   Description                                   | Data Type | Required | Default |
+|                             |                                                                                 |           |          |         |
++=============================+=================================================================================+===========+==========+=========+
+| ``kubeconfig``              | Path or content of Kubernetes cluster configuration file*                       | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``application_credentials`` | Path or content of file containing credentials**                                | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``master_url``              | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``ca_file``                 | Path to a trusted root certificates for server                                  | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``cert_file``               | Path to the TLS client certificate used for authentication                      | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``key_file``                | Path to the TLS client key used for authentication                              | string    | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``insecure``                | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
++-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+
+*``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
+cluster configuration file.
+When ``kubeconfig`` is defined, other infrastructure configuration properties (``master_url``, 
+keys or certificates) don't have to be defined here. 
+
+If neither ``kubeconfig`` nor ``master_url`` is specified, the Orchestrator will
+consider it is running within a Kubernetes Cluster and will attempt to authenticate
+inside this cluster.
+
+**``application_credentials`` is the path (accessible to Yorc server) or the content
+of a file containing Google service account private keys in JSON format.
+This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
+It is needed to authenticate against Google Cloud when the ``kubeconfig`` property
+above refers to a Kubernetes Cluster created on Google Kubernetes Engine, and the orchestrator is running on a host
+where `gcloud <https://cloud.google.com/sdk/gcloud/>`_ is not installed.
 
 .. _option_infra_google:
 
@@ -918,23 +938,24 @@ Slurm
 
 Slurm infrastructure key name is ``slurm`` in lower case.
 
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-|     Option Name      |                          Description                             | Data Type |                     Required                      | Default |
-|                      |                                                                  |           |                                                   |         |
-+======================+==================================================================+===========+===================================================+=========+
-| ``user_name``        | SSH Username to be used to connect to the Slurm Client's node    | string    | yes                                               |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``password``         | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``private_key``      | SSH Private key to be used to connect to the Slurm Client's node | string    | Either this or ``password`` should be provided    |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``url``              | IP address of the Slurm Client's node                            | string    | yes                                               |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``port``             | SSH Port to be used to connect to the Slurm Client's node        | string    | yes                                               |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-| ``default_job_name`` | Default name for the job allocation.                             | string    | no                                                |         |
-+----------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
-
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+|     Option Name                  |                          Description                             | Data Type |                     Required                      | Default |
+|                                  |                                                                  |           |                                                   |         |
++==================================+==================================================================+===========+===================================================+=========+
+| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes                                               |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``password``                     | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``private_key``                  | SSH Private key to be used to connect to the Slurm Client's node | string    | Either this or ``password`` should be provided    |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``url``                          | IP address of the Slurm Client's node                            | string    | yes                                               |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``port``                         | SSH Port to be used to connect to the Slurm Client's node        | string    | yes                                               |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``default_job_name``             | Default name for the job allocation.                             | string    | no                                                |         |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                | string    | no                                                |   5s    |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 Vault configuration
 -------------------
