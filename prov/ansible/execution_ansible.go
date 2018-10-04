@@ -176,7 +176,7 @@ func (e *executionAnsible) runAnsible(ctx context.Context, retry bool, currentIn
 	}
 	tmpl := template.New("execTemplate").Delims("[[[", "]]]").Funcs(funcMap)
 	var playbook string
-	if e.isAlienAnsible {
+	if e.isAlienAnsible || len(e.Artifacts) == 0 {
 		playbook = ansiblePlaybook
 	} else {
 		playbook = uploadArtifactsPlaybook + ansiblePlaybook

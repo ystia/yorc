@@ -18,6 +18,7 @@
 
 * Inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
 * Yorc consul service registration fails if using TLS ([GH-153](https://github.com/ystia/yorc/issues/153))
+* Retrieving operation output when provisioning several instances resolves to the same value for all instances even if they are actually different ([GH-171](https://github.com/ystia/yorc/issues/171))
 
 ## 3.1.0-M3 (September 14, 2018)
 
