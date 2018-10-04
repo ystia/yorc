@@ -651,15 +651,20 @@ func getInstancesDependentLinkedNodes(kv *api.KV, deploymentID, nodeName string)
 	if err != nil {
 		return nil, err
 	}
-	for _, req := range networkReqs {
+	assignmentReqs, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "assignment")
+	if err != nil {
+		return nil, err
+	}
+	allReqs := append(networkReqs, assignmentReqs...)
+	for _, req := range allReqs {
 		var kvp *api.KVPair
 
 		kvp, _, err = kv.Get(path.Join(req, "capability"), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
-		if kvp == nil || len(kvp.Value) == 0 || string(kvp.Value) != "yorc.capabilities.openstack.FIPConnectivity" {
-			// Not a floating ip see next
+		if kvp == nil || len(kvp.Value) == 0 || (string(kvp.Value) != "yorc.capabilities.openstack.FIPConnectivity" && string(kvp.Value) != "yorc.capabilities.Assignable") {
+			// Neither a FIP connectivity nor an assignable cap: see next
 			continue
 		}
 

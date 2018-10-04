@@ -811,12 +811,23 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		return err
 	}
 	createNodeInstances(consulStore, kv, nbInstances, deploymentID, nodeName)
-	ip, networkNodeName, err := checkFloattingIP(kv, deploymentID, nodeName)
+
+	// Check for FIPConnectivity capabilities
+	is, capabilityNodeName, err := checkRequirements(kv, deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
 	if err != nil {
 		return err
 	}
-	if ip {
-		createNodeInstances(consulStore, kv, nbInstances, deploymentID, networkNodeName)
+	if is {
+		createNodeInstances(consulStore, kv, nbInstances, deploymentID, capabilityNodeName)
+	}
+
+	// Check for Assignable capabilities
+	is, capabilityNodeName, err = checkRequirements(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
+	if err != nil {
+		return err
+	}
+	if is {
+		createNodeInstances(consulStore, kv, nbInstances, deploymentID, capabilityNodeName)
 	}
 
 	bs, bsNames, err := checkBlockStorage(kv, deploymentID, nodeName)
@@ -1129,11 +1140,10 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 	}
 }
 
-/**
-This function check if a nodes need a floating IP, and return the name of Floating IP node.
-*/
-func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, error) {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
+// This function check if a nodes need a specified requirement with a specified capacity type or derived
+// and return the name of the related node addressing the capacity
+func checkRequirements(kv *api.KV, deploymentID, nodeName, requirement, capabilityType string) (bool, string, error) {
+	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
 	if err != nil {
 		return false, "", err
 	}
@@ -1146,9 +1156,12 @@ func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, 
 			continue
 		}
 
-		res, err := IsTypeDerivedFrom(kv, deploymentID, string(capability.Value), "yorc.capabilities.openstack.FIPConnectivity")
-		if err != nil {
-			return false, "", err
+		res := string(capability.Value) == capabilityType
+		if !res {
+			res, err = IsTypeDerivedFrom(kv, deploymentID, string(capability.Value), capabilityType)
+			if err != nil {
+				return false, "", err
+			}
 		}
 
 		if res {

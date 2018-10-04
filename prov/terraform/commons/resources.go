@@ -152,14 +152,15 @@ func GetConnInfoFromEndpointCredentials(kv *api.KV, deploymentID, nodeName strin
 	return user.RawString(), pkfp, nil
 }
 
-// HasAnyRequirement returns true and the the node name providing the capability if node has a defined requirement type derived from the specified type or equal to the specified type
+// HasAnyRequirement returns true and the the node name providing the capability
+// if node has a defined requirement type derived from the specified type or equal to the specified type
 func HasAnyRequirement(kv *api.KV, deploymentID, nodeName, derivedType, requirement string) (bool, string, error) {
-	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
+	reqkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
 	if err != nil {
 		return false, "", err
 	}
-	for _, networkReqPrefix := range networkKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(networkReqPrefix)
+	for _, reqPrefix := range reqkKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(reqPrefix)
 		capability, err := deployments.GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return false, "", err
