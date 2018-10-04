@@ -1,3 +1,19 @@
+..
+   Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+   ---
+
 Run Yorc in Secured mode
 =========================
 
@@ -50,22 +66,22 @@ You may find below a typical configuration file for a consul server ; to be upda
 .. code-block:: json
 
     {
-      "domain": "yorc",
-      "data_dir": "/tmp/work",
-      "client_addr": "0.0.0.0",
-      "advertise_addr": "{SERVER_IP}",
-      "server": true,
-      "bootstrap": true,
-      "ui": true,
-      "encrypt": "{ENCRYPT_KEY},
-      "ports": {
-        "https": 8543
-      },
-      "key_file": "{PATH_TO_CONSUL_SERVER_KEY}",
-      "cert_file": "{PATH_TO_CONSUL_SERVER_PEM}",
-      "ca_file": "{PATH_TO_CA_PEM}",
-      "verify_incoming": true,
-      "verify_outgoing": true
+        "domain": "yorc",
+        "data_dir": "/tmp/work",
+        "client_addr": "0.0.0.0",
+        "advertise_addr": "{SERVER_IP}",
+        "server": true,
+        "bootstrap": true,
+        "ui": true,
+        "encrypt": "{ENCRYPT_KEY},
+        "ports": {
+            "https": 8543
+        },
+        "key_file": "{PATH_TO_CONSUL_SERVER_KEY}",
+        "cert_file": "{PATH_TO_CONSUL_SERVER_PEM}",
+        "ca_file": "{PATH_TO_CA_PEM}",
+        "verify_incoming": true,
+        "verify_outgoing": true
     }
 
 And below, a typical configuration file for a consul client.

@@ -15,13 +15,14 @@
 package server
 
 import (
-	"github.com/ystia/yorc/prov/scheduling/scheduler"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"text/template"
 	"time"
+
+	"github.com/ystia/yorc/prov/scheduling/scheduler"
 
 	"github.com/pkg/errors"
 
@@ -66,6 +67,11 @@ func RunServer(configuration config.Configuration, shutdownCh chan struct{}) err
 	}
 
 	consulutil.InitConsulPublisher(maxConsulPubRoutines, client.KV())
+
+	err = setupConsulDBSchema(client)
+	if err != nil {
+		return err
+	}
 
 	dispatcher := workflow.NewDispatcher(configuration, shutdownCh, client, &wg)
 	go dispatcher.Run()
