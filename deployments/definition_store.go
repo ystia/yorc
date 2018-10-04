@@ -813,7 +813,7 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 	createNodeInstances(consulStore, kv, nbInstances, deploymentID, nodeName)
 
 	// Check for FIPConnectivity capabilities
-	is, capabilityNodeName, err := checkRequirements(kv, deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
+	is, capabilityNodeName, err := HasAnyRequirementCapability(kv, deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
 	if err != nil {
 		return err
 	}
@@ -822,7 +822,7 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 	}
 
 	// Check for Assignable capabilities
-	is, capabilityNodeName, err = checkRequirements(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
+	is, capabilityNodeName, err = HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
 	if err != nil {
 		return err
 	}
@@ -1138,43 +1138,6 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 		instanceName := strconv.FormatUint(uint64(i), 10)
 		createNodeInstance(kv, consulStore, deploymentID, nodeName, instanceName)
 	}
-}
-
-// This function check if a nodes need a specified requirement with a specified capacity type or derived
-// and return the name of the related node addressing the capacity
-func checkRequirements(kv *api.KV, deploymentID, nodeName, requirement, capabilityType string) (bool, string, error) {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
-	if err != nil {
-		return false, "", err
-	}
-
-	for _, requirement := range requirementsKey {
-		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
-		if err != nil {
-			return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		} else if capability == nil {
-			continue
-		}
-
-		res := string(capability.Value) == capabilityType
-		if !res {
-			res, err = IsTypeDerivedFrom(kv, deploymentID, string(capability.Value), capabilityType)
-			if err != nil {
-				return false, "", err
-			}
-		}
-
-		if res {
-			networkNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
-			if err != nil {
-				return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
-			}
-			return true, string(networkNode.Value), nil
-		}
-	}
-
-	return false, "", nil
 }
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL

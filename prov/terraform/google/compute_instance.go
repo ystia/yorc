@@ -111,7 +111,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	networkInterface := NetworkInterface{Network: "default"}
 	// Define an external access if there will be an external IP address
 	if !noAddress {
-		hasStaticAddressReq, addressNode, err := commons.HasAnyRequirement(kv, deploymentID, nodeName, "yorc.capabilities.Assignable", "assignment")
+		hasStaticAddressReq, addressNode, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
 		if err != nil {
 			return err
 		}

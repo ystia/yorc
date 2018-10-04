@@ -9,7 +9,7 @@ imports:
   - yorc: <yorc-types.yml>
 
 artifact_types:
-  yorc.artifacts.google.Deployment.Address:
+  yorc.artifacts.google.Deployment:
     derived_from: tosca.artifacts.Deployment
 
 node_types:
@@ -170,11 +170,11 @@ node_types:
         create:
           implementation:
             file: "embedded"
-            type: yorc.artifacts.google.Deployment.Address
+            type: yorc.artifacts.google.Deployment
         delete:
           implementation:
             file: "embedded"
-            type: yorc.artifacts.google.Deployment.Address
+            type: yorc.artifacts.google.Deployment
     attributes:
       ip_address:
         type: string

@@ -143,9 +143,6 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 			if err != nil {
 				return false, nil, nil, err
 			}
-
-		case "yorc.nodes.google.PublicNetwork":
-			// Nothing to do
 		case "yorc.nodes.google.Address":
 			err = g.generateComputeAddress(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
 			if err != nil {
