@@ -73,3 +73,8 @@ do it:
     wget https://releases.hashicorp.com/consul/1.2.3/consul_1.2.3_linux_amd64.zip
     sudo unzip consul_1.2.3_linux_amd64.zip -d /usr/local/bin
 
+
+Then restart Consul.
+
+The recommended way to upgrade Consul is to perform a rolling upgrade.
+See `Consul documentation <https://www.consul.io/docs/upgrading.html>`_ for details.
