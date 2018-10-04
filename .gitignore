@@ -13,7 +13,7 @@ work
 /testdata/deployment/*.zip
 /testdata/deployment/*/*.zip
 /yorc.zip
-/yorc.tgz
+/yorc*.tgz
 /yorc-distrib.zip
 /pkg/yorc
 /.vscode
