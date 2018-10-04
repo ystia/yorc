@@ -950,7 +950,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
 					return err
 				}
-				break
 			}
 		}
 	}
