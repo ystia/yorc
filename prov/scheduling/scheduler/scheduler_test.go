@@ -95,7 +95,7 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 	checkCpt := 0
 	ticker := time.NewTicker(ti)
 	time.Sleep(2 * time.Second)
-	for {
+	for i := 0; i <= 2; i++ {
 		select {
 		case <-ticker.C:
 			ind++
@@ -106,6 +106,7 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 			}
 		}
 	}
+
 	require.Equal(t, checkCpt, 5, "unexpected number of checks done")
 }
 
