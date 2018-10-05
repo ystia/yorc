@@ -17,7 +17,11 @@ package google
 import "github.com/ystia/yorc/registry"
 import "github.com/ystia/yorc/prov/terraform"
 
+const googleDeploymentArtifact = "yorc.artifacts.google.Deployment"
+
 func init() {
 	reg := registry.GetRegistry()
 	reg.RegisterDelegates([]string{`yorc\.nodes\.google\..*`}, terraform.NewExecutor(&googleGenerator{}, nil), registry.BuiltinOrigin)
+	reg.RegisterOperationExecutor(
+		[]string{googleDeploymentArtifact}, &defaultExecutor{}, registry.BuiltinOrigin)
 }

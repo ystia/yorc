@@ -1,0 +1,23 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: ComputeAddressTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    ComputeAddress:
+      type: yorc.nodes.google.Address
+      properties:
+        address_type: EXTERNAL
+        description: "the description"
+        network_tier: PREMIUM
+        labels: "key1=value1, key2=value2"
+        region: "europe-west1"

@@ -117,34 +117,41 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 		return false, nil, nil, err
 	}
 	outputs := make(map[string]string)
-	var instances []string
-	switch nodeType {
-	case "yorc.nodes.google.Compute":
-		instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+	instances, err := deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, nil, nil, err
+	}
+
+	for instNb, instanceName := range instances {
+		instanceState, err := deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 		if err != nil {
 			return false, nil, nil, err
 		}
-
-		for index, instanceName := range instances {
-			var instanceState tosca.NodeState
-			instanceState, err = deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
-			if err != nil {
-				return false, nil, nil, err
-			}
-			if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
-				// Do not generate something for this node instance (will be deleted if exists)
-				continue
-			}
-			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, index, &infrastructure, outputs)
-			if err != nil {
-				return false, nil, nil, err
-			}
+		if instanceState == tosca.NodeStateDeleting || instanceState == tosca.NodeStateDeleted {
+			// Do not generate something for this node instance (will be deleted if exists)
+			continue
 		}
 
-	case "yorc.nodes.google.PublicNetwork":
-		// Nothing to do
-	default:
-		return false, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
+		switch nodeType {
+		case "yorc.nodes.google.Compute":
+			instances, err = deployments.GetNodeInstancesIds(kv, deploymentID, nodeName)
+			if err != nil {
+				return false, nil, nil, err
+			}
+
+			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			if err != nil {
+				return false, nil, nil, err
+			}
+		case "yorc.nodes.google.Address":
+			err = g.generateComputeAddress(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			if err != nil {
+				return false, nil, nil, err
+			}
+		default:
+			return false, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
+		}
+
 	}
 
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")

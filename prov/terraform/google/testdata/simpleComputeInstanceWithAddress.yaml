@@ -1,27 +1,31 @@
 tosca_definitions_version: alien_dsl_2_0_0
 
 metadata:
-  template_name: ComputeInstanceTest
-  template_version: 1.0
-  template_author: tester
+  template_name: SimpleCompute
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
 
 description: ""
 
 imports:
-  - path: <yorc-google-types.yml>
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
 topology_template:
   node_templates:
-    ComputeInstance:
+    Compute:
       type: yorc.nodes.google.Compute
       properties:
-        machine_type: "n1-standard-1"
-        zone: "europe-west1-b"
         image_project: "centos-cloud"
         image_family: "centos-7"
-        no_address: false
-        service_account: "yorc@yorc.net"
-        tags: "tag1, tag2"
-        labels: "key1=value1, key2=value2"
+        machine_type: "n1-standard-1"
+        zone: "europe-west1-b"
+      requirements:
+        - Compute_address_Compute:
+            type_requirement: assignment
+            node: address_Compute
+            capability: yorc.capabilities.Assignable
+            relationship: yorc.relationships.AssignsTo
       capabilities:
         scalable:
           properties:
@@ -35,4 +39,7 @@ topology_template:
             network_name: PRIVATE
             initiator: source
             credentials: {user: centos}
-
+    address_Compute:
+      type: yorc.nodes.google.Address
+      properties:
+        region: "europe-west1"

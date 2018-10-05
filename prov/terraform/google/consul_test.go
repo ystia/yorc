@@ -42,5 +42,11 @@ func TestRunConsulGooglePackageTests(t *testing.T) {
 		t.Run("simpleComputeInstanceMissingMandatoryParameter", func(t *testing.T) {
 			testSimpleComputeInstanceMissingMandatoryParameter(t, kv, cfg)
 		})
+		t.Run("simpleComputeAddress", func(t *testing.T) {
+			testSimpleComputeAddress(t, kv, cfg)
+		})
+		t.Run("simpleComputeInstanceWithAddress", func(t *testing.T) {
+			testSimpleComputeInstanceWithAddress(t, kv, srv, cfg)
+		})
 	})
 }
