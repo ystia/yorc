@@ -1,0 +1,45 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: SimpleCompute
+  template_version: 0.1.0-SNAPSHOT
+  template_author: ${template_author}
+
+description: ""
+
+imports:
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    Compute:
+      type: yorc.nodes.google.Compute
+      properties:
+        image_project: "centos-cloud"
+        image_family: "centos-7"
+        machine_type: "n1-standard-1"
+        zone: "europe-west1-b"
+      requirements:
+        - Compute_address_Compute:
+            type_requirement: assignment
+            node: address_Compute
+            capability: yorc.capabilities.Assignable
+            relationship: yorc.relationships.AssignsTo
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+            credentials: {user: centos}
+    address_Compute:
+      type: yorc.nodes.google.Address
+      properties:
+        region: "europe-west1"

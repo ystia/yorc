@@ -16,6 +16,7 @@ package consulutil
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
@@ -27,17 +28,35 @@ const YorcService = "yorc"
 // RegisterServerAsConsulService allows to register the Yorc server as a Consul service
 func RegisterServerAsConsulService(cfg config.Configuration, cc *api.Client, chShutdown chan struct{}) error {
 	log.Printf("Register Yorc as Consul Service for node %q", cfg.ServerID)
-	service := &api.AgentServiceRegistration{
+	var service *api.AgentServiceRegistration
+
+	var sslEnabled bool
+	sslEnabled = ((&cfg.KeyFile != nil) && len(cfg.KeyFile) != 0) || ((&cfg.CertFile != nil) && len(cfg.CertFile) != 0)
+
+	var httpString string
+	if sslEnabled {
+		httpString = fmt.Sprintf("https://localhost:%d/health", cfg.HTTPPort)
+		log.Debugf("Register Yorc service with HTTPS check: %s", httpString)
+	} else {
+		httpString = fmt.Sprintf("http://localhost:%d/health", cfg.HTTPPort)
+		log.Debugf("Register Yorc service with HTTP check: %s", httpString)
+	}
+
+	service = &api.AgentServiceRegistration{
 		Name: YorcService,
 		Tags: []string{"server", cfg.ServerID},
 		Port: cfg.HTTPPort,
 		Check: &api.AgentServiceCheck{
-			Name:     "TCP check on yorc port",
-			Interval: "5s",
-			TCP:      fmt.Sprintf("localhost:%d", cfg.HTTPPort),
-			Status:   api.HealthPassing,
+			Name:          "HTTP check on yorc port",
+			Interval:      "5s",
+			HTTP:          httpString,
+			Method:        "GET",
+			TLSSkipVerify: false,
+			Header:        map[string][]string{"Accept": []string{"application/json"}},
+			Status:        api.HealthPassing,
 		},
 	}
+
 	go func() {
 		for {
 			select {

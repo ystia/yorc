@@ -2,19 +2,29 @@
 
 ## UNRELEASED
 
+## 3.1.0-M4 (October 08, 2018)
+
 ### DEPENDENCIES
 
 * The orchestrator requires now at least Terraform 0.11.8 and following Terraform plugins (with corresponding version constraints): `Consul (~> 2.1)`, `AWS (~> 1.36)`, `OpenStack (~> 1.9)`, `Google (~ 1.18)` and `null provider (~ 1.0)`. (Terraform upgrade from 0.9.11 introduced in [GH-82](https://github.com/ystia/yorc/issues/82))
+* Consul version updated to 1.2.3
+
+### FEATURES
+
+* Support GCE Public IPs. ([GH-82](https://github.com/ystia/yorc/issues/82))
 
 ### IMPROVEMENTS
 
 * Split workflow execution unit to step in order to allow a unique workflow to be executed by multiple Yorc instances. ([GH-93](https://github.com/ystia/yorc/issues/93))
 * Make the run step of a Job execution asynchronous not to block a worker during the duration of the job. ([GH-85](https://github.com/ystia/yorc/issues/85))
 * Added configuration parameters in Kubernetes infrastructure allowing to connect from outside to a cluster created on Google Kubernetes Engine ([GH-162](https://github.com/ystia/yorc/issues/162))
+* Allow to upgrade from version 3.0.0 to a newer version without loosing existing data ([GH-130](https://github.com/ystia/yorc/issues/130))
 
 ### BUG FIXES
 
-* inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
+* Inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
+* Yorc consul service registration fails if using TLS ([GH-153](https://github.com/ystia/yorc/issues/153))
+* Retrieving operation output when provisioning several instances resolves to the same value for all instances even if they are actually different ([GH-171](https://github.com/ystia/yorc/issues/171))
 
 ## 3.1.0-M3 (September 14, 2018)
 

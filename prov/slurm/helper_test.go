@@ -243,7 +243,9 @@ func TestPrivateKey(t *testing.T) {
 	t.Parallel()
 	// First generate a valid private key content
 	priv, err := rsa.GenerateKey(rand.Reader, 1024)
-	bArray := pem.EncodeToMemory(&pem.Block{"RSA PRIVATE KEY", nil, x509.MarshalPKCS1PrivateKey(priv)})
+	bArray := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   x509.MarshalPKCS1PrivateKey(priv)})
 	privateKeyContent := string(bArray)
 
 	// Config to test

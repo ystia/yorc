@@ -217,3 +217,38 @@ func GetTargetNodeForRequirementByName(kv *api.KV, deploymentID, nodeName, requi
 	}
 	return "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 }
+
+// HasAnyRequirementCapability returns true and the the related node name addressing the capability
+// if node with name nodeName has the requirement with the capability type equal or derived from the provided type
+// otherwise it returns false and empty string
+func HasAnyRequirementCapability(kv *api.KV, deploymentID, nodeName, requirement, capabilityType string) (bool, string, error) {
+	reqkKeys, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
+	if err != nil {
+		return false, "", err
+	}
+	for _, reqPrefix := range reqkKeys {
+		requirementIndex := GetRequirementIndexFromRequirementKey(reqPrefix)
+		capability, err := GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return false, "", err
+		}
+		relatedNodeName, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return false, "", err
+		}
+
+		if capability != "" {
+			if capability == capabilityType {
+				return true, relatedNodeName, nil
+			}
+			is, err := IsNodeDerivedFrom(kv, deploymentID, relatedNodeName, capabilityType)
+			if err != nil {
+				return false, "", err
+			} else if is {
+				return is, relatedNodeName, nil
+			}
+		}
+	}
+
+	return false, "", nil
+}

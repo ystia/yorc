@@ -811,12 +811,23 @@ func createInstancesForNode(ctx context.Context, kv *api.KV, deploymentID, nodeN
 		return err
 	}
 	createNodeInstances(consulStore, kv, nbInstances, deploymentID, nodeName)
-	ip, networkNodeName, err := checkFloattingIP(kv, deploymentID, nodeName)
+
+	// Check for FIPConnectivity capabilities
+	is, capabilityNodeName, err := HasAnyRequirementCapability(kv, deploymentID, nodeName, "network", "yorc.capabilities.openstack.FIPConnectivity")
 	if err != nil {
 		return err
 	}
-	if ip {
-		createNodeInstances(consulStore, kv, nbInstances, deploymentID, networkNodeName)
+	if is {
+		createNodeInstances(consulStore, kv, nbInstances, deploymentID, capabilityNodeName)
+	}
+
+	// Check for Assignable capabilities
+	is, capabilityNodeName, err = HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
+	if err != nil {
+		return err
+	}
+	if is {
+		createNodeInstances(consulStore, kv, nbInstances, deploymentID, capabilityNodeName)
 	}
 
 	bs, bsNames, err := checkBlockStorage(kv, deploymentID, nodeName)
@@ -1127,41 +1138,6 @@ func createNodeInstances(consulStore consulutil.ConsulStore, kv *api.KV, numberI
 		instanceName := strconv.FormatUint(uint64(i), 10)
 		createNodeInstance(kv, consulStore, deploymentID, nodeName, instanceName)
 	}
-}
-
-/**
-This function check if a nodes need a floating IP, and return the name of Floating IP node.
-*/
-func checkFloattingIP(kv *api.KV, deploymentID, nodeName string) (bool, string, error) {
-	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
-	if err != nil {
-		return false, "", err
-	}
-
-	for _, requirement := range requirementsKey {
-		capability, _, err := kv.Get(path.Join(requirement, "capability"), nil)
-		if err != nil {
-			return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		} else if capability == nil {
-			continue
-		}
-
-		res, err := IsTypeDerivedFrom(kv, deploymentID, string(capability.Value), "yorc.capabilities.openstack.FIPConnectivity")
-		if err != nil {
-			return false, "", err
-		}
-
-		if res {
-			networkNode, _, err := kv.Get(path.Join(requirement, "node"), nil)
-			if err != nil {
-				return false, "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-
-			}
-			return true, string(networkNode.Value), nil
-		}
-	}
-
-	return false, "", nil
 }
 
 // createInstancesForNode checks if the given node is hosted on a Scalable node, stores the number of required instances and sets the instance's status to INITIAL

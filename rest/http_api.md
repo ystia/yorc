@@ -690,6 +690,28 @@ Content-Type: application/json
   }
 }
 ```
+## Health
+
+### Get the Yorc service health
+
+This request si made by Consul to check the Yorc service is alive
+
+'Accept' header should be set to 'application/json'.
+
+`GET /health`
+
+**Response**:
+
+```HTTP
+HTTP/1.1 200 Created
+Content-Type: application/json
+```
+
+```json
+{
+  "value": "passing"
+}
+```
 
 ## Registry
 

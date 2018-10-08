@@ -162,7 +162,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	// Check existing network requirement otherwise
 	var isElasticIP = len(instance.ElasticIps) > 0
 	if !isElasticIP {
-		isElasticIP, err = isElasticIPPRequired(kv, deploymentID, nodeName)
+		isElasticIP, _, err = deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "network", "yorc.nodes.aws.PublicNetwork")
 		if err != nil {
 			return err
 		}
@@ -215,35 +215,6 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	commons.AddResource(infrastructure, "null_resource", instance.Tags.Name+"-ConnectionCheck", &nullResource)
 
 	return nil
-}
-
-func isElasticIPPRequired(kv *api.KV, deploymentID, nodeName string) (bool, error) {
-	networkKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
-	if err != nil {
-		return false, err
-	}
-	for _, networkReqPrefix := range networkKeys {
-		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(networkReqPrefix)
-		capability, err := deployments.GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return false, err
-		}
-		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
-		if err != nil {
-			return false, err
-		}
-
-		if capability != "" {
-			is, err := deployments.IsNodeDerivedFrom(kv, deploymentID, networkNodeName, "yorc.nodes.aws.PublicNetwork")
-			if err != nil {
-				return false, err
-			} else if is {
-				return is, nil
-			}
-		}
-	}
-
-	return false, nil
 }
 
 func associateEIP(infrastructure *commons.Infrastructure, instance *ComputeInstance, providedEIP string) string {

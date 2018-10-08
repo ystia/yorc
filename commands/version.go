@@ -17,6 +17,8 @@ package commands
 import (
 	"fmt"
 
+	"github.com/ystia/yorc/helper/consulutil"
+
 	"github.com/spf13/cobra"
 )
 
@@ -36,6 +38,7 @@ func init() {
 				fmt.Println(version)
 			} else {
 				fmt.Println("Yorc Server", version)
+				fmt.Printf("Database schema version: %s\n", consulutil.YorcSchemaVersion)
 				fmt.Printf("Revision: %q\n", gitCommit)
 			}
 

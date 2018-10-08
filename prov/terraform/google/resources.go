@@ -17,8 +17,6 @@ package google
 // ComputeInstance represents a Google Compute Engine Virtual Machine
 // See https://www.terraform.io/docs/providers/google/r/compute_instance.html
 // for the latest documentation.
-// See https://github.com/terraform-providers/terraform-provider-google/blob/v0.1.1/website/docs/r/compute_instance.html.markdown
-// for the version currently supported by the Orchestrator
 type ComputeInstance struct {
 	Name              string             `json:"name"`
 	MachineType       string             `json:"machine_type"`
@@ -71,4 +69,18 @@ type ServiceAccount struct {
 // Scheduling strategy to use
 type Scheduling struct {
 	Preemptible bool `json:"preemptible,omitempty"`
+}
+
+// ComputeAddress represents a Google compute static IP address
+// See https://www.terraform.io/docs/providers/google/r/compute_address.html for more information
+type ComputeAddress struct {
+	Name        string            `json:"name"`
+	Region      string            `json:"region"`
+	Address     string            `json:"address,omitempty"`
+	AddressType string            `json:"address_type,omitempty"`
+	Description string            `json:"description,omitempty"`
+	NetworkTier string            `json:"network_tier,omitempty"`
+	SubNetwork  string            `json:"subnetwork,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Project     string            `json:"project,omitempty"`
 }

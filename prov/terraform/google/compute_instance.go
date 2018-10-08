@@ -17,8 +17,10 @@ package google
 import (
 	"context"
 	"fmt"
+	"github.com/ystia/yorc/log"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -53,7 +55,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	instance.Name = strings.Replace(instance.Name, "_", "-", -1)
 
 	// Getting string parameters
-	var imageProject, imageFamily, image, externalAddresses, serviceAccount string
+	var imageProject, imageFamily, image, serviceAccount string
 
 	stringParams := []struct {
 		pAttr        *string
@@ -66,7 +68,6 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		{&imageFamily, "image_family", false},
 		{&image, "image", false},
 		{&instance.Description, "description", false},
-		{&externalAddresses, "addresses", false},
 		{&serviceAccount, "service_account", false},
 	}
 
@@ -110,11 +111,18 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	networkInterface := NetworkInterface{Network: "default"}
 	// Define an external access if there will be an external IP address
 	if !noAddress {
-		// keeping all default values, except from the external IP address if defined
-		addresses := strings.Split(externalAddresses, ",")
+		hasStaticAddressReq, addressNode, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
+		if err != nil {
+			return err
+		}
 		var externalAddress string
-		if len(addresses) > instanceID {
-			externalAddress = strings.TrimSpace(addresses[instanceID])
+		// External IP address can be static if required
+		if hasStaticAddressReq {
+			// Address Lookup
+			externalAddress, err = addressLookup(ctx, kv, deploymentID, instanceName, addressNode)
+			if err != nil {
+				return err
+			}
 		}
 		// else externalAddress is empty, which means an ephemeral external IP
 		// address will be assigned to the instance
@@ -153,7 +161,6 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 
 	// Get list of key/value pairs parameters
-
 	if instance.Labels, err = deployments.GetKeyValuePairsNodeProperty(kv, deploymentID, nodeName, "labels"); err != nil {
 		return err
 	}
@@ -204,7 +211,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 			consulKeyPublicIPAddr)
 	}
 
-	// IP Address capability
+	// IP ComputeAddress capability
 	capabilityIPAddr := commons.ConsulKey{
 		Path:  path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"),
 		Value: accessIP}
@@ -230,4 +237,31 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
 	return nil
+}
+
+func addressLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, addressNodeName string) (string, error) {
+	log.Debugf("Address lookup for deploymentID:%q, address node name:%q, instance:%q", deploymentID, addressNodeName, instanceName)
+	var address string
+	res := make(chan string, 1)
+	go func() {
+		for {
+			if address, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, addressNodeName, instanceName, "ip_address"); address != nil && address.RawString() != "" {
+				res <- address.RawString()
+				return
+			}
+
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	select {
+	case address = <-res:
+		return address, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }

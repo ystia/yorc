@@ -1,3 +1,19 @@
+..
+   Copyright 2018 Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+   ---
+
 .. _yorc_config_section:
 
 Yorc Server Configuration
@@ -872,21 +888,21 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
 | ``insecure``                | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
 +-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
 
-*``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
-cluster configuration file.
-When ``kubeconfig`` is defined, other infrastructure configuration properties (``master_url``, 
-keys or certificates) don't have to be defined here. 
+* ``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
+  cluster configuration file.
+  When ``kubeconfig`` is defined, other infrastructure configuration properties (``master_url``, 
+  keys or certificates) don't have to be defined here. 
 
-If neither ``kubeconfig`` nor ``master_url`` is specified, the Orchestrator will
-consider it is running within a Kubernetes Cluster and will attempt to authenticate
-inside this cluster.
+  If neither ``kubeconfig`` nor ``master_url`` is specified, the Orchestrator will
+  consider it is running within a Kubernetes Cluster and will attempt to authenticate
+  inside this cluster.
 
-**``application_credentials`` is the path (accessible to Yorc server) or the content
-of a file containing Google service account private keys in JSON format.
-This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
-It is needed to authenticate against Google Cloud when the ``kubeconfig`` property
-above refers to a Kubernetes Cluster created on Google Kubernetes Engine, and the orchestrator is running on a host
-where `gcloud <https://cloud.google.com/sdk/gcloud/>`_ is not installed.
+* ``application_credentials`` is the path (accessible to Yorc server) or the content
+  of a file containing Google service account private keys in JSON format.
+  This file can be downloaded from the Google Cloud Console at  `Google Cloud service account file <https://console.cloud.google.com/apis/credentials/serviceaccountkey>`_.
+  It is needed to authenticate against Google Cloud when the ``kubeconfig`` property
+  above refers to a Kubernetes Cluster created on Google Kubernetes Engine, and the orchestrator is running on a host
+  where `gcloud <https://cloud.google.com/sdk/gcloud/>`_ is not installed.
 
 .. _option_infra_google:
 
