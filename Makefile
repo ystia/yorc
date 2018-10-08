@@ -18,7 +18,9 @@ GOTOOLS = github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... githu
 VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
-VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
+VERSION:=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
+BUILD_TAG:=$(shell echo `expr match "$(BUILD_ARGS)" '-tags \([A-Za-z0-9]*\)'`)
+VERSION:=$(if $(BUILD_TAG),$(VERSION)+$(BUILD_TAG),$(VERSION))
 COMMIT_HASH=$(shell git rev-parse HEAD)
 TF_CONSUL_PLUGIN_VERSION=$(shell grep "tf_consul_plugin_version" versions.yaml | awk '{print $$2}')
 TF_AWS_PLUGIN_VERSION=$(shell grep "tf_aws_plugin_version" versions.yaml | awk '{print $$2}')
