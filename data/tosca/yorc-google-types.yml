@@ -150,8 +150,6 @@ node_types:
         description: >
           Comma-separated list of label KEY=VALUE pairs to assign to the Compute Address.
         required: false
-        entry_schema:
-          type: string
       region:
         type: string
         description: >
@@ -179,4 +177,32 @@ node_types:
       ip_address:
         type: string
         description: The compute IP address.
+
+  yorc.nodes.google.PersistentDisk:
+    derived_from: tosca.nodes.BlockStorage
+    properties:
+    # See https://www.terraform.io/docs/providers/google/r/compute_disk.html
+      description:
+        type: string
+        description: >
+          An optional description of this resource.
+        required: false
+      type:
+        type: string
+        description: >
+          URL of the disk type resource describing which disk type to use to create the disk.
+          If this field is not specified, it is assumed to be pd-standard for Standard Persistent Disk HDD.
+          pd-ssd is for solid-state drives (SSD).
+        required: false
+      labels:
+        type: string
+        description: >
+          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Disk.
+        required: false
+      zone:
+        type: string
+        description: >
+          A reference to the zone where the disk resides. In any case the disk must be on the same zone as the associated Compute instances.
+        required: false
+
 

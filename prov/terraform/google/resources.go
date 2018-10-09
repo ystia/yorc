@@ -84,3 +84,15 @@ type ComputeAddress struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Project     string            `json:"project,omitempty"`
 }
+
+// PersistentDisk represents a Google persistent disk
+// See https://www.terraform.io/docs/providers/google/r/compute_disk.html
+type PersistentDisk struct {
+	Name        string            `json:"name"`
+	Size        int               `json:"size,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Type        string            `json:"type,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Zone        string            `json:"zone,omitempty"`
+	Snapshot    string            `json:"snapshot,omitempty"`
+}
