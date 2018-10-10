@@ -12,6 +12,19 @@ artifact_types:
   yorc.artifacts.google.Deployment:
     derived_from: tosca.artifacts.Deployment
 
+data_types:
+  yorc.datatypes.google.EncryptionKey:
+    derived_from: tosca.datatypes.Root
+    properties:
+      raw_key:
+        type: string
+        required: false
+        description: Specifies a 256-bit customer-supplied encryption key, encoded in RFC 4648 base64 to either encrypt or decrypt this resource.
+      sha256:
+        type: string
+        required: false
+        description: The RFC 4648 base64 encoded SHA-256 hash of the customer-supplied encryption key that protects this resource.
+
 node_types:
   yorc.nodes.google.Compute:
     derived_from: yorc.nodes.Compute
@@ -203,6 +216,41 @@ node_types:
         type: string
         description: >
           A reference to the zone where the disk resides. In any case the disk must be on the same zone as the associated Compute instances.
+        required: true
+      disk_encryption_key:
+        type: yorc.datatypes.google.EncryptionKey
+        description: >
+          Encrypts the disk using a customer-supplied encryption key. After you encrypt a disk with a customer-supplied key, you must provide the same key if you use the disk later
+          (e.g. to create a disk snapshot or an image, or to attach the disk to a virtual machine).
+          Customer-supplied encryption keys do not protect access to metadata of the disk.
+          If you do not provide an encryption key when creating the disk, then the disk will be encrypted using an automatically generated key and you do not need to provide a key to use the disk later.
         required: false
+      source_image:
+        type: string
+        description: >
+          The image from which to initialize this disk. This can be one of: the image's self_link, projects/{project}/global/images/{image}, projects/{project}/global/images/family/{family}, global/images/{image}, global/images/family/{family}, family/{family}, {project}/{family}, {project}/{image}, {family}, or {image}.
+          If referred by family, the images names must include the family name. If they don't, use the google_compute_image data source. For instance, the image centos-6-v20180104 includes its family name centos-6. These images can be referred by family name here.
+        required: false
+      source_image_encryption_key:
+        type: yorc.datatypes.google.EncryptionKey
+        description: >
+          The customer-supplied encryption key of the source image. Required if the source image is protected by a customer-supplied encryption key.
+        required: false
+      source_snapshot:
+        type: string
+        description: >
+          The source snapshot used to create this disk. You can provide this as a partial or full URL to the resource.
+          For example, https://www.googleapis.com/compute/v1/projects/project/global/snapshots/snapshot, projects/project/global/snapshots/snapshot, global/snapshots/snapshot, snapshot are valid values
+        required: false
+      source_snapshot_encryption_key:
+        type: yorc.datatypes.google.EncryptionKey
+        description: >
+          The customer-supplied encryption key of the source snapshot. Required if the source snapshot is protected by a customer-supplied encryption key.
+        required: false
+    attributes:
+      users:
+        type: string
+        description: >
+          Links to the users of the disk (attached instances) in form: project/zones/zone/instances/instance
 
 

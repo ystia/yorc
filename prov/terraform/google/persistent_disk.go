@@ -55,9 +55,11 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 	}{
 		{&volumes, "volume_id", false},
 		{&persistentDisk.Description, "description", false},
-		{&persistentDisk.Snapshot, "snapshot_id", false},
+		{&persistentDisk.SourceSnapshot, "snapshot_id", false},
 		{&persistentDisk.Type, "type", false},
 		{&persistentDisk.Zone, "zone", false},
+		{&persistentDisk.SourceSnapshot, "source_snapshot", false},
+		{&persistentDisk.SourceImage, "source_image", false},
 		{&size, "size", false},
 	}
 
@@ -91,6 +93,21 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		log.Debugf("Computed size (in GB): %d", persistentDisk.Size)
 	}
 
+	// Get Encryption key
+	rawEncryptKeyValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "disk_encryption_key", "raw_key")
+	if err != nil {
+		return err
+	}
+	if rawEncryptKeyValue.RawString() != "" {
+		hashValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "disk_encryption_key", "sha256")
+		if err != nil {
+			return err
+		}
+		persistentDisk.DiskEncryptionKey = &EncryptionKey{
+			Raw:    rawEncryptKeyValue.RawString(),
+			SHA256: hashValue.RawString()}
+	}
+
 	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
 	persistentDisk.Name = strings.Replace(name, "_", "-", -1)
 
@@ -102,11 +119,16 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 
 	// Provide Consul Key for attribute volume_id
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	consulKeyIPAddr := commons.ConsulKey{
+	consulKeyVolumeID := commons.ConsulKey{
 		Path:  path.Join(instancesKey, instanceName, "/attributes/volume_id"),
 		Value: volumeID}
 
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr)
+	consulKeyUsers := commons.ConsulKey{
+		Path: path.Join(instancesKey, instanceName, "/attributes/users"),
+		Value: fmt.Sprintf("${google_compute_disk.%s.users}",
+			persistentDisk.Name)}
+
+	consulKeys.Keys = append(consulKeys.Keys, consulKeyVolumeID, consulKeyUsers)
 	commons.AddResource(infrastructure, "consul_keys", persistentDisk.Name, &consulKeys)
 	return nil
 }

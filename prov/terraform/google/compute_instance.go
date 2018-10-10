@@ -119,7 +119,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		// External IP address can be static if required
 		if hasStaticAddressReq {
 			// Address Lookup
-			externalAddress, err = addressLookup(ctx, kv, deploymentID, instanceName, addressNode)
+			externalAddress, err = attributeLookup(ctx, kv, deploymentID, instanceName, addressNode, "ip_address")
 			if err != nil {
 				return err
 			}
@@ -177,6 +177,12 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Add the compute instance
 	commons.AddResource(infrastructure, "google_compute_instance", instance.Name, &instance)
+
+	// Add Persistent disks
+	err = addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure)
+	if err != nil {
+		return err
+	}
 
 	// Provide Consul Keys
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
@@ -239,15 +245,16 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	return nil
 }
 
-func addressLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, addressNodeName string) (string, error) {
-	log.Debugf("Address lookup for deploymentID:%q, address node name:%q, instance:%q", deploymentID, addressNodeName, instanceName)
-	var address string
+func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, nodeName, attribute string) (string, error) {
+	log.Debugf("Attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q", attribute, deploymentID, nodeName, instanceName)
 	res := make(chan string, 1)
 	go func() {
 		for {
-			if address, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, addressNodeName, instanceName, "ip_address"); address != nil && address.RawString() != "" {
-				res <- address.RawString()
-				return
+			if attr, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attribute); attr != nil && attr.RawString() != "" {
+				if attr != nil && attr.RawString() != "" {
+					res <- attr.RawString()
+					return
+				}
 			}
 
 			select {
@@ -259,9 +266,84 @@ func addressLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, 
 	}()
 
 	select {
-	case address = <-res:
-		return address, nil
+	case val := <-res:
+		return val, nil
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
+}
+
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure) error {
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
+	if err != nil {
+		return err
+	}
+	for _, storagePrefix := range storageKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
+		volumeNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return err
+		}
+
+		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
+
+		deviceValue, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "device")
+		if err != nil {
+			return err
+		}
+
+		zone, err := deployments.GetStringNodeProperty(kv, deploymentID, volumeNodeName, "zone", true)
+		if err != nil {
+			return err
+		}
+
+		volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
+		if err != nil {
+			return err
+		}
+		var volumeID string
+		if volumeIDValue == nil || volumeIDValue.RawString() == "" {
+			// Lookup for attribute volume_id
+			volumeID, err = attributeLookup(ctx, kv, deploymentID, instanceName, volumeNodeName, "volume_id")
+			if err != nil {
+				return err
+			}
+
+		} else {
+			volumeID = volumeIDValue.RawString()
+		}
+
+		attachedDisk := &ComputeAttachedDisk{
+			Disk:     volumeID,
+			Instance: fmt.Sprintf("${google_compute_instance.%s.name}", computeName),
+			Zone:     zone,
+		}
+		if deviceValue != nil && deviceValue.RawString() != "" {
+			attachedDisk.DeviceName = deviceValue.RawString()
+		}
+
+		attachName := strings.ToLower("Vol" + cfg.ResourcesPrefix + volumeNodeName + "-" + instanceName + "to" + nodeName + "-" + instanceName)
+		attachName = strings.Replace(attachName, "_", "-", -1)
+		commons.AddResource(infrastructure, "google_compute_attached_disk", attachName, &attachedDisk)
+
+		// Provide Consul Keys
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
+		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+
+		volumeDevConsulKey := commons.ConsulKey{
+			Path:  path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"),
+			Value: attachedDisk.DeviceName,
+		}
+		relDevConsulKey := commons.ConsulKey{
+			Path:  path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"),
+			Value: attachedDisk.DeviceName,
+		}
+		relVolDevConsulKey := commons.ConsulKey{
+			Path:  path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"),
+			Value: attachedDisk.DeviceName,
+		}
+		consulKeys.Keys = append(consulKeys.Keys, volumeDevConsulKey, relDevConsulKey, relVolDevConsulKey)
+		commons.AddResource(infrastructure, "consul_keys", attachName, &consulKeys)
+	}
+	return nil
 }
