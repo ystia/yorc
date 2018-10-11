@@ -58,8 +58,7 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		{&persistentDisk.SourceSnapshot, "snapshot_id", false},
 		{&persistentDisk.Type, "type", false},
 		{&persistentDisk.Zone, "zone", false},
-		{&persistentDisk.SourceSnapshot, "source_snapshot", false},
-		{&persistentDisk.SourceImage, "source_image", false},
+		{&persistentDisk.SourceImage, "image_id", false},
 		{&size, "size", false},
 	}
 
@@ -93,19 +92,24 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		log.Debugf("Computed size (in GB): %d", persistentDisk.Size)
 	}
 
-	// Get Encryption key
-	rawEncryptKeyValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "disk_encryption_key", "raw_key")
+	// Get Encryption key if set
+	persistentDisk.DiskEncryptionKey, err = handleEncryptionKey(kv, deploymentID, nodeName, "disk_encryption_key")
 	if err != nil {
 		return err
 	}
-	if rawEncryptKeyValue.RawString() != "" {
-		hashValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "disk_encryption_key", "sha256")
+	// Get Source snapshot encryption key if source snapshot is filled
+	if persistentDisk.SourceSnapshot != "" {
+		persistentDisk.SourceSnapshotEncryptionKey, err = handleEncryptionKey(kv, deploymentID, nodeName, "snapshot_encryption_key")
 		if err != nil {
 			return err
 		}
-		persistentDisk.DiskEncryptionKey = &EncryptionKey{
-			Raw:    rawEncryptKeyValue.RawString(),
-			SHA256: hashValue.RawString()}
+	}
+	// Get Source image encryption key if source image is filled
+	if persistentDisk.SourceImage != "" {
+		persistentDisk.SourceImageEncryptionKey, err = handleEncryptionKey(kv, deploymentID, nodeName, "image_encryption_key")
+		if err != nil {
+			return err
+		}
 	}
 
 	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
@@ -123,12 +127,24 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		Path:  path.Join(instancesKey, instanceName, "/attributes/volume_id"),
 		Value: volumeID}
 
-	consulKeyUsers := commons.ConsulKey{
-		Path: path.Join(instancesKey, instanceName, "/attributes/users"),
-		Value: fmt.Sprintf("${google_compute_disk.%s.users}",
-			persistentDisk.Name)}
-
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyVolumeID, consulKeyUsers)
+	consulKeys.Keys = append(consulKeys.Keys, consulKeyVolumeID)
 	commons.AddResource(infrastructure, "consul_keys", persistentDisk.Name, &consulKeys)
 	return nil
+}
+
+func handleEncryptionKey(kv *api.KV, deploymentID, nodeName, prop string) (*EncryptionKey, error) {
+	val, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, prop, "raw_key")
+	if err != nil {
+		return nil, err
+	}
+	if val.RawString() != "" {
+		hashValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, prop, "sha256")
+		if err != nil {
+			return nil, err
+		}
+		return &EncryptionKey{
+			Raw:    val.RawString(),
+			SHA256: hashValue.RawString()}, nil
+	}
+	return nil, nil
 }

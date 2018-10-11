@@ -297,6 +297,11 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 			return err
 		}
 
+		mode, err := deployments.GetStringNodeProperty(kv, deploymentID, volumeNodeName, "mode", true)
+		if err != nil {
+			return err
+		}
+
 		volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
 		if err != nil {
 			return err
@@ -317,14 +322,15 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 			Disk:     volumeID,
 			Instance: fmt.Sprintf("${google_compute_instance.%s.name}", computeName),
 			Zone:     zone,
+			Mode:     mode,
 		}
 		if deviceValue != nil && deviceValue.RawString() != "" {
 			attachedDisk.DeviceName = deviceValue.RawString()
 		}
 
-		attachName := strings.ToLower("Vol" + cfg.ResourcesPrefix + volumeNodeName + "-" + instanceName + "to" + nodeName + "-" + instanceName)
+		attachName := strings.ToLower(cfg.ResourcesPrefix + volumeNodeName + "-" + instanceName + "-attached-to-" + nodeName + "-" + instanceName)
 		attachName = strings.Replace(attachName, "_", "-", -1)
-		commons.AddResource(infrastructure, "google_compute_attached_disk", attachName, &attachedDisk)
+		commons.AddResource(infrastructure, "google_compute_attached_disk", attachName, attachedDisk)
 
 		// Provide Consul Keys
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}

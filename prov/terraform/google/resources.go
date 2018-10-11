@@ -108,6 +108,7 @@ type PersistentDisk struct {
 }
 
 // ComputeAttachedDisk represents compute instance's attached disk
+// See https://www.terraform.io/docs/providers/google/r/compute_attached_disk.html
 type ComputeAttachedDisk struct {
 	Instance   string `json:"instance"`
 	Disk       string `json:"disk"`

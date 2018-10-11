@@ -1179,7 +1179,7 @@ func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *ap
 }
 
 /**
-This function check if a nodes need a floating IP, and return the name of Floating IP node.
+This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
 func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []string, error) {
 	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
