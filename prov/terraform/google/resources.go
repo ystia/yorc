@@ -30,6 +30,7 @@ type ComputeInstance struct {
 	// ServiceAccounts is an array of at most one element
 	ServiceAccounts []ServiceAccount `json:"service_account,omitempty"`
 	Tags            []string         `json:"tags,omitempty"`
+	ScratchDisks    []ScratchDisk    `json:"scratch_disk,omitempty"`
 }
 
 // BootDisk represents the required boot disk for compute instance
@@ -89,6 +90,11 @@ type ComputeAddress struct {
 type EncryptionKey struct {
 	Raw    string `json:"raw_key,omitempty"`
 	SHA256 string `json:"sha256,omitempty"`
+}
+
+// ScratchDisk represents an additional Compute instance local scratch disk
+type ScratchDisk struct {
+	Interface string `json:"interface,omitempty"`
 }
 
 // PersistentDisk represents a Google persistent disk

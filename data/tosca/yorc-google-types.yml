@@ -25,6 +25,14 @@ data_types:
         required: false
         description: The RFC 4648 base64 encoded SHA-256 hash of the customer-supplied encryption key that protects this resource.
 
+  yorc.datatypes.google.ScratchDisk:
+    derived_from: tosca.datatypes.Root
+    properties:
+      interface:
+        type: string
+        required: false
+        description: The disk interface to use for attaching the scratch disks; either SCSI or NVME. Defaults to SCSI.
+
 node_types:
   yorc.nodes.google.Compute:
     derived_from: yorc.nodes.Compute
@@ -116,6 +124,15 @@ node_types:
           Comma-separated list of tags to apply to the instances for identifying
           the instances to which network firewall rules will apply.
         required: false
+      scratch_disks:
+        type: list
+        description: Additional scratch disks to attach to the instance. Maximum allowed is 8.
+        required: false
+        entry_schema:
+          type: yorc.datatypes.google.ScratchDisk
+          constraints:
+            - greater_or_equal: 0
+            - max_length: 8
     requirements:
       - assignment:
           capability: yorc.capabilities.Assignable

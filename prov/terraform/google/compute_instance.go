@@ -175,10 +175,38 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		return err
 	}
 
+	// Add additional Scratch disks
+	scratchDisks, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "scratch_disks")
+	if err != nil {
+		return err
+	}
+
+	if scratchDisks != nil && scratchDisks.RawString() != "" {
+		list, ok := scratchDisks.Value.([]interface{})
+		if !ok {
+			return errors.New("failed to retrieve scratch disk Tosca Value: not expected type")
+		}
+		instance.ScratchDisks = make([]ScratchDisk, 0)
+		for _, n := range list {
+			v, ok := n.(map[string]interface{})
+			if !ok {
+				return errors.New("failed to retrieve scratch disk map: not expected type")
+			}
+			for _, val := range v {
+				i, ok := val.(string)
+				if !ok {
+					return errors.New("failed to retrieve scratch disk interface value: not expected type")
+				}
+				scratch := ScratchDisk{Interface: i}
+				instance.ScratchDisks = append(instance.ScratchDisks, scratch)
+			}
+		}
+	}
+
 	// Add the compute instance
 	commons.AddResource(infrastructure, "google_compute_instance", instance.Name, &instance)
 
-	// Add Persistent disks
+	// Attach Persistent disks
 	err = addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure)
 	if err != nil {
 		return err
