@@ -1103,6 +1103,19 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 				req.RelationshipProps["device"] = va
 			}
 
+			// Get all requirement properties
+			kvps, _, err := kv.List(path.Join(attachReq, "properties"), nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+			}
+			for _, kvp := range kvps {
+				va := &tosca.ValueAssignment{}
+				err := yaml.Unmarshal(kvp.Value, va)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+				}
+				req.RelationshipProps[path.Base(kvp.Key)] = va
+			}
 			newReqID, err := GetNbRequirementsForNode(kv, deploymentID, computeNodeName)
 			if err != nil {
 				return err

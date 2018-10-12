@@ -33,6 +33,20 @@ data_types:
         required: false
         description: The disk interface to use for attaching the scratch disks; either SCSI or NVME. Defaults to SCSI.
 
+relationship_types:
+  yorc.relationships.google.AttachesTo:
+    derived_from: tosca.relationships.AttachTo
+    description: >
+      This type represents an attachment relationship between two nodes.
+      For example, an AttachesTo relationship type would be used for attaching a storage node to a Compute node.
+    valid_target_types: [ tosca.capabilities.Attachment ]
+    properties:
+      mode:
+        type: string
+        description: >
+          The mode in which to attach this disk, either READ_WRITE or READ_ONLY. If not specified, the default is to attach the disk in READ_WRITE mode.
+        required: false
+
 node_types:
   yorc.nodes.google.Compute:
     derived_from: yorc.nodes.Compute
@@ -263,12 +277,6 @@ node_types:
         type: yorc.datatypes.google.EncryptionKey
         description: >
           The customer-supplied encryption key of the source snapshot. Required if the source snapshot is protected by a customer-supplied encryption key.
-        required: false
-      mode:
-        type: string
-        description: >
-          The mode in which to attach this disk, either READ_WRITE or READ_ONLY.
-          If not specified, the default is to attach the disk in READ_WRITE mode.
         required: false
 
 

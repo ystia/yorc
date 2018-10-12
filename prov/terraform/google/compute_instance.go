@@ -325,7 +325,7 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 			return err
 		}
 
-		mode, err := deployments.GetStringNodeProperty(kv, deploymentID, volumeNodeName, "mode", true)
+		modeValue, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "mode")
 		if err != nil {
 			return err
 		}
@@ -350,10 +350,12 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 			Disk:     volumeID,
 			Instance: fmt.Sprintf("${google_compute_instance.%s.name}", computeName),
 			Zone:     zone,
-			Mode:     mode,
 		}
 		if deviceValue != nil && deviceValue.RawString() != "" {
 			attachedDisk.DeviceName = deviceValue.RawString()
+		}
+		if modeValue != nil && modeValue.RawString() != "" {
+			attachedDisk.Mode = modeValue.RawString()
 		}
 
 		attachName := strings.ToLower(cfg.ResourcesPrefix + volumeNodeName + "-" + instanceName + "-attached-to-" + nodeName + "-" + instanceName)

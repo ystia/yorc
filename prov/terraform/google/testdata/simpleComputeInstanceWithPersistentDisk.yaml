@@ -30,6 +30,7 @@ topology_template:
               type: tosca.relationships.AttachesTo
               properties:
                 device: foo
+                mode: "READ_ONLY"
       capabilities:
         endpoint:
           properties:
@@ -50,10 +51,3 @@ topology_template:
         zone: "europe-west1-b"
         size: "12 GB"
         device: foo
-        mode: "READ_ONLY"
-      requirements:
-        - attachToComputeAttach:
-            type_requirement: attachment
-            node: Comp
-            capability: tosca.capabilities.Attachment
-            relationship: tosca.relationships.AttachTo
