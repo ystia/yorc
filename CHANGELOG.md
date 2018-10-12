@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Support GCE Block storages. ([GH-82](https://github.com/ystia/yorc/issues/81))
+
 ## 3.1.0-M4 (October 08, 2018)
 
 ### DEPENDENCIES
