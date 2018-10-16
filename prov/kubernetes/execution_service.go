@@ -39,7 +39,7 @@ const (
 // updatePortMappingPublicEndpoints updates public endpoint capabilities
 // referencing a given port with the Kubernetes service Port Mapping infos
 // so that this endpoint can be used by clients outside of the cluster
-func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress string, k8sPort int32) error {
+func (e *execution) updatePortMappingPublicEndpoints(port int32, ipAddress string, k8sPort int32) error {
 	// Get endpoint capabilities for the node
 
 	capNames, _ := deployments.GetCapabilitiesOfType(e.kv, e.deploymentID, e.NodeType, tosca.PublicEndpointCapability)
