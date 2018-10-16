@@ -35,7 +35,7 @@ import (
 )
 
 type defaultExecutor struct {
-	clientset *kubernetes.Clientset
+	clientset kubernetes.Interface
 }
 
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
@@ -149,7 +149,7 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 		} else if conf.AuthProvider != nil && conf.AuthProvider.Name == "gcp" {
 			// When application credentials are set, using these creds
 			// and not attempting to rely on the local host gcloud command to
-			// access tokens, as gcloud mauy not be installed on yorc host
+			// access tokens, as gcloud may not be installed on yorc host
 			delete(conf.AuthProvider.Config, "cmd-path")
 		}
 	}

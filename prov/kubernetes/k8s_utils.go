@@ -33,7 +33,7 @@ import (
 	"github.com/ystia/yorc/events"
 )
 
-func isDeploymentFailed(clientset *kubernetes.Clientset, deployment *v1beta1.Deployment) (bool, string) {
+func isDeploymentFailed(clientset kubernetes.Interface, deployment *v1beta1.Deployment) (bool, string) {
 	for _, c := range deployment.Status.Conditions {
 		if c.Type == v1beta1.DeploymentReplicaFailure && c.Status == corev1.ConditionTrue {
 			return true, c.Message
@@ -44,7 +44,7 @@ func isDeploymentFailed(clientset *kubernetes.Clientset, deployment *v1beta1.Dep
 	return false, ""
 }
 
-func waitForDeploymentDeletion(ctx context.Context, clientset *kubernetes.Clientset, deployment *v1beta1.Deployment) error {
+func waitForDeploymentDeletion(ctx context.Context, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		_, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
 		if err != nil {
@@ -58,7 +58,7 @@ func waitForDeploymentDeletion(ctx context.Context, clientset *kubernetes.Client
 
 }
 
-func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clientset *kubernetes.Clientset, deployment *v1beta1.Deployment) error {
+func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) error {
 	return wait.PollUntil(2*time.Second, func() (bool, error) {
 		deployment, err := clientset.ExtensionsV1beta1().Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
 		if err != nil {
@@ -76,9 +76,9 @@ func waitForDeploymentCompletion(ctx context.Context, deploymentID string, clien
 	}, ctx.Done())
 }
 
-func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset *kubernetes.Clientset, deployment *v1beta1.Deployment) {
+func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset kubernetes.Interface, deployment *v1beta1.Deployment) {
 	go func() {
-		watcher, err := clientset.Events(deployment.Namespace).Watch(metav1.ListOptions{})
+		watcher, err := clientset.CoreV1().Events(deployment.Namespace).Watch(metav1.ListOptions{})
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("Failed to monitor Kubernetes deployment events: %v", err)
 			return
@@ -125,7 +125,7 @@ func streamDeploymentLogs(ctx context.Context, deploymentID string, clientset *k
 	}()
 }
 
-func isChildOf(clientset *kubernetes.Clientset, parent types.UID, ref reference) (bool, error) {
+func isChildOf(clientset kubernetes.Interface, parent types.UID, ref reference) (bool, error) {
 	if ref.UID == parent {
 		return true, nil
 	}
@@ -133,9 +133,9 @@ func isChildOf(clientset *kubernetes.Clientset, parent types.UID, ref reference)
 	var err error
 	switch strings.ToLower(ref.Kind) {
 	case "pod":
-		om, err = clientset.Pods(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+		om, err = clientset.CoreV1().Pods(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	case "replicaset":
-		om, err = clientset.ReplicaSets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+		om, err = clientset.ExtensionsV1beta1().ReplicaSets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	case "deployment":
 		om, err = clientset.ExtensionsV1beta1().Deployments(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	default:

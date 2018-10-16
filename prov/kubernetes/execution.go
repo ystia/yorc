@@ -100,7 +100,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	return e, nil
 }
 
-func (e *execution) execute(ctx context.Context, clientset *kubernetes.Clientset) (err error) {
+func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface) (err error) {
 	// TODO is there any reason for recreating a new generator for each execution?
 	generator := newGenerator(e.kv, e.cfg)
 	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
@@ -144,7 +144,7 @@ func (e *execution) execute(ctx context.Context, clientset *kubernetes.Clientset
 
 }
 
-func (e *execution) manageKubernetesResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, op k8sResourceOperation) error {
+func (e *execution) manageKubernetesResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, op k8sResourceOperation) error {
 	rSpec, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "resource_spec")
 	if err != nil {
 		return err
@@ -163,7 +163,7 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset *kub
 	}
 }
 
-func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset *kubernetes.Clientset, namespace, rSpec string) (string, error) {
+func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset kubernetes.Interface, namespace, rSpec string) (string, error) {
 	serviceDepsLookups, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "service_dependency_lookups")
 	if err != nil {
 		return rSpec, err
@@ -178,7 +178,7 @@ func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, client
 				continue
 			}
 			srvName := srvLookupArgs[1]
-			srv, err := clientset.Services(namespace).Get(srvName, metav1.GetOptions{})
+			srv, err := clientset.CoreV1().Services(namespace).Get(srvName, metav1.GetOptions{})
 			if err != nil {
 				return rSpec, errors.Wrapf(err, "failed to retrieve ClusterIP for service %q", srvName)
 			}
@@ -192,7 +192,7 @@ func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, client
 	return rSpec, nil
 }
 
-func (e *execution) manageDeploymentResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
+func (e *execution) manageDeploymentResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
 	}
@@ -281,7 +281,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset *kub
 	return nil
 }
 
-func (e *execution) manageServiceResource(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
+func (e *execution) manageServiceResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	var serviceRepr apiv1.Service
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
@@ -354,7 +354,7 @@ func (e *execution) parseEnvInputs() []apiv1.EnvVar {
 	return data
 }
 
-func (e *execution) checkRepository(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator) error {
+func (e *execution) checkRepository(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -408,7 +408,7 @@ func (e *execution) checkRepository(ctx context.Context, clientset *kubernetes.C
 	return nil
 }
 
-func (e *execution) scaleNode(ctx context.Context, clientset *kubernetes.Clientset, scaleType tasks.TaskType, nbInstances int32) error {
+func (e *execution) scaleNode(ctx context.Context, clientset kubernetes.Interface, scaleType tasks.TaskType, nbInstances int32) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -432,7 +432,7 @@ func (e *execution) scaleNode(ctx context.Context, clientset *kubernetes.Clients
 	return nil
 }
 
-func (e *execution) deployNode(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, nbInstances int32) error {
+func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, nbInstances int32) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -541,7 +541,7 @@ func (e *execution) setUnDeployHook() error {
 	return nil
 }
 
-func (e *execution) checkNode(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator) error {
+func (e *execution) checkNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -594,7 +594,7 @@ func (e *execution) checkNode(ctx context.Context, clientset *kubernetes.Clients
 	return nil
 }
 
-func (e *execution) checkPod(ctx context.Context, clientset *kubernetes.Clientset, generator *k8sGenerator, podName string) error {
+func (e *execution) checkPod(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, podName string) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
@@ -669,7 +669,7 @@ func (e *execution) checkPod(ctx context.Context, clientset *kubernetes.Clientse
 	return nil
 }
 
-func (e *execution) uninstallNode(ctx context.Context, clientset *kubernetes.Clientset) error {
+func (e *execution) uninstallNode(ctx context.Context, clientset kubernetes.Interface) error {
 	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
 	if err != nil {
 		return err
