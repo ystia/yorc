@@ -207,7 +207,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "google_compute_instance", instance.Name, &instance)
 
 	// Attach Persistent disks
-	err = addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure)
+	devices, err := addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure)
 	if err != nil {
 		return err
 	}
@@ -270,6 +270,34 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
+	// Retrieve devices
+	if len(devices) > 0 {
+		for _, dev := range devices {
+			devResource := commons.Resource{}
+
+			// Remote exec to retrieve the logical device for google device ID and to redirect stdout to file
+			re := commons.RemoteExec{Inline: []string{fmt.Sprintf("readlink -f /dev/disk/by-id/%s > out-%s", dev, dev)},
+				Connection: &commons.Connection{User: user, Host: accessIP,
+					PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+			devResource.Provisioners = make([]map[string]interface{}, 0)
+			provMap := make(map[string]interface{})
+			provMap["remote-exec"] = re
+			devResource.Provisioners = append(devResource.Provisioners, provMap)
+			devResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", instance.Name+"-ConnectionCheck")}
+			commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev), &devResource)
+
+			// local exec to scp the stdout file locally
+			scpCommand := fmt.Sprintf("scp -i %s %s@%s:out-%s out-%s", privateKeyFilePath, user, accessIP, dev, dev)
+			loc := commons.LocalExec{Command: scpCommand}
+			locMap := make(map[string]interface{})
+			locMap["local-exec"] = loc
+			locResource := commons.Resource{}
+			locResource.Provisioners = append(locResource.Provisioners, locMap)
+			locResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev))}
+			commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev), &locResource)
+		}
+	}
+
 	return nil
 }
 
@@ -301,45 +329,42 @@ func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName
 	}
 }
 
-func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure) error {
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure) ([]string, error) {
+	devices := make([]string, 0)
+
 	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, storagePrefix := range storageKeys {
 		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
 		volumeNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
 
-		deviceValue, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "device")
-		if err != nil {
-			return err
-		}
-
 		zone, err := deployments.GetStringNodeProperty(kv, deploymentID, volumeNodeName, "zone", true)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		modeValue, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "mode")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
 		if err != nil {
-			return err
+			return nil, err
 		}
 		var volumeID string
 		if volumeIDValue == nil || volumeIDValue.RawString() == "" {
 			// Lookup for attribute volume_id
 			volumeID, err = attributeLookup(ctx, kv, deploymentID, instanceName, volumeNodeName, "volume_id")
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 		} else {
@@ -351,35 +376,42 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 			Instance: fmt.Sprintf("${google_compute_instance.%s.name}", computeName),
 			Zone:     zone,
 		}
-		if deviceValue != nil && deviceValue.RawString() != "" {
-			attachedDisk.DeviceName = deviceValue.RawString()
-		}
 		if modeValue != nil && modeValue.RawString() != "" {
 			attachedDisk.Mode = modeValue.RawString()
 		}
 
-		attachName := strings.ToLower(cfg.ResourcesPrefix + volumeNodeName + "-" + instanceName + "-attached-to-" + nodeName + "-" + instanceName)
+		attachName := strings.ToLower(cfg.ResourcesPrefix + volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)
 		attachName = strings.Replace(attachName, "_", "-", -1)
+		// attachName is used as device name to retrieve device attribute as logical volume name
+		attachedDisk.DeviceName = attachName
 		commons.AddResource(infrastructure, "google_compute_attached_disk", attachName, attachedDisk)
+
+		// Add specific output for logical device
+		//commons.AddOutput(infrastructure, attachName, &commons.Output{Value: fmt.Sprintf("${file(\"%s\")}", "out-"+attachName)})
+		// Add device
+		devices = append(devices, fmt.Sprintf("google-%s", attachName))
 
 		// Provide Consul Keys
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
 
 		volumeDevConsulKey := commons.ConsulKey{
-			Path:  path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"),
-			Value: attachedDisk.DeviceName,
+			Path: path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"),
+			//Value: fmt.Sprintf("${local.%s}", attachName),
+			Value: "test",
 		}
 		relDevConsulKey := commons.ConsulKey{
-			Path:  path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"),
-			Value: attachedDisk.DeviceName,
+			Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"),
+			//Value: fmt.Sprintf("${local.%s}", attachName),
+			Value: "test",
 		}
 		relVolDevConsulKey := commons.ConsulKey{
-			Path:  path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"),
-			Value: attachedDisk.DeviceName,
+			Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"),
+			//Value: fmt.Sprintf("${local.%s}", attachName),
+			Value: "test",
 		}
 		consulKeys.Keys = append(consulKeys.Keys, volumeDevConsulKey, relDevConsulKey, relVolDevConsulKey)
 		commons.AddResource(infrastructure, "consul_keys", attachName, &consulKeys)
 	}
-	return nil
+	return devices, nil
 }
