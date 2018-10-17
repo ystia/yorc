@@ -20,7 +20,7 @@ env:
 
 install:
   - make tools
-  - pip install --user --upgrade sphinx==1.7.9 semantic-version requests urllib3[secure]
+  - pip install --user --upgrade sphinx==1.8.1 semantic-version requests urllib3[secure]==1.23
 
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64  > ./cc-test-reporter
