@@ -765,6 +765,27 @@ func testIssueGetEmptyPropRel(t *testing.T, kv *api.KV) {
 	require.Equal(t, "", results[0].Value)
 }
 
+func testIssueGetEmptyPropOnRelationship(t *testing.T, kv *api.KV) {
+	// t.Parallel()
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/issue_get_empty_prop_rel.yaml")
+	require.Nil(t, err)
+	// First test operation outputs detection
+
+	results, err := GetOperationInput(kv, deploymentID, "ValueAssignmentNode2", prov.Operation{
+		Name:                   "configure.pre_configure_source",
+		ImplementedInType:      "yorc.tests.relationships.ValueAssignmentConnectsTo",
+		ImplementationArtifact: "",
+		RelOp: prov.RelationshipOperation{
+			IsRelationshipOperation: true,
+			RequirementIndex:        "1",
+			TargetNodeName:          "ValueAssignmentNode1",
+		}}, "input_empty_prop")
+	require.Nil(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "", results[0].Value)
+}
+
 func testRelationshipWorkflow(t *testing.T, kv *api.KV) {
 	// t.Parallel()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
