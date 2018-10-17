@@ -12,21 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package bootstrap
 
 import (
-	"github.com/ystia/yorc/commands"
-	_ "github.com/ystia/yorc/commands/bootstrap"
-	_ "github.com/ystia/yorc/commands/deployments"
-	_ "github.com/ystia/yorc/commands/deployments/tasks"
-	_ "github.com/ystia/yorc/commands/deployments/workflows"
-	_ "github.com/ystia/yorc/commands/hostspool"
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/commands/httputil"
+
+	"github.com/ystia/yorc/commands/deployments"
+
+	"github.com/ystia/yorc/helper/ziputil"
 )
 
-func main() {
-	if err := commands.RootCmd.Execute(); err != nil {
-		log.Fatal(err)
+// deployTopology deploys a topology provided under deploymentPath
+func deployTopology(deploymentPath string) error {
+
+	csarZip, err := ziputil.ZipPath(deploymentPath)
+	if err != nil {
+		return err
 	}
-	log.Debug("Exiting main...")
+	deploymentID := "bootstrap"
+	client, err := httputil.GetClient(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	_, err = deployments.SubmitCSAR(csarZip, client, deploymentID)
+	if err != nil {
+		return err
+	}
+	return err
 }
