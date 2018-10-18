@@ -38,7 +38,7 @@ type defaultExecutor struct {
 	clientset kubernetes.Interface
 }
 
-func setupExecLogsContextWithWF(ctx context.Context, nodeName, operationName, workflow string) (context.Context, error) {
+func setupExecLogsContextWithWF(ctx context.Context, nodeName, operationName, workflow, executionID string) (context.Context, error) {
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {
 		return ctx, errors.New("Missing contextual log optionnal fields")
@@ -49,12 +49,15 @@ func setupExecLogsContextWithWF(ctx context.Context, nodeName, operationName, wo
 	if workflow != "" {
 		logOptFields[events.WorkFlowID] = workflow
 	}
+	if executionID != "" {
+		logOptFields[events.ExecutionID] = executionID
+	}
 
 	return events.NewContext(ctx, logOptFields), nil
 }
 
 func setupExecLogsContext(ctx context.Context, nodeName, operationName string) (context.Context, error) {
-	return setupExecLogsContextWithWF(ctx, nodeName, operationName, "")
+	return setupExecLogsContextWithWF(ctx, nodeName, operationName, "", "")
 }
 
 func getExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {

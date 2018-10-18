@@ -83,9 +83,9 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 	}
 	lof, _ := events.FromContext(ctx)
 	wfName := ""
-	wfNameIfce, ok := lof[events.WorkFlowID]
+	inf, ok := lof[events.WorkFlowID]
 	if ok {
-		wfName = fmt.Sprint(wfNameIfce)
+		wfName = fmt.Sprint(inf)
 	}
 
 	// Fill all used data for job monitoring

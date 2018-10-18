@@ -53,7 +53,12 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		return errors.New(`missing mandatory parameter "originalWorkflowName" in monitoring action`)
 	}
 
-	ctx, err := setupExecLogsContextWithWF(ctx, nodeName, opName, originalWFName)
+	originalTaskID, ok := action.Data["originalTaskID"]
+	if !ok {
+		return errors.New(`missing mandatory parameter "originalTaskID" in monitoring action`)
+	}
+
+	ctx, err := setupExecLogsContextWithWF(ctx, nodeName, opName, originalWFName, originalTaskID)
 	if err != nil {
 		return err
 	}
@@ -77,11 +82,6 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	stepName, ok := action.Data["stepName"]
 	if !ok {
 		return errors.New(`missing mandatory parameter "stepName" in monitoring action`)
-	}
-
-	originalTaskID, ok := action.Data["originalTaskID"]
-	if !ok {
-		return errors.New(`missing mandatory parameter "originalTaskID" in monitoring action`)
 	}
 
 	err = o.monitorJob(ctx, cfg, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID, action)
