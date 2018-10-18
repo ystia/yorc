@@ -331,14 +331,9 @@ func (w *worker) handleExecution(t *taskExecution) {
 
 func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 	kv := w.consulClient.KV()
-	commandNameKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.taskID, "commandName"), nil)
+	commandName, err := tasks.GetTaskData(kv, t.taskID, "commandName")
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command name: %+v", t.targetID, t.taskID, err)
-		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
-		return
-	}
-	if commandNameKv == nil || len(commandNameKv.Value) == 0 {
-		log.Printf("Deployment id: %q, Task id: %q, Missing commandName attribute for custom command TaskExecution", t.targetID, t.taskID)
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
@@ -354,7 +349,6 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 		return
 	}
 	nodeName := nodes[0]
-	commandName := string(commandNameKv.Value)
 	nodeType, err := deployments.GetNodeType(w.consulClient.KV(), t.targetID, nodeName)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command node type: %+v", t.targetID, t.taskID, err)
@@ -401,34 +395,16 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 
 func (w *worker) runAction(ctx context.Context, t *taskExecution) {
 	action := &prov.Action{}
-	action.Data = make(map[string]string)
-	kvps, _, err := w.consulClient.KV().List(path.Join(consulutil.TasksPrefix, t.taskID), nil)
+	var err error
+	action.Data, err = tasks.GetAllTaskData(w.consulClient.KV(), t.taskID)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q Failed: %+v", t.targetID, t.taskID, err)
 		log.Debugf("%+v", err)
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
-	for _, kvp := range kvps {
-		key := path.Base(kvp.Key)
-		switch key {
-		case "id":
-			if kvp != nil && len(kvp.Value) > 0 {
-				action.ID = string(kvp.Value)
-			}
-		case "actionType":
-			if kvp != nil && len(kvp.Value) > 0 {
-				action.ActionType = string(kvp.Value)
-			}
-		case "creationDate", "status", "targetId", "type":
-			// Ignore task specific keys
-			continue
-		default:
-			if kvp != nil && len(kvp.Value) > 0 {
-				action.Data[key] = string(kvp.Value)
-			}
-		}
-	}
+	action.ID = action.Data["id"]
+	action.ActionType = action.Data["actionType"]
 
 	// Find an actionOperator which match with this actionType
 	var reg = registry.GetRegistry()
@@ -580,7 +556,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) {
 	}
 	for _, tid := range tasksList {
 		if tid != t.taskID {
-			_, err = kv.DeleteTree(path.Join(consulutil.TasksPrefix, tid), nil)
+			err = tasks.DeleteTask(kv, tid)
 			if err != nil {
 				log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.targetID, t.taskID, err)
 				t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
@@ -616,7 +592,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) {
 	}
 	// Now cleanup: mark it as done so nobody will try to run it, clear the processing lock and finally delete the TaskExecution.
 	t.checkAndSetTaskStatus(ctx, tasks.TaskStatusDONE)
-	_, err = kv.DeleteTree(path.Join(consulutil.TasksPrefix, t.taskID), nil)
+	err = tasks.DeleteTask(kv, t.taskID)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to purge tasks related to deployment: %+v", t.targetID, t.taskID, err)
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)

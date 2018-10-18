@@ -16,14 +16,15 @@ package tasks
 
 import (
 	"fmt"
+	"path"
+	"strconv"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
-	"path"
-	"strconv"
-	"time"
 )
 
 // A Collector is used to register new tasks in Yorc
@@ -115,7 +116,7 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 	}
 	if data != nil {
 		for keyM, valM := range data {
-			key = &api.KVPair{Key: path.Join(taskPrefix, keyM), Value: []byte(valM)}
+			key = &api.KVPair{Key: path.Join(taskPrefix, "data", keyM), Value: []byte(valM)}
 			if _, err := kv.Put(key, nil); err != nil {
 				return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}

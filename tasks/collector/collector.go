@@ -16,6 +16,11 @@ package collector
 
 import (
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -23,10 +28,6 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/workflow"
-	"path"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // A Collector is responsible for registering new tasks/workflows/executions
@@ -154,7 +155,7 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 		for k, v := range data {
 			taskOps = append(taskOps, &api.KVTxnOp{
 				Verb:  api.KVSet,
-				Key:   path.Join(taskPath, k),
+				Key:   path.Join(taskPath, "data", k),
 				Value: []byte(v),
 			})
 		}

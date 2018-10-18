@@ -17,6 +17,7 @@ package kubernetes
 import (
 	"context"
 	"io/ioutil"
+	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -93,6 +94,13 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		}
 	}
 	return err
+}
+
+type jobLog struct {
+	timestamp     time.Time
+	podName       string
+	containerName string
+	line          string
 }
 
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID string, action *prov.Action) error {
