@@ -726,8 +726,11 @@ func (w *worker) runWorkflowStep(ctx context.Context, t *taskExecution, workflow
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).RegisterAsString(fmt.Sprintf("Error '%+v' happened in workflow %q.", err, workflowName))
 		return false, errors.Wrapf(err, "The workflow %s step %s ended with error:%+v", workflowName, t.step, err)
 	}
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID:%q, Workflow:%q, step:%q ended without error", t.targetID, workflowName, t.step))
-	return w.registerNextSteps(ctx, s, t, workflowName)
+	if !s.async {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, t.targetID).RegisterAsString(fmt.Sprintf("DeploymentID:%q, Workflow:%q, step:%q ended without error", t.targetID, workflowName, t.step))
+		return w.registerNextSteps(ctx, s, t, workflowName)
+	}
+	return false, nil
 }
 
 func (w *worker) registerNextSteps(ctx context.Context, s *step, t *taskExecution, workflowName string) (bool, error) {
