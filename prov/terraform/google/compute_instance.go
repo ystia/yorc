@@ -271,34 +271,66 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
 	// Retrieve devices
-	if len(devices) > 0 {
-		for _, dev := range devices {
-			devResource := commons.Resource{}
-
-			// Remote exec to retrieve the logical device for google device ID and to redirect stdout to file
-			re := commons.RemoteExec{Inline: []string{fmt.Sprintf("readlink -f /dev/disk/by-id/%s > out-%s", dev, dev)},
-				Connection: &commons.Connection{User: user, Host: accessIP,
-					PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
-			devResource.Provisioners = make([]map[string]interface{}, 0)
-			provMap := make(map[string]interface{})
-			provMap["remote-exec"] = re
-			devResource.Provisioners = append(devResource.Provisioners, provMap)
-			devResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", instance.Name+"-ConnectionCheck")}
-			commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev), &devResource)
-
-			// local exec to scp the stdout file locally
-			scpCommand := fmt.Sprintf("scp -i %s %s@%s:out-%s out-%s", privateKeyFilePath, user, accessIP, dev, dev)
-			loc := commons.LocalExec{Command: scpCommand}
-			locMap := make(map[string]interface{})
-			locMap["local-exec"] = loc
-			locResource := commons.Resource{}
-			locResource.Provisioners = append(locResource.Provisioners, locMap)
-			locResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev))}
-			commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev), &locResource)
-		}
-	}
+	handleDeviceAttributes(infrastructure, &instance, devices, user, privateKeyFilePath, accessIP)
 
 	return nil
+}
+
+func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *ComputeInstance, devices map[string][]string, user, privateKeyFilePath, accessIP string) {
+	// Retrieve devices {
+	for dev, keyPaths := range devices {
+		devResource := commons.Resource{}
+
+		// Remote exec to retrieve the logical device for google device ID and to redirect stdout to file
+		re := commons.RemoteExec{Inline: []string{fmt.Sprintf("readlink -f /dev/disk/by-id/%s > %s", dev, dev)},
+			Connection: &commons.Connection{User: user, Host: accessIP,
+				PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+		devResource.Provisioners = make([]map[string]interface{}, 0)
+		provMap := make(map[string]interface{})
+		provMap["remote-exec"] = re
+		devResource.Provisioners = append(devResource.Provisioners, provMap)
+		devResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", instance.Name+"-ConnectionCheck")}
+		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev), &devResource)
+
+		// local exec to scp the stdout file locally
+		scpCommand := fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKeyFilePath, user, accessIP, dev, dev)
+		loc := commons.LocalExec{
+			Command: scpCommand,
+		}
+		locMap := make(map[string]interface{})
+		locMap["local-exec"] = loc
+		locResource := commons.Resource{}
+		locResource.Provisioners = append(locResource.Provisioners, locMap)
+		locResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev))}
+		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev), &locResource)
+
+		// Remote exec to cleanup  created file
+		cleanResource := commons.Resource{}
+		re = commons.RemoteExec{Inline: []string{fmt.Sprintf("rm -f %s", dev)},
+			Connection: &commons.Connection{User: user, Host: accessIP,
+				PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+		cleanResource.Provisioners = make([]map[string]interface{}, 0)
+		m := make(map[string]interface{})
+		m["remote-exec"] = re
+		cleanResource.Provisioners = append(devResource.Provisioners, m)
+		cleanResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev))}
+		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-cleanup-%s", instance.Name, dev), &cleanResource)
+
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
+		consulKeys.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev))}
+		//FIXME still need to get device from file !
+		for _, keyPath := range keyPaths {
+			k := commons.ConsulKey{
+				Path: keyPath,
+				//Value: "${data.external.getContent.result.content}",
+				Value: "toBeDone",
+			}
+			log.Debugf(k.Path)
+			consulKeys.Keys = append(consulKeys.Keys, k)
+			//commons.AddOutput(infrastructure, dev, &commons.Output{Value: fmt.Sprintf("${file(\"%s\")}", dev)})
+		}
+		commons.AddResource(infrastructure, "consul_keys", dev, &consulKeys)
+	}
 }
 
 func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, nodeName, attribute string) (string, error) {
@@ -329,8 +361,8 @@ func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName
 	}
 }
 
-func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure) ([]string, error) {
-	devices := make([]string, 0)
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure) (map[string][]string, error) {
+	devices := make(map[string][]string, 0)
 
 	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
@@ -386,32 +418,15 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 		attachedDisk.DeviceName = attachName
 		commons.AddResource(infrastructure, "google_compute_attached_disk", attachName, attachedDisk)
 
-		// Add specific output for logical device
-		//commons.AddOutput(infrastructure, attachName, &commons.Output{Value: fmt.Sprintf("${file(\"%s\")}", "out-"+attachName)})
-		// Add device
-		devices = append(devices, fmt.Sprintf("google-%s", attachName))
-
-		// Provide Consul Keys
-		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
+		// Provide relative consul key paths
 		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
-
-		volumeDevConsulKey := commons.ConsulKey{
-			Path: path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"),
-			//Value: fmt.Sprintf("${local.%s}", attachName),
-			Value: "test",
+		keyPaths := []string{
+			path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"),
+			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"),
+			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"),
 		}
-		relDevConsulKey := commons.ConsulKey{
-			Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"),
-			//Value: fmt.Sprintf("${local.%s}", attachName),
-			Value: "test",
-		}
-		relVolDevConsulKey := commons.ConsulKey{
-			Path: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"),
-			//Value: fmt.Sprintf("${local.%s}", attachName),
-			Value: "test",
-		}
-		consulKeys.Keys = append(consulKeys.Keys, volumeDevConsulKey, relDevConsulKey, relVolDevConsulKey)
-		commons.AddResource(infrastructure, "consul_keys", attachName, &consulKeys)
+		// Add device and related consul keys
+		devices[fmt.Sprintf("google-%s", attachName)] = keyPaths
 	}
 	return devices, nil
 }

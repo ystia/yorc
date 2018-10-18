@@ -46,6 +46,12 @@ relationship_types:
         description: >
           The mode in which to attach this disk, either READ_WRITE or READ_ONLY. If not specified, the default is to attach the disk in READ_WRITE mode.
         required: false
+    attributes:
+      device:
+        type: string
+        description: >
+          The logical name of the device as exposed to the instance.
+          Note: A runtime property that gets set when the model gets instantiated by the orchestrator.
 
 node_types:
   yorc.nodes.google.Compute:
