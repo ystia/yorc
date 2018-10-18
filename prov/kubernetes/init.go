@@ -31,4 +31,6 @@ func init() {
 			kubernetesArtifactImplementation,
 			kubernetesDeploymentArtifactImplementation,
 		}, &defaultExecutor{}, registry.BuiltinOrigin)
+
+	reg.RegisterActionOperator([]string{"k8s-job-monitoring"}, &actionOperator{}, registry.BuiltinOrigin)
 }

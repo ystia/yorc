@@ -138,6 +138,8 @@ func isChildOf(clientset kubernetes.Interface, parent types.UID, ref reference) 
 		om, err = clientset.ExtensionsV1beta1().ReplicaSets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	case "deployment":
 		om, err = clientset.ExtensionsV1beta1().Deployments(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+	case "job":
+		om, err = clientset.BatchV1().Jobs(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 	default:
 		return false, nil
 	}

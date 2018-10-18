@@ -60,19 +60,18 @@ type dockerConfigEntry struct {
 }
 
 type execution struct {
-	kv             *api.KV
-	cfg            config.Configuration
-	deploymentID   string
-	taskID         string
-	taskType       tasks.TaskType
-	NodeName       string
-	Operation      prov.Operation
-	NodeType       string
-	Description    string
-	EnvInputs      []*operations.EnvInput
-	VarInputsNames []string
-	Repositories   map[string]string
-	SecretRepoName string
+	kv           *api.KV
+	cfg          config.Configuration
+	deploymentID string
+	taskID       string
+	taskType     tasks.TaskType
+	nodeName     string
+	operation    prov.Operation
+	nodeType     string
+
+	// Bellow params are used in deprecated functions
+	envInputs      []*operations.EnvInput
+	secretRepoName string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
@@ -81,42 +80,46 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		return nil, err
 	}
 
-	e := &execution{kv: kv,
-		cfg:            cfg,
-		deploymentID:   deploymentID,
-		NodeName:       nodeName,
-		Operation:      operation,
-		VarInputsNames: make([]string, 0),
-		EnvInputs:      make([]*operations.EnvInput, 0),
-		taskID:         taskID,
-		taskType:       taskType,
-	}
-
-	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	return e, nil
+	return &execution{
+		kv:           kv,
+		cfg:          cfg,
+		deploymentID: deploymentID,
+		nodeName:     nodeName,
+		operation:    operation,
+		envInputs:    make([]*operations.EnvInput, 0),
+		taskID:       taskID,
+		taskType:     taskType,
+		nodeType:     nodeType,
+	}, nil
 }
 
 func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface) (err error) {
 	// TODO is there any reason for recreating a new generator for each execution?
 	generator := newGenerator(e.kv, e.cfg)
-	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.NodeName)
+	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.nodeName)
 	nbInstances := int32(len(instances))
 
 	// Supporting both fully qualified and short standard operation names, ie.
 	// - tosca.interfaces.node.lifecycle.standard.operation
 	// or
 	// - standard.operation
-	operationName := strings.TrimPrefix(strings.ToLower(e.Operation.Name),
+	operationName := strings.TrimPrefix(strings.ToLower(e.operation.Name),
 		"tosca.interfaces.node.lifecycle.")
 	switch operationName {
 	case "standard.create":
 		return e.manageKubernetesResource(ctx, clientset, generator, k8sCreateOperation)
+	case "standard.delete":
+		return e.manageKubernetesResource(ctx, clientset, generator, k8sDeleteOperation)
+
+	// Below operations are deprecated
+
 	case "standard.configure":
-		log.Printf("Voluntary bypassing operation %s", e.Operation.Name)
+		log.Printf("Voluntary bypassing operation %s", e.operation.Name)
 		return nil
 	case "standard.start":
 		if e.taskType == tasks.TaskTypeScaleOut {
@@ -136,35 +139,33 @@ func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface)
 			return e.scaleNode(ctx, clientset, tasks.TaskTypeScaleIn, nbInstances)
 		}
 		return e.uninstallNode(ctx, clientset)
-	case "standard.delete":
-		return e.manageKubernetesResource(ctx, clientset, generator, k8sDeleteOperation)
 	default:
-		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
+		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
 
 }
 
 func (e *execution) manageKubernetesResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, op k8sResourceOperation) error {
-	rSpec, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "resource_spec")
+	rSpec, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
 	if err != nil {
 		return err
 	}
 
 	if rSpec == nil {
-		return errors.Errorf("no resource_spec defined for node %q", e.NodeName)
+		return errors.Errorf("no resource_spec defined for node %q", e.nodeName)
 	}
-	switch e.NodeType {
+	switch e.nodeType {
 	case deploymentResourceType:
 		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec.RawString())
 	case serviceResourceType:
 		return e.manageServiceResource(ctx, clientset, generator, op, rSpec.RawString())
 	default:
-		return errors.Errorf("Unsupported k8s resource type %q", e.NodeType)
+		return errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
 	}
 }
 
 func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, clientset kubernetes.Interface, namespace, rSpec string) (string, error) {
-	serviceDepsLookups, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "service_dependency_lookups")
+	serviceDepsLookups, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "service_dependency_lookups")
 	if err != nil {
 		return rSpec, err
 	}
@@ -194,14 +195,14 @@ func (e *execution) replaceServiceIPInDeploymentSpec(ctx context.Context, client
 
 func (e *execution) manageDeploymentResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	if rSpec == "" {
-		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
+		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
 	}
 
 	// Manage Namespace creation
 	// Get it from matadata, or generate it using deploymentID
 	//namespace := deploymentRepr.ObjectMeta.Namespace
 	// (Synchronize with Alien)
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
@@ -284,7 +285,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 func (e *execution) manageServiceResource(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	var serviceRepr apiv1.Service
 	if rSpec == "" {
-		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.NodeName)
+		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
 	}
 	// Unmarshal JSON to k8s data structs
 	if err = json.Unmarshal([]byte(rSpec), &serviceRepr); err != nil {
@@ -295,7 +296,7 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 	// Get it from matadata, or generate it using deploymentID
 	//namespace := deploymentRepr.ObjectMeta.Namespace
 	// (Synchronize with Alien)
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
 	if err != nil {
 		return err
@@ -319,7 +320,7 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 			if val.NodePort != 0 {
 				str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%s : %s: %d:%d mapped to %s", service.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
-				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", str)
+				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "k8s_service_url", str)
 				if err != nil {
 					return errors.Wrap(err, "Failed to set attribute")
 				}
@@ -343,10 +344,17 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 	return nil
 }
 
+func getNamespace(kv *api.KV, deploymentID, nodeName string) (string, error) {
+	return strings.ToLower(deploymentID), nil
+}
+
+// Below code is for legacy way of managing Kubernetes containers
+
+// Deprecated
 func (e *execution) parseEnvInputs() []apiv1.EnvVar {
 	var data []apiv1.EnvVar
 
-	for _, val := range e.EnvInputs {
+	for _, val := range e.envInputs {
 		tmp := apiv1.EnvVar{Name: val.Name, Value: val.Value}
 		data = append(data, tmp)
 	}
@@ -354,13 +362,14 @@ func (e *execution) parseEnvInputs() []apiv1.EnvVar {
 	return data
 }
 
+// Deprecated
 func (e *execution) checkRepository(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
 
-	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.Operation.ImplementedInNodeTemplate, e.NodeType, e.Operation.Name)
+	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.nodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
@@ -399,7 +408,7 @@ func (e *execution) checkRepository(ctx context.Context, clientset kubernetes.In
 	}
 
 	_, err = generator.createNewRepoSecret(clientset, namespace, repoName, byteD)
-	e.SecretRepoName = repoName
+	e.secretRepoName = repoName
 
 	if err != nil {
 		return err
@@ -408,13 +417,14 @@ func (e *execution) checkRepository(ctx context.Context, clientset kubernetes.In
 	return nil
 }
 
+// Deprecated
 func (e *execution) scaleNode(ctx context.Context, clientset kubernetes.Interface, scaleType tasks.TaskType, nbInstances int32) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
 
-	deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+	deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.nodeName), metav1.GetOptions{})
 
 	replica := *deployment.Spec.Replicas
 	if scaleType == tasks.TaskTypeScaleOut {
@@ -432,8 +442,9 @@ func (e *execution) scaleNode(ctx context.Context, clientset kubernetes.Interfac
 	return nil
 }
 
+// Deprecated
 func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, nbInstances int32) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
@@ -448,13 +459,13 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 		return err
 	}
 
-	e.EnvInputs, e.VarInputsNames, err = operations.ResolveInputs(e.kv, e.deploymentID, e.NodeName, e.taskID, e.Operation)
+	e.envInputs, _, err = operations.ResolveInputs(e.kv, e.deploymentID, e.nodeName, e.taskID, e.operation)
 	if err != nil {
 		return err
 	}
 	inputs := e.parseEnvInputs()
 
-	deployment, service, err := generator.generateDeployment(e.deploymentID, e.NodeName, e.Operation, e.NodeType, e.SecretRepoName, inputs, nbInstances)
+	deployment, service, err := generator.generateDeployment(e.deploymentID, e.nodeName, e.operation, e.nodeType, e.secretRepoName, inputs, nbInstances)
 	if err != nil {
 		return err
 	}
@@ -492,23 +503,23 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 				}
 			}
 		}
-		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_url", s)
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "k8s_service_url", s)
 		if err != nil {
 			return errors.Wrap(err, "Failed to set attribute")
 		}
 
 		// Legacy
-		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "ip_address", service.Name)
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "ip_address", service.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to set attribute")
 		}
 
-		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "k8s_service_name", service.Name)
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "k8s_service_name", service.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to set attribute")
 		}
 		// TODO check that it is a good idea to use it as endpoint ip_address
-		err = deployments.SetCapabilityAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "endpoint", "ip_address", service.Name)
+		err = deployments.SetCapabilityAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "endpoint", "ip_address", service.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to set capability attribute")
 		}
@@ -521,8 +532,9 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 	return e.setUnDeployHook()
 }
 
+// Deprecated
 func (e *execution) setUnDeployHook() error {
-	_, err := deployments.GetNodeTypeImplementingAnOperation(e.kv, e.deploymentID, e.NodeName, "tosca.interfaces.node.lifecycle.standard.stop")
+	_, err := deployments.GetNodeTypeImplementingAnOperation(e.kv, e.deploymentID, e.nodeName, "tosca.interfaces.node.lifecycle.standard.stop")
 	if err != nil {
 		if !deployments.IsOperationNotImplemented(err) {
 			return err
@@ -531,7 +543,7 @@ func (e *execution) setUnDeployHook() error {
 		// TODO this works as long as Alien still add workflow steps for those operations even if there is no real operation defined
 		// As this sounds like a hack we do not create a method in the deployments package to do it
 		_, errGrp, store := consulutil.WithContext(context.Background())
-		opPath := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.NodeType, "interfaces/standard/stop")
+		opPath := path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/types", e.nodeType, "interfaces/standard/stop")
 		store.StoreConsulKeyAsString(path.Join(opPath, "name"), "stop")
 		store.StoreConsulKeyAsString(path.Join(opPath, "implementation/type"), kubernetesArtifactImplementation)
 		store.StoreConsulKeyAsString(path.Join(opPath, "implementation/description"), "Auto-generated operation")
@@ -541,8 +553,9 @@ func (e *execution) setUnDeployHook() error {
 	return nil
 }
 
+// Deprecated
 func (e *execution) checkNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
@@ -551,13 +564,13 @@ func (e *execution) checkNode(ctx context.Context, clientset kubernetes.Interfac
 	var available int32 = -1
 
 	for !deploymentReady {
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{})
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.nodeName), metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed fetch deployment")
 		}
 		if available != deployment.Status.AvailableReplicas {
 			available = deployment.Status.AvailableReplicas
-			log.Printf("Deployment %s : %d pod available of %d", e.NodeName, available, *deployment.Spec.Replicas)
+			log.Printf("Deployment %s : %d pod available of %d", e.nodeName, available, *deployment.Spec.Replicas)
 		}
 
 		if deployment.Status.AvailableReplicas == *deployment.Spec.Replicas {
@@ -594,8 +607,9 @@ func (e *execution) checkNode(ctx context.Context, clientset kubernetes.Interfac
 	return nil
 }
 
+// Deprecated
 func (e *execution) checkPod(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, podName string) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
@@ -649,7 +663,7 @@ func (e *execution) checkPod(ctx context.Context, clientset kubernetes.Interface
 
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString("Pod status : " + pod.Name + " : " + string(pod.Status.Phase) + " (" + state + ")")
 				if reason == "RunContainerError" {
-					logs, err := clientset.CoreV1().Pods(namespace).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &apiv1.PodLogOptions{}).Do().Raw()
+					logs, err := clientset.CoreV1().Pods(namespace).GetLogs(strings.ToLower(e.cfg.ResourcesPrefix+e.nodeName), &apiv1.PodLogOptions{}).Do().Raw()
 					if err != nil {
 						return errors.Wrap(err, "Failed to fetch pod logs")
 					}
@@ -669,34 +683,35 @@ func (e *execution) checkPod(ctx context.Context, clientset kubernetes.Interface
 	return nil
 }
 
+// Deprecated
 func (e *execution) uninstallNode(ctx context.Context, clientset kubernetes.Interface) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.NodeName)
+	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
 	if err != nil {
 		return err
 	}
 
-	if deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), metav1.GetOptions{}); err == nil {
+	if deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(strings.ToLower(e.cfg.ResourcesPrefix+e.nodeName), metav1.GetOptions{}); err == nil {
 		replica := int32(0)
 		deployment.Spec.Replicas = &replica
 		_, err = clientset.ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 
-		err = clientset.ExtensionsV1beta1().Deployments(namespace).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.NodeName), &metav1.DeleteOptions{})
+		err = clientset.ExtensionsV1beta1().Deployments(namespace).Delete(strings.ToLower(e.cfg.ResourcesPrefix+e.nodeName), &metav1.DeleteOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to delete deployment")
 		}
 		log.Printf("Deployment deleted")
 	}
 
-	if _, err = clientset.CoreV1().Services(namespace).Get(strings.ToLower(generatePodName(e.cfg.ResourcesPrefix+e.NodeName)), metav1.GetOptions{}); err == nil {
-		err = clientset.CoreV1().Services(namespace).Delete(strings.ToLower(generatePodName(e.cfg.ResourcesPrefix+e.NodeName)), &metav1.DeleteOptions{})
+	if _, err = clientset.CoreV1().Services(namespace).Get(strings.ToLower(generatePodName(e.cfg.ResourcesPrefix+e.nodeName)), metav1.GetOptions{}); err == nil {
+		err = clientset.CoreV1().Services(namespace).Delete(strings.ToLower(generatePodName(e.cfg.ResourcesPrefix+e.nodeName)), &metav1.DeleteOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to delete service")
 		}
 		log.Printf("Service deleted")
 	}
 
-	if _, err = clientset.CoreV1().Secrets(namespace).Get(e.SecretRepoName, metav1.GetOptions{}); err == nil {
-		err = clientset.CoreV1().Secrets(namespace).Delete(e.SecretRepoName, &metav1.DeleteOptions{})
+	if _, err = clientset.CoreV1().Secrets(namespace).Get(e.secretRepoName, metav1.GetOptions{}); err == nil {
+		err = clientset.CoreV1().Secrets(namespace).Delete(e.secretRepoName, &metav1.DeleteOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to delete secret")
 		}
@@ -718,8 +733,4 @@ func (e *execution) uninstallNode(ctx context.Context, clientset kubernetes.Inte
 
 	log.Printf("Namespace deleted !")
 	return nil
-}
-
-func getNamespace(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	return strings.ToLower(deploymentID), nil
 }

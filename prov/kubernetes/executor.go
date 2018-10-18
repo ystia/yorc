@@ -38,28 +38,64 @@ type defaultExecutor struct {
 	clientset kubernetes.Interface
 }
 
+func setupExecLogsContextWithWF(ctx context.Context, nodeName, operationName, workflow string) (context.Context, error) {
+	logOptFields, ok := events.FromContext(ctx)
+	if !ok {
+		return ctx, errors.New("Missing contextual log optionnal fields")
+	}
+	logOptFields[events.NodeID] = nodeName
+	logOptFields[events.OperationName] = stringutil.GetLastElement(operationName, ".")
+	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operationName, ".")
+	if workflow != "" {
+		logOptFields[events.WorkFlowID] = workflow
+	}
+
+	return events.NewContext(ctx, logOptFields), nil
+}
+
+func setupExecLogsContext(ctx context.Context, nodeName, operationName string) (context.Context, error) {
+	return setupExecLogsContextWithWF(ctx, nodeName, operationName, "")
+}
+
+func getExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
+	consulClient, err := conf.GetConsulClient()
+	if err != nil {
+		return nil, err
+	}
+
+	kv := consulClient.KV()
+	return newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+}
+
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
-	return nil, 0, errors.New("Asynchronous operation is not yet handled by this executor")
+	ctx, err := setupExecLogsContext(ctx, nodeName, operation.Name)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if e.clientset == nil {
+		e.clientset, err = initClientSet(conf)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return exec.executeAsync(ctx, stepName, e.clientset)
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
-	consulClient, err := conf.GetConsulClient()
+
+	ctx, err := setupExecLogsContext(ctx, nodeName, operation.Name)
 	if err != nil {
 		return err
 	}
 
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing contextual log optionnal fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.OperationName] = stringutil.GetLastElement(operation.Name, ".")
-	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operation.Name, ".")
-
-	ctx = events.NewContext(ctx, logOptFields)
-
-	kv := consulClient.KV()
-	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
