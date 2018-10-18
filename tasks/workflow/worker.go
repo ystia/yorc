@@ -394,6 +394,8 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 }
 
 func (w *worker) runAction(ctx context.Context, t *taskExecution) {
+	// Delete task at the end of it execution
+	defer tasks.DeleteTask(w.consulClient.KV(), t.taskID)
 	action := &prov.Action{}
 	var err error
 	action.Data, err = tasks.GetAllTaskData(w.consulClient.KV(), t.taskID)
