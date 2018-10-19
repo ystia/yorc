@@ -15,17 +15,26 @@
 package scheduler
 
 import (
+	"path"
+	"sync"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/consulutil"
+
+	"github.com/hashicorp/consul/api"
+
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
-	"sync"
-	"time"
 )
 
 type scheduledAction struct {
 	prov.Action
-	deploymentID string
-	timeInterval time.Duration
+	kv              *api.KV
+	deploymentID    string
+	timeInterval    time.Duration
+	latestDataIndex uint64
 
 	stopScheduling     bool
 	stopSchedulingLock sync.Mutex
@@ -72,6 +81,10 @@ func (sca *scheduledAction) schedule() {
 
 func (sca *scheduledAction) proceed() error {
 	// To fit with Task Manager, pass the id/actionType in data
+	err := sca.updateData()
+	if err != nil {
+		return err
+	}
 	sca.Data["actionType"] = sca.ActionType
 	sca.Data["id"] = sca.ID
 	taskID, err := defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
@@ -79,5 +92,25 @@ func (sca *scheduledAction) proceed() error {
 		return err
 	}
 	log.Debugf("Proceed scheduled action:%+v with taskID:%q", sca, taskID)
+	return nil
+}
+
+func (sca *scheduledAction) updateData() error {
+	dataPath := path.Join(consulutil.SchedulingKVPrefix, "actions", sca.ID, "data")
+	_, meta, err := sca.kv.Get(dataPath, nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if meta.LastIndex > sca.latestDataIndex {
+		// re-read data
+		kvps, _, err := sca.kv.List(dataPath, nil)
+		if err != nil {
+			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+		for _, kvp := range kvps {
+			key := path.Base(kvp.Key)
+			sca.Data[key] = string(kvp.Value)
+		}
+	}
 	return nil
 }
