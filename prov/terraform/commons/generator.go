@@ -21,6 +21,9 @@ import (
 	"github.com/ystia/yorc/config"
 )
 
+// FileOutputPrefix is the prefix to identify file output
+const FileOutputPrefix = "file:"
+
 // A Generator is used to generate the Terraform infrastructure for a given TOSCA node
 type Generator interface {
 	// GenerateTerraformInfraForNode generates the Terraform infrastructure file for the given node.

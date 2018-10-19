@@ -207,7 +207,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "google_compute_instance", instance.Name, &instance)
 
 	// Attach Persistent disks
-	devices, err := addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure)
+	devices, err := addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure, outputs)
 	if err != nil {
 		return err
 	}
@@ -276,9 +276,9 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	return nil
 }
 
-func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *ComputeInstance, devices map[string][]string, user, privateKeyFilePath, accessIP string) {
+func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKeyFilePath, accessIP string) {
 	// Retrieve devices {
-	for dev, keyPaths := range devices {
+	for _, dev := range devices {
 		devResource := commons.Resource{}
 
 		// Remote exec to retrieve the logical device for google device ID and to redirect stdout to file
@@ -318,18 +318,6 @@ func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *Co
 
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 		consulKeys.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev))}
-		//FIXME still need to get device from file !
-		for _, keyPath := range keyPaths {
-			k := commons.ConsulKey{
-				Path: keyPath,
-				//Value: "${data.external.getContent.result.content}",
-				Value: "toBeDone",
-			}
-			log.Debugf(k.Path)
-			consulKeys.Keys = append(consulKeys.Keys, k)
-			//commons.AddOutput(infrastructure, dev, &commons.Output{Value: fmt.Sprintf("${file(\"%s\")}", dev)})
-		}
-		commons.AddResource(infrastructure, "consul_keys", dev, &consulKeys)
 	}
 }
 
@@ -361,8 +349,8 @@ func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName
 	}
 }
 
-func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure) (map[string][]string, error) {
-	devices := make(map[string][]string, 0)
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
+	devices := make([]string, 0)
 
 	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
 	if err != nil {
@@ -418,15 +406,15 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 		attachedDisk.DeviceName = attachName
 		commons.AddResource(infrastructure, "google_compute_attached_disk", attachName, attachedDisk)
 
-		// Provide relative consul key paths
+		// Provide file outputs for device attributes which can't be resolved with Terraform
+		device := fmt.Sprintf("google-%s", attachName)
+		outputDeviceVal := commons.FileOutputPrefix + device
 		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
-		keyPaths := []string{
-			path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device"),
-			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device"),
-			path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device"),
-		}
-		// Add device and related consul keys
-		devices[fmt.Sprintf("google-%s", attachName)] = keyPaths
+		outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = outputDeviceVal
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
+		// Add device
+		devices = append(devices, device)
 	}
 	return devices, nil
 }

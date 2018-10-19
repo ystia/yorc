@@ -141,7 +141,8 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string))
+	outputs := make(map[string]string, 0)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
@@ -168,4 +169,15 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 	assert.Equal(t, "europe-west1-b", attachedDisk.Zone)
 	assert.Equal(t, "bs1-0-to-compute-0", attachedDisk.DeviceName)
 	assert.Equal(t, "READ_ONLY", attachedDisk.Mode)
+
+	require.Contains(t, infrastructure.Resource, "null_resource")
+	require.Len(t, infrastructure.Resource["null_resource"], 4)
+
+	require.Len(t, outputs, 3, "three outputs are expected")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device"), "expected instances attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device"), "expected relationship attribute output for Compute")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device"), "expected relationship attribute output for Block storage")
+	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device")], "output file value expected")
+	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device")], "output file value expected")
+	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device")], "output file value expected")
 }
