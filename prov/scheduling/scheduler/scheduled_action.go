@@ -31,10 +31,11 @@ import (
 
 type scheduledAction struct {
 	prov.Action
-	kv              *api.KV
-	deploymentID    string
-	timeInterval    time.Duration
-	latestDataIndex uint64
+	kv                   *api.KV
+	deploymentID         string
+	timeInterval         time.Duration
+	latestDataIndex      uint64
+	asyncOperationString string
 
 	stopScheduling     bool
 	stopSchedulingLock sync.Mutex
@@ -87,6 +88,7 @@ func (sca *scheduledAction) proceed() error {
 	}
 	sca.Data["actionType"] = sca.ActionType
 	sca.Data["id"] = sca.ID
+	sca.Data["asyncOperation"] = sca.asyncOperationString
 	taskID, err := defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
 	if err != nil {
 		return err

@@ -33,7 +33,6 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/metricsutil"
-	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/registry"
@@ -251,7 +250,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 					hook(ctx, cfg, s.t.taskID, deploymentID, s.target, activity)
 				}
 			}()
-			err := s.runActivity(wfCtx, kv, cfg, deploymentID, bypassErrors, w, activity)
+			err := s.runActivity(wfCtx, kv, cfg, deploymentID, workflowName, bypassErrors, w, activity)
 			if err != nil {
 				setNodeStatus(wfCtx, kv, s.t.taskID, deploymentID, s.target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.name, err)
@@ -274,7 +273,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 	return nil
 }
 
-func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, bypassErrors bool, w *worker, activity Activity) error {
+func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, workflowName string, bypassErrors bool, w *worker, activity Activity) error {
 	// Get activity related instances
 	instances, err := tasks.GetInstances(kv, s.t.taskID, deploymentID, s.target)
 	if err != nil {
@@ -336,7 +335,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			return err
 		}
-		wfCtx = events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InterfaceName: stringutil.GetAllExceptLastElement(op.Name, "."), events.OperationName: stringutil.GetLastElement(op.Name, ".")})
+		wfCtx = operations.SetOperationLogFields(wfCtx, op)
 		for _, instanceName := range instances {
 			// TODO: replace this with workflow steps events
 			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("executing operation")
@@ -350,6 +349,12 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 				if err != nil {
 					return err
 				}
+				action.AsyncOperation.DeploymentID = deploymentID
+				action.AsyncOperation.TaskID = s.t.taskID
+				action.AsyncOperation.WorkflowName = workflowName
+				action.AsyncOperation.StepName = s.name
+				action.AsyncOperation.NodeName = s.target
+				action.AsyncOperation.Operation = op
 				// Register scheduled action for asynchronous execution
 				id, err := scheduling.RegisterAction(w.consulClient, deploymentID, timeInterval, action)
 				log.Debugf("Scheduled action;%+v has been registered with timeInterval:%s and ID:%q", action, timeInterval.String(), id)

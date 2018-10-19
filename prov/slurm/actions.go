@@ -27,7 +27,6 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
@@ -117,19 +116,6 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) (bo
 	}
 	// remoteExecDirectory can be empty for interactive jobs
 	o.remoteExecDirectory = o.action.Data["remoteExecDirectory"]
-
-	// Fill log optional fields for log registration
-	wfName, err := tasks.GetTaskData(o.consulClient.KV(), o.taskID, "workflowName")
-	if err != nil {
-		return true, errors.Wrapf(err, "failed to retrieve workflow name for task:%q", o.taskID)
-	}
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID:    wfName,
-		events.NodeID:        o.action.Data["nodeName"],
-		events.OperationName: stringutil.GetLastElement(o.action.Data["operationName"], "."),
-		events.InterfaceName: stringutil.GetAllExceptLastElement(o.action.Data["operationName"], "."),
-	}
-	ctx = events.NewContext(ctx, logOptFields)
 
 	info, err := getJobInfo(o.client, o.jobID, "")
 	if err != nil {

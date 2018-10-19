@@ -15,6 +15,7 @@
 package scheduling
 
 import (
+	"encoding/json"
 	"path"
 	"strings"
 	"time"
@@ -40,6 +41,10 @@ func RegisterAction(client *api.Client, deploymentID string, timeInterval time.D
 	if action == nil || action.ActionType == "" {
 		return "", errors.New("actionType is mandatory parameter to register scheduled action")
 	}
+	asyncOp, err := json.Marshal(action.AsyncOperation)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to generate async operation representation for action %q", action.ID)
+	}
 	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
 	scaOps := api.KVTxnOps{
 		&api.KVTxnOp{
@@ -56,6 +61,11 @@ func RegisterAction(client *api.Client, deploymentID string, timeInterval time.D
 			Verb:  api.KVSet,
 			Key:   path.Join(scaPath, "interval"),
 			Value: []byte(timeInterval.String()),
+		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(scaPath, "async_op"),
+			Value: asyncOp,
 		},
 	}
 

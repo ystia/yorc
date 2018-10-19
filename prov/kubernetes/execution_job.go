@@ -17,19 +17,16 @@ package kubernetes
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
-
-	"github.com/ystia/yorc/events"
-
-	"github.com/ystia/yorc/log"
 
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -81,19 +78,9 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
 	}
-	lof, _ := events.FromContext(ctx)
-	wfName := ""
-	inf, ok := lof[events.WorkFlowID]
-	if ok {
-		wfName = fmt.Sprint(inf)
-	}
-
 	// Fill all used data for job monitoring
 	data := make(map[string]string)
-	data["nodeName"] = e.nodeName
-	data["operationName"] = e.operation.Name
 	data["originalTaskID"] = e.taskID
-	data["originalWorkflowName"] = wfName
 	data["jobID"] = jobRepr.Name
 	data["namespace"] = namespace
 	data["stepName"] = stepName

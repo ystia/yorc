@@ -50,16 +50,6 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 	kv := consulClient.KV()
-	// Fill log optional fields for log registration
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing contextual log optionnal fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.ExecutionID] = taskID
-	logOptFields[events.OperationName] = delegateOperation
-	logOptFields[events.InterfaceName] = "delegate"
-	ctx = events.NewContext(ctx, logOptFields)
 
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {

@@ -319,7 +319,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 	case tasks.TaskTypeScaleIn:
 		w.runScaleIn(ctx, t)
 	case tasks.TaskTypeCustomWorkflow:
-		w.runCustomWorkflow(ctx, t)
+		w.runCustomWorkflow(ctx, t, wfName)
 	case tasks.TaskTypeQuery:
 		w.runQuery(ctx, t)
 	case tasks.TaskTypeAction:
@@ -377,6 +377,10 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
+
+	ctx = operations.SetOperationLogFields(ctx, op)
+	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName})
+
 	err = func() error {
 		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name}), time.Now())
 		return exec.ExecOperation(ctx, w.cfg, t.taskID, t.targetID, nodeName, op)
@@ -409,15 +413,30 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) {
 	}
 	action.ID = action.Data["id"]
 	action.ActionType = action.Data["actionType"]
-
-	// Find an actionOperator which match with this actionType
-	var reg = registry.GetRegistry()
-	operator, err := reg.GetActionOperator(action.ActionType)
+	err = json.Unmarshal([]byte(action.Data["asyncOperation"]), &action.AsyncOperation)
 	if err != nil {
-		log.Printf("Action Task id: %q Failed to find matching operator: %+v", t.taskID, err)
+		log.Printf("Deployment id: %q, Task id: %q Failed: %+v", t.targetID, t.taskID, err)
 		log.Debugf("%+v", err)
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
+	} // Find an actionOperator which match with this actionType
+	var reg = registry.GetRegistry()
+	operator, err := reg.GetActionOperator(action.ActionType)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).
+			Registerf("Action Task id: %q Failed to find matching operator: %+v", t.taskID, err)
+		log.Debugf("%+v", err)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		return
+	}
+
+	if action.AsyncOperation.TaskID != "" {
+		ctx = operations.SetOperationLogFields(ctx, action.AsyncOperation.Operation)
+		ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{
+			events.ExecutionID: action.AsyncOperation.TaskID,
+			events.WorkFlowID:  action.AsyncOperation.WorkflowName,
+			events.NodeID:      action.AsyncOperation.NodeName,
+		})
 	}
 
 	deregister, err := operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
@@ -425,7 +444,7 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) {
 		scheduling.UnregisterAction(w.consulClient, action.ID)
 	}
 	if err != nil {
-		log.Printf("Action Task id: %q Failed to run action: %+v", t.taskID, err)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("Action Task id: %q Failed to run action: %+v", t.taskID, err)
 		log.Debugf("%+v", err)
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
@@ -659,12 +678,10 @@ func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) {
 	}
 }
 
-func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution) {
+func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName string) {
 	kv := w.consulClient.KV()
-	wfName, err := tasks.GetTaskData(kv, t.taskID, "workflowName")
-	if err != nil {
-		log.Printf("Deployment id: %q, Task id: %q Failed: %+v", t.targetID, t.taskID, err)
-		log.Debugf("%+v", err)
+	if wfName == "" {
+		log.Printf("Deployment id: %q, Task id: %q Failed: workflow name missing", t.targetID, t.taskID)
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}

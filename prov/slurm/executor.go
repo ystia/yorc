@@ -76,15 +76,6 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 	kv := consulClient.KV()
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing contextual log optionnal fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.ExecutionID] = taskID
-	logOptFields[events.OperationName] = delegateOperation
-	logOptFields[events.InterfaceName] = "delegate"
-	ctx = events.NewContext(ctx, logOptFields)
 
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
@@ -100,16 +91,16 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	operation := strings.ToLower(delegateOperation)
 	switch {
 	case operation == "install":
-		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields, operation)
+		err = e.installNode(ctx, kv, cfg, deploymentID, nodeName, instances, operation)
 	case operation == "uninstall":
-		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, logOptFields, operation)
+		err = e.uninstallNode(ctx, kv, cfg, deploymentID, nodeName, instances, operation)
 	default:
 		return errors.Errorf("Unsupported operation %q", delegateOperation)
 	}
 	return err
 }
 
-func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
+func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, operation string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), kv, deploymentID, nodeName, instance, tosca.NodeStateCreating)
 		if err != nil {
@@ -123,7 +114,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	return e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
 }
 
-func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, logOptFields events.LogOptionalFields, operation string) error {
+func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, instances []string, operation string) error {
 	for _, instance := range instances {
 		err := deployments.SetInstanceStateWithContextualLogs(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instance}), kv, deploymentID, nodeName, instance, tosca.NodeStateDeleting)
 		if err != nil {

@@ -28,7 +28,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
@@ -36,28 +35,6 @@ import (
 
 type defaultExecutor struct {
 	clientset kubernetes.Interface
-}
-
-func setupExecLogsContextWithWF(ctx context.Context, nodeName, operationName, workflow, executionID string) (context.Context, error) {
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return ctx, errors.New("Missing contextual log optionals fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.OperationName] = stringutil.GetLastElement(operationName, ".")
-	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operationName, ".")
-	if workflow != "" {
-		logOptFields[events.WorkFlowID] = workflow
-	}
-	if executionID != "" {
-		logOptFields[events.ExecutionID] = executionID
-	}
-
-	return events.NewContext(ctx, logOptFields), nil
-}
-
-func setupExecLogsContext(ctx context.Context, nodeName, operationName string) (context.Context, error) {
-	return setupExecLogsContextWithWF(ctx, nodeName, operationName, "", "")
 }
 
 func getExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
@@ -71,11 +48,6 @@ func getExecution(conf config.Configuration, taskID, deploymentID, nodeName stri
 }
 
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
-	ctx, err := setupExecLogsContext(ctx, nodeName, operation.Name)
-	if err != nil {
-		return nil, 0, err
-	}
-
 	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return nil, 0, err
@@ -92,12 +64,6 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
-
-	ctx, err := setupExecLogsContext(ctx, nodeName, operation.Name)
-	if err != nil {
-		return err
-	}
-
 	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return err

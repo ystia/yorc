@@ -34,30 +34,11 @@ type actionOperator struct {
 }
 
 func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) (bool, error) {
-	opName, ok := action.Data["operationName"]
-	if !ok {
-		return true, errors.New(`missing mandatory parameter "operationName" in monitoring action`)
-	}
-	nodeName, ok := action.Data["nodeName"]
-	if !ok {
-		return true, errors.New(`missing mandatory parameter "nodeName" in monitoring action`)
-	}
-
-	originalWFName, ok := action.Data["originalWorkflowName"]
-	if !ok {
-		return true, errors.New(`missing mandatory parameter "originalWorkflowName" in monitoring action`)
-	}
-
 	originalTaskID, ok := action.Data["originalTaskID"]
 	if !ok {
 		return true, errors.New(`missing mandatory parameter "originalTaskID" in monitoring action`)
 	}
-
-	ctx, err := setupExecLogsContextWithWF(ctx, nodeName, opName, originalWFName, originalTaskID)
-	if err != nil {
-		return true, err
-	}
-
+	var err error
 	if o.clientset == nil {
 		o.clientset, err = initClientSet(cfg)
 		if err != nil {
@@ -79,7 +60,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
 
-	deregister, err := o.monitorJob(ctx, cfg, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID, action)
+	deregister, err := o.monitorJob(ctx, cfg, deploymentID, originalTaskID, stepName, namespace, jobID, action)
 	if err != nil {
 		err := o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, true)
 		if err != nil {
@@ -91,10 +72,10 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	return deregister, err
 }
 
-func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
+func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
 	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
 	if err != nil {
-		return false, errors.Wrapf(err, "can not retrieve job %q from node %q", jobID, nodeName)
+		return false, errors.Wrapf(err, "can not retrieve job %q", jobID)
 	}
 
 	publishJobLogs(ctx, cfg, o.clientset, deploymentID, namespace, job.Name, action)

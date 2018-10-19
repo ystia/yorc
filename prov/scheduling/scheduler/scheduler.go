@@ -22,6 +22,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
@@ -202,6 +203,13 @@ func (sc *scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 			return nil, err
 		}
 		sca.timeInterval = d
+	}
+	kvp, _, err = sc.cc.KV().Get(path.Join(actionPrefix, "async_op"), nil)
+	if err != nil {
+		return nil, err
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		sca.asyncOperationString = string(kvp.Value)
 	}
 
 	kvps, _, err := sc.cc.KV().List(path.Join(consulutil.SchedulingKVPrefix, "actions", id, "data"), nil)
