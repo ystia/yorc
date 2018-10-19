@@ -41,7 +41,7 @@ type defaultExecutor struct {
 func setupExecLogsContextWithWF(ctx context.Context, nodeName, operationName, workflow, executionID string) (context.Context, error) {
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {
-		return ctx, errors.New("Missing contextual log optionnal fields")
+		return ctx, errors.New("Missing contextual log optionals fields")
 	}
 	logOptFields[events.NodeID] = nodeName
 	logOptFields[events.OperationName] = stringutil.GetLastElement(operationName, ".")

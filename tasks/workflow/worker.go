@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ystia/yorc/prov/scheduling"
+
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -418,7 +420,10 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) {
 		return
 	}
 
-	err = operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
+	deregister, err := operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
+	if deregister {
+		scheduling.UnregisterAction(w.consulClient, action.ID)
+	}
 	if err != nil {
 		log.Printf("Action Task id: %q Failed to run action: %+v", t.taskID, err)
 		log.Debugf("%+v", err)

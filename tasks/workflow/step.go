@@ -17,11 +17,12 @@ package workflow
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/scheduling"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/prov/scheduling"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
@@ -372,9 +373,11 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
-		for _, instanceName := range instances {
-			// TODO: replace this with workflow steps events
-			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("operation succeeded")
+		if !s.async {
+			for _, instanceName := range instances {
+				// TODO: replace this with workflow steps events
+				events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("operation succeeded")
+			}
 		}
 	case ActivityTypeInline:
 		// Register inline workflow associated to the original task

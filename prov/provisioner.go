@@ -104,6 +104,7 @@ type Action struct {
 // ActionOperator is the interface for executing an action
 //
 // ExecAction allows to execute the action
+// An action operator could ask to "deregister" an action by returning true as first result
 type ActionOperator interface {
-	ExecAction(ctx context.Context, conf config.Configuration, taskID, deploymentID string, action *Action) error
+	ExecAction(ctx context.Context, conf config.Configuration, taskID, deploymentID string, action *Action) (deregister bool, err error)
 }

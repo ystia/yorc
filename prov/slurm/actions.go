@@ -17,20 +17,21 @@ package slurm
 import (
 	"context"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/scheduling"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/collector"
-	"path"
-	"strconv"
-	"strings"
 )
 
 type actionOperator struct {
@@ -46,36 +47,32 @@ type actionOperator struct {
 	outputs             []string
 }
 
-func (o actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) error {
+func (o actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) (bool, error) {
 	log.Debugf("Execute Action:%+v with taskID:%q, deploymentID:%q", action, taskID, deploymentID)
 	var err error
 	o.client, err = GetSSHClient(cfg)
 	if err != nil {
-		return err
+		return true, err
 	}
 	o.consulClient, err = cfg.GetConsulClient()
 	if err != nil {
-		return err
+		return true, err
 	}
 	o.action = action
-	switch action.ActionType {
-	case "job-monitoring":
-		err = o.monitorJob(ctx, deploymentID)
+	if action.ActionType == "job-monitoring" {
+
+		deregister, err := o.monitorJob(ctx, deploymentID)
 		if err != nil {
 			// action scheduling needs to be unregistered
-			errSche := scheduling.UnregisterAction(o.consulClient, o.action.ID)
-			if errSche != nil {
-				log.Printf("failed to unregister job Monitoring job info with actionID:%q due to error:%+v", o.action.ID, errSche)
-			}
-			return err
+			return true, err
 		}
-	default:
-		return errors.Errorf("Unsupported actionType %q", action.ActionType)
+
+		return deregister, nil
 	}
-	return nil
+	return true, errors.Errorf("Unsupported actionType %q", action.ActionType)
 }
 
-func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) error {
+func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) (bool, error) {
 	var (
 		err error
 		ok  bool
@@ -83,40 +80,40 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 	// Check jobID
 	o.jobID, ok = o.action.Data["jobID"]
 	if !ok {
-		return errors.Errorf("Missing mandatory information jobID for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Missing mandatory information jobID for actionType:%q", o.action.ActionType)
 	}
 	// Check stepName
 	o.stepName, ok = o.action.Data["stepName"]
 	if !ok {
-		return errors.Errorf("Missing mandatory information stepName for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Missing mandatory information stepName for actionType:%q", o.action.ActionType)
 	}
 	// Check isBatch
 	isBatchStr, ok := o.action.Data["isBatch"]
 	if !ok {
-		return errors.Errorf("Missing mandatory information isBatch for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Missing mandatory information isBatch for actionType:%q", o.action.ActionType)
 	}
 	o.isBatch, err = strconv.ParseBool(isBatchStr)
 	if err != nil {
-		return errors.Errorf("Invalid information isBatch for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Invalid information isBatch for actionType:%q", o.action.ActionType)
 	}
 	// Check remoteBaseDirectory
 	o.remoteBaseDirectory, ok = o.action.Data["remoteBaseDirectory"]
 	if !ok {
-		return errors.Errorf("Missing mandatory information remoteBaseDirectory for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Missing mandatory information remoteBaseDirectory for actionType:%q", o.action.ActionType)
 	}
 	// Check taskID
 	o.taskID, ok = o.action.Data["taskID"]
 	if !ok {
-		return errors.Errorf("Missing mandatory information taskID for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Missing mandatory information taskID for actionType:%q", o.action.ActionType)
 	}
 	// Check outputs
 	outputStr, ok := o.action.Data["outputs"]
 	if !ok {
-		return errors.Errorf("Missing mandatory information taskID for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Missing mandatory information taskID for actionType:%q", o.action.ActionType)
 	}
 	o.outputs = strings.Split(outputStr, ",")
 	if !o.isBatch && len(o.outputs) != 1 {
-		return errors.Errorf("Incorrect outputs files nb:%d for interactive job with id:%q. Only one is required.", len(o.outputs), o.jobID)
+		return true, errors.Errorf("Incorrect outputs files nb:%d for interactive job with id:%q. Only one is required.", len(o.outputs), o.jobID)
 	}
 	// remoteExecDirectory can be empty for interactive jobs
 	o.remoteExecDirectory = o.action.Data["remoteExecDirectory"]
@@ -124,7 +121,7 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 	// Fill log optional fields for log registration
 	wfName, err := tasks.GetTaskData(o.consulClient.KV(), o.taskID, "workflowName")
 	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve workflow name for task:%q", o.taskID)
+		return true, errors.Wrapf(err, "failed to retrieve workflow name for task:%q", o.taskID)
 	}
 	logOptFields := events.LogOptionalFields{
 		events.WorkFlowID:    wfName,
@@ -139,29 +136,22 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) err
 		_, done := err.(*noJobFound)
 		if done {
 			err = o.endJob(ctx, deploymentID)
-			if err != nil {
-				return err
-			}
+			return true, err
 		}
-		return errors.Wrapf(err, "failed to get job info with jobID:%q", o.jobID)
+		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", o.jobID)
 	}
 
 	mess := fmt.Sprintf("Job Name:%s, Job ID:%s, Job State:%s", info.name, info.ID, info.state)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mess)
 	o.displayTempOutput(ctx, deploymentID)
-	return nil
+	return false, nil
 }
 
 func (o *actionOperator) endJob(ctx context.Context, deploymentID string) error {
-	// action scheduling needs to be unregistered
 	// job run step is set to done and workflow resumed
 	// we assume errors in monitoring doesn't affect job run step status
 	defer func() {
-		err := scheduling.UnregisterAction(o.consulClient, o.action.ID)
-		if err != nil {
-			log.Printf("failed to unregister job Monitoring job info with actionID:%q, jobID:%q due to error:%+v", o.action.ID, o.jobID, err)
-		}
-		err = o.resumeWorkflow()
+		err := o.resumeWorkflow()
 		if err != nil {
 			log.Printf("failed to resume job run workflow with actionID:%q, jobID:%q due to error:%+v", o.action.ID, o.jobID, err)
 		}

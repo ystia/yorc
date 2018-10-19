@@ -25,7 +25,6 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/scheduling"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/collector"
 )
@@ -34,54 +33,53 @@ type actionOperator struct {
 	clientset kubernetes.Interface
 }
 
-func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) error {
-
+func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) (bool, error) {
 	opName, ok := action.Data["operationName"]
 	if !ok {
-		return errors.New(`missing mandatory parameter "operationName" in monitoring action`)
+		return true, errors.New(`missing mandatory parameter "operationName" in monitoring action`)
 	}
 	nodeName, ok := action.Data["nodeName"]
 	if !ok {
-		return errors.New(`missing mandatory parameter "nodeName" in monitoring action`)
+		return true, errors.New(`missing mandatory parameter "nodeName" in monitoring action`)
 	}
 
 	originalWFName, ok := action.Data["originalWorkflowName"]
 	if !ok {
-		return errors.New(`missing mandatory parameter "originalWorkflowName" in monitoring action`)
+		return true, errors.New(`missing mandatory parameter "originalWorkflowName" in monitoring action`)
 	}
 
 	originalTaskID, ok := action.Data["originalTaskID"]
 	if !ok {
-		return errors.New(`missing mandatory parameter "originalTaskID" in monitoring action`)
+		return true, errors.New(`missing mandatory parameter "originalTaskID" in monitoring action`)
 	}
 
 	ctx, err := setupExecLogsContextWithWF(ctx, nodeName, opName, originalWFName, originalTaskID)
 	if err != nil {
-		return err
+		return true, err
 	}
 
 	if o.clientset == nil {
 		o.clientset, err = initClientSet(cfg)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	jobID, ok := action.Data["jobID"]
 	if !ok {
-		return errors.New(`missing mandatory parameter "jobID" in monitoring action`)
+		return true, errors.New(`missing mandatory parameter "jobID" in monitoring action`)
 	}
 	namespace, ok := action.Data["namespace"]
 	if !ok {
-		return errors.New(`missing mandatory parameter "namespace" in monitoring action`)
+		return true, errors.New(`missing mandatory parameter "namespace" in monitoring action`)
 	}
 
 	stepName, ok := action.Data["stepName"]
 	if !ok {
-		return errors.New(`missing mandatory parameter "stepName" in monitoring action`)
+		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
 
-	err = o.monitorJob(ctx, cfg, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID, action)
+	deregister, err := o.monitorJob(ctx, cfg, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID, action)
 	if err != nil {
 		err := o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, true)
 		if err != nil {
@@ -90,13 +88,13 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 
 		}
 	}
-	return err
+	return deregister, err
 }
 
-func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID string, action *prov.Action) error {
+func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
 	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "can not retrieve job %q from node %q", jobID, nodeName)
+		return false, errors.Wrapf(err, "can not retrieve job %q from node %q", jobID, nodeName)
 	}
 
 	publishJobLogs(ctx, cfg, o.clientset, deploymentID, namespace, job.Name, action)
@@ -106,33 +104,24 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		deleteForeground := metav1.DeletePropagationForeground
 		err = o.clientset.BatchV1().Jobs(namespace).Delete(jobID, &metav1.DeleteOptions{PropagationPolicy: &deleteForeground})
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete completed job %q", jobID)
+			return true, errors.Wrapf(err, "failed to delete completed job %q", jobID)
 		}
 
 		if job.Status.Succeeded < *job.Spec.Completions {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("job failed: succeeded pods: %d, failed pods: %d, requested completions: %d", job.Status.Succeeded, job.Status.Failed, *job.Spec.Completions)
 			// Just set the step status as error but from the action pov it is not an error
 			o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, true)
-			return nil
+			return true, nil
 		}
 		o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, false)
+		return true, nil
 	}
-	return nil
+	return false, nil
 }
 
 func (o *actionOperator) endJob(ctx context.Context, cfg config.Configuration, taskID, jobID, stepName string, action *prov.Action, inError bool) error {
-
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		log.Printf("failed to unregister job Monitoring job info with actionID:%q, jobID:%q due to error:%+v", action.ID, jobID, err)
-	} else {
-		err := scheduling.UnregisterAction(cc, action.ID)
-		if err != nil {
-			log.Printf("failed to unregister job Monitoring job info with actionID:%q, jobID:%q due to error:%+v", action.ID, jobID, err)
-		}
-	}
 	if !inError {
-		err = o.resumeWorkflow(cfg, taskID, stepName)
+		err := o.resumeWorkflow(cfg, taskID, stepName)
 		if err != nil {
 			log.Printf("failed to resume job run workflow with actionID:%q, jobID:%q due to error:%+v", action.ID, jobID, err)
 		}
