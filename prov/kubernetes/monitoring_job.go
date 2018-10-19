@@ -16,11 +16,8 @@ package kubernetes
 
 import (
 	"context"
-	"io/ioutil"
-	"time"
 
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -96,35 +93,15 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	return err
 }
 
-type jobLog struct {
-	timestamp     time.Time
-	podName       string
-	containerName string
-	line          string
-}
-
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, originalTaskID, stepName, namespace, jobID string, action *prov.Action) error {
 	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "can not retrieve job %q from node %q", jobID, nodeName)
 	}
 
+	publishJobLogs(ctx, cfg, o.clientset, deploymentID, namespace, job.Name, action)
+
 	if job.Status.Active == 0 && (job.Status.Succeeded != 0 || job.Status.Failed != 0) {
-
-		podsList, err := o.clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name=" + job.Name})
-		if err != nil {
-			return err
-		}
-
-		for _, pod := range podsList.Items {
-			for _, container := range pod.Spec.Containers {
-				l, err := getJobLogs(o.clientset, namespace, pod.Name, container.Name)
-				if err != nil {
-					return err
-				}
-				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(l)
-			}
-		}
 
 		deleteForeground := metav1.DeletePropagationForeground
 		err = o.clientset.BatchV1().Jobs(namespace).Delete(jobID, &metav1.DeleteOptions{PropagationPolicy: &deleteForeground})
@@ -141,26 +118,6 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, false)
 	}
 	return nil
-}
-
-func getJobLogs(clientset kubernetes.Interface, namespace, podID, containerID string) (string, error) {
-
-	logOptions := &corev1.PodLogOptions{
-		Container: containerID,
-		Follow:    false,
-		// Previous:   usePreviousLogs,
-		Timestamps: true,
-	}
-
-	readCloser, err := clientset.CoreV1().Pods(namespace).GetLogs(podID, logOptions).Stream()
-
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to read logs for pod %q", podID)
-	}
-	defer readCloser.Close()
-	b, err := ioutil.ReadAll(readCloser)
-
-	return string(b), errors.Wrapf(err, "failed to read logs for pod %q", podID)
 }
 
 func (o *actionOperator) endJob(ctx context.Context, cfg config.Configuration, taskID, jobID, stepName string, action *prov.Action, inError bool) error {
