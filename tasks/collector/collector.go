@@ -27,7 +27,7 @@ import (
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/workflow"
+	"github.com/ystia/yorc/tasks/workflow/builder"
 )
 
 // A Collector is responsible for registering new tasks/workflows/executions
@@ -182,7 +182,7 @@ func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tas
 	// Register step tasks for each step in case of workflow
 	// Add executions for each initial steps
 	if workflowName != "" {
-		stepOps, err := workflow.BuildInitExecutionOperations(c.consulClient.KV(), targetID, taskID, workflowName, registerWorkflow)
+		stepOps, err := builder.BuildInitExecutionOperations(c.consulClient.KV(), targetID, taskID, workflowName, registerWorkflow)
 		if err != nil {
 			return err
 		}

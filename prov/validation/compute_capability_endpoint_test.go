@@ -33,15 +33,15 @@ import (
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/tasks/workflow"
+	"github.com/ystia/yorc/tasks/workflow/builder"
 )
 
 type mockActivity struct {
-	t workflow.ActivityType
+	t builder.ActivityType
 	v string
 }
 
-func (m *mockActivity) Type() workflow.ActivityType {
+func (m *mockActivity) Type() builder.ActivityType {
 	return m.t
 }
 
@@ -55,7 +55,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 	target := "Compute"
 	type args struct {
 		taskStatus   tasks.TaskStatus
-		activityType workflow.ActivityType
+		activityType builder.ActivityType
 		endpointIPs  []string
 		attributes   []map[string]string
 	}
@@ -64,7 +64,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		args   args
 		checks []string
 	}{
-		{"TestEndpointFromPublicIP", args{tasks.TaskStatusRUNNING, workflow.ActivityTypeDelegate, nil, []map[string]string{
+		{"TestEndpointFromPublicIP", args{tasks.TaskStatusRUNNING, builder.ActivityTypeDelegate, nil, []map[string]string{
 			map[string]string{"public_ip_address": "10.0.0.1", "public_address": "10.0.0.2", "private_address": "10.0.0.3", "ip_address": "10.0.0.4"},
 			map[string]string{"public_ip_address": "10.0.1.1", "public_address": "10.0.1.2", "private_address": "10.0.1.3", "ip_address": "10.0.1.4"},
 			map[string]string{"public_ip_address": "10.0.2.1", "public_address": "10.0.2.2", "private_address": "10.0.2.3", "ip_address": "10.0.2.4"},
@@ -73,7 +73,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		}},
 			[]string{"10.0.0.1", "10.0.1.1", "10.0.2.1", "10.0.3.1", "10.0.4.1"},
 		},
-		{"TestEndpointFromPublicAddr", args{tasks.TaskStatusRUNNING, workflow.ActivityTypeCallOperation, nil, []map[string]string{
+		{"TestEndpointFromPublicAddr", args{tasks.TaskStatusRUNNING, builder.ActivityTypeCallOperation, nil, []map[string]string{
 			map[string]string{"public_address": "10.0.0.2", "private_address": "10.0.0.3", "ip_address": "10.0.0.4"},
 			map[string]string{"public_address": "10.0.1.2", "private_address": "10.0.1.3", "ip_address": "10.0.1.4"},
 			map[string]string{"public_address": "10.0.2.2", "private_address": "10.0.2.3", "ip_address": "10.0.2.4"},
@@ -82,7 +82,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		}},
 			[]string{"10.0.0.2", "10.0.1.2", "10.0.2.2", "10.0.3.2", "10.0.4.2"},
 		},
-		{"TestEndpointFromPrivateAdd", args{tasks.TaskStatusRUNNING, workflow.ActivityTypeDelegate, nil, []map[string]string{
+		{"TestEndpointFromPrivateAdd", args{tasks.TaskStatusRUNNING, builder.ActivityTypeDelegate, nil, []map[string]string{
 			map[string]string{"private_address": "10.0.0.3", "ip_address": "10.0.0.4"},
 			map[string]string{"private_address": "10.0.1.3", "ip_address": "10.0.1.4"},
 			map[string]string{"private_address": "10.0.2.3", "ip_address": "10.0.2.4"},
@@ -91,7 +91,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		}},
 			[]string{"10.0.0.3", "10.0.1.3", "10.0.2.3", "10.0.3.3", "10.0.4.3"},
 		},
-		{"TestEndpointFromIPAdd", args{tasks.TaskStatusRUNNING, workflow.ActivityTypeCallOperation, nil, []map[string]string{
+		{"TestEndpointFromIPAdd", args{tasks.TaskStatusRUNNING, builder.ActivityTypeCallOperation, nil, []map[string]string{
 			map[string]string{"ip_address": "10.0.0.4"},
 			map[string]string{"ip_address": "10.0.1.4"},
 			map[string]string{"ip_address": "10.0.2.4"},
@@ -100,7 +100,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		}},
 			[]string{"10.0.0.4", "10.0.1.4", "10.0.2.4", "10.0.3.4", "10.0.4.4"},
 		},
-		{"TestEndpointAlreadySet", args{tasks.TaskStatusRUNNING, workflow.ActivityTypeDelegate, []string{"10.1.0.4", "10.1.1.4", "10.1.2.4", "10.1.3.4", "10.1.4.4"}, []map[string]string{
+		{"TestEndpointAlreadySet", args{tasks.TaskStatusRUNNING, builder.ActivityTypeDelegate, []string{"10.1.0.4", "10.1.1.4", "10.1.2.4", "10.1.3.4", "10.1.4.4"}, []map[string]string{
 			map[string]string{"ip_address": "10.0.0.4"},
 			map[string]string{"ip_address": "10.0.1.4"},
 			map[string]string{"ip_address": "10.0.2.4"},
@@ -109,7 +109,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		}},
 			[]string{"10.1.0.4", "10.1.1.4", "10.1.2.4", "10.1.3.4", "10.1.4.4"},
 		},
-		{"TestEndpointTaskFailed", args{tasks.TaskStatusFAILED, workflow.ActivityTypeDelegate, nil, []map[string]string{
+		{"TestEndpointTaskFailed", args{tasks.TaskStatusFAILED, builder.ActivityTypeDelegate, nil, []map[string]string{
 			map[string]string{"ip_address": "10.0.0.4"},
 			map[string]string{"ip_address": "10.0.1.4"},
 			map[string]string{"ip_address": "10.0.2.4"},
@@ -118,7 +118,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		}},
 			[]string{"", "", "", "", ""},
 		},
-		{"TestEndpointTaskCancelled", args{tasks.TaskStatusCANCELED, workflow.ActivityTypeDelegate, nil, []map[string]string{
+		{"TestEndpointTaskCancelled", args{tasks.TaskStatusCANCELED, builder.ActivityTypeDelegate, nil, []map[string]string{
 			map[string]string{"ip_address": "10.0.0.4"},
 			map[string]string{"ip_address": "10.0.1.4"},
 			map[string]string{"ip_address": "10.0.2.4"},
@@ -127,7 +127,7 @@ func testPostComputeCreationHook(t *testing.T, kv *api.KV, cfg config.Configurat
 		}},
 			[]string{"", "", "", "", ""},
 		},
-		{"TestEndpointInlineActivity", args{tasks.TaskStatusRUNNING, workflow.ActivityTypeInline, nil, []map[string]string{
+		{"TestEndpointInlineActivity", args{tasks.TaskStatusRUNNING, builder.ActivityTypeInline, nil, []map[string]string{
 			map[string]string{"ip_address": "10.0.0.4"},
 			map[string]string{"ip_address": "10.0.1.4"},
 			map[string]string{"ip_address": "10.0.2.4"},

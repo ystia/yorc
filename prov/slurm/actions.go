@@ -29,8 +29,6 @@ import (
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/collector"
 )
 
 type actionOperator struct {
@@ -134,14 +132,6 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) (bo
 }
 
 func (o *actionOperator) endJob(ctx context.Context, deploymentID string) error {
-	// job run step is set to done and workflow resumed
-	// we assume errors in monitoring doesn't affect job run step status
-	defer func() {
-		err := o.resumeWorkflow()
-		if err != nil {
-			log.Printf("failed to resume job run workflow with actionID:%q, jobID:%q due to error:%+v", o.action.ID, o.jobID, err)
-		}
-	}()
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Job with JobID:%s is DONE", o.jobID))
 	// If batch job, cleanup needs to be processed after logging output files
 	if o.isBatch {
@@ -155,21 +145,6 @@ func (o *actionOperator) endJob(ctx context.Context, deploymentID string) error 
 		if err != nil {
 			return errors.Wrapf(err, "failed to handle interactive output with jobID:%q", o.jobID)
 		}
-	}
-	return nil
-}
-
-func (o *actionOperator) resumeWorkflow() error {
-	// job running step must be set to done and workflow must be resumed
-	step := &tasks.TaskStep{Status: tasks.TaskStepStatusDONE.String(), Name: o.stepName}
-	err := tasks.UpdateTaskStepStatus(o.consulClient.KV(), o.taskID, step)
-	if err != nil {
-		return errors.Wrapf(err, "failed to update step status to DONE for taskID:%q, stepName:%q", o.taskID, o.stepName)
-	}
-	coll := collector.NewCollector(o.consulClient)
-	err = coll.ResumeTask(o.taskID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to resume task with taskID:%q", o.taskID)
 	}
 	return nil
 }

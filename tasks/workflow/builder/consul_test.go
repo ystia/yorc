@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workflow
+package builder
 
 import (
 	"testing"
@@ -27,8 +27,14 @@ func TestRunConsulWorkflowPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
-		t.Run("testRunStep", func(t *testing.T) {
-			testRunStep(t, srv, kv)
+		t.Run("testBuildStepWithNext", func(t *testing.T) {
+			testBuildStepWithNext(t, srv, kv)
+		})
+		t.Run("testBuildStep", func(t *testing.T) {
+			testBuildStep(t, srv, kv)
+		})
+		t.Run("testBuildWorkFlow", func(t *testing.T) {
+			testBuildWorkFlow(t, srv, kv)
 		})
 	})
 }

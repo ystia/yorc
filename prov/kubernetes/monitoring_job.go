@@ -22,11 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/collector"
 )
 
 type actionOperator struct {
@@ -60,16 +56,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
 
-	deregister, err := o.monitorJob(ctx, cfg, deploymentID, originalTaskID, stepName, namespace, jobID, action)
-	if err != nil {
-		err := o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, true)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).
-				Registerf("fatal error encountered during job monitoring, we stop to monitor it but some resources may have to be deleted manually on the Kubernetes cluster.")
-
-		}
-	}
-	return deregister, err
+	return o.monitorJob(ctx, cfg, deploymentID, originalTaskID, stepName, namespace, jobID, action)
 }
 
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
@@ -89,58 +76,9 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		}
 
 		if job.Status.Succeeded < *job.Spec.Completions {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("job failed: succeeded pods: %d, failed pods: %d, requested completions: %d", job.Status.Succeeded, job.Status.Failed, *job.Spec.Completions)
-			// Just set the step status as error but from the action pov it is not an error
-			o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, true)
-			return true, nil
+			return true, errors.Errorf("job failed: succeeded pods: %d, failed pods: %d, requested completions: %d", job.Status.Succeeded, job.Status.Failed, *job.Spec.Completions)
 		}
-		o.endJob(ctx, cfg, originalTaskID, jobID, stepName, action, false)
 		return true, nil
 	}
 	return false, nil
-}
-
-func (o *actionOperator) endJob(ctx context.Context, cfg config.Configuration, taskID, jobID, stepName string, action *prov.Action, inError bool) error {
-	if !inError {
-		err := o.resumeWorkflow(cfg, taskID, stepName)
-		if err != nil {
-			log.Printf("failed to resume job run workflow with actionID:%q, jobID:%q due to error:%+v", action.ID, jobID, err)
-		}
-	} else {
-		return o.setStepInError(cfg, taskID, stepName)
-	}
-	return nil
-}
-
-func (o *actionOperator) resumeWorkflow(cfg config.Configuration, taskID, stepName string) error {
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		return err
-	}
-	// job running step must be set to done and workflow must be resumed
-	step := &tasks.TaskStep{Status: tasks.TaskStepStatusDONE.String(), Name: stepName}
-	err = tasks.UpdateTaskStepStatus(cc.KV(), taskID, step)
-	if err != nil {
-		return errors.Wrapf(err, "failed to update step status to DONE for taskID:%q, stepName:%q", taskID, stepName)
-	}
-	coll := collector.NewCollector(cc)
-	err = coll.ResumeTask(taskID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to resume task with taskID:%q", taskID)
-	}
-	return nil
-}
-
-func (o *actionOperator) setStepInError(cfg config.Configuration, taskID, stepName string) error {
-	cc, err := cfg.GetConsulClient()
-	if err != nil {
-		return err
-	}
-	// job running step must be set to done and workflow must be resumed
-	step := &tasks.TaskStep{Status: tasks.TaskStepStatusERROR.String(), Name: stepName}
-	err = tasks.UpdateTaskStepStatus(cc.KV(), taskID, step)
-	if err != nil {
-		return errors.Wrapf(err, "failed to update step status to ERROR for taskID:%q, stepName:%q", taskID, stepName)
-	}
-	return nil
 }

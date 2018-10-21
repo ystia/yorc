@@ -51,62 +51,61 @@ func (t *taskExecution) getTaskStatus() (tasks.TaskStatus, error) {
 }
 
 // checkAndSetTaskStatus allows to check the task status before updating it
-func (t *taskExecution) checkAndSetTaskStatus(ctx context.Context, finalStatus tasks.TaskStatus) error {
-	kvp, meta, err := t.kv.Get(path.Join(consulutil.TasksPrefix, t.taskID, "status"), nil)
+func checkAndSetTaskStatus(ctx context.Context, kv *api.KV, taskID, step string, finalStatus tasks.TaskStatus) error {
+	kvp, meta, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get task status for taskID:%q", t.taskID)
+		return errors.Wrapf(err, "Failed to get task status for taskID:%q", taskID)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		return errors.Wrapf(err, "Missing task status for taskID:%q", t.taskID)
+		return errors.Wrapf(err, "Missing task status for taskID:%q", taskID)
 	}
 	st, err := strconv.Atoi(string(kvp.Value))
 	if err != nil {
-		return errors.Wrapf(err, "Invalid task status for taskID:%q", t.taskID)
+		return errors.Wrapf(err, "Invalid task status for taskID:%q", taskID)
 	}
 
 	status := tasks.TaskStatus(st)
 	// TaskStatusFAILED and TaskStatusCANCELED are terminal status and can't be changed
 	if finalStatus != status {
 		if status == tasks.TaskStatusFAILED {
-			mess := fmt.Sprintf("Can't set task status with taskID:%q to:%q because task status is FAILED", t.taskID, finalStatus.String())
+			mess := fmt.Sprintf("Can't set task status with taskID:%q to:%q because task status is FAILED", taskID, finalStatus.String())
 			log.Printf(mess)
 			return errors.Errorf(mess)
 		} else if status == tasks.TaskStatusCANCELED {
-			mess := fmt.Sprintf("Can't set task status with taskID:%q to:%q because task status is CANCELED", t.taskID, finalStatus.String())
+			mess := fmt.Sprintf("Can't set task status with taskID:%q to:%q because task status is CANCELED", taskID, finalStatus.String())
 			log.Printf(mess)
 			return errors.Errorf(mess)
 		}
-		return t.setTaskStatus(ctx, finalStatus, meta.LastIndex)
+		return setTaskStatus(ctx, kv, taskID, step, finalStatus, meta.LastIndex)
 	}
 	return nil
 }
 
-func (t *taskExecution) setTaskStatus(ctx context.Context, status tasks.TaskStatus, lastIndex uint64) error {
-	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
+func setTaskStatus(ctx context.Context, kv *api.KV, taskID, step string, status tasks.TaskStatus, lastIndex uint64) error {
+	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	p.ModifyIndex = lastIndex
-	set, _, err := t.kv.CAS(p, nil)
+	set, _, err := kv.CAS(p, nil)
 	if err != nil {
-		log.Printf("Failed to set status to %q for taskID:%q due to error:%+v", status.String(), t.taskID, err)
+		log.Printf("Failed to set status to %q for taskID:%q due to error:%+v", status.String(), taskID, err)
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if !set {
-		log.Debugf("[WARNING] Failed to set task status to:%q for taskID:%q as last index has been changed before. Retry it", status.String(), t.taskID)
-		return t.checkAndSetTaskStatus(ctx, status)
+		log.Debugf("[WARNING] Failed to set task status to:%q for taskID:%q as last index has been changed before. Retry it", status.String(), taskID)
+		return checkAndSetTaskStatus(ctx, kv, taskID, step, status)
 	}
 	if status == tasks.TaskStatusFAILED {
-		return t.addTaskErrorFlag(ctx)
+		return addTaskErrorFlag(ctx, taskID, step)
 	}
 	return nil
 }
 
 // Add task error flag for monitoring failures in case of workflow task execution
-func (t *taskExecution) addTaskErrorFlag(ctx context.Context) error {
-	if t.step != "" {
-		log.Debugf("Create error flag key for taskID:%q", t.taskID)
-		p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, t.taskID, ".errorFlag")}
-		_, err := t.kv.Put(p, nil)
+func addTaskErrorFlag(ctx context.Context, taskID, step string) error {
+	if step != "" {
+		log.Debugf("Create error flag key for taskID:%q", taskID)
+		err := consulutil.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskID, ".errorFlag"), nil)
 		if err != nil {
-			log.Printf("Failed to set error flag for taskID:%q due to error:%+v", t.taskID, err)
+			log.Printf("Failed to set error flag for taskID:%q due to error:%+v", taskID, err)
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 	}

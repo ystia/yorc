@@ -12,23 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workflow
+package builder
 
-import (
-	"testing"
+// Step represents the workflow step
+type Step struct {
+	Name               string
+	Target             string
+	TargetRelationship string
+	OperationHost      string
+	Activities         []Activity
+	Next               []*Step
+	Previous           []*Step
+	WorkflowName       string
+	Async              bool
+}
 
-	"github.com/ystia/yorc/testutil"
-)
+type visitStep struct {
+	refCount int
+	s        *Step
+}
 
-// The aim of this function is to run all package tests with consul server dependency with only one consul server start
-func TestRunConsulWorkflowPackageTests(t *testing.T) {
-	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
-	defer srv.Stop()
+// IsInitial returns true is the workflow step has no previous step
+func (s *Step) IsInitial() bool {
+	return len(s.Previous) == 0
+}
 
-	t.Run("groupWorkflow", func(t *testing.T) {
-		t.Run("testRunStep", func(t *testing.T) {
-			testRunStep(t, srv, kv)
-		})
-	})
+// IsTerminal returns true is the workflow step has no next step
+func (s *Step) IsTerminal() bool {
+	return len(s.Next) == 0
 }
