@@ -173,18 +173,16 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
 	}
+	_, errGrp, store := consulutil.WithContext(ctx)
 	for outPath, outName := range outputs {
 		output, ok := outputsList[outName]
 		if !ok {
 			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
 		}
-		_, err = kv.Put(&api.KVPair{Key: outPath, Value: []byte(output.Value)}, nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
+		store.StoreConsulKeyAsString(outPath, output.Value)
 	}
 
-	return nil
+	return errGrp.Wait()
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, outputs map[string]string, env []string) error {

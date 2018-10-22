@@ -55,14 +55,12 @@ func (s *step) wrapBuilderStep(bs *builder.Step) *step {
 }
 
 func (s *step) setStatus(status tasks.TaskStepStatus) error {
-	kvp := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, s.t.targetID, "workflows", s.WorkflowName, "steps", s.Name, "status"), Value: []byte(status.String())}
-	_, err := s.kv.Put(kvp, nil)
-	if err != nil {
-		return err
-	}
-	kvp = &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, s.t.taskID, s.Name), Value: []byte(status.String())}
-	_, err = s.kv.Put(kvp, nil)
-	return err
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	// TODO why store this in 2 different location?
+	// first one looks like a relicate
+	store.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, s.t.targetID, "workflows", s.WorkflowName, "steps", s.Name, "status"), status.String())
+	store.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, s.t.taskID, s.Name), status.String())
+	return errGrp.Wait()
 }
 
 func (s *step) cancelNextSteps() {

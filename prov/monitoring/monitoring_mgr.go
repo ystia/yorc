@@ -386,9 +386,7 @@ func (mgr *monitoringMgr) flagCheckForRemoval(deploymentID, nodeName, instance s
 	id := buildID(deploymentID, nodeName, instance)
 	log.Debugf("PreUnregisterCheck check with id:%q", id)
 	checkPath := path.Join(consulutil.MonitoringKVPrefix, "checks", id)
-	kvp := &api.KVPair{Key: path.Join(checkPath, ".unregisterFlag"), Value: []byte("true")}
-	_, err := mgr.cc.KV().Put(kvp, nil)
-	return errors.Wrap(err, "Failed to flag check for unregister it")
+	return consulutil.StoreConsulKeyAsString(path.Join(checkPath, ".unregisterFlag"), "true")
 }
 
 // unregisterCheck allows to unregister a check and its related report

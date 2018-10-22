@@ -158,10 +158,9 @@ func buildTaskExecution(kv *api.KV, execID string) (*taskExecution, error) {
 		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	if kvp == nil || len(kvp.Value) == 0 {
-		kvp = &api.KVPair{Key: creationDatePath, Value: []byte(creationDate.Format(time.RFC3339Nano))}
-		_, err = kv.Put(kvp, nil)
+		err = consulutil.StoreConsulKeyAsString(creationDatePath, creationDate.Format(time.RFC3339Nano))
 		if err != nil {
-			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			return nil, err
 		}
 	} else {
 		creationDate, err = time.Parse(time.RFC3339Nano, string(kvp.Value))

@@ -151,8 +151,7 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpdateType, data string) (string, error) {
 	now := time.Now().Format(time.RFC3339Nano)
 	eventsPrefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	p := &api.KVPair{Key: path.Join(eventsPrefix, now), Value: []byte(data), Flags: uint64(eventType)}
-	_, err := kv.Put(p, nil)
+	err := consulutil.StoreConsulKeyAsStringWithFlags(path.Join(eventsPrefix, now), data, uint64(eventType))
 	if err != nil {
 		return "", err
 	}

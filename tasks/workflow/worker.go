@@ -231,9 +231,8 @@ func (w *worker) checkAndSetDeploymentStatus(ctx context.Context, deploymentID s
 	}
 
 	if finalStatus != depStatus {
-		p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), Value: []byte(finalStatus.String())}
 		kv := w.consulClient.KV()
-		_, err := kv.Put(p, nil)
+		err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), finalStatus.String())
 		if err != nil {
 			return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", finalStatus.String(), deploymentID)
 		}
@@ -243,9 +242,8 @@ func (w *worker) checkAndSetDeploymentStatus(ctx context.Context, deploymentID s
 }
 
 func (w *worker) setDeploymentStatus(ctx context.Context, deploymentID string, finalStatus deployments.DeploymentStatus) error {
-	p := &api.KVPair{Key: path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), Value: []byte(fmt.Sprint(finalStatus))}
 	kv := w.consulClient.KV()
-	_, err := kv.Put(p, nil)
+	err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(finalStatus))
 	if err != nil {
 		return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", finalStatus.String(), deploymentID)
 	}
@@ -255,8 +253,8 @@ func (w *worker) setDeploymentStatus(ctx context.Context, deploymentID string, f
 
 func (w *worker) markExecutionAsProcessing(t *taskExecution) {
 	log.Debugf("Mark the task execution ID:%q with taskID:%q, step:%q as processing", t.id, t.taskID, t.step)
-	kvPair := &api.KVPair{Key: path.Join(consulutil.ExecutionsTaskPrefix, t.id, ".processing")}
-	if _, err := w.consulClient.KV().Put(kvPair, nil); err != nil {
+	err := consulutil.StoreConsulKey(path.Join(consulutil.ExecutionsTaskPrefix, t.id, ".processing"), nil)
+	if err != nil {
 		log.Printf("Failed to mark task execution as processing with ID:%q, deploymentID:%q, taskID:%q due to error:%+v", t.id, t.targetID, t.taskID, err)
 	}
 }
@@ -501,7 +499,6 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) {
 }
 
 func (w *worker) runQuery(ctx context.Context, t *taskExecution) {
-	kv := w.consulClient.KV()
 	split := strings.Split(t.targetID, ":")
 	if len(split) != 2 {
 		log.Printf("Query Task (id: %q): unexpected format for targetID: %q", t.taskID, t.targetID)
@@ -539,8 +536,8 @@ func (w *worker) runQuery(ctx context.Context, t *taskExecution) {
 				checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusFAILED)
 				return
 			}
-			kvPair := &api.KVPair{Key: resultPrefix, Value: jsonRes}
-			if _, err := kv.Put(kvPair, nil); err != nil {
+			err = consulutil.StoreConsulKey(resultPrefix, jsonRes)
+			if err != nil {
 				log.Printf("Query Task id: %q Failed to store result: %+v", t.taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg))
 				log.Debugf("%+v", err)
 				checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusFAILED)

@@ -875,9 +875,9 @@ func registerImplementationTypes(ctx context.Context, kv *api.KV, deploymentID s
 					return errors.Errorf("Duplicate implementation artifact file extension %q found in artifact %q and %q", ext, check, t)
 				}
 				extPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", implementationArtifactsExtensionsPath, ext)
-				_, err = kv.Put(&api.KVPair{Key: extPath, Value: []byte(t)}, nil)
+				err = consulutil.StoreConsulKeyAsString(extPath, t)
 				if err != nil {
-					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+					return err
 				}
 			}
 		}

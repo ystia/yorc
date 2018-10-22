@@ -192,21 +192,14 @@ func TaskExists(kv *api.KV, taskID string) (bool, error) {
 
 // CancelTask marks a task as Canceled
 func CancelTask(kv *api.KV, taskID string) error {
-	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), Value: []byte("true")}
-	_, err := kv.Put(kvp, nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), "true")
 }
 
 // ResumeTask marks a task as Initial to allow it being resumed
 //
 // Deprecated: use (c *collector.Collector) ResumeTask instead
 func ResumeTask(kv *api.KV, taskID string) error {
-	kvp := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(TaskStatusINITIAL)))}
-	_, err := kv.Put(kvp, nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	return nil
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "status"), strconv.Itoa(int(TaskStatusINITIAL)))
 }
 
 // DeleteTask allows to delete a stored task
@@ -388,13 +381,7 @@ func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
 	if err != nil {
 		return err
 	}
-	kvp := &api.KVPair{Key: path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), Value: []byte(status.String())}
-	_, err = kv.Put(kvp, nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-
-	return nil
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), status.String())
 }
 
 // CheckTaskStepStatusChange checks if a status change is allowed

@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/deployments"
@@ -124,8 +123,8 @@ func (c *Check) updateStatus(status CheckStatus) {
 			return
 		}
 		log.Debugf("Update check status from %q to %q", c.Report.Status.String(), status.String())
-		key := &api.KVPair{Key: path.Join(consulutil.MonitoringKVPrefix, "reports", c.ID, "status"), Value: []byte(status.String())}
-		if _, err := defaultMonManager.cc.KV().Put(key, nil); err != nil {
+		err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.MonitoringKVPrefix, "reports", c.ID, "status"), status.String())
+		if err != nil {
 			log.Printf("[WARN] TCP check updating status failed for check ID:%q due to error:%+v", c.ID, err)
 		}
 		c.Report.Status = status
