@@ -24,11 +24,10 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/ziputil"
 
 	"gopkg.in/yaml.v2"
-
-	"github.com/ystia/yorc/config"
 )
 
 // AnsibleConfiguration provides Ansible user-defined settings
@@ -48,12 +47,6 @@ type ConsulConfiguration struct {
 	Port        int
 }
 
-// InfrastrutureConfiguration provides the selected infrastruture configuration
-type InfrastrutureConfiguration struct {
-	Type       string
-	Properties config.DynamicMap
-}
-
 // TerraformConfiguration provides Terraform settings
 type TerraformConfiguration struct {
 	Version    string   `yaml:"component_version"`
@@ -66,8 +59,12 @@ type TopologyValues struct {
 	Yorc           YorcConfiguration
 	Consul         ConsulConfiguration
 	Terraform      TerraformConfiguration
-	Infrastructure InfrastrutureConfiguration
+	Infrastructure config.DynamicMap
+	Compute        config.DynamicMap
+	Address        config.DynamicMap
 }
+
+var inputValues TopologyValues
 
 // formatAsYAML is a function used in templates to output the yaml representation
 // of a variable
@@ -76,15 +73,34 @@ func formatAsYAML(data interface{}, indentations int) (string, error) {
 	result := ""
 	bSlice, err := yaml.Marshal(data)
 	if err == nil {
+		bSlice = append([]byte("\n"), bSlice...)
 		if indentations > 0 {
 			indentString := strings.Repeat(" ", indentations)
 			result = strings.Replace(string(bSlice), "\n", "\n"+indentString, -1)
+			result = strings.TrimRight(result, " \n")
 		} else {
 			result = string(bSlice)
 		}
 	}
 	return result, err
 }
+
+/*
+func initMissingValues(values *TopologyValues) error {
+	var err error
+
+	switch values.Infrastructure.Type {
+	case "openstack":
+		values.Address.Type = "yorc.nodes.openstack.FloatingIP"
+	case "google":
+		values.Address.Type = "yorc.nodes.google.Address"
+	default:
+		err = fmt.Errorf("Unknown infrastructure type %s", values.Infrastructure.Type)
+	}
+
+	return err
+}
+*/
 
 // createTopology creates under destinationPath, a topology from a zip file at topologyPath
 // by executing its template files using inputs passed in inputsPath file
@@ -136,14 +152,13 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 	tmpl := template.Must(template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...))
 
 	// Now read inputs for the inputsPath provided in argument
-	var values TopologyValues
 	if inputsPath != "" {
 
 		data, err := ioutil.ReadFile(inputsPath)
 		if err != nil {
 			return err
 		}
-		err = yaml.Unmarshal(data, &values)
+		err = yaml.Unmarshal(data, &inputValues)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to unmarshall inputs from %s", inputsPath)
 		}
@@ -157,7 +172,7 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 
 	writer := bufio.NewWriter(resultFile)
 
-	err = tmpl.Execute(writer, values)
+	err = tmpl.Execute(writer, inputValues)
 	resultFile.Close()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create topoly from template")

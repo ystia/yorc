@@ -72,19 +72,24 @@ var inputsPath string
 
 func bootstrap() error {
 
-	// The topology will be created in a clean directory under the working
+	// The topology will be created in a directory under the working
 	// directory
 	topologyPath := filepath.Join(workingDirectoryPath, "bootstrapYorcTopoloy")
-	err := os.RemoveAll(topologyPath)
-	if err != nil {
+	if err := os.RemoveAll(topologyPath); err != nil {
 		return err
 	}
 
-	err = createTopology(topologyZipPath, topologyPath, inputsPath)
-	if err != nil {
+	if err := createTopology(topologyZipPath, topologyPath, inputsPath); err != nil {
 		return err
 	}
 
-	err = deployTopology(topologyPath)
+	// Now that the topology is ready, it needs a local Yorc server able to
+	// deploy it
+	if err := setupYorcServer(workingDirectoryPath); err != nil {
+		return err
+	}
+
+	// A local Yorc server is running, using it to deploythe topology
+	err := deployTopology(topologyPath)
 	return err
 }
