@@ -151,12 +151,31 @@ func buildTaskExecution(kv *api.KV, execID string) (*taskExecution, error) {
 		}
 	}
 
+	creationDate := time.Now()
+	creationDatePath := path.Join(consulutil.ExecutionsTaskPrefix, execID, "creationDate")
+	kvp, _, err := kv.Get(creationDatePath, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp == nil || len(kvp.Value) == 0 {
+		kvp = &api.KVPair{Key: creationDatePath, Value: []byte(creationDate.Format(time.RFC3339Nano))}
+		_, err = kv.Put(kvp, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		}
+	} else {
+		creationDate, err = time.Parse(time.RFC3339Nano, string(kvp.Value))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse creation date %q for execution %q", string(kvp.Value), execID)
+		}
+	}
+
 	return &taskExecution{
 		id:           execID,
 		taskID:       taskID,
 		targetID:     targetID,
 		kv:           kv,
-		creationDate: time.Now(),
+		creationDate: creationDate,
 		taskType:     tasks.TaskType(taskType),
 		step:         step,
 	}, nil
