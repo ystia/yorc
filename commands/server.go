@@ -113,11 +113,16 @@ var serverCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Println("Using config file:", viper.ConfigFileUsed())
-		configuration := getConfig()
-		log.Debugf("Configuration :%+v", configuration)
 		shutdownCh := make(chan struct{})
-		return server.RunServer(configuration, shutdownCh)
+		return RunServer(shutdownCh)
 	},
+}
+
+// RunServer starts a Yorc Server
+func RunServer(shutdownCh chan struct{}) error {
+	configuration := getConfig()
+	log.Debugf("Configuration :%+v", configuration)
+	return server.RunServer(configuration, shutdownCh)
 }
 
 func serverInitExtraFlags(args []string) {

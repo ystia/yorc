@@ -15,24 +15,30 @@
 package bootstrap
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/ystia/yorc/commands"
+	"github.com/ystia/yorc/config"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/pkg/errors"
+	"time"
 
 	"github.com/blang/semver"
+	"github.com/spf13/viper"
 
 	"github.com/ystia/yorc/helper/ziputil"
+	"gopkg.in/yaml.v2"
 )
 
-var consulPID int
+var cmdConsul *exec.Cmd
+var yorcServerShutdownChan chan struct{}
 
 // setupYorcServer starts a Yorc server
 func setupYorcServer(workingDirectoryPath string) error {
@@ -41,31 +47,122 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
-	var err error
-	consulPID, err = startConsul(workingDirectoryPath)
+	// Update PATH, as Yorc Server expects to find terraform in its PATH
+
+	workDirAbsolutePath, err := filepath.Abs(workingDirectoryPath)
 	if err != nil {
 		return err
 	}
-	return nil
+	newPath := fmt.Sprintf("%s:%s", workDirAbsolutePath, os.Getenv("PATH"))
+	if err := os.Setenv("PATH", newPath); err != nil {
+		return err
+	}
 
-	
+	// Starting Consul begore the Yorc server
+	cmdConsul, err = startConsul(workingDirectoryPath)
+	if err != nil {
+		return err
+	}
+
+	// Starting Yorc server
+
+	// First creating a Yorc config file defining the infrastructure
+	inputInfra := make(map[string]config.DynamicMap)
+	inputInfra[strings.ToLower(infrastructureType)] = inputValues.Infrastructure
+	serverConfig := config.Configuration{
+		WorkingDirectory: workingDirectoryPath,
+		Infrastructures:  inputInfra,
+	}
+
+	bSlice, err := yaml.Marshal(serverConfig)
+	if err != nil {
+		return err
+	}
+
+	cfgFileName := filepath.Join(workingDirectoryPath, "config.yorc.yaml")
+	err = ioutil.WriteFile(cfgFileName, bSlice, 0700)
+	if err != nil {
+		return err
+	}
+
+	viper.SetConfigFile(cfgFileName)
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+
+	yorcServerShutdownChan = make(chan struct{})
+	err = commands.RunServer(yorcServerShutdownChan)
+	return err
+
 }
 
-// startConsul starts a consul server, returns the process ID
-func startConsul(workingDirectoryPath string) (int, error) {
+// tearDownYorcServer tears down a Yorc server
+func tearDownYorcServer(workingDirectoryPath string) error {
+
+	// Stop Yorc server
+	if yorcServerShutdownChan != nil {
+		close(yorcServerShutdownChan)
+	}
+
+	// stop Consul
+	if cmdConsul != nil {
+		if err := cmdConsul.Process.Kill(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+// startConsul starts a consul server, returns the command started
+func startConsul(workingDirectoryPath string) (*exec.Cmd, error) {
 
 	executable := filepath.Join(workingDirectoryPath, "consul")
 	dataDir := filepath.Join(workingDirectoryPath, "consul-data")
-	cmdArgs := "agent -server -bootstrap-expect 1 -data-dir " + dataDir
+	// Consul startup options
+	// Specifying a bind address or it would fail on a setup with multiple
+	// IPv4 addresses configured
+	cmdArgs := "agent -server -bootstrap-expect 1 -bind 127.0.0.1 -data-dir " + dataDir
 	cmd := exec.Command(executable, strings.Split(cmdArgs, " ")...)
-	cmd.Stdout = os.Stdout
+	output, _ := cmd.StdoutPipe()
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
-	return cmd.Process.Pid, err
+	// Wait for a new leader to be elected, else Yorc could try to access Consul
+	// when it is not yet ready
+	err = waitForOutput(output, "New leader elected", 60*time.Second)
+	if err != nil {
+		tearDownYorcServer(workingDirectoryPath)
+		return nil, err
+	}
+	return cmd, err
+}
+
+func waitForOutput(output io.ReadCloser, expected string, timeout time.Duration) error {
+
+	reader := bufio.NewReader(output)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		select {
+		case <-timer.C:
+			return fmt.Errorf("Timeout waiting for %s", expected)
+		default:
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return err
+			}
+			if strings.Contains(line, expected) {
+				return nil
+			}
+		}
+	}
+
 }
 
 // downloadDependencies downloads Yorc Server dependencies
@@ -147,16 +244,17 @@ func installAnsible(version string) error {
 	installedVersion, err := getPipModuleInstalledVersion(pipCmd, "ansible")
 	if err == nil && installedVersion != "" {
 
-		installedSemanticVersion, err := semver.Make(installedVersion)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to parse ansible installed version %s", installedVersion)
-		}
-		neededVersion, err := semver.Make(version)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to parse ansible needed version %s", neededVersion)
-		}
+		// Check semantic versions if possible
+		installedSemanticVersion, errInstalled := semver.Make(installedVersion)
+		neededVersion, errNeeded := semver.Make(version)
 
-		if installedSemanticVersion.GE(neededVersion) {
+		if errInstalled != nil || errNeeded != nil {
+			if installedVersion == version {
+				fmt.Printf("Ansible module %s already installed\n",
+					installedVersion)
+				return nil
+			}
+		} else if installedSemanticVersion.GE(neededVersion) {
 			fmt.Printf("Not installing ansible module as installed version %s >= needed version %s\n",
 				installedVersion, version)
 			return nil

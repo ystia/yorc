@@ -55,7 +55,7 @@ func init() {
 	commands.RootCmd.AddCommand(bootstrapCmd)
 	commands.ConfigureYorcClientCommand(bootstrapCmd, bootstrapViper, &cfgFile, &noColor)
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
-		"location", "l", "OpenStack", "Define the type of location where to deploy Yorc")
+		"location", "l", "openstack", "Define the type of location where to deploy Yorc")
 	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
 		"inputs", "i", "", "Path to inputs file")
 	bootstrapCmd.PersistentFlags().StringVarP(&topologyZipPath,
@@ -90,6 +90,11 @@ func bootstrap() error {
 	}
 
 	// A local Yorc server is running, using it to deploythe topology
-	err := deployTopology(topologyPath)
-	return err
+	errDeploy := deployTopology(topologyPath)
+
+	//	err := tearDownYorcServer(workingDirectoryPath)
+	if errDeploy != nil {
+		return errDeploy
+	}
+	return nil
 }
