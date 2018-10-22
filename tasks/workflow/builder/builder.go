@@ -72,6 +72,9 @@ func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSt
 		} else if wfActivity.CallOperation != "" {
 			targetIsMandatory = true
 			s.Activities = append(s.Activities, callOperationActivity{operation: wfActivity.CallOperation})
+			if isAsyncOperation(wfActivity.CallOperation) {
+				s.Async = true
+			}
 		} else if wfActivity.SetState != "" {
 			targetIsMandatory = true
 			s.Activities = append(s.Activities, setStateActivity{state: wfActivity.SetState})

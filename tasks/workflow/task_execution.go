@@ -42,8 +42,10 @@ type taskExecution struct {
 }
 
 func (t *taskExecution) releaseLock() {
-	t.lock.Unlock()
-	t.lock.Destroy()
+	if t.lock != nil {
+		t.lock.Unlock()
+		t.lock.Destroy()
+	}
 }
 
 func (t *taskExecution) getTaskStatus() (tasks.TaskStatus, error) {
@@ -124,4 +126,38 @@ func (t *taskExecution) deleteTaskErrorFlag(ctx context.Context, kvp *api.KVPair
 		return errors.Errorf("Failed to delete task error flag for taskID:%q as last index has been changed before", t.taskID)
 	}
 	return nil
+}
+
+func buildTaskExecution(kv *api.KV, execID string) (*taskExecution, error) {
+	taskID, err := getExecutionKeyValue(kv, execID, "taskID")
+	if err != nil {
+		return nil, err
+	}
+	targetID, err := tasks.GetTaskTarget(kv, taskID)
+	if err != nil {
+		return nil, err
+	}
+	taskType, err := tasks.GetTaskType(kv, taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve workflow, Step information in case of workflow Step TaskExecution
+	var step string
+	if tasks.IsWorkflowTask(taskType) {
+		step, err = getExecutionKeyValue(kv, execID, "step")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &taskExecution{
+		id:           execID,
+		taskID:       taskID,
+		targetID:     targetID,
+		kv:           kv,
+		creationDate: time.Now(),
+		taskType:     tasks.TaskType(taskType),
+		step:         step,
+	}, nil
 }

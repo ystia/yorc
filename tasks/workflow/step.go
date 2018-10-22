@@ -31,7 +31,6 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/metricsutil"
 	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/prov/scheduling"
 	"github.com/ystia/yorc/registry"
@@ -96,13 +95,6 @@ func isSourceOperationOnTarget(s *step) bool {
 		if strings.Contains(o, "add_source") || strings.Contains(o, "remove_source") || strings.Contains(o, "source_changed") {
 			return true
 		}
-	}
-	return false
-}
-
-func isAsyncOperation(operation prov.Operation) bool {
-	if operation.Name == "tosca.interfaces.node.lifecycle.runnable.run" {
-		return true
 	}
 	return false
 }
@@ -326,8 +318,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("executing operation")
 		}
 		// In function of the operation, the execution is sync or async
-		if isAsyncOperation(op) {
-			s.Async = true
+		if s.Async {
 			err = func() error {
 				defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name}), time.Now())
 				action, timeInterval, err := exec.ExecAsyncOperation(wfCtx, cfg, s.t.taskID, deploymentID, s.Target, op, s.Name)
@@ -336,6 +327,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 				}
 				action.AsyncOperation.DeploymentID = deploymentID
 				action.AsyncOperation.TaskID = s.t.taskID
+				action.AsyncOperation.ExecutionID = s.t.id
 				action.AsyncOperation.WorkflowName = workflowName
 				action.AsyncOperation.StepName = s.Name
 				action.AsyncOperation.NodeName = s.Target

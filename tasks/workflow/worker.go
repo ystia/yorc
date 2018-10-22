@@ -40,7 +40,6 @@ import (
 	"github.com/ystia/yorc/prov/scheduling"
 	"github.com/ystia/yorc/registry"
 	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/collector"
 	"github.com/ystia/yorc/tasks/workflow/builder"
 	"github.com/ystia/yorc/tosca"
 )
@@ -262,23 +261,10 @@ func (w *worker) markExecutionAsProcessing(t *taskExecution) {
 	}
 }
 
-func (w *worker) releaseAndDeleteExecution(t *taskExecution) {
-	// First release the lock as the key still exists
-	t.releaseLock()
-
-	// Remove the key execution tree
-	log.Debugf("Delete task execution tree with ID:%q", t.id)
-	_, err := w.consulClient.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, t.id), nil)
-	if err != nil {
-		log.Printf("Failed to remove execution KV tree with ID:%q due to error:%+v", t.id, err)
-		return
-	}
-}
-
 func (w *worker) handleExecution(t *taskExecution) {
 	log.Debugf("Handle task execution:%+v", t)
 	w.markExecutionAsProcessing(t)
-	defer w.releaseAndDeleteExecution(t)
+	defer t.releaseLock()
 
 	if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus == tasks.TaskStatusINITIAL {
 		metrics.MeasureSince([]string{"tasks", "wait"}, t.creationDate)
@@ -429,7 +415,33 @@ func (w *worker) endAction(ctx context.Context, action *prov.Action, actionErr e
 		checkAndSetTaskStatus(ctx, w.consulClient.KV(), action.AsyncOperation.TaskID, action.AsyncOperation.StepName, tasks.TaskStatusFAILED)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", actionErr)
 	} else {
-		err = collector.NewCollector(w.consulClient).ResumeTask(action.AsyncOperation.TaskID)
+		// we are not stopped or erroed we just have to reschedule next steps
+		steps, err := builder.BuildWorkFlow(w.consulClient.KV(), action.AsyncOperation.DeploymentID, action.AsyncOperation.WorkflowName)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
+			log.Debugf("%+v", err)
+			return
+		}
+		bs, ok := steps[action.AsyncOperation.StepName]
+		if !ok {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("step %q missing", action.AsyncOperation.StepName)
+			return
+		}
+
+		// This is a fake task execution as the original one was deleted
+		t, err := buildTaskExecution(w.consulClient.KV(), action.AsyncOperation.ExecutionID)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("Failed to register steps preceded by %q for execution: %v", action.AsyncOperation.StepName, err)
+			log.Debugf("%+v", err)
+			return
+		}
+		s := wrapBuilderStep(bs, w.consulClient.KV(), t)
+		_, err = w.registerNextSteps(ctx, s, t, action.AsyncOperation.WorkflowName)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("Failed to register steps preceded by %q for execution: %v", action.AsyncOperation.StepName, err)
+			log.Debugf("%+v", err)
+			return
+		}
 	}
 }
 

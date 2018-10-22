@@ -106,6 +106,7 @@ type Action struct {
 type AsyncOperation struct {
 	DeploymentID string    `json:"deployment_id,omitempty"`
 	TaskID       string    `json:"task_id,omitempty"`
+	ExecutionID  string    `json:"execution_id,omitempty"`
 	WorkflowName string    `json:"workflow_name,omitempty"`
 	StepName     string    `json:"step_name,omitempty"`
 	NodeName     string    `json:"node_name,omitempty"`
