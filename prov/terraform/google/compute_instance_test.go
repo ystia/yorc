@@ -161,9 +161,9 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 	instancesMap = infrastructure.Resource["google_compute_attached_disk"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
 
-	require.Contains(t, instancesMap, "bs1-0-to-compute-0")
-	attachedDisk, ok := instancesMap["bs1-0-to-compute-0"].(*ComputeAttachedDisk)
-	require.True(t, ok, "bs1-0-to-compute-0 is not a ComputeAttachedDisk")
+	require.Contains(t, instancesMap, "google-bs1-0-to-compute-0")
+	attachedDisk, ok := instancesMap["google-bs1-0-to-compute-0"].(*ComputeAttachedDisk)
+	require.True(t, ok, "google-bs1-0-to-compute-0 is not a ComputeAttachedDisk")
 	assert.Equal(t, "my_vol_id", attachedDisk.Disk)
 	assert.Equal(t, "${google_compute_instance.compute-0.name}", attachedDisk.Instance)
 	assert.Equal(t, "europe-west1-b", attachedDisk.Zone)
