@@ -62,7 +62,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
 	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
 	if err != nil {
-		return false, errors.Wrapf(err, "can not retrieve job %q", jobID)
+		return true, errors.Wrapf(err, "can not retrieve job %q", jobID)
 	}
 
 	publishJobLogs(ctx, cfg, o.clientset, deploymentID, namespace, job.Name, action)
