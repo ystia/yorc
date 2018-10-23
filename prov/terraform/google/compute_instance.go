@@ -289,7 +289,10 @@ func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *Co
 		provMap := make(map[string]interface{})
 		provMap["remote-exec"] = re
 		devResource.Provisioners = append(devResource.Provisioners, provMap)
-		devResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", instance.Name+"-ConnectionCheck")}
+		devResource.DependsOn = []string{
+			fmt.Sprintf("null_resource.%s", instance.Name+"-ConnectionCheck"),
+			fmt.Sprintf("google_compute_attached_disk.%s", dev),
+		}
 		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev), &devResource)
 
 		// local exec to scp the stdout file locally
@@ -404,10 +407,10 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 		attachName = strings.Replace(attachName, "_", "-", -1)
 		// attachName is used as device name to retrieve device attribute as logical volume name
 		attachedDisk.DeviceName = attachName
-		commons.AddResource(infrastructure, "google_compute_attached_disk", attachName, attachedDisk)
 
 		// Provide file outputs for device attributes which can't be resolved with Terraform
 		device := fmt.Sprintf("google-%s", attachName)
+		commons.AddResource(infrastructure, "google_compute_attached_disk", device, attachedDisk)
 		outputDeviceVal := commons.FileOutputPrefix + device
 		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
 		outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = outputDeviceVal
