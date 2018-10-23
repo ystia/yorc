@@ -49,6 +49,7 @@ var ansibleConfiguration = map[string]interface{}{
 	"ansible.keep_operation_remote_path": config.DefaultKeepOperationRemotePath,
 	"ansible.archive_artifacts":          config.DefaultArchiveArtifacts,
 	"ansible.cache_facts":                config.DefaultCacheFacts,
+	"ansible.keep_generated_recipes":     false,
 }
 
 var consulConfiguration = map[string]interface{}{
@@ -62,6 +63,10 @@ var consulConfiguration = map[string]interface{}{
 	"consul.ssl":                    false,
 	"consul.ssl_verify":             true,
 	"consul.publisher_max_routines": config.DefaultConsulPubMaxRoutines,
+}
+
+var terraformConfiguration = map[string]interface{}{
+	"terraform.keep_generated_files": false,
 }
 
 var cfgFile string
@@ -225,6 +230,10 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("keep_operation_remote_path", config.DefaultKeepOperationRemotePath, "Define wether the path created to store artifacts on the nodes will be removed at the end of workflow executions.")
 	serverCmd.PersistentFlags().Bool("ansible_archive_artifacts", config.DefaultArchiveArtifacts, "Define wether artifacts should be archived before being copied on remote nodes (requires tar to be installed on remote nodes).")
 	serverCmd.PersistentFlags().Bool("ansible_cache_facts", config.DefaultCacheFacts, "Define wether Ansible facts (useful variables about remote hosts) should be cached.")
+	serverCmd.PersistentFlags().Bool("ansible_keep_generated_recipes", false, "Define if Yorc should not delete generated Ansible recipes")
+
+	//Flags definition for Terraform
+	serverCmd.PersistentFlags().Bool("terraform_keep_generated_files", false, "Define if Yorc should not delete generated Terraform infrastructures files")
 
 	//Bind Consul persistent flags
 	for key := range consulConfiguration {
@@ -251,6 +260,11 @@ func setConfig() {
 
 	//Bind Ansible persistent flags
 	for key := range ansibleConfiguration {
+		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
+	}
+
+	//Bind Terraform persistent flags
+	for key := range terraformConfiguration {
 		viper.BindPFlag(key, serverCmd.PersistentFlags().Lookup(toFlatKey(key)))
 	}
 
@@ -283,6 +297,11 @@ func setConfig() {
 		viper.BindEnv(key, toEnvVar(key))
 	}
 
+	//Bind Terraform environment variables flags
+	for key := range terraformConfiguration {
+		viper.BindEnv(key, toEnvVar(key))
+	}
+
 	//Setting Defaults
 	viper.SetDefault("working_directory", "work")
 	viper.SetDefault("server_graceful_shutdown_timeout", config.DefaultServerGracefulShutdownTimeout)
@@ -301,6 +320,11 @@ func setConfig() {
 
 	// Ansible configuration default settings
 	for key, value := range ansibleConfiguration {
+		viper.SetDefault(key, value)
+	}
+
+	// Terraform configuration default settings
+	for key, value := range terraformConfiguration {
 		viper.SetDefault(key, value)
 	}
 

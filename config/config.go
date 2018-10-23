@@ -85,6 +85,7 @@ type Configuration struct {
 	Vault                            DynamicMap            `mapstructure:"vault"`
 	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
 	ServerID                         string                `mapstructure:"server_id"`
+	Terraform                        Terraform             `mapstructure:"terraform"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -117,6 +118,7 @@ type Ansible struct {
 	ConnectionRetries       int              `mapstructure:"connection_retries"`
 	OperationRemoteBaseDir  string           `mapstructure:"operation_remote_base_dir"`
 	KeepOperationRemotePath bool             `mapstructure:"keep_operation_remote_path"`
+	KeepGeneratedRecipes    bool             `mapstructure:"keep_generated_recipes"`
 	ArchiveArtifacts        bool             `mapstructure:"archive_artifacts"`
 	CacheFacts              bool             `mapstructure:"cache_facts"`
 	HostedOperations        HostedOperations `mapstructure:"hosted_operations"`
@@ -144,6 +146,11 @@ type Telemetry struct {
 	ServiceName             string `mapstructure:"service_name"`
 	DisableHostName         bool   `mapstructure:"disable_hostname"`
 	DisableGoRuntimeMetrics bool   `mapstructure:"disable_go_runtime_metrics"`
+}
+
+// Terraform configuration
+type Terraform struct {
+	KeepGeneratedFiles bool `mapstructure:"keep_generated_files"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.
