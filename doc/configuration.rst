@@ -48,7 +48,7 @@ Globals Command-line options
 
 .. _option_ansible_keep_generated_recipes_cmd:
 
-  * ``--ansible_keep_generated_recipes``: If set to true, generated Ansible recipes on Yorc server are not delete. (false by default: generated recipes are deleted).
+  * ``--ansible_keep_generated_recipes``: If set to true, generated Ansible recipes on Yorc server are not deleted. (false by default: generated recipes are deleted).
 
 .. _option_operation_remote_base_dir_cmd:
 
@@ -115,7 +115,7 @@ Globals Command-line options
   * ``--terraform_openstack_plugin_version_constraint``: Specify the Terraform OpenStack plugin version constraint. Default one compatible with our source code is ``"~> 1.9"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
 .. _option_terraform_keep_generated_files_cmd:
 
-  * ``--terraform_keep_generated_files``: If set to true, generated Terraform infrastructures files on Yorc server are not delete. (false by default: generated files are deleted).
+  * ``--terraform_keep_generated_files``: If set to true, generated Terraform infrastructures files on Yorc server are not deleted. (false by default: generated files are deleted).
 
 .. _option_pub_routines_cmd:
 
