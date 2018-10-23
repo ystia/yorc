@@ -32,7 +32,7 @@ Globals Command-line options
 
 .. _option_ansible_keep_generated_recipes_cmd:
 
-  * ``--ansible_keep_generated_recipes``: If set to true, generated Ansible recipes on Yorc server are not delete. (false by default: generated recipes are deleted).
+  * ``--ansible_keep_generated_recipes``: If set to true, generated Ansible recipes on Yorc server are not deleted. (false by default: generated recipes are deleted).
 
 .. _option_operation_remote_base_dir_cmd:
 
@@ -80,7 +80,7 @@ Globals Command-line options
 
 .. _option_terraform_keep_generated_files_cmd:
 
-  * ``--terraform_keep_generated_files``: If set to true, generated Terraform infrastructures files on Yorc server are not delete. (false by default: generated files are deleted).
+  * ``--terraform_keep_generated_files``: If set to true, generated Terraform infrastructures files on Yorc server are not deleted. (false by default: generated files are deleted).
 
 .. _option_pub_routines_cmd:
 
@@ -450,7 +450,7 @@ Below is an example of configuration file with Terraform configuration options.
         }
       },
       "terraform": {
-        "keep_generated_file": false
+        "keep_generated_files": false
       }
     }
 
