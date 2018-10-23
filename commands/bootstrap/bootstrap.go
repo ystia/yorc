@@ -47,7 +47,7 @@ func init() {
 		Run: func(cmd *cobra.Command, args []string) {
 			err := bootstrap()
 			if err != nil {
-				fmt.Print(err)
+				fmt.Println("Bootstrap error", err)
 			}
 		},
 	}

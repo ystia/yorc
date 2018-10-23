@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/ystia/yorc/commands"
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -39,6 +40,7 @@ import (
 
 var cmdConsul *exec.Cmd
 var yorcServerShutdownChan chan struct{}
+var yorcServerOutputFile *os.File
 
 // setupYorcServer starts a Yorc server
 func setupYorcServer(workingDirectoryPath string) error {
@@ -91,8 +93,20 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
+	// Yorc Server outputs rediected to a file
+	outputFileName := filepath.Join(workingDirectoryPath, "yorc.log")
+	yorcServerOutputFile, err := os.Create(outputFileName)
+	if err != nil {
+		return err
+	}
+
+	log.SetOutput(yorcServerOutputFile)
+
 	yorcServerShutdownChan = make(chan struct{})
 	err = commands.RunServer(yorcServerShutdownChan)
+	if err != nil {
+		yorcServerOutputFile.Close()
+	}
 	return err
 
 }
@@ -103,6 +117,7 @@ func tearDownYorcServer(workingDirectoryPath string) error {
 	// Stop Yorc server
 	if yorcServerShutdownChan != nil {
 		close(yorcServerShutdownChan)
+		yorcServerOutputFile.Close()
 	}
 
 	// stop Consul
