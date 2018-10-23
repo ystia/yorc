@@ -46,6 +46,10 @@ Globals Command-line options
 
   * ``--ansible_archive_artifacts``: If set to true, archives operation bash/python scripts locally, copies this archive and unarchives it on remote hosts (requires tar to be installed on remote hosts), to avoid multiple time consuming remote copy operations of individual scripts (false by default: no archive).
 
+.. _option_ansible_keep_generated_recipes_cmd:
+
+  * ``--ansible_keep_generated_recipes``: If set to true, generated Ansible recipes on Yorc server are not delete. (false by default: generated recipes are deleted).
+
 .. _option_operation_remote_base_dir_cmd:
 
   * ``--operation_remote_base_dir``: Specify an alternative working directory for Ansible on provisioned Compute.
@@ -109,6 +113,9 @@ Globals Command-line options
 .. _option_terraform_openstack_plugin_version_constraint_cmd:
 
   * ``--terraform_openstack_plugin_version_constraint``: Specify the Terraform OpenStack plugin version constraint. Default one compatible with our source code is ``"~> 1.9"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+.. _option_terraform_keep_generated_files_cmd:
+
+  * ``--terraform_keep_generated_files``: If set to true, generated Terraform infrastructures files on Yorc server are not delete. (false by default: generated files are deleted).
 
 .. _option_pub_routines_cmd:
 
@@ -336,6 +343,10 @@ All available configuration options for Ansible are:
 
   * ``keep_operation_remote_path``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
 
+.. _option_ansible_keep_generated_recipes_cfg:
+
+  * ``keep_generated_recipes``: Equivalent to :ref:`--ansible_keep_generated_recipes <option_ansible_keep_generated_recipes_cmd>` command-line flag.
+
 .. _option_ansible_sandbox_hosted_ops_cfg:
 
   * ``hosted_operations``: This is a complex structure that allow to define the behavior of a Yorc server when it executes an hosted operation.
@@ -478,7 +489,7 @@ Below is an example of configuration file with Terraform configuration options.
       }
     }
 
-All available configuration options for Consul are:
+All available configuration options for Terraform are:
 
 .. _option_plugins_dir_cfg:
 
@@ -499,6 +510,11 @@ All available configuration options for Consul are:
 .. _option_openstack_plugin_version_constraint_cfg:
 
   * ``openstack_plugin_version_constraint``: Equivalent to :ref:`--terraform_openstack_plugin_version_constraint <option_terraform_openstack_plugin_version_constraint_cmd>` command-line flag.
+
+.. _option_terraform_keep_generated_files_cfg:
+
+  * ``keep_generated_files``: Equivalent to :ref:`--terraform_keep_generated_files <option_terraform_keep_generated_files_cmd>` command-line flag.
+
 
 .. _yorc_config_file_telemetry_section:
 
@@ -647,6 +663,10 @@ Environment variables
 
   * ``YORC_ANSIBLE_ARCHIVE_ARTIFACTS``: Equivalent to :ref:`--ansible_archive_artifacts <option_ansible_archive_artifacts_cmd>` command-line flag.
 
+.. _option_ansible_keep_generated_recipes_env:
+
+  * ``YORC_ANSIBLE_KEEP_GENERATED_RECIPES``: Equivalent to :ref:`--ansible_keep_generated_recipes <option_ansible_keep_generated_recipes_cmd>` command-line flag.
+
 .. _option_operation_remote_base_dir_env:
 
   * ``YORC_OPERATION_REMOTE_BASE_DIR``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
@@ -751,14 +771,6 @@ Environment variables
 
   * ``YORC_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Yorc.
 
-.. _option_aws_access_key:
-
-  * ``YORC_INFRA_AWS_ACCESS_KEY``: The AWS access key credential.
-
-.. _option_aws_secret_key:
-
-  * ``YORC_INFRA_AWS_SECRET_KEY``: The AWS secret key credential.
-
 .. _option_terraform_plugins_dir_env:
 
   * ``YORC_TERRAFORM_PLUGINS_DIR``: Equivalent to :ref:`--terraform_plugins_dir <option_terraform_plugins_dir_cmd>` command-line flag.
@@ -779,6 +791,10 @@ Environment variables
 
   * ``YORC_TERRAFORM_OPENSTACK_PLUGIN_VERSION_CONSTRAINT``: Equivalent to :ref:`--terraform_openstack_plugin_version_constraint <option_terraform_openstack_plugin_version_constraint_cmd>` command-line flag.
  
+.. _option_terraform_keep_generated_files_env:
+
+  * ``YORC_TERRAFORM_KEEP_GENERATED_FILES``: Equivalent to :ref:`--terraform_keep_generated_files <option_terraform_keep_generated_files_cmd>` command-line flag.
+
 
 Infrastructures configuration
 -----------------------------

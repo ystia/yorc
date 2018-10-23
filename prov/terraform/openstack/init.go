@@ -33,7 +33,7 @@ func init() {
 	reg.RegisterDelegates([]string{`yorc\.nodes\.openstack\..*`}, terraform.NewExecutor(&osGenerator{}, preDestroyInfraCallback), registry.BuiltinOrigin)
 }
 
-func preDestroyInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (bool, error) {
+func preDestroyInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error) {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return false, err
