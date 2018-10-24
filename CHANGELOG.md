@@ -7,6 +7,7 @@
 * REQ_TARGET keyword into TOSCA functions was broken. This was introduced during the upgrade to Alien4Cloud 2.0 that changed how requirements definition on node templates ([GH-159](https://github.com/ystia/yorc/issues/159))
 * Inputs are not injected into Slurm (srun) jobs ([GH-161](https://github.com/ystia/yorc/issues/161))
 * Retrieving operation output when provisioning several instances resolves to the same value for all instances even if they are actually different ([GH-171](https://github.com/ystia/yorc/issues/171))
+* Parse Alien specific way of defining properties on relationships ([GH-155](https://github.com/ystia/yorc/issues/155))
 
 ### ENHANCEMENTS
 
