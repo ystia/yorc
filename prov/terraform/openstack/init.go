@@ -15,43 +15,12 @@
 package openstack
 
 import (
-	"context"
-	"fmt"
-	"strings"
-
-	"github.com/hashicorp/consul/api"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/terraform"
+	"github.com/ystia/yorc/prov/terraform/commons"
 	"github.com/ystia/yorc/registry"
 )
 
 func init() {
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.openstack\..*`}, terraform.NewExecutor(&osGenerator{}, preDestroyInfraCallback), registry.BuiltinOrigin)
-}
-
-func preDestroyInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (bool, error) {
-	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
-	if err != nil {
-		return false, err
-	}
-	// TODO  consider making this generic: references to OpenStack should not be found here.
-	if nodeType == "yorc.nodes.openstack.BlockStorage" {
-
-		deletable, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "deletable")
-		if err != nil {
-			return false, err
-		}
-		if deletable == nil || strings.ToLower(deletable.RawString()) != "true" {
-			// False by default
-			msg := fmt.Sprintf("Node %q is a BlockStorage without the property 'deletable' do not destroy it...", nodeName)
-			log.Debug(msg)
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(msg)
-			return false, nil
-		}
-	}
-	return true, nil
+	reg.RegisterDelegates([]string{`yorc\.nodes\.openstack\..*`}, terraform.NewExecutor(&osGenerator{}, commons.PreDestroyStorageInfraCallback), registry.BuiltinOrigin)
 }

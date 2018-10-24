@@ -254,6 +254,11 @@ node_types:
         description: >
           A reference to the zone where the disk resides. In any case the disk must be on the same zone as the associated Compute instances.
         required: true
+      deletable:
+        type: boolean
+        description: should this volume be deleted at undeployment
+        required: false
+        default: false
       disk_encryption_key:
         type: yorc.datatypes.google.EncryptionKey
         description: >

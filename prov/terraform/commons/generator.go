@@ -16,9 +16,14 @@ package commons
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 )
 
 // FileOutputPrefix is the prefix to identify file output
@@ -37,3 +42,32 @@ type Generator interface {
 
 // PreDestroyInfraCallback is a function that is call before destroying an infrastructure. If it returns false the node will not be destroyed.
 type PreDestroyInfraCallback func(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (bool, error)
+
+// PreDestroyStorageInfraCallback is a callback of type PreDestroyInfraCallback
+// checking if a block storage node is deletable on undeployment.
+func PreDestroyStorageInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (bool, error) {
+	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, err
+	}
+	isBlockStorage, err := deployments.IsTypeDerivedFrom(kv, deploymentID, nodeType, "tosca.nodes.BlockStorage")
+	if err != nil {
+		return false, err
+	}
+
+	if isBlockStorage {
+
+		deletable, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "deletable")
+		if err != nil {
+			return false, err
+		}
+		if deletable == nil || strings.ToLower(deletable.RawString()) != "true" {
+			// False by default
+			msg := fmt.Sprintf("Node %q is a BlockStorage without the property 'deletable', so not destroyed on undeployment...", nodeName)
+			log.Debug(msg)
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(msg)
+			return false, nil
+		}
+	}
+	return true, nil
+}
