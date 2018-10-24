@@ -28,6 +28,17 @@ import (
 	"github.com/ystia/yorc/log"
 )
 
+func getInstanceIDForHost(host string, hostConnectionMap map[string]hostConnection) string {
+	instanceID := ""
+	for _, connection := range hostConnectionMap {
+		if host == connection.host {
+			instanceID = connection.instanceID
+			break
+		}
+	}
+	return instanceID
+}
+
 func getAnsibleJSONResult(output *bytes.Buffer) (*jason.Object, []string, error) {
 	// Workaround https://github.com/ansible/ansible/issues/17122
 	log.Debugf("Ansible result: %s", output)
