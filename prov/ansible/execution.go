@@ -30,7 +30,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/moby/moby/client"
@@ -584,8 +583,9 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 
 			//For each instance of the node we create a new entry in the output map
 			for _, instanceID := range instancesIds {
-				//We decide to add an in to differentiate if we export many time the same output
-				b := uint32(time.Now().Nanosecond())
+				// TODO(loicalbertin) This part should be refactored to store properly the instance ID
+				// don't to it for now as it is for a quickfix
+				b := instanceID
 				interfaceName := strings.ToLower(url.QueryEscape(oof.Operands[1].String()))
 				operationName := strings.ToLower(url.QueryEscape(oof.Operands[2].String()))
 				outputVariableName := url.QueryEscape(oof.Operands[3].String())
@@ -920,6 +920,9 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 			return err
 		}
 		for _, outFile := range outputsFiles {
+			baseFileName := filepath.Base(outFile)
+			hostname := strings.TrimSuffix(baseFileName, "-out.csv")
+			fileInstanceID := getInstanceIDForHost(hostname, e.hosts)
 			fi, err := os.Open(outFile)
 			if err != nil {
 				err = errors.Wrapf(err, "Output retrieving of Ansible execution for node %q failed", e.NodeName)
@@ -939,10 +942,14 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				return err
 			}
 			for _, line := range records {
+				splits := strings.Split(line[0], "_")
+				instanceID := splits[len(splits)-1]
+				if instanceID != fileInstanceID {
+					continue
+				}
 				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
 					return err
 				}
-
 			}
 		}
 	}
