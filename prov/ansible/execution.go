@@ -594,7 +594,7 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 				} else {
 					//If we are with an expression type {get_operation_output : [ SELF, ...]} in a relationship we store the result in the corresponding relationship instance
 					if oof.Operands[0].String() == "SELF" && e.operation.RelOp.IsRelationshipOperation {
-						relationShipPrefix := filepath.Join("relationship_instances", e.NodeName, e.operation.RelOp.RequirementIndex, instanceID)
+						relationShipPrefix := path.Join("relationship_instances", e.NodeName, e.operation.RelOp.RequirementIndex, instanceID)
 						e.Outputs[outputVariableName+"_"+fmt.Sprint(b)] = path.Join(relationShipPrefix, "outputs", interfaceName, operationName, outputVariableName)
 					} else if oof.Operands[0].String() == "HOST" {
 						// In this case we continue because the parsing has change this type on {get_operation_output : [ SELF, ...]}  on the host node
@@ -767,11 +767,11 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
-	var ansibleRecipePath string
+	ansibleRecipePath := filepath.Join(ansiblePath, e.taskID, e.NodeName)
 	if e.operation.RelOp.IsRelationshipOperation {
-		ansibleRecipePath = filepath.Join(ansiblePath, e.NodeName, e.relationshipType, e.operation.RelOp.TargetRelationship, e.operation.Name, currentInstance)
+		ansibleRecipePath = filepath.Join(ansibleRecipePath, e.relationshipType, e.operation.RelOp.TargetRelationship, e.operation.Name, currentInstance)
 	} else {
-		ansibleRecipePath = filepath.Join(ansiblePath, e.NodeName, e.operation.Name, currentInstance)
+		ansibleRecipePath = filepath.Join(ansibleRecipePath, e.operation.Name, currentInstance)
 	}
 
 	if err = os.RemoveAll(ansibleRecipePath); err != nil {
@@ -780,6 +780,17 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 		return err
 	}
+
+	defer func() {
+		if !e.cfg.Ansible.KeepGeneratedRecipes {
+			err := os.RemoveAll(ansibleRecipePath)
+			if err != nil {
+				err = errors.Wrapf(err, "Failed to remove ansible recipe directory %q for node %q operation %q", ansibleRecipePath, e.NodeName, e.operation.Name)
+				log.Debugf("%+v", err)
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
+			}
+		}
+	}()
 	ansibleHostVarsPath := filepath.Join(ansibleRecipePath, "host_vars")
 	if err = os.MkdirAll(ansibleHostVarsPath, 0775); err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())

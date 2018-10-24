@@ -53,11 +53,12 @@ var _DeploymentStatusMap = map[DeploymentStatus]string{
 	7: _DeploymentStatusName[107:126],
 }
 
-func (i DeploymentStatus) String() string {
-	if str, ok := _DeploymentStatusMap[i]; ok {
+// String implements the Stringer interface.
+func (x DeploymentStatus) String() string {
+	if str, ok := _DeploymentStatusMap[x]; ok {
 		return str
 	}
-	return fmt.Sprintf("DeploymentStatus(%d)", i)
+	return fmt.Sprintf("DeploymentStatus(%d)", x)
 }
 
 var _DeploymentStatusValue = map[string]DeploymentStatus{
@@ -74,7 +75,7 @@ var _DeploymentStatusValue = map[string]DeploymentStatus{
 // ParseDeploymentStatus attempts to convert a string to a DeploymentStatus
 func ParseDeploymentStatus(name string) (DeploymentStatus, error) {
 	if x, ok := _DeploymentStatusValue[name]; ok {
-		return DeploymentStatus(x), nil
+		return x, nil
 	}
 	return DeploymentStatus(0), fmt.Errorf("%s is not a valid DeploymentStatus", name)
 }

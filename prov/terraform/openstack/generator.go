@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -50,7 +49,7 @@ func (g *osGenerator) getStringFormConsul(kv *api.KV, baseURL, property string) 
 	return string(getResult.Value), nil
 }
 
-func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string) (bool, map[string]string, []string, error) {
+func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	cClient, err := cfg.GetConsulClient()
 	if err != nil {
@@ -268,13 +267,9 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 	if err != nil {
 		return false, nil, nil, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
 	}
-	infraPath := filepath.Join(cfg.WorkingDirectory, "deployments", deploymentID, "infra", nodeName)
-	if err = os.MkdirAll(infraPath, 0775); err != nil {
-		return false, nil, nil, errors.Wrapf(err, "Failed to create infrastructure working directory %q", infraPath)
-	}
 
-	if err = ioutil.WriteFile(filepath.Join(infraPath, "infra.tf.json"), jsonInfra, 0664); err != nil {
-		return false, nil, nil, errors.Wrapf(err, "Failed to write file %q", filepath.Join(infraPath, "infra.tf.json"))
+	if err = ioutil.WriteFile(filepath.Join(infrastructurePath, "infra.tf.json"), jsonInfra, 0664); err != nil {
+		return false, nil, nil, errors.Wrapf(err, "Failed to write file %q", filepath.Join(infrastructurePath, "infra.tf.json"))
 	}
 
 	log.Debugf("Infrastructure generated for deployment with id %s", deploymentID)

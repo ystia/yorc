@@ -30,6 +30,10 @@ Globals Command-line options
 
   * ``--ansible_archive_artifacts``: If set to true, archives operation bash/python scripts locally, copies this archive and unarchives it on remote hosts (requires tar to be installed on remote hosts), to avoid multiple time consuming remote copy operations of individual scripts (false by default: no archive).
 
+.. _option_ansible_keep_generated_recipes_cmd:
+
+  * ``--ansible_keep_generated_recipes``: If set to true, generated Ansible recipes on Yorc server are not deleted. (false by default: generated recipes are deleted).
+
 .. _option_operation_remote_base_dir_cmd:
 
   * ``--operation_remote_base_dir``: Specify an alternative working directory for Ansible on provisioned Compute.
@@ -73,6 +77,10 @@ Globals Command-line options
 .. _option_consul_ssl_verify_cmd:
 
   * ``--consul_ssl_verify``: If set to false, disable Consul certificate checking (true by default is ssl enabled).
+
+.. _option_terraform_keep_generated_files_cmd:
+
+  * ``--terraform_keep_generated_files``: If set to true, generated Terraform infrastructures files on Yorc server are not deleted. (false by default: generated files are deleted).
 
 .. _option_pub_routines_cmd:
 
@@ -300,6 +308,10 @@ All available configuration options for Ansible are:
 
   * ``keep_operation_remote_path``: Equivalent to :ref:`--keep_operation_remote_path <option_keep_remote_path_cmd>` command-line flag.
 
+.. _option_ansible_keep_generated_recipes_cfg:
+
+  * ``keep_generated_recipes``: Equivalent to :ref:`--ansible_keep_generated_recipes <option_ansible_keep_generated_recipes_cmd>` command-line flag.
+
 .. _option_ansible_sandbox_hosted_ops_cfg:
 
   * ``hosted_operations``: This is a complex structure that allow to define the behavior of a Yorc server when it executes an hosted operation.
@@ -415,6 +427,39 @@ All available configuration options for Consul are:
 .. _option_pub_routines_cfg:
 
   * ``publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
+
+.. _yorc_config_file_terraform_section:
+
+Terraform configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of configuration file with Terraform configuration options.
+
+.. code-block:: JSON
+
+    {
+      "resources_prefix": "yorc1-",
+      "infrastructures": {
+        "openstack": {
+          "auth_url": "http://your-openstack:5000/v2.0",
+          "tenant_name": "your-tenant",
+          "user_name": "os-user",
+          "password": "os-password",
+          "private_network_name": "default-private-network",
+          "default_security_groups": ["default"]
+        }
+      },
+      "terraform": {
+        "keep_generated_files": false
+      }
+    }
+
+All available configuration options for Terraform are:
+
+.. _option_terraform_keep_generated_files_cfg:
+
+  * ``keep_generated_files``: Equivalent to :ref:`--terraform_keep_generated_files <option_terraform_keep_generated_files_cmd>` command-line flag.
+
 
 .. _yorc_config_file_telemetry_section:
 
@@ -563,6 +608,10 @@ Environment variables
 
   * ``YORC_ANSIBLE_ARCHIVE_ARTIFACTS``: Equivalent to :ref:`--ansible_archive_artifacts <option_ansible_archive_artifacts_cmd>` command-line flag.
 
+.. _option_ansible_keep_generated_recipes_env:
+
+  * ``YORC_ANSIBLE_KEEP_GENERATED_RECIPES``: Equivalent to :ref:`--ansible_keep_generated_recipes <option_ansible_keep_generated_recipes_cmd>` command-line flag.
+
 .. _option_operation_remote_base_dir_env:
 
   * ``YORC_OPERATION_REMOTE_BASE_DIR``: Equivalent to :ref:`--operation_remote_base_dir <option_operation_remote_base_dir_cmd>` command-line flag.
@@ -667,14 +716,10 @@ Environment variables
 
   * ``YORC_LOG``: If set to ``1`` or ``DEBUG``, enables debug logging for Yorc.
 
-.. _option_aws_access_key:
+.. _option_terraform_keep_generated_files_env:
 
-  * ``YORC_INFRA_AWS_ACCESS_KEY``: The AWS access key credential.
+  * ``YORC_TERRAFORM_KEEP_GENERATED_FILES``: Equivalent to :ref:`--terraform_keep_generated_files <option_terraform_keep_generated_files_cmd>` command-line flag.
 
-.. _option_aws_secret_key:
-
-  * ``YORC_INFRA_AWS_SECRET_KEY``: The AWS secret key credential.
- 
 
 Infrastructures configuration
 -----------------------------
