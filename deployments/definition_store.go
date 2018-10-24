@@ -1091,9 +1091,11 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
+
+			req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
+
 			if device != nil {
 				va := &tosca.ValueAssignment{}
-				req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
 				if device.RawString() != "" {
 					err = yaml.Unmarshal([]byte(device.RawString()), &va)
 					if err != nil {
