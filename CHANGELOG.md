@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Support GCE Block storages. ([GH-82](https://github.com/ystia/yorc/issues/81))
+
 ### ENHANCEMENTS
 
 * Concurrent workflows and custom commands executions are now allowed except when a deployment/undeployment/scaling operation is in progress ([GH-182](https://github.com/ystia/yorc/issues/182))

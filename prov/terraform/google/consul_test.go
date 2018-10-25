@@ -48,5 +48,11 @@ func TestRunConsulGooglePackageTests(t *testing.T) {
 		t.Run("simpleComputeInstanceWithAddress", func(t *testing.T) {
 			testSimpleComputeInstanceWithAddress(t, kv, srv, cfg)
 		})
+		t.Run("simplePersistentDisk", func(t *testing.T) {
+			testSimplePersistentDisk(t, kv, cfg)
+		})
+		t.Run("simpleComputeInstanceWithPersistentDisk", func(t *testing.T) {
+			testSimpleComputeInstanceWithPersistentDisk(t, kv, srv, cfg)
+		})
 	})
 }
