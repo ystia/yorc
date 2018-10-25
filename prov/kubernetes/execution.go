@@ -315,7 +315,7 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 		if err != nil {
 			return err
 		}
-		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "replicas", fmt.Sprint(*deployment.Spec.Replicas))
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "replicas", expectedInstances)
 		if err != nil {
 			return err
 		}
