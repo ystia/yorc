@@ -581,12 +581,15 @@ Request body:
 {
     "node": "NodeName",
     "name": "Custom_Command_Name",
+    "interface": "fully.qualified.interface.name",
     "inputs": {
       "index":"",
       "nb_replicas":"2"
     }
 }
 ```
+
+If omitted interface defaults to `custom`.
 
 **Response**:
 
