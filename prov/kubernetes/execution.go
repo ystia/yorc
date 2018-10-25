@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +55,7 @@ type k8sResourceOperation int
 const (
 	k8sCreateOperation k8sResourceOperation = iota
 	k8sDeleteOperation
+	k8sScaleOperation
 )
 
 type execution interface {
@@ -151,6 +153,8 @@ func (e *executionCommon) execute(ctx context.Context, clientset *kubernetes.Cli
 		return e.uninstallNode(ctx, clientset)
 	case "standard.delete":
 		return e.manageKubernetesResource(ctx, clientset, generator, k8sDeleteOperation)
+	case "org.alien4cloud.management.clustercontrol.scale":
+		return e.manageKubernetesResource(ctx, clientset, generator, k8sScaleOperation)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.Operation.Name)
 	}
@@ -286,6 +290,30 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 			return err
 		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
+	case k8sScaleOperation:
+		expectedInstances, err := tasks.GetTaskInput(e.kv, e.taskID, "EXPECTED_INSTANCES")
+		if err != nil {
+			return err
+		}
+		r, err := strconv.ParseInt(expectedInstances, 10, 32)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse EXPECTED_INSTANCES: %q parameter as integer", expectedInstances)
+		}
+		replicas := int32(r)
+		deploymentRepr.Spec.Replicas = &replicas
+
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Update(&deploymentRepr)
+		if err != nil {
+			return errors.Wrap(err, "failed to update kubernetes deployment for scaling")
+		}
+		streamDeploymentLogs(ctx, e.deploymentID, clientset, deployment)
+
+		err = waitForDeploymentCompletion(ctx, e.deploymentID, clientset, deployment)
+		if err != nil {
+			return err
+		}
+
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s scaled to %s instances in namespace %s", deployment.Name, expectedInstances, namespace)
 
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
