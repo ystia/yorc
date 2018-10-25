@@ -33,6 +33,8 @@ import (
 	"github.com/ystia/yorc/prov/terraform/commons"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
+	"io/ioutil"
+	"path"
 )
 
 type defaultExecutor struct {
@@ -179,6 +181,17 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	if len(outputs) == 0 {
 		return nil
 	}
+
+	// Filter and handle file output
+	filteredOutputs, err := e.handleFileOutputs(ctx, kv, infraPath, outputs)
+	if err != nil {
+		return err
+	}
+
+	if len(filteredOutputs) == 0 {
+		return nil
+	}
+
 	type tfJSONOutput struct {
 		Sensitive bool   `json:"sensitive,omitempty"`
 		Type      string `json:"type,omitempty"`
@@ -197,7 +210,7 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
 	}
-	for outPath, outName := range outputs {
+	for outPath, outName := range filteredOutputs {
 		output, ok := outputsList[outName]
 		if !ok {
 			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
@@ -209,6 +222,30 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	}
 
 	return nil
+}
+
+// File outputs are outputs that terraform can't resolve and which need to be retrieved in local files
+func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, infraPath string, outputs map[string]string) (map[string]string, error) {
+	filteredOutputs := make(map[string]string, 0)
+	for k, v := range outputs {
+		if strings.HasPrefix(v, commons.FileOutputPrefix) {
+			file := strings.TrimPrefix(v, commons.FileOutputPrefix)
+			log.Debugf("Handle file output:%q", file)
+			content, err := ioutil.ReadFile(path.Join(infraPath, file))
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to retrieve file output from file:%q", file)
+			}
+			contentStr := strings.Trim(string(content), "\r\n")
+			// Store keyValue in Consul
+			_, err = kv.Put(&api.KVPair{Key: k, Value: []byte(contentStr)}, nil)
+			if err != nil {
+				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+		} else {
+			filteredOutputs[k] = v
+		}
+	}
+	return filteredOutputs, nil
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, outputs map[string]string, env []string) error {

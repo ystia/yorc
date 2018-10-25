@@ -30,6 +30,7 @@ type ComputeInstance struct {
 	// ServiceAccounts is an array of at most one element
 	ServiceAccounts []ServiceAccount `json:"service_account,omitempty"`
 	Tags            []string         `json:"tags,omitempty"`
+	ScratchDisks    []ScratchDisk    `json:"scratch_disk,omitempty"`
 }
 
 // BootDisk represents the required boot disk for compute instance
@@ -83,4 +84,41 @@ type ComputeAddress struct {
 	SubNetwork  string            `json:"subnetwork,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Project     string            `json:"project,omitempty"`
+}
+
+// EncryptionKey represents a Google encryption key
+type EncryptionKey struct {
+	Raw    string `json:"raw_key,omitempty"`
+	SHA256 string `json:"sha256,omitempty"`
+}
+
+// ScratchDisk represents an additional Compute instance local scratch disk
+type ScratchDisk struct {
+	Interface string `json:"interface,omitempty"`
+}
+
+// PersistentDisk represents a Google persistent disk
+// See https://www.terraform.io/docs/providers/google/r/compute_disk.html
+type PersistentDisk struct {
+	Name                        string            `json:"name"`
+	Size                        int               `json:"size,omitempty"`
+	Description                 string            `json:"description,omitempty"`
+	Type                        string            `json:"type,omitempty"`
+	Labels                      map[string]string `json:"labels,omitempty"`
+	Zone                        string            `json:"zone,omitempty"`
+	DiskEncryptionKey           *EncryptionKey    `json:"disk_encryption_key,omitempty"`
+	SourceSnapshot              string            `json:"snapshot,omitempty"`
+	SourceSnapshotEncryptionKey *EncryptionKey    `json:"source_snapshot_encryption_key,omitempty"`
+	SourceImage                 string            `json:"image,omitempty"`
+	SourceImageEncryptionKey    *EncryptionKey    `json:"source_image_encryption_key,omitempty"`
+}
+
+// ComputeAttachedDisk represents compute instance's attached disk
+// See https://www.terraform.io/docs/providers/google/r/compute_attached_disk.html
+type ComputeAttachedDisk struct {
+	Instance   string `json:"instance"`
+	Disk       string `json:"disk"`
+	DeviceName string `json:"device_name,omitempty"`
+	Mode       string `json:"mode,omitempty"`
+	Zone       string `json:"zone,omitempty"`
 }

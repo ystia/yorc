@@ -15,14 +15,11 @@
 package openstack
 
 import (
-	"strconv"
-
-	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/mathutil"
+	"github.com/ystia/yorc/helper/sizeutil"
 	"github.com/ystia/yorc/log"
 )
 
@@ -50,28 +47,11 @@ func (g *osGenerator) generateOSBSVolume(kv *api.KV, cfg config.Configuration, u
 	}
 	// Default size unit is MB
 	log.Debugf("Size form consul is %q", size)
-	mSize, err := strconv.Atoi(size)
+	volume.Size, err = sizeutil.ConvertToGB(size)
 	if err != nil {
-		var bsize uint64
-		bsize, err = humanize.ParseBytes(size)
-		if err != nil {
-			return volume, errors.Errorf("Can't convert size to bytes value: %v", err)
-		}
-		// OpenStack needs the size in GB so we round it up.
-		gSize := float64(bsize) / humanize.GByte
-		log.Debugf("Computed size in GB: %f", gSize)
-		gSize = mathutil.Round(gSize, 0, 0)
-		log.Debugf("Computed size rounded in GB: %d", int(gSize))
-		volume.Size = int(gSize)
-	} else {
-		log.Debugf("Size in MB: %d", mSize)
-		// OpenStack needs the size in GB so we round it up.
-		gSize := float64(mSize) / 1000
-		log.Debugf("Computed size in GB: %f", gSize)
-		gSize = mathutil.Round(gSize, 0, 0)
-		log.Debugf("Computed size rounded in GB: %d", int(gSize))
-		volume.Size = int(gSize)
+		return volume, err
 	}
+	log.Debugf("Computed size rounded in GB: %d", volume.Size)
 
 	region, err := g.getStringFormConsul(kv, url, "properties/region")
 	if err != nil {
