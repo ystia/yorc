@@ -1,0 +1,51 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: PersistentDiskTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    Compute:
+      metadata:
+      type: yorc.nodes.google.Compute
+      properties:
+        image_project: "centos-cloud"
+        image_family: "centos-7"
+        machine_type: "n1-standard-1"
+        zone: "europe-west1-b"
+      requirements:
+        - local_storage:
+            node: BS1
+            capability: tosca.capabilities.Attachment
+            relationship:
+              type: tosca.relationships.AttachesTo
+              properties:
+                mode: "READ_ONLY"
+      capabilities:
+        endpoint:
+          properties:
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+            credentials: {user: centos}
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    BS1:
+      metadata:
+      type: yorc.nodes.google.PersistentDisk
+      properties:
+        zone: "europe-west1-b"
+        size: "12 GB"

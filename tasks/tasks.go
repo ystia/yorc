@@ -216,32 +216,34 @@ func DeleteTask(kv *api.KV, taskID string) error {
 }
 
 // TargetHasLivingTasks checks if a targetID has associated tasks in status INITIAL or RUNNING and returns the id and status of the first one found
+//
+// Only Deploy, UnDeploy, ScaleOut, ScaleIn and Purge task type are considered.
 func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
 	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
 	if err != nil {
 		return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	for _, taskKey := range tasksKeys {
-		kvp, _, err := kv.Get(path.Join(taskKey, "targetId"), nil)
+		taskID := path.Base(taskKey)
+		ttID, err := GetTaskTarget(kv, taskID)
 		if err != nil {
-			return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			return false, "", "", err
 		}
-		if kvp != nil && len(kvp.Value) > 0 && string(kvp.Value) == targetID {
-			kvp, _, err := kv.Get(path.Join(taskKey, "status"), nil)
-			taskID := path.Base(taskKey)
+		if ttID == targetID {
+			tStatus, err := GetTaskStatus(kv, taskID)
 			if err != nil {
-				return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+				return false, "", "", err
 			}
-			if kvp == nil || len(kvp.Value) == 0 {
-				return false, "", "", errors.Errorf("Missing status for task with id %q", taskID)
-			}
-			statusInt, err := strconv.Atoi(string(kvp.Value))
+			tType, err := GetTaskType(kv, taskID)
 			if err != nil {
-				return false, "", "", errors.Wrap(err, "Invalid task status")
+				return false, "", "", err
 			}
-			switch TaskStatus(statusInt) {
-			case TaskStatusINITIAL, TaskStatusRUNNING:
-				return true, taskID, TaskStatus(statusInt).String(), nil
+
+			switch tType {
+			case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut:
+				if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
+					return true, taskID, tStatus.String(), nil
+				}
 			}
 		}
 	}

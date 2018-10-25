@@ -1,0 +1,35 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: PersistentDiskTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    PersistentDisk:
+      type: yorc.nodes.google.PersistentDisk
+      properties:
+        zone: "europe-west1-b"
+        size: "12 GB"
+        type: "pd-ssd"
+        description: "my description for persistent disk"
+        snapshot_id: "projects/project/global/snapshots/snapshot"
+        size: "32 GB"
+        labels: "key1=value1, key2=value2"
+        disk_encryption_key:
+          raw_key: 1234
+          sha256: 5678
+      requirements:
+        - attachToComputeAttach:
+            type_requirement: attachment
+            node: Comp
+            capability: tosca.capabilities.Attachment
+            relationship: tosca.relationships.AttachTo
