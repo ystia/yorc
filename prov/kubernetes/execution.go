@@ -252,7 +252,10 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 		if err != nil {
 			return err
 		}
-
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "replicas", fmt.Sprint(*deployment.Spec.Replicas))
+		if err != nil {
+			return err
+		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s created in namespace %s", deployment.Name, namespace)
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
@@ -312,9 +315,11 @@ func (e *executionCommon) manageDeploymentResource(ctx context.Context, clientse
 		if err != nil {
 			return err
 		}
-
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "replicas", fmt.Sprint(*deployment.Spec.Replicas))
+		if err != nil {
+			return err
+		}
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s scaled to %s instances in namespace %s", deployment.Name, expectedInstances, namespace)
-
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}

@@ -20,6 +20,11 @@ artifact_types:
 node_types:
   yorc.nodes.kubernetes.api.types.DeploymentResource:
     derived_from: org.alien4cloud.kubernetes.api.types.DeploymentResource
+    attributes:
+      replicas:
+        type: integer
+        description: >
+          Current number of replicas for this deployment
     interfaces:
       org.alien4cloud.management.ClusterControl:
         scale:
