@@ -37,15 +37,15 @@ type Generator interface {
 	// GenerateTerraformInfraForNode can also return a map of outputs names indexed by consul keys into which the outputs results should be stored.
 	// And a list of environment variables in form "key=value" to be added to the current process environment when running terraform commands.
 	// This is particularly useful for adding secrets that should not be in tf files.
-	GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName string) (bool, map[string]string, []string, error)
+	GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, error)
 }
 
 // PreDestroyInfraCallback is a function that is call before destroying an infrastructure. If it returns false the node will not be destroyed.
-type PreDestroyInfraCallback func(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (bool, error)
+type PreDestroyInfraCallback func(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error)
 
 // PreDestroyStorageInfraCallback is a callback of type PreDestroyInfraCallback
 // checking if a block storage node is deletable on undeployment.
-func PreDestroyStorageInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string) (bool, error) {
+func PreDestroyStorageInfraCallback(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, error) {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return false, err
