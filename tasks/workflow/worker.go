@@ -342,6 +342,12 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
+	interfaceNameKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.taskID, "interfaceName"), nil)
+	if err != nil {
+		log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command name: %+v", t.targetID, t.taskID, err)
+		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
+		return
+	}
 	nodes, err := tasks.GetTaskRelatedNodes(kv, t.taskID)
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to get Custom command node: %+v", t.targetID, t.taskID, err)
@@ -354,6 +360,10 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 		return
 	}
 	nodeName := nodes[0]
+	interfaceName := "custom"
+	if interfaceNameKv != nil && len(interfaceNameKv.Value) != 0 {
+		interfaceName = string(interfaceNameKv.Value)
+	}
 	commandName := string(commandNameKv.Value)
 	nodeType, err := deployments.GetNodeType(w.consulClient.KV(), t.targetID, nodeName)
 	if err != nil {
@@ -361,7 +371,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) {
 		t.checkAndSetTaskStatus(ctx, tasks.TaskStatusFAILED)
 		return
 	}
-	op, err := operations.GetOperation(ctx, kv, t.targetID, nodeName, "custom."+commandName, "", "")
+	op, err := operations.GetOperation(ctx, kv, t.targetID, nodeName, interfaceName+"."+commandName, "", "")
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Command TaskExecution failed for node %q: %+v", t.targetID, t.taskID, nodeName, err)
 		err = setNodeStatus(ctx, t.kv, t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())

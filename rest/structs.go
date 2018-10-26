@@ -168,6 +168,7 @@ type Attribute struct {
 type CustomCommandRequest struct {
 	NodeName          string                            `json:"node"`
 	CustomCommandName string                            `json:"name"`
+	InterfaceName     string                            `json:"interface,omitempty"`
 	Inputs            map[string]*tosca.ValueAssignment `json:"inputs"`
 }
 

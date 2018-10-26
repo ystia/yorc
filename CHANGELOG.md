@@ -9,6 +9,7 @@
 ### ENHANCEMENTS
 
 * Concurrent workflows and custom commands executions are now allowed except when a deployment/undeployment/scaling operation is in progress ([GH-182](https://github.com/ystia/yorc/issues/182))
+* Enable scaling of Kubernetes deployments ([GH-77](https://github.com/ystia/yorc/issues/77))
 
 ## 3.1.0-M4 (October 08, 2018)
 

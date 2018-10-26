@@ -93,6 +93,7 @@ func (t *taskExecution) setTaskStatus(ctx context.Context, status tasks.TaskStat
 		log.Debugf("[WARNING] Failed to set task status to:%q for taskID:%q as last index has been changed before. Retry it", status.String(), t.taskID)
 		return t.checkAndSetTaskStatus(ctx, status)
 	}
+	tasks.EmitTaskEventWithContextualLogs(ctx, t.kv, t.targetID, t.taskID, t.taskType, status.String())
 	if status == tasks.TaskStatusFAILED {
 		return t.addTaskErrorFlag(ctx)
 	}
