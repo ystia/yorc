@@ -15,6 +15,8 @@
 package bootstrap
 
 import (
+	"time"
+
 	"github.com/ystia/yorc/commands/httputil"
 
 	"github.com/ystia/yorc/commands/deployments"
@@ -22,22 +24,34 @@ import (
 	"github.com/ystia/yorc/helper/ziputil"
 )
 
-// deployTopology deploys a topology provided under deploymentPath
-func deployTopology(deploymentPath string) error {
+// deployTopology deploys a topology provided under deploymentPath.
+// Return the the ID of the deployment
+func deployTopology(deploymentPath string) (string, error) {
 
 	csarZip, err := ziputil.ZipPath(deploymentPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	deploymentID := "bootstrap"
+	client, err := httputil.GetClient(clientConfig)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = deployments.SubmitCSAR(csarZip, client, deploymentID)
+	if err != nil {
+		return "", err
+	}
+	return deploymentID, err
+}
+
+// followDeployment prints and updates the deployment status until its end
+func followDeployment(deploymentID string) error {
 	client, err := httputil.GetClient(clientConfig)
 	if err != nil {
 		return err
 	}
 
-	_, err = deployments.SubmitCSAR(csarZip, client, deploymentID)
-	if err != nil {
-		return err
-	}
+	err = deployments.DisplayInfo(client, deploymentID, false, true, 3*time.Second)
 	return err
 }

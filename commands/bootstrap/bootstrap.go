@@ -90,11 +90,16 @@ func bootstrap() error {
 	}
 
 	// A local Yorc server is running, using it to deploythe topology
-	errDeploy := deployTopology(topologyPath)
+	deploymentID, errDeploy := deployTopology(topologyPath)
 
-	//	err := tearDownYorcServer(workingDirectoryPath)
 	if errDeploy != nil {
 		return errDeploy
 	}
+
+	if err := followDeployment(deploymentID); err != nil {
+		return err
+	}
+
+	//	err = tearDownYorcServer(workingDirectoryPath)
 	return nil
 }

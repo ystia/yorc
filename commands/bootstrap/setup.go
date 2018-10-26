@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/ystia/yorc/commands"
+	"github.com/ystia/yorc/commands/httputil"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/log"
 	"io"
@@ -103,12 +104,50 @@ func setupYorcServer(workingDirectoryPath string) error {
 	log.SetOutput(yorcServerOutputFile)
 
 	yorcServerShutdownChan = make(chan struct{})
-	err = commands.RunServer(yorcServerShutdownChan)
-	if err != nil {
+	go func() {
+		err = commands.RunServer(yorcServerShutdownChan)
+		if err != nil {
+			fmt.Println("Error starting Yorc server", err)
+		}
 		yorcServerOutputFile.Close()
-	}
+	}()
+
+	err = waitForYorcServerUP(5 * time.Second)
+
 	return err
 
+}
+
+func waitForYorcServerUP(timeout time.Duration) error {
+
+	nbAttempts := timeout / time.Second
+
+	client, err := httputil.GetClient(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	request, err := client.NewRequest("GET", "/deployments", nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Accept", "application/json")
+
+	for {
+		response, err := client.Do(request)
+		if err == nil {
+			defer response.Body.Close()
+			return nil
+		}
+
+		nbAttempts--
+		if nbAttempts < 0 {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("Timeout waiting %s seconds for Yorc Server to be up", nbAttempts)
 }
 
 // tearDownYorcServer tears down a Yorc server
