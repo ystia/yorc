@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 3.0.2 (October 26, 2018)
 
 ### BUG FIXES
 
