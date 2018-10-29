@@ -16,9 +16,11 @@ package bootstrap
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -41,6 +43,17 @@ type YorcConfiguration struct {
 	Port        int
 }
 
+// YorcPluginConfiguration provides Yorc plugin user-defined settings
+type YorcPluginConfiguration struct {
+	DownloadURL string `yaml:"download_url"`
+}
+
+// Alien4CloudConfiguration provides Alien4Cloud user-defined settings
+type Alien4CloudConfiguration struct {
+	DownloadURL string `yaml:"download_url"`
+	Port        int
+}
+
 // ConsulConfiguration provides Consul user-defined settings
 type ConsulConfiguration struct {
 	DownloadURL string `yaml:"download_url"`
@@ -56,7 +69,9 @@ type TerraformConfiguration struct {
 // TopologyValues provides inputs to the topology templates
 type TopologyValues struct {
 	Ansible        AnsibleConfiguration
+	Alien4cloud    Alien4CloudConfiguration
 	Yorc           YorcConfiguration
+	YorcPlugin     YorcPluginConfiguration
 	Consul         ConsulConfiguration
 	Terraform      TerraformConfiguration
 	Infrastructure config.DynamicMap
@@ -85,22 +100,25 @@ func formatAsYAML(data interface{}, indentations int) (string, error) {
 	return result, err
 }
 
-/*
-func initMissingValues(values *TopologyValues) error {
+// getAlien4CloudVersion extracts an Alien4cloud version form its download URL
+func getAlien4CloudVersion(url string) (string, error) {
+	match := regexp.MustCompile(`-dist-([0-9a-zA-Z.-]+)-dist.tar.gz`).FindStringSubmatch(url)
+	version := ""
 	var err error
-
-	switch values.Infrastructure.Type {
-	case "openstack":
-		values.Address.Type = "yorc.nodes.openstack.FloatingIP"
-	case "google":
-		values.Address.Type = "yorc.nodes.google.Address"
-	default:
-		err = fmt.Errorf("Unknown infrastructure type %s", values.Infrastructure.Type)
+	if match != nil {
+		version = match[1]
+	} else {
+		err = fmt.Errorf("Failed to retrieve Alien4Cloud version from URL %s", url)
 	}
 
-	return err
+	return version, err
 }
-*/
+
+// getFile returns the file par of a URL
+func getFile(url string) string {
+	_, file := filepath.Split(url)
+	return file
+}
 
 // createTopology creates under destinationPath, a topology from a zip file at topologyPath
 // by executing its template files using inputs passed in inputsPath file
@@ -146,7 +164,9 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
-		"formatAsYAML": formatAsYAML,
+		"formatAsYAML":          formatAsYAML,
+		"getFile":               getFile,
+		"getAlien4CloudVersion": getAlien4CloudVersion,
 	}
 
 	tmpl := template.Must(template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...))

@@ -28,6 +28,13 @@ import (
 // Return the the ID of the deployment
 func deployTopology(deploymentPath string) (string, error) {
 
+	// Download Alien4Cloud whose zip is expected to be provided in the
+	// deployment
+	url := inputValues.Alien4cloud.DownloadURL
+	if _, err := download(url, deploymentPath); err != nil {
+		return "", err
+	}
+
 	csarZip, err := ziputil.ZipPath(deploymentPath)
 	if err != nil {
 		return "", err
@@ -53,5 +60,6 @@ func followDeployment(deploymentID string) error {
 	}
 
 	err = deployments.DisplayInfo(client, deploymentID, false, true, 3*time.Second)
+
 	return err
 }

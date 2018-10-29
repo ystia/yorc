@@ -18,10 +18,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/ystia/yorc/commands"
-	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/log"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -31,6 +27,10 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/log"
 
 	"github.com/blang/semver"
 	"github.com/spf13/viper"
@@ -74,7 +74,9 @@ func setupYorcServer(workingDirectoryPath string) error {
 	inputInfra[strings.ToLower(infrastructureType)] = inputValues.Infrastructure
 	serverConfig := config.Configuration{
 		WorkingDirectory: workingDirectoryPath,
+		ResourcesPrefix:  "bootstrap",
 		Infrastructures:  inputInfra,
+		Ansible:          config.Ansible{KeepGeneratedRecipes: true},
 	}
 
 	bSlice, err := yaml.Marshal(serverConfig)
@@ -103,14 +105,19 @@ func setupYorcServer(workingDirectoryPath string) error {
 
 	log.SetOutput(yorcServerOutputFile)
 
-	yorcServerShutdownChan = make(chan struct{})
-	go func() {
-		err = commands.RunServer(yorcServerShutdownChan)
-		if err != nil {
-			fmt.Println("Error starting Yorc server", err)
-		}
-		yorcServerOutputFile.Close()
-	}()
+	// Get current executable path
+	yorcExecutablePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+
+	cmdArgs := "server --config " + cfgFileName
+	cmd := exec.Command(yorcExecutablePath, strings.Split(cmdArgs, " ")...)
+	cmd.Stdout = yorcServerOutputFile
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
 
 	err = waitForYorcServerUP(5 * time.Second)
 
@@ -252,8 +259,20 @@ func getFilePath(url, destinationPath string) string {
 	return filepath.Join(destinationPath, file)
 }
 
-// download donwloads and unzips a URL to a given destination
+// downloadUnzip donwloads and unzips a URL to a given destination
 func downloadUnzip(url, destinationPath string) error {
+	filePath, err := download(url, destinationPath)
+	if err != nil {
+		return err
+	}
+	// File downloaded, unzipping it
+	_, err = ziputil.Unzip(filePath, destinationPath)
+	return err
+}
+
+// download donwloads and optionally unzips a URL to a given destination
+// returns the path to destination file
+func download(url, destinationPath string) (string, error) {
 
 	filePath := getFilePath(url, destinationPath)
 
@@ -263,27 +282,25 @@ func downloadUnzip(url, destinationPath string) error {
 		// The file was not downloaded yet
 		outputFile, err := os.Create(filePath)
 		if err != nil {
-			return err
+			return "", err
 		}
 		defer outputFile.Close()
 
 		response, err := http.Get(url)
 		if err != nil {
 			outputFile.Close()
-			return err
+			return filePath, err
 		}
 		defer response.Body.Close()
 
 		_, err = io.Copy(outputFile, response.Body)
 		outputFile.Close()
 		if err != nil {
-			return err
+			return filePath, err
 		}
 	}
 
-	// File downloaded, unzipping it
-	_, err := ziputil.Unzip(filePath, destinationPath)
-	return err
+	return filePath, nil
 }
 
 // installAnsible installs the Ansible version in argument, using pip3 if available

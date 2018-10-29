@@ -62,6 +62,7 @@ func init() {
 		"topology", "t", "", "Path to topology zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
+
 }
 
 var clientConfig config.Client
