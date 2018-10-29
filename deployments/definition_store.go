@@ -1091,9 +1091,11 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 			if err != nil {
 				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
 			}
+
+			req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
+
 			if device != nil {
 				va := &tosca.ValueAssignment{}
-				req.RelationshipProps = make(map[string]*tosca.ValueAssignment)
 				if device.RawString() != "" {
 					err = yaml.Unmarshal([]byte(device.RawString()), &va)
 					if err != nil {
@@ -1103,6 +1105,19 @@ func fixAlienBlockStorages(ctx context.Context, kv *api.KV, deploymentID, nodeNa
 				req.RelationshipProps["device"] = va
 			}
 
+			// Get all requirement properties
+			kvps, _, err := kv.List(path.Join(attachReq, "properties"), nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+			}
+			for _, kvp := range kvps {
+				va := &tosca.ValueAssignment{}
+				err := yaml.Unmarshal(kvp.Value, va)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to fix Alien-specific BlockStorage %q", nodeName)
+				}
+				req.RelationshipProps[path.Base(kvp.Key)] = va
+			}
 			newReqID, err := GetNbRequirementsForNode(kv, deploymentID, computeNodeName)
 			if err != nil {
 				return err
@@ -1179,7 +1194,7 @@ func createMissingBlockStorageForNode(consulStore consulutil.ConsulStore, kv *ap
 }
 
 /**
-This function check if a nodes need a floating IP, and return the name of Floating IP node.
+This function check if a nodes need a block storage, and return the name of BlockStorage node.
 */
 func checkBlockStorage(kv *api.KV, deploymentID, nodeName string) (bool, []string, error) {
 	requirementsKey, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")

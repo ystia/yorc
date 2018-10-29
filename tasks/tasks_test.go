@@ -81,7 +81,8 @@ func populateKV(t *testing.T, srv *testutil.TestServer) {
 		consulutil.TasksPrefix + "/t13/type":      []byte("5"),
 		consulutil.TasksPrefix + "/t13/status":    []byte("3"),
 		consulutil.TasksPrefix + "/t14/status":    []byte("3"),
-		consulutil.TasksPrefix + "/t14/type":      []byte("5"),
+		consulutil.TasksPrefix + "/t14/type":      []byte("6"),
+		consulutil.TasksPrefix + "/t14/targetId":  []byte("id"),
 
 		consulutil.TasksPrefix + "/t15/targetId": []byte("xxx"),
 		consulutil.TasksPrefix + "/t15/status":   []byte("2"),

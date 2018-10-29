@@ -96,5 +96,8 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("TestOperationHost", func(t *testing.T) {
 			testOperationHost(t, kv)
 		})
+		t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
+			testIssueGetEmptyPropOnRelationship(t, kv)
+		})
 	})
 }

@@ -81,6 +81,10 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	require.True(t, ok)
 	assert.Equal(t, "centos", rex.Connection.User)
 	assert.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
+
+	require.Len(t, compute.ScratchDisks, 2, "Expected 2 scratch disks")
+	assert.Equal(t, "SCSI", compute.ScratchDisks[0].Interface, "SCSI interface expected for 1st scratch")
+	assert.Equal(t, "NVME", compute.ScratchDisks[1].Interface, "NVME interface expected for 2nd scratch")
 }
 
 func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, kv *api.KV, cfg config.Configuration) {
@@ -123,4 +127,57 @@ func testSimpleComputeInstanceWithAddress(t *testing.T, kv *api.KV, srv1 *testut
 
 	require.Len(t, compute.NetworkInterfaces, 1, "Expected one network interface for external access")
 	assert.Equal(t, "1.2.3.4", compute.NetworkInterfaces[0].AccessConfigs[0].NatIP, "Unexpected external IP address")
+}
+
+func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	// Simulate the google persistent disk "volume_id" attribute registration
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/nodes/BS1/type"):                       []byte("yorc.nodes.google.PersistentDisk"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/BS1/0/attributes/volume_id"): []byte("my_vol_id"),
+	})
+
+	infrastructure := commons.Infrastructure{}
+	g := googleGenerator{}
+	outputs := make(map[string]string, 0)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs)
+	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
+
+	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
+	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "compute-0")
+
+	compute, ok := instancesMap["compute-0"].(*ComputeInstance)
+	require.True(t, ok, "compute-0 is not a ComputeInstance")
+	assert.Equal(t, "n1-standard-1", compute.MachineType)
+	assert.Equal(t, "europe-west1-b", compute.Zone)
+	require.NotNil(t, compute.BootDisk, 1, "Expected boot disk")
+	assert.Equal(t, "centos-cloud/centos-7", compute.BootDisk.InitializeParams.Image, "Unexpected boot disk image")
+
+	require.Len(t, infrastructure.Resource["google_compute_attached_disk"], 1, "Expected one attached disk")
+	instancesMap = infrastructure.Resource["google_compute_attached_disk"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+
+	require.Contains(t, instancesMap, "google-bs1-0-to-compute-0")
+	attachedDisk, ok := instancesMap["google-bs1-0-to-compute-0"].(*ComputeAttachedDisk)
+	require.True(t, ok, "google-bs1-0-to-compute-0 is not a ComputeAttachedDisk")
+	assert.Equal(t, "my_vol_id", attachedDisk.Disk)
+	assert.Equal(t, "${google_compute_instance.compute-0.name}", attachedDisk.Instance)
+	assert.Equal(t, "europe-west1-b", attachedDisk.Zone)
+	assert.Equal(t, "bs1-0-to-compute-0", attachedDisk.DeviceName)
+	assert.Equal(t, "READ_ONLY", attachedDisk.Mode)
+
+	require.Contains(t, infrastructure.Resource, "null_resource")
+	require.Len(t, infrastructure.Resource["null_resource"], 4)
+
+	require.Len(t, outputs, 3, "three outputs are expected")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device"), "expected instances attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device"), "expected relationship attribute output for Compute")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device"), "expected relationship attribute output for Block storage")
+	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device")], "output file value expected")
+	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device")], "output file value expected")
+	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device")], "output file value expected")
 }

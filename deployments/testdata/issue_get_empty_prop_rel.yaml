@@ -166,6 +166,11 @@ node_types:
 relationship_types:
   yorc.tests.relationships.ValueAssignmentConnectsTo:
     derived_from: tosca.relationships.ConnectsTo
+    properties:
+      empty_prop:
+        type: string
+        required: false
+        default: ""
     interfaces:
       Configure:
         pre_configure_source:
@@ -174,6 +179,9 @@ relationship_types:
             input_list: ["l1", "l2"]
             input_list_ex:
               - "le1"
+
+
+
               - "le2"
             input_map: {"key1": "value1", "key2": "value2"}
             input_map_ex:
@@ -188,6 +196,7 @@ relationship_types:
             input_propList_all: { get_property: [SOURCE, list] }
             input_propList_0_alien: { get_property: [SOURCE, "list[0]"] }
             input_propList_0_tosca: { get_property: [SOURCE, list, 0] }
+            input_empty_prop: { get_property: [SELF, empty_prop] }
           implementation: scripts/show_inputs.sh
         post_configure_source:
           inputs:

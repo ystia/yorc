@@ -15,18 +15,19 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path"
-	"strconv"
+
+	"github.com/ystia/yorc/prov/operations"
 
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tasks"
 )
@@ -51,12 +52,13 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 		log.Panic(err)
 	}
 
-	var inputMap CustomCommandRequest
-	if err = json.Unmarshal(body, &inputMap); err != nil {
+	var ccRequest CustomCommandRequest
+	if err = json.Unmarshal(body, &ccRequest); err != nil {
 		log.Panic(err)
 	}
+	ccRequest.InterfaceName = strings.ToLower(ccRequest.InterfaceName)
 
-	inputsName, err := s.getInputNameFromCustom(id, inputMap.NodeName, inputMap.CustomCommandName)
+	inputsName, err := s.getInputNameFromCustom(id, ccRequest.NodeName, ccRequest.InterfaceName, ccRequest.CustomCommandName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -64,15 +66,16 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	data := make(map[string]string)
 
 	// For now custom commands are for all instances
-	instances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), id, inputMap.NodeName)
-	data[path.Join("nodes", inputMap.NodeName)] = strings.Join(instances, ",")
-	data["commandName"] = inputMap.CustomCommandName
+	instances, err := deployments.GetNodeInstancesIds(s.consulClient.KV(), id, ccRequest.NodeName)
+	data[path.Join("nodes", ccRequest.NodeName)] = strings.Join(instances, ",")
+	data["commandName"] = ccRequest.CustomCommandName
+	data["interfaceName"] = ccRequest.InterfaceName
 
 	for _, name := range inputsName {
 		if err != nil {
 			log.Panic(err)
 		}
-		data[path.Join("inputs", name)] = inputMap.Inputs[name].String()
+		data[path.Join("inputs", name)] = ccRequest.Inputs[name].String()
 	}
 
 	taskID, err := s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeCustomCommand, data)
@@ -88,41 +91,26 @@ func (s *Server) newCustomCommandHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *Server) getInputNameFromCustom(deploymentID, nodeName, customCName string) ([]string, error) {
-	nodeType, err := deployments.GetNodeType(s.consulClient.KV(), deploymentID, nodeName)
-
+func (s *Server) getInputNameFromCustom(deploymentID, nodeName, interfaceName, customCName string) ([]string, error) {
+	kv := s.consulClient.KV()
+	op, err := operations.GetOperation(context.Background(), kv, deploymentID, nodeName, interfaceName+"."+customCName, "", "")
 	if err != nil {
 		return nil, err
 	}
-
-	kv := s.consulClient.KV()
-	kvp, _, err := kv.Keys(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/types", nodeType, "interfaces/custom", customCName, "inputs")+"/", "/", nil)
+	inputs, err := deployments.GetOperationInputs(kv, deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	var result []string
-
-	for _, key := range kvp {
-		res, _, err := kv.Get(path.Join(key, "is_property_definition"), nil)
-
+	result := inputs[:0]
+	for _, inputName := range inputs {
+		isPropDef, err := deployments.IsOperationInputAPropertyDefinition(kv, deploymentID, op.ImplementedInNodeTemplate, op.ImplementedInType, op.Name, inputName)
 		if err != nil {
 			return nil, err
 		}
-
-		if res == nil {
-			continue
-		}
-
-		isPropDef, err := strconv.ParseBool(string(res.Value))
-		if err != nil {
-			return nil, err
-		}
-
 		if isPropDef {
-			result = append(result, path.Base(key))
+			result = append(result, inputName)
 		}
 	}
-
 	return result, nil
 }

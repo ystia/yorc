@@ -115,6 +115,7 @@ type Ansible struct {
 	ConnectionRetries       int              `mapstructure:"connection_retries"`
 	OperationRemoteBaseDir  string           `mapstructure:"operation_remote_base_dir"`
 	KeepOperationRemotePath bool             `mapstructure:"keep_operation_remote_path"`
+	KeepGeneratedRecipes    bool             `mapstructure:"keep_generated_recipes"`
 	ArchiveArtifacts        bool             `mapstructure:"archive_artifacts"`
 	CacheFacts              bool             `mapstructure:"cache_facts"`
 	HostedOperations        HostedOperations `mapstructure:"hosted_operations"`
@@ -151,6 +152,7 @@ type Terraform struct {
 	AWSPluginVersionConstraint       string `mapstructure:"aws_plugin_version_constraint"`
 	GooglePluginVersionConstraint    string `mapstructure:"google_plugin_version_constraint"`
 	OpenStackPluginVersionConstraint string `mapstructure:"openstack_plugin_version_constraint"`
+	KeepGeneratedFiles               bool   `mapstructure:"keep_generated_files"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.
