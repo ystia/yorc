@@ -67,7 +67,7 @@ data_types:
         type: string
         description: >
           The Region in which this subnet should reside.
-        required: false
+        required: true
       enable_flow_logs:
         type: boolean
         description: Whether to enable flow logging for this subnetwork.
@@ -76,7 +76,7 @@ data_types:
         type: boolean
         description: Whether the VMs in this subnet can access Google services without assigned external IP addresses.
         required: false
-      secondary_ip_range:
+      secondary_ip_ranges:
         type: list
         description: >
           A list of configurations for secondary IP ranges for VM instances contained in this sub-network.

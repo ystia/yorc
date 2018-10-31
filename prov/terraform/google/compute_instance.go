@@ -131,6 +131,15 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 	instance.NetworkInterfaces = []NetworkInterface{networkInterface}
 
+	// Define if a private network access is required
+	reqPrivateNetwork, networkNodeName, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "network", "yorc.nodes.google.PrivateNetwork")
+	if err != nil {
+		return err
+	}
+	if reqPrivateNetwork {
+		addPrivateNetworkInterface(ctx, cfg, kv, &instance, deploymentID, nodeName, instanceName, networkNodeName)
+	}
+
 	// Scheduling definition
 	var preemptible bool
 	if preemptible, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, "preemptible"); err != nil {
@@ -420,4 +429,41 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 		devices = append(devices, device)
 	}
 	return devices, nil
+}
+
+func addPrivateNetworkInterface(ctx context.Context, cfg config.Configuration, kv *api.KV, instance *ComputeInstance, deploymentID, nodeName, instanceName, networkNodeName string) error {
+	// Create network interface for each sub-network present in the compute region
+	region, err := extractRegionFromZone(instance.Zone)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+	}
+	subnets, err := getSubnetsByRegion(ctx, kv, cfg, deploymentID, networkNodeName, region)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+	}
+	if len(subnets) == 0 {
+		// If no subnet has been found, create network interface for network
+		network, err := attributeLookup(ctx, kv, deploymentID, instanceName, networkNodeName, "network_name")
+		if err != nil {
+			return err
+		}
+		privateNetInterface := NetworkInterface{Network: network}
+		instance.NetworkInterfaces = append(instance.NetworkInterfaces, privateNetInterface)
+	} else {
+		for _, subnet := range subnets {
+			instance.NetworkInterfaces = append(instance.NetworkInterfaces, NetworkInterface{Subnetwork: subnet})
+		}
+	}
+	return nil
+}
+
+func extractRegionFromZone(zone string) (string, error) {
+	if zone == "" {
+		return "", errors.Errorf("failed to extract region from zone:%q", zone)
+	}
+	tabs := strings.Split(zone, "-")
+	if len(tabs) != 3 {
+		return "", errors.Errorf("failed to extract region from zone:%q", zone)
+	}
+	return fmt.Sprintf("%s-%s", tabs[0], tabs[1]), nil
 }
