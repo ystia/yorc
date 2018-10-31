@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,6 +73,8 @@ var workingDirectoryPath string
 var inputsPath string
 
 func bootstrap() error {
+
+	infrastructureType = strings.ToLower(infrastructureType)
 
 	// The topology will be created in a directory under the working
 	// directory

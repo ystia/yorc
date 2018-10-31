@@ -66,6 +66,13 @@ type TerraformConfiguration struct {
 	PluginURLs []string `yaml:"plugins_download_urls"`
 }
 
+// LocationConfiguration provides an Alien4Cloud plugin location configuration
+type LocationConfiguration struct {
+	Type          string
+	Name          string
+	ResourcesFile string
+}
+
 // TopologyValues provides inputs to the topology templates
 type TopologyValues struct {
 	Ansible        AnsibleConfiguration
@@ -77,6 +84,7 @@ type TopologyValues struct {
 	Infrastructure config.DynamicMap
 	Compute        config.DynamicMap
 	Address        config.DynamicMap
+	Location       LocationConfiguration
 }
 
 var inputValues TopologyValues
@@ -124,14 +132,24 @@ func getFile(url string) string {
 // by executing its template files using inputs passed in inputsPath file
 func createTopology(topologyPath, destinationPath, inputsPath string) error {
 
-	// First retrieve template files from the zip file provided
-	// These files are expected to have the extension tmpl at the root of the directory
-	_, err := ziputil.Unzip(topologyPath, destinationPath)
+	var err error
+	inputValues, err = getInputValues(inputsPath)
 	if err != nil {
 		return err
 	}
 
-	var templateFileNames []string
+	// First retrieve template files from the zip file provided
+	// These files are expected to have the extension tmpl at the root of the directory
+	_, err = ziputil.Unzip(topologyPath, destinationPath)
+	if err != nil {
+		return err
+	}
+
+	var topologyTemplateFileNames []string
+	var resourcesTemplateFileNames []string
+	resourcesTemplatePrefix := "ondemand_resources"
+	topologyTemplatePrefix := "topology"
+	infrastructureTemplateSuffix := infrastructureType + ".tmpl"
 	err = filepath.Walk(destinationPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -142,8 +160,15 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 				return nil
 			}
 
-			if filepath.Ext(path) == ".tmpl" {
-				templateFileNames = append(templateFileNames, path)
+			_, file := filepath.Split(path)
+			if file == "topology.tmpl" ||
+				strings.HasSuffix(file, infrastructureTemplateSuffix) {
+
+				if strings.HasPrefix(file, resourcesTemplatePrefix) {
+					resourcesTemplateFileNames = append(resourcesTemplateFileNames, path)
+				} else if strings.HasPrefix(file, topologyTemplatePrefix) {
+					topologyTemplateFileNames = append(topologyTemplateFileNames, path)
+				}
 			}
 
 			return err
@@ -153,14 +178,37 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 		return errors.Wrapf(err, "Failed to browse unzip of %s under %s", topologyPath, destinationPath)
 	}
 
-	if len(templateFileNames) == 0 {
-		// No template found, the topology is ready
+	if len(topologyTemplateFileNames) == 0 {
+		// No topology template found, the topology is ready
 		return nil
 	}
 
-	// The template created when parsing these files has the base name of the last
-	// template according to golang template.ParseFiles documentation
-	templateName := filepath.Base(templateFileNames[len(templateFileNames)-1])
+	if len(resourcesTemplateFileNames) == 0 {
+		// Need an on-demand resource template file name
+		return fmt.Errorf("Found no on-demand resources template in %s", destinationPath)
+	}
+
+	err = createFileFromTemplates(resourcesTemplateFileNames,
+		filepath.Join(destinationPath, inputValues.Location.ResourcesFile),
+		inputValues)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create on-demand resources file from templates")
+	}
+
+	err = createFileFromTemplates(topologyTemplateFileNames,
+		filepath.Join(destinationPath, "topology.yaml"),
+		inputValues)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create topology file from templates")
+	}
+
+	return err
+}
+
+// Creates a file from templates, substituting annotations with data
+func createFileFromTemplates(templateFileNames []string, resultFilePath string, values TopologyValues) error {
+
+	templateName := filepath.Base(templateFileNames[0])
 
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
@@ -169,34 +217,65 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 		"getAlien4CloudVersion": getAlien4CloudVersion,
 	}
 
-	tmpl := template.Must(template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...))
-
-	// Now read inputs for the inputsPath provided in argument
-	if inputsPath != "" {
-
-		data, err := ioutil.ReadFile(inputsPath)
-		if err != nil {
-			return err
-		}
-		err = yaml.Unmarshal(data, &inputValues)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to unmarshall inputs from %s", inputsPath)
-		}
-	}
-
-	topologyFilePath := filepath.Join(destinationPath, "topology.yaml")
-	resultFile, err := os.Create(topologyFilePath)
+	parsedTemplate, err := template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...)
 	if err != nil {
 		return err
 	}
 
-	writer := bufio.NewWriter(resultFile)
-
-	err = tmpl.Execute(writer, inputValues)
-	resultFile.Close()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create topoly from template")
+	if err := os.MkdirAll(filepath.Dir(resultFilePath), os.ModePerm); err != nil {
+		return err
 	}
 
+	resultFile, err := os.Create(resultFilePath)
+	if err != nil {
+		return err
+	}
+	defer resultFile.Close()
+
+	writer := bufio.NewWriter(resultFile)
+
+	err = parsedTemplate.Execute(writer, values)
+	if err != nil {
+		return err
+	}
+	err = writer.Flush()
 	return err
+}
+
+// getInputValues initializes topology values from an input file
+func getInputValues(inputFilePath string) (TopologyValues, error) {
+
+	var values TopologyValues
+
+	// Read inputs for the inputsPath provided in argument
+	if inputFilePath != "" {
+
+		data, err := ioutil.ReadFile(inputFilePath)
+		if err != nil {
+			return values, err
+		}
+		err = yaml.Unmarshal(data, &values)
+		if err != nil {
+			return values, errors.Wrapf(err, "Failed to unmarshall inputs from %s", inputFilePath)
+		}
+	}
+
+	// Fill in uninitialized values
+	values.Location.ResourcesFile = filepath.Join("resources",
+		fmt.Sprintf("ondemand_resources_%s.yaml", infrastructureType))
+	switch infrastructureType {
+	case "openstack":
+		values.Location.Type = "OpenStack"
+	case "google":
+		values.Location.Type = "Google Cloud"
+	case "aws":
+		values.Location.Type = "AWS"
+	case "hostspool":
+		values.Location.Type = "HostsPool"
+	default:
+		return values, fmt.Errorf("Bootstrapping a location on %s not supported yet", infrastructureType)
+	}
+
+	values.Location.Name = values.Location.Type
+	return values, nil
 }
