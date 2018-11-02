@@ -113,6 +113,16 @@ relationship_types:
         description: >
           The logical name of the device as exposed to the instance.
           Note: A runtime property that gets set when the model gets instantiated by the orchestrator.
+  yorc.relationships.google.Network:
+    derived_from: tosca.relationships.Network
+    valid_target_types: [ tosca.capabilities.Connectivity ]
+    properties:
+      subnet:
+        type: string
+        description: >
+          Specify the sub-network to use for this relationship if network contains multiple sub-networks.
+          If none is defined, the first matching subnet with the target Google region will be associated to it.
+        required: false
 
 node_types:
   yorc.nodes.google.Compute:

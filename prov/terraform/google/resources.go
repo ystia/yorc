@@ -152,3 +152,18 @@ type IPRange struct {
 	Name        string `json:"range_name"`
 	IPCIDRRange string `json:"ip_cidr_range"`
 }
+
+// Firewall represents a firewall resource
+// See https://www.terraform.io/docs/providers/google/r/compute_firewall.html
+type Firewall struct {
+	Name         string      `json:"name"`
+	Network      string      `json:"network"`
+	Allow        []AllowRule `json:"allow,omitempty"`
+	SourceRanges []string    `json:"source_ranges,omitempty"`
+}
+
+// AllowRule represents an allowing firewall rule
+type AllowRule struct {
+	Protocol string   `json:"protocol"`
+	Ports    []string `json:"ports,omitempty"`
+}

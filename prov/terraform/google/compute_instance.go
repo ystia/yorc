@@ -108,7 +108,22 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		return err
 	}
 
-	networkInterface := NetworkInterface{Network: "default"}
+	// Define if a private network access is required
+	var netInterfaces []NetworkInterface
+	reqPrivateNetwork, _, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "network", "yorc.nodes.google.PrivateNetwork")
+	if err != nil {
+		return err
+	}
+	if reqPrivateNetwork {
+		netInterfaces, err = addPrivateNetworkInterfaces(ctx, kv, deploymentID, nodeName, instanceName, instance.Zone)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Create a default private network interface
+		netInterfaces = append(netInterfaces, NetworkInterface{Network: "default"})
+	}
+
 	// Define an external access if there will be an external IP address
 	if !noAddress {
 		hasStaticAddressReq, addressNode, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
@@ -127,18 +142,9 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		// else externalAddress is empty, which means an ephemeral external IP
 		// address will be assigned to the instance
 		accessConfig := AccessConfig{NatIP: externalAddress}
-		networkInterface.AccessConfigs = []AccessConfig{accessConfig}
+		netInterfaces[0].AccessConfigs = []AccessConfig{accessConfig}
 	}
-	instance.NetworkInterfaces = []NetworkInterface{networkInterface}
-
-	// Define if a private network access is required
-	reqPrivateNetwork, networkNodeName, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "network", "yorc.nodes.google.PrivateNetwork")
-	if err != nil {
-		return err
-	}
-	if reqPrivateNetwork {
-		addPrivateNetworkInterface(ctx, cfg, kv, &instance, deploymentID, nodeName, instanceName, networkNodeName)
-	}
+	instance.NetworkInterfaces = netInterfaces
 
 	// Scheduling definition
 	var preemptible bool
@@ -431,30 +437,57 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 	return devices, nil
 }
 
-func addPrivateNetworkInterface(ctx context.Context, cfg config.Configuration, kv *api.KV, instance *ComputeInstance, deploymentID, nodeName, instanceName, networkNodeName string) error {
-	// Create network interface for each sub-network present in the compute region
-	region, err := extractRegionFromZone(instance.Zone)
+func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName, zone string) ([]NetworkInterface, error) {
+	var netInterfaces []NetworkInterface
+
+	// Check if subnets have been specified by user into network relationship
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
 	if err != nil {
-		return errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+		return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
-	subnets, err := getSubnetsByRegion(ctx, kv, cfg, deploymentID, networkNodeName, region)
-	if err != nil {
-		return errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
-	}
-	if len(subnets) == 0 {
-		// If no subnet has been found, create network interface for network
+	for _, storagePrefix := range storageKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
+
+		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
+		}
+
+		subRaw, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "subnet")
+		if err != nil {
+			return nil, err
+		}
+		if subRaw != nil && subRaw.RawString() != "" {
+			log.Debugf("add network interface with user-specified sub-network property:%s", subRaw.RawString())
+			netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subRaw.RawString()})
+			continue
+		}
+
+		// Otherwise, create network interface with the first matching sub-network with compute region
+		region, err := extractRegionFromZone(zone)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+		}
+		subnet, err := getFirstMatchingSubnetByRegion(kv, deploymentID, networkNodeName, region)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+		}
+		if subnet != "" {
+			log.Debugf("add network interface with sub-network property:%s", subnet)
+			netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subnet})
+			continue
+		}
+
+		// No subnet has been found for this network, we create interface from the network property
 		network, err := attributeLookup(ctx, kv, deploymentID, instanceName, networkNodeName, "network_name")
 		if err != nil {
-			return err
+			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 		}
-		privateNetInterface := NetworkInterface{Network: network}
-		instance.NetworkInterfaces = append(instance.NetworkInterfaces, privateNetInterface)
-	} else {
-		for _, subnet := range subnets {
-			instance.NetworkInterfaces = append(instance.NetworkInterfaces, NetworkInterface{Subnetwork: subnet})
-		}
+		log.Debugf("add network interface with network property:%s", subnet)
+		netInterfaces = append(netInterfaces, NetworkInterface{Network: network})
+
 	}
-	return nil
+	return netInterfaces, nil
 }
 
 func extractRegionFromZone(zone string) (string, error) {

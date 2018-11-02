@@ -56,6 +56,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 		{&privateNetwork.Description, "description", false},
 		{&privateNetwork.RoutingMode, "routing_mode", false},
 		{&privateNetwork.Project, "project", false},
+		{&privateNetwork.Name, "network_name", false},
 	}
 
 	for _, stringParam := range stringParams {
@@ -63,6 +64,20 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 			stringParam.propertyName, stringParam.mandatory); err != nil {
 			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
 		}
+	}
+
+	// Use existing private network if defined with network_name
+	if privateNetwork.Name != "" {
+		// Just provide network_name attribute
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
+		consulKeyNetwork := commons.ConsulKey{
+			Path:  path.Join(instancesKey, instanceName, "/attributes/network_name"),
+			Value: privateNetwork.Name,
+		}
+
+		consulKeys.Keys = append(consulKeys.Keys, consulKeyNetwork)
+		commons.AddResource(infrastructure, "consul_keys", privateNetwork.Name, &consulKeys)
+		return nil
 	}
 
 	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
@@ -97,21 +112,30 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 			}
 		}
 	} else if !autoCreateSubNets {
-		return errors.New("at least one custom sub-network must be provided is sub-networks auto-creation is false")
+		return errors.New("at least one custom sub-network must be provided if sub-networks auto-creation mode is false")
 	}
-	log.Debugf("network=%+v", privateNetwork)
+	log.Debugf("Add network:%+v", privateNetwork)
 	commons.AddResource(infrastructure, "google_compute_network", privateNetwork.Name, privateNetwork)
 
-	// Provide Consul Key for attribute gateway_ip and network_name
+	// Add default firewall
+	externalFw := &Firewall{
+		Name:         fmt.Sprintf("%s-default-external-fw", privateNetwork.Name),
+		Network:      fmt.Sprintf("${google_compute_network.%s.name}", privateNetwork.Name),
+		SourceRanges: []string{"0.0.0.0/0"},
+		Allow: []AllowRule{
+			{Protocol: "icmp"},
+			{Protocol: "TCP", Ports: []string{"3389"}}, // RDP
+			{Protocol: "TCP", Ports: []string{"22"}},   // SSH
+		}}
+	commons.AddResource(infrastructure, "google_compute_firewall", externalFw.Name, externalFw)
+
+	// Provide Consul Key for network_name
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	consulKeyGateway := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/gateway_ip"),
-		Value: fmt.Sprintf("${google_compute_network.%s.gateway_ipv4}", privateNetwork.Name)}
 	consulKeyNetwork := commons.ConsulKey{
 		Path:  path.Join(instancesKey, instanceName, "/attributes/network_name"),
 		Value: fmt.Sprintf("${google_compute_network.%s.name}", privateNetwork.Name)}
 
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyGateway, consulKeyNetwork)
+	consulKeys.Keys = append(consulKeys.Keys, consulKeyNetwork)
 	commons.AddResource(infrastructure, "consul_keys", privateNetwork.Name, &consulKeys)
 	return nil
 }
@@ -122,68 +146,61 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 
 	ind := strconv.Itoa(subNetIndex)
 	subnet := &SubNetwork{}
-	// Name is a mandatory property
-	nameRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "name")
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
-	} else if nameRaw == nil || nameRaw.RawString() == "" {
-		return errors.Errorf("Name is a mandatory property for sub-network with index:%d and network:%q", subNetIndex, networkName)
-	}
-	subnet.Name = strings.Replace(strings.ToLower(nameRaw.RawString()), "_", "-", -1)
 
-	// IP CIDR range is a mandatory property
-	cidrRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "ip_cidr_range")
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
-	} else if cidrRaw == nil || cidrRaw.RawString() == "" {
-		return errors.Errorf("IP CIDR Range is a mandatory property for sub-network with index:%d and network:%q", subNetIndex, networkName)
-	}
-	subnet.IPCIDRRange = cidrRaw.RawString()
+	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID,
+		"topology", "instances")
+	instancesKey := path.Join(instancesPrefix, nodeName)
 
-	// region is a mandatory property
-	regionRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "region")
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
-	} else if regionRaw == nil || regionRaw.RawString() == "" {
-		return errors.Errorf("Region is a mandatory property for sub-network with index:%d and network:%q", subNetIndex, networkName)
+	strParams := []struct {
+		pAttr        *string
+		propertyName string
+		mandatory    bool
+	}{
+		{&subnet.Name, "name", true},
+		{&subnet.IPCIDRRange, "ip_cidr_range", true},
+		{&subnet.Region, "region", true},
+		{&subnet.Description, "description", false},
+		{&subnet.Project, "project", false},
 	}
-	subnet.Region = regionRaw.RawString()
-
-	descriptionRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "description")
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
-	} else if descriptionRaw != nil && descriptionRaw.RawString() != "" {
-		subnet.Description = descriptionRaw.RawString()
-	}
-
-	projectRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "project")
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
-	} else if projectRaw != nil && projectRaw.RawString() != "" {
-		subnet.Project = projectRaw.RawString()
-	}
-
-	enableFlowLogsRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "enable_flow_logs")
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
-	} else if enableFlowLogsRaw != nil && enableFlowLogsRaw.RawString() != "" {
-		subnet.EnableFlowLogs, err = strconv.ParseBool(enableFlowLogsRaw.RawString())
+	for _, param := range strParams {
+		value, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, param.propertyName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
 		}
+		if value != nil && value.RawString() != "" {
+			*param.pAttr = value.RawString()
+		} else if param.mandatory {
+			return errors.Errorf("%s is a mandatory property for sub-network with index:%d and network:%q", param.propertyName, subNetIndex, networkName)
+		}
 	}
-
-	privateIPGoogleAccessRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "private_ip_google_access")
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
-	} else if privateIPGoogleAccessRaw != nil && privateIPGoogleAccessRaw.RawString() != "" {
-		subnet.PrivateIPGoogleAccess, err = strconv.ParseBool(privateIPGoogleAccessRaw.RawString())
+	boolParams := []struct {
+		pAttr        *bool
+		propertyName string
+		mandatory    bool
+	}{
+		{&subnet.EnableFlowLogs, "enable_flow_logs", false},
+		{&subnet.PrivateIPGoogleAccess, "private_ip_google_access", false},
+	}
+	for _, param := range boolParams {
+		value, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, param.propertyName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
 		}
+		if value != nil && value.RawString() != "" {
+			*param.pAttr, err = strconv.ParseBool(value.RawString())
+			if err != nil {
+				return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
+			}
+		} else if param.mandatory {
+			return errors.Errorf("%s is a mandatory property for sub-network with index:%d and network:%q", param.propertyName, subNetIndex, networkName)
+		}
 	}
+
+	// Name must respect regular expression
+	subnet.Name = strings.Replace(strings.ToLower(subnet.Name), "_", "-", -1)
 
 	// Handle secondary IP ranges
+	var secondarySourceRange []string
 	secondaryIPRangesRaws, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "secondary_ip_ranges")
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate sub-network %d for network:%q", subNetIndex, networkName)
@@ -195,23 +212,45 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 
 		ipRanges := make([]IPRange, len(list))
 		for i := range list {
-			ipRange, err := buildIPRange(ctx, kv, deploymentID, nodeName, ind, networkName, i)
+			ipRange, err := buildIPRange(kv, deploymentID, nodeName, ind, networkName, i)
 			if err != nil {
 				return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
 			}
 			ipRanges = append(ipRanges, *ipRange)
+			secondarySourceRange = append(secondarySourceRange, ipRange.IPCIDRRange)
 		}
 		subnet.SecondaryIPRanges = ipRanges
 	}
 
 	subnet.Network = fmt.Sprintf("${google_compute_network.%s.name}", networkName)
-	log.Debugf("subnet is:%+v", subnet)
-
+	log.Debugf("Add subnet:%+v", subnet)
 	commons.AddResource(infrastructure, "google_compute_subnetwork", subnet.Name, subnet)
+
+	// Provide Consul Key for attribute gateway_ip
+	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
+	consulKeyGateway := commons.ConsulKey{
+		Path:  path.Join(instancesKey, instanceName, fmt.Sprintf("/attributes/subnets/%s/gateway_ip", subnet.Name)),
+		Value: fmt.Sprintf("${google_compute_subnetwork.%s.gateway_address}", subnet.Name)}
+
+	consulKeys.Keys = append(consulKeys.Keys, consulKeyGateway)
+	commons.AddResource(infrastructure, "consul_keys", subnet.Name, &consulKeys)
+
+	// Add internal firewall rules for subnet
+	sourceRanges := append(secondarySourceRange, subnet.IPCIDRRange)
+	internalFw := &Firewall{
+		Name:         fmt.Sprintf("%s-default-internal-fw", subnet.Name),
+		Network:      fmt.Sprintf("${google_compute_network.%s.name}", networkName),
+		SourceRanges: sourceRanges,
+		Allow: []AllowRule{
+			{Protocol: "icmp"},
+			{Protocol: "TCP", Ports: []string{"0-65535"}}, // RDP
+			{Protocol: "UDP", Ports: []string{"0-65535"}}, // SSH
+		}}
+	commons.AddResource(infrastructure, "google_compute_firewall", internalFw.Name, internalFw)
 	return nil
 }
 
-func buildIPRange(ctx context.Context, kv *api.KV, deploymentID, nodeName, subNetIndex, networkName string, ipRangeIndex int) (*IPRange, error) {
+func buildIPRange(kv *api.KV, deploymentID, nodeName, subNetIndex, networkName string, ipRangeIndex int) (*IPRange, error) {
 
 	ind := strconv.Itoa(ipRangeIndex)
 	ipRange := &IPRange{}
@@ -235,34 +274,31 @@ func buildIPRange(ctx context.Context, kv *api.KV, deploymentID, nodeName, subNe
 	return ipRange, nil
 }
 
-func getSubnetsByRegion(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, region string) ([]string, error) {
-	regSubnets := make([]string, 0)
-
+func getFirstMatchingSubnetByRegion(kv *api.KV, deploymentID, nodeName, region string) (string, error) {
 	subnets, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve sub-networks for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
+		return "", errors.Wrapf(err, "failed to retrieve sub-networks for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
 	if subnets != nil && subnets.RawString() != "" {
 		subnets, ok := subnets.Value.([]interface{})
 		if !ok {
-			return nil, errors.New("failed to retrieve yorc.datatypes.google.Subnetwork Tosca Value: not expected type")
+			return "", errors.New("failed to retrieve yorc.datatypes.google.Subnetwork Tosca Value: not expected type")
 		}
 		for i := range subnets {
 			ind := strconv.Itoa(i)
 			regionRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "region")
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to retrieve sub-network region for deploymentID:%q, nodeName:%q, sub-network index:%q", deploymentID, nodeName, ind)
+				return "", errors.Wrapf(err, "failed to retrieve sub-network region for deploymentID:%q, nodeName:%q, sub-network index:%q", deploymentID, nodeName, ind)
 			} else if regionRaw != nil && regionRaw.RawString() != "" {
 				if region == regionRaw.RawString() {
 					nameRaw, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "custom_subnetworks", ind, "name")
 					if err != nil || nameRaw == nil || nameRaw.RawString() == "" {
-						return nil, errors.Wrapf(err, "failed to retrieve sub-network name for deploymentID:%q, nodeName:%q, sub-network index:%q", deploymentID, nodeName, ind)
+						return "", errors.Wrapf(err, "failed to retrieve sub-network name for deploymentID:%q, nodeName:%q, sub-network index:%q", deploymentID, nodeName, ind)
 					}
-					regSubnets = append(regSubnets, nameRaw.RawString())
+					return nameRaw.RawString(), nil
 				}
 			}
 		}
-		return regSubnets, nil
 	}
-	return regSubnets, nil
+	return "", nil
 }
