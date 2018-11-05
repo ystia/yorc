@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Support Kubernetes Jobs. ([GH-86](https://github.com/ystia/yorc/issues/86))
+
 ## 3.1.0-M5 (October 26, 2018)
 
 ### FEATURES
