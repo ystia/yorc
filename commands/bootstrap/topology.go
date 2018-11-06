@@ -93,8 +93,6 @@ type TopologyValues struct {
 	Location       LocationConfiguration
 }
 
-var inputValues TopologyValues
-
 // formatAsYAML is a function used in templates to output the yaml representation
 // of a variable
 func formatAsYAML(data interface{}, indentations int) (string, error) {
@@ -135,19 +133,12 @@ func getFile(url string) string {
 }
 
 // createTopology creates under destinationPath, a topology from a zip file at topologyPath
-// by executing its template files using inputs passed in inputsPath file
-func createTopology(topologyPath, destinationPath, inputsPath string) error {
-
-	var err error
-	inputValues, err = getInputValues(inputsPath)
-	if err != nil {
-		return err
-	}
+// by executing its template files against input values
+func createTopology(topologyPath, destinationPath string) error {
 
 	// First retrieve template files from the zip file provided
 	// These files are expected to have the extension tmpl at the root of the directory
-	_, err = ziputil.Unzip(topologyPath, destinationPath)
-	if err != nil {
+	if _, err := ziputil.Unzip(topologyPath, destinationPath); err != nil {
 		return err
 	}
 
@@ -157,7 +148,7 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 	topologyTemplatesPrefix := "topology"
 	infrastructureTemplateSuffix := infrastructureType + ".tmpl"
 	topologyTemplateFile := fmt.Sprintf("%s-%s.tmpl", topologyTemplatesPrefix, deploymentType)
-	err = filepath.Walk(destinationPath,
+	err := filepath.Walk(destinationPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err

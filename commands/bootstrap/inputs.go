@@ -20,10 +20,13 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+	"github.com/ystia/yorc/commands"
 	"github.com/ystia/yorc/config"
 
-	"github.com/ystia/yorc/commands"
+	"gopkg.in/AlecAivazis/survey.v1"
 )
+
+var inputValues TopologyValues
 
 // Default values for inputs
 type defaultInputType struct {
@@ -152,6 +155,47 @@ func setDefaultInputValues() error {
 	return nil
 }
 
+// initializeInputs Initializes parameters from environment variables, CLI options,
+// input file in argument, and asks for user input if needed
+func initializeInputs(inputFilePath string) error {
+
+	var err error
+	inputValues, err = getInputValues(inputFilePath)
+	if err != nil {
+		return err
+	}
+
+	// Now check for missing mandatory parameters and ask them to the user
+
+	if infrastructureType == "" {
+		prompt := &survey.Select{
+			Message: "Select an infrastructure:",
+			Options: []string{"Google", "AWS", "OpenStack", "HostsPool"},
+		}
+		survey.AskOne(prompt, &infrastructureType, nil)
+		infrastructureType = strings.ToLower(infrastructureType)
+	}
+
+	// Fill in uninitialized values
+	inputValues.Location.ResourcesFile = filepath.Join("resources",
+		fmt.Sprintf("ondemand_resources_%s.yaml", infrastructureType))
+	switch infrastructureType {
+	case "openstack":
+		inputValues.Location.Type = "OpenStack"
+	case "google":
+		inputValues.Location.Type = "Google Cloud"
+	case "aws":
+		inputValues.Location.Type = "AWS"
+	case "hostspool":
+		inputValues.Location.Type = "HostsPool"
+	default:
+		return fmt.Errorf("Bootstrapping on %s not supported yet", infrastructureType)
+	}
+
+	inputValues.Location.Name = inputValues.Location.Type
+	return err
+}
+
 // getInputValues initializes topology values from an input file
 func getInputValues(inputFilePath string) (TopologyValues, error) {
 
@@ -170,28 +214,8 @@ func getInputValues(inputFilePath string) (TopologyValues, error) {
 		}
 	}
 
-	if err := bootstrapViper.Unmarshal(&values); err != nil {
-		return values, err
-	}
-
-	// Fill in uninitialized values
-	values.Location.ResourcesFile = filepath.Join("resources",
-		fmt.Sprintf("ondemand_resources_%s.yaml", infrastructureType))
-	switch infrastructureType {
-	case "openstack":
-		values.Location.Type = "OpenStack"
-	case "google":
-		values.Location.Type = "Google Cloud"
-	case "aws":
-		values.Location.Type = "AWS"
-	case "hostspool":
-		values.Location.Type = "HostsPool"
-	default:
-		return values, fmt.Errorf("Bootstrapping a location on %s not supported yet", infrastructureType)
-	}
-
-	values.Location.Name = values.Location.Type
-	return values, nil
+	err := bootstrapViper.Unmarshal(&values)
+	return values, err
 }
 
 // getTerraformPluginsDownloadURLs return URLs where to download Terraform plugins

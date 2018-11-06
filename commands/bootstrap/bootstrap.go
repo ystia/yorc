@@ -61,7 +61,7 @@ func init() {
 
 	commands.RootCmd.AddCommand(bootstrapCmd)
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
-		"location", "l", "openstack", "Define the type of location where to deploy Yorc")
+		"location", "l", "", "Define the type of location where to deploy Yorc")
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentType,
 		"deployment-type", "d", "single-node", "Define deployment type: single-node or HA")
 	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
@@ -88,6 +88,11 @@ func bootstrap() error {
 	infrastructureType = strings.ToLower(infrastructureType)
 	deploymentType = strings.ToLower(deploymentType)
 
+	// Initializing parameters from environment variables, CLI options
+	// input file, and asking for user input if needed
+	if err := initializeInputs(inputsPath); err != nil {
+		return err
+	}
 	// The topology will be created in a directory under the working
 	// directory
 	topologyPath := filepath.Join(workingDirectoryPath, "bootstrapYorcTopoloy")
@@ -95,7 +100,7 @@ func bootstrap() error {
 		return err
 	}
 
-	if err := createTopology(topologyZipPath, topologyPath, inputsPath); err != nil {
+	if err := createTopology(topologyZipPath, topologyPath); err != nil {
 		return err
 	}
 
