@@ -24,27 +24,33 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ystia/yorc/commands"
-	"github.com/ystia/yorc/config"
+)
+
+const (
+	environmentVariablePrefix = "YORC_BOOTSTRAP"
+)
+
+// Variables initialized in the root Makefile
+var (
+	alien4cloudVersion = "unknown"
+	ansibleVersion     = "unknown"
+	consulVersion      = "unknown"
+	terraformVersion   = "unknown"
+	yorcVersion        = "unknown"
 )
 
 func init() {
 
 	// bootstrapViper is the viper configuration for bootstrap command and its children
-	bootstrapViper := viper.New()
-
-	var cfgFile string
-	var noColor bool
+	bootstrapViper = viper.New()
 
 	// bootstrapCmd is the bootstrap base command
-	bootstrapCmd := &cobra.Command{
+	bootstrapCmd = &cobra.Command{
 		Use:           "bootstrap",
 		Aliases:       []string{"boot", "b"},
 		Short:         "Installs Yorc and its dependencies",
 		Long:          `Installs Yorc and its dependencies on a given infrastructure`,
 		SilenceErrors: true,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			clientConfig = commands.GetYorcClientConfig(bootstrapViper, cfgFile)
-		},
 		Run: func(cmd *cobra.Command, args []string) {
 			err := bootstrap()
 			if err != nil {
@@ -54,20 +60,25 @@ func init() {
 	}
 
 	commands.RootCmd.AddCommand(bootstrapCmd)
-	commands.ConfigureYorcClientCommand(bootstrapCmd, bootstrapViper, &cfgFile, &noColor)
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
 		"location", "l", "openstack", "Define the type of location where to deploy Yorc")
+	bootstrapCmd.PersistentFlags().StringVarP(&deploymentType,
+		"deployment-type", "d", "single-node", "Define deployment type: single-node or HA")
 	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
 		"inputs", "i", "", "Path to inputs file")
 	bootstrapCmd.PersistentFlags().StringVarP(&topologyZipPath,
 		"topology", "t", "", "Path to topology zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
-		"working_directory", "w", "work", "Working directory where to place deployment files")
+		"working-directory", "w", "work", "Working directory where to place deployment files")
 
+	// Adding flags and environment variables for inputs having default values
+	setDefaultInputValues()
 }
 
-var clientConfig config.Client
+var bootstrapCmd *cobra.Command
+var bootstrapViper *viper.Viper
 var infrastructureType string
+var deploymentType string
 var topologyZipPath string
 var workingDirectoryPath string
 var inputsPath string
@@ -75,6 +86,7 @@ var inputsPath string
 func bootstrap() error {
 
 	infrastructureType = strings.ToLower(infrastructureType)
+	deploymentType = strings.ToLower(deploymentType)
 
 	// The topology will be created in a directory under the working
 	// directory

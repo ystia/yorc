@@ -15,12 +15,10 @@
 package bootstrap
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/ystia/yorc/commands/httputil"
-
 	"github.com/ystia/yorc/commands/deployments"
-
 	"github.com/ystia/yorc/helper/ziputil"
 )
 
@@ -39,8 +37,11 @@ func deployTopology(deploymentPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	deploymentID := "bootstrap"
-	client, err := httputil.GetClient(clientConfig)
+
+	t := time.Now()
+	deploymentID := fmt.Sprintf("bootstrap-%d-%02d-%02d--%02d-%02d-%02d",
+		t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+	client, err := getYorcClient()
 	if err != nil {
 		return "", err
 	}
@@ -54,7 +55,7 @@ func deployTopology(deploymentPath string) (string, error) {
 
 // followDeployment prints and updates the deployment status until its end
 func followDeployment(deploymentID string) error {
-	client, err := httputil.GetClient(clientConfig)
+	client, err := getYorcClient()
 	if err != nil {
 		return err
 	}

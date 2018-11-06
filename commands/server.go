@@ -42,17 +42,21 @@ const (
 )
 
 var (
-	tfConsulPluginVersion           = "tf Consul plugin version"
-	tfConsulPluginVersionConstraint = versionToConstraint("~>", tfConsulPluginVersion, "minor")
+	// TfConsulPluginVersion is the Terraform Consul plugin lowest supported version
+	TfConsulPluginVersion           = "tf Consul plugin version"
+	tfConsulPluginVersionConstraint = versionToConstraint("~>", TfConsulPluginVersion, "minor")
 
-	tfAWSPluginVersion           = "tf AWS plugin version"
-	tfAWSPluginVersionConstraint = versionToConstraint("~>", tfAWSPluginVersion, "minor")
+	// TfAWSPluginVersion is the Terraform AWS plugin lowest supported version
+	TfAWSPluginVersion           = "tf AWS plugin version"
+	tfAWSPluginVersionConstraint = versionToConstraint("~>", TfAWSPluginVersion, "minor")
 
-	tfOpenStackPluginVersion           = "tf OpenStack plugin version"
-	tfOpenStackPluginVersionConstraint = versionToConstraint("~>", tfOpenStackPluginVersion, "minor")
+	// TfOpenStackPluginVersion is the Terraform OpenStack plugin lowest supported version
+	TfOpenStackPluginVersion           = "tf OpenStack plugin version"
+	tfOpenStackPluginVersionConstraint = versionToConstraint("~>", TfOpenStackPluginVersion, "minor")
 
-	tfGooglePluginVersion           = "tf Google plugin version"
-	tfGooglePluginVersionConstraint = versionToConstraint("~>", tfGooglePluginVersion, "minor")
+	// TfGooglePluginVersion is the Terraform Google plugin lowest supported version
+	TfGooglePluginVersion           = "tf Google plugin version"
+	tfGooglePluginVersionConstraint = versionToConstraint("~>", TfGooglePluginVersion, "minor")
 )
 
 var ansibleConfiguration = map[string]interface{}{

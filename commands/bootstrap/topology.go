@@ -17,7 +17,6 @@ package bootstrap
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,31 +38,37 @@ type AnsibleConfiguration struct {
 
 // YorcConfiguration provides Yorc user-defined settings
 type YorcConfiguration struct {
-	DownloadURL string `yaml:"download_url"`
+	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
 	Port        int
 }
 
 // YorcPluginConfiguration provides Yorc plugin user-defined settings
 type YorcPluginConfiguration struct {
-	DownloadURL string `yaml:"download_url"`
+	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
 }
 
 // Alien4CloudConfiguration provides Alien4Cloud user-defined settings
 type Alien4CloudConfiguration struct {
-	DownloadURL string `yaml:"download_url"`
+	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
 	Port        int
 }
 
 // ConsulConfiguration provides Consul user-defined settings
 type ConsulConfiguration struct {
-	DownloadURL string `yaml:"download_url"`
+	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
 	Port        int
 }
 
 // TerraformConfiguration provides Terraform settings
 type TerraformConfiguration struct {
 	Version    string   `yaml:"component_version"`
-	PluginURLs []string `yaml:"plugins_download_urls"`
+	PluginURLs []string `yaml:"plugins_download_urls" mapstructure:"plugins_download_urls"`
+}
+
+// JdkConfiguration configuration provides Java settings
+type JdkConfiguration struct {
+	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
+	Version     string
 }
 
 // LocationConfiguration provides an Alien4Cloud plugin location configuration
@@ -78,12 +83,13 @@ type TopologyValues struct {
 	Ansible        AnsibleConfiguration
 	Alien4cloud    Alien4CloudConfiguration
 	Yorc           YorcConfiguration
-	YorcPlugin     YorcPluginConfiguration
+	YorcPlugin     YorcPluginConfiguration `mapstructure:"yorc_plugin"`
 	Consul         ConsulConfiguration
 	Terraform      TerraformConfiguration
 	Infrastructure config.DynamicMap
 	Compute        config.DynamicMap
 	Address        config.DynamicMap
+	Jdk            JdkConfiguration
 	Location       LocationConfiguration
 }
 
@@ -147,9 +153,10 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 
 	var topologyTemplateFileNames []string
 	var resourcesTemplateFileNames []string
-	resourcesTemplatePrefix := "ondemand_resources"
-	topologyTemplatePrefix := "topology"
+	resourcesTemplatePrefix := "ondemand-resources"
+	topologyTemplatesPrefix := "topology"
 	infrastructureTemplateSuffix := infrastructureType + ".tmpl"
+	topologyTemplateFile := fmt.Sprintf("%s-%s.tmpl", topologyTemplatesPrefix, deploymentType)
 	err = filepath.Walk(destinationPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -161,12 +168,12 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 			}
 
 			_, file := filepath.Split(path)
-			if file == "topology.tmpl" ||
+			if file == topologyTemplateFile ||
 				strings.HasSuffix(file, infrastructureTemplateSuffix) {
 
 				if strings.HasPrefix(file, resourcesTemplatePrefix) {
 					resourcesTemplateFileNames = append(resourcesTemplateFileNames, path)
-				} else if strings.HasPrefix(file, topologyTemplatePrefix) {
+				} else if strings.HasPrefix(file, topologyTemplatesPrefix) {
 					topologyTemplateFileNames = append(topologyTemplateFileNames, path)
 				}
 			}
@@ -189,13 +196,14 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 	}
 
 	err = createFileFromTemplates(resourcesTemplateFileNames,
+		filepath.Base(resourcesTemplateFileNames[0]),
 		filepath.Join(destinationPath, inputValues.Location.ResourcesFile),
 		inputValues)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create on-demand resources file from templates")
 	}
 
-	err = createFileFromTemplates(topologyTemplateFileNames,
+	err = createFileFromTemplates(topologyTemplateFileNames, topologyTemplateFile,
 		filepath.Join(destinationPath, "topology.yaml"),
 		inputValues)
 	if err != nil {
@@ -206,9 +214,7 @@ func createTopology(topologyPath, destinationPath, inputsPath string) error {
 }
 
 // Creates a file from templates, substituting annotations with data
-func createFileFromTemplates(templateFileNames []string, resultFilePath string, values TopologyValues) error {
-
-	templateName := filepath.Base(templateFileNames[0])
+func createFileFromTemplates(templateFileNames []string, templateName, resultFilePath string, values TopologyValues) error {
 
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
@@ -240,42 +246,4 @@ func createFileFromTemplates(templateFileNames []string, resultFilePath string, 
 	}
 	err = writer.Flush()
 	return err
-}
-
-// getInputValues initializes topology values from an input file
-func getInputValues(inputFilePath string) (TopologyValues, error) {
-
-	var values TopologyValues
-
-	// Read inputs for the inputsPath provided in argument
-	if inputFilePath != "" {
-
-		data, err := ioutil.ReadFile(inputFilePath)
-		if err != nil {
-			return values, err
-		}
-		err = yaml.Unmarshal(data, &values)
-		if err != nil {
-			return values, errors.Wrapf(err, "Failed to unmarshall inputs from %s", inputFilePath)
-		}
-	}
-
-	// Fill in uninitialized values
-	values.Location.ResourcesFile = filepath.Join("resources",
-		fmt.Sprintf("ondemand_resources_%s.yaml", infrastructureType))
-	switch infrastructureType {
-	case "openstack":
-		values.Location.Type = "OpenStack"
-	case "google":
-		values.Location.Type = "Google Cloud"
-	case "aws":
-		values.Location.Type = "AWS"
-	case "hostspool":
-		values.Location.Type = "HostsPool"
-	default:
-		return values, fmt.Errorf("Bootstrapping a location on %s not supported yet", infrastructureType)
-	}
-
-	values.Location.Name = values.Location.Type
-	return values, nil
 }

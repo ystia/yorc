@@ -28,14 +28,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blang/semver"
+
 	"github.com/ystia/yorc/commands/httputil"
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/log"
-
-	"github.com/blang/semver"
-	"github.com/spf13/viper"
-
 	"github.com/ystia/yorc/helper/ziputil"
+	"github.com/ystia/yorc/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -90,13 +88,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
-	viper.SetConfigFile(cfgFileName)
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err != nil {
-		return err
-	}
-
-	// Yorc Server outputs rediected to a file
+	// Yorc Server outputs redirected to a file
 	outputFileName := filepath.Join(workingDirectoryPath, "yorc.log")
 	yorcServerOutputFile, err := os.Create(outputFileName)
 	if err != nil {
@@ -111,7 +103,8 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
-	cmdArgs := "server --config " + cfgFileName
+	cmdArgs := fmt.Sprintf("server --config %s --http_port %d",
+		cfgFileName, inputValues.Yorc.Port)
 	cmd := exec.Command(yorcExecutablePath, strings.Split(cmdArgs, " ")...)
 	cmd.Stdout = yorcServerOutputFile
 	err = cmd.Start()
@@ -125,11 +118,16 @@ func setupYorcServer(workingDirectoryPath string) error {
 
 }
 
+func getYorcClient() (*httputil.YorcClient, error) {
+	clientConfig := config.Client{YorcAPI: fmt.Sprintf("localhost:%d", inputValues.Yorc.Port)}
+	return httputil.GetClient(clientConfig)
+}
+
 func waitForYorcServerUP(timeout time.Duration) error {
 
 	nbAttempts := timeout / time.Second
 
-	client, err := httputil.GetClient(clientConfig)
+	client, err := getYorcClient()
 	if err != nil {
 		return err
 	}
