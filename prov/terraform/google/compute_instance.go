@@ -467,9 +467,9 @@ func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, 
 		}
 		switch netType {
 		case "yorc.nodes.google.Subnetwork":
-			subnet, err := deployments.GetStringNodeProperty(kv, deploymentID, networkNodeName, "name", true)
+			subnet, err := attributeLookup(ctx, kv, deploymentID, instanceName, networkNodeName, "subnetwork_name")
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
+				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 			}
 			log.Debugf("add network interface with sub-network property:%s", subnet)
 			netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subnet})

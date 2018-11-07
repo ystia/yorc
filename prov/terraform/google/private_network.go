@@ -83,7 +83,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
 	privateNetwork.Name = strings.Replace(name, "_", "-", -1)
 
-	autoCreateSubNets := true // Default is sub-networks auto-creation
+	var autoCreateSubNets bool
 	s, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "auto_create_subnetworks")
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
@@ -107,6 +107,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 			{Protocol: "icmp"},
 			{Protocol: "TCP", Ports: []string{"3389"}}, // RDP
 			{Protocol: "TCP", Ports: []string{"22"}},   // SSH
+			{Protocol: "TCP", Ports: []string{"8500"}}, //FIXME just for test
 		}}
 	commons.AddResource(infrastructure, "google_compute_firewall", externalFw.Name, externalFw)
 
@@ -217,7 +218,11 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 		Path:  path.Join(instancesKey, instanceName, "/attributes/network_name"),
 		Value: subnet.Network,
 	}
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyGateway, consulKeyNetwork)
+	consulKeySubnetwork := commons.ConsulKey{
+		Path:  path.Join(instancesKey, instanceName, "/attributes/subnetwork_name"),
+		Value: subnet.Name,
+	}
+	consulKeys.Keys = append(consulKeys.Keys, consulKeyGateway, consulKeyNetwork, consulKeySubnetwork)
 	commons.AddResource(infrastructure, "consul_keys", subnet.Name, &consulKeys)
 
 	// Add internal firewall rules for subnet
