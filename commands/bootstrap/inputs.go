@@ -16,6 +16,7 @@ package bootstrap
 
 import (
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/ystia/yorc/config"
 
 	"gopkg.in/AlecAivazis/survey.v1"
+	"gopkg.in/yaml.v2"
 )
 
 var inputValues TopologyValues
@@ -108,12 +110,20 @@ var (
 	}
 )
 
-// Mandatory inputs, which when missing, will have to be provided interactively
-/*
-var {
-	infrastructureInputs = map[]
+// Infrastructure inputs, which when missing, will have to be provided interactively
+type infrastructureInputType struct {
+	Name         string
+	Description  string
+	Required     bool
+	Secret       bool        `yaml:"secret,omitempty"`
+	DataType     string      `yaml:"type"`
+	DefaultValue interface{} `yaml:"default,omitempty"`
 }
-*/
+
+type userInputType struct {
+	Infrastructure map[string][]infrastructureInputType
+}
+
 // setDefaultInputValues sets environment variables and command line bootstrap options
 // with default values
 func setDefaultInputValues() error {
@@ -157,7 +167,7 @@ func setDefaultInputValues() error {
 
 // initializeInputs Initializes parameters from environment variables, CLI options,
 // input file in argument, and asks for user input if needed
-func initializeInputs(inputFilePath string) error {
+func initializeInputs(inputFilePath, resourcesPath string) error {
 
 	var err error
 	inputValues, err = getInputValues(inputFilePath)
@@ -168,12 +178,100 @@ func initializeInputs(inputFilePath string) error {
 	// Now check for missing mandatory parameters and ask them to the user
 
 	if infrastructureType == "" {
+		fmt.Println("")
 		prompt := &survey.Select{
 			Message: "Select an infrastructure:",
 			Options: []string{"Google", "AWS", "OpenStack", "HostsPool"},
 		}
 		survey.AskOne(prompt, &infrastructureType, nil)
 		infrastructureType = strings.ToLower(infrastructureType)
+	}
+
+	// Get the list of possible user inputs from a resources file
+
+	userInputFilePath := filepath.Join(resourcesPath, "userInput.yaml")
+	yamlContent, err := ioutil.ReadFile(userInputFilePath)
+	if err != nil {
+		return err
+	}
+	var userInput userInputType
+	err = yaml.Unmarshal(yamlContent, &userInput)
+	if err != nil {
+		return err
+	}
+
+	inputTypes := userInput.Infrastructure[infrastructureType]
+	if inputValues.Infrastructure == nil {
+		inputValues.Infrastructure = make(config.DynamicMap)
+	}
+	for _, infraInputType := range inputTypes {
+
+		// Check if a value is already provided before asking for user input
+		if inputValues.Infrastructure.IsSet(infraInputType.Name) {
+			continue
+		}
+		if infraInputType.DataType == "boolean" {
+			prompt := &survey.Select{
+				Message: fmt.Sprintf("%s:", infraInputType.Description),
+				Options: []string{"true", "false"},
+				Default: "false",
+			}
+			var answer string
+			survey.AskOne(prompt, &answer, nil)
+			value := false
+			if answer == "true" {
+				value = true
+			}
+
+			inputValues.Infrastructure.Set(infraInputType.Name, value)
+
+		} else {
+			answer := struct {
+				Value string
+			}{}
+
+			var defaultValueMsg string
+			if infraInputType.DefaultValue != nil {
+				defaultValueMsg = fmt.Sprintf(" (default: %v)", infraInputType.DefaultValue)
+			}
+
+			var prompt survey.Prompt
+			if infraInputType.Secret {
+				prompt = &survey.Password{
+					Message: fmt.Sprintf("%s%s:",
+						infraInputType.Description,
+						defaultValueMsg)}
+			} else {
+				prompt = &survey.Input{
+					Message: fmt.Sprintf("%s%s:",
+						infraInputType.Description,
+						defaultValueMsg)}
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if infraInputType.Required {
+				question.Validate = survey.Required
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			if answer.Value != "" {
+				if infraInputType.DataType == "string" {
+					inputValues.Infrastructure.Set(infraInputType.Name, answer.Value)
+				} else {
+					value := strings.Split(answer.Value, ",")
+					for i, val := range value {
+						value[i] = strings.TrimSpace(val)
+					}
+					inputValues.Infrastructure.Set(infraInputType.Name, value)
+				}
+			} else if infraInputType.DefaultValue != nil {
+				inputValues.Infrastructure.Set(infraInputType.Name, infraInputType.DefaultValue)
+			}
+		}
 	}
 
 	// Fill in uninitialized values

@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ystia/yorc/commands"
+	"github.com/ystia/yorc/helper/ziputil"
 )
 
 const (
@@ -63,13 +64,13 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
 		"location", "l", "", "Define the type of location where to deploy Yorc")
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentType,
-		"deployment-type", "d", "single-node", "Define deployment type: single-node or HA")
+		"deployment_type", "d", "single_node", "Define deployment type: single_node or HA")
 	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
 		"inputs", "i", "", "Path to inputs file")
 	bootstrapCmd.PersistentFlags().StringVarP(&topologyZipPath,
 		"topology", "t", "", "Path to topology zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
-		"working-directory", "w", "work", "Working directory where to place deployment files")
+		"working_directory", "w", "work", "Working directory where to place deployment files")
 
 	// Adding flags and environment variables for inputs having default values
 	setDefaultInputValues()
@@ -88,19 +89,25 @@ func bootstrap() error {
 	infrastructureType = strings.ToLower(infrastructureType)
 	deploymentType = strings.ToLower(deploymentType)
 
-	// Initializing parameters from environment variables, CLI options
-	// input file, and asking for user input if needed
-	if err := initializeInputs(inputsPath); err != nil {
-		return err
-	}
-	// The topology will be created in a directory under the working
-	// directory
-	topologyPath := filepath.Join(workingDirectoryPath, "bootstrapYorcTopoloy")
-	if err := os.RemoveAll(topologyPath); err != nil {
+	// Resources, like the topology zip, will be created in a directory under
+	//the working directory
+	resourcesPath := filepath.Join(workingDirectoryPath, "bootstrapResources")
+	if err := os.RemoveAll(resourcesPath); err != nil {
 		return err
 	}
 
-	if err := createTopology(topologyZipPath, topologyPath); err != nil {
+	// First retrieve resources files from the zip file provided
+	if _, err := ziputil.Unzip(topologyZipPath, resourcesPath); err != nil {
+		return err
+	}
+
+	// Initializing parameters from environment variables, CLI options
+	// input file, and asking for user input if needed
+	if err := initializeInputs(inputsPath, resourcesPath); err != nil {
+		return err
+	}
+
+	if err := createTopology(resourcesPath); err != nil {
 		return err
 	}
 
@@ -111,7 +118,7 @@ func bootstrap() error {
 	}
 
 	// A local Yorc server is running, using it to deploythe topology
-	deploymentID, errDeploy := deployTopology(topologyPath)
+	deploymentID, errDeploy := deployTopology(resourcesPath)
 
 	if errDeploy != nil {
 		return errDeploy

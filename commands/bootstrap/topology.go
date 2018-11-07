@@ -26,7 +26,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/ziputil"
 
 	"gopkg.in/yaml.v2"
 )
@@ -132,23 +131,17 @@ func getFile(url string) string {
 	return file
 }
 
-// createTopology creates under destinationPath, a topology from a zip file at topologyPath
-// by executing its template files against input values
-func createTopology(topologyPath, destinationPath string) error {
-
-	// First retrieve template files from the zip file provided
-	// These files are expected to have the extension tmpl at the root of the directory
-	if _, err := ziputil.Unzip(topologyPath, destinationPath); err != nil {
-		return err
-	}
+// createTopology creates a topology from template files under resourcesPath,
+// by executing these template files against input values
+func createTopology(resourcesPath string) error {
 
 	var topologyTemplateFileNames []string
 	var resourcesTemplateFileNames []string
-	resourcesTemplatePrefix := "ondemand-resources"
+	resourcesTemplatePrefix := "ondemand_resources"
 	topologyTemplatesPrefix := "topology"
 	infrastructureTemplateSuffix := infrastructureType + ".tmpl"
-	topologyTemplateFile := fmt.Sprintf("%s-%s.tmpl", topologyTemplatesPrefix, deploymentType)
-	err := filepath.Walk(destinationPath,
+	topologyTemplateFile := fmt.Sprintf("%s_%s.tmpl", topologyTemplatesPrefix, deploymentType)
+	err := filepath.Walk(resourcesPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -173,7 +166,7 @@ func createTopology(topologyPath, destinationPath string) error {
 		})
 
 	if err != nil {
-		return errors.Wrapf(err, "Failed to browse unzip of %s under %s", topologyPath, destinationPath)
+		return errors.Wrapf(err, "Failed to browse topology files under %s", resourcesPath)
 	}
 
 	if len(topologyTemplateFileNames) == 0 {
@@ -183,19 +176,19 @@ func createTopology(topologyPath, destinationPath string) error {
 
 	if len(resourcesTemplateFileNames) == 0 {
 		// Need an on-demand resource template file name
-		return fmt.Errorf("Found no on-demand resources template in %s", destinationPath)
+		return fmt.Errorf("Found no on-demand resources template in %s", resourcesPath)
 	}
 
 	err = createFileFromTemplates(resourcesTemplateFileNames,
 		filepath.Base(resourcesTemplateFileNames[0]),
-		filepath.Join(destinationPath, inputValues.Location.ResourcesFile),
+		filepath.Join(resourcesPath, inputValues.Location.ResourcesFile),
 		inputValues)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create on-demand resources file from templates")
 	}
 
 	err = createFileFromTemplates(topologyTemplateFileNames, topologyTemplateFile,
-		filepath.Join(destinationPath, "topology.yaml"),
+		filepath.Join(resourcesPath, "topology.yaml"),
 		inputValues)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create topology file from templates")
