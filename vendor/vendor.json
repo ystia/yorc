@@ -653,6 +653,12 @@
 			"versionExact": "1.0.0"
 		},
 		{
+			"checksumSHA1": "gEjGS03N1eysvpQ+FCHTxPcbxXc=",
+			"path": "github.com/kardianos/osext",
+			"revision": "ae77be60afb1dcacde03767a8c37337fad28ac14",
+			"revisionTime": "2017-05-10T13:15:34Z"
+		},
+		{
 			"checksumSHA1": "aaUR0FaTkm9HdCovPv3tecD71/s=",
 			"path": "github.com/kballard/go-shellquote",
 			"revision": "95032a82bc518f77982ea72343cc1ade730072f0",
@@ -1308,6 +1314,12 @@
 			"path": "gopkg.in/AlecAivazis/survey.v1/terminal",
 			"revision": "0be4439d90f533f1ea2e0adddd5b1a405e6f5559",
 			"revisionTime": "2018-10-25T01:51:22Z"
+		},
+		{
+			"checksumSHA1": "ONWjfvB7wTruXlhgaPf9whtMXxs=",
+			"path": "gopkg.in/cookieo9/resources-go.v2",
+			"revision": "d27c04069d0d5dfe11c202dacbf745ae8d1ab181",
+			"revisionTime": "2015-02-25T11:57:33Z"
 		},
 		{
 			"checksumSHA1": "1GjIiJAA3m4mFTZ6zmtl3VZ6dCk=",

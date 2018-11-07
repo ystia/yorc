@@ -44,6 +44,9 @@ build: test
 	 -X github.com/ystia/yorc/commands/bootstrap.consulVersion=$(CONSUL_VERSION) \
 	 -X github.com/ystia/yorc/commands/bootstrap.terraformVersion=$(TERRAFORM_VERSION) \
 	 -X github.com/ystia/yorc/commands/bootstrap.yorcVersion=$(YORC_VERSION)"
+	 @cd ./commands && zip -q -r ../build/bootstrapResources.zip ./bootstrap/resources/*
+	 @cat ./build/bootstrapResources.zip >> ./yorc
+	 @zip -A ./yorc > /dev/null
 
 generate: checks
 	@go generate ./...

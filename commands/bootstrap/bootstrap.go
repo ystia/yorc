@@ -24,7 +24,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ystia/yorc/commands"
-	"github.com/ystia/yorc/helper/ziputil"
 )
 
 const (
@@ -67,8 +66,8 @@ func init() {
 		"deployment_type", "d", "single_node", "Define deployment type: single_node or HA")
 	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
 		"inputs", "i", "", "Path to inputs file")
-	bootstrapCmd.PersistentFlags().StringVarP(&topologyZipPath,
-		"topology", "t", "", "Path to topology zip file")
+	bootstrapCmd.PersistentFlags().StringVarP(&resourcesZipFilePath,
+		"resources", "r", "", "Path to bootstrap resources zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 
@@ -80,7 +79,7 @@ var bootstrapCmd *cobra.Command
 var bootstrapViper *viper.Viper
 var infrastructureType string
 var deploymentType string
-var topologyZipPath string
+var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
 
@@ -91,23 +90,25 @@ func bootstrap() error {
 
 	// Resources, like the topology zip, will be created in a directory under
 	//the working directory
-	resourcesPath := filepath.Join(workingDirectoryPath, "bootstrapResources")
-	if err := os.RemoveAll(resourcesPath); err != nil {
+	resourcesDir := filepath.Join(workingDirectoryPath, "bootstrapResources")
+	if err := os.RemoveAll(resourcesDir); err != nil {
 		return err
 	}
 
-	// First retrieve resources files from the zip file provided
-	if _, err := ziputil.Unzip(topologyZipPath, resourcesPath); err != nil {
+	// First extract resources files
+	if err := extractResources(resourcesZipFilePath, resourcesDir); err != nil {
 		return err
 	}
 
 	// Initializing parameters from environment variables, CLI options
 	// input file, and asking for user input if needed
-	if err := initializeInputs(inputsPath, resourcesPath); err != nil {
+	if err := initializeInputs(inputsPath, resourcesDir); err != nil {
 		return err
 	}
 
-	if err := createTopology(resourcesPath); err != nil {
+	// Create a topology from resources provided in the resources directory
+	topologyDir := filepath.Join(resourcesDir, "topology")
+	if err := createTopology(topologyDir); err != nil {
 		return err
 	}
 
@@ -117,8 +118,8 @@ func bootstrap() error {
 		return err
 	}
 
-	// A local Yorc server is running, using it to deploythe topology
-	deploymentID, errDeploy := deployTopology(resourcesPath)
+	// A local Yorc server is running, using it to deploy the topology
+	deploymentID, errDeploy := deployTopology(topologyDir)
 
 	if errDeploy != nil {
 		return errDeploy

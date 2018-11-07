@@ -1,0 +1,4 @@
+{{ define "ComputeAddress" }}
+      type: yorc.nodes.openstack.FloatingIP
+      properties: {{formatAsYAML .Address 8}}
+{{ end }}

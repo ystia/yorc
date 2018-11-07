@@ -189,7 +189,7 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 
 	// Get the list of possible user inputs from a resources file
 
-	userInputFilePath := filepath.Join(resourcesPath, "userInput.yaml")
+	userInputFilePath := filepath.Join(resourcesPath, "userInputsDefinition.yaml")
 	yamlContent, err := ioutil.ReadFile(userInputFilePath)
 	if err != nil {
 		return err
