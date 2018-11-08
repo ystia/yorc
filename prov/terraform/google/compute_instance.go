@@ -122,7 +122,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		}
 	}
 	if reqPrivateNetwork {
-		netInterfaces, err = addPrivateNetworkInterfaces(ctx, kv, deploymentID, nodeName, instanceName)
+		netInterfaces, err = addPrivateNetworkInterfaces(ctx, kv, deploymentID, nodeName)
 		if err != nil {
 			return err
 		}
@@ -444,7 +444,7 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 	return devices, nil
 }
 
-func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, nodeName, instanceName string) ([]NetworkInterface, error) {
+func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, nodeName string) ([]NetworkInterface, error) {
 	var netInterfaces []NetworkInterface
 
 	// Check if subnets have been specified by user into network relationship
@@ -467,7 +467,7 @@ func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, 
 		}
 		switch netType {
 		case "yorc.nodes.google.Subnetwork":
-			subnet, err := attributeLookup(ctx, kv, deploymentID, instanceName, networkNodeName, "subnetwork_name")
+			subnet, err := attributeLookup(ctx, kv, deploymentID, "0", networkNodeName, "subnetwork_name")
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 			}
@@ -483,7 +483,7 @@ func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, 
 				log.Debugf("add network interface with user-specified sub-network property:%s", subRaw.RawString())
 				netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subRaw.RawString()})
 			} else { // we mention the network
-				network, err := attributeLookup(ctx, kv, deploymentID, instanceName, networkNodeName, "network_name")
+				network, err := attributeLookup(ctx, kv, deploymentID, "0", networkNodeName, "network_name")
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
 				}

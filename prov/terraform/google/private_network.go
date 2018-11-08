@@ -29,23 +29,17 @@ import (
 	"strings"
 )
 
-func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
-	infrastructure *commons.Infrastructure,
-	outputs map[string]string) error {
+func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID,
+	nodeName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
 	if nodeType != "yorc.nodes.google.PrivateNetwork" {
 		return errors.Errorf("Unsupported node type for %q: %s", nodeName, nodeType)
 	}
-
-	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID,
-		"topology", "instances")
-	instancesKey := path.Join(instancesPrefix, nodeName)
-
+	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	privateNetwork := &PrivateNetwork{}
 
 	stringParams := []struct {
@@ -62,7 +56,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 	for _, stringParam := range stringParams {
 		if *stringParam.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName,
 			stringParam.propertyName, stringParam.mandatory); err != nil {
-			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
 	}
 
@@ -71,7 +65,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 		// Just provide network_name attribute
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 		consulKeyNetwork := commons.ConsulKey{
-			Path:  path.Join(instancesKey, instanceName, "/attributes/network_name"),
+			Path:  path.Join(nodeKey, "/attributes/network_name"),
 			Value: privateNetwork.Name,
 		}
 
@@ -80,18 +74,18 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 		return nil
 	}
 
-	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
+	name := strings.ToLower(cfg.ResourcesPrefix + nodeName)
 	privateNetwork.Name = strings.Replace(name, "_", "-", -1)
 
 	var autoCreateSubNets bool
 	s, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "auto_create_subnetworks")
 	if err != nil {
-		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+		return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	}
 	if s != nil && s.RawString() != "" {
 		autoCreateSubNets, err = strconv.ParseBool(s.RawString())
 		if err != nil {
-			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+			return errors.Wrapf(err, "failed to generate private network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
 	}
 	privateNetwork.AutoCreateSubNetworks = autoCreateSubNets
@@ -114,7 +108,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 	// Provide Consul Key for network_name
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 	consulKeyNetwork := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/network_name"),
+		Path:  path.Join(nodeKey, "/attributes/network_name"),
 		Value: fmt.Sprintf("${google_compute_network.%s.name}", privateNetwork.Name)}
 
 	consulKeys.Keys = append(consulKeys.Keys, consulKeyNetwork)
@@ -122,14 +116,11 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 	return nil
 }
 
-func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
-	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
+func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string,
 	infrastructure *commons.Infrastructure, outputs map[string]string) error {
 
 	subnet := &SubNetwork{}
-	instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID,
-		"topology", "instances")
-	instancesKey := path.Join(instancesPrefix, nodeName)
+	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 
 	var err error
 	strParams := []struct {
@@ -147,7 +138,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 	for _, param := range strParams {
 		*param.pAttr, err = deployments.GetStringNodeProperty(kv, deploymentID, nodeName, param.propertyName, param.mandatory)
 		if err != nil {
-			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
 	}
 	boolParams := []struct {
@@ -160,7 +151,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 	for _, param := range boolParams {
 		*param.pAttr, err = deployments.GetBooleanNodeProperty(kv, deploymentID, nodeName, param.propertyName)
 		if err != nil {
-			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+			return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 		}
 	}
 
@@ -177,7 +168,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 			return errors.Errorf("failed to retrieve dependency btw any network and the subnet with name:%q", subnet.Name)
 		}
 
-		subnet.Network, err = attributeLookup(ctx, kv, deploymentID, instanceName, networkNode, "network_name")
+		subnet.Network, err = attributeLookup(ctx, kv, deploymentID, "0", networkNode, "network_name")
 		if err != nil {
 			return err
 		}
@@ -187,7 +178,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 	var secondarySourceRange []string
 	secondaryIPRangesRaws, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "secondary_ip_ranges")
 	if err != nil {
-		return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+		return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 	} else if secondaryIPRangesRaws != nil && secondaryIPRangesRaws.RawString() != "" {
 		list, ok := secondaryIPRangesRaws.Value.([]interface{})
 		if !ok {
@@ -198,7 +189,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 		for i := range list {
 			ipRange, err := buildIPRange(kv, deploymentID, nodeName, i)
 			if err != nil {
-				return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q, instanceName:%q", deploymentID, nodeName, instanceName)
+				return errors.Wrapf(err, "failed to generate sub-network for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
 			}
 			ipRanges = append(ipRanges, *ipRange)
 			secondarySourceRange = append(secondarySourceRange, ipRange.IPCIDRRange)
@@ -212,14 +203,14 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV,
 	// Provide Consul Key for attribute gateway_ip
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 	consulKeyGateway := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/gateway_ip"),
+		Path:  path.Join(nodeKey, "/attributes/gateway_ip"),
 		Value: fmt.Sprintf("${google_compute_subnetwork.%s.gateway_address}", subnet.Name)}
 	consulKeyNetwork := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/network_name"),
+		Path:  path.Join(nodeKey, "/attributes/network_name"),
 		Value: subnet.Network,
 	}
 	consulKeySubnetwork := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/subnetwork_name"),
+		Path:  path.Join(nodeKey, "/attributes/subnetwork_name"),
 		Value: subnet.Name,
 	}
 	consulKeys.Keys = append(consulKeys.Keys, consulKeyGateway, consulKeyNetwork, consulKeySubnetwork)

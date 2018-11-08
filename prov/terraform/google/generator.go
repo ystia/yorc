@@ -153,12 +153,12 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 				return false, nil, nil, err
 			}
 		case "yorc.nodes.google.PrivateNetwork":
-			err = g.generatePrivateNetwork(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			err = g.generatePrivateNetwork(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, err
 			}
 		case "yorc.nodes.google.Subnetwork":
-			err = g.generateSubNetwork(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			err = g.generateSubNetwork(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs)
 			if err != nil {
 				return false, nil, nil, err
 			}
