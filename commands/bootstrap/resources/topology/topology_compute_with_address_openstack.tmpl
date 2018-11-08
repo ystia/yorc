@@ -10,8 +10,7 @@
       capabilities:
         endpoint:
           properties:
-            credentials: 
-              user: centos
+            credentials: {{formatAsYAML .Credentials 14}}
             secure: true
             protocol: tcp
             network_name: PRIVATE

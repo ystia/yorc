@@ -265,6 +265,20 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		return err
 	}
 
+	// Get Compute credentials
+
+	fmt.Println("\nGetting Compute instances credentials")
+
+	askIfNotRequired = false
+	if inputValues.Credentials == nil {
+		askIfNotRequired = true
+		var creds CredentialsConfiguration
+		inputValues.Credentials = &creds
+	}
+	if err := getComputeCredentials(askIfNotRequired, inputValues.Credentials); err != nil {
+		return err
+	}
+
 	fmt.Println("\nGetting Network configuration")
 
 	// IP Address on network
@@ -296,6 +310,48 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 
 	inputValues.Location.Name = inputValues.Location.Type
 	return err
+}
+
+// getResourceInputs asks for input parameters of an infrastructure or on-demand
+// resource
+func getComputeCredentials(askIfNotRequired bool, creds *CredentialsConfiguration) error {
+
+	answer := struct {
+		Value string
+	}{}
+
+	if creds.User == "" {
+		prompt := &survey.Input{
+			Message: "User used to connect to Compute instances:",
+		}
+		question := &survey.Question{
+			Name:     "value",
+			Prompt:   prompt,
+			Validate: survey.Required,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return err
+		}
+		creds.User = answer.Value
+	}
+
+	if askIfNotRequired {
+		prompt := &survey.Input{
+			Message: "Private key:",
+		}
+		question := &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return err
+		}
+		creds.Keys = make(map[string]string)
+		creds.Keys["0"] = answer.Value
+
+	}
+
+	return nil
 }
 
 // getResourceInputs asks for input parameters of an infrastructure or on-demand

@@ -4,16 +4,14 @@ resources:
     archiveName: yorc-openstack-types
     archiveVersion: 1.0.0
     id: "yorc.nodes.openstack.PublicNetwork:1.0.0"
-    properties:
-      floating_network_name: public-starlings
+    properties: {{formatAsYAML .Address 8}}
   - resourceType: "yorc.nodes.openstack.Compute"
     resourceName: "Compute"
     archiveName: yorc-openstack-types
     archiveVersion: 1.0.0
     id: "yorc.nodes.openstack.Compute:1.0.0"
-    properties: {{formatAsYAML .Compute 6}}
+    properties: {{formatAsYAML .Compute 8}}
     capabilities:
       endpoint:
         properties:
-          credentials: 
-            user: centos
+          credentials: {{formatAsYAML .Credentials 12}}

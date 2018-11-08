@@ -78,6 +78,12 @@ type LocationConfiguration struct {
 	ResourcesFile string
 }
 
+// CredentialsConfiguration provides a user and private key
+type CredentialsConfiguration struct {
+	User string
+	Keys map[string]string
+}
+
 // TopologyValues provides inputs to the topology templates
 type TopologyValues struct {
 	Ansible        AnsibleConfiguration
@@ -88,6 +94,7 @@ type TopologyValues struct {
 	Terraform      TerraformConfiguration
 	Infrastructure config.DynamicMap
 	Compute        config.DynamicMap
+	Credentials    *CredentialsConfiguration
 	Address        config.DynamicMap
 	Jdk            JdkConfiguration
 	Location       LocationConfiguration
