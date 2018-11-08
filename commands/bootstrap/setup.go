@@ -90,7 +90,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 
 	// Yorc Server outputs redirected to a file
 	outputFileName := filepath.Join(workingDirectoryPath, "yorc.log")
-	yorcServerOutputFile, err := os.Create(outputFileName)
+	yorcServerOutputFile, err := os.OpenFile(outputFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}

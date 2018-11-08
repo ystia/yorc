@@ -219,11 +219,11 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(resultFilePath), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(resultFilePath), 0700); err != nil {
 		return err
 	}
 
-	resultFile, err := os.Create(resultFilePath)
+	resultFile, err := os.OpenFile(resultFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}

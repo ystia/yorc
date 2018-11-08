@@ -15,7 +15,10 @@
 package bootstrap
 
 import (
-	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/ystia/yorc/helper/ziputil"
 	resources "gopkg.in/cookieo9/resources-go.v2"
@@ -47,8 +50,51 @@ func extractResources(resourcesZipFilePath, resourcesDir string) error {
 		if err != nil {
 			return err
 		}
-		for _, res := range allResources {
-			fmt.Printf("Found resource %s\n", res.Path())
+		for _, resource := range allResources {
+			if !strings.HasPrefix(resource.Path(), "bootstrap/resources") {
+				continue
+			}
+
+			destinationPath := filepath.Join(resourcesDir,
+				strings.TrimPrefix(resource.Path(), "bootstrap/resources"))
+
+			info, err := resource.Stat()
+			if err != nil {
+				return err
+			}
+
+			if info.IsDir() {
+				continue
+			}
+
+			// This is a file to copy
+			src, err := resource.Open()
+			if err != nil {
+				return err
+			}
+			defer src.Close()
+
+			if err := os.MkdirAll(filepath.Dir(destinationPath), 0700); err != nil {
+				return err
+			}
+
+			dest, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+			if err != nil {
+				return err
+			}
+			defer dest.Close()
+
+			if _, err := io.Copy(dest, src); err != nil {
+				return err
+			}
+
+			// If the copied file is a zip, unzipping it
+			if filepath.Ext(destinationPath) == ".zip" {
+				if _, err := ziputil.Unzip(destinationPath, filepath.Dir(destinationPath)); err != nil {
+					return err
+				}
+			}
+
 		}
 
 		return nil
