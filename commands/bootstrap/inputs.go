@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ystia/yorc/tosca"
+
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/commands"
 	"github.com/ystia/yorc/config"
@@ -187,91 +189,93 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		infrastructureType = strings.ToLower(infrastructureType)
 	}
 
-	// Get the list of possible user inputs from a resources file
+	// Define node types to get according to the selecting infrastructure
+	var infraNodeType, networkNodeType string
+	switch infrastructureType {
+	case "openstack":
+		infraNodeType = "org.ystia.yorc.pub.infrastructure.OpenStackConfig"
+		networkNodeType = "yorc.nodes.openstack.FloatingIP"
+	case "google":
+		infraNodeType = "org.ystia.yorc.pub.infrastructure.GoogleConfig"
+		networkNodeType = "yorc.nodes.google.Address"
+	case "aws":
+		infraNodeType = "org.ystia.yorc.pub.infrastructure.AWSConfig"
+		networkNodeType = "yorc.nodes.aws.PublicNetwork"
+	case "hostspool":
+		return fmt.Errorf("Bootstrap not yet implemented for %s", infrastructureType)
+	}
 
-	userInputFilePath := filepath.Join(resourcesPath, "userInputsDefinition.yaml")
-	yamlContent, err := ioutil.ReadFile(userInputFilePath)
+	fmt.Println("\nGetting Infrastructure configuration")
+
+	// Get the infrastructure definition from resources
+	nodeTypesFilePathPattern := filepath.Join(
+		resourcesPath, "topology", "org.ystia.yorc.pub", "*", "types.yaml")
+
+	matchingPath, err := filepath.Glob(nodeTypesFilePathPattern)
 	if err != nil {
 		return err
 	}
-	var userInput userInputType
-	err = yaml.Unmarshal(yamlContent, &userInput)
+	if len(matchingPath) == 0 {
+		return fmt.Errorf("Found no node types definition file matching pattern %s", nodeTypesFilePathPattern)
+	}
+
+	data, err := ioutil.ReadFile(matchingPath[0])
 	if err != nil {
 		return err
 	}
+	var topology tosca.Topology
+	if err := yaml.Unmarshal(data, &topology); err != nil {
+		return err
+	}
 
-	inputTypes := userInput.Infrastructure[infrastructureType]
+	askIfNotRequired := false
 	if inputValues.Infrastructure == nil {
+		askIfNotRequired = true
 		inputValues.Infrastructure = make(config.DynamicMap)
 	}
-	for _, infraInputType := range inputTypes {
 
-		// Check if a value is already provided before asking for user input
-		if inputValues.Infrastructure.IsSet(infraInputType.Name) {
-			continue
-		}
-		if infraInputType.DataType == "boolean" {
-			prompt := &survey.Select{
-				Message: fmt.Sprintf("%s:", infraInputType.Description),
-				Options: []string{"true", "false"},
-				Default: "false",
-			}
-			var answer string
-			survey.AskOne(prompt, &answer, nil)
-			value := false
-			if answer == "true" {
-				value = true
-			}
+	if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
+		&inputValues.Infrastructure); err != nil {
+		return err
+	}
 
-			inputValues.Infrastructure.Set(infraInputType.Name, value)
+	// Get infrastructure on-demand resources
+	onDemandResourceName := fmt.Sprintf("yorc-%s-types.yml", infrastructureType)
+	data, err = tosca.Asset(onDemandResourceName)
+	if err := yaml.Unmarshal(data, &topology); err != nil {
+		return err
+	}
 
-		} else {
-			answer := struct {
-				Value string
-			}{}
+	// First on-demand compute nodes
+	// If the user didn't yet provided any properyy value,
+	// let him the ability to specify any property.
+	// If the user has already provided some property values,
+	// jus asking missing required values
 
-			var defaultValueMsg string
-			if infraInputType.DefaultValue != nil {
-				defaultValueMsg = fmt.Sprintf(" (default: %v)", infraInputType.DefaultValue)
-			}
+	fmt.Println("\nGetting Compute instances configuration")
 
-			var prompt survey.Prompt
-			if infraInputType.Secret {
-				prompt = &survey.Password{
-					Message: fmt.Sprintf("%s%s:",
-						infraInputType.Description,
-						defaultValueMsg)}
-			} else {
-				prompt = &survey.Input{
-					Message: fmt.Sprintf("%s%s:",
-						infraInputType.Description,
-						defaultValueMsg)}
-			}
-			question := &survey.Question{
-				Name:   "value",
-				Prompt: prompt,
-			}
-			if infraInputType.Required {
-				question.Validate = survey.Required
-			}
-			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
-				return err
-			}
+	askIfNotRequired = false
+	if inputValues.Compute == nil {
+		askIfNotRequired = true
+		inputValues.Compute = make(config.DynamicMap)
+	}
+	nodeType := fmt.Sprintf("yorc.nodes.%s.Compute", infrastructureType)
+	if err := getResourceInputs(topology, nodeType, askIfNotRequired,
+		&inputValues.Compute); err != nil {
+		return err
+	}
 
-			if answer.Value != "" {
-				if infraInputType.DataType == "string" {
-					inputValues.Infrastructure.Set(infraInputType.Name, answer.Value)
-				} else {
-					value := strings.Split(answer.Value, ",")
-					for i, val := range value {
-						value[i] = strings.TrimSpace(val)
-					}
-					inputValues.Infrastructure.Set(infraInputType.Name, value)
-				}
-			} else if infraInputType.DefaultValue != nil {
-				inputValues.Infrastructure.Set(infraInputType.Name, infraInputType.DefaultValue)
-			}
-		}
+	fmt.Println("\nGetting Network configuration")
+
+	// IP Address on network
+	askIfNotRequired = false
+	if inputValues.Address == nil {
+		askIfNotRequired = true
+		inputValues.Address = make(config.DynamicMap)
+	}
+	if err := getResourceInputs(topology, networkNodeType, askIfNotRequired,
+		&inputValues.Address); err != nil {
+		return err
 	}
 
 	// Fill in uninitialized values
@@ -292,6 +296,112 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 
 	inputValues.Location.Name = inputValues.Location.Type
 	return err
+}
+
+// getResourceInputs asks for input parameters of an infrastructure or on-demand
+// resource
+func getResourceInputs(topology tosca.Topology, resourceName string,
+	askIfNotRequired bool,
+	resultMap *config.DynamicMap) error {
+
+	nodeType, found := topology.NodeTypes[resourceName]
+	if !found {
+		return fmt.Errorf("Unknown node type %s", resourceName)
+	}
+
+	for propName, definition := range nodeType.Properties {
+
+		// Check if a value is already provided before asking for user input
+		// ot if the value is not required
+		required := definition.Required != nil && *definition.Required
+		if resultMap.IsSet(propName) ||
+			(!askIfNotRequired && !required) {
+			continue
+		}
+
+		description := getFormattedDescription(definition.Description)
+
+		if definition.Type == "boolean" {
+			defaultValue := "false"
+			if definition.Default != nil {
+				defaultValue = definition.Default.GetLiteral()
+			}
+			prompt := &survey.Select{
+				Message: fmt.Sprintf("%s:", description),
+				Options: []string{"true", "false"},
+				Default: defaultValue,
+			}
+			var answer string
+			survey.AskOne(prompt, &answer, nil)
+			value := false
+			if answer == "true" {
+				value = true
+			}
+
+			resultMap.Set(propName, value)
+
+		} else {
+			answer := struct {
+				Value string
+			}{}
+
+			var defaultValueMsg string
+			if definition.Default != nil {
+				defaultValueMsg = fmt.Sprintf(" (default: %v)", definition.Default.GetLiteral())
+			}
+
+			var prompt survey.Prompt
+			if strings.ToLower(propName) == "password" {
+				prompt = &survey.Password{
+					Message: fmt.Sprintf("%s%s:",
+						description,
+						defaultValueMsg)}
+			} else {
+				prompt = &survey.Input{
+					Message: fmt.Sprintf("%s%s:",
+						description,
+						defaultValueMsg)}
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if required {
+				question.Validate = survey.Required
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			if answer.Value != "" {
+				if !strings.Contains(answer.Value, ",") {
+					resultMap.Set(propName, answer.Value)
+				} else {
+					value := strings.Split(answer.Value, ",")
+					for i, val := range value {
+						value[i] = strings.TrimSpace(val)
+					}
+					resultMap.Set(propName, value)
+				}
+			} else if definition.Default != nil {
+				resultMap.Set(propName, definition.Default.GetLiteral())
+			}
+		}
+	}
+
+	return nil
+
+}
+
+// getFormattedDescription reformats the description found in yaml node types
+// definitions
+func getFormattedDescription(description string) string {
+	result := strings.TrimPrefix(description, "The ")
+	result = strings.TrimPrefix(result, "the ")
+	result = strings.TrimPrefix(result, "A ")
+	result = strings.TrimSpace(result)
+	result = strings.TrimSuffix(result, ".")
+	return result
 }
 
 // getInputValues initializes topology values from an input file
