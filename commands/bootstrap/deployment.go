@@ -16,24 +16,47 @@ package bootstrap
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ystia/yorc/commands/deployments"
 	"github.com/ystia/yorc/helper/ziputil"
 )
 
-// deployTopology deploys a topology provided under deploymentPath.
+// deployTopology deploys a topology provided under deploymentDir.
 // Return the the ID of the deployment
-func deployTopology(deploymentPath string) (string, error) {
+func deployTopology(workdDir, deploymentDir string) (string, error) {
 
 	// Download Alien4Cloud whose zip is expected to be provided in the
 	// deployment
+	// First downloading it in the work dir if not yet there
+	// like other extenrla downloadable dependencies
 	url := inputValues.Alien4cloud.DownloadURL
-	if _, err := download(url, deploymentPath); err != nil {
+	if _, err := download(url, workdDir); err != nil {
 		return "", err
 	}
 
-	csarZip, err := ziputil.ZipPath(deploymentPath)
+	// Copying this file now to the deployment dir
+	_, filename := filepath.Split(url)
+	srcPath := filepath.Join(workdDir, filename)
+	dstPath := filepath.Join(deploymentDir, filename)
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return "", err
+	}
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return "", err
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, src); err != nil {
+		return "", err
+	}
+
+	// Create the deployment archive
+	csarZip, err := ziputil.ZipPath(deploymentDir)
 	if err != nil {
 		return "", err
 	}

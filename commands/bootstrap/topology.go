@@ -38,8 +38,9 @@ type AnsibleConfiguration struct {
 
 // YorcConfiguration provides Yorc user-defined settings
 type YorcConfiguration struct {
-	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
-	Port        int
+	DownloadURL       string `yaml:"download_url" mapstructure:"download_url"`
+	Port              int
+	PrivateKeyContent string `yaml:"private_key_content" mapstructure:"private_key_content"`
 }
 
 // YorcPluginConfiguration provides Yorc plugin user-defined settings
@@ -107,16 +108,21 @@ func formatAsYAML(data interface{}, indentations int) (string, error) {
 	result := ""
 	bSlice, err := yaml.Marshal(data)
 	if err == nil {
-		bSlice = append([]byte("\n"), bSlice...)
-		if indentations > 0 {
-			indentString := strings.Repeat(" ", indentations)
-			result = strings.Replace(string(bSlice), "\n", "\n"+indentString, -1)
-			result = strings.TrimRight(result, " \n")
-		} else {
-			result = string(bSlice)
-		}
+		result = indent(string(bSlice), indentations)
 	}
 	return result, err
+}
+
+// indent adds a new line and indents the string in argument
+func indent(data string, indentations int) string {
+	result := "\n" + data
+	if indentations > 0 {
+		indentString := strings.Repeat(" ", indentations)
+		result = strings.Replace(result, "\n", "\n"+indentString, -1)
+		result = strings.TrimRight(result, " \n")
+	}
+
+	return result
 }
 
 // getAlien4CloudVersion extracts an Alien4cloud version form its download URL
@@ -143,7 +149,7 @@ func getFile(url string) string {
 // by executing these template files against input values
 func createTopology(topologyDir string) error {
 
-	// First unzip tosca types avaiable in the resources directory
+	// First unzip tosca types available in the resources directory
 	toscaTypesZipFilePath := filepath.Join(topologyDir, "tosca_types.zip")
 	if _, err := ziputil.Unzip(toscaTypesZipFilePath, topologyDir); err != nil {
 		return err
@@ -217,6 +223,7 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
 		"formatAsYAML":          formatAsYAML,
+		"indent":                indent,
 		"getFile":               getFile,
 		"getAlien4CloudVersion": getAlien4CloudVersion,
 	}

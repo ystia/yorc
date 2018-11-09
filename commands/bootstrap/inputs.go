@@ -308,6 +308,16 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		return fmt.Errorf("Bootstrapping on %s not supported yet", infrastructureType)
 	}
 
+	// Update Yorc private key content from provided credentials if needed
+	if inputValues.Yorc.PrivateKeyContent == "" &&
+		inputValues.Credentials.Keys["0"] != "" {
+		data, err := ioutil.ReadFile(inputValues.Credentials.Keys["0"])
+		if err != nil {
+			return err
+		}
+		inputValues.Yorc.PrivateKeyContent = string(data[:])
+	}
+
 	inputValues.Location.Name = inputValues.Location.Type
 	return err
 }

@@ -147,6 +147,7 @@ topology_template:
         install_dir: "/usr/local/bin"
         config_dir: "/etc/yorc"
         data_dir: "/var/yorc"
+        private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
       requirements:
         - hostedOnComputeHost:
             type_requirement: host
