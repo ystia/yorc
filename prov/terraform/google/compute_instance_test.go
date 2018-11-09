@@ -85,6 +85,9 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	require.Len(t, compute.ScratchDisks, 2, "Expected 2 scratch disks")
 	assert.Equal(t, "SCSI", compute.ScratchDisks[0].Interface, "SCSI interface expected for 1st scratch")
 	assert.Equal(t, "NVME", compute.ScratchDisks[1].Interface, "NVME interface expected for 2nd scratch")
+
+	assert.Len(t, compute.NetworkInterfaces, 1, "1 NetworkInterface expected")
+	assert.Equal(t, "default", compute.NetworkInterfaces[0].Network, "default network is not retrieved")
 }
 
 func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, kv *api.KV, cfg config.Configuration) {
@@ -180,4 +183,58 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device")], "output file value expected")
 	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device")], "output file value expected")
 	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device")], "output file value expected")
+}
+
+func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	// Simulate the google persistent disk "volume_id" attribute registration
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network/0/attributes/network_name"): []byte("mynet"),
+	})
+
+	infrastructure := commons.Infrastructure{}
+	g := googleGenerator{}
+	outputs := make(map[string]string, 0)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs)
+	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
+
+	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
+	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "compute-0")
+
+	compute, ok := instancesMap["compute-0"].(*ComputeInstance)
+	require.True(t, ok, "compute-0 is not a ComputeInstance")
+
+	assert.Len(t, compute.NetworkInterfaces, 1, "1 NetworkInterface expected")
+	assert.Equal(t, "mynet", compute.NetworkInterfaces[0].Network, "Network is not retrieved")
+}
+
+func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
+	t.Parallel()
+	deploymentID := loadTestYaml(t, kv)
+
+	// Simulate the google persistent disk "volume_id" attribute registration
+	srv1.PopulateKV(t, map[string][]byte{
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network_custom_subnet/0/attributes/subnetwork_name"): []byte("mysubnet"),
+	})
+
+	infrastructure := commons.Infrastructure{}
+	g := googleGenerator{}
+	outputs := make(map[string]string, 0)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Comp1", "0", 0, &infrastructure, outputs)
+	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
+
+	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
+	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
+	require.Len(t, instancesMap, 1)
+	require.Contains(t, instancesMap, "comp1-0")
+
+	compute, ok := instancesMap["comp1-0"].(*ComputeInstance)
+	require.True(t, ok, "comp1-0 is not a ComputeInstance")
+
+	assert.Len(t, compute.NetworkInterfaces, 1, "1 NetworkInterface expected")
+	assert.Equal(t, "mysubnet", compute.NetworkInterfaces[0].Subnetwork, "Subnetwork is not retrieved")
 }

@@ -1,0 +1,24 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: NetworkWithCustomSubnetsTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    Network:
+      type: yorc.nodes.google.PrivateNetwork
+      properties:
+        auto_create_subnetworks: false
+        description: mydesc
+        project: myproj
+        cidr_region: "europe-west1"
+        routing_mode: "REGIONAL"

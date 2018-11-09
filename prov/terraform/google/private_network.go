@@ -101,7 +101,6 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 			{Protocol: "icmp"},
 			{Protocol: "TCP", Ports: []string{"3389"}}, // RDP
 			{Protocol: "TCP", Ports: []string{"22"}},   // SSH
-			{Protocol: "TCP", Ports: []string{"8500"}}, //FIXME just for test
 		}}
 	commons.AddResource(infrastructure, "google_compute_firewall", externalFw.Name, externalFw)
 
@@ -185,7 +184,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 			return errors.New("failed to retrieve yorc.datatypes.google.IPRange Tosca Value: not expected type")
 		}
 
-		ipRanges := make([]IPRange, len(list))
+		ipRanges := make([]IPRange, 0)
 		for i := range list {
 			ipRange, err := buildIPRange(kv, deploymentID, nodeName, i)
 			if err != nil {

@@ -1,0 +1,46 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: NetworkWithCustomSubnetsTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    Network:
+      type: yorc.nodes.google.PrivateNetwork
+      properties:
+        auto_create_subnetworks: false
+        custom_subnetworks:
+          - name: "custom-subnet"
+            ip_cidr_range: "10.10.0.0/24"
+            region: "europe-west1"
+        ip_version: 4
+    Network_custom_subnet:
+      type: yorc.nodes.google.Subnetwork
+      properties:
+        name: "custom-subnet"
+        ip_cidr_range: "10.10.0.0/24"
+        region: "europe-west1"
+        description: "mydesc"
+        project: "myproj"
+        enable_flow_logs: true
+        private_ip_google_access: false
+        secondary_ip_ranges:
+          - name: secondaryIP
+            ip_cidr_range: "10.1.0.0/24"
+          - name: secondaryIP2
+            ip_cidr_range: "10.2.0.0/24"
+      requirements:
+        - Network_custom_subnet_Network:
+            type_requirement: dependency
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.DependsOn
