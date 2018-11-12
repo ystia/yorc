@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Generate unique names fro GCP resources ([GH-177](https://github.com/ystia/yorc/issues/177))
+
 ## 3.1.0-M5 (October 26, 2018)
 
 ### FEATURES
