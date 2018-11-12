@@ -6,6 +6,10 @@
 
 * Support Kubernetes Jobs. ([GH-86](https://github.com/ystia/yorc/issues/86))
 
+### BUG FIXES
+
+* Generate unique names for GCP resources ([GH-177](https://github.com/ystia/yorc/issues/177))
+
 ## 3.1.0-M5 (October 26, 2018)
 
 ### FEATURES

@@ -16,12 +16,13 @@ package google
 
 import (
 	"context"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/prov/terraform/commons"
-	"testing"
 )
 
 func testSimpleComputeAddress(t *testing.T, kv *api.KV, cfg config.Configuration) {
@@ -32,14 +33,16 @@ func testSimpleComputeAddress(t *testing.T, kv *api.KV, cfg config.Configuration
 	err := g.generateComputeAddress(context.Background(), kv, cfg, deploymentID, "ComputeAddress", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate compute address for %s", deploymentID)
 
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	addressName := resourcePrefix + "computeaddress-0"
 	require.Len(t, infrastructure.Resource["google_compute_address"], 1, "Expected one compute address")
 	instancesMap := infrastructure.Resource["google_compute_address"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "computeaddress-0")
+	require.Contains(t, instancesMap, addressName)
 
-	computeAddress, ok := instancesMap["computeaddress-0"].(*ComputeAddress)
-	require.True(t, ok, "computeaddress-0 is not a ComputeAddress")
-	assert.Equal(t, "computeaddress-0", computeAddress.Name)
+	computeAddress, ok := instancesMap[addressName].(*ComputeAddress)
+	require.True(t, ok, "%s is not a ComputeAddress", addressName)
+	assert.Equal(t, addressName, computeAddress.Name)
 	assert.Equal(t, "europe-west1", computeAddress.Region)
 	assert.Equal(t, "EXTERNAL", computeAddress.AddressType)
 	assert.Equal(t, "PREMIUM", computeAddress.NetworkTier)
