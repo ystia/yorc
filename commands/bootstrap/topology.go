@@ -27,6 +27,7 @@ import (
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/ziputil"
+	"github.com/ystia/yorc/rest"
 
 	"gopkg.in/yaml.v2"
 )
@@ -99,6 +100,7 @@ type TopologyValues struct {
 	Address        config.DynamicMap
 	Jdk            JdkConfiguration
 	Location       LocationConfiguration
+	Hosts          []rest.HostConfig
 }
 
 // formatAsYAML is a function used in templates to output the yaml representation

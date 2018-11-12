@@ -202,7 +202,8 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		infraNodeType = "org.ystia.yorc.pub.infrastructure.AWSConfig"
 		networkNodeType = "yorc.nodes.aws.PublicNetwork"
 	case "hostspool":
-		return fmt.Errorf("Bootstrap not yet implemented for %s", infrastructureType)
+		// No infrastructure defined in case of hosts pool
+		// Hosts Pool don't have network-reletad on-demand resources
 	}
 
 	fmt.Println("\nGetting Infrastructure configuration")
@@ -229,25 +230,28 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	}
 
 	askIfNotRequired := false
-	if inputValues.Infrastructure == nil {
-		askIfNotRequired = true
-		inputValues.Infrastructure = make(config.DynamicMap)
+	// Get infrastructure inputs except in the case of hosts pool
+	if infrastructureType != "hostspool" {
+		if inputValues.Infrastructure == nil {
+			askIfNotRequired = true
+			inputValues.Infrastructure = make(config.DynamicMap)
+		}
+
+		if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
+			&inputValues.Infrastructure); err != nil {
+			return err
+		}
 	}
 
-	if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
-		&inputValues.Infrastructure); err != nil {
-		return err
-	}
-
-	// Get infrastructure on-demand resources
+	// Get on-demand resources definition for this infrastructure type
 	onDemandResourceName := fmt.Sprintf("yorc-%s-types.yml", infrastructureType)
 	data, err = tosca.Asset(onDemandResourceName)
 	if err := yaml.Unmarshal(data, &topology); err != nil {
 		return err
 	}
 
-	// First on-demand compute nodes
-	// If the user didn't yet provided any properyy value,
+	// First get on-demand compute nodes inputs
+	// If the user didn't yet provided any property value,
 	// let him the ability to specify any property.
 	// If the user has already provided some property values,
 	// jus asking missing required values
@@ -417,7 +421,9 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 			}
 
 			var prompt survey.Prompt
-			if strings.ToLower(propName) == "password" {
+			loweredProp := strings.ToLower(propName)
+			if strings.Contains(loweredProp, "password") ||
+				strings.Contains(loweredProp, "secret") {
 				prompt = &survey.Password{
 					Message: fmt.Sprintf("%s%s:",
 						description,
