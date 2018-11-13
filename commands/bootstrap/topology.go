@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,6 +43,7 @@ type YorcConfiguration struct {
 	DownloadURL       string `yaml:"download_url" mapstructure:"download_url"`
 	Port              int
 	PrivateKeyContent string `yaml:"private_key_content" mapstructure:"private_key_content"`
+	PrivateKeyFile    string `yaml:"private_key_file" mapstructure:"private_key_file"`
 }
 
 // YorcPluginConfiguration provides Yorc plugin user-defined settings
@@ -214,6 +216,27 @@ func createTopology(topologyDir string) error {
 		inputValues)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create topology file from templates")
+	}
+
+	// If a Hosts Pool infrastructure was specified, an additional resources file
+	// containing the hosts pool description has to be created
+	if infrastructureType == "hostspool" {
+
+		hostsPool := rest.HostsPoolRequest{
+			Hosts: inputValues.Hosts,
+		}
+
+		bSlice, err := yaml.Marshal(hostsPool)
+		if err != nil {
+			return err
+		}
+
+		cfgFileName := filepath.Join(topologyDir, "resources", "hostspool.yaml")
+		err = ioutil.WriteFile(cfgFileName, bSlice, 0700)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return err

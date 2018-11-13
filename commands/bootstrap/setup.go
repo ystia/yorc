@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,6 +35,8 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/ziputil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/rest"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -60,12 +63,16 @@ func setupYorcServer(workingDirectoryPath string) error {
 	}
 
 	// Starting Consul begore the Yorc server
+	fmt.Println("Starting Consul...")
 	cmdConsul, err = startConsul(workingDirectoryPath)
 	if err != nil {
 		return err
 	}
+	fmt.Println("...Consul started")
 
 	// Starting Yorc server
+
+	fmt.Println("Starting a local Yorc server to bootstrap a remote Yorc server...")
 
 	// First creating a Yorc config file defining the infrastructure
 	inputInfra := make(map[string]config.DynamicMap)
@@ -114,6 +121,45 @@ func setupYorcServer(workingDirectoryPath string) error {
 
 	err = waitForYorcServerUP(5 * time.Second)
 
+	fmt.Println("...local Yorc server started")
+
+	// For a deployment on a Hosts Pool, this Hosts Pool needs to be configured,
+	// which can be done now that the local Yorc Server is up
+	if infrastructureType == "hostspool" {
+
+		fmt.Println("Configuring a Hosts Pool")
+		client, err := getYorcClient()
+		if err != nil {
+			return err
+		}
+
+		hostsPool := rest.HostsPoolRequest{
+			Hosts: inputValues.Hosts,
+		}
+
+		bArray, err := json.Marshal(hostsPool)
+		if err != nil {
+			return err
+		}
+
+		request, err := client.NewRequest("PUT", "/hosts_pool",
+			bytes.NewBuffer(bArray))
+		if err != nil {
+			return err
+		}
+		request.Header.Add("Content-Type", "application/json")
+
+		response, err := client.Do(request)
+		defer response.Body.Close()
+		if err != nil {
+			return err
+		}
+
+		httputil.HandleHTTPStatusCode(
+			response, "apply", "host pool", http.StatusOK, http.StatusCreated)
+
+	}
+
 	return err
 
 }
@@ -132,7 +178,7 @@ func waitForYorcServerUP(timeout time.Duration) error {
 		return err
 	}
 
-	request, err := client.NewRequest("GET", "/deployments", nil)
+	request, err := client.NewRequest("PUT", "/hosts_pool", nil)
 	if err != nil {
 		return err
 	}
@@ -186,7 +232,6 @@ func startConsul(workingDirectoryPath string) (*exec.Cmd, error) {
 	cmdArgs := "agent -server -bootstrap-expect 1 -bind 127.0.0.1 -data-dir " + dataDir
 	cmd := exec.Command(executable, strings.Split(cmdArgs, " ")...)
 	output, _ := cmd.StdoutPipe()
-	cmd.Stderr = os.Stderr
 	err := cmd.Start()
 	if err != nil {
 		return nil, err

@@ -218,8 +218,12 @@ topology_template:
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
     Infrastructure: {{block "Infrastructure" .}} {{end}}
+    {{if not .Address}}
+    YorcCompute: {{block "Compute" .}} {{end}}
+    {{else}}
     YorcCompute: {{block "ComputeWithAddress" .}} {{end}}
     ComputeAddress:  {{block "ComputeAddress" .}} {{end}}
+    {{end}}
   outputs:
     Alien4Cloud_alien_url:
       value: { get_attribute: [ Alien4Cloud, alien_url ] }
@@ -262,6 +266,7 @@ topology_template:
             - call_operation: Configure.post_configure_source
           on_success:
             - Infrastructure_yorcConfigInfrastructureHostedOnYorcYorcServerConfig_post_configure_target
+            - YorcServer_configured
         YorcPlugin_creating:
           target: YorcPlugin
           activities:
@@ -685,12 +690,14 @@ topology_template:
             - set_state: configured
           on_success:
             - YorcServer_starting
+        {{if .Address}}
         ComputeAddress_install:
           target: ComputeAddress
           activities:
             - delegate: install
           on_success:
             - A4C_Yorc_install
+        {{end}}
         YorcServer_starting:
           target: YorcServer
           activities:
@@ -769,8 +776,10 @@ topology_template:
           target: YorcCompute
           activities:
             - delegate: uninstall
+          {{if .Address}}
           on_success:
             - ComputeAddress_uninstall
+          {{end}}
         OracleJDK_stopped:
           target: OracleJDK
           activities:
@@ -934,10 +943,12 @@ topology_template:
             - set_state: deleting
           on_success:
             - TerraformRuntime_delete
+        {{if .Address}}
         ComputeAddress_uninstall:
           target: ComputeAddress
           activities:
             - delegate: uninstall
+        {{end}}
         Alien4Cloud_deleting:
           target: Alien4Cloud
           activities:
@@ -1117,12 +1128,14 @@ topology_template:
             - call_operation: Standard.start
           on_success:
             - YorcServer_started
+        {{if .Address}}
         ComputeAddress_start:
           target: ComputeAddress
           activities:
             - delegate: start
           on_success:
             - A4C_Yorc_start
+        {{end}}
         TerraformRuntime_started:
           target: TerraformRuntime
           activities:
@@ -1180,10 +1193,12 @@ topology_template:
             - set_state: stopping
           on_success:
             - AnsibleRuntime_stopped
+        {{if .Address}}
         ComputeAddress_stop:
           target: ComputeAddress
           activities:
             - delegate: stop
+        {{end}}
         OracleJDK_stopped:
           target: OracleJDK
           activities:
@@ -1239,8 +1254,10 @@ topology_template:
           target: YorcCompute
           activities:
             - delegate: stop
+          {{if .Address}}
           on_success:
             - ComputeAddress_stop
+          {{end}}
         YorcOnDemandLocationResources_stopped:
           target: YorcOnDemandLocationResources
           activities:

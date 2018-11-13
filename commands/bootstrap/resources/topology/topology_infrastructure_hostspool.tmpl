@@ -1,0 +1,12 @@
+{{ define "Infrastructure" }}
+      type: org.ystia.yorc.pub.infrastructure.HostsPoolConfig
+      artifacts:
+        resources_file_artifact:
+          file: resources/hostspool.yaml
+      requirements:
+        - infraHostedOnYorcServer:
+            type_requirement: host
+            node: YorcServer
+            capability: org.ystia.yorc.pub.capabilities.YorcRestAPI
+            relationship: org.ystia.yorc.pub.relationships.YorcHostsPoolConnectsToYorc
+{{ end }}

@@ -230,7 +230,8 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	}
 
 	askIfNotRequired := false
-	// Get infrastructure inputs except in the case of hosts pool
+	// Get infrastructure inputs, except in the Hosts Pool case as Hosts Pool
+	// doesn't have any infrastructure property
 	if infrastructureType != "hostspool" {
 		if inputValues.Infrastructure == nil {
 			askIfNotRequired = true
@@ -241,6 +242,21 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 			&inputValues.Infrastructure); err != nil {
 			return err
 		}
+	} else {
+
+		// Hosts Pool
+		if inputValues.Hosts == nil {
+			askIfNotRequired = true
+			//inputValues.Hosts = make(config.DynamicMap)
+		}
+
+		// TODO
+		/*
+			if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
+				&inputValues.Infrastructure); err != nil {
+				return err
+			}
+		*/
 	}
 
 	// Get on-demand resources definition for this infrastructure type
@@ -269,31 +285,35 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		return err
 	}
 
-	// Get Compute credentials
+	// Get Compute credentials, not on Hosts Pool as Hosts credentials are provided
+	// in the Hosts Pool configuration
+	if infrastructureType != "hostspool" {
+		fmt.Println("\nGetting Compute instances credentials")
 
-	fmt.Println("\nGetting Compute instances credentials")
-
-	askIfNotRequired = false
-	if inputValues.Credentials == nil {
-		askIfNotRequired = true
-		var creds CredentialsConfiguration
-		inputValues.Credentials = &creds
+		askIfNotRequired = false
+		if inputValues.Credentials == nil {
+			askIfNotRequired = true
+			var creds CredentialsConfiguration
+			inputValues.Credentials = &creds
+		}
+		if err := getComputeCredentials(askIfNotRequired, inputValues.Credentials); err != nil {
+			return err
+		}
 	}
-	if err := getComputeCredentials(askIfNotRequired, inputValues.Credentials); err != nil {
-		return err
-	}
 
-	fmt.Println("\nGetting Network configuration")
+	// Network connection
+	if networkNodeType != "" {
 
-	// IP Address on network
-	askIfNotRequired = false
-	if inputValues.Address == nil {
-		askIfNotRequired = true
-		inputValues.Address = make(config.DynamicMap)
-	}
-	if err := getResourceInputs(topology, networkNodeType, askIfNotRequired,
-		&inputValues.Address); err != nil {
-		return err
+		fmt.Println("\nGetting Network configuration")
+		askIfNotRequired = false
+		if inputValues.Address == nil {
+			askIfNotRequired = true
+			inputValues.Address = make(config.DynamicMap)
+		}
+		if err := getResourceInputs(topology, networkNodeType, askIfNotRequired,
+			&inputValues.Address); err != nil {
+			return err
+		}
 	}
 
 	// Fill in uninitialized values
@@ -312,17 +332,39 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		return fmt.Errorf("Bootstrapping on %s not supported yet", infrastructureType)
 	}
 
-	// Update Yorc private key content from provided credentials if needed
-	if inputValues.Yorc.PrivateKeyContent == "" &&
-		inputValues.Credentials.Keys["0"] != "" {
-		data, err := ioutil.ReadFile(inputValues.Credentials.Keys["0"])
+	inputValues.Location.Name = inputValues.Location.Type
+
+	// Update Yorc private key content from if needed
+	if inputValues.Yorc.PrivateKeyContent == "" {
+
+		filename := inputValues.Yorc.PrivateKeyFile
+		if filename == "" {
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "Path to ssh private key accessible locally (will be stored as ~/.ssh/yorc.pem on bootstrapped Yorc server):",
+			}
+			question := &survey.Question{
+				Name:     "value",
+				Prompt:   prompt,
+				Validate: survey.Required,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			filename = answer.Value
+		}
+
+		data, err := ioutil.ReadFile(filename)
 		if err != nil {
 			return err
 		}
 		inputValues.Yorc.PrivateKeyContent = string(data[:])
 	}
 
-	inputValues.Location.Name = inputValues.Location.Type
 	return err
 }
 
