@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Support GCE virtual private networks (VPC) ([GH-80](https://github.com/ystia/yorc/issues/80))
+
 ### BUG FIXES
 
 * Generate unique names for GCP resources ([GH-177](https://github.com/ystia/yorc/issues/177))
