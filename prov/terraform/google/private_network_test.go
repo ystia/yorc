@@ -71,6 +71,8 @@ func testSimplePrivateNetwork(t *testing.T, kv *api.KV, cfg config.Configuration
 func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	subnetName := resourcePrefix + "custom-subnet"
 	srv1.PopulateKV(t, map[string][]byte{
 		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network/0/attributes/network_name"): []byte("mynet"),
 	})
@@ -83,11 +85,11 @@ func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg c
 	require.Len(t, infrastructure.Resource["google_compute_subnetwork"], 1, "Expected one sub-network")
 	instancesMap := infrastructure.Resource["google_compute_subnetwork"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "custom-subnet")
+	require.Contains(t, instancesMap, subnetName)
 
-	subnet, ok := instancesMap["custom-subnet"].(*SubNetwork)
-	require.True(t, ok, "custom-subnet is not a SubNetwork")
-	assert.Equal(t, "custom-subnet", subnet.Name)
+	subnet, ok := instancesMap[subnetName].(*SubNetwork)
+	require.True(t, ok, "%s is not a SubNetwork", subnetName)
+	assert.Equal(t, subnetName, subnet.Name)
 	assert.Equal(t, "mynet", subnet.Network)
 	assert.Equal(t, "myproj", subnet.Project)
 	assert.Equal(t, "mydesc", subnet.Description)
@@ -95,13 +97,14 @@ func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg c
 	assert.Equal(t, true, subnet.EnableFlowLogs)
 	assert.Equal(t, false, subnet.PrivateIPGoogleAccess)
 
+	fwName := fmt.Sprintf("%s-default-internal-fw", subnetName)
 	firewallsMap := infrastructure.Resource["google_compute_firewall"].(map[string]interface{})
 	require.Len(t, firewallsMap, 1)
-	require.Contains(t, firewallsMap, "custom-subnet-default-internal-fw")
+	require.Contains(t, firewallsMap, fwName)
 
-	defaultFirewall, ok := firewallsMap["custom-subnet-default-internal-fw"].(*Firewall)
-	require.True(t, ok, "defaultFirewall is not a Firewall")
-	assert.Equal(t, "custom-subnet-default-internal-fw", defaultFirewall.Name)
+	defaultFirewall, ok := firewallsMap[fwName].(*Firewall)
+	require.True(t, ok, "%s is not a Firewall", fwName)
+	assert.Equal(t, fwName, defaultFirewall.Name)
 	assert.Equal(t, subnet.Network, defaultFirewall.Network)
 	assert.Equal(t, []string{"10.1.0.0/24", "10.2.0.0/24", "10.10.0.0/24"}, defaultFirewall.SourceRanges)
 	assert.Equal(t, []AllowRule{

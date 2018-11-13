@@ -154,6 +154,9 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 		}
 	}
 
+	// As subnet name must be unique in Google project, we add resource prefix
+	subnet.Name = getResourcesPrefix(cfg, deploymentID) + subnet.Name
+
 	// Name must respect regular expression
 	subnet.Name = strings.Replace(strings.ToLower(subnet.Name), "_", "-", -1)
 
