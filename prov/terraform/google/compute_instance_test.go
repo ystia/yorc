@@ -199,6 +199,8 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	instanceName := resourcePrefix + "compute-0"
 
 	// Simulate the google persistent disk "volume_id" attribute registration
 	srv1.PopulateKV(t, map[string][]byte{
@@ -214,10 +216,10 @@ func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
 	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "compute-0")
+	require.Contains(t, instancesMap, instanceName)
 
-	compute, ok := instancesMap["compute-0"].(*ComputeInstance)
-	require.True(t, ok, "compute-0 is not a ComputeInstance")
+	compute, ok := instancesMap[instanceName].(*ComputeInstance)
+	require.True(t, ok, "%s is not a ComputeInstance", instanceName)
 
 	assert.Len(t, compute.NetworkInterfaces, 1, "1 NetworkInterface expected")
 	assert.Equal(t, "mynet", compute.NetworkInterfaces[0].Network, "Network is not retrieved")
@@ -226,6 +228,8 @@ func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.
 func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	instanceName := resourcePrefix + "comp1-0"
 
 	// Simulate the google persistent disk "volume_id" attribute registration
 	srv1.PopulateKV(t, map[string][]byte{
@@ -241,10 +245,10 @@ func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, kv *api.KV, srv1 *
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
 	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "comp1-0")
+	require.Contains(t, instancesMap, instanceName)
 
-	compute, ok := instancesMap["comp1-0"].(*ComputeInstance)
-	require.True(t, ok, "comp1-0 is not a ComputeInstance")
+	compute, ok := instancesMap[instanceName].(*ComputeInstance)
+	require.True(t, ok, "%s is not a ComputeInstance", instanceName)
 
 	assert.Len(t, compute.NetworkInterfaces, 1, "1 NetworkInterface expected")
 	assert.Equal(t, "mysubnet", compute.NetworkInterfaces[0].Subnetwork, "Subnetwork is not retrieved")

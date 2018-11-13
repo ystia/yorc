@@ -16,6 +16,7 @@ package google
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,8 @@ import (
 func testSimplePrivateNetwork(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	networkName := resourcePrefix + "network"
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	err := g.generatePrivateNetwork(context.Background(), kv, cfg, deploymentID, "Network", &infrastructure, make(map[string]string))
@@ -38,24 +41,25 @@ func testSimplePrivateNetwork(t *testing.T, kv *api.KV, cfg config.Configuration
 	require.Len(t, infrastructure.Resource["google_compute_network"], 1, "Expected one private network")
 	instancesMap := infrastructure.Resource["google_compute_network"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "network")
+	require.Contains(t, instancesMap, networkName)
 
-	privateNetwork, ok := instancesMap["network"].(*PrivateNetwork)
-	require.True(t, ok, "network is not a PrivateNetwork")
-	assert.Equal(t, "network", privateNetwork.Name)
+	privateNetwork, ok := instancesMap[networkName].(*PrivateNetwork)
+	require.True(t, ok, "%s is not a PrivateNetwork", networkName)
+	assert.Equal(t, networkName, privateNetwork.Name)
 	assert.Equal(t, "myproj", privateNetwork.Project)
 	assert.Equal(t, "mydesc", privateNetwork.Description)
 	assert.Equal(t, false, privateNetwork.AutoCreateSubNetworks)
 	assert.Equal(t, "REGIONAL", privateNetwork.RoutingMode)
 
+	fwName := fmt.Sprintf("%s-default-external-fw", networkName)
 	firewallsMap := infrastructure.Resource["google_compute_firewall"].(map[string]interface{})
 	require.Len(t, firewallsMap, 1)
-	require.Contains(t, firewallsMap, "network-default-external-fw")
+	require.Contains(t, firewallsMap, fwName)
 
-	defaultFirewall, ok := firewallsMap["network-default-external-fw"].(*Firewall)
+	defaultFirewall, ok := firewallsMap[fwName].(*Firewall)
 	require.True(t, ok, "defaultFirewall is not a Firewall")
-	assert.Equal(t, "network-default-external-fw", defaultFirewall.Name)
-	assert.Equal(t, "${google_compute_network.network.name}", defaultFirewall.Network)
+	assert.Equal(t, fwName, defaultFirewall.Name)
+	assert.Equal(t, fmt.Sprintf("${google_compute_network.%s.name}", networkName), defaultFirewall.Network)
 	assert.Equal(t, []string{"0.0.0.0/0"}, defaultFirewall.SourceRanges)
 	assert.Equal(t, []AllowRule{
 		{Protocol: "icmp"},

@@ -74,7 +74,7 @@ func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV
 		return nil
 	}
 
-	name := strings.ToLower(cfg.ResourcesPrefix + nodeName)
+	name := strings.ToLower(getResourcesPrefix(cfg, deploymentID) + nodeName)
 	privateNetwork.Name = strings.Replace(name, "_", "-", -1)
 
 	var autoCreateSubNets bool
