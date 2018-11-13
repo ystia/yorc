@@ -16,17 +16,18 @@ package google
 
 import (
 	"context"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/ystia/yorc/helper/consulutil"
+	"fmt"
 	"path"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
@@ -41,18 +42,20 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
+	instanceName := resourcePrefix + "computeinstance-0"
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
 	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "computeinstance-0")
+	require.Contains(t, instancesMap, instanceName)
 
-	compute, ok := instancesMap["computeinstance-0"].(*ComputeInstance)
-	require.True(t, ok, "computeinstance-0 is not a ComputeInstance")
+	compute, ok := instancesMap[instanceName].(*ComputeInstance)
+	require.True(t, ok, "%s is not a ComputeInstance", instanceName)
 	assert.Equal(t, "n1-standard-1", compute.MachineType)
 	assert.Equal(t, "europe-west1-b", compute.Zone)
 	require.NotNil(t, compute.BootDisk, 1, "Expected boot disk")
@@ -71,8 +74,9 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	require.Len(t, infrastructure.Resource["null_resource"], 1)
 	nullResources := infrastructure.Resource["null_resource"].(map[string]interface{})
 
-	require.Contains(t, nullResources, "computeinstance-0-ConnectionCheck")
-	nullRes, ok := nullResources["computeinstance-0-ConnectionCheck"].(*commons.Resource)
+	connectionCheckName := instanceName + "-ConnectionCheck"
+	require.Contains(t, nullResources, connectionCheckName)
+	nullRes, ok := nullResources[connectionCheckName].(*commons.Resource)
 	assert.True(t, ok)
 	require.Len(t, nullRes.Provisioners, 1)
 	mapProv := nullRes.Provisioners[0]
@@ -115,14 +119,15 @@ func testSimpleComputeInstanceWithAddress(t *testing.T, kv *api.KV, srv1 *testut
 	g := googleGenerator{}
 	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
-
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	instanceName := resourcePrefix + "compute-0"
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
 	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "compute-0")
+	require.Contains(t, instancesMap, instanceName)
 
-	compute, ok := instancesMap["compute-0"].(*ComputeInstance)
-	require.True(t, ok, "compute-0 is not a ComputeInstance")
+	compute, ok := instancesMap[instanceName].(*ComputeInstance)
+	require.True(t, ok, "%s is not a ComputeInstance", instanceName)
 	assert.Equal(t, "n1-standard-1", compute.MachineType)
 	assert.Equal(t, "europe-west1-b", compute.Zone)
 	require.NotNil(t, compute.BootDisk, 1, "Expected boot disk")
@@ -148,13 +153,15 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
+	instanceName := resourcePrefix + "compute-0"
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
 	instancesMap := infrastructure.Resource["google_compute_instance"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "compute-0")
+	require.Contains(t, instancesMap, instanceName)
 
-	compute, ok := instancesMap["compute-0"].(*ComputeInstance)
-	require.True(t, ok, "compute-0 is not a ComputeInstance")
+	compute, ok := instancesMap[instanceName].(*ComputeInstance)
+	require.True(t, ok, "%s is not a ComputeInstance", instanceName)
 	assert.Equal(t, "n1-standard-1", compute.MachineType)
 	assert.Equal(t, "europe-west1-b", compute.Zone)
 	require.NotNil(t, compute.BootDisk, 1, "Expected boot disk")
@@ -164,25 +171,29 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 	instancesMap = infrastructure.Resource["google_compute_attached_disk"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
 
-	require.Contains(t, instancesMap, "google-bs1-0-to-compute-0")
-	attachedDisk, ok := instancesMap["google-bs1-0-to-compute-0"].(*ComputeAttachedDisk)
-	require.True(t, ok, "google-bs1-0-to-compute-0 is not a ComputeAttachedDisk")
+	attachmentName := fmt.Sprintf("%sbs1-0-to-compute-0", resourcePrefix)
+	attachmentResourceName := fmt.Sprintf("google-%s", attachmentName)
+	require.Contains(t, instancesMap, attachmentResourceName)
+	attachedDisk, ok := instancesMap[attachmentResourceName].(*ComputeAttachedDisk)
+	require.True(t, ok, "%s is not a ComputeAttachedDisk", attachmentResourceName)
 	assert.Equal(t, "my_vol_id", attachedDisk.Disk)
-	assert.Equal(t, "${google_compute_instance.compute-0.name}", attachedDisk.Instance)
+	assert.Equal(t, fmt.Sprintf("${google_compute_instance.%s.name}", instanceName), attachedDisk.Instance)
 	assert.Equal(t, "europe-west1-b", attachedDisk.Zone)
-	assert.Equal(t, "bs1-0-to-compute-0", attachedDisk.DeviceName)
+	assert.Equal(t, attachmentName, attachedDisk.DeviceName)
 	assert.Equal(t, "READ_ONLY", attachedDisk.Mode)
 
 	require.Contains(t, infrastructure.Resource, "null_resource")
 	require.Len(t, infrastructure.Resource["null_resource"], 4)
 
+	deviceAttribute := "file:" + attachmentResourceName
+
 	require.Len(t, outputs, 3, "three outputs are expected")
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device"), "expected instances attribute output")
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device"), "expected relationship attribute output for Compute")
 	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device"), "expected relationship attribute output for Block storage")
-	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device")], "output file value expected")
-	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device")], "output file value expected")
-	require.Equal(t, "file:google-bs1-0-to-compute-0", outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device")], "output file value expected")
+	require.Equal(t, deviceAttribute, outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "BS1", "0", "attributes/device")], "output file value expected")
+	require.Equal(t, deviceAttribute, outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "Compute", "0", "0", "attributes/device")], "output file value expected")
+	require.Equal(t, deviceAttribute, outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/relationship_instances/", "BS1", "0", "0", "attributes/device")], "output file value expected")
 }
 
 func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {

@@ -17,14 +17,15 @@ package google
 import (
 	"context"
 	"fmt"
+	"path"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
-	"path"
-	"strings"
 )
 
 func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV,
@@ -73,7 +74,7 @@ func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV
 		return err
 	}
 
-	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
+	name := strings.ToLower(getResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
 	computeAddress.Name = strings.Replace(name, "_", "-", -1)
 
 	if computeAddress.Region == "" {
