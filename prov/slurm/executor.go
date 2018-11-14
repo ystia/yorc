@@ -36,8 +36,7 @@ import (
 )
 
 type defaultExecutor struct {
-	generator defaultGenerator
-	client    *sshutil.SSHClient
+	client *sshutil.SSHClient
 }
 
 type allocationResponse struct {
@@ -47,10 +46,6 @@ type allocationResponse struct {
 
 const reSallocPending = `^salloc: Pending job allocation (\d+)`
 const reSallocGranted = `^salloc: Granted job allocation (\d+)`
-
-func newExecutor(generator defaultGenerator) prov.DelegateExecutor {
-	return &defaultExecutor{generator: generator}
-}
 
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
 	log.Debugf("Slurm defaultExecutor: Execute the operation async:%+v", operation)
@@ -107,7 +102,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 			return err
 		}
 	}
-	infra, err := e.generator.generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
+	infra, err := generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
@@ -121,7 +116,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 			return err
 		}
 	}
-	infra, err := e.generator.generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
+	infra, err := generateInfrastructure(ctx, kv, cfg, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
