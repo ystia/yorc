@@ -83,7 +83,14 @@ node_types:
   org.alien4cloud.nodes.Job:
     abstract: true
     derived_from: tosca.nodes.Root
+    description: >
+      A job is a component that has a run operation.
     interfaces:
       tosca.interfaces.node.lifecycle.Runnable:
+        submit:
+          description: Submit a job to an engine.
         run:
-          description: Standard lifecycle run operation.
+          description: Monitor a submitted job for completion.
+        cancel:
+          description: Cancel a submitted job.
+          
