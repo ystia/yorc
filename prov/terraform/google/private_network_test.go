@@ -97,7 +97,7 @@ func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg c
 	assert.Equal(t, true, subnet.EnableFlowLogs)
 	assert.Equal(t, false, subnet.PrivateIPGoogleAccess)
 
-	fwName := fmt.Sprintf("%s-default-internal-fw", subnetName)
+	fwName := fmt.Sprintf("%s-%s-default-internal-fw", subnet.Network, subnetName)
 	firewallsMap := infrastructure.Resource["google_compute_firewall"].(map[string]interface{})
 	require.Len(t, firewallsMap, 1)
 	require.Contains(t, firewallsMap, fwName)

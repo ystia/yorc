@@ -221,7 +221,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 	// Add internal firewall rules for subnet
 	sourceRanges := append(secondarySourceRange, subnet.IPCIDRRange)
 	internalFw := &Firewall{
-		Name:         fmt.Sprintf("%s-default-internal-fw", subnet.Name),
+		Name:         fmt.Sprintf("%s-%s-default-internal-fw", subnet.Network, subnet.Name),
 		Network:      fmt.Sprintf(subnet.Network),
 		SourceRanges: sourceRanges,
 		Allow: []AllowRule{
