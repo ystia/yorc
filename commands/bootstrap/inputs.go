@@ -180,6 +180,10 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	// Now check for missing mandatory parameters and ask them to the user
 
 	if infrastructureType == "" {
+
+		// if one and only one infrastrucutre is already defined in inputs,
+		// selecting this infrastructure
+
 		fmt.Println("")
 		prompt := &survey.Select{
 			Message: "Select an infrastructure:",

@@ -93,7 +93,12 @@ func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, fol
 		request.Header.Add("Accept", "application/json")
 		response, err := client.Do(request)
 		if err != nil {
-			return err
+			if lastStatus != "" {
+				// Following a deployment that was purged, ending wihtout error
+				return nil
+			} else {
+				return err
+			}
 		}
 		defer response.Body.Close()
 		httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
