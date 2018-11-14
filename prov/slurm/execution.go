@@ -45,6 +45,7 @@ import (
 type execution interface {
 	resolveExecution() error
 	executeAsync(ctx context.Context) (*prov.Action, time.Duration, error)
+	execute(ctx context.Context) error
 }
 
 type operationNotImplemented struct {
@@ -121,32 +122,67 @@ func (e *executionCommon) executeAsync(ctx context.Context) (*prov.Action, time.
 	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
 	case "tosca.interfaces.node.lifecycle.runnable.run":
+		// Build Job Information
+		if err := e.buildJobInfo(ctx); err != nil {
+			return nil, 0, errors.Wrap(err, "failed to build job information")
+		}
+
+		return e.buildJobMonitoringAction(), e.jobInfo.monitoringTimeInterval, nil
+	default:
+		return nil, 0, errors.Errorf("Unsupported operation %q", e.operation.Name)
+	}
+}
+
+func (e *executionCommon) execute(ctx context.Context) error {
+	// Only runnable operation is currently supported
+	log.Debugf("Execute the operation:%+v", e.operation)
+	// Fill log optional fields for log registration
+	switch strings.ToLower(e.operation.Name) {
+	case "tosca.interfaces.node.lifecycle.runnable.submit":
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
-			return nil, 0, errors.Wrap(err, "failed to upload artifact")
+			return errors.Wrap(err, "failed to upload artifact")
 		}
 
 		// Copy the operation implementation
 		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-			return nil, 0, errors.Wrap(err, "failed to upload operation implementation")
+			return errors.Wrap(err, "failed to upload operation implementation")
 		}
 
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
-			return nil, 0, errors.Wrap(err, "failed to build job information")
+			return errors.Wrap(err, "failed to build job information")
 		}
 
 		// Run the command
 		err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			return nil, 0, errors.Wrap(err, "failed to run command")
+			return errors.Wrap(err, "failed to run command")
 		}
-		return e.buildJobMonitoringAction(), e.jobInfo.monitoringTimeInterval, nil
+
+		// Set the JobID attribute
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "job_id", e.jobInfo.ID)
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve job id an manual cleanup may be necessary: ")
+		}
+	case "tosca.interfaces.node.lifecycle.runnable.cancel":
+		// Retrieve job id from attribute if it was previously set (otherwise will be retrieved when running the job)
+		// TODO(loicalbertin) right now I can't see any notion of multi-instances for Slurm jobs but this sounds bad to me
+		found, jobID, err := deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+		if err != nil {
+			return err
+		}
+		if !found || jobID == "" {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("trying to cancel a job that seems not scheduled as we can't retrieve its jobID")
+			return nil
+		}
+		return cancelJobID(jobID, e.client)
 	default:
-		return nil, 0, errors.Errorf("Unsupported operation %q", e.operation.Name)
+		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
+	return nil
 }
 
 func (e *executionCommon) resolveOperation() error {
@@ -317,6 +353,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		} else {
 			job.inputs[input.Name] = input.Value
 		}
+	}
+
+	// Retrieve job id from attribute if it was previously set (otherwise will be retrieved when running the job)
+	// TODO(loicalbertin) right now I can't see any notion of multi-instances for Slurm jobs but this sounds bad to me
+	_, job.ID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+	if err != nil {
+		return err
 	}
 
 	job.execArgs = args
