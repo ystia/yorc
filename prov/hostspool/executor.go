@@ -190,7 +190,16 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 			if err != nil {
 				return err
 			}
+
+			// For compatibility with components referencing a host public_ip_address,
+			// defining an attribute public_ip_address as well
+			err = deployments.SetInstanceAttribute(deploymentID, nodeName, instance, "public_ip_address", publicAddress)
+			if err != nil {
+				return err
+			}
+
 		}
+
 		if host.Connection.Port != 0 {
 			err = deployments.SetInstanceCapabilityAttribute(deploymentID, nodeName, instance, "endpoint", "port", strconv.FormatUint(host.Connection.Port, 10))
 			if err != nil {
