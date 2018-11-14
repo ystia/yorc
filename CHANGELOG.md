@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Allow user to provide an already existing namespace to use when creating Kubernetes resources ([GH-76](https://github.com/ystia/yorc/issues/76))
+
 ### BUG FIXES
 
 * Generate unique names for GCP resources ([GH-177](https://github.com/ystia/yorc/issues/177))
