@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package openstack
+package google
 
 import (
-	"github.com/ystia/yorc/prov/terraform"
-	"github.com/ystia/yorc/prov/terraform/commons"
-	"github.com/ystia/yorc/registry"
+	"crypto/sha1"
+	"fmt"
+
+	"github.com/ystia/yorc/config"
 )
 
-func init() {
-	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.openstack\..*`}, terraform.NewExecutor(&osGenerator{}, commons.PreDestroyStorageInfraCallback), registry.BuiltinOrigin)
+func getResourcesPrefix(cfg config.Configuration, deploymentID string) string {
+	b := sha1.Sum([]byte(deploymentID))
+	return fmt.Sprintf("%s%x-", cfg.ResourcesPrefix, b[0:3])
 }

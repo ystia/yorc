@@ -14,14 +14,17 @@
 
 package google
 
-import "github.com/ystia/yorc/registry"
-import "github.com/ystia/yorc/prov/terraform"
+import (
+	"github.com/ystia/yorc/prov/terraform"
+	"github.com/ystia/yorc/prov/terraform/commons"
+	"github.com/ystia/yorc/registry"
+)
 
 const googleDeploymentArtifact = "yorc.artifacts.google.Deployment"
 
 func init() {
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.google\..*`}, terraform.NewExecutor(&googleGenerator{}, nil), registry.BuiltinOrigin)
+	reg.RegisterDelegates([]string{`yorc\.nodes\.google\..*`}, terraform.NewExecutor(&googleGenerator{}, commons.PreDestroyStorageInfraCallback), registry.BuiltinOrigin)
 	reg.RegisterOperationExecutor(
 		[]string{googleDeploymentArtifact}, &defaultExecutor{}, registry.BuiltinOrigin)
 }

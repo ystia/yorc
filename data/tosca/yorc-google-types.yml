@@ -12,6 +12,47 @@ artifact_types:
   yorc.artifacts.google.Deployment:
     derived_from: tosca.artifacts.Deployment
 
+data_types:
+  yorc.datatypes.google.EncryptionKey:
+    derived_from: tosca.datatypes.Root
+    properties:
+      raw_key:
+        type: string
+        required: false
+        description: Specifies a 256-bit customer-supplied encryption key, encoded in RFC 4648 base64 to either encrypt or decrypt this resource.
+      sha256:
+        type: string
+        required: false
+        description: The RFC 4648 base64 encoded SHA-256 hash of the customer-supplied encryption key that protects this resource.
+
+  yorc.datatypes.google.ScratchDisk:
+    derived_from: tosca.datatypes.Root
+    properties:
+      interface:
+        type: string
+        required: false
+        description: The disk interface to use for attaching the scratch disks; either SCSI or NVME. Defaults to SCSI.
+
+relationship_types:
+  yorc.relationships.google.AttachesTo:
+    derived_from: tosca.relationships.AttachTo
+    description: >
+      This type represents an attachment relationship between two nodes.
+      For example, an AttachesTo relationship type would be used for attaching a storage node to a Compute node.
+    valid_target_types: [ tosca.capabilities.Attachment ]
+    properties:
+      mode:
+        type: string
+        description: >
+          The mode in which to attach this disk, either READ_WRITE or READ_ONLY. If not specified, the default is to attach the disk in READ_WRITE mode.
+        required: false
+    attributes:
+      device:
+        type: string
+        description: >
+          The logical name of the device as exposed to the instance.
+          Note: A runtime property that gets set when the model gets instantiated by the orchestrator.
+
 node_types:
   yorc.nodes.google.Compute:
     derived_from: yorc.nodes.Compute
@@ -103,6 +144,15 @@ node_types:
           Comma-separated list of tags to apply to the instances for identifying
           the instances to which network firewall rules will apply.
         required: false
+      scratch_disks:
+        type: list
+        description: Additional scratch disks to attach to the instance. Maximum allowed is 8.
+        required: false
+        entry_schema:
+          type: yorc.datatypes.google.ScratchDisk
+          constraints:
+            - greater_or_equal: 0
+            - max_length: 8
     requirements:
       - assignment:
           capability: yorc.capabilities.Assignable
@@ -150,8 +200,6 @@ node_types:
         description: >
           Comma-separated list of label KEY=VALUE pairs to assign to the Compute Address.
         required: false
-        entry_schema:
-          type: string
       region:
         type: string
         description: >
@@ -179,4 +227,67 @@ node_types:
       ip_address:
         type: string
         description: The compute IP address.
+
+  yorc.nodes.google.PersistentDisk:
+    derived_from: tosca.nodes.BlockStorage
+    properties:
+    # See https://www.terraform.io/docs/providers/google/r/compute_disk.html
+      description:
+        type: string
+        description: >
+          An optional description of this resource.
+        required: false
+      type:
+        type: string
+        description: >
+          URL of the disk type resource describing which disk type to use to create the disk.
+          If this field is not specified, it is assumed to be pd-standard for Standard Persistent Disk HDD.
+          pd-ssd is for solid-state drives (SSD).
+        required: false
+      labels:
+        type: string
+        description: >
+          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Disk.
+        required: false
+      zone:
+        type: string
+        description: >
+          A reference to the zone where the disk resides. In any case the disk must be on the same zone as the associated Compute instances.
+        required: true
+      deletable:
+        type: boolean
+        description: should this volume be deleted at undeployment
+        required: false
+        default: false
+      disk_encryption_key:
+        type: yorc.datatypes.google.EncryptionKey
+        description: >
+          Encrypts the disk using a customer-supplied encryption key. After you encrypt a disk with a customer-supplied key, you must provide the same key if you use the disk later
+          (e.g. to create a disk snapshot or an image, or to attach the disk to a virtual machine).
+          Customer-supplied encryption keys do not protect access to metadata of the disk.
+          If you do not provide an encryption key when creating the disk, then the disk will be encrypted using an automatically generated key and you do not need to provide a key to use the disk later.
+        required: false
+      image_id:
+        type: string
+        description: >
+          The image from which to initialize this disk. This can be one of: the image's self_link, projects/{project}/global/images/{image}, projects/{project}/global/images/family/{family}, global/images/{image}, global/images/family/{family}, family/{family}, {project}/{family}, {project}/{image}, {family}, or {image}.
+          If referred by family, the images names must include the family name. If they don't, use the google_compute_image data source. For instance, the image centos-6-v20180104 includes its family name centos-6. These images can be referred by family name here.
+        required: false
+      image_encryption_key:
+        type: yorc.datatypes.google.EncryptionKey
+        description: >
+          The customer-supplied encryption key of the source image. Required if the source image is protected by a customer-supplied encryption key.
+        required: false
+      snapshot_id:
+        type: string
+        description: >
+          The source snapshot used to create this disk. You can provide this as a partial or full URL to the resource.
+          For example, https://www.googleapis.com/compute/v1/projects/project/global/snapshots/snapshot, projects/project/global/snapshots/snapshot, global/snapshots/snapshot, snapshot are valid values
+        required: false
+      snapshot_encryption_key:
+        type: yorc.datatypes.google.EncryptionKey
+        description: >
+          The customer-supplied encryption key of the source snapshot. Required if the source snapshot is protected by a customer-supplied encryption key.
+        required: false
+
 

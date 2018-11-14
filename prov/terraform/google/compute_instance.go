@@ -17,10 +17,11 @@ package google
 import (
 	"context"
 	"fmt"
-	"github.com/ystia/yorc/log"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/ystia/yorc/log"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -51,7 +52,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	instance := ComputeInstance{}
 
 	// Must be a match of regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)'
-	instance.Name = strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
+	instance.Name = strings.ToLower(getResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
 	instance.Name = strings.Replace(instance.Name, "_", "-", -1)
 
 	// Getting string parameters
@@ -119,7 +120,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		// External IP address can be static if required
 		if hasStaticAddressReq {
 			// Address Lookup
-			externalAddress, err = addressLookup(ctx, kv, deploymentID, instanceName, addressNode)
+			externalAddress, err = attributeLookup(ctx, kv, deploymentID, instanceName, addressNode, "ip_address")
 			if err != nil {
 				return err
 			}
@@ -175,8 +176,42 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		return err
 	}
 
+	// Add additional Scratch disks
+	scratchDisks, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "scratch_disks")
+	if err != nil {
+		return err
+	}
+
+	if scratchDisks != nil && scratchDisks.RawString() != "" {
+		list, ok := scratchDisks.Value.([]interface{})
+		if !ok {
+			return errors.New("failed to retrieve scratch disk Tosca Value: not expected type")
+		}
+		instance.ScratchDisks = make([]ScratchDisk, 0)
+		for _, n := range list {
+			v, ok := n.(map[string]interface{})
+			if !ok {
+				return errors.New("failed to retrieve scratch disk map: not expected type")
+			}
+			for _, val := range v {
+				i, ok := val.(string)
+				if !ok {
+					return errors.New("failed to retrieve scratch disk interface value: not expected type")
+				}
+				scratch := ScratchDisk{Interface: i}
+				instance.ScratchDisks = append(instance.ScratchDisks, scratch)
+			}
+		}
+	}
+
 	// Add the compute instance
 	commons.AddResource(infrastructure, "google_compute_instance", instance.Name, &instance)
+
+	// Attach Persistent disks
+	devices, err := addAttachedDisks(ctx, cfg, kv, deploymentID, nodeName, instanceName, instance.Name, infrastructure, outputs)
+	if err != nil {
+		return err
+	}
 
 	// Provide Consul Keys
 	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
@@ -236,18 +271,70 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
+	// Retrieve devices
+	handleDeviceAttributes(infrastructure, &instance, devices, user, privateKeyFilePath, accessIP)
+
 	return nil
 }
 
-func addressLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, addressNodeName string) (string, error) {
-	log.Debugf("Address lookup for deploymentID:%q, address node name:%q, instance:%q", deploymentID, addressNodeName, instanceName)
-	var address string
+func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKeyFilePath, accessIP string) {
+	// Retrieve devices {
+	for _, dev := range devices {
+		devResource := commons.Resource{}
+
+		// Remote exec to retrieve the logical device for google device ID and to redirect stdout to file
+		re := commons.RemoteExec{Inline: []string{fmt.Sprintf("readlink -f /dev/disk/by-id/%s > %s", dev, dev)},
+			Connection: &commons.Connection{User: user, Host: accessIP,
+				PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+		devResource.Provisioners = make([]map[string]interface{}, 0)
+		provMap := make(map[string]interface{})
+		provMap["remote-exec"] = re
+		devResource.Provisioners = append(devResource.Provisioners, provMap)
+		devResource.DependsOn = []string{
+			fmt.Sprintf("null_resource.%s", instance.Name+"-ConnectionCheck"),
+			fmt.Sprintf("google_compute_attached_disk.%s", dev),
+		}
+		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev), &devResource)
+
+		// local exec to scp the stdout file locally
+		scpCommand := fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKeyFilePath, user, accessIP, dev, dev)
+		loc := commons.LocalExec{
+			Command: scpCommand,
+		}
+		locMap := make(map[string]interface{})
+		locMap["local-exec"] = loc
+		locResource := commons.Resource{}
+		locResource.Provisioners = append(locResource.Provisioners, locMap)
+		locResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev))}
+		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev), &locResource)
+
+		// Remote exec to cleanup  created file
+		cleanResource := commons.Resource{}
+		re = commons.RemoteExec{Inline: []string{fmt.Sprintf("rm -f %s", dev)},
+			Connection: &commons.Connection{User: user, Host: accessIP,
+				PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+		cleanResource.Provisioners = make([]map[string]interface{}, 0)
+		m := make(map[string]interface{})
+		m["remote-exec"] = re
+		cleanResource.Provisioners = append(devResource.Provisioners, m)
+		cleanResource.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev))}
+		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-cleanup-%s", instance.Name, dev), &cleanResource)
+
+		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
+		consulKeys.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev))}
+	}
+}
+
+func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, nodeName, attribute string) (string, error) {
+	log.Debugf("Attribute:%q lookup for deploymentID:%q, node name:%q, instance:%q", attribute, deploymentID, nodeName, instanceName)
 	res := make(chan string, 1)
 	go func() {
 		for {
-			if address, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, addressNodeName, instanceName, "ip_address"); address != nil && address.RawString() != "" {
-				res <- address.RawString()
-				return
+			if attr, _ := deployments.GetInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attribute); attr != nil && attr.RawString() != "" {
+				if attr != nil && attr.RawString() != "" {
+					res <- attr.RawString()
+					return
+				}
 			}
 
 			select {
@@ -259,9 +346,79 @@ func addressLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, 
 	}()
 
 	select {
-	case address = <-res:
-		return address, nil
+	case val := <-res:
+		return val, nil
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
+}
+
+func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID, nodeName, instanceName, computeName string, infrastructure *commons.Infrastructure, outputs map[string]string) ([]string, error) {
+	devices := make([]string, 0)
+
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "local_storage")
+	if err != nil {
+		return nil, err
+	}
+	for _, storagePrefix := range storageKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
+		volumeNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Debugf("Volume attachment required form Volume named %s", volumeNodeName)
+
+		zone, err := deployments.GetStringNodeProperty(kv, deploymentID, volumeNodeName, "zone", true)
+		if err != nil {
+			return nil, err
+		}
+
+		modeValue, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "mode")
+		if err != nil {
+			return nil, err
+		}
+
+		volumeIDValue, err := deployments.GetNodePropertyValue(kv, deploymentID, volumeNodeName, "volume_id")
+		if err != nil {
+			return nil, err
+		}
+		var volumeID string
+		if volumeIDValue == nil || volumeIDValue.RawString() == "" {
+			// Lookup for attribute volume_id
+			volumeID, err = attributeLookup(ctx, kv, deploymentID, instanceName, volumeNodeName, "volume_id")
+			if err != nil {
+				return nil, err
+			}
+
+		} else {
+			volumeID = volumeIDValue.RawString()
+		}
+
+		attachedDisk := &ComputeAttachedDisk{
+			Disk:     volumeID,
+			Instance: fmt.Sprintf("${google_compute_instance.%s.name}", computeName),
+			Zone:     zone,
+		}
+		if modeValue != nil && modeValue.RawString() != "" {
+			attachedDisk.Mode = modeValue.RawString()
+		}
+
+		attachName := strings.ToLower(getResourcesPrefix(cfg, deploymentID) + volumeNodeName + "-" + instanceName + "-to-" + nodeName + "-" + instanceName)
+		attachName = strings.Replace(attachName, "_", "-", -1)
+		// attachName is used as device name to retrieve device attribute as logical volume name
+		attachedDisk.DeviceName = attachName
+
+		// Provide file outputs for device attributes which can't be resolved with Terraform
+		device := fmt.Sprintf("google-%s", attachName)
+		commons.AddResource(infrastructure, "google_compute_attached_disk", device, attachedDisk)
+		outputDeviceVal := commons.FileOutputPrefix + device
+		instancesPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances")
+		outputs[path.Join(instancesPrefix, volumeNodeName, instanceName, "attributes/device")] = outputDeviceVal
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", nodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
+		outputs[path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "relationship_instances", volumeNodeName, requirementIndex, instanceName, "attributes/device")] = outputDeviceVal
+		// Add device
+		devices = append(devices, device)
+	}
+	return devices, nil
 }
