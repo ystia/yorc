@@ -277,6 +277,11 @@ func GetAllTaskData(kv *api.KV, taskID string) (map[string]string, error) {
 	return data, nil
 }
 
+// SetTaskData sets a data in the task's context
+func SetTaskData(kv *api.KV, taskID, dataName, dataValue string) error {
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "data", dataName), dataValue)
+}
+
 // GetInstances retrieve instances in the context of this task.
 //
 // Basically it checks if a list of instances is defined for this task for example in case of scaling.

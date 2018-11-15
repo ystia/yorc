@@ -106,7 +106,7 @@ func (o actionOperator) monitorJob(ctx context.Context, deploymentID string) (bo
 	// Check outputs
 	outputStr, ok := o.action.Data["outputs"]
 	if !ok {
-		return true, errors.Errorf("Missing mandatory information taskID for actionType:%q", o.action.ActionType)
+		return true, errors.Errorf("Missing mandatory information outputs for actionType:%q", o.action.ActionType)
 	}
 	o.outputs = strings.Split(outputStr, ",")
 	if !o.isBatch && len(o.outputs) != 1 {
@@ -164,7 +164,7 @@ func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string
 		// Copy the outputs with relative path in <JOB_ID>_outputs directory at root level
 		outputDir := fmt.Sprintf("job_" + o.jobID + "_outputs")
 		cmd := fmt.Sprintf("mkdir %s", outputDir)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 		output, err := o.client.RunCommand(cmd)
 		if err != nil {
 			return errors.Wrap(err, output)
@@ -174,7 +174,7 @@ func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string
 			newPath := path.Join(outputDir, relOutput)
 			// Copy the file in the output dir
 			cmd := fmt.Sprintf("cp -f %s %s", oldPath, newPath)
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 			output, err := o.client.RunCommand(cmd)
 			if err != nil {
 				return errors.Wrap(err, output)
@@ -205,7 +205,7 @@ func (o *actionOperator) endInteractiveOutput(ctx context.Context, deploymentID 
 	newName := fmt.Sprintf("slurm-%s.out", o.jobID)
 	outputDir := fmt.Sprintf("job_" + o.jobID + "_outputs")
 	cmd := fmt.Sprintf("mkdir %s", outputDir)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := o.client.RunCommand(cmd)
 	if err != nil {
 		return errors.Wrap(err, output)
@@ -214,7 +214,7 @@ func (o *actionOperator) endInteractiveOutput(ctx context.Context, deploymentID 
 	newPath := path.Join(outputDir, newName)
 	// Move the file in the output dir
 	cmd = fmt.Sprintf("mv %s %s", o.outputs[0], newPath)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err = o.client.RunCommand(cmd)
 	if err != nil {
 		return errors.Wrap(err, output)
@@ -234,7 +234,7 @@ func (o *actionOperator) cleanUp() {
 func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath string) error {
 	var err error
 	cmd := fmt.Sprintf("cat %s", filePath)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := o.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("an error:%+v occurred during logging file:%q", err, filePath)
