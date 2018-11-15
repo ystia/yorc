@@ -12,25 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kubernetes
+package builder
 
 import (
-	"github.com/ystia/yorc/registry"
+	"testing"
+
+	"github.com/ystia/yorc/testutil"
 )
 
-const (
-	kubernetesArtifactImplementation           = "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes"
-	kubernetesDeploymentArtifactImplementation = "yorc.artifacts.Deployment.Kubernetes"
-)
+// The aim of this function is to run all package tests with consul server dependency with only one consul server start
+func TestRunConsulWorkflowPackageTests(t *testing.T) {
+	srv, client := testutil.NewTestConsulInstance(t)
+	kv := client.KV()
+	defer srv.Stop()
 
-// Default executor is registered to treat kubernetes artifacts deployment
-func init() {
-	reg := registry.GetRegistry()
-	reg.RegisterOperationExecutor(
-		[]string{
-			kubernetesArtifactImplementation,
-			kubernetesDeploymentArtifactImplementation,
-		}, &defaultExecutor{}, registry.BuiltinOrigin)
-
-	reg.RegisterActionOperator([]string{"k8s-job-monitoring"}, &actionOperator{}, registry.BuiltinOrigin)
+	t.Run("groupWorkflow", func(t *testing.T) {
+		t.Run("testBuildStepWithNext", func(t *testing.T) {
+			testBuildStepWithNext(t, srv, kv)
+		})
+		t.Run("testBuildStep", func(t *testing.T) {
+			testBuildStep(t, srv, kv)
+		})
+		t.Run("testBuildWorkFlow", func(t *testing.T) {
+			testBuildWorkFlow(t, srv, kv)
+		})
+	})
 }

@@ -31,111 +31,8 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/tasks/workflow/builder"
 )
-
-func testBuildStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	t.Parallel()
-
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	deploymentID := "dep_" + path.Base(t.Name())
-	wfName := "wf_" + path.Base(t.Name())
-	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	data := make(map[string][]byte)
-	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/stepName/activities/1/set-state"] = []byte("installed")
-	data[prefix+"/steps/stepName/activities/2/call-operation"] = []byte("script.sh")
-	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/Some_other_inline/activities/0/inline"] = []byte("my_custom_wf")
-
-	srv1.PopulateKV(t, data)
-
-	wfSteps, err := buildWorkFlow(kv, deploymentID, wfName)
-	require.Nil(t, err)
-	step := wfSteps["stepName"]
-	require.NotNil(t, step)
-	require.Equal(t, "nodeName", step.target)
-	require.Equal(t, "stepName", step.name)
-	require.Len(t, step.activities, 3)
-	require.Contains(t, step.activities, delegateActivity{delegate: "install"})
-	require.Contains(t, step.activities, setStateActivity{state: "installed"})
-	require.Contains(t, step.activities, callOperationActivity{operation: "script.sh"})
-
-	step = wfSteps["Some_other_inline"]
-	require.NotNil(t, step)
-	require.Equal(t, "", step.target)
-	require.Equal(t, "Some_other_inline", step.name)
-	require.Len(t, step.activities, 1)
-	require.Contains(t, step.activities, inlineActivity{inline: "my_custom_wf"})
-}
-
-func testBuildStepWithNext(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	t.Parallel()
-
-	t.Log("Registering Key")
-	// Create a test key/value pair
-	deploymentID := "dep_" + path.Base(t.Name())
-	wfName := "wf_" + path.Base(t.Name())
-	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	data := make(map[string][]byte)
-	data[prefix+"/steps/stepName/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/stepName/next/downstream"] = []byte("")
-	data[prefix+"/steps/stepName/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/downstream/activities/0/call-operation"] = []byte("script.sh")
-	data[prefix+"/steps/downstream/target"] = []byte("downstream")
-
-	srv1.PopulateKV(t, data)
-
-	wfSteps, err := buildWorkFlow(kv, deploymentID, wfName)
-	require.Nil(t, err)
-	step := wfSteps["stepName"]
-	require.NotNil(t, step)
-
-	require.Equal(t, "nodeName", step.target)
-	require.Equal(t, "stepName", step.name)
-	require.Len(t, step.activities, 1)
-
-}
-
-func testBuildWorkFlow(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
-	t.Parallel()
-	t.Log("Registering Keys")
-
-	// Create a test key/value pair
-	deploymentID := "dep_" + path.Base(t.Name())
-	wfName := "wf_" + path.Base(t.Name())
-	prefix := path.Join("_yorc/deployments", deploymentID, "workflows", wfName)
-	data := make(map[string][]byte)
-
-	data[prefix+"/steps/step11/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step11/next/step10"] = []byte("")
-	data[prefix+"/steps/step11/next/step12"] = []byte("")
-	data[prefix+"/steps/step11/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step10/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step10/next/step13"] = []byte("")
-	data[prefix+"/steps/step10/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step12/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step12/next/step13"] = []byte("")
-	data[prefix+"/steps/step12/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step13/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step13/target"] = []byte("nodeName")
-
-	data[prefix+"/steps/step15/activities/0/inline"] = []byte("inception")
-
-	data[prefix+"/steps/step20/activities/0/delegate"] = []byte("install")
-	data[prefix+"/steps/step20/target"] = []byte("nodeName")
-
-	srv1.PopulateKV(t, data)
-
-	steps, err := buildWorkFlow(kv, deploymentID, wfName)
-	require.Nil(t, err, "oups")
-	require.Len(t, steps, 6)
-}
 
 type mockExecutor struct {
 	delegateCalled bool
@@ -166,10 +63,10 @@ type mockActivityHook struct {
 	taskID       string
 	deploymentID string
 	target       string
-	activity     Activity
+	activity     builder.Activity
 }
 
-func (m *mockActivityHook) hook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity Activity) {
+func (m *mockActivityHook) hook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity builder.Activity) {
 	m.target = target
 	m.taskID = taskID
 	m.deploymentID = deploymentID
@@ -227,13 +124,14 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 			mockExecutor.delegateCalled = false
 			mockExecutor.errorsDelegate = tt.args.errorsDelegate
 
-			wfSteps, err := buildWorkFlow(kv, deploymentID, tt.args.workflowName)
+			wfSteps, err := builder.BuildWorkFlow(kv, deploymentID, tt.args.workflowName)
 			require.Nil(t, err)
-			s := wfSteps[tt.args.stepName]
-			require.NotNil(t, s)
+			bs := wfSteps[tt.args.stepName]
+			require.NotNil(t, bs)
 
-			s.next = nil
-			s.t = &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}
+			bs.Next = nil
+			te := &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}
+			s := wrapBuilderStep(bs, kv, te)
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "WFNode_create"), []byte("initial"))
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "Compute_install"), []byte("initial"))
 			err = s.run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})
@@ -255,11 +153,11 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 				if mah.taskID != s.t.taskID {
 					t.Errorf("step.run() pre_activity_hook.taskID = %v, want %v", mah.taskID, s.t.id)
 				}
-				if mah.target != s.target {
-					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.target)
+				if mah.target != s.Target {
+					t.Errorf("step.run() pre_activity_hook.target = %v, want %v", mah.target, s.Target)
 				}
-				if mah.activity != s.activities[0] {
-					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.activities[0])
+				if mah.activity != s.Activities[0] {
+					t.Errorf("step.run() pre_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
 				}
 			}
 			for _, mah := range postAH {
@@ -270,11 +168,11 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 				if mah.taskID != s.t.taskID {
 					t.Errorf("step.run() post_activity_hook.taskID = %v, want %v", mah.taskID, s.t.id)
 				}
-				if mah.target != s.target {
-					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.target)
+				if mah.target != s.Target {
+					t.Errorf("step.run() post_activity_hook.target = %v, want %v", mah.target, s.Target)
 				}
-				if mah.activity != s.activities[0] {
-					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.activities[0])
+				if mah.activity != s.Activities[0] {
+					t.Errorf("step.run() post_activity_hook.activity = %v, want %v", mah.activity, s.Activities[0])
 				}
 			}
 		})

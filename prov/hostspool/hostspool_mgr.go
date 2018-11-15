@@ -15,6 +15,7 @@
 package hostspool
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"reflect"
@@ -388,12 +389,10 @@ func (cm *consulManager) backupHostStatus(hostname string) error {
 		return err
 	}
 	hostPath := path.Join(consulutil.HostsPoolPrefix, hostname)
-	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(hostPath, ".statusBackup"), Value: []byte(status.String())}, nil)
-	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(hostPath, ".messageBackup"), Value: []byte(message)}, nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	store.StoreConsulKeyAsString(path.Join(hostPath, ".statusBackup"), status.String())
+	store.StoreConsulKeyAsString(path.Join(hostPath, ".messageBackup"), message)
+	return errGrp.Wait()
 }
 func (cm *consulManager) restoreHostStatus(hostname string) error {
 	hostPath := path.Join(consulutil.HostsPoolPrefix, hostname)
@@ -441,9 +440,9 @@ func (cm *consulManager) setHostStatusWithMessage(hostname string, status HostSt
 	if err != nil {
 		return err
 	}
-	_, err = cm.cc.KV().Put(&api.KVPair{Key: path.Join(consulutil.HostsPoolPrefix, hostname, "status"), Value: []byte(status.String())}, nil)
+	err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.HostsPoolPrefix, hostname, "status"), status.String())
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return err
 	}
 	return cm.setHostMessage(hostname, message)
 }

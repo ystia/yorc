@@ -19,35 +19,12 @@ import (
 	"sync"
 
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/tasks/workflow/builder"
 )
-
-//go:generate go-enum -f=activities.go --lower
 
 // An ActivityHook is a function that could be registered as pre or post activity hook and
 // which is called respectively just before or after a workflow activity TaskExecution
-type ActivityHook func(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity Activity)
-
-// ActivityType x ENUM(
-// delegate
-// set-state
-// call-operation
-// inline
-// )
-type ActivityType int
-
-// An Activity is the representation of a workflow activity
-type Activity interface {
-	// Type returns the ActivityType if this activity
-	Type() ActivityType
-
-	// Value returns the actual value of this activity
-	//
-	// For delegate activities it's the delegate operation name.
-	// For set-state activities it's the state value.
-	// For call-operation activities it's the operation name.
-	// For inline activities it's the inlined workflow name.
-	Value() string
-}
+type ActivityHook func(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity builder.Activity)
 
 // RegisterPreActivityHook registers an ActivityHook in the list of ActivityHooks that will
 // be triggered before a workflow activity
@@ -68,47 +45,3 @@ func RegisterPostActivityHook(activityHook ActivityHook) {
 var activityHookslock sync.Mutex
 var preActivityHooks = make([]ActivityHook, 0)
 var postActivityHooks = make([]ActivityHook, 0)
-
-type delegateActivity struct {
-	delegate string
-}
-
-func (da delegateActivity) Type() ActivityType {
-	return ActivityTypeDelegate
-}
-func (da delegateActivity) Value() string {
-	return da.delegate
-}
-
-type setStateActivity struct {
-	state string
-}
-
-func (s setStateActivity) Type() ActivityType {
-	return ActivityTypeSetState
-}
-func (s setStateActivity) Value() string {
-	return s.state
-}
-
-type callOperationActivity struct {
-	operation string
-}
-
-func (c callOperationActivity) Type() ActivityType {
-	return ActivityTypeCallOperation
-}
-func (c callOperationActivity) Value() string {
-	return c.operation
-}
-
-type inlineActivity struct {
-	inline string
-}
-
-func (i inlineActivity) Type() ActivityType {
-	return ActivityTypeInline
-}
-func (i inlineActivity) Value() string {
-	return i.inline
-}

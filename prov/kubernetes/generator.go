@@ -110,7 +110,7 @@ func generateRequestResources(cpuShareStr, memShareStr string) (v1.ResourceList,
 }
 
 //GenerateNewRepoSecret generate a new struct for secret docker repo and fill it
-func (k8s *k8sGenerator) createNewRepoSecret(client *kubernetes.Clientset, namespace, name string, data []byte) (*v1.Secret, error) {
+func (k8s *k8sGenerator) createNewRepoSecret(client kubernetes.Interface, namespace, name string, data []byte) (*v1.Secret, error) {
 	mySecret := &v1.Secret{}
 	mySecret.Name = name
 	mySecret.Type = v1.SecretTypeDockercfg

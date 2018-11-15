@@ -96,10 +96,9 @@ func setupConsulDBSchema(client *api.Client) error {
 }
 
 func setNewVersion(kv *api.KV) error {
-
-	_, err := kv.Put(&api.KVPair{Key: consulutil.YorcSchemaVersionPath, Value: []byte(consulutil.YorcSchemaVersion)}, nil)
+	err := consulutil.StoreConsulKeyAsString(consulutil.YorcSchemaVersionPath, consulutil.YorcSchemaVersion)
 	if err != nil {
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+		return err
 	}
 	return nil
 }

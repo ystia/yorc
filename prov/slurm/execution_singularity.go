@@ -17,17 +17,18 @@ package slurm
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/tasks"
-	"net/url"
-	"path"
-	"strings"
-	"time"
 )
 
 type executionSingularity struct {
@@ -38,15 +39,6 @@ type executionSingularity struct {
 func (e *executionSingularity) executeAsync(ctx context.Context) (*prov.Action, time.Duration, error) {
 	// Only runnable operation is currently supported
 	log.Debugf("Execute the operation:%+v", e.operation)
-	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID:    wfName,
-		events.NodeID:        e.NodeName,
-		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
-		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
-	}
-	ctx = events.NewContext(ctx, logOptFields)
 
 	switch strings.ToLower(e.operation.Name) {
 	case "tosca.interfaces.node.lifecycle.runnable.run":

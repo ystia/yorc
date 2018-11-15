@@ -25,11 +25,12 @@ import (
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/tasks/workflow"
+	"github.com/ystia/yorc/tasks/workflow/builder"
 )
 
-func postComputeCreationHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity workflow.Activity) {
+func postComputeCreationHook(ctx context.Context, cfg config.Configuration, taskID, deploymentID, target string, activity builder.Activity) {
 
-	if activity.Type() != workflow.ActivityTypeDelegate && activity.Type() != workflow.ActivityTypeCallOperation {
+	if activity.Type() != builder.ActivityTypeDelegate && activity.Type() != builder.ActivityTypeCallOperation {
 		return
 	}
 	cc, err := cfg.GetConsulClient()
