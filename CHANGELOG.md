@@ -6,9 +6,14 @@
 
 * Support Kubernetes Jobs. ([GH-86](https://github.com/ystia/yorc/issues/86))
 
+### ENHANCEMENTS
+
+* Allow user to provide an already existing namespace to use when creating Kubernetes resources ([GH-76](https://github.com/ystia/yorc/issues/76))
+
 ### BUG FIXES
 
 * Generate unique names for GCP resources ([GH-177](https://github.com/ystia/yorc/issues/177))
+* Need a HOST public_ip_address attribute on Hosts Pool compute nodes ([GH-199](https://github.com/ystia/yorc/issues/199))
 
 ## 3.1.0-M5 (October 26, 2018)
 
