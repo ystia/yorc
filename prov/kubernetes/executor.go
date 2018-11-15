@@ -23,42 +23,48 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
 	// Loading the gcp plugin to authenticate against GKE clusters
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
 	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 )
 
 type defaultExecutor struct {
-	clientset *kubernetes.Clientset
+	clientset kubernetes.Interface
+}
+
+func getExecution(conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) (*execution, error) {
+	consulClient, err := conf.GetConsulClient()
+	if err != nil {
+		return nil, err
+	}
+
+	kv := consulClient.KV()
+	return newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
 }
 
 func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
-	return nil, 0, errors.New("Asynchronous operation is not yet handled by this executor")
+	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if e.clientset == nil {
+		e.clientset, err = initClientSet(conf)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return exec.executeAsync(ctx, stepName, e.clientset)
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
-	consulClient, err := conf.GetConsulClient()
-	if err != nil {
-		return err
-	}
-
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing contextual log optionnal fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.OperationName] = stringutil.GetLastElement(operation.Name, ".")
-	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operation.Name, ".")
-
-	ctx = events.NewContext(ctx, logOptFields)
-
-	kv := consulClient.KV()
-	exec, err := newExecution(kv, conf, taskID, deploymentID, nodeName, operation)
+	exec, err := getExecution(conf, taskID, deploymentID, nodeName, operation)
 	if err != nil {
 		return err
 	}
@@ -148,7 +154,7 @@ func initClientSet(cfg config.Configuration) (*kubernetes.Clientset, error) {
 		} else if conf.AuthProvider != nil && conf.AuthProvider.Name == "gcp" {
 			// When application credentials are set, using these creds
 			// and not attempting to rely on the local host gcloud command to
-			// access tokens, as gcloud mauy not be installed on yorc host
+			// access tokens, as gcloud may not be installed on yorc host
 			delete(conf.AuthProvider.Config, "cmd-path")
 		}
 	}

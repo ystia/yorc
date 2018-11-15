@@ -15,15 +15,18 @@
 package scheduling
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
+	"encoding/json"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
+
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/prov"
 )
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
@@ -37,6 +40,10 @@ func RegisterAction(client *api.Client, deploymentID string, timeInterval time.D
 	}
 	if action == nil || action.ActionType == "" {
 		return "", errors.New("actionType is mandatory parameter to register scheduled action")
+	}
+	asyncOp, err := json.Marshal(action.AsyncOperation)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to generate async operation representation for action %q", action.ID)
 	}
 	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
 	scaOps := api.KVTxnOps{
@@ -55,13 +62,18 @@ func RegisterAction(client *api.Client, deploymentID string, timeInterval time.D
 			Key:   path.Join(scaPath, "interval"),
 			Value: []byte(timeInterval.String()),
 		},
+		&api.KVTxnOp{
+			Verb:  api.KVSet,
+			Key:   path.Join(scaPath, "async_op"),
+			Value: asyncOp,
+		},
 	}
 
 	if action.Data != nil {
 		for k, v := range action.Data {
 			scaOps = append(scaOps, &api.KVTxnOp{
 				Verb:  api.KVSet,
-				Key:   path.Join(scaPath, k),
+				Key:   path.Join(scaPath, "data", k),
 				Value: []byte(v),
 			})
 		}
@@ -86,7 +98,11 @@ func RegisterAction(client *api.Client, deploymentID string, timeInterval time.D
 func UnregisterAction(client *api.Client, id string) error {
 	log.Debugf("Unregister scheduled action with id:%q", id)
 	scaPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id)
-	kvp := &api.KVPair{Key: path.Join(scaPath, ".unregisterFlag"), Value: []byte("true")}
-	_, err := client.KV().Put(kvp, nil)
-	return errors.Wrap(err, "Failed to flag scheduled action for removal")
+	return errors.Wrap(consulutil.StoreConsulKeyAsString(path.Join(scaPath, ".unregisterFlag"), "true"), "Failed to flag scheduled action for removal")
+}
+
+// UpdateActionData updates the value of a given data within an action
+func UpdateActionData(client *api.Client, id, key, value string) error {
+	scaKeyPath := path.Join(consulutil.SchedulingKVPrefix, "actions", id, "data", key)
+	return errors.Wrapf(consulutil.StoreConsulKeyAsString(scaKeyPath, value), "Failed to update data %q for action %q", key, id)
 }

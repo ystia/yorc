@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Support Kubernetes Jobs. ([GH-86](https://github.com/ystia/yorc/issues/86))
+
 ### ENHANCEMENTS
 
 * Allow user to provide an already existing namespace to use when creating Kubernetes resources ([GH-76](https://github.com/ystia/yorc/issues/76))

@@ -82,7 +82,6 @@ type executionCommon struct {
 	Primary                string
 	nodeInstances          []string
 	jobInfo                *jobInfo
-	lof                    events.LogOptionalFields
 	OperationRemoteExecDir string
 	stepName               string
 }
@@ -120,15 +119,6 @@ func (e *executionCommon) executeAsync(ctx context.Context) (*prov.Action, time.
 	// Only runnable operation is currently supported
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
-	wfName, _ := tasks.GetTaskData(e.kv, e.taskID, "workflowName")
-	logOptFields := events.LogOptionalFields{
-		events.WorkFlowID:    wfName,
-		events.NodeID:        e.NodeName,
-		events.OperationName: stringutil.GetLastElement(e.operation.Name, "."),
-		events.InterfaceName: stringutil.GetAllExceptLastElement(e.operation.Name, "."),
-	}
-	ctx = events.NewContext(ctx, logOptFields)
-
 	switch strings.ToLower(e.operation.Name) {
 	case "tosca.interfaces.node.lifecycle.runnable.run":
 		log.Printf("Running the job: %s", e.operation.Name)
@@ -182,8 +172,6 @@ func (e *executionCommon) resolveOperation() error {
 func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	// Fill all used data for job monitoring
 	data := make(map[string]string)
-	data["nodeName"] = e.NodeName
-	data["operationName"] = e.operation.Name
 	data["taskID"] = e.taskID
 	data["jobID"] = e.jobInfo.ID
 	data["stepName"] = e.stepName

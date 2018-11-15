@@ -39,17 +39,17 @@ const (
 // updatePortMappingPublicEndpoints updates public endpoint capabilities
 // referencing a given port with the Kubernetes service Port Mapping infos
 // so that this endpoint can be used by clients outside of the cluster
-func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress string, k8sPort int32) error {
+func (e *execution) updatePortMappingPublicEndpoints(port int32, ipAddress string, k8sPort int32) error {
 	// Get endpoint capabilities for the node
 
-	capNames, _ := deployments.GetCapabilitiesOfType(e.kv, e.deploymentID, e.NodeType, tosca.PublicEndpointCapability)
+	capNames, _ := deployments.GetCapabilitiesOfType(e.kv, e.deploymentID, e.nodeType, tosca.PublicEndpointCapability)
 
 	if len(capNames) == 0 {
 		// Nothing to update
 		return nil
 	}
 
-	instances, err := deployments.GetNodeInstancesIds(e.kv, e.deploymentID, e.NodeName)
+	instances, err := deployments.GetNodeInstancesIds(e.kv, e.deploymentID, e.nodeName)
 	if err != nil || len(instances) == 0 {
 		return err
 	}
@@ -57,7 +57,7 @@ func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress
 	// Keep instances exposing the port
 	instancesToUpdate := make([]string, 0)
 	for _, instance := range instances {
-		ports, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, instance, "docker_ports")
+		ports, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.nodeName, instance, "docker_ports")
 		if err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress
 			// the port provided here is the docker mapping port, not
 			// the port in the container
 			result, err := deployments.GetInstanceCapabilityAttributeValue(e.kv, e.deploymentID,
-				e.NodeName, instance, capName, DockerBridgePortMapping)
+				e.nodeName, instance, capName, DockerBridgePortMapping)
 			if err != nil {
 				return err
 			}
@@ -83,17 +83,17 @@ func (e *executionCommon) updatePortMappingPublicEndpoints(port int32, ipAddress
 				continue
 			}
 			err = deployments.SetInstanceCapabilityAttribute(e.deploymentID,
-				e.NodeName, instance, capName, "ip_address", ipAddress)
+				e.nodeName, instance, capName, "ip_address", ipAddress)
 			if err != nil {
 				return err
 			}
 			err = deployments.SetInstanceCapabilityAttribute(e.deploymentID,
-				e.NodeName, instance, capName, KubernetesServicePortMapping, strconv.Itoa(int(k8sPort)))
+				e.nodeName, instance, capName, KubernetesServicePortMapping, strconv.Itoa(int(k8sPort)))
 			if err != nil {
 				return err
 			}
 			log.Debugf("Updated %s %s %s %s port mapping %d -> %s %d\n",
-				e.deploymentID, e.NodeName, instance, capName, port, ipAddress, k8sPort)
+				e.deploymentID, e.nodeName, instance, capName, port, ipAddress, k8sPort)
 		}
 	}
 

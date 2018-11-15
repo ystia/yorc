@@ -15,15 +15,17 @@
 package tasks
 
 import (
+	"context"
 	"fmt"
+	"path"
+	"strconv"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
-	"path"
-	"strconv"
-	"time"
 )
 
 // A Collector is used to register new tasks in Yorc
@@ -92,36 +94,25 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 		log.Debugf("Failed to acquire create lock for task with id %q (target id %q).", taskID, targetID)
 		return nil, nil, taskID, errors.Errorf("Failed to acquire lock for task with id %q (target id %q)", taskID, targetID)
 	}
-
-	key := &api.KVPair{Key: taskPrefix + "/targetId", Value: []byte(targetID)}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	key = &api.KVPair{Key: taskPrefix + "/status", Value: []byte(strconv.Itoa(int(TaskStatusINITIAL)))}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	key = &api.KVPair{Key: taskPrefix + "/type", Value: []byte(strconv.Itoa(int(taskType)))}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	store.StoreConsulKeyAsString(taskPrefix+"/targetId", targetID)
+	store.StoreConsulKeyAsString(taskPrefix+"/status", strconv.Itoa(int(TaskStatusINITIAL)))
+	store.StoreConsulKeyAsString(taskPrefix+"/type", strconv.Itoa(int(taskType)))
 	dateBin, err := time.Now().MarshalBinary()
 	if err != nil {
 		return nil, nil, taskID, errors.Wrap(err, "Failed to generate task creation date")
 	}
-	key = &api.KVPair{Key: taskPrefix + "/creationDate", Value: dateBin}
-	if _, err := kv.Put(key, nil); err != nil {
-		return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
+	store.StoreConsulKey(taskPrefix+"/creationDate", dateBin)
 	if data != nil {
 		for keyM, valM := range data {
-			key = &api.KVPair{Key: path.Join(taskPrefix, keyM), Value: []byte(valM)}
-			if _, err := kv.Put(key, nil); err != nil {
-				return nil, nil, taskID, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
+			store.StoreConsulKeyAsString(path.Join(taskPrefix, "data", keyM), valM)
 		}
 	}
 
+	err = errGrp.Wait()
+	if err != nil {
+		return nil, nil, taskID, err
+	}
 	EmitTaskEventWithContextualLogs(nil, kv, targetID, taskID, taskType, TaskStatusINITIAL.String())
 
 	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {

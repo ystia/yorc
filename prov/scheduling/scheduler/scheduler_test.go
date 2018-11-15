@@ -15,14 +15,15 @@
 package scheduler
 
 import (
+	"path"
+	"testing"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/scheduling"
-	"path"
-	"testing"
-	"time"
 )
 
 func testRegisterAction(t *testing.T, client *api.Client) {
@@ -67,22 +68,22 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 			kvp, _, err := client.KV().Get(key+"targetId", nil)
 			if kvp != nil && string(kvp.Value) == deploymentID {
 				depTask++
-				kvp, _, err = client.KV().Get(key+"actionType", nil)
+				kvp, _, err = client.KV().Get(key+"data/actionType", nil)
 				require.Nil(t, err, "Unexpected error while getting action type")
 				require.NotNil(t, kvp, "kvp is nil for action type")
 				require.Equal(t, string(kvp.Value), actionType)
 
-				kvp, _, err = client.KV().Get(key+"key1", nil)
+				kvp, _, err = client.KV().Get(key+"data/key1", nil)
 				require.Nil(t, err, "Unexpected error while getting key1")
 				require.NotNil(t, kvp, "kvp is nil for key1")
 				require.Equal(t, string(kvp.Value), "val1")
 
-				kvp, _, err = client.KV().Get(key+"key2", nil)
+				kvp, _, err = client.KV().Get(key+"data/key2", nil)
 				require.Nil(t, err, "Unexpected error while getting key3")
 				require.NotNil(t, kvp, "kvp is nil for key2")
 				require.Equal(t, string(kvp.Value), "val2")
 
-				kvp, _, err = client.KV().Get(key+"key3", nil)
+				kvp, _, err = client.KV().Get(key+"data/key3", nil)
 				require.Nil(t, err, "Unexpected error while getting key3")
 				require.NotNil(t, kvp, "kvp is nil for key3")
 				require.Equal(t, string(kvp.Value), "val3")

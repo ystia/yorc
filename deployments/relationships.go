@@ -231,6 +231,7 @@ func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeNam
 	if err != nil {
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
+	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, relInstKVPair := range relInstKVPairs {
 		if strings.HasSuffix(relInstKVPair.Key, "target/name") {
 			if string(relInstKVPair.Value) == nodeName {
@@ -239,7 +240,7 @@ func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeNam
 				if err != nil {
 					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 				}
-				if kvp.Value == nil {
+				if kvp == nil || len(kvp.Value) == 0 {
 					return errors.Errorf("Missing key %q", instPath)
 				}
 				instances := strings.Split(string(kvp.Value), ",")
@@ -257,16 +258,11 @@ func addOrRemoveInstanceFromTargetRelationship(kv *api.KV, deploymentID, nodeNam
 					}
 					instances = newInstances
 				}
-				kvp.Value = []byte(strings.Join(instances, ","))
-				_, err = kv.Put(kvp, nil)
-				if err != nil {
-					return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-				}
-
+				store.StoreConsulKeyAsString(instPath, strings.Join(instances, ","))
 			}
 		}
 	}
-	return nil
+	return errGrp.Wait()
 }
 
 // DeleteRelationshipInstance deletes the instance from relationship instances stored in consul

@@ -17,6 +17,8 @@ package operations
 import (
 	"context"
 
+	"github.com/ystia/yorc/helper/stringutil"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
@@ -107,4 +109,16 @@ func IsRelationshipTargetNodeOperation(op prov.Operation) bool {
 // IsOrchestratorHostOperation checks if the operation should be executed on orchestrator host
 func IsOrchestratorHostOperation(op prov.Operation) bool {
 	return op.OperationHost == "ORCHESTRATOR"
+}
+
+// Set logs optionals fields related to the given action
+func SetOperationLogFields(ctx context.Context, op prov.Operation) context.Context {
+	logOptFields, ok := events.FromContext(ctx)
+	if !ok {
+		logOptFields = make(events.LogOptionalFields)
+	}
+	logOptFields[events.OperationName] = stringutil.GetLastElement(op.Name, ".")
+	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(op.Name, ".")
+
+	return events.NewContext(ctx, logOptFields)
 }

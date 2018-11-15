@@ -12,25 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kubernetes
+package builder
 
-import (
-	"github.com/ystia/yorc/registry"
-)
+// Step represents the workflow step
+type Step struct {
+	Name               string
+	Target             string
+	TargetRelationship string
+	OperationHost      string
+	Activities         []Activity
+	Next               []*Step
+	Previous           []*Step
+	WorkflowName       string
+	Async              bool
+}
 
-const (
-	kubernetesArtifactImplementation           = "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes"
-	kubernetesDeploymentArtifactImplementation = "yorc.artifacts.Deployment.Kubernetes"
-)
+type visitStep struct {
+	refCount int
+	s        *Step
+}
 
-// Default executor is registered to treat kubernetes artifacts deployment
-func init() {
-	reg := registry.GetRegistry()
-	reg.RegisterOperationExecutor(
-		[]string{
-			kubernetesArtifactImplementation,
-			kubernetesDeploymentArtifactImplementation,
-		}, &defaultExecutor{}, registry.BuiltinOrigin)
+// IsInitial returns true is the workflow step has no previous step
+func (s *Step) IsInitial() bool {
+	return len(s.Previous) == 0
+}
 
-	reg.RegisterActionOperator([]string{"k8s-job-monitoring"}, &actionOperator{}, registry.BuiltinOrigin)
+// IsTerminal returns true is the workflow step has no next step
+func (s *Step) IsTerminal() bool {
+	return len(s.Next) == 0
 }

@@ -34,17 +34,17 @@ type DelegateExecutor interface {
 // Operation represent a provisioning operation
 type Operation struct {
 	// The operation name
-	Name string
+	Name string `json:"name,omitempty"`
 	// Name of the type implementing this operation if implemented by node type
-	ImplementedInType string
+	ImplementedInType string `json:"implemented_in_type,omitempty"`
 	// Name of the node template implementing this operation if implemented by a node template
-	ImplementedInNodeTemplate string
+	ImplementedInNodeTemplate string `json:"implemented_in_node_template,omitempty"`
 	// Artifact type of the operation implementation
-	ImplementationArtifact string
+	ImplementationArtifact string `json:"implementation_artifact,omitempty"`
 	// Additional information for relationship operation
-	RelOp RelationshipOperation
+	RelOp RelationshipOperation `json:"rel_op,omitempty"`
 	// Node on which operation should be executed
-	OperationHost string
+	OperationHost string `json:"operation_host,omitempty"`
 }
 
 // String implements the fmt.Stringer interface
@@ -60,13 +60,13 @@ func (o Operation) String() string {
 // RelationshipOperation provides additional information for relationship operation
 type RelationshipOperation struct {
 	// If this is set to true then other struct fields could be considered.
-	IsRelationshipOperation bool
+	IsRelationshipOperation bool `json:"is_relationship_operation,omitempty"`
 	// Requirement index of the relationship in the source node
-	RequirementIndex string
+	RequirementIndex string `json:"requirement_index,omitempty"`
 	// Name of the target node of the relationship
-	TargetNodeName string
+	TargetNodeName string `json:"target_node_name,omitempty"`
 	// Requirement name in case of relationship
-	TargetRelationship string
+	TargetRelationship string `json:"target_relationship,omitempty"`
 }
 
 // String implements the fmt.Stringer interface
@@ -96,14 +96,27 @@ type InfraUsageCollector interface {
 
 // Action represents an executable action
 type Action struct {
-	ID         string
-	ActionType string
-	Data       map[string]string
+	ID             string
+	ActionType     string
+	AsyncOperation AsyncOperation
+	Data           map[string]string
+}
+
+// AsyncOperation represents an asynchronous operation
+type AsyncOperation struct {
+	DeploymentID string    `json:"deployment_id,omitempty"`
+	TaskID       string    `json:"task_id,omitempty"`
+	ExecutionID  string    `json:"execution_id,omitempty"`
+	WorkflowName string    `json:"workflow_name,omitempty"`
+	StepName     string    `json:"step_name,omitempty"`
+	NodeName     string    `json:"node_name,omitempty"`
+	Operation    Operation `json:"operation,omitempty"`
 }
 
 // ActionOperator is the interface for executing an action
 //
 // ExecAction allows to execute the action
+// An action operator could ask to "deregister" an action by returning true as first result
 type ActionOperator interface {
-	ExecAction(ctx context.Context, conf config.Configuration, taskID, deploymentID string, action *Action) error
+	ExecAction(ctx context.Context, conf config.Configuration, taskID, deploymentID string, action *Action) (deregister bool, err error)
 }

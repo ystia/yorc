@@ -368,12 +368,7 @@ func GetNodePropertyValue(kv *api.KV, deploymentID, nodeName, propertyName strin
 
 // SetNodeProperty sets a node property
 func SetNodeProperty(kv *api.KV, deploymentID, nodeName, propertyName, propertyValue string) error {
-	kvp := &api.KVPair{
-		Key:   path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "properties", propertyName),
-		Value: []byte(propertyValue),
-	}
-	_, err := kv.Put(kvp, nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName, "properties", propertyName), propertyValue)
 }
 
 // GetStringNodeProperty returns the string value of a property.

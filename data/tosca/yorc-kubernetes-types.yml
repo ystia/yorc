@@ -45,6 +45,15 @@ node_types:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes
+  
+  yorc.nodes.kubernetes.api.types.JobResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.JobResource
+    interfaces:
+      tosca.interfaces.node.lifecycle.Runnable:
+        run:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
 
   yorc.nodes.kubernetes.api.types.ServiceResource:
     derived_from: org.alien4cloud.kubernetes.api.types.ServiceResource
