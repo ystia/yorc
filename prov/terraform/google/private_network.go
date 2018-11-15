@@ -154,12 +154,6 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 		}
 	}
 
-	// As subnet name must be unique in Google project, we add resource prefix
-	subnet.Name = getResourcesPrefix(cfg, deploymentID) + subnet.Name
-
-	// Name must respect regular expression
-	subnet.Name = strings.Replace(strings.ToLower(subnet.Name), "_", "-", -1)
-
 	// Network is either set by user or retrieved via dependency relationship with network node
 	if subnet.Network == "" {
 		hasDep, networkNode, err := deployments.HasAnyRequirementFromNodeType(kv, deploymentID, nodeName, "dependency", "yorc.nodes.google.PrivateNetwork")
@@ -175,6 +169,12 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 			return err
 		}
 	}
+
+	// As subnet name must be unique in Google project, we concat its name with network name
+	subnet.Name = subnet.Network + "-" + subnet.Name
+
+	// Name must respect regular expression
+	subnet.Name = strings.Replace(strings.ToLower(subnet.Name), "_", "-", -1)
 
 	// Handle secondary IP ranges
 	var secondarySourceRange []string
@@ -221,7 +221,7 @@ func (g *googleGenerator) generateSubNetwork(ctx context.Context, kv *api.KV, cf
 	// Add internal firewall rules for subnet
 	sourceRanges := append(secondarySourceRange, subnet.IPCIDRRange)
 	internalFw := &Firewall{
-		Name:         fmt.Sprintf("%s-%s-default-internal-fw", subnet.Network, subnet.Name),
+		Name:         fmt.Sprintf("%s-default-internal-fw", subnet.Name),
 		Network:      fmt.Sprintf(subnet.Network),
 		SourceRanges: sourceRanges,
 		Allow: []AllowRule{

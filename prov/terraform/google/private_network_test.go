@@ -71,10 +71,9 @@ func testSimplePrivateNetwork(t *testing.T, kv *api.KV, cfg config.Configuration
 func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
-	subnetName := resourcePrefix + "custom-subnet"
+	subnetName := "network-custom-subnet"
 	srv1.PopulateKV(t, map[string][]byte{
-		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network/0/attributes/network_name"): []byte("mynet"),
+		path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/Network/0/attributes/network_name"): []byte("network"),
 	})
 
 	infrastructure := commons.Infrastructure{}
@@ -90,14 +89,14 @@ func testSimpleSubnet(t *testing.T, kv *api.KV, srv1 *testutil.TestServer, cfg c
 	subnet, ok := instancesMap[subnetName].(*SubNetwork)
 	require.True(t, ok, "%s is not a SubNetwork", subnetName)
 	assert.Equal(t, subnetName, subnet.Name)
-	assert.Equal(t, "mynet", subnet.Network)
+	assert.Equal(t, "network", subnet.Network)
 	assert.Equal(t, "myproj", subnet.Project)
 	assert.Equal(t, "mydesc", subnet.Description)
 	assert.Equal(t, "europe-west1", subnet.Region)
 	assert.Equal(t, true, subnet.EnableFlowLogs)
 	assert.Equal(t, false, subnet.PrivateIPGoogleAccess)
 
-	fwName := fmt.Sprintf("%s-%s-default-internal-fw", subnet.Network, subnetName)
+	fwName := fmt.Sprintf("%s-default-internal-fw", subnetName)
 	firewallsMap := infrastructure.Resource["google_compute_firewall"].(map[string]interface{})
 	require.Len(t, firewallsMap, 1)
 	require.Contains(t, firewallsMap, fwName)
