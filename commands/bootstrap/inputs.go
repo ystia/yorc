@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -261,6 +262,21 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 				return err
 			}
 		*/
+
+		// Check private key paths
+
+		for _, host := range inputValues.Hosts {
+
+			keyfile := host.Connection.PrivateKey
+			if keyfile != "" {
+				if _, err := os.Stat(keyfile); os.IsNotExist(err) {
+					return fmt.Errorf("Host %s private key %s not found",
+						host.Name, keyfile)
+				}
+			}
+
+		}
+
 	}
 
 	// Get on-demand resources definition for this infrastructure type
@@ -276,7 +292,7 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	// If the user has already provided some property values,
 	// jus asking missing required values
 
-	fmt.Println("\nGetting Compute instances configuration")
+	fmt.Println("Getting Compute instances configuration")
 
 	askIfNotRequired = false
 	if inputValues.Compute == nil {
@@ -292,7 +308,7 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	// Get Compute credentials, not on Hosts Pool as Hosts credentials are provided
 	// in the Hosts Pool configuration
 	if infrastructureType != "hostspool" {
-		fmt.Println("\nGetting Compute instances credentials")
+		fmt.Println("Getting Compute instances credentials")
 
 		askIfNotRequired = false
 		if inputValues.Credentials == nil {
@@ -308,7 +324,7 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	// Network connection
 	if networkNodeType != "" {
 
-		fmt.Println("\nGetting Network configuration")
+		fmt.Println("Getting Network configuration")
 		askIfNotRequired = false
 		if inputValues.Address == nil {
 			askIfNotRequired = true

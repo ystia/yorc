@@ -56,6 +56,7 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 	}
 
 	// Create the deployment archive
+	fmt.Println("Creating the deployment archive")
 	csarZip, err := ziputil.ZipPath(deploymentDir)
 	if err != nil {
 		return "", err
@@ -69,6 +70,7 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 		return "", err
 	}
 
+	fmt.Println("Deploying...")
 	_, err = deployments.SubmitCSAR(csarZip, client, deploymentID)
 	if err != nil {
 		return "", err

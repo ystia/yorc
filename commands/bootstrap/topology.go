@@ -262,7 +262,7 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 		return err
 	}
 
-	resultFile, err := os.OpenFile(resultFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	resultFile, err := os.OpenFile(resultFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0700)
 	if err != nil {
 		return err
 	}
@@ -275,5 +275,24 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 		return err
 	}
 	err = writer.Flush()
+
+	if err != nil {
+		return err
+	}
+	// Remove empty lines than may appear in conditional template code parsed
+	err = removeEmptyLines(resultFilePath)
 	return err
+}
+
+func removeEmptyLines(filename string) error {
+	re := regexp.MustCompile("(?m)^\\s*$[\r\n]*")
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	result := strings.Trim(re.ReplaceAllString(string(data[:]), ""), "\r\n")
+	err = ioutil.WriteFile(filename, []byte(result), 0600)
+	return err
+
 }

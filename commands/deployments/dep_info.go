@@ -96,9 +96,8 @@ func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, fol
 			if lastStatus != "" {
 				// Following a deployment that was purged, ending wihtout error
 				return nil
-			} else {
-				return err
 			}
+			return err
 		}
 		defer response.Body.Close()
 		httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
@@ -154,7 +153,7 @@ func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, fol
 func tableBasedDeploymentRendering(client *httputil.YorcClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	nodesTable := tabutil.NewTable()
-	nodesTable.AddHeaders("Node", "Statuses")
+	nodesTable.AddHeaders("Node", "Status (instance/total)")
 
 	tasksTable := tabutil.NewTable()
 	tasksTable.AddHeaders("Id", "Type", "Status")

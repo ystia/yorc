@@ -358,7 +358,19 @@ topology_template:
           activities:
             - set_state: starting
           on_success:
+        {{if not .Hosts}}
             - Infrastructure_started
+        {{else}}
+            - Infrastructure_start
+		    {{end}}
+        {{if .Hosts}}
+        Infrastructure_start:
+          target: Infrastructure
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Infrastructure_started
+		    {{end}}
         Alien4Cloud_starting:
           target: Alien4Cloud
           activities:
@@ -1055,7 +1067,19 @@ topology_template:
           activities:
             - set_state: starting
           on_success:
+        {{if not .Hosts}}
             - Infrastructure_started
+        {{else}}
+            - Infrastructure_start
+		    {{end}}
+        {{if .Hosts}}
+        Infrastructure_start:
+          target: Infrastructure
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Infrastructure_started
+		    {{end}}
         Alien4Cloud_starting:
           target: Alien4Cloud
           activities:
