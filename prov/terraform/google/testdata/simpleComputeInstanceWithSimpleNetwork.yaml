@@ -1,0 +1,64 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: NetworkWithCustomSubnetsTest
+  template_version: 1.0
+  template_author: tester
+
+description: ""
+
+imports:
+  - <normative-types.yml>
+  - <yorc-google-types.yml>
+  - <yorc-types.yml>
+
+topology_template:
+  node_templates:
+    Network:
+      type: yorc.nodes.google.PrivateNetwork
+      properties:
+        auto_create_subnetworks: false
+        custom_subnetworks:
+          - name: "custom-subnet"
+            ip_cidr_range: "10.10.0.0/24"
+            region: "europe-west1"
+        ip_version: 4
+    Comp1:
+      type: yorc.nodes.google.Compute
+      properties:
+        image_project: "centos-cloud"
+        image_family: "centos-7"
+        machine_type: "n1-standard-1"
+        zone: "europe-west1-b"
+      requirements:
+        - Comp1_Network_custom_subnet:
+            type_requirement: network
+            node: Network_custom_subnet
+            capability: tosca.capabilities.Connectivity
+            relationship: yorc.relationships.google.Network
+      capabilities:
+        endpoint:
+          properties:
+            credentials:
+              user: yorcuser
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+    Network_custom_subnet:
+      type: yorc.nodes.google.Subnetwork
+      properties:
+        name: "custom-subnet"
+        ip_cidr_range: "10.10.0.0/24"
+        region: "europe-west1"
+      requirements:
+        - Network_custom_subnet_Network:
+            type_requirement: dependency
+            node: Network
+            capability: tosca.capabilities.Node
+            relationship: tosca.relationships.DependsOn

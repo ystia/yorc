@@ -54,5 +54,17 @@ func TestRunConsulGooglePackageTests(t *testing.T) {
 		t.Run("simpleComputeInstanceWithPersistentDisk", func(t *testing.T) {
 			testSimpleComputeInstanceWithPersistentDisk(t, kv, srv, cfg)
 		})
+		t.Run("simplePrivateNetwork", func(t *testing.T) {
+			testSimplePrivateNetwork(t, kv, cfg)
+		})
+		t.Run("simpleSubnet", func(t *testing.T) {
+			testSimpleSubnet(t, kv, srv, cfg)
+		})
+		t.Run("simpleComputeInstanceWithAutoCreationModeNetwork", func(t *testing.T) {
+			testSimpleComputeInstanceWithAutoCreationModeNetwork(t, kv, srv, cfg)
+		})
+		t.Run("simpleComputeInstanceWithSimpleNetwork", func(t *testing.T) {
+			testSimpleComputeInstanceWithSimpleNetwork(t, kv, srv, cfg)
+		})
 	})
 }

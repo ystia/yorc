@@ -122,3 +122,48 @@ type ComputeAttachedDisk struct {
 	Mode       string `json:"mode,omitempty"`
 	Zone       string `json:"zone,omitempty"`
 }
+
+// PrivateNetwork represents a Google private network
+// See https://www.terraform.io/docs/providers/google/r/compute_network.html
+type PrivateNetwork struct {
+	Name                  string `json:"name"`
+	AutoCreateSubNetworks bool   `json:"auto_create_subnetworks"`
+	RoutingMode           string `json:"routing_mode,omitempty"`
+	Description           string `json:"description,omitempty"`
+	Project               string `json:"project,omitempty"`
+}
+
+// SubNetwork represents a Google sub-network
+// See https://www.terraform.io/docs/providers/google/r/compute_subnetwork.html
+type SubNetwork struct {
+	Name                  string    `json:"name"`
+	Network               string    `json:"network"`
+	IPCIDRRange           string    `json:"ip_cidr_range"`
+	Description           string    `json:"description,omitempty"`
+	EnableFlowLogs        bool      `json:"enable_flow_logs"`
+	PrivateIPGoogleAccess bool      `json:"private_ip_google_access"`
+	Region                string    `json:"region,omitempty"`
+	Project               string    `json:"project,omitempty"`
+	SecondaryIPRanges     []IPRange `json:"secondary_ip_range,omitempty"`
+}
+
+// IPRange Represents an IP Range
+type IPRange struct {
+	Name        string `json:"range_name"`
+	IPCIDRRange string `json:"ip_cidr_range"`
+}
+
+// Firewall represents a firewall resource
+// See https://www.terraform.io/docs/providers/google/r/compute_firewall.html
+type Firewall struct {
+	Name         string      `json:"name"`
+	Network      string      `json:"network"`
+	Allow        []AllowRule `json:"allow,omitempty"`
+	SourceRanges []string    `json:"source_ranges,omitempty"`
+}
+
+// AllowRule represents an allowing firewall rule
+type AllowRule struct {
+	Protocol string   `json:"protocol"`
+	Ports    []string `json:"ports,omitempty"`
+}

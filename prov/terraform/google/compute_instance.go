@@ -109,7 +109,29 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		return err
 	}
 
-	networkInterface := NetworkInterface{Network: "default"}
+	// Define if a private network access is required
+	var netInterfaces []NetworkInterface
+	reqPrivateNetwork, _, err := deployments.HasAnyRequirementFromNodeType(kv, deploymentID, nodeName, "network", "yorc.nodes.google.PrivateNetwork")
+	if err != nil {
+		return err
+	}
+	// Check for subnet otherwise
+	if !reqPrivateNetwork {
+		reqPrivateNetwork, _, err = deployments.HasAnyRequirementFromNodeType(kv, deploymentID, nodeName, "network", "yorc.nodes.google.Subnetwork")
+		if err != nil {
+			return err
+		}
+	}
+	if reqPrivateNetwork {
+		netInterfaces, err = addPrivateNetworkInterfaces(ctx, kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Create a default private network interface
+		netInterfaces = append(netInterfaces, NetworkInterface{Network: "default"})
+	}
+
 	// Define an external access if there will be an external IP address
 	if !noAddress {
 		hasStaticAddressReq, addressNode, err := deployments.HasAnyRequirementCapability(kv, deploymentID, nodeName, "assignment", "yorc.capabilities.Assignable")
@@ -128,9 +150,9 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		// else externalAddress is empty, which means an ephemeral external IP
 		// address will be assigned to the instance
 		accessConfig := AccessConfig{NatIP: externalAddress}
-		networkInterface.AccessConfigs = []AccessConfig{accessConfig}
+		netInterfaces[0].AccessConfigs = []AccessConfig{accessConfig}
 	}
-	instance.NetworkInterfaces = []NetworkInterface{networkInterface}
+	instance.NetworkInterfaces = netInterfaces
 
 	// Scheduling definition
 	var preemptible bool
@@ -421,4 +443,57 @@ func addAttachedDisks(ctx context.Context, cfg config.Configuration, kv *api.KV,
 		devices = append(devices, device)
 	}
 	return devices, nil
+}
+
+func addPrivateNetworkInterfaces(ctx context.Context, kv *api.KV, deploymentID, nodeName string) ([]NetworkInterface, error) {
+	var netInterfaces []NetworkInterface
+
+	// Check if subnets have been specified by user into network relationship
+	storageKeys, err := deployments.GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, "network")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
+	}
+	for _, storagePrefix := range storageKeys {
+		requirementIndex := deployments.GetRequirementIndexFromRequirementKey(storagePrefix)
+
+		networkNodeName, err := deployments.GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
+		}
+
+		// Check if node is network or subnet
+		netType, err := deployments.GetNodeType(kv, deploymentID, networkNodeName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q", deploymentID, nodeName)
+		}
+		switch netType {
+		case "yorc.nodes.google.Subnetwork":
+			subnet, err := attributeLookup(ctx, kv, deploymentID, "0", networkNodeName, "subnetwork_name")
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+			}
+			log.Debugf("add network interface with sub-network property:%s", subnet)
+			netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subnet})
+		case "yorc.nodes.google.PrivateNetwork":
+			// We mention subnet if provided by network relationship property
+			subRaw, err := deployments.GetRelationshipPropertyValueFromRequirement(kv, deploymentID, nodeName, requirementIndex, "subnet")
+			if err != nil {
+				return nil, err
+			}
+			if subRaw != nil && subRaw.RawString() != "" {
+				log.Debugf("add network interface with user-specified sub-network property:%s", subRaw.RawString())
+				netInterfaces = append(netInterfaces, NetworkInterface{Subnetwork: subRaw.RawString()})
+			} else { // we mention the network
+				network, err := attributeLookup(ctx, kv, deploymentID, "0", networkNodeName, "network_name")
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to add network interfaces for deploymentID:%q, nodeName:%q, networkName:%q", deploymentID, nodeName, networkNodeName)
+				}
+				log.Debugf("add network interface with network property:%s", network)
+				netInterfaces = append(netInterfaces, NetworkInterface{Network: network})
+			}
+		default:
+			return nil, errors.Errorf("type:%q is not handled for compute network interface addition", netType)
+		}
+	}
+	return netInterfaces, nil
 }

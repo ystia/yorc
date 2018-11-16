@@ -2,8 +2,11 @@
 
 ## UNRELEASED
 
+## 3.1.0-M6 (November 16, 2018)
+
 ### FEATURES
 
+* Support GCE virtual private networks (VPC) ([GH-80](https://github.com/ystia/yorc/issues/80))
 * Support Kubernetes Jobs. ([GH-86](https://github.com/ystia/yorc/issues/86))
 
 ### ENHANCEMENTS

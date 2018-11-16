@@ -241,7 +241,38 @@ func HasAnyRequirementCapability(kv *api.KV, deploymentID, nodeName, requirement
 			if capability == capabilityType {
 				return true, relatedNodeName, nil
 			}
-			is, err := IsNodeDerivedFrom(kv, deploymentID, relatedNodeName, capabilityType)
+			is, err := IsTypeDerivedFrom(kv, deploymentID, capability, capabilityType)
+			if err != nil {
+				return false, "", err
+			}
+			return is, relatedNodeName, nil
+		}
+	}
+
+	return false, "", nil
+}
+
+// HasAnyRequirementFromNodeType returns true and the the related node name addressing the capability
+// if node with name nodeName has the requirement with the node type equal or derived from the provided type
+// otherwise it returns false and empty string
+func HasAnyRequirementFromNodeType(kv *api.KV, deploymentID, nodeName, requirement, nodeType string) (bool, string, error) {
+	reqkKeys, err := GetRequirementsKeysByTypeForNode(kv, deploymentID, nodeName, requirement)
+	if err != nil {
+		return false, "", err
+	}
+	for _, reqPrefix := range reqkKeys {
+		requirementIndex := GetRequirementIndexFromRequirementKey(reqPrefix)
+		capability, err := GetCapabilityForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return false, "", err
+		}
+		relatedNodeName, err := GetTargetNodeForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return false, "", err
+		}
+
+		if capability != "" {
+			is, err := IsNodeDerivedFrom(kv, deploymentID, relatedNodeName, nodeType)
 			if err != nil {
 				return false, "", err
 			} else if is {
