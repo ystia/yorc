@@ -143,10 +143,16 @@ func getAlien4CloudVersion(url string) (string, error) {
 	return version, err
 }
 
-// getFile returns the file par of a URL
+// getFile returns the file part of a URL
 func getFile(url string) string {
 	_, file := filepath.Split(url)
 	return file
+}
+
+// getFile returns the repository part of a URL of the form repository/file
+func getRepositoryURL(url string) string {
+	dir, _ := filepath.Split(url)
+	return dir
 }
 
 // createTopology creates a topology from template files under topologyDir,
@@ -250,6 +256,7 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 		"formatAsYAML":          formatAsYAML,
 		"indent":                indent,
 		"getFile":               getFile,
+		"getRepositoryURL":      getRepositoryURL,
 		"getAlien4CloudVersion": getAlien4CloudVersion,
 	}
 

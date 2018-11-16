@@ -8,38 +8,38 @@ metadata:
 description: ""
 
 imports:
-  - alien-base-types/2.1.0-SM6/alien-base-types.yml
+  - alien-base-types/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/alien-base-types.yml
   - <normative-types.yml>
-  - org.alien4cloud.alien4cloud.config.location/2.1.0-SM6/types.yml
+  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
   - <yorc-google-types.yml>
   - <yorc-openstack-types.yml>
   - <yorc-aws-types.yml>
   - <yorc-hostspool-types.yml>
   - org.ystia.yorc.experimental.consul.linux.ansible/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.elasticsearch.pub/2.1.0-SM6/types.yml
+  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
   - org.ystia.terraform.linux.terraform/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.java.jmx.jolokia/2.1.0-SM6/types.yml
-  - org.alien4cloud.consul.pub/2.1.0-SM6/types.yml
+  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.consul.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
   - org.ystia.yorc.linux.ansible/2.1.0-SNAPSHOT/types.yaml
   - <yorc-types.yml>
-  - org.alien4cloud.java.pub/2.1.0-SM6/types.yml
+  - org.alien4cloud.java.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
   - org.ystia.yorc.pub/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/2.1.0-SM6/types.yml
-  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/2.1.0-SM6/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
   - org.ystia.yorc.experimental.consul.pub/2.1.0-SNAPSHOT/types.yaml
   - org.ystia.ansible.linux.ansible/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.alien4cloud.pub/2.1.0-SM6/types.yml
-  - org.alien4cloud.alien4cloud.webapp/2.1.0-SM6/types.yml
+  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
   - org.ystia.yorc.alien4cloud/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.java.jdk.linux/2.1.0-SM6/types.yml
-  - org.alien4cloud.alien4cloud.config.pub/2.1.0-SM6/types.yml
-  - org.alien4cloud.cloudify.hostpool.pub/2.1.0-SM6/types.yml
+  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
   - org.ystia.terraform.pub/2.1.0-SNAPSHOT/types.yaml
   - org.ystia.ansible.pub/2.1.0-SNAPSHOT/types.yaml
 
 repositories:
-  Pulp:
-    url: https://fastconnect.org/maven/service/local/repositories/opensource/content/alien4cloud/alien4cloud-dist/2.1.0-SM6
+  a4c_repository:
+    url: {{getRepositoryURL .Alien4cloud.DownloadURL}}
     type: http
 
 topology_template:
@@ -99,6 +99,7 @@ topology_template:
         alien_dist:
           file: {{getFile .Alien4cloud.DownloadURL}}
           type: tosca.artifacts.File
+          repository: a4c_repository
     YorcPlugin:
       type: org.ystia.yorc.alien4cloud.nodes.YorcPlugin
       properties:
