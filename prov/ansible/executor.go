@@ -24,7 +24,6 @@ import (
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
@@ -56,16 +55,6 @@ func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configu
 		return err
 	}
 	kv := consulClient.KV()
-
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing context log fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.ExecutionID] = taskID
-	logOptFields[events.OperationName] = stringutil.GetLastElement(operation.Name, ".")
-	logOptFields[events.InterfaceName] = stringutil.GetAllExceptLastElement(operation.Name, ".")
-	ctx = events.NewContext(ctx, logOptFields)
 
 	exec, err := newExecution(ctx, kv, conf, taskID, deploymentID, nodeName, operation, e.cli)
 	if err != nil {

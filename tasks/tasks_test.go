@@ -15,52 +15,54 @@
 package tasks
 
 import (
-	"encoding/json"
-	"fmt"
-	"path"
 	"reflect"
 	"testing"
 
+	"github.com/ystia/yorc/helper/consulutil"
+
+	"path"
+
+	"encoding/json"
+	"fmt"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-
-	"github.com/ystia/yorc/helper/consulutil"
 )
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {
 	srv.PopulateKV(t, map[string][]byte{
-		consulutil.TasksPrefix + "/t1/targetId":        []byte("id1"),
-		consulutil.TasksPrefix + "/t1/status":          []byte("0"),
-		consulutil.TasksPrefix + "/t1/type":            []byte("0"),
-		consulutil.TasksPrefix + "/t1/inputs/i0":       []byte("0"),
-		consulutil.TasksPrefix + "/t1/nodes/node1":     []byte("0,1,2"),
-		consulutil.TasksPrefix + "/t2/targetId":        []byte("id1"),
-		consulutil.TasksPrefix + "/t2/status":          []byte("1"),
-		consulutil.TasksPrefix + "/t2/type":            []byte("1"),
-		consulutil.TasksPrefix + "/t3/targetId":        []byte("id2"),
-		consulutil.TasksPrefix + "/t3/status":          []byte("2"),
-		consulutil.TasksPrefix + "/t3/type":            []byte("2"),
-		consulutil.TasksPrefix + "/t3/nodes/n1":        []byte("2"),
-		consulutil.TasksPrefix + "/t3/nodes/n2":        []byte("2"),
-		consulutil.TasksPrefix + "/t3/nodes/n3":        []byte("2"),
-		consulutil.TasksPrefix + "/t4/targetId":        []byte("id1"),
-		consulutil.TasksPrefix + "/t4/status":          []byte("3"),
-		consulutil.TasksPrefix + "/t4/type":            []byte("3"),
-		consulutil.TasksPrefix + "/t5/targetId":        []byte("id"),
-		consulutil.TasksPrefix + "/t5/status":          []byte("4"),
-		consulutil.TasksPrefix + "/t5/type":            []byte("4"),
-		consulutil.TasksPrefix + "/tCustomWF/targetId": []byte("id"),
-		consulutil.TasksPrefix + "/tCustomWF/status":   []byte("0"),
-		consulutil.TasksPrefix + "/tCustomWF/type":     []byte("6"),
-		consulutil.TasksPrefix + "/t6/targetId":        []byte("id"),
-		consulutil.TasksPrefix + "/t6/status":          []byte("5"),
-		consulutil.TasksPrefix + "/t6/type":            []byte("5"),
-		consulutil.TasksPrefix + "/t7/targetId":        []byte("id"),
-		consulutil.TasksPrefix + "/t7/status":          []byte("5"),
-		consulutil.TasksPrefix + "/t7/type":            []byte("6666"),
-		consulutil.TasksPrefix + "/tNotInt/targetId":   []byte("targetNotInt"),
-		consulutil.TasksPrefix + "/tNotInt/status":     []byte("not a status"),
-		consulutil.TasksPrefix + "/tNotInt/type":       []byte("not a type"),
+		consulutil.TasksPrefix + "/t1/targetId":         []byte("id1"),
+		consulutil.TasksPrefix + "/t1/status":           []byte("0"),
+		consulutil.TasksPrefix + "/t1/type":             []byte("0"),
+		consulutil.TasksPrefix + "/t1/data/inputs/i0":   []byte("0"),
+		consulutil.TasksPrefix + "/t1/data/nodes/node1": []byte("0,1,2"),
+		consulutil.TasksPrefix + "/t2/targetId":         []byte("id1"),
+		consulutil.TasksPrefix + "/t2/status":           []byte("1"),
+		consulutil.TasksPrefix + "/t2/type":             []byte("1"),
+		consulutil.TasksPrefix + "/t3/targetId":         []byte("id2"),
+		consulutil.TasksPrefix + "/t3/status":           []byte("2"),
+		consulutil.TasksPrefix + "/t3/type":             []byte("2"),
+		consulutil.TasksPrefix + "/t3/data/nodes/n1":    []byte("2"),
+		consulutil.TasksPrefix + "/t3/data/nodes/n2":    []byte("2"),
+		consulutil.TasksPrefix + "/t3/data/nodes/n3":    []byte("2"),
+		consulutil.TasksPrefix + "/t4/targetId":         []byte("id1"),
+		consulutil.TasksPrefix + "/t4/status":           []byte("3"),
+		consulutil.TasksPrefix + "/t4/type":             []byte("3"),
+		consulutil.TasksPrefix + "/t5/targetId":         []byte("id"),
+		consulutil.TasksPrefix + "/t5/status":           []byte("4"),
+		consulutil.TasksPrefix + "/t5/type":             []byte("4"),
+		consulutil.TasksPrefix + "/tCustomWF/targetId":  []byte("id"),
+		consulutil.TasksPrefix + "/tCustomWF/status":    []byte("0"),
+		consulutil.TasksPrefix + "/tCustomWF/type":      []byte("6"),
+		consulutil.TasksPrefix + "/t6/targetId":         []byte("id"),
+		consulutil.TasksPrefix + "/t6/status":           []byte("5"),
+		consulutil.TasksPrefix + "/t6/type":             []byte("5"),
+		consulutil.TasksPrefix + "/t7/targetId":         []byte("id"),
+		consulutil.TasksPrefix + "/t7/status":           []byte("5"),
+		consulutil.TasksPrefix + "/t7/type":             []byte("6666"),
+		consulutil.TasksPrefix + "/tNotInt/targetId":    []byte("targetNotInt"),
+		consulutil.TasksPrefix + "/tNotInt/status":      []byte("not a status"),
+		consulutil.TasksPrefix + "/tNotInt/type":        []byte("not a type"),
 
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/0/id": []byte("0"),
 		consulutil.DeploymentKVPrefix + "/id1/topology/instances/node2/1/id": []byte("1"),

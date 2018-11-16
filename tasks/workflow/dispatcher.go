@@ -177,10 +177,6 @@ func (d *Dispatcher) Run() {
 			if strings.HasPrefix(execID, executionLockPrefix) {
 				continue
 			}
-			// Ignore processing execution to avoid useless treatment
-			if processingExecution, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskPrefix, execID, ".processing"), nil); processingExecution != nil {
-				continue
-			}
 			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
 			if err != nil {
 				log.Debugf("Ignore execution with ID:%q due to error:%v", execID, err)
@@ -198,6 +194,10 @@ func (d *Dispatcher) Run() {
 				log.Debugf("Skipping Task Execution with status %q", status)
 				// Delete useless execution
 				d.deleteExecutionTree(execID)
+				continue
+			}
+			// Ignore processing execution to avoid useless treatment
+			if processingExecution, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskPrefix, execID, ".processing"), nil); processingExecution != nil {
 				continue
 			}
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
@@ -222,39 +222,15 @@ func (d *Dispatcher) Run() {
 				continue
 			}
 			log.Debugf("Got processing lock for Task Execution %s", execKey)
-			targetID, err := tasks.GetTaskTarget(kv, taskID)
+
+			t, err := buildTaskExecution(kv, execID)
 			if err != nil {
 				log.Print(err)
 				log.Debugf("%+v", err)
 				continue
 			}
-			taskType, err := tasks.GetTaskType(kv, taskID)
-			if err != nil {
-				log.Print(err)
-				log.Debugf("%+v", err)
-				continue
-			}
-			// Retrieve workflow, Step information in case of workflow Step TaskExecution
-			var step string
-			if tasks.IsWorkflowTask(taskType) {
-				step, err = getExecutionKeyValue(kv, execID, "step")
-				if err != nil {
-					log.Print(err)
-					log.Debugf("%+v", err)
-					continue
-				}
-			}
-			log.Printf("Processing Task Execution %q linked to deployment %q", execID, targetID)
-			t := &taskExecution{
-				id:           execID,
-				taskID:       taskID,
-				targetID:     targetID,
-				lock:         lock,
-				kv:           kv,
-				creationDate: time.Now(),
-				taskType:     tasks.TaskType(taskType),
-				step:         step,
-			}
+			log.Printf("Processing Task Execution %q linked to deployment %q", execID, t.targetID)
+			t.lock = lock
 			log.Debugf("New Task Execution created %+v: pushing it to workers channel", t)
 			// try to obtain a worker TaskExecution channel until timeout
 			select {

@@ -16,23 +16,24 @@ package monitoring
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks/workflow"
+	"github.com/ystia/yorc/tasks/workflow/builder"
 	"github.com/ystia/yorc/tosca"
-	"testing"
-	"time"
 )
 
 type mockActivity struct {
-	t workflow.ActivityType
+	t builder.ActivityType
 	v string
 }
 
-func (m *mockActivity) Type() workflow.ActivityType {
+func (m *mockActivity) Type() builder.ActivityType {
 	return m.t
 }
 
@@ -43,7 +44,7 @@ func (m *mockActivity) Value() string {
 func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Configuration) {
 	log.SetDebug(true)
 
-	activity := &mockActivity{t: workflow.ActivityTypeDelegate, v: "install"}
+	activity := &mockActivity{t: builder.ActivityTypeDelegate, v: "install"}
 	ctx := context.Background()
 
 	dep := "monitoring1"
@@ -72,7 +73,7 @@ func testComputeMonitoringHook(t *testing.T, client *api.Client, cfg config.Conf
 	require.Nil(t, err, "Unexpected error while node state")
 	require.Equal(t, tosca.NodeStateError, state)
 
-	activity = &mockActivity{t: workflow.ActivityTypeDelegate, v: "uninstall"}
+	activity = &mockActivity{t: builder.ActivityTypeDelegate, v: "uninstall"}
 	removeMonitoringHook(ctx, cfg, "", dep, node, activity)
 
 	time.Sleep(1 * time.Second)

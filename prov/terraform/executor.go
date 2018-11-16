@@ -21,6 +21,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"io/ioutil"
+	"path"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -33,8 +36,6 @@ import (
 	"github.com/ystia/yorc/prov/terraform/commons"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-	"io/ioutil"
-	"path"
 )
 
 type defaultExecutor struct {
@@ -53,16 +54,6 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 	kv := consulClient.KV()
-	// Fill log optional fields for log registration
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing contextual log optionnal fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.ExecutionID] = taskID
-	logOptFields[events.OperationName] = delegateOperation
-	logOptFields[events.InterfaceName] = "delegate"
-	ctx = events.NewContext(ctx, logOptFields)
 
 	instances, err := tasks.GetInstances(kv, taskID, deploymentID, nodeName)
 	if err != nil {
@@ -210,18 +201,16 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
 	}
-	for outPath, outName := range filteredOutputs {
+	_, errGrp, store := consulutil.WithContext(ctx)
+	for outPath, outName := range outputs {
 		output, ok := outputsList[outName]
 		if !ok {
 			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
 		}
-		_, err = kv.Put(&api.KVPair{Key: outPath, Value: []byte(output.Value)}, nil)
-		if err != nil {
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
+		store.StoreConsulKeyAsString(outPath, output.Value)
 	}
 
-	return nil
+	return errGrp.Wait()
 }
 
 // File outputs are outputs that terraform can't resolve and which need to be retrieved in local files

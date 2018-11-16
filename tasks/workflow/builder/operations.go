@@ -12,25 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kubernetes
+package builder
 
-import (
-	"github.com/ystia/yorc/registry"
-)
-
-const (
-	kubernetesArtifactImplementation           = "tosca.artifacts.Deployment.Image.Container.Docker.Kubernetes"
-	kubernetesDeploymentArtifactImplementation = "yorc.artifacts.Deployment.Kubernetes"
-)
-
-// Default executor is registered to treat kubernetes artifacts deployment
-func init() {
-	reg := registry.GetRegistry()
-	reg.RegisterOperationExecutor(
-		[]string{
-			kubernetesArtifactImplementation,
-			kubernetesDeploymentArtifactImplementation,
-		}, &defaultExecutor{}, registry.BuiltinOrigin)
-
-	reg.RegisterActionOperator([]string{"k8s-job-monitoring"}, &actionOperator{}, registry.BuiltinOrigin)
+func isAsyncOperation(operation string) bool {
+	return operation == "tosca.interfaces.node.lifecycle.runnable.run"
 }

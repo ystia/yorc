@@ -17,21 +17,18 @@ package hostspool
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 
-	"github.com/ystia/yorc/helper/labelsutil"
-
-	"github.com/hashicorp/go-multierror"
-
+	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
-	"strconv"
-
-	"github.com/dustin/go-humanize"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/labelsutil"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
 )
@@ -44,16 +41,6 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 	if err != nil {
 		return err
 	}
-	// Fill log optional fields for log registration
-	logOptFields, ok := events.FromContext(ctx)
-	if !ok {
-		return errors.New("Missing contextual log optional fields")
-	}
-	logOptFields[events.NodeID] = nodeName
-	logOptFields[events.ExecutionID] = taskID
-	logOptFields[events.OperationName] = delegateOperation
-	logOptFields[events.InterfaceName] = "delegate"
-	ctx = events.NewContext(ctx, logOptFields)
 
 	instances, err := tasks.GetInstances(cc.KV(), taskID, deploymentID, nodeName)
 	if err != nil {
@@ -133,9 +120,7 @@ func (e *defaultExecutor) hostsPoolCreate(originalCtx context.Context, cc *api.C
 		return err
 	}
 	for _, instance := range instances {
-		logOptFields, _ := events.FromContext(originalCtx)
-		logOptFields[events.InstanceID] = instance
-		ctx := events.NewContext(originalCtx, logOptFields)
+		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 
 		allocation := &Allocation{NodeName: nodeName, Instance: instance, DeploymentID: deploymentID, Shareable: shareable, Resources: allocatedResources}
 		hostname, warnings, err := hpManager.Allocate(allocation, filters...)
@@ -318,9 +303,7 @@ func (e *defaultExecutor) hostsPoolDelete(originalCtx context.Context, cc *api.C
 	}
 	var errs error
 	for _, instance := range instances {
-		logOptFields, _ := events.FromContext(originalCtx)
-		logOptFields[events.InstanceID] = instance
-		ctx := events.NewContext(originalCtx, logOptFields)
+		ctx := events.AddLogOptionalFields(originalCtx, events.LogOptionalFields{events.InstanceID: instance})
 		hostname, err := deployments.GetInstanceAttributeValue(cc.KV(), deploymentID, nodeName, instance, "hostname")
 		if err != nil {
 			errs = multierror.Append(errs, err)

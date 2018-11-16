@@ -17,6 +17,9 @@ package google
 import (
 	"context"
 	"fmt"
+	"path"
+	"strings"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -25,8 +28,6 @@ import (
 	"github.com/ystia/yorc/helper/sizeutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/terraform/commons"
-	"path"
-	"strings"
 )
 
 func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV,
@@ -112,7 +113,7 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		}
 	}
 
-	name := strings.ToLower(cfg.ResourcesPrefix + nodeName + "-" + instanceName)
+	name := strings.ToLower(getResourcesPrefix(cfg, deploymentID) + nodeName + "-" + instanceName)
 	persistentDisk.Name = strings.Replace(name, "_", "-", -1)
 
 	// Add google persistent disk resource if not any volume ID is provided

@@ -110,7 +110,7 @@ func generateRequestResources(cpuShareStr, memShareStr string) (v1.ResourceList,
 }
 
 //GenerateNewRepoSecret generate a new struct for secret docker repo and fill it
-func (k8s *k8sGenerator) createNewRepoSecret(client *kubernetes.Clientset, namespace, name string, data []byte) (*v1.Secret, error) {
+func (k8s *k8sGenerator) createNewRepoSecret(client kubernetes.Interface, namespace, name string, data []byte) (*v1.Secret, error) {
 	mySecret := &v1.Secret{}
 	mySecret.Name = name
 	mySecret.Type = v1.SecretTypeDockercfg
@@ -118,33 +118,6 @@ func (k8s *k8sGenerator) createNewRepoSecret(client *kubernetes.Clientset, names
 	mySecret.Data[v1.DockerConfigKey] = data
 
 	return client.CoreV1().Secrets(strings.ToLower(namespace)).Create(mySecret)
-}
-
-// CreateNamespaceIfMissing create a kubernetes namespace (only if missing)
-func (k8s *k8sGenerator) createNamespaceIfMissing(deploymentID, namespaceName string, client *kubernetes.Clientset) error {
-	_, err := client.CoreV1().Namespaces().Get(namespaceName, metav1.GetOptions{})
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{Name: namespaceName},
-			})
-			if err != nil && !strings.Contains(err.Error(), "already exists") {
-				return errors.Wrap(err, "Failed to create namespace")
-			}
-		} else {
-			return errors.Wrap(err, "Failed to create namespace")
-		}
-	}
-	return nil
-}
-
-// deleteNamespace delete a Kubernetes namespaces known by its name
-func (k8s *k8sGenerator) deleteNamespace(namespaceName string, client *kubernetes.Clientset) error {
-	err := client.CoreV1().Namespaces().Delete(namespaceName, &metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete namespace "+namespaceName)
-	}
-	return nil
 }
 
 // generatePodName by replacing '_' by '-'

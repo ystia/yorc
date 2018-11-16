@@ -20,13 +20,37 @@ artifact_types:
 node_types:
   yorc.nodes.kubernetes.api.types.DeploymentResource:
     derived_from: org.alien4cloud.kubernetes.api.types.DeploymentResource
+    attributes:
+      replicas:
+        type: integer
+        description: >
+          Current number of replicas for this deployment
     interfaces:
+      org.alien4cloud.management.ClusterControl:
+        scale:
+          inputs:
+            EXPECTED_INSTANCES:
+              type: integer
+            INSTANCES_DELTA:
+              type: integer
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
       Standard:
         create:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes
         delete:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+  
+  yorc.nodes.kubernetes.api.types.JobResource:
+    derived_from: org.alien4cloud.kubernetes.api.types.JobResource
+    interfaces:
+      tosca.interfaces.node.lifecycle.Runnable:
+        run:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes

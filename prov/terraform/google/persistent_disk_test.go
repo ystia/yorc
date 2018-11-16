@@ -16,30 +16,33 @@ package google
 
 import (
 	"context"
+	"testing"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/prov/terraform/commons"
-	"testing"
 )
 
 func testSimplePersistentDisk(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
+	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
 	err := g.generatePersistentDisk(context.Background(), kv, cfg, deploymentID, "PersistentDisk", "0", 0, &infrastructure, make(map[string]string))
 	require.NoError(t, err, "Unexpected error attempting to generate persistent disk for %s", deploymentID)
 
+	diskName := resourcePrefix + "persistentdisk-0"
 	require.Len(t, infrastructure.Resource["google_compute_disk"], 1, "Expected one persistent disk")
 	instancesMap := infrastructure.Resource["google_compute_disk"].(map[string]interface{})
 	require.Len(t, instancesMap, 1)
-	require.Contains(t, instancesMap, "persistentdisk-0")
+	require.Contains(t, instancesMap, diskName)
 
-	persistentDisk, ok := instancesMap["persistentdisk-0"].(*PersistentDisk)
-	require.True(t, ok, "computeaddress-0 is not a PersistentDisk")
-	assert.Equal(t, "persistentdisk-0", persistentDisk.Name)
+	persistentDisk, ok := instancesMap[diskName].(*PersistentDisk)
+	require.True(t, ok, "%s is not a PersistentDisk", diskName)
+	assert.Equal(t, diskName, persistentDisk.Name)
 	assert.Equal(t, "europe-west1-b", persistentDisk.Zone)
 	assert.Equal(t, 32, persistentDisk.Size)
 	assert.Equal(t, "pd-ssd", persistentDisk.Type)
