@@ -152,6 +152,16 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 			if err != nil {
 				return false, nil, nil, err
 			}
+		case "yorc.nodes.google.PrivateNetwork":
+			err = g.generatePrivateNetwork(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs)
+			if err != nil {
+				return false, nil, nil, err
+			}
+		case "yorc.nodes.google.Subnetwork":
+			err = g.generateSubNetwork(ctx, kv, cfg, deploymentID, nodeName, &infrastructure, outputs)
+			if err != nil {
+				return false, nil, nil, err
+			}
 		default:
 			return false, nil, nil, errors.Errorf("Unsupported node type '%s' for node '%s' in deployment '%s'", nodeType, nodeName, deploymentID)
 		}

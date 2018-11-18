@@ -25,6 +25,67 @@ data_types:
         required: false
         description: The RFC 4648 base64 encoded SHA-256 hash of the customer-supplied encryption key that protects this resource.
 
+  yorc.datatypes.google.IPRange:
+    derived_from: tosca.datatypes.Root
+    properties:
+      name:
+        type: string
+        required: true
+        description: >
+          The name of this IP range, used when adding an alias IP range to a VM instance.
+          The name must be 1-63 characters long, and comply with RFC1035. The name must be unique within a subnetwork.
+      ip_cidr_range:
+        type: string
+        required: true
+        description: >
+          The range of IP addresses belonging to this range.
+          Ranges must be unique and non-overlapping with all primary and secondary IP ranges within a network.
+          Only IPv4 is supported.
+
+  yorc.datatypes.google.Subnetwork:
+    derived_from: tosca.datatypes.Root
+    properties:
+      name:
+        type: string
+        required: true
+        description: >
+          The name of the resource, provided by the client when initially creating the resource. The name must be 1-63 characters long, and comply with RFC1035.
+          Specifically, the name must be 1-63 characters long and match the regular expression [a-z]([-a-z0-9]*[a-z0-9])?
+          which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.
+      ip_cidr_range:
+        type: string
+        required: true
+        description: >
+          The range of internal addresses that are owned by this sub-network.
+          For example, 10.0.0.0/8 or 192.168.0.0/16. Ranges must be unique and non-overlapping within a network. Only IPv4 is supported.
+      project:
+        type: string
+        description: >
+          The ID of the project in which the resource belongs. If it is not provided, the infrastructure location project is used.
+        required: false
+      region:
+        type: string
+        description: >
+          The Region in which this subnet should reside.
+        required: true
+      enable_flow_logs:
+        type: boolean
+        description: Whether to enable flow logging for this subnetwork.
+        required: false
+      private_ip_google_access:
+        type: boolean
+        description: Whether the VMs in this subnet can access Google services without assigned external IP addresses.
+        required: false
+      secondary_ip_ranges:
+        type: list
+        description: >
+          A list of configurations for secondary IP ranges for VM instances contained in this sub-network.
+          The primary IP of such VM must belong to the primary ip_cidr_range of the sub-network.
+          The alias IPs may belong to either primary or secondary ranges.
+        entry_schema:
+          type: yorc.datatypes.google.IPRange
+        required: false
+
   yorc.datatypes.google.ScratchDisk:
     derived_from: tosca.datatypes.Root
     properties:
@@ -52,6 +113,16 @@ relationship_types:
         description: >
           The logical name of the device as exposed to the instance.
           Note: A runtime property that gets set when the model gets instantiated by the orchestrator.
+  yorc.relationships.google.Network:
+    derived_from: tosca.relationships.Network
+    valid_target_types: [ tosca.capabilities.Connectivity ]
+    properties:
+      subnet:
+        type: string
+        description: >
+          Specify the sub-network to use for this relationship if network contains multiple sub-networks.
+          If none is defined, the first matching subnet with the target Google region will be associated to it.
+        required: false
 
 node_types:
   yorc.nodes.google.Compute:
@@ -160,8 +231,122 @@ node_types:
           relationship: yorc.relationships.AssignsTo
           occurrences: [0, UNBOUNDED]
 
-  yorc.nodes.google.Network:
+  yorc.nodes.google.Subnetwork:
     derived_from: tosca.nodes.Network
+    # See https://www.terraform.io/docs/providers/google/r/compute_subnetwork.html
+    properties:
+      name:
+        type: string
+        required: true
+        description: >
+          The name of the resource, provided by the client when initially creating the resource. The name must be 1-63 characters long, and comply with RFC1035.
+          Specifically, the name must be 1-63 characters long and match the regular expression [a-z]([-a-z0-9]*[a-z0-9])?
+          which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.
+      network:
+        type: string
+        required: true
+        description: >
+          The network this subnet belongs to.
+      ip_cidr_range:
+        type: string
+        required: true
+        description: >
+          The range of internal addresses that are owned by this sub-network.
+          For example, 10.0.0.0/8 or 192.168.0.0/16. Ranges must be unique and non-overlapping within a network. Only IPv4 is supported.
+      project:
+        type: string
+        description: >
+          The ID of the project in which the resource belongs. If it is not provided, the infrastructure location project is used.
+        required: false
+      region:
+        type: string
+        description: >
+          The Region in which this subnet should reside.
+        required: true
+      enable_flow_logs:
+        type: boolean
+        description: Whether to enable flow logging for this subnetwork.
+        required: false
+      private_ip_google_access:
+        type: boolean
+        description: Whether the VMs in this subnet can access Google services without assigned external IP addresses.
+        required: false
+      secondary_ip_ranges:
+        type: list
+        description: >
+          A list of configurations for secondary IP ranges for VM instances contained in this sub-network.
+          The primary IP of such VM must belong to the primary ip_cidr_range of the sub-network.
+          The alias IPs may belong to either primary or secondary ranges.
+        entry_schema:
+          type: yorc.datatypes.google.IPRange
+        required: false
+    attributes:
+      gateway_ip:
+        type: string
+        description: The IPv4 address of the gateway.
+      network_name:
+        type: string
+        description: The related name of the network of this subnet.
+      subnetwork_name:
+        type: string
+        description: The related name of this subnet.
+
+  yorc.nodes.google.PrivateNetwork:
+    derived_from: tosca.nodes.Network
+    properties:
+    # See https://www.terraform.io/docs/providers/google/r/compute_network.html
+      auto_create_subnetworks:
+        type: boolean
+        description: >
+          If set to true, this network will be created in auto subnet mode, and Google will create a subnet for each region automatically.
+          If set to false, a custom subnetted network must be created. Defaults to true.
+        required: false
+        default: false
+      routing_mode:
+        type: string
+        description: >
+          Sets the network-wide routing mode for Cloud Routers to use. Accepted values are "GLOBAL" or "REGIONAL". Defaults to "REGIONAL".
+          Refer to the Cloud Router (https://cloud.google.com/router/docs/concepts/overview#dynamic-routing-mode) documentation for more details.
+        required: false
+      description:
+        type: string
+        description: >
+          An optional description of this resource.
+        required: false
+      network_name:
+        type: string
+        description: >
+          The existing network to use. You can create default or custom subnets with existing network.
+        required: false
+      cidr:
+        type: string
+        description: >
+          CIDR range for default subnet creation. If this field is specified, you must fill the cidr_region too.
+        required: false
+      cidr_region:
+        type: string
+        description: >
+          The Google region to used with specified cidr for default subnet creation. This field is mandatory is cidr is set.
+        required: false
+      project:
+        type: string
+        description: >
+          The ID of the project in which the resource belongs. If it is not provided, the infrastructure location project is used.
+        required: false
+      custom_subnetworks:
+        type: list
+        description: >
+          if auto_create_subnetworks is set to false, you must create at least one custom sub-network for this network.
+          Each VPC network is subdivided into subnets, and each subnet is contained within a single region.
+          You can have more than one subnet in a region for a given VPC network. Each subnet has a contiguous private RFC1918 IP space.
+          When you create an instance in a subnet, the instance draws its internal IP address from that subnet.
+        entry_schema:
+          type: yorc.datatypes.google.Subnetwork
+        required: false
+    attributes:
+      network_name:
+        type: string
+        description: The unique name of the network.
 
   yorc.nodes.google.Address:
     derived_from: tosca.nodes.Root

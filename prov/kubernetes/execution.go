@@ -199,34 +199,34 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
 	}
 
-	// Manage Namespace creation
-	// Get it from matadata, or generate it using deploymentID
-	//namespace := deploymentRepr.ObjectMeta.Namespace
-	// (Synchronize with Alien)
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
-	if err != nil {
-		return err
-	}
-	rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespace, rSpec)
-	if err != nil {
-		return err
-	}
-
-	var deploymentRepr v1beta1.Deployment
 	// Unmarshal JSON to k8s data structs
+	var deploymentRepr v1beta1.Deployment
 	if err = json.Unmarshal([]byte(rSpec), &deploymentRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
-	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
-	if err != nil {
-		return err
-	}
+	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
+	objectMeta := deploymentRepr.ObjectMeta
+	var namespaceName string
+	var namespaceProvided bool
+	namespaceName, namespaceProvided = getNamespace(e.deploymentID, objectMeta)
 
 	switch operationType {
 	case k8sCreateOperation:
+		if !namespaceProvided {
+			err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
+			if err != nil {
+				return err
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespaceName)
+		}
+		// Update resource_spec with actual reference to used services, if necessary
+		rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespaceName, rSpec)
+		if err != nil {
+			return err
+		}
 		// Create Deployment k8s resource
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Create(&deploymentRepr)
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespaceName).Create(&deploymentRepr)
 		if err != nil {
 			return err
 		}
@@ -237,15 +237,19 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		if err != nil {
 			return err
 		}
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "replicas", fmt.Sprint(*deployment.Spec.Replicas))
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s created in namespace %s", deployment.Name, namespaceName)
 
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s created in namespace %s", deployment.Name, namespace)
 	case k8sDeleteOperation:
 		// Delete Deployment k8s resource
 		var deploymentName string
 		deploymentName = deploymentRepr.Name
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Delete k8s Deployment %s", deploymentName)
 
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(deploymentName, metav1.GetOptions{})
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespaceName).Get(deploymentName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -253,7 +257,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 
 		deletePolicy := metav1.DeletePropagationForeground
 		var gracePeriod int64 = 5
-		if err = clientset.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{
+		if err = clientset.ExtensionsV1beta1().Deployments(namespaceName).Delete(deploymentName, &metav1.DeleteOptions{
 			GracePeriodSeconds: &gracePeriod, PropagationPolicy: &deletePolicy}); err != nil {
 			return err
 		}
@@ -268,13 +272,27 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Deployment %s deleted", deploymentName)
 
-		// Delete namespace
-		err = generator.deleteNamespace(namespace, clientset)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
-			return err
+		// Delete namespace if it was not provided
+		if !namespaceProvided {
+			// Check if other deployments exist in the namespace
+			// In that case nothing to do
+			nbDeployments, err := deploymentsInNamespace(clientset, namespaceName)
+			if err != nil {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespaceName)
+				return err
+			}
+			if nbDeployments > 0 {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Do not delete %s namespace as %d deployments exist", namespaceName, nbDeployments)
+			} else {
+				err = deleteNamespace(namespaceName, clientset)
+				if err != nil {
+					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("Cannot delete %s k8s Namespace", namespaceName)
+					return err
+				}
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespaceName)
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespace)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s deleted", namespaceName)
 	case k8sScaleOperation:
 		expectedInstances, err := tasks.GetTaskInput(e.kv, e.taskID, "EXPECTED_INSTANCES")
 		if err != nil {
@@ -287,7 +305,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		replicas := int32(r)
 		deploymentRepr.Spec.Replicas = &replicas
 
-		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespace).Update(&deploymentRepr)
+		deployment, err := clientset.ExtensionsV1beta1().Deployments(namespaceName).Update(&deploymentRepr)
 		if err != nil {
 			return errors.Wrap(err, "failed to update kubernetes deployment for scaling")
 		}
@@ -301,7 +319,7 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		if err != nil {
 			return err
 		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s scaled to %s instances in namespace %s", deployment.Name, expectedInstances, namespace)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Deployment %s scaled to %s instances in namespace %s", deployment.Name, expectedInstances, namespaceName)
 	default:
 		return errors.Errorf("Unsupported operation on k8s resource")
 	}
@@ -314,20 +332,16 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
 	}
+
 	// Unmarshal JSON to k8s data structs
 	if err = json.Unmarshal([]byte(rSpec), &serviceRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
 
-	// Manage Namespace creation
-	// Get it from matadata, or generate it using deploymentID
-	//namespace := deploymentRepr.ObjectMeta.Namespace
-	// (Synchronize with Alien)
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
-	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
-	if err != nil {
-		return err
-	}
+	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
+	objectMeta := serviceRepr.ObjectMeta
+	var namespace string
+	namespace, _ = getNamespace(e.deploymentID, objectMeta)
 
 	switch operationType {
 	case k8sCreateOperation:
@@ -371,10 +385,6 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 	return nil
 }
 
-func getNamespace(kv *api.KV, deploymentID, nodeName string) (string, error) {
-	return strings.ToLower(deploymentID), nil
-}
-
 // Below code is for legacy way of managing Kubernetes containers
 
 // Deprecated
@@ -388,10 +398,9 @@ func (e *execution) parseEnvInputs() []apiv1.EnvVar {
 
 	return data
 }
-
-// Deprecated
 func (e *execution) checkRepository(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
+
 	if err != nil {
 		return err
 	}
@@ -444,9 +453,8 @@ func (e *execution) checkRepository(ctx context.Context, clientset kubernetes.In
 	return nil
 }
 
-// Deprecated
 func (e *execution) scaleNode(ctx context.Context, clientset kubernetes.Interface, scaleType tasks.TaskType, nbInstances int32) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -469,14 +477,13 @@ func (e *execution) scaleNode(ctx context.Context, clientset kubernetes.Interfac
 	return nil
 }
 
-// Deprecated
 func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, nbInstances int32) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
 
-	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+	err = createNamespaceIfMissing(e.deploymentID, namespace, clientset)
 	if err != nil {
 		return err
 	}
@@ -580,9 +587,8 @@ func (e *execution) setUnDeployHook() error {
 	return nil
 }
 
-// Deprecated
 func (e *execution) checkNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -634,9 +640,8 @@ func (e *execution) checkNode(ctx context.Context, clientset kubernetes.Interfac
 	return nil
 }
 
-// Deprecated
 func (e *execution) checkPod(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, podName string) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}
@@ -710,9 +715,8 @@ func (e *execution) checkPod(ctx context.Context, clientset kubernetes.Interface
 	return nil
 }
 
-// Deprecated
 func (e *execution) uninstallNode(ctx context.Context, clientset kubernetes.Interface) error {
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
+	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
 		return err
 	}

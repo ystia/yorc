@@ -48,23 +48,31 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 		return nil, 0, errors.Errorf("no resource_spec defined for node %q", e.nodeName)
 	}
 
-	// Manage Namespace creation
-	// Get it from matadata, or generate it using deploymentID
-	//namespace := deploymentRepr.ObjectMeta.Namespace
-	// (Synchronize with Alien)
-	namespace, err := getNamespace(e.kv, e.deploymentID, e.nodeName)
-	if err != nil {
-		return nil, 0, err
-	}
-
 	jobRepr := &batchv1.Job{}
 	log.Debugf("jobspec: %v", rSpec.RawString())
 	// Unmarshal JSON to k8s data structs
 	if err = json.Unmarshal([]byte(rSpec.RawString()), jobRepr); err != nil {
 		return nil, 0, errors.Wrap(err, "The resource-spec JSON unmarshaling failed")
 	}
-	generator := newGenerator(e.kv, e.cfg)
-	err = generator.createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+
+	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
+	//objectMeta := jobRepr.ObjectMeta
+	var namespaceName string
+	//var namespaceProvided bool
+	//namespaceName, namespaceProvided = getNamespace(e.deploymentID, objectMeta)
+	//if !namespaceProvided {
+	//err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
+	//if err != nil {
+	//return nil, 0, err
+	//}
+	//events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespaceName)
+	//}
+
+	namespaceName, err = defaultNamespace(e.deploymentID)
+	if err != nil {
+		return nil, 0, err
+	}
+	err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -74,7 +82,7 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 		jobRepr.Spec.Template.Spec.RestartPolicy = "Never"
 	}
 
-	jobRepr, err = clientset.BatchV1().Jobs(namespace).Create(jobRepr)
+	jobRepr, err = clientset.BatchV1().Jobs(namespaceName).Create(jobRepr)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
 	}
@@ -82,7 +90,7 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 	data := make(map[string]string)
 	data["originalTaskID"] = e.taskID
 	data["jobID"] = jobRepr.Name
-	data["namespace"] = namespace
+	data["namespace"] = namespaceName
 	data["stepName"] = stepName
 	// TODO deal with outputs?
 	// data["outputs"] = strings.Join(e.jobInfo.outputs, ",")
