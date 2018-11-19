@@ -70,9 +70,20 @@ func init() {
 		"resources", "r", "", "Path to bootstrap resources zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
+	//		bootstrapCmd.PersistentFlags().BoolVarP(&cleanup, "cleanup", "c", false, "Cleans local setup, without undeploying the bootstrapped yorc")
 
 	// Adding flags and environment variables for inputs having default values
 	setDefaultInputValues()
+
+	cleanCmd := &cobra.Command{
+		Use:   "cleanup",
+		Short: "Cleans local setup",
+		Long:  `Cleans local setup, without undeploying the bootstrapped Yorc.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cleanBootstrapSetup(workingDirectoryPath)
+		},
+	}
+	bootstrapCmd.AddCommand(cleanCmd)
 }
 
 var bootstrapCmd *cobra.Command

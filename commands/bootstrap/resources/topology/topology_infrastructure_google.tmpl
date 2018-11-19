@@ -1,6 +1,6 @@
 {{ define "Infrastructure" }}
       type: org.ystia.yorc.infrastructure.GoogleConfig
-      properties: {{formatAsYAML .Infrastructure 8}}
+      properties: {{formatAsYAML .Infrastructure.google 8}}
       requirements:
         - infraHostedOnYorcServer:
             type_requirement: host

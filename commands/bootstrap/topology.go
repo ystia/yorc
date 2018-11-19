@@ -55,6 +55,8 @@ type YorcPluginConfiguration struct {
 type Alien4CloudConfiguration struct {
 	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
 	Port        int
+	User        string
+	Password    string
 }
 
 // ConsulConfiguration provides Consul user-defined settings
@@ -65,8 +67,8 @@ type ConsulConfiguration struct {
 
 // TerraformConfiguration provides Terraform settings
 type TerraformConfiguration struct {
-	Version    string   `yaml:"component_version"`
-	PluginURLs []string `yaml:"plugins_download_urls" mapstructure:"plugins_download_urls"`
+	DownloadURL string   `yaml:"download_url" mapstructure:"download_url"`
+	PluginURLs  []string `yaml:"plugins_download_urls" mapstructure:"plugins_download_urls"`
 }
 
 // JdkConfiguration configuration provides Java settings
@@ -96,7 +98,7 @@ type TopologyValues struct {
 	YorcPlugin     YorcPluginConfiguration `mapstructure:"yorc_plugin"`
 	Consul         ConsulConfiguration
 	Terraform      TerraformConfiguration
-	Infrastructure config.DynamicMap
+	Infrastructure map[string]config.DynamicMap
 	Compute        config.DynamicMap
 	Credentials    *CredentialsConfiguration
 	Address        config.DynamicMap

@@ -37,11 +37,6 @@ imports:
   - org.ystia.terraform.pub/2.1.0-SNAPSHOT/types.yaml
   - org.ystia.ansible.pub/2.1.0-SNAPSHOT/types.yaml
 
-repositories:
-  a4c_repository:
-    url: {{getRepositoryURL .Alien4cloud.DownloadURL}}
-    type: http
-
 topology_template:
   node_templates:
     OracleJDK:
@@ -88,8 +83,8 @@ topology_template:
             initiator: source
         rest:
           properties:
-            user: admin
-            password: admin
+            user: {{.Alien4cloud.User}}
+            password: {{.Alien4cloud.Password}}
             port: {{.Alien4cloud.Port}}
             protocol: http
             secure: false
@@ -99,7 +94,6 @@ topology_template:
         alien_dist:
           file: {{getFile .Alien4cloud.DownloadURL}}
           type: tosca.artifacts.File
-          repository: a4c_repository
     YorcPlugin:
       type: org.ystia.yorc.alien4cloud.nodes.YorcPlugin
       properties:

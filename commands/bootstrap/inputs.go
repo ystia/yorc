@@ -76,6 +76,14 @@ var (
 			description: "Alien4Cloud port",
 			value:       8088,
 		},
+		"alien4cloud.user": defaultInputType{
+			description: "Alien4Cloud user",
+			value:       "admin",
+		},
+		"alien4cloud.password": defaultInputType{
+			description: "Alien4Cloud password",
+			value:       "admin",
+		},
 	}
 
 	consulDefaultInputs = map[string]defaultInputType{
@@ -182,16 +190,25 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 
 	if infrastructureType == "" {
 
-		// if one and only one infrastrucutre is already defined in inputs,
+		// if one and only one infrastructure is already defined in inputs,
 		// selecting this infrastructure
-
-		fmt.Println("")
-		prompt := &survey.Select{
-			Message: "Select an infrastructure:",
-			Options: []string{"Google", "AWS", "OpenStack", "HostsPool"},
+		if len(inputValues.Infrastructure) == 1 && len(inputValues.Hosts) == 0 {
+			for k := range inputValues.Infrastructure {
+				infrastructureType = k
+			}
+		} else if len(inputValues.Infrastructure) == 0 && len(inputValues.Hosts) > 0 {
+			infrastructureType = "hostspool"
 		}
-		survey.AskOne(prompt, &infrastructureType, nil)
-		infrastructureType = strings.ToLower(infrastructureType)
+
+		if infrastructureType == "" {
+			fmt.Println("")
+			prompt := &survey.Select{
+				Message: "Select an infrastructure:",
+				Options: []string{"Google", "AWS", "OpenStack", "HostsPool"},
+			}
+			survey.AskOne(prompt, &infrastructureType, nil)
+			infrastructureType = strings.ToLower(infrastructureType)
+		}
 	}
 
 	// Define node types to get according to the selecting infrastructure
@@ -209,6 +226,9 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	case "hostspool":
 		// No infrastructure defined in case of hosts pool
 		// Hosts Pool don't have network-reletad on-demand resources
+	default:
+		return fmt.Errorf("Infrastruture type %s is not supported by bootstrap",
+			infrastructureType)
 	}
 
 	fmt.Println("\nGetting Infrastructure configuration")
@@ -240,13 +260,18 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	if infrastructureType != "hostspool" {
 		if inputValues.Infrastructure == nil {
 			askIfNotRequired = true
-			inputValues.Infrastructure = make(config.DynamicMap)
+			inputValues.Infrastructure = make(map[string]config.DynamicMap)
+		}
+		configMap := inputValues.Infrastructure[infrastructureType]
+		if configMap == nil {
+			configMap = make(config.DynamicMap)
 		}
 
 		if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
-			&inputValues.Infrastructure); err != nil {
+			&configMap); err != nil {
 			return err
 		}
+		inputValues.Infrastructure[infrastructureType] = configMap
 	} else {
 
 		// Hosts Pool

@@ -63,24 +63,16 @@ func setupYorcServer(workingDirectoryPath string) error {
 	}
 
 	// Starting Consul begore the Yorc server
-	fmt.Println("Starting Consul...")
 	cmdConsul, err = startConsul(workingDirectoryPath)
 	if err != nil {
 		return err
 	}
-	fmt.Println("...Consul started")
-
-	// Starting Yorc server
-
-	fmt.Println("Starting a local Yorc server to bootstrap a remote Yorc server...")
 
 	// First creating a Yorc config file defining the infrastructure
-	inputInfra := make(map[string]config.DynamicMap)
-	inputInfra[strings.ToLower(infrastructureType)] = inputValues.Infrastructure
 	serverConfig := config.Configuration{
 		WorkingDirectory: workingDirectoryPath,
 		ResourcesPrefix:  "bootstrap",
-		Infrastructures:  inputInfra,
+		Infrastructures:  inputValues.Infrastructure,
 		Ansible:          config.Ansible{KeepGeneratedRecipes: true},
 	}
 
@@ -110,18 +102,30 @@ func setupYorcServer(workingDirectoryPath string) error {
 		return err
 	}
 
-	cmdArgs := fmt.Sprintf("server --config %s --http_port %d",
-		cfgFileName, inputValues.Yorc.Port)
-	cmd := exec.Command(yorcExecutablePath, strings.Split(cmdArgs, " ")...)
-	cmd.Stdout = yorcServerOutputFile
-	err = cmd.Start()
-	if err != nil {
-		return err
+	// Before starting yorc, hceck if it is already running
+	// Starting Yorc server
+	err = waitForYorcServerUP(0)
+	if err == nil {
+		fmt.Println("Local Yorc server already started")
+	} else {
+
+		fmt.Println("Starting a local Yorc server to bootstrap a remote Yorc server...")
+
+		cmdArgs := fmt.Sprintf("server --config %s --http_port %d",
+			cfgFileName, inputValues.Yorc.Port)
+		cmd := exec.Command(yorcExecutablePath, strings.Split(cmdArgs, " ")...)
+		cmd.Stdout = yorcServerOutputFile
+		err = cmd.Start()
+		if err != nil {
+			return err
+		}
+
+		err = waitForYorcServerUP(5 * time.Second)
+		if err != nil {
+			return err
+		}
+		fmt.Println("...local Yorc server started")
 	}
-
-	err = waitForYorcServerUP(5 * time.Second)
-
-	fmt.Println("...local Yorc server started")
 
 	// For a deployment on a Hosts Pool, this Hosts Pool needs to be configured,
 	// which can be done now that the local Yorc Server is up
@@ -201,13 +205,16 @@ func waitForYorcServerUP(timeout time.Duration) error {
 	return fmt.Errorf("Timeout waiting %s seconds for Yorc Server to be up", nbAttempts)
 }
 
-// tearDownYorcServer tears down a Yorc server
-func tearDownYorcServer(workingDirectoryPath string) error {
+// cleanBootstrapSetup stops yorc and consul processes, cleans working directories
+func cleanBootstrapSetup(workingDirectoryPath string) error {
 
 	// Stop Yorc server
 	if yorcServerShutdownChan != nil {
 		close(yorcServerShutdownChan)
 		yorcServerOutputFile.Close()
+	} else {
+		cmd := exec.Command("pkill", "-f", "yorc server")
+		cmd.Run()
 	}
 
 	// stop Consul
@@ -215,8 +222,20 @@ func tearDownYorcServer(workingDirectoryPath string) error {
 		if err := cmdConsul.Process.Kill(); err != nil {
 			return err
 		}
+	} else {
+		cmd := exec.Command("pkill", "consul")
+		cmd.Run()
+
 	}
 
+	// Clean working directories
+	os.RemoveAll(filepath.Join(workingDirectoryPath, "bootstrapResources"))
+	os.RemoveAll(filepath.Join(workingDirectoryPath, "deployments"))
+	os.RemoveAll(filepath.Join(workingDirectoryPath, "consul-data"))
+	os.Remove(filepath.Join(workingDirectoryPath, "config.yorc.yaml"))
+	os.Remove(filepath.Join(workingDirectoryPath, "yorc.log"))
+
+	fmt.Println("Local setup cleaned up")
 	return nil
 
 }
@@ -226,13 +245,23 @@ func startConsul(workingDirectoryPath string) (*exec.Cmd, error) {
 
 	executable := filepath.Join(workingDirectoryPath, "consul")
 	dataDir := filepath.Join(workingDirectoryPath, "consul-data")
+
+	// First check if consul is already running
+	cmd := exec.Command(executable, "members")
+	err := cmd.Run()
+	if err == nil {
+		fmt.Println("Consul is already running")
+		return nil, nil
+	}
+
+	fmt.Println("Starting Consul...")
 	// Consul startup options
 	// Specifying a bind address or it would fail on a setup with multiple
 	// IPv4 addresses configured
 	cmdArgs := "agent -server -bootstrap-expect 1 -bind 127.0.0.1 -data-dir " + dataDir
-	cmd := exec.Command(executable, strings.Split(cmdArgs, " ")...)
+	cmd = exec.Command(executable, strings.Split(cmdArgs, " ")...)
 	output, _ := cmd.StdoutPipe()
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -241,9 +270,11 @@ func startConsul(workingDirectoryPath string) (*exec.Cmd, error) {
 	// when it is not yet ready
 	err = waitForOutput(output, "New leader elected", 60*time.Second)
 	if err != nil {
-		tearDownYorcServer(workingDirectoryPath)
+		cleanBootstrapSetup(workingDirectoryPath)
 		return nil, err
 	}
+
+	fmt.Println("...Consul started")
 	return cmd, err
 }
 
@@ -279,15 +310,12 @@ func installDependencies(workingDirectoryPath string) error {
 	}
 
 	// Download Consul
-	url := inputValues.Consul.DownloadURL
-	if err := downloadUnzip(url, workingDirectoryPath); err != nil {
+	if err := downloadUnzip(inputValues.Consul.DownloadURL, workingDirectoryPath); err != nil {
 		return err
 	}
 
 	// Download Terraform
-	version := inputValues.Terraform.Version
-	url = fmt.Sprintf("https://releases.hashicorp.com/terraform/%s/terraform_%s_linux_amd64.zip", version, version)
-	if err := downloadUnzip(url, workingDirectoryPath); err != nil {
+	if err := downloadUnzip(inputValues.Terraform.DownloadURL, workingDirectoryPath); err != nil {
 		return err
 	}
 
@@ -310,6 +338,10 @@ func downloadUnzip(url, destinationPath string) error {
 	}
 	// File downloaded, unzipping it
 	_, err = ziputil.Unzip(filePath, destinationPath)
+	if err != nil && strings.Contains(err.Error(), "text file busy") {
+		// Unzip of binary already in use, ignoring
+		return nil
+	}
 	return err
 }
 

@@ -1,6 +1,6 @@
 {{ define "Infrastructure" }}
       type: org.ystia.yorc.infrastructure.AWSConfig
-      properties: {{formatAsYAML .Infrastructure 8}}
+      properties: {{formatAsYAML .Infrastructure.aws 8}}
       requirements:
         - infraHostedOnYorcServer:
             type_requirement: host
