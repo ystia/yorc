@@ -56,25 +56,16 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 	}
 
 	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
-	//objectMeta := jobRepr.ObjectMeta
+	objectMeta := jobRepr.ObjectMeta
 	var namespaceName string
-	//var namespaceProvided bool
-	//namespaceName, namespaceProvided = getNamespace(e.deploymentID, objectMeta)
-	//if !namespaceProvided {
-	//err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
-	//if err != nil {
-	//return nil, 0, err
-	//}
-	//events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespaceName)
-	//}
-
-	namespaceName, err = defaultNamespace(e.deploymentID)
-	if err != nil {
-		return nil, 0, err
-	}
-	err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
-	if err != nil {
-		return nil, 0, err
+	var namespaceProvided bool
+	namespaceName, namespaceProvided = getNamespace(e.deploymentID, objectMeta)
+	if !namespaceProvided {
+		err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
+		if err != nil {
+			return nil, 0, err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespaceName)
 	}
 
 	if jobRepr.Spec.Template.Spec.RestartPolicy != "Never" && jobRepr.Spec.Template.Spec.RestartPolicy != "OnFailure" {
