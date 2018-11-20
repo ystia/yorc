@@ -37,5 +37,8 @@ topology_template:
             protocol: tcp
             network_name: PRIVATE
             initiator: source
-            credentials: {user: centos}
+            credentials:
+              user: centos
+              keys:
+                0: "-----BEGIN RSA PRIVATE KEY----- my secure private key -----END RSA PRIVATE KEY-----"
 

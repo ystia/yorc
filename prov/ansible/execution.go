@@ -44,6 +44,7 @@ import (
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/executil"
 	"github.com/ystia/yorc/helper/provutil"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
@@ -105,6 +106,7 @@ type hostConnection struct {
 	instanceID string
 	privateKey string
 	password   string
+	sshAgent   *sshutil.SSHAgent
 }
 
 type sshCredentials struct {
@@ -769,13 +771,8 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		}
 	} else {
 		sshCredentials := e.getSSHCredentials(ctx, host, true)
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
-		// Set with priority private key against password
-		if sshCredentials.privateKey != "" {
-			// TODO if not a path store it somewhere
-			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
-			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
-		} else if sshCredentials.password != "" {
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20 -o UserKnownHostsFile=/dev/null\"", sshCredentials.user))
+		if sshCredentials.password != "" {
 			// TODO use vault
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshCredentials.password))
 		}

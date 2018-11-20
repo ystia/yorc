@@ -29,6 +29,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
@@ -193,7 +194,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 
 	// Get connection info (user, private key)
-	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -282,10 +283,17 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "consul_keys", instance.Name, &consulKeys)
 
 	// Check the connection in order to be sure that ansible will be able to log on the instance
+	pkeyContent, err := sshutil.ToPrivateKeyContent(privateKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve private key content")
+	}
 	nullResource := commons.Resource{}
 	re := commons.RemoteExec{Inline: []string{`echo "connected"`},
-		Connection: &commons.Connection{User: user, Host: accessIP,
-			PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+		Connection: &commons.Connection{
+			User:       user,
+			Host:       accessIP,
+			PrivateKey: string(pkeyContent),
+		}}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re
@@ -294,7 +302,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
 
 	// Retrieve devices
-	handleDeviceAttributes(infrastructure, &instance, devices, user, privateKeyFilePath, accessIP)
+	handleDeviceAttributes(infrastructure, &instance, devices, user, privateKey, accessIP)
 
 	return nil
 }

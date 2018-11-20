@@ -40,6 +40,7 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 }
 
 func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
+	privateKey := []byte(`-----BEGIN RSA PRIVATE KEY----- my secure private key -----END RSA PRIVATE KEY-----`)
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
@@ -84,7 +85,7 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	assert.Equal(t, "centos", rex.Connection.User)
-	assert.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
+	assert.Equal(t, string(privateKey), rex.Connection.PrivateKey)
 
 	require.Len(t, compute.ScratchDisks, 2, "Expected 2 scratch disks")
 	assert.Equal(t, "SCSI", compute.ScratchDisks[0].Interface, "SCSI interface expected for 1st scratch")
