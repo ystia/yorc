@@ -82,6 +82,9 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 	data["originalTaskID"] = e.taskID
 	data["jobID"] = jobRepr.Name
 	data["namespace"] = namespaceName
+	if namespaceProvided {
+		data["providedNamespace"] = namespaceName
+	}
 	data["stepName"] = stepName
 	// TODO deal with outputs?
 	// data["outputs"] = strings.Join(e.jobInfo.outputs, ",")

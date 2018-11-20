@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -50,16 +51,22 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	if !ok {
 		return true, errors.New(`missing mandatory parameter "namespace" in monitoring action`)
 	}
+	// Check if namespace was provided
+	var namespaceProvided bool
+	_, ok = action.Data["providedNamespace"]
+	if ok {
+		namespaceProvided = true
+	}
 
 	stepName, ok := action.Data["stepName"]
 	if !ok {
 		return true, errors.New(`missing mandatory parameter "stepName" in monitoring action`)
 	}
 
-	return o.monitorJob(ctx, cfg, deploymentID, originalTaskID, stepName, namespace, jobID, action)
+	return o.monitorJob(ctx, cfg, namespaceProvided, deploymentID, originalTaskID, stepName, namespace, jobID, action)
 }
 
-func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
+func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, namespaceProvided bool, deploymentID, originalTaskID, stepName, namespace, jobID string, action *prov.Action) (bool, error) {
 	job, err := o.clientset.BatchV1().Jobs(namespace).Get(jobID, metav1.GetOptions{})
 	if err != nil {
 		return true, errors.Wrapf(err, "can not retrieve job %q", jobID)
@@ -73,6 +80,16 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		err = o.clientset.BatchV1().Jobs(namespace).Delete(jobID, &metav1.DeleteOptions{PropagationPolicy: &deleteForeground})
 		if err != nil {
 			return true, errors.Wrapf(err, "failed to delete completed job %q", jobID)
+		}
+		// Delete namespace if it was not provided
+		if !namespaceProvided {
+			err = deleteNamespace(namespace, o.clientset)
+			if err != nil {
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+				return false, err
+			}
+
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("k8s Namespace %s deleted", namespace)
 		}
 
 		if job.Status.Succeeded < *job.Spec.Completions {
