@@ -1052,28 +1052,28 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	if !e.isOrchestratorOperation {
 		if e.cfg.Ansible.UseOpenSSH {
 			cmd.Args = append(cmd.Args, "-c", "ssh")
-
-			// Check if SSHAgent is needed
-			sshAgent, err := e.configureSSHAgent(ctx)
-			if err != nil {
-				return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
-			}
-			if sshAgent != nil {
-				log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
-				env = append(env, "SSH_AUTH_SOCK="+sshAgent.Socket)
-				defer func() {
-					err = sshAgent.RemoveAllKeys()
-					if err != nil {
-						log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
-					}
-					err = sshAgent.Stop()
-					if err != nil {
-						log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
-					}
-				}()
-			}
 		} else {
 			cmd.Args = append(cmd.Args, "-c", "paramiko")
+		}
+
+		// Check if SSHAgent is needed
+		sshAgent, err := e.configureSSHAgent(ctx)
+		if err != nil {
+			return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
+		}
+		if sshAgent != nil {
+			log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
+			env = append(env, "SSH_AUTH_SOCK="+sshAgent.Socket)
+			defer func() {
+				err = sshAgent.RemoveAllKeys()
+				if err != nil {
+					log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+				}
+				err = sshAgent.Stop()
+				if err != nil {
+					log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+				}
+			}()
 		}
 	}
 	cmd.Dir = ansibleRecipePath
