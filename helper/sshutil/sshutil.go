@@ -61,7 +61,7 @@ type SSHClient struct {
 type SSHAgent struct {
 	agent  agent.Agent
 	conn   net.Conn
-	socket string
+	Socket string
 	pid    int
 }
 
@@ -249,6 +249,7 @@ func NewSSHAgent(ctx context.Context) (*SSHAgent, error) {
 
 // AddKey allows to add a key into ssh-agent keys list
 func (sa *SSHAgent) AddKey(privateKey string, lifeTime uint32) error {
+	log.Debugf("Add key for SSH-AGENT")
 	keyContent, err := ToPrivateKeyContent(privateKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve private key content")
@@ -286,8 +287,15 @@ func (sa *SSHAgent) RemoveKey(privateKey string) error {
 	return sa.agent.Remove(signer.PublicKey())
 }
 
+// RemoveAllKeys allows to remove all keys into ssh-agent keys list
+func (sa *SSHAgent) RemoveAllKeys() error {
+	log.Debugf("Remove all keys for SSH-AGENT")
+	return sa.agent.RemoveAll()
+}
+
 // Stop allows to cleanup and stop ssh-agent process
 func (sa *SSHAgent) Stop() error {
+	log.Debugf("Stop SSH-AGENT")
 	proc, err := os.FindProcess(sa.pid)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find ssh-agent process")
@@ -299,5 +307,10 @@ func (sa *SSHAgent) Stop() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to close ssh-agent connection")
 	}
-	return os.RemoveAll(filepath.Dir(sa.socket))
+	return os.RemoveAll(filepath.Dir(sa.Socket))
+}
+
+// GetAuthMethod returns the auth method with all agent keys
+func (sa *SSHAgent) GetAuthMethod() ssh.AuthMethod {
+	return ssh.PublicKeysCallback(sa.agent.Signers)
 }

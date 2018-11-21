@@ -24,6 +24,7 @@ import (
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
 	"strconv"
 )
@@ -86,12 +87,16 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	require.Equal(t, "centos", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
+
+	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
+	require.Nil(t, err)
+	require.Equal(t, string(yorcPem), rex.Connection.PrivateKey)
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }
 
 func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Configuration) {
+	privateKey := []byte(`-----BEGIN RSA PRIVATE KEY----- my secure private key -----END RSA PRIVATE KEY-----`)
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
@@ -117,7 +122,7 @@ func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Co
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	require.Equal(t, "centos", rex.Connection.User)
-	require.Equal(t, `${file("/path/to/my-keypair.pem")}`, rex.Connection.PrivateKey)
+	require.Equal(t, string(privateKey), rex.Connection.PrivateKey)
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }

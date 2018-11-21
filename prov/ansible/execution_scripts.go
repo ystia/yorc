@@ -28,7 +28,6 @@ import (
 
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/operations"
 )
 

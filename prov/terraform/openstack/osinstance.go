@@ -28,6 +28,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
@@ -146,7 +147,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	}
 
 	// Get connection info (user, private key)
-	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKeyFile, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -338,7 +339,11 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 	nullResource := commons.Resource{}
 	// Do this in order to be sure that ansible will be able to log on the instance
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+	pkeyContent, err := sshutil.ToPrivateKeyContent(privateKeyFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve private key content")
+	}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: string(pkeyContent)}}
 	var accessIP string
 	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
 		// Use Floating IP for provisioning

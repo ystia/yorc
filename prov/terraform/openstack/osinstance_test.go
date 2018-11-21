@@ -26,6 +26,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
@@ -83,7 +84,9 @@ func testSimpleOSInstance(t *testing.T, kv *api.KV) {
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	require.Equal(t, "cloud-user", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
+	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
+	require.Nil(t, err)
+	require.Equal(t, string(yorcPem), rex.Connection.PrivateKey)
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 }
 
@@ -138,7 +141,9 @@ func testFipOSInstance(t *testing.T, kv *api.KV, srv *testutil.TestServer) {
 	require.True(t, ok)
 	require.True(t, ok, "expecting remote-exec to be a RemoteExec")
 	require.Equal(t, "cloud-user", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
+	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
+	require.Nil(t, err)
+	require.Equal(t, string(yorcPem), rex.Connection.PrivateKey)
 	require.Equal(t, `${openstack_compute_floatingip_associate_v2.FIPCompute-0.floating_ip}`, rex.Connection.Host)
 }
 
@@ -193,6 +198,9 @@ func testFipOSInstanceNotAllowed(t *testing.T, kv *api.KV, srv *testutil.TestSer
 	require.True(t, ok)
 	require.True(t, ok, "expecting remote-exec to be a RemoteExec")
 	require.Equal(t, "cloud-user", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
+
+	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
+	require.Nil(t, err)
+	require.Equal(t, string(yorcPem), rex.Connection.PrivateKey)
 	require.Equal(t, `${openstack_compute_instance_v2.Compute-0.network.0.fixed_ip_v4}`, rex.Connection.Host)
 }

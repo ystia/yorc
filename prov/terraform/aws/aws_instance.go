@@ -29,6 +29,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
@@ -92,7 +93,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	}
 
 	// Get connection info (user, private key)
-	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKeyFile, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -205,8 +206,13 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, consulKeyPublicAddr, consulKeyPublicIPAddr, capabilityIPAddr)
 
 	// Check the connection in order to be sure that ansible will be able to log on the instance
+	pkeyContent, err := sshutil.ToPrivateKeyContent(privateKeyFile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve private key content")
+	}
+
 	nullResource := commons.Resource{}
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: string(pkeyContent)}}
 	nullResource.Provisioners = make([]map[string]interface{}, 0)
 	provMap := make(map[string]interface{})
 	provMap["remote-exec"] = re

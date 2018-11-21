@@ -106,7 +106,6 @@ type hostConnection struct {
 	instanceID string
 	privateKey string
 	password   string
-	sshAgent   *sshutil.SSHAgent
 }
 
 type sshCredentials struct {
@@ -832,7 +831,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
-	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {
@@ -1038,7 +1036,8 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	ansibleRecipePath string, handler outputHandler) error {
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
-	cmd.Env = append(os.Environ(), "VAULT_PASSWORD="+e.vaultToken)
+	env := os.Environ()
+	env = append(env, "VAULT_PASSWORD="+e.vaultToken)
 	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
@@ -1053,11 +1052,32 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	if !e.isOrchestratorOperation {
 		if e.cfg.Ansible.UseOpenSSH {
 			cmd.Args = append(cmd.Args, "-c", "ssh")
+
+			// Check if SSHAgent is needed
+			sshAgent, err := e.configureSSHAgent(ctx)
+			if err != nil {
+				return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
+			}
+			if sshAgent != nil {
+				log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
+				env = append(env, "SSH_AUTH_SOCK="+sshAgent.Socket)
+				defer func() {
+					err = sshAgent.RemoveAllKeys()
+					if err != nil {
+						log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+					}
+					err = sshAgent.Stop()
+					if err != nil {
+						log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+					}
+				}()
+			}
 		} else {
 			cmd.Args = append(cmd.Args, "-c", "paramiko")
 		}
 	}
 	cmd.Dir = ansibleRecipePath
+	cmd.Env = env
 	errbuf := events.NewBufferedLogEntryWriter()
 	cmd.Stderr = errbuf
 
@@ -1080,6 +1100,32 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 		return e.checkAnsibleRetriableError(ctx, err)
 	}
 	return nil
+}
+
+func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAgent, error) {
+	var addSSHAgent bool
+	for _, host := range e.hosts {
+		if host.privateKey != "" {
+			addSSHAgent = true
+			break
+		}
+	}
+	if !addSSHAgent {
+		return nil, nil
+	}
+
+	agent, err := sshutil.NewSSHAgent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, host := range e.hosts {
+		if host.privateKey != "" {
+			if err = agent.AddKey(host.privateKey, 3600); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return agent, nil
 }
 
 func buildArchive(rootDir, artifactDir, tarPath string) error {
