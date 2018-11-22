@@ -83,6 +83,7 @@ type Configuration struct {
 	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
 	ServerID                         string                `mapstructure:"server_id"`
 	Terraform                        Terraform             `mapstructure:"terraform"`
+	UseSSHAgent                      bool                  `mapstructure:"use_ssh_agent"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox

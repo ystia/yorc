@@ -289,7 +289,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Retrieve devices
 	if len(devices) > 0 {
-		if err = g.handleDeviceAttributes(ctx, infrastructure, &instance, devices, user, privateKey, accessIP); err != nil {
+		if err = g.handleDeviceAttributes(ctx, cfg, infrastructure, &instance, devices, user, privateKey, accessIP); err != nil {
 			return err
 		}
 	}
@@ -309,25 +309,27 @@ func (g *googleGenerator) getSSHAgent(ctx context.Context, privateKey string) er
 	return g.sshAgent.AddKey(privateKey, 3600)
 }
 
-func (g *googleGenerator) handleDeviceAttributes(ctx context.Context, infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKeyFilePath, accessIP string) error {
-	err := g.getSSHAgent(ctx, privateKeyFilePath)
-	if err != nil {
-		return errors.Wrap(err, "failed to get SSH agent for handling Google device attribute")
-	}
-	env := make(map[string]interface{})
-	env["SSH_AUTH_SOCK"] = g.sshAgent.Socket
-
-	g.postInstallCallback = func() {
-		// Stop the sshAgent if used during provisioning
-		// Do not return any error if failure occured during this
-		if g.sshAgent != nil {
-			err := g.sshAgent.RemoveAllKeys()
-			if err != nil {
-				log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
-			}
-			err = g.sshAgent.Stop()
-			if err != nil {
-				log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+func (g *googleGenerator) handleDeviceAttributes(ctx context.Context, cfg config.Configuration, infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKeyFilePath, accessIP string) error {
+	var env map[string]interface{}
+	if cfg.UseSSHAgent {
+		err := g.getSSHAgent(ctx, privateKeyFilePath)
+		if err != nil {
+			return errors.Wrap(err, "failed to get SSH agent for handling Google device attribute")
+		}
+		env = make(map[string]interface{})
+		env["SSH_AUTH_SOCK"] = g.sshAgent.Socket
+		g.postInstallCallback = func() {
+			// Stop the sshAgent if used during provisioning
+			// Do not return any error if failure occured during this
+			if g.sshAgent != nil {
+				err := g.sshAgent.RemoveAllKeys()
+				if err != nil {
+					log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+				}
+				err = g.sshAgent.Stop()
+				if err != nil {
+					log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+				}
 			}
 		}
 	}
@@ -349,8 +351,14 @@ func (g *googleGenerator) handleDeviceAttributes(ctx context.Context, infrastruc
 		}
 		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev), &devResource)
 
-		// local exec to scp the stdout file locally (use ssh-agent to make it)
-		scpCommand := fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s:~/%s %s", user, accessIP, dev, dev)
+		// local exec to scp the stdout file locally (use ssh-agent to make it if allowed by config)
+		var scpCommand string
+		if cfg.UseSSHAgent {
+			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s:~/%s %s", user, accessIP, dev, dev)
+		} else {
+			//FIXME check privateKey's a path
+			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKeyFilePath, user, accessIP, dev, dev)
+		}
 		loc := commons.LocalExec{
 			Command:     scpCommand,
 			Environment: env,

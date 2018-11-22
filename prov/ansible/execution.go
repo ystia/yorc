@@ -770,8 +770,12 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		}
 	} else {
 		sshCredentials := e.getSSHCredentials(ctx, host, true)
-		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20 -o UserKnownHostsFile=/dev/null\"", sshCredentials.user))
-		if sshCredentials.password != "" {
+		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
+		// Set with priority private key against password
+		if !e.cfg.UseSSHAgent && sshCredentials.privateKey != "" {
+			//FIXME check privateKey's a path
+			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
+		} else if sshCredentials.password != "" {
 			// TODO use vault
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_pass=%s", sshCredentials.password))
 		}
@@ -1056,24 +1060,26 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 			cmd.Args = append(cmd.Args, "-c", "paramiko")
 		}
 
-		// Check if SSHAgent is needed
-		sshAgent, err := e.configureSSHAgent(ctx)
-		if err != nil {
-			return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
-		}
-		if sshAgent != nil {
-			log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
-			env = append(env, "SSH_AUTH_SOCK="+sshAgent.Socket)
-			defer func() {
-				err = sshAgent.RemoveAllKeys()
-				if err != nil {
-					log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
-				}
-				err = sshAgent.Stop()
-				if err != nil {
-					log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
-				}
-			}()
+		if e.cfg.UseSSHAgent {
+			// Check if SSHAgent is needed
+			sshAgent, err := e.configureSSHAgent(ctx)
+			if err != nil {
+				return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
+			}
+			if sshAgent != nil {
+				log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
+				env = append(env, "SSH_AUTH_SOCK="+sshAgent.Socket)
+				defer func() {
+					err = sshAgent.RemoveAllKeys()
+					if err != nil {
+						log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+					}
+					err = sshAgent.Stop()
+					if err != nil {
+						log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+					}
+				}()
+			}
 		}
 	}
 	cmd.Dir = ansibleRecipePath
