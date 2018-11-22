@@ -95,10 +95,10 @@ type CredentialsConfiguration struct {
 type TopologyValues struct {
 	Ansible        AnsibleConfiguration
 	Alien4cloud    Alien4CloudConfiguration
-	Yorc           YorcConfiguration
 	YorcPlugin     YorcPluginConfiguration `mapstructure:"yorc_plugin"`
 	Consul         ConsulConfiguration
 	Terraform      TerraformConfiguration
+	Yorc           YorcConfiguration
 	Infrastructure map[string]config.DynamicMap
 	Compute        config.DynamicMap
 	Credentials    *CredentialsConfiguration

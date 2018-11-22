@@ -17,6 +17,8 @@ package bootstrap
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -413,7 +415,59 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 
 	inputValues.Location.Name = inputValues.Location.Type
 
+	if reviewInputs {
+		err = reviewAndUpdateInputs()
+	}
 	return err
+}
+
+// reviewAndUpdateInputs allows the user to review and change deployment inputs
+// if an editor could be found, else the review is skipped
+func reviewAndUpdateInputs() error {
+
+	bSlice, err := yaml.Marshal(inputValues)
+	if err != nil {
+		return err
+	}
+
+	// Avoid failures on missing editor, following survey package logic
+	// checking environment variables, or if we can find a usual editor
+	var editor string
+	editorFound := (os.Getenv("VISUAL") != "") || (os.Getenv("EDITOR") != "")
+	if !editorFound {
+		editor, err = exec.LookPath("vim")
+		if err != nil {
+			editor, err = exec.LookPath("vi")
+		}
+
+		editorFound = (err == nil)
+	}
+
+	if !editorFound {
+		fmt.Printf("Skipping review and update as no editor was found (should define EDITOR environment variable)")
+		return nil
+	}
+
+	prompt := &survey.Editor{
+		Message:       "Review and update inputs if needed",
+		Default:       string(bSlice[:]),
+		HideDefault:   true,
+		AppendDefault: true,
+	}
+
+	if editor != "" {
+		prompt.Editor = editor
+	}
+
+	var reply string
+	err = survey.AskOne(prompt, &reply, nil)
+	if err != nil {
+		return err
+	}
+
+	err = yaml.Unmarshal([]byte(reply), &inputValues)
+
+	return nil
 }
 
 // getResourceInputs asks for input parameters of an infrastructure or on-demand

@@ -70,7 +70,8 @@ func init() {
 		"resources", "r", "", "Path to bootstrap resources zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
-	//		bootstrapCmd.PersistentFlags().BoolVarP(&cleanup, "cleanup", "c", false, "Cleans local setup, without undeploying the bootstrapped yorc")
+	bootstrapCmd.PersistentFlags().BoolVarP(&reviewInputs, "review_inputs", "u", false,
+		"Review and update inputs before starting the bootstrap")
 
 	// Adding flags and environment variables for inputs having default values
 	setDefaultInputValues()
@@ -90,6 +91,7 @@ var bootstrapCmd *cobra.Command
 var bootstrapViper *viper.Viper
 var infrastructureType string
 var deploymentType string
+var reviewInputs bool
 var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
