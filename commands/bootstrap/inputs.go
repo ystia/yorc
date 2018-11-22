@@ -17,9 +17,11 @@ package bootstrap
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/ystia/yorc/rest"
 
 	"github.com/ystia/yorc/tosca"
 
@@ -55,6 +57,10 @@ var (
 		"yorc.port": defaultInputType{
 			description: "Yorc HTTP REST API port",
 			value:       config.DefaultHTTPPort,
+		},
+		"yorc.data_dir": defaultInputType{
+			description: "Yorc Home directory",
+			value:       "/var/yorc",
 		},
 	}
 
@@ -99,9 +105,10 @@ var (
 	}
 
 	terraformDefaultInputs = map[string]defaultInputType{
-		"terraform.version": defaultInputType{
-			description: "Terraform version",
-			value:       terraformVersion,
+		"terraform.download_url": defaultInputType{
+			description: "Terraform download URL",
+			value: fmt.Sprintf("https://releases.hashicorp.com/terraform/%s/terraform_%s_linux_amd64.zip",
+				terraformVersion, terraformVersion),
 		},
 		"terraform.plugins_download_urls": defaultInputType{
 			description: "Terraform plugins dowload URLs",
@@ -231,8 +238,6 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 			infrastructureType)
 	}
 
-	fmt.Println("\nGetting Infrastructure configuration")
-
 	// Get the infrastructure definition from resources
 	nodeTypesFilePathPattern := filepath.Join(
 		resourcesPath, "topology", "org.ystia.yorc.pub", "*", "types.yaml")
@@ -254,7 +259,51 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		return err
 	}
 
+	// Update Yorc private key content if needed
+	if inputValues.Yorc.PrivateKeyContent == "" {
+
+		fmt.Println("\nGetting Yorc configuration")
+
+		if inputValues.Yorc.PrivateKeyFile == "" {
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "Path to ssh private key accessible locally (will be stored as .ssh/yorc.pem on bootstrapped Yorc server Home):",
+			}
+			question := &survey.Question{
+				Name:     "value",
+				Prompt:   prompt,
+				Validate: survey.Required,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			inputValues.Yorc.PrivateKeyFile = strings.TrimSpace(answer.Value)
+		}
+
+		data, err := ioutil.ReadFile(inputValues.Yorc.PrivateKeyFile)
+		if err != nil {
+			return err
+		}
+		inputValues.Yorc.PrivateKeyContent = string(data[:])
+	} else {
+		// Store this content locally to be used by the local Yorc
+		// when bootstrapping the remote Yorc
+		inputValues.Yorc.PrivateKeyFile = filepath.Join(resourcesPath, "yorc.pem")
+		err = ioutil.WriteFile(inputValues.Yorc.PrivateKeyFile, []byte(inputValues.Yorc.PrivateKeyContent), 0700)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	fmt.Println("\nGetting Infrastructure configuration")
+
 	askIfNotRequired := false
+	convertBooleanToString := false
 	// Get infrastructure inputs, except in the Hosts Pool case as Hosts Pool
 	// doesn't have any infrastructure property
 	if infrastructureType != "hostspool" {
@@ -268,7 +317,7 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		}
 
 		if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
-			&configMap); err != nil {
+			convertBooleanToString, &configMap); err != nil {
 			return err
 		}
 		inputValues.Infrastructure[infrastructureType] = configMap
@@ -277,31 +326,12 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		// Hosts Pool
 		if inputValues.Hosts == nil {
 			askIfNotRequired = true
-			//inputValues.Hosts = make(config.DynamicMap)
-		}
-
-		// TODO
-		/*
-			if err := getResourceInputs(topology, infraNodeType, askIfNotRequired,
-				&inputValues.Infrastructure); err != nil {
+			inputValues.Hosts = make([]rest.HostConfig, 0)
+			inputValues.Hosts, err = getHostsInputs(resourcesPath)
+			if err != nil {
 				return err
 			}
-		*/
-
-		// Check private key paths
-
-		for _, host := range inputValues.Hosts {
-
-			keyfile := host.Connection.PrivateKey
-			if keyfile != "" {
-				if _, err := os.Stat(keyfile); os.IsNotExist(err) {
-					return fmt.Errorf("Host %s private key %s not found",
-						host.Name, keyfile)
-				}
-			}
-
 		}
-
 	}
 
 	// Get on-demand resources definition for this infrastructure type
@@ -317,7 +347,7 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	// If the user has already provided some property values,
 	// jus asking missing required values
 
-	fmt.Println("Getting Compute instances configuration")
+	fmt.Println("\nGetting Compute instances configuration")
 
 	askIfNotRequired = false
 	if inputValues.Compute == nil {
@@ -325,15 +355,19 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		inputValues.Compute = make(config.DynamicMap)
 	}
 	nodeType := fmt.Sprintf("yorc.nodes.%s.Compute", infrastructureType)
+	// On-demand resources boolean values need to be passed to
+	// Alien4Cloud REST API as strings
+	convertBooleanToString = true
 	if err := getResourceInputs(topology, nodeType, askIfNotRequired,
-		&inputValues.Compute); err != nil {
+		convertBooleanToString, &inputValues.Compute); err != nil {
 		return err
 	}
 
 	// Get Compute credentials, not on Hosts Pool as Hosts credentials are provided
 	// in the Hosts Pool configuration
+	convertBooleanToString = false
 	if infrastructureType != "hostspool" {
-		fmt.Println("Getting Compute instances credentials")
+		fmt.Println("\nGetting Compute instances credentials")
 
 		askIfNotRequired = false
 		if inputValues.Credentials == nil {
@@ -349,14 +383,14 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	// Network connection
 	if networkNodeType != "" {
 
-		fmt.Println("Getting Network configuration")
+		fmt.Println("\nGetting Network configuration")
 		askIfNotRequired = false
 		if inputValues.Address == nil {
 			askIfNotRequired = true
 			inputValues.Address = make(config.DynamicMap)
 		}
 		if err := getResourceInputs(topology, networkNodeType, askIfNotRequired,
-			&inputValues.Address); err != nil {
+			convertBooleanToString, &inputValues.Address); err != nil {
 			return err
 		}
 	}
@@ -378,37 +412,6 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 	}
 
 	inputValues.Location.Name = inputValues.Location.Type
-
-	// Update Yorc private key content from if needed
-	if inputValues.Yorc.PrivateKeyContent == "" {
-
-		filename := inputValues.Yorc.PrivateKeyFile
-		if filename == "" {
-			answer := struct {
-				Value string
-			}{}
-
-			prompt := &survey.Input{
-				Message: "Path to ssh private key accessible locally (will be stored as ~/.ssh/yorc.pem on bootstrapped Yorc server):",
-			}
-			question := &survey.Question{
-				Name:     "value",
-				Prompt:   prompt,
-				Validate: survey.Required,
-			}
-			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
-				return err
-			}
-
-			filename = answer.Value
-		}
-
-		data, err := ioutil.ReadFile(filename)
-		if err != nil {
-			return err
-		}
-		inputValues.Yorc.PrivateKeyContent = string(data[:])
-	}
 
 	return err
 }
@@ -455,10 +458,182 @@ func getComputeCredentials(askIfNotRequired bool, creds *CredentialsConfiguratio
 	return nil
 }
 
+// getHostsInputs asks for input parameters of Hosts to add in pool
+func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
+
+	fmt.Println("\nDefining hosts to add in the Pool, SSH connections to these hosts will be done using Yorc private key")
+
+	answer := struct {
+		Value string
+	}{}
+
+	var result []rest.HostConfig
+	finished := false
+	for !finished {
+		prompt := &survey.Input{
+			Message: "Name identifying the new host to add in pool:"}
+
+		question := &survey.Question{
+			Name:     "value",
+			Prompt:   prompt,
+			Validate: survey.Required,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return nil, err
+		}
+		var hostConfig rest.HostConfig
+		hostConfig.Name = answer.Value
+
+		prompt = &survey.Input{
+			Message: fmt.Sprintf("Hostname or ip address used to connect to the host (default: %s):",
+				hostConfig.Name)}
+
+		question = &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return nil, err
+		}
+
+		if answer.Value != "" {
+			hostConfig.Connection.Host = answer.Value
+		} else {
+			hostConfig.Connection.Host = hostConfig.Name
+		}
+
+		prompt = &survey.Input{
+			Message: "User used to connect to the host (default: root):"}
+
+		question = &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return nil, err
+		}
+
+		if answer.Value != "" {
+			hostConfig.Connection.User = answer.Value
+		} else {
+			hostConfig.Connection.User = "root"
+		}
+
+		prompt = &survey.Input{
+			Message: "SSH port used to connect to the host (default: 22):"}
+
+		question = &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+			Validate: func(val interface{}) error {
+				// if the input matches the expectation
+				str := val.(string)
+				if str != "" {
+					if _, err := strconv.ParseUint(answer.Value, 10, 64); err != nil {
+						return fmt.Errorf("You entered %s, not an unsigned integer", str)
+					}
+				}
+				return nil
+			},
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return nil, err
+		}
+
+		if answer.Value != "" {
+			port, _ := strconv.ParseUint(answer.Value, 10, 64)
+			hostConfig.Connection.Port = port
+		} else {
+			hostConfig.Connection.Port = 22
+		}
+
+		fmt.Println("Defining key/value labels for this host, a public_address label should be defined")
+		hostConfig.Labels = make(map[string]string)
+		labelsFinished := false
+		publicAddressDefined := false
+		for !labelsFinished {
+
+			prompt := &survey.Input{
+				Message: "Label key:"}
+
+			question := &survey.Question{
+				Name:     "value",
+				Prompt:   prompt,
+				Validate: survey.Required,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return nil, err
+			}
+			labelKey := answer.Value
+
+			if labelKey == "public_address" {
+				publicAddressDefined = true
+			}
+
+			prompt = &survey.Input{
+				Message: "Label value:"}
+
+			question = &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return nil, err
+			}
+
+			hostConfig.Labels[labelKey] = answer.Value
+
+			// If the public address label is alreay defined
+			// asking if a new label must be defined
+			// else a new label must be defined, because public_address is
+			// mandatory for the bootstrap
+			if publicAddressDefined {
+				promptEnd := &survey.Select{
+					Message: "Add another key/value label:",
+					Options: []string{"yes", "no"},
+					Default: "no",
+				}
+				var reply string
+				survey.AskOne(promptEnd, &reply, nil)
+				labelsFinished = (reply == "no")
+			}
+
+		}
+
+		// The private SSH key used to connect to the host is the Yorc private key
+		hostConfig.Connection.PrivateKey = filepath.Join(inputValues.Yorc.DataDir, ".ssh", "yorc.pem")
+
+		// Forge component expect the label os.type to be linux,
+		// if no such label is defined, adding it
+		if _, ok := hostConfig.Labels["os.type"]; !ok {
+			hostConfig.Labels["os.type"] = "linux"
+		}
+
+		result = append(result, hostConfig)
+
+		fmt.Println("Host added to the Pool.")
+		// Ask if another host has to be defined
+		promptEnd := &survey.Select{
+			Message: "Add another host in pool:",
+			Options: []string{"yes", "no"},
+			Default: "no",
+		}
+		var reply string
+		survey.AskOne(promptEnd, &reply, nil)
+		if reply == "no" {
+			finished = true
+		}
+	}
+	fmt.Printf("\n%d hosts added to the pool\n", len(result))
+	return result, nil
+
+}
+
 // getResourceInputs asks for input parameters of an infrastructure or on-demand
 // resource
 func getResourceInputs(topology tosca.Topology, resourceName string,
 	askIfNotRequired bool,
+	convertBooleanToString bool,
 	resultMap *config.DynamicMap) error {
 
 	nodeType, found := topology.NodeTypes[resourceName]
@@ -490,21 +665,37 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 			}
 			var answer string
 			survey.AskOne(prompt, &answer, nil)
-			value := false
-			if answer == "true" {
-				value = true
+			if convertBooleanToString {
+				resultMap.Set(propName, answer)
+			} else {
+				value := false
+				if answer == "true" {
+					value = true
+				}
+				resultMap.Set(propName, value)
 			}
 
-			resultMap.Set(propName, value)
-
 		} else {
+
+			isList := (definition.Type == "list")
 			answer := struct {
 				Value string
 			}{}
 
-			var defaultValueMsg string
+			var additionalMsg string
+			if isList {
+				additionalMsg = "(comma-separated list"
+
+			}
 			if definition.Default != nil {
-				defaultValueMsg = fmt.Sprintf(" (default: %v)", definition.Default.GetLiteral())
+				if additionalMsg != "" {
+					additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
+				} else {
+					additionalMsg = fmt.Sprintf("(default: %v", definition.Default.GetLiteral())
+				}
+			}
+			if additionalMsg != "" {
+				additionalMsg += ")"
 			}
 
 			var prompt survey.Prompt
@@ -514,12 +705,12 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 				prompt = &survey.Password{
 					Message: fmt.Sprintf("%s%s:",
 						description,
-						defaultValueMsg)}
+						additionalMsg)}
 			} else {
 				prompt = &survey.Input{
 					Message: fmt.Sprintf("%s%s:",
 						description,
-						defaultValueMsg)}
+						additionalMsg)}
 			}
 			question := &survey.Question{
 				Name:   "value",

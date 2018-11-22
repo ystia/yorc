@@ -14,11 +14,12 @@ node_types:
     properties:
       shareable:
         type: boolean
-        description: Specify if the compute can be shared.
+        description: Can the compute can be shared
         required: false
         default: false
       filters:
         type: list
+        description: Filters to select hosts from their labels
         entry_schema:
           type: string
         required: false

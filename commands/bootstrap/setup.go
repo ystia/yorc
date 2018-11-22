@@ -137,6 +137,12 @@ func setupYorcServer(workingDirectoryPath string) error {
 			return err
 		}
 
+		// Use the local path to Yorc key to connect to hosts
+
+		for i := range inputValues.Hosts {
+			inputValues.Hosts[i].Connection.PrivateKey = inputValues.Yorc.PrivateKeyFile
+		}
+
 		hostsPool := rest.HostsPoolRequest{
 			Hosts: inputValues.Hosts,
 		}

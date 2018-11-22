@@ -143,7 +143,7 @@ topology_template:
         download_url: "{{.Yorc.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/yorc"
-        data_dir: "/var/yorc"
+        data_dir: "{{.Yorc.DataDir}}"
         private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
       requirements:
         - hostedOnComputeHost:
