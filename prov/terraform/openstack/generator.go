@@ -154,7 +154,7 @@ func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg con
 
 		switch nodeType {
 		case "yorc.nodes.openstack.Compute":
-			err = g.generateOSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
+			err = g.generateOSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, err
 			}

@@ -124,7 +124,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 				// Do not generate something for this node instance (will be deleted if exists)
 				continue
 			}
-			err = g.generateAWSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs)
+			err = g.generateAWSInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, &infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, err
 			}

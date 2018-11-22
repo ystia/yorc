@@ -29,12 +29,11 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
-func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
+func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -93,7 +92,7 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	}
 
 	// Get connection info (user, private key)
-	user, privateKeyFile, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -205,20 +204,10 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	consulKeyPublicIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: accessIP}
 	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, consulKeyPublicAddr, consulKeyPublicIPAddr, capabilityIPAddr)
 
-	// Check the connection in order to be sure that ansible will be able to log on the instance
-	pkeyContent, err := sshutil.ToPrivateKeyContent(privateKeyFile)
-	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve private key content")
+	// Add Connection check
+	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Tags.Name, env); err != nil {
+		return err
 	}
-
-	nullResource := commons.Resource{}
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: string(pkeyContent)}}
-	nullResource.Provisioners = make([]map[string]interface{}, 0)
-	provMap := make(map[string]interface{})
-	provMap["remote-exec"] = re
-	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
-
-	commons.AddResource(infrastructure, "null_resource", instance.Tags.Name+"-ConnectionCheck", &nullResource)
 
 	return nil
 }

@@ -46,7 +46,8 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string))
+	env := make([]string, 0)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	instanceName := resourcePrefix + "computeinstance-0"
@@ -85,7 +86,9 @@ func testSimpleComputeInstance(t *testing.T, kv *api.KV, cfg config.Configuratio
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	assert.Equal(t, "centos", rex.Connection.User)
-	assert.Equal(t, string(privateKey), rex.Connection.PrivateKey)
+	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
+	require.Len(t, env, 1)
+	assert.Equal(t, "TF_VAR_private_key="+string(privateKey), env[0], "env var for private key expected")
 
 	require.Len(t, compute.ScratchDisks, 2, "Expected 2 scratch disks")
 	assert.Equal(t, "SCSI", compute.ScratchDisks[0].Interface, "SCSI interface expected for 1st scratch")
@@ -99,9 +102,10 @@ func testSimpleComputeInstanceMissingMandatoryParameter(t *testing.T, kv *api.KV
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 	g := googleGenerator{}
+	env := make([]string, 0)
 	infrastructure := commons.Infrastructure{}
 
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string))
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "ComputeInstance", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.Error(t, err, "Expected missing mandatory parameter error, but had no error")
 	assert.Contains(t, err.Error(), "mandatory parameter zone", "Expected an error on missing parameter zone")
 }
@@ -118,7 +122,8 @@ func testSimpleComputeInstanceWithAddress(t *testing.T, kv *api.KV, srv1 *testut
 
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string))
+	env := make([]string, 0)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, make(map[string]string), &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
 	instanceName := resourcePrefix + "compute-0"
@@ -150,8 +155,9 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
+	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	resourcePrefix := getResourcesPrefix(cfg, deploymentID)
@@ -210,8 +216,9 @@ func testSimpleComputeInstanceWithAutoCreationModeNetwork(t *testing.T, kv *api.
 
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
+	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")
@@ -239,8 +246,9 @@ func testSimpleComputeInstanceWithSimpleNetwork(t *testing.T, kv *api.KV, srv1 *
 
 	infrastructure := commons.Infrastructure{}
 	g := googleGenerator{}
+	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
-	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Comp1", "0", 0, &infrastructure, outputs)
+	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Comp1", "0", 0, &infrastructure, outputs, &env)
 	require.NoError(t, err, "Unexpected error attempting to generate compute instance for %s", deploymentID)
 
 	require.Len(t, infrastructure.Resource["google_compute_instance"], 1, "Expected one compute instance")

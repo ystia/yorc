@@ -138,7 +138,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 				return false, nil, nil, err
 			}
 
-			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs)
+			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs, &cmdEnv)
 			if err != nil {
 				return false, nil, nil, err
 			}
