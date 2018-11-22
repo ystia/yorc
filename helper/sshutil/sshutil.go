@@ -303,9 +303,11 @@ func (sa *SSHAgent) Stop() error {
 	if proc != nil {
 		proc.Kill()
 	}
-	err = sa.conn.Close()
-	if err != nil {
-		return errors.Wrapf(err, "failed to close ssh-agent connection")
+	if sa.conn != nil {
+		err = sa.conn.Close()
+		if err != nil {
+			return errors.Wrapf(err, "failed to close ssh-agent connection")
+		}
 	}
 	return os.RemoveAll(filepath.Dir(sa.Socket))
 }

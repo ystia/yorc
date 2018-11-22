@@ -28,6 +28,7 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
@@ -154,7 +155,10 @@ func testSimpleComputeInstanceWithPersistentDisk(t *testing.T, kv *api.KV, srv1 
 	})
 
 	infrastructure := commons.Infrastructure{}
-	g := googleGenerator{}
+	g := googleGenerator{
+		// Instantiate ssh agent to avoid create real one
+		sshAgent: &sshutil.SSHAgent{},
+	}
 	env := make([]string, 0)
 	outputs := make(map[string]string, 0)
 	err := g.generateComputeInstance(context.Background(), kv, cfg, deploymentID, "Compute", "0", 0, &infrastructure, outputs, &env)

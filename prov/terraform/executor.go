@@ -93,7 +93,7 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 		}
 	}
 
-	infraGenerated, outputs, env, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName, infrastructurePath)
+	infraGenerated, outputs, env, cb, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName, infrastructurePath)
 	if err != nil {
 		return err
 	}
@@ -108,6 +108,11 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 			return err
 		}
 	}
+
+	// Execute callback if needed
+	if cb != nil {
+		cb()
+	}
 	return nil
 }
 
@@ -118,7 +123,7 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 			return err
 		}
 	}
-	infraGenerated, outputs, env, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName, infrastructurePath)
+	infraGenerated, outputs, env, cb, err := e.generator.GenerateTerraformInfraForNode(ctx, cfg, deploymentID, nodeName, infrastructurePath)
 	if err != nil {
 		return err
 	}
@@ -132,6 +137,10 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		if err != nil {
 			return err
 		}
+	}
+	// Execute callback if needed
+	if cb != nil {
+		cb()
 	}
 	return nil
 }

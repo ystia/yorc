@@ -86,10 +86,10 @@ type RemoteExec struct {
 
 // LocalExec allows to invoke a local executable after a resource is created. This invokes a process on the machine running Terraform, not on the resource
 type LocalExec struct {
-	Command     string `json:"command"`
-	WorkingDir  string `json:"working_dir,omitempty"`
-	interpreter string `json:"interpreter,omitempty"`
-	environment string `json:"environment,omitempty"`
+	Command     string                 `json:"command"`
+	WorkingDir  string                 `json:"working_dir,omitempty"`
+	Interpreter string                 `json:"interpreter,omitempty"`
+	Environment map[string]interface{} `json:"environment,omitempty"`
 }
 
 // A Connection allows to overwrite the way Terraform connects to a resource

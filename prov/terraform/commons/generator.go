@@ -37,7 +37,7 @@ type Generator interface {
 	// GenerateTerraformInfraForNode can also return a map of outputs names indexed by consul keys into which the outputs results should be stored.
 	// And a list of environment variables in form "key=value" to be added to the current process environment when running terraform commands.
 	// This is particularly useful for adding secrets that should not be in tf files.
-	GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, error)
+	GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, func(), error)
 }
 
 // PreDestroyInfraCallback is a function that is call before destroying an infrastructure. If it returns false the node will not be destroyed.
