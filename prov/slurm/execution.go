@@ -79,7 +79,6 @@ type executionCommon struct {
 	EnvInputs              []*operations.EnvInput
 	VarInputsNames         []string
 	NodePath               string
-	OperationPath          string
 	Primary                string
 	nodeInstances          []string
 	jobInfo                *jobInfo
@@ -144,10 +143,11 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		if err := e.uploadArtifacts(ctx); err != nil {
 			return errors.Wrap(err, "failed to upload artifact")
 		}
-
-		// Copy the operation implementation
-		if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-			return errors.Wrap(err, "failed to upload operation implementation")
+		if e.Primary != "" {
+			// Copy the operation implementation
+			if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
+				return errors.Wrap(err, "failed to upload operation implementation")
+			}
 		}
 
 		// Build Job Information
@@ -208,16 +208,19 @@ func (e *executionCommon) resolveOperation() error {
 	if err != nil {
 		return err
 	}
-	operationNodeType := e.NodeType
-	e.OperationPath, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, operationNodeType, e.operation.Name)
+
+	_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
 	if err != nil {
 		return err
 	}
-	if e.OperationPath == "" || e.Primary == "" {
-		return operationNotImplemented{msg: fmt.Sprintf("primary implementation missing for operation %q of type %q in deployment %q is missing", e.operation.Name, e.NodeType, e.deploymentID)}
-	}
+
 	e.Primary = strings.TrimSpace(e.Primary)
-	log.Debugf("Operation Path: %q, primary implementation: %q", e.OperationPath, e.Primary)
+
+	if e.operation.ImplementedInType == "yorc.nodes.slurm.Job" && e.Primary == "embedded" {
+		e.Primary = ""
+	}
+
+	log.Debugf("primary implementation: %q", e.Primary)
 	return e.resolveInstances()
 }
 
@@ -358,6 +361,15 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 	job.Opts = extraOpts
 
+	var execArgs []string
+	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "exec_args"); err != nil {
+		return err
+	} else if ea != nil && ea.RawString() != "" {
+		if err = json.Unmarshal([]byte(ea.RawString()), &execArgs); err != nil {
+			return err
+		}
+	}
+
 	var args []string
 	job.Inputs = make(map[string]string)
 	for _, input := range e.EnvInputs {
@@ -370,14 +382,14 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
+	job.ExecArgs = append(execArgs, args...)
+
 	// Retrieve job id from attribute if it was previously set (otherwise will be retrieved when running the job)
 	// TODO(loicalbertin) right now I can't see any notion of multi-instances for Slurm jobs but this sounds bad to me
 	_, job.ID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
 	if err != nil {
 		return err
 	}
-
-	job.ExecArgs = args
 	e.jobInfo = &job
 	return nil
 }
@@ -410,9 +422,12 @@ func (e *executionCommon) fillJobCommandOpts() string {
 
 func (e *executionCommon) runJobCommand(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
-	execFile := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
+	execFile := ""
+	if e.Primary != "" {
+		execFile = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
+	}
 	if e.jobInfo.BatchMode {
-		e.jobInfo.OperationRemoteExecDir = path.Dir(execFile)
+		e.jobInfo.OperationRemoteExecDir = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 		err := e.findBatchOutput(ctx)
 		if err != nil {
 			return err
