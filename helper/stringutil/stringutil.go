@@ -76,3 +76,12 @@ func GetFilePath(pathOrContent string) (string, bool, error) {
 
 	return filepath, false, file.Close()
 }
+
+// Truncate truncates a string if it's longer than defined length
+// Add ... after the cut
+func Truncate(str string, l int) string {
+	if len(str) > l {
+		return str[0:l] + "..."
+	}
+	return str
+}

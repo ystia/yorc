@@ -108,3 +108,25 @@ func TestGetFilePath(t *testing.T) {
 	result := string(read)
 	assert.Equal(t, content, result, "Unexpected content of file returned by GetFilePath()")
 }
+
+func TestTruncate(t *testing.T) {
+	type args struct {
+		str string
+		l   int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"TruncateToFiveChar", args{"abcdefghijklm", 5}, "abcde..."},
+		{"NoTruncate", args{"abcdefg", 20}, "abcdefg"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Truncate(tt.args.str, tt.args.l); got != tt.want {
+				t.Errorf("IsValidPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

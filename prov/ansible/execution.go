@@ -43,6 +43,7 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/executil"
+	"github.com/ystia/yorc/helper/pathutil"
 	"github.com/ystia/yorc/helper/provutil"
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/helper/stringutil"
@@ -773,7 +774,10 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
 		// Set with priority private key against password
 		if !e.cfg.UseSSHAgent && sshCredentials.privateKey != "" {
-			//FIXME check privateKey's a path
+			// check privateKey's a valid path
+			if is, err := pathutil.IsValidPath(sshCredentials.privateKey); err != nil || !is {
+				return errors.Errorf("%q is not a valid path", stringutil.Truncate(sshCredentials.privateKey, 20))
+			}
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
 		} else if sshCredentials.password != "" {
 			// TODO use vault

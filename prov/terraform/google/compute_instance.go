@@ -29,14 +29,16 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/pathutil"
 	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
 	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
 	infrastructure *commons.Infrastructure,
-	outputs map[string]string, env *[]string) error {
+	outputs map[string]string, env *[]string, sshAgent *sshutil.SSHAgent) error {
 
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
@@ -289,7 +291,15 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Retrieve devices
 	if len(devices) > 0 {
-		if err = g.handleDeviceAttributes(ctx, cfg, infrastructure, &instance, devices, user, privateKey, accessIP); err != nil {
+		// need to use an SSH Agent to make it
+		if sshAgent == nil && cfg.UseSSHAgent {
+			sshAgent, err = getSSHAgent(ctx, privateKey)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err = handleDeviceAttributes(cfg, infrastructure, &instance, devices, user, privateKey, accessIP, sshAgent); err != nil {
 			return err
 		}
 	}
@@ -297,43 +307,8 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	return nil
 }
 
-func (g *googleGenerator) getSSHAgent(ctx context.Context, privateKey string) error {
-	var err error
-	if g.sshAgent != nil {
-		return nil
-	}
-	g.sshAgent, err = sshutil.NewSSHAgent(ctx)
-	if err != nil {
-		return err
-	}
-	return g.sshAgent.AddKey(privateKey, 3600)
-}
-
-func (g *googleGenerator) handleDeviceAttributes(ctx context.Context, cfg config.Configuration, infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKeyFilePath, accessIP string) error {
+func handleDeviceAttributes(cfg config.Configuration, infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKey, accessIP string, sshAgent *sshutil.SSHAgent) error {
 	var env map[string]interface{}
-	if cfg.UseSSHAgent {
-		err := g.getSSHAgent(ctx, privateKeyFilePath)
-		if err != nil {
-			return errors.Wrap(err, "failed to get SSH agent for handling Google device attribute")
-		}
-		env = make(map[string]interface{})
-		env["SSH_AUTH_SOCK"] = g.sshAgent.Socket
-		g.postInstallCallback = func() {
-			// Stop the sshAgent if used during provisioning
-			// Do not return any error if failure occured during this
-			if g.sshAgent != nil {
-				err := g.sshAgent.RemoveAllKeys()
-				if err != nil {
-					log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
-				}
-				err = g.sshAgent.Stop()
-				if err != nil {
-					log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
-				}
-			}
-		}
-	}
-
 	// Retrieve devices {
 	for _, dev := range devices {
 		devResource := commons.Resource{}
@@ -355,9 +330,14 @@ func (g *googleGenerator) handleDeviceAttributes(ctx context.Context, cfg config
 		var scpCommand string
 		if cfg.UseSSHAgent {
 			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s:~/%s %s", user, accessIP, dev, dev)
+			env = make(map[string]interface{})
+			env["SSH_AUTH_SOCK"] = sshAgent.Socket
 		} else {
-			//FIXME check privateKey's a path
-			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKeyFilePath, user, accessIP, dev, dev)
+			// check privateKey's a valid path
+			if is, err := pathutil.IsValidPath(privateKey); err != nil || !is {
+				return errors.Errorf("%q is not a valid path", stringutil.Truncate(privateKey, 20))
+			}
+			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKey, user, accessIP, dev, dev)
 		}
 		loc := commons.LocalExec{
 			Command:     scpCommand,

@@ -36,8 +36,18 @@ import (
 const infrastructureName = "google"
 
 type googleGenerator struct {
-	sshAgent            *sshutil.SSHAgent
-	postInstallCallback func()
+}
+
+func getSSHAgent(ctx context.Context, privateKey string) (*sshutil.SSHAgent, error) {
+	sshAgent, err := sshutil.NewSSHAgent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = sshAgent.AddKey(privateKey, 3600)
+	if err != nil {
+		return nil, err
+	}
+	return sshAgent, nil
 }
 
 func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, func(), error) {
@@ -125,6 +135,8 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 		return false, nil, nil, nil, err
 	}
 
+	var sshAgent *sshutil.SSHAgent
+
 	for instNb, instanceName := range instances {
 		instanceState, err := deployments.GetInstanceState(kv, deploymentID, nodeName, instanceName)
 		if err != nil {
@@ -142,7 +154,7 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 				return false, nil, nil, nil, err
 			}
 
-			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs, &cmdEnv)
+			err = g.generateComputeInstance(ctx, kv, cfg, deploymentID, nodeName, instanceName, instNb, &infrastructure, outputs, &cmdEnv, sshAgent)
 			if err != nil {
 				return false, nil, nil, nil, err
 			}
@@ -172,6 +184,24 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 
 	}
 
+	// If ssh-agent has been created, it needs to be stopped after the infrastructure creation
+	// This is done with this callback
+	var postInstallCb func()
+	if sshAgent != nil {
+		postInstallCb = func() {
+			// Stop the sshAgent if used during provisioning
+			// Do not return any error if failure occured during this
+			err := sshAgent.RemoveAllKeys()
+			if err != nil {
+				log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+			}
+			err = sshAgent.Stop()
+			if err != nil {
+				log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+			}
+		}
+	}
+
 	jsonInfra, err := json.MarshalIndent(infrastructure, "", "  ")
 	if err != nil {
 		return false, nil, nil, nil, errors.Wrap(err, "Failed to generate JSON of terraform Infrastructure description")
@@ -182,5 +212,5 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	}
 
 	log.Debugf("Infrastructure generated for deployment with id %s", deploymentID)
-	return true, outputs, cmdEnv, g.postInstallCallback, nil
+	return true, outputs, cmdEnv, postInstallCb, nil
 }
