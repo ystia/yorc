@@ -177,11 +177,19 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			return errors.Wrap(err, "failed to retrieve job id an manual cleanup may be necessary: ")
 		}
 	case "tosca.interfaces.node.lifecycle.runnable.cancel":
-		jobInfo, err := e.getJobInfoFromTaskContext()
-		if err != nil {
-			return err
+		var jobID string
+		if jobInfo, err := e.getJobInfoFromTaskContext(); err != nil {
+			if !tasks.IsTaskDataNotFoundError(err) {
+				return err
+			}
+			// Not cancelling within the same task try to get jobID from attribute
+			_, jobID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
+				"Slurm job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.NodeName)
+		} else {
+			jobID = jobInfo.ID
 		}
-		return cancelJobID(jobInfo.ID, e.client)
+		return cancelJobID(jobID, e.client)
 	default:
 		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
