@@ -132,7 +132,7 @@ func StreamsEvents(client *httputil.YorcClient, deploymentID string, colorize, f
 			if colorize {
 				ts = color.CyanString("%s", event.Timestamp)
 			}
-			evType, err := events.StatusUpdateTypeString(event.Type)
+			evType, err := events.ParseStatusChangeType(event.Type)
 			if err != nil {
 				if colorize {
 					fmt.Printf("%s: ", color.MagentaString("Warning"))
@@ -142,15 +142,15 @@ func StreamsEvents(client *httputil.YorcClient, deploymentID string, colorize, f
 				fmt.Printf("Unknown event type: %q\n", event.Type)
 			}
 			switch evType {
-			case events.InstanceStatusChangeType:
+			case events.StatusChangeTypeInstance:
 				fmt.Printf("%s:\t Deployment: %s\t Node: %s\t Instance: %s\t State: %s\n", ts, event.DeploymentID, event.Node, event.Instance, event.Status)
-			case events.DeploymentStatusChangeType:
+			case events.StatusChangeTypeDeployment:
 				fmt.Printf("%s:\t Deployment: %s\t Deployment Status: %s\n", ts, event.DeploymentID, event.Status)
-			case events.CustomCommandStatusChangeType:
+			case events.StatusChangeTypeCustomCommand:
 				fmt.Printf("%s:\t Deployment: %s\t Task %q (custom command)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
-			case events.ScalingStatusChangeType:
+			case events.StatusChangeTypeScaling:
 				fmt.Printf("%s:\t Deployment: %s\t Task %q (scaling)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
-			case events.WorkflowStatusChangeType:
+			case events.StatusChangeTypeWorkflow:
 				fmt.Printf("%s:\t Deployment: %s\t Task %q (workflow)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
 			}
 
