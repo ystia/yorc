@@ -16,18 +16,17 @@ package kubernetes
 
 import (
 	"context"
-	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
-	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
 )
 
 func (e *execution) executeAsync(ctx context.Context, stepName string, clientset kubernetes.Interface) (*prov.Action, time.Duration, error) {
@@ -39,54 +38,84 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 		return nil, 0, errors.Errorf("%q node type is not supported by the Kubernetes executor only \"yorc.nodes.kubernetes.api.types.JobResource\" is.", e.nodeType)
 	}
 
-	rSpec, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_spec")
+	jobID, err := tasks.GetTaskData(e.kv, e.taskID, e.nodeName+"-jobId")
 	if err != nil {
 		return nil, 0, err
 	}
 
-	if rSpec == nil {
-		return nil, 0, errors.Errorf("no resource_spec defined for node %q", e.nodeName)
-	}
+	job, err := getJob(e.kv, e.deploymentID, e.nodeName)
 
-	jobRepr := &batchv1.Job{}
-	log.Debugf("jobspec: %v", rSpec.RawString())
-	// Unmarshal JSON to k8s data structs
-	if err = json.Unmarshal([]byte(rSpec.RawString()), jobRepr); err != nil {
-		return nil, 0, errors.Wrap(err, "The resource-spec JSON unmarshaling failed")
-	}
-
-	// Get the namespace if provided. Otherwise, the namespace is generated using the default yorc policy
-	objectMeta := jobRepr.ObjectMeta
-	var namespaceName string
-	var namespaceProvided bool
-	namespaceName, namespaceProvided = getNamespace(e.deploymentID, objectMeta)
-	if !namespaceProvided {
-		err = createNamespaceIfMissing(e.deploymentID, namespaceName, clientset)
-		if err != nil {
-			return nil, 0, err
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespaceName)
-	}
-
-	if jobRepr.Spec.Template.Spec.RestartPolicy != "Never" && jobRepr.Spec.Template.Spec.RestartPolicy != "OnFailure" {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(`job RestartPolicy %q is invalid for a job, settings to "Never" by default`, jobRepr.Spec.Template.Spec.RestartPolicy)
-		jobRepr.Spec.Template.Spec.RestartPolicy = "Never"
-	}
-
-	jobRepr, err = clientset.BatchV1().Jobs(namespaceName).Create(jobRepr)
-	if err != nil {
-		return nil, 0, errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
-	}
 	// Fill all used data for job monitoring
 	data := make(map[string]string)
 	data["originalTaskID"] = e.taskID
-	data["jobID"] = jobRepr.Name
-	data["namespace"] = namespaceName
-	if namespaceProvided {
-		data["providedNamespace"] = namespaceName
-	}
+	data["jobID"] = jobID
+	data["namespace"] = job.namespace
+	data["namespaceProvided"] = strconv.FormatBool(job.namespaceProvided)
 	data["stepName"] = stepName
 	// TODO deal with outputs?
 	// data["outputs"] = strings.Join(e.jobInfo.outputs, ",")
 	return &prov.Action{ActionType: "k8s-job-monitoring", Data: data}, 5 * time.Second, nil
+}
+
+func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interface) error {
+	job, err := getJob(e.kv, e.deploymentID, e.nodeName)
+	if err != nil {
+		return err
+	}
+
+	if !job.namespaceProvided {
+		err = createNamespaceIfMissing(e.deploymentID, job.namespace, clientset)
+		if err != nil {
+			return err
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", job.namespace)
+	}
+
+	if job.jobRepr.Spec.Template.Spec.RestartPolicy != "Never" && job.jobRepr.Spec.Template.Spec.RestartPolicy != "OnFailure" {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(`job RestartPolicy %q is invalid for a job, settings to "Never" by default`, job.jobRepr.Spec.Template.Spec.RestartPolicy)
+		job.jobRepr.Spec.Template.Spec.RestartPolicy = "Never"
+	}
+
+	job.jobRepr, err = clientset.BatchV1().Jobs(job.namespace).Create(job.jobRepr)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
+	}
+
+	// Set job id to the instance attribute
+	err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "job_id", job.jobRepr.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create job for node %q", e.nodeName)
+	}
+
+	return tasks.SetTaskData(e.kv, e.taskID, e.nodeName+"-jobId", job.jobRepr.Name)
+}
+
+func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interface) error {
+	jobID, err := tasks.GetTaskData(e.kv, e.taskID, e.nodeName+"-jobId")
+	if err != nil {
+		if !tasks.IsTaskDataNotFoundError(err) {
+			return err
+		}
+		// Not cancelling within the same task try to get jobID from attribute
+		_, jobID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.nodeName, "0", "job_id")
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
+			"k8s job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.nodeName)
+	}
+	job, err := getJob(e.kv, e.deploymentID, e.nodeName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete job for node %q", e.nodeName)
+	}
+	return deleteJob(ctx, e.deploymentID, job.namespace, jobID, job.namespaceProvided, clientset)
+}
+
+func (e *execution) executeJobOperation(ctx context.Context, clientset kubernetes.Interface) (err error) {
+	switch strings.ToLower(e.operation.Name) {
+	case "tosca.interfaces.node.lifecycle.runnable.submit":
+		return e.submitJob(ctx, clientset)
+	case "tosca.interfaces.node.lifecycle.runnable.cancel":
+		return e.cancelJob(ctx, clientset)
+	default:
+		return errors.Errorf("unsupported operation %q for node %q", e.operation.Name, e.nodeName)
+	}
+
 }

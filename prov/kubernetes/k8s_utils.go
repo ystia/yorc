@@ -16,11 +16,13 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +32,9 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 )
 
 func isDeploymentFailed(clientset kubernetes.Interface, deployment *v1beta1.Deployment) (bool, string) {
@@ -240,4 +244,52 @@ func getNamespace(deploymentID string, objectMeta metav1.ObjectMeta) (string, bo
 	}
 
 	return namespace, isProvided
+}
+
+func deleteJob(ctx context.Context, deploymentID, namespace, jobID string, namespaceProvided bool, clientset kubernetes.Interface) error {
+	deleteForeground := metav1.DeletePropagationForeground
+	err := clientset.BatchV1().Jobs(namespace).Delete(jobID, &metav1.DeleteOptions{PropagationPolicy: &deleteForeground})
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete completed job %q", jobID)
+	}
+	// Delete namespace if it was not provided
+	if !namespaceProvided {
+		err = deleteNamespace(namespace, clientset)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Cannot delete %s k8s Namespace", namespace)
+			return err
+		}
+
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("k8s Namespace %s deleted", namespace)
+	}
+	return nil
+}
+
+type k8sJob struct {
+	jobRepr           *batchv1.Job
+	namespace         string
+	namespaceProvided bool
+}
+
+func getJob(kv *api.KV, deploymentID, nodeName string) (*k8sJob, error) {
+	rSpec, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "resource_spec")
+	if err != nil {
+		return nil, err
+	}
+
+	if rSpec == nil {
+		return nil, errors.Errorf("no resource_spec defined for node %q", nodeName)
+	}
+	jobRepr := &batchv1.Job{}
+	log.Debugf("jobspec: %v", rSpec.RawString())
+	// Unmarshal JSON to k8s data structs
+	if err = json.Unmarshal([]byte(rSpec.RawString()), jobRepr); err != nil {
+		return nil, errors.Wrap(err, "The resource-spec JSON unmarshaling failed")
+	}
+
+	job := &k8sJob{jobRepr: jobRepr}
+	objectMeta := jobRepr.ObjectMeta
+	job.namespace, job.namespaceProvided = getNamespace(deploymentID, objectMeta)
+
+	return job, nil
 }
