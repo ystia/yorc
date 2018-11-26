@@ -29,7 +29,7 @@ import (
 // ./yorc server --infrastructure_infra1_auth_url http://localhost:5000/v2.0 --infrastructure_infra1_tenant_name validation
 func TestServerInitInfraExtraFlagsWithSpaceDelimiter(t *testing.T) {
 	args := []string{"./yorc server", "--infrastructure_infra1_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra1_tenant_name", "validation"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 5)
 	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
@@ -41,7 +41,7 @@ func TestServerInitInfraExtraFlagsWithSpaceDelimiter(t *testing.T) {
 // ./yorc server --infrastructure_infra2_private_network_name=mag3-yorc-network --infrastructure_infra2_region=regionOne
 func TestServerInitInfraExtraFlagsWithEqualDelimiter(t *testing.T) {
 	args := []string{"./yorc server", "--infrastructure_infra2_private_network_name=mag3-yorc-network", "--infrastructure_infra2_region=regionOne"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 	require.Len(t, args, 3)
 	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
 	require.Equal(t, resolvedServerExtraParams[0].viperNames[0], "infrastructures.infra2.private_network_name")
@@ -52,7 +52,7 @@ func TestServerInitInfraExtraFlagsWithEqualDelimiter(t *testing.T) {
 // ./yorc server --infrastructure_infra3_private_network_name=mag3-yorc-network --infrastructure_infra3_region regionOne
 func TestServerInitInfraExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
 	args := []string{"./yorc server", "--infrastructure_infra3_private_network_name=mag3-yorc-network", "--infrastructure_infra3_region", "regionOne"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 4)
 	require.Len(t, resolvedServerExtraParams[0].viperNames, 2)
@@ -64,7 +64,7 @@ func TestServerInitInfraExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
 // ./yorc server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_secured --infrastructure_infra4_tenant_name validation
 func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
 	args := []string{"./yorc server", "--infrastructure_infra4_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra4_secured", "--infrastructure_infra4_tenant_name", "validation"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 6)
 	require.Len(t, resolvedServerExtraParams[0].viperNames, 3)
@@ -77,7 +77,7 @@ func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
 // ./yorc server --infrastructure_infra4_auth_url http://localhost:5000/v2.0 --infrastructure_infra4_tenant_name validation --infrastructure_infra4_secured
 func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 	args := []string{"./yorc server", "--infrastructure_infra5_auth_url", "http://localhost:5000/v2.0", "--infrastructure_infra5_tenant_name", "validation", "--infrastructure_infra5_secured"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 6)
 	require.Len(t, resolvedServerExtraParams[0].viperNames, 3)
@@ -90,7 +90,7 @@ func TestServerInitInfraExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 // ./yorc server --vault_auth_url http://localhost:5000/v2.0 --vault_tenant_name validation
 func TestServerInitVaultExtraFlagsWithSpaceDelimiter(t *testing.T) {
 	args := []string{"./yorc server", "--vault_auth_url", "http://localhost:5000/v2.0", "--vault_tenant_name", "validation"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 5)
 	require.Len(t, resolvedServerExtraParams[1].viperNames, 2)
@@ -102,7 +102,7 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiter(t *testing.T) {
 // ./yorc server --vault_private_network_name=mag3-yorc-network --vault_region=regionOne
 func TestServerInitVaultExtraFlagsWithEqualDelimiter(t *testing.T) {
 	args := []string{"./yorc server", "--vault_private_network_name=mag3-yorc-network", "--vault_region=regionOne"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 	require.Len(t, args, 3)
 	require.Len(t, resolvedServerExtraParams[1].viperNames, 2)
 	require.Equal(t, resolvedServerExtraParams[1].viperNames[0], "vault.private_network_name")
@@ -113,7 +113,7 @@ func TestServerInitVaultExtraFlagsWithEqualDelimiter(t *testing.T) {
 // ./yorc server --vault_public_network_name=mag3-yorc-network --vault_region2 regionOne
 func TestServerInitVaultExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
 	args := []string{"./yorc server", "--vault_public_network_name=mag3-yorc-network", "--vault_region2", "regionOne"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 4)
 	require.Len(t, resolvedServerExtraParams[1].viperNames, 2)
@@ -125,7 +125,7 @@ func TestServerInitVaultExtraFlagsWithSpaceAndEqualDelimiters(t *testing.T) {
 // ./yorc server --vault_auth_url2 http://localhost:5000/v2.0 --vault_secured2 --vault_tenant_name2 validation
 func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
 	args := []string{"./yorc server", "--vault_auth_url2", "http://localhost:5000/v2.0", "--vault_secured2", "--vault_tenant_name2", "validation"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 6)
 	require.Len(t, resolvedServerExtraParams[1].viperNames, 3)
@@ -138,7 +138,7 @@ func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBool(t *testing.T) {
 // ./yorc server --vault_auth_url3 http://localhost:5000/v2.0 --vault_tenant_name3 validation --vault_secured
 func TestServerInitVaultExtraFlagsWithSpaceDelimiterAndBoolAtEnd(t *testing.T) {
 	args := []string{"./yorc server", "--vault_auth_url3", "http://localhost:5000/v2.0", "--vault_tenant_name3", "validation", "--vault_secured3"}
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 
 	require.Len(t, args, 6)
 	require.Len(t, resolvedServerExtraParams[1].viperNames, 3)
@@ -213,7 +213,7 @@ func TestConfigFile(t *testing.T) {
 			setConfig()
 			viper.SetConfigFile(fileToExpectedValue.FileName)
 			initConfig()
-			testConfig := getConfig()
+			testConfig := GetConfig()
 
 			assert.Equal(t, fileToExpectedValue.AnsibleConfig, testConfig.Ansible, "Ansible configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
 			assert.Equal(t, fileToExpectedValue.ConsulConfig, testConfig.Consul, "Consul configuration differs from value defined in config file %s", fileToExpectedValue.FileName)
@@ -235,7 +235,7 @@ func TestAnsibleDefaultValues(t *testing.T) {
 	testResetConfig()
 	setConfig()
 	initConfig()
-	testConfig := getConfig()
+	testConfig := GetConfig()
 
 	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected default configuration")
 }
@@ -259,7 +259,7 @@ func TestConsulDefaultValues(t *testing.T) {
 	testResetConfig()
 	setConfig()
 	initConfig()
-	testConfig := getConfig()
+	testConfig := GetConfig()
 
 	assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from expected default configuration")
 }
@@ -284,7 +284,7 @@ func TestAnsibleEnvVariables(t *testing.T) {
 	testResetConfig()
 	setConfig()
 	initConfig()
-	testConfig := getConfig()
+	testConfig := GetConfig()
 
 	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from expected environment configuration")
 
@@ -327,7 +327,7 @@ func TestConsulEnvVariables(t *testing.T) {
 	testResetConfig()
 	setConfig()
 	initConfig()
-	testConfig := getConfig()
+	testConfig := GetConfig()
 
 	assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from expected environment configuration")
 
@@ -374,7 +374,7 @@ func TestAnsiblePersistentFlags(t *testing.T) {
 		require.NoError(t, err, "Could not set persistent flag %s", key)
 	}
 
-	testConfig := getConfig()
+	testConfig := GetConfig()
 
 	assert.Equal(t, expectedAnsibleConfig, testConfig.Ansible, "Ansible configuration differs from persistent flags settings")
 }
@@ -419,7 +419,7 @@ func TestConsulPersistentFlags(t *testing.T) {
 		require.NoError(t, err, "Could not set persistent flag %s", key)
 	}
 
-	testConfig := getConfig()
+	testConfig := GetConfig()
 
 	assert.Equal(t, expectedConsulConfig, testConfig.Consul, "Consul configuration differs from persistent flags settings")
 }

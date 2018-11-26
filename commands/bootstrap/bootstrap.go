@@ -30,9 +30,9 @@ const (
 	environmentVariablePrefix = "YORC_BOOTSTRAP"
 )
 
-// Variables initialized in the root Makefile
+// Variables with an uknown values are initialized in the root Makefile
 var (
-	alien4cloudVersion = "unknown"
+	alien4cloudVersion = getAlien4CloudVersionFromTOSCATypes()
 	ansibleVersion     = "unknown"
 	consulVersion      = "unknown"
 	terraformVersion   = "unknown"
@@ -66,6 +66,8 @@ func init() {
 		"deployment_type", "d", "single_node", "Define deployment type: single_node or HA")
 	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
 		"inputs", "i", "", "Path to inputs file")
+	bootstrapCmd.PersistentFlags().StringVarP(&followType,
+		"follow", "f", "steps", "Follow bootstrap deployment steps, logs, or none")
 	bootstrapCmd.PersistentFlags().StringVarP(&resourcesZipFilePath,
 		"resources", "r", "", "Path to bootstrap resources zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
@@ -85,12 +87,23 @@ func init() {
 		},
 	}
 	bootstrapCmd.AddCommand(cleanCmd)
+
+	args := os.Args
+
+	commands.ServerInitExtraFlags(args)
+
+	viper.SetEnvPrefix(environmentVariablePrefix)
+	viper.AutomaticEnv()               // read in environment variables that match
+	viper.SetConfigName("config.yorc") // name of config file (without extension)
+	viper.AddConfigPath("work")        // adding default work directory as first search path
+	viper.AddConfigPath(".")
 }
 
 var bootstrapCmd *cobra.Command
 var bootstrapViper *viper.Viper
 var infrastructureType string
 var deploymentType string
+var followType string
 var reviewInputs bool
 var resourcesZipFilePath string
 var workingDirectoryPath string
@@ -113,9 +126,11 @@ func bootstrap() error {
 		return err
 	}
 
+	configuration := commands.GetConfig()
+	fmt.Printf("LOLO config : %+v\n", configuration)
 	// Initializing parameters from environment variables, CLI options
 	// input file, and asking for user input if needed
-	if err := initializeInputs(inputsPath, resourcesDir); err != nil {
+	if err := initializeInputs(inputsPath, resourcesDir, configuration); err != nil {
 		return err
 	}
 
@@ -138,7 +153,7 @@ func bootstrap() error {
 		return errDeploy
 	}
 
-	if err := followDeployment(deploymentID); err != nil {
+	if err := followDeployment(deploymentID, followType); err != nil {
 		return err
 	}
 

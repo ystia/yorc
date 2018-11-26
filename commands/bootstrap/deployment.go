@@ -78,14 +78,22 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 	return deploymentID, err
 }
 
-// followDeployment prints and updates the deployment status until its end
-func followDeployment(deploymentID string) error {
+// followDeployment follows deployments steps or deploymnet logs
+// until the deployment is finished
+func followDeployment(deploymentID, followType string) error {
+
 	client, err := getYorcClient()
 	if err != nil {
 		return err
 	}
 
-	err = deployments.DisplayInfo(client, deploymentID, false, true, 3*time.Second)
+	if followType == "steps" {
+		err = deployments.DisplayInfo(client, deploymentID, false, true, 3*time.Second)
+	} else if followType == "logs" {
+		deployments.StreamsLogs(client, deploymentID, true, true, false)
+	} else {
+		fmt.Printf("Deployment %s submitted", deploymentID)
+	}
 
 	return err
 }

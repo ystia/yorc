@@ -15,9 +15,12 @@
 package bootstrap
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/ystia/yorc/helper/ziputil"
@@ -101,4 +104,58 @@ func extractResources(resourcesZipFilePath, resourcesDir string) error {
 	}
 
 	return nil
+}
+
+// getAlien4CloudDefaultVersion returns the ALien4Cloud version from the bundled
+// resources zip file containing TOSCA types needed for the bootstrap
+func getAlien4CloudVersionFromTOSCATypes() string {
+	// Use the embedded resources
+	version := "unknown"
+	exePath, err := resources.ExecutablePath()
+	if err != nil {
+		fmt.Println("Failed to get resources bundle", err)
+		return version
+	}
+	bundle, err := resources.OpenZip(exePath)
+	if err != nil {
+		fmt.Println("Failed to open resources bundle", err)
+		return version
+	}
+	defer bundle.Close()
+	var bundles resources.BundleSequence
+	bundles = append(bundles, bundle)
+	allResources, err := bundles.List()
+	if err != nil {
+		fmt.Println("Failed to list resources bundle content", err)
+		return version
+	}
+
+	re := regexp.MustCompile(`alien-base-types/([0-9a-zA-Z.-]+)/`)
+	for _, resource := range allResources {
+		if !strings.HasSuffix(resource.Path(), "tosca_types.zip") {
+			continue
+		}
+
+		src, err := resource.Open()
+		if err != nil {
+			fmt.Println("Failed to open tosca types zip in bundled resources", err)
+			return version
+		}
+		defer src.Close()
+
+		allRead, err := ioutil.ReadAll(src)
+		if err != nil {
+			fmt.Println("Failed to read tosca types zip in bundled resources", err)
+			return version
+		}
+
+		match := re.FindStringSubmatch(string(allRead[:]))
+		if match != nil {
+			version = match[1]
+			return version
+		}
+	}
+
+	return version
+
 }

@@ -33,7 +33,7 @@ func init() {
 	// Get the CLI args
 	args := os.Args
 
-	serverInitExtraFlags(args)
+	ServerInitExtraFlags(args)
 	setConfig()
 }
 
@@ -126,12 +126,13 @@ var serverCmd = &cobra.Command{
 
 // RunServer starts a Yorc Server
 func RunServer(shutdownCh chan struct{}) error {
-	configuration := getConfig()
+	configuration := GetConfig()
 	log.Debugf("Configuration :%+v", configuration)
 	return server.RunServer(configuration, shutdownCh)
 }
 
-func serverInitExtraFlags(args []string) {
+// ServerInitExtraFlags inits infrastructure and vault flags
+func ServerInitExtraFlags(args []string) {
 	resolvedServerExtraParams = []*serverExtraParams{
 		&serverExtraParams{
 			argPrefix:   "infrastructure_",
@@ -375,7 +376,8 @@ func setConfig() {
 
 }
 
-func getConfig() config.Configuration {
+// GetConfig gets configuration from viper
+func GetConfig() config.Configuration {
 	configuration := config.Configuration{}
 	err := viper.Unmarshal(&configuration)
 	if err != nil {

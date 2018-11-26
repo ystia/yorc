@@ -187,7 +187,7 @@ func setDefaultInputValues() error {
 
 // initializeInputs Initializes parameters from environment variables, CLI options,
 // input file in argument, and asks for user input if needed
-func initializeInputs(inputFilePath, resourcesPath string) error {
+func initializeInputs(inputFilePath, resourcesPath string, configuration config.Configuration) error {
 
 	var err error
 	inputValues, err = getInputValues(inputFilePath)
@@ -195,6 +195,10 @@ func initializeInputs(inputFilePath, resourcesPath string) error {
 		return err
 	}
 
+	// Get infrastructure from viper configuration if not provided in inputs
+	if inputValues.Infrastructure == nil {
+		inputValues.Infrastructure = configuration.Infrastructures
+	}
 	// Now check for missing mandatory parameters and ask them to the user
 
 	if infrastructureType == "" {
