@@ -276,7 +276,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			}{}
 
 			prompt := &survey.Input{
-				Message: "Path to ssh private key accessible locally (will be stored as .ssh/yorc.pem on bootstrapped Yorc server Home):",
+				Message: "Path to ssh private key accessible locally (required, will be stored as .ssh/yorc.pem on bootstrapped Yorc server Home):",
 			}
 			question := &survey.Question{
 				Name:     "value",
@@ -319,6 +319,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 		configMap := inputValues.Infrastructure[infrastructureType]
 		if configMap == nil {
+			askIfNotRequired = true
 			configMap = make(config.DynamicMap)
 		}
 
@@ -484,7 +485,7 @@ func getComputeCredentials(askIfNotRequired bool, creds *CredentialsConfiguratio
 
 	if creds.User == "" {
 		prompt := &survey.Input{
-			Message: "User used to connect to Compute instances:",
+			Message: "User used to connect to Compute instances (required):",
 		}
 		question := &survey.Question{
 			Name:     "value",
@@ -529,7 +530,7 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 	finished := false
 	for !finished {
 		prompt := &survey.Input{
-			Message: "Name identifying the new host to add in pool:"}
+			Message: "Name identifying the new host to add in pool (required):"}
 
 		question := &survey.Question{
 			Name:     "value",
@@ -612,7 +613,7 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 		for !labelsFinished {
 
 			prompt := &survey.Input{
-				Message: "Label key:"}
+				Message: "Label key (required):"}
 
 			question := &survey.Question{
 				Name:     "value",
@@ -741,8 +742,15 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 			}{}
 
 			var additionalMsg string
+			if required {
+				additionalMsg = "(required"
+			}
 			if isList {
-				additionalMsg = "(comma-separated list"
+				if additionalMsg != "" {
+					additionalMsg = "(comma-separated list"
+				} else {
+					additionalMsg += ", comma-separated list"
+				}
 
 			}
 			if definition.Default != nil {

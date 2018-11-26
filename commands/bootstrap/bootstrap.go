@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	environmentVariablePrefix = "YORC_BOOTSTRAP"
+	environmentVariablePrefix = "YORC"
 )
 
 // Variables with an uknown values are initialized in the root Makefile
@@ -61,19 +61,19 @@ func init() {
 
 	commands.RootCmd.AddCommand(bootstrapCmd)
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
-		"location", "l", "", "Define the type of location where to deploy Yorc")
+		"infrastructure", "i", "", "Define the type of infrastructure where to deploy Yorc")
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentType,
 		"deployment_type", "d", "single_node", "Define deployment type: single_node or HA")
-	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
-		"inputs", "i", "", "Path to inputs file")
 	bootstrapCmd.PersistentFlags().StringVarP(&followType,
 		"follow", "f", "steps", "Follow bootstrap deployment steps, logs, or none")
+	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
+		"values", "v", "", "Path to file containing input values")
+	bootstrapCmd.PersistentFlags().BoolVarP(&reviewInputs, "review", "r", false,
+		"Review and update input values before starting the bootstrap")
 	bootstrapCmd.PersistentFlags().StringVarP(&resourcesZipFilePath,
-		"resources", "r", "", "Path to bootstrap resources zip file")
+		"resources_zip", "z", "", "Path to bootstrap resources zip file")
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
-	bootstrapCmd.PersistentFlags().BoolVarP(&reviewInputs, "review_inputs", "u", false,
-		"Review and update inputs before starting the bootstrap")
 
 	// Adding flags and environment variables for inputs having default values
 	setDefaultInputValues()
@@ -92,11 +92,6 @@ func init() {
 
 	commands.ServerInitExtraFlags(args)
 
-	viper.SetEnvPrefix(environmentVariablePrefix)
-	viper.AutomaticEnv()               // read in environment variables that match
-	viper.SetConfigName("config.yorc") // name of config file (without extension)
-	viper.AddConfigPath("work")        // adding default work directory as first search path
-	viper.AddConfigPath(".")
 }
 
 var bootstrapCmd *cobra.Command
@@ -126,8 +121,15 @@ func bootstrap() error {
 		return err
 	}
 
+	// Read config if any
+	viper.SetEnvPrefix(environmentVariablePrefix)
+	viper.AutomaticEnv()               // read in environment variables that match
+	viper.SetConfigName("config.yorc") // name of config file (without extension)
+	viper.AddConfigPath(workingDirectoryPath)
+	viper.AddConfigPath(".")
+	viper.ReadInConfig()
+
 	configuration := commands.GetConfig()
-	fmt.Printf("LOLO config : %+v\n", configuration)
 	// Initializing parameters from environment variables, CLI options
 	// input file, and asking for user input if needed
 	if err := initializeInputs(inputsPath, resourcesDir, configuration); err != nil {

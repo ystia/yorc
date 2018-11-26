@@ -71,7 +71,7 @@ It prints the deployment status and the status of all the nodes contained in thi
 		},
 	}
 	infoCmd.PersistentFlags().BoolVarP(&detailedInfo, "detailed", "d", false, "Add details to the info command making it less concise and readable.")
-	infoCmd.PersistentFlags().BoolVarP(&follow, "follow", "f", false, "Follow deployment info updates until the deployment is finished.")
+	infoCmd.PersistentFlags().BoolVarP(&follow, "follow", "f", false, "Follow deployment info updates (without details) until the deployment is finished.")
 
 	DeploymentsCmd.AddCommand(infoCmd)
 }
@@ -100,7 +100,14 @@ func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, fol
 			return err
 		}
 		defer response.Body.Close()
-		httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+		if follow && response.StatusCode == http.StatusNotFound {
+			// Undeployment done, not exiting on error when
+			// the CLI is folliwng the undeployment steps
+			fmt.Printf("%s undeployed.\n", deploymentID)
+			return nil
+		} else {
+			httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+		}
 		var dep rest.Deployment
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
@@ -126,7 +133,7 @@ func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, fol
 			defer color.Unset()
 		}
 		var errs []error
-		if !detailed {
+		if !detailed || follow {
 			errs = tableBasedDeploymentRendering(client, dep, colorize)
 		} else {
 			errs = detailedDeploymentRendering(client, dep, colorize)

@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/config"
@@ -210,6 +211,13 @@ func initConfig() {
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
 		log.Println("Can't use config file:", err)
+	} else {
+		// Watch config to take into account config changes
+		viper.WatchConfig()
+		viper.OnConfigChange(func(e fsnotify.Event) {
+			log.Printf("Reloading config on config file %s change\n", e.Name)
+			viper.ReadInConfig()
+		})
 	}
 
 	// Deprecate Ansible and Consul flat keys if they are defined in

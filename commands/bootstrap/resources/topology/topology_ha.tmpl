@@ -40,11 +40,6 @@ imports:
   - org.ystia.terraform.pub/2.1.0-SNAPSHOT/types.yaml
   - org.ystia.ansible.pub/2.1.0-SNAPSHOT/types.yaml
 
-repositories:
-  a4c_repository:
-    url: {{getRepositoryURL .Alien4cloud.DownloadURL}}
-    type: http
-
 topology_template:
   node_templates:
     ConsulServer:
@@ -91,7 +86,7 @@ topology_template:
         java_home: "/opt/java"
         component_version: "{{.Jdk.Version}}"
       requirements:
-        - hostedOnComputeAlienHost:
+        - hostedOnAlien4CloudComputeHost:
             type_requirement: host
             node: Alien4CloudCompute
             capability: tosca.capabilities.Container
@@ -128,8 +123,8 @@ topology_template:
             initiator: source
         rest:
           properties:
-            user: admin
-            password: admin
+            user: {{.Alien4cloud.User}}
+            password: {{.Alien4cloud.Password}}
             port: {{.Alien4cloud.Port}}
             protocol: http
             secure: false
@@ -139,7 +134,6 @@ topology_template:
         alien_dist:
           file: {{getFile .Alien4cloud.DownloadURL}}
           type: tosca.artifacts.File
-          repository: a4c_repository
     YorcPlugin:
       type: org.ystia.yorc.alien4cloud.nodes.YorcPlugin
       properties:
@@ -235,7 +229,7 @@ topology_template:
             node: ConsulServer
             capability: org.ystia.yorc.experimental.consul.pub.capabilities.ConsulServer
             relationship: org.ystia.yorc.experimental.consul.linux.ansible.relationships.JoinServer
-        - hostedOnComputeAlienHost:
+        - hostedOnAlien4CloudComputeHost:
             type_requirement: host
             node: Alien4CloudCompute
             capability: tosca.capabilities.Container
@@ -286,7 +280,7 @@ topology_template:
         download_url: "{{.Yorc.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/yorc"
-        data_dir: "/var/yorc"
+        data_dir: "{{.Yorc.DataDir}}"
         private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
       requirements:
         - hostedOnComputeYorcHost:
@@ -322,12 +316,16 @@ topology_template:
             secure: false
             network_name: PRIVATE
             initiator: source
+    {{if not .Address}}
+    Alien4CloudCompute: {{block "Compute" .}} {{end}}
+    {{else}}
     Alien4CloudCompute: {{block "ComputeWithAddress" .}} {{end}}
+    ComputeAddress:  {{block "ComputeAddress" .}} {{end}}
+    {{end}}
     YorcCompute: {{block "ComputeScalable" .}} {{end}}
-    ConsulCompute: {{block "Compute" .}} {{end}}
+    ConsulCompute: {{block "ComputeScalable" .}} {{end}}
     NFSCompute: {{block "Compute" .}} {{end}}
     Infrastructure: {{block "Infrastructure" .}} {{end}}
-    ComputeAddress: {{block "ComputeAddress" .}} {{end}}
   outputs:
     Alien4Cloud_alien_url:
       value: { get_attribute: [ Alien4Cloud, alien_url ] }
@@ -340,12 +338,20 @@ topology_template:
             - call_operation: Standard.start
           on_success:
             - ConsulAgentYorcServer_started
+        {{if .Address}}
         ComputeAddress_install:
           target: ComputeAddress
           activities:
             - delegate: install
           on_success:
-            - ComputeAlien_install
+            - Alien4CloudCompute_install
+        {{end}}
+        ComputeAddress_install:
+          target: ComputeAddress
+          activities:
+            - delegate: install
+          on_success:
+            - Alien4CloudCompute_install
         OracleJDK_creating:
           target: OracleJDK
           activities:
@@ -436,12 +442,24 @@ topology_template:
             - set_state: created
           on_success:
             - ConsulServer_configuring
-        OpenStackConfig_starting:
+        Infrastructure_starting:
           target: Infrastructure
           activities:
             - set_state: starting
           on_success:
-            - OpenStackConfig_started
+        {{if not .Hosts}}
+            - Infrastructure_started
+        {{else}}
+            - Infrastructure_start
+		    {{end}}
+        {{if .Hosts}}
+        Infrastructure_start:
+          target: Infrastructure
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Infrastructure_started
+		    {{end}}
         ConsulAgentYorcServer_starting:
           target: ConsulAgentYorcServer
           activities:
@@ -501,7 +519,7 @@ topology_template:
           activities:
             - set_state: started
           on_success:
-            - OpenStackConfig_initial
+            - Infrastructure_initial
             - YorcPlugin_initial
         YorcServer_initial:
           target: YorcServer
@@ -533,12 +551,12 @@ topology_template:
             - set_state: starting
           on_success:
             - OracleJDK_started
-        OpenStackConfig_configuring:
+        Infrastructure_configuring:
           target: Infrastructure
           activities:
             - set_state: configuring
           on_success:
-            - OpenStackConfig_configured
+            - Infrastructure_configured
         YorcOnDemandLocationResources_start:
           target: YorcOnDemandLocationResources
           activities:
@@ -571,7 +589,7 @@ topology_template:
             - set_state: created
           on_success:
             - Alien4Cloud_configuring
-        OpenStackConfig_started:
+        Infrastructure_started:
           target: Infrastructure
           activities:
             - set_state: started
@@ -607,7 +625,7 @@ topology_template:
             - set_state: initial
           on_success:
             - ConsulServer_creating
-        ComputeAlien_install:
+        Alien4CloudCompute_install:
           target: Alien4CloudCompute
           activities:
             - delegate: install
@@ -626,12 +644,12 @@ topology_template:
             - call_operation: Standard.start
           on_success:
             - YorcServer_started
-        OpenStackConfig_configured:
+        Infrastructure_configured:
           target: Infrastructure
           activities:
             - set_state: configured
           on_success:
-            - OpenStackConfig_starting
+            - Infrastructure_starting
         NFSClient_started:
           target: NFSClient
           activities:
@@ -656,12 +674,12 @@ topology_template:
             - set_state: initial
           on_success:
             - ConsulAgentA4C_creating
-        OpenStackConfig_creating:
+        Infrastructure_creating:
           target: Infrastructure
           activities:
             - set_state: creating
           on_success:
-            - OpenStackConfig_created
+            - Infrastructure_created
         ConsulAgentA4C_started:
           target: ConsulAgentA4C
           activities:
@@ -769,12 +787,12 @@ topology_template:
             - call_operation: Standard.create
           on_success:
             - OracleJDK_created
-        OpenStackConfig_initial:
+        Infrastructure_initial:
           target: Infrastructure
           activities:
             - set_state: initial
           on_success:
-            - OpenStackConfig_creating
+            - Infrastructure_creating
         YorcPlugin_creating:
           target: YorcPlugin
           activities:
@@ -929,12 +947,12 @@ topology_template:
             - set_state: configuring
           on_success:
             - NFSClient_joinNfsServerNfsServerNfs_server_pre_configure_source
-        OpenStackConfig_created:
+        Infrastructure_created:
           target: Infrastructure
           activities:
             - set_state: created
           on_success:
-            - OpenStackConfig_configuring
+            - Infrastructure_configuring
         ComputeConsul_install:
           target: ConsulCompute
           activities:
@@ -1148,12 +1166,12 @@ topology_template:
           on_success:
             - ConsulServer_stopping
             - ComputeYorc_uninstall
-        OpenStackConfig_stopped:
+        Infrastructure_stopped:
           target: Infrastructure
           activities:
             - set_state: stopped
           on_success:
-            - OpenStackConfig_deleting
+            - Infrastructure_deleting
         ConsulServer_stop:
           target: ConsulServer
           activities:
@@ -1184,12 +1202,14 @@ topology_template:
             - set_state: stopped
           on_success:
             - YorcOnDemandLocationResources_deleting
-        ComputeAlien_uninstall:
+        Alien4CloudCompute_uninstall:
           target: Alien4CloudCompute
           activities:
             - delegate: uninstall
+          {{if .Address}}
           on_success:
             - ComputeAddress_uninstall
+          {{end}}
         ComputeYorc_uninstall:
           target: YorcCompute
           activities:
@@ -1206,7 +1226,7 @@ topology_template:
             - set_state: deleted
           on_success:
             - ConsulServer_stopping
-            - ComputeAlien_uninstall
+            - Alien4CloudCompute_uninstall
         YorcPlugin_stopped:
           target: YorcPlugin
           activities:
@@ -1225,12 +1245,12 @@ topology_template:
             - set_state: stopped
           on_success:
             - AnsibleRuntime_deleting
-        OpenStackConfig_stopping:
+        Infrastructure_stopping:
           target: Infrastructure
           activities:
             - set_state: stopping
           on_success:
-            - OpenStackConfig_stopped
+            - Infrastructure_stopped
         YorcOnDemandLocationResources_deleting:
           target: YorcOnDemandLocationResources
           activities:
@@ -1299,12 +1319,12 @@ topology_template:
             - set_state: deleting
           on_success:
             - ConsulAgentYorcServer_deleted
-        OpenStackConfig_deleting:
+        Infrastructure_deleting:
           target: Infrastructure
           activities:
             - set_state: deleting
           on_success:
-            - OpenStackConfig_deleted
+            - Infrastructure_deleted
         ConsulServer_deleting:
           target: ConsulServer
           activities:
@@ -1329,7 +1349,7 @@ topology_template:
             - set_state: stopping
           on_success:
             - NFSClient_stop
-        OpenStackConfig_deleted:
+        Infrastructure_deleted:
           target: Infrastructure
           activities:
             - set_state: deleted
@@ -1340,7 +1360,7 @@ topology_template:
           activities:
             - set_state: deleted
           on_success:
-            - ComputeAlien_uninstall
+            - Alien4CloudCompute_uninstall
         YorcServer_stopped:
           target: YorcServer
           activities:
@@ -1473,6 +1493,12 @@ topology_template:
           target: ConsulCompute
           activities:
             - delegate: uninstall
+        {{if .Address}}
+        ComputeAddress_uninstall:
+          target: ComputeAddress
+          activities:
+            - delegate: uninstall
+        {{end}}
         Alien4Cloud_deleting:
           target: Alien4Cloud
           activities:
@@ -1557,14 +1583,14 @@ topology_template:
             - delegate: start
           on_success:
             - NFSServer_starting
-        ComputeAlien_start:
+        Alien4CloudCompute_start:
           target: Alien4CloudCompute
           activities:
             - delegate: start
           on_success:
             - OracleJDK_starting
             - ConsulAgentA4C_starting
-        OpenStackConfig_started:
+        Infrastructure_started:
           target: Infrastructure
           activities:
             - set_state: started
@@ -1657,12 +1683,24 @@ topology_template:
           on_success:
             - ConsulAgentYorcServer_starting
             - ConsulAgentA4C_starting
-        OpenStackConfig_starting:
+        Infrastructure_starting:
           target: Infrastructure
           activities:
             - set_state: starting
           on_success:
-            - OpenStackConfig_started
+        {{if not .Hosts}}
+            - Infrastructure_started
+        {{else}}
+            - Infrastructure_start
+		    {{end}}
+        {{if .Hosts}}
+        Infrastructure_start:
+          target: Infrastructure
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Infrastructure_started
+		    {{end}}
         ConsulAgentYorcServer_starting:
           target: ConsulAgentYorcServer
           activities:
@@ -1691,12 +1729,14 @@ topology_template:
             - set_state: started
           on_success:
             - NFSClient_starting
-        ComputeAddress_start:
+        {{if .Address}}
+         ComputeAddress_start:
           target: ComputeAddress
           activities:
             - delegate: start
           on_success:
-            - ComputeAlien_start
+            - Alien4CloudCompute_start
+       {{end}}
         ConsulServer_start:
           target: ConsulServer
           activities:
@@ -1739,7 +1779,7 @@ topology_template:
             - set_state: started
           on_success:
             - YorcPlugin_starting
-            - OpenStackConfig_starting
+            - Infrastructure_starting
         OracleJDK_started:
           target: OracleJDK
           activities:
@@ -1759,7 +1799,7 @@ topology_template:
           activities:
             - set_state: stopped
           on_success:
-            - ComputeAlien_stop
+            - Alien4CloudCompute_stop
         OracleJDK_stopping:
           target: OracleJDK
           activities:
@@ -1770,7 +1810,7 @@ topology_template:
           target: YorcCompute
           activities:
             - delegate: stop
-        OpenStackConfig_stopped:
+        Infrastructure_stopped:
           target: Infrastructure
           activities:
             - set_state: stopped
@@ -1868,13 +1908,13 @@ topology_template:
             - set_state: stopped
           on_success:
             - ConsulServer_stopping
-            - ComputeAlien_stop
-        OpenStackConfig_stopping:
+            - Alien4CloudCompute_stop
+        Infrastructure_stopping:
           target: Infrastructure
           activities:
             - set_state: stopping
           on_success:
-            - OpenStackConfig_stopped
+            - Infrastructure_stopped
         Alien4Cloud_stopping:
           target: Alien4Cloud
           activities:
@@ -1905,10 +1945,12 @@ topology_template:
             - call_operation: Standard.stop
           on_success:
             - NFSServer_stopped
+        {{if .Address}}
         ComputeAddress_stop:
           target: ComputeAddress
           activities:
             - delegate: stop
+        {{end}}
         NFSClient_stopped:
           target: NFSClient
           activities:
@@ -1940,12 +1982,14 @@ topology_template:
             - set_state: stopped
           on_success:
             - ComputeConsul_stop
-        ComputeAlien_stop:
+        Alien4CloudCompute_stop:
           target: Alien4CloudCompute
           activities:
             - delegate: stop
+          {{if .Address}}
           on_success:
             - ComputeAddress_stop
+          {{end}}
         TerraformRuntime_stopping:
           target: TerraformRuntime
           activities:
@@ -2053,12 +2097,12 @@ topology_template:
           on_success:
             - ConsulAgentYorcServer_submitted
             - ConsulAgentA4C_submitted
-        OpenStackConfig_submitted:
+        Infrastructure_submitted:
           target: Infrastructure
           activities:
             - set_state: submitted
           on_success:
-            - OpenStackConfig_executed
+            - Infrastructure_executed
         NFSServer_submitted:
           target: NFSServer
           activities:
@@ -2070,7 +2114,7 @@ topology_template:
           activities:
             - set_state: executed
           on_success:
-            - OpenStackConfig_submitted
+            - Infrastructure_submitted
             - YorcPlugin_submitted
         TerraformRuntime_executed:
           target: TerraformRuntime
@@ -2102,7 +2146,7 @@ topology_template:
             - set_state: executed
           on_success:
             - YorcServer_submitted
-        OpenStackConfig_executed:
+        Infrastructure_executed:
           target: Infrastructure
           activities:
             - set_state: executed
