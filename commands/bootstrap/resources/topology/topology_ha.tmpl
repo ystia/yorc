@@ -1730,13 +1730,13 @@ topology_template:
           on_success:
             - NFSClient_starting
         {{if .Address}}
-         ComputeAddress_start:
+        ComputeAddress_start:
           target: ComputeAddress
           activities:
             - delegate: start
           on_success:
             - Alien4CloudCompute_start
-       {{end}}
+        {{end}}
         ConsulServer_start:
           target: ConsulServer
           activities:

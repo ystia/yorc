@@ -61,7 +61,7 @@ func init() {
 
 	commands.RootCmd.AddCommand(bootstrapCmd)
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
-		"infrastructure", "i", "", "Define the type of infrastructure where to deploy Yorc")
+		"infrastructure", "i", "", "Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool")
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentType,
 		"deployment_type", "d", "single_node", "Define deployment type: single_node or HA")
 	bootstrapCmd.PersistentFlags().StringVarP(&followType,
