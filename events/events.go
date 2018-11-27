@@ -18,7 +18,6 @@ import (
 	"context"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"encoding/json"
@@ -44,7 +43,8 @@ func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status s
 func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
 
-	id, err := storeStatusUpdateEvent(kv, deploymentID, StatusChangeTypeInstance, nodeName+"\n"+status+"\n"+instance)
+	e := newEventStatusChange(ctx, StatusChangeTypeInstance, nil, deploymentID, status)
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -65,7 +65,8 @@ func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, er
 //
 // PublishAndLogDeploymentStatusChange returns the published event id
 func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploymentID, status string) (string, error) {
-	id, err := storeStatusUpdateEvent(kv, deploymentID, StatusChangeTypeDeployment, status)
+	e := newEventStatusChange(ctx, StatusChangeTypeDeployment, nil, deploymentID, status)
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +90,8 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	id, err := storeStatusUpdateEvent(kv, deploymentID, StatusChangeTypeCustomCommand, taskID+"\n"+status)
+	e := newEventStatusChange(ctx, StatusChangeTypeCustomCommand, nil, deploymentID, status)
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -113,7 +115,8 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	id, err := storeStatusUpdateEvent(kv, deploymentID, StatusChangeTypeScaling, taskID+"\n"+status)
+	e := newEventStatusChange(ctx, StatusChangeTypeScaling, nil, deploymentID, status)
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -137,7 +140,8 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	id, err := storeStatusUpdateEvent(kv, deploymentID, StatusChangeTypeWorkflow, taskID+"\n"+status)
+	e := newEventStatusChange(ctx, StatusChangeTypeWorkflow, nil, deploymentID, status)
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -145,75 +149,31 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 	return id, nil
 }
 
-// Create a KVPair corresponding to an event and put it to Consul under the event prefix,
-// in a sub-tree corresponding to its deployment
-// The eventType goes to the KVPair's Flags field
-func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusChangeType, data string) (string, error) {
-	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	err := consulutil.StoreConsulKeyAsStringWithFlags(path.Join(eventsPrefix, now), data, uint64(eventType))
-	if err != nil {
-		return "", err
-	}
-	return now, nil
-}
-
 // StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
-func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]EventStatusChange, uint64, error) {
-	events := make([]EventStatusChange, 0)
-
+func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	events := make([]json.RawMessage, 0)
 	var eventsPrefix string
-	var depIDProvided bool
 	if deploymentID != "" {
 		// the returned list of events must correspond to the provided deploymentID
 		eventsPrefix = path.Join(consulutil.EventsPrefix, deploymentID)
-		depIDProvided = true
 	} else {
 		// the returned list of events must correspond to all the deployments
 		eventsPrefix = path.Join(consulutil.EventsPrefix)
-		depIDProvided = false
 	}
 
 	kvps, qm, err := kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return events, 0, err
 	}
+	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex {
 			continue
 		}
-		var eventTimestamp string
-		if depIDProvided {
-			eventTimestamp = strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
-		} else {
-			depIDAndTimestamp := strings.Split(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), "/")
-			deploymentID = depIDAndTimestamp[0]
-			eventTimestamp = depIDAndTimestamp[1]
-		}
-
-		values := strings.Split(string(kvp.Value), "\n")
-		eventType := StatusChangeType(kvp.Flags)
-
-		switch eventType {
-		case StatusChangeTypeInstance:
-			if len(values) != 3 {
-				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-			}
-			events = append(events, EventStatusChange{Timestamp: eventTimestamp, Type: eventType.String(), Node: values[0], Status: values[1], Instance: values[2], DeploymentID: deploymentID})
-		case StatusChangeTypeDeployment:
-			if len(values) != 1 {
-				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-			}
-			events = append(events, EventStatusChange{Timestamp: eventTimestamp, Type: eventType.String(), Status: values[0], DeploymentID: deploymentID})
-		case StatusChangeTypeCustomCommand, StatusChangeTypeScaling, StatusChangeTypeWorkflow, StatusChangeTypeWorkflowStep:
-			if len(values) != 2 {
-				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-			}
-			events = append(events, EventStatusChange{Timestamp: eventTimestamp, Type: eventType.String(), TaskID: values[0], Status: values[1], DeploymentID: deploymentID})
-		default:
-			return events, qm.LastIndex, errors.Errorf("Unsupported event type %d for event %q", kvp.Flags, kvp.Key)
-		}
+		//eventType := StatusChangeType(kvp.Flags)
+		events = append(events, kvp.Value)
 	}
+	log.Debugf("Found %d events after index", len(events))
 	return events, qm.LastIndex, nil
 }
 

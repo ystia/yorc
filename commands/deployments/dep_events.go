@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/rest"
 )
 
@@ -128,36 +127,13 @@ func StreamsEvents(client *httputil.YorcClient, deploymentID string, colorize, f
 		}
 		lastIdx = evts.LastIndex
 		for _, event := range evts.Events {
-			ts := event.Timestamp
 			if colorize {
-				ts = color.CyanString("%s", event.Timestamp)
+				fmt.Printf("%s\n", color.MagentaString("%s", format(event)))
+			} else {
+				fmt.Printf("%s\n", format(event))
 			}
-			evType, err := events.ParseStatusChangeType(event.Type)
-			if err != nil {
-				if colorize {
-					fmt.Printf("%s: ", color.MagentaString("Warning"))
-				} else {
-					fmt.Print("Warning: ")
-				}
-				fmt.Printf("Unknown event type: %q\n", event.Type)
-			}
-			switch evType {
-			case events.StatusChangeTypeInstance:
-				fmt.Printf("%s:\t Deployment: %s\t Node: %s\t Instance: %s\t State: %s\n", ts, event.DeploymentID, event.Node, event.Instance, event.Status)
-			case events.StatusChangeTypeDeployment:
-				fmt.Printf("%s:\t Deployment: %s\t Deployment Status: %s\n", ts, event.DeploymentID, event.Status)
-			case events.StatusChangeTypeCustomCommand:
-				fmt.Printf("%s:\t Deployment: %s\t Task %q (custom command)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
-			case events.StatusChangeTypeScaling:
-				fmt.Printf("%s:\t Deployment: %s\t Task %q (scaling)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
-			case events.StatusChangeTypeWorkflow:
-				fmt.Printf("%s:\t Deployment: %s\t Task %q (workflow)\t Status: %s\n", ts, event.DeploymentID, event.TaskID, event.Status)
-			}
-
 		}
-
 		response.Body.Close()
-
 		if stop {
 			return
 		}
