@@ -72,7 +72,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 	serverConfig := config.Configuration{
 		WorkingDirectory: workingDirectoryPath,
 		ResourcesPrefix:  "bootstrap",
-		Infrastructures:  inputValues.Infrastructure,
+		Infrastructures:  inputValues.Infrastructures,
 		Ansible:          config.Ansible{KeepGeneratedRecipes: true},
 	}
 

@@ -23,10 +23,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/rest"
 
 	"github.com/ystia/yorc/tosca"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/commands"
 	"github.com/ystia/yorc/config"
@@ -63,6 +65,10 @@ var (
 		"yorc.data_dir": defaultInputType{
 			description: "Yorc Home directory",
 			value:       "/var/yorc",
+		},
+		"yorc.private_key_file": defaultInputType{
+			description: "Path to ssh private key accessible locally",
+			value:       "",
 		},
 	}
 
@@ -128,6 +134,13 @@ var (
 			value:       "1.8.0-131-b11",
 		},
 	}
+
+	credentialsInputs = map[string]defaultInputType{
+		"credentials.user": defaultInputType{
+			description: "User Yorc uses to connect to Compute Nodes",
+			value:       "",
+		},
+	}
 )
 
 // Infrastructure inputs, which when missing, will have to be provided interactively
@@ -140,13 +153,51 @@ type infrastructureInputType struct {
 	DefaultValue interface{} `yaml:"default,omitempty"`
 }
 
-type userInputType struct {
-	Infrastructure map[string][]infrastructureInputType
+type bootstrapExtraParams struct {
+	argPrefix   string
+	envPrefix   string
+	viperPrefix string
+	viperNames  []string
+	subSplit    int
+	storeFn     bootstrapExtraParamStoreFn
+	readConfFn  bootstrapExtraParamReadConf
 }
 
-// setDefaultInputValues sets environment variables and command line bootstrap options
-// with default values
-func setDefaultInputValues() error {
+type bootstrapExtraParamStoreFn func(values *TopologyValues, param string)
+type bootstrapExtraParamReadConf func(values *TopologyValues)
+
+var bootstrapExtraComputeParams bootstrapExtraParams
+var bootstrapExtraAddressParams bootstrapExtraParams
+
+func addBootstrapExtraComputeParams(values *TopologyValues, param string) {
+	paramParts := strings.Split(param, ".")
+	value := viper.Get(param)
+	values.Compute.Set(paramParts[1], value)
+}
+
+func addBootstrapExtraAddressParams(values *TopologyValues, param string) {
+	paramParts := strings.Split(param, ".")
+	value := viper.Get(param)
+	values.Address.Set(paramParts[1], value)
+}
+
+func readComputeViperConfig(values *TopologyValues) {
+	computeConfig := viper.GetStringMap("compute")
+	for k, v := range computeConfig {
+		values.Compute.Set(k, v)
+	}
+}
+
+func readAddressViperConfig(values *TopologyValues) {
+	addressConfig := viper.GetStringMap("address")
+	for k, v := range addressConfig {
+		values.Address.Set(k, v)
+	}
+}
+
+// setBootstrapExtraParams sets flags and default values related to bootstrap
+// configuration
+func setBootstrapExtraParams(args []string, cmd *cobra.Command) error {
 
 	defaultInputs := []map[string]defaultInputType{
 		ansibleDefaultInputs,
@@ -156,6 +207,7 @@ func setDefaultInputValues() error {
 		consulDefaultInputs,
 		terraformDefaultInputs,
 		jdkDefaultInputs,
+		credentialsInputs,
 	}
 
 	for _, defaultInput := range defaultInputs {
@@ -168,7 +220,7 @@ func setDefaultInputValues() error {
 			case int:
 				bootstrapCmd.PersistentFlags().Int(flatKey, input.value.(int), input.description)
 			case []string:
-				bootstrapCmd.PersistentFlags().StringArray(flatKey, input.value.([]string), input.description)
+				bootstrapCmd.PersistentFlags().StringSlice(flatKey, input.value.([]string), input.description)
 			default:
 				return fmt.Errorf("Unexpected default value type for %s value %v", key, input.value)
 
@@ -177,8 +229,84 @@ func setDefaultInputValues() error {
 			bootstrapViper.BindPFlag(key, bootstrapCmd.PersistentFlags().Lookup(flatKey))
 			bootstrapViper.BindEnv(key,
 				strings.ToUpper(fmt.Sprintf("%s_%s",
-					environmentVariablePrefix, flatKey)))
+					commands.EnvironmentVariablePrefix, flatKey)))
 			bootstrapViper.SetDefault(key, input.value)
+		}
+	}
+
+	bootstrapExtraComputeParams = bootstrapExtraParams{
+		argPrefix:   "compute_",
+		envPrefix:   "YORC_COMPUTE_",
+		viperPrefix: "compute.",
+		viperNames:  make([]string, 0),
+		storeFn:     addBootstrapExtraComputeParams,
+		readConfFn:  readComputeViperConfig,
+	}
+
+	bootstrapExtraAddressParams = bootstrapExtraParams{
+		argPrefix:   "address_",
+		envPrefix:   "YORC_ADDRESS_",
+		viperPrefix: "address.",
+		viperNames:  make([]string, 0),
+		storeFn:     addBootstrapExtraAddressParams,
+		readConfFn:  readAddressViperConfig,
+	}
+
+	resolvedBootstrapExtraParams := []*bootstrapExtraParams{
+		&bootstrapExtraComputeParams,
+		&bootstrapExtraAddressParams,
+	}
+
+	for _, extraParams := range resolvedBootstrapExtraParams {
+		for i := range args {
+			if strings.HasPrefix(args[i], "--"+extraParams.argPrefix) {
+				var viperName, flagName string
+				if strings.ContainsRune(args[i], '=') {
+					// Handle the syntax --infrastructure_xxx_yyy = value
+					flagParts := strings.Split(args[i], "=")
+					flagName = strings.TrimLeft(flagParts[0], "-")
+					viperName = strings.Replace(strings.Replace(
+						flagName, extraParams.argPrefix, extraParams.viperPrefix, 1),
+						"_", ".", extraParams.subSplit)
+					if len(flagParts) == 1 {
+						// Boolean flag
+						cmd.PersistentFlags().Bool(flagName, false, "")
+						viper.SetDefault(viperName, false)
+					} else {
+						cmd.PersistentFlags().String(flagName, "", "")
+						viper.SetDefault(viperName, "")
+					}
+				} else {
+					// Handle the syntax --infrastructure_xxx_yyy value
+					flagName = strings.TrimLeft(args[i], "-")
+					viperName = strings.Replace(strings.Replace(
+						flagName, extraParams.argPrefix, extraParams.viperPrefix, 1),
+						"_", ".", extraParams.subSplit)
+					if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
+						cmd.PersistentFlags().String(flagName, "", "")
+						viper.SetDefault(viperName, "")
+					} else {
+						// Boolean flag
+						cmd.PersistentFlags().Bool(flagName, false, "")
+						viper.SetDefault(viperName, false)
+					}
+				}
+				// Add viper flag
+				viper.BindPFlag(viperName, cmd.PersistentFlags().Lookup(flagName))
+				extraParams.viperNames = append(extraParams.viperNames, viperName)
+			}
+		}
+		for _, envVar := range os.Environ() {
+			if strings.HasPrefix(envVar, extraParams.envPrefix) {
+				envVarParts := strings.SplitN(envVar, "=", 2)
+				viperName := strings.ToLower(strings.Replace(
+					strings.Replace(envVarParts[0], extraParams.envPrefix, extraParams.viperPrefix, 1),
+					"_", ".", extraParams.subSplit))
+				viper.BindEnv(viperName, envVarParts[0])
+				if !collections.ContainsString(extraParams.viperNames, viperName) {
+					extraParams.viperNames = append(extraParams.viperNames, viperName)
+				}
+			}
 		}
 	}
 
@@ -196,8 +324,8 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	}
 
 	// Get infrastructure from viper configuration if not provided in inputs
-	if inputValues.Infrastructure == nil {
-		inputValues.Infrastructure = configuration.Infrastructures
+	if inputValues.Infrastructures == nil {
+		inputValues.Infrastructures = configuration.Infrastructures
 	}
 	// Now check for missing mandatory parameters and ask them to the user
 
@@ -205,11 +333,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 		// if one and only one infrastructure is already defined in inputs,
 		// selecting this infrastructure
-		if len(inputValues.Infrastructure) == 1 && len(inputValues.Hosts) == 0 {
-			for k := range inputValues.Infrastructure {
+		if len(inputValues.Infrastructures) == 1 && len(inputValues.Hosts) == 0 {
+			for k := range inputValues.Infrastructures {
 				infrastructureType = k
 			}
-		} else if len(inputValues.Infrastructure) == 0 && len(inputValues.Hosts) > 0 {
+		} else if len(inputValues.Infrastructures) == 0 && len(inputValues.Hosts) > 0 {
 			infrastructureType = "hostspool"
 		}
 
@@ -313,11 +441,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	// Get infrastructure inputs, except in the Hosts Pool case as Hosts Pool
 	// doesn't have any infrastructure property
 	if infrastructureType != "hostspool" {
-		if inputValues.Infrastructure == nil {
+		if inputValues.Infrastructures == nil {
 			askIfNotRequired = true
-			inputValues.Infrastructure = make(map[string]config.DynamicMap)
+			inputValues.Infrastructures = make(map[string]config.DynamicMap)
 		}
-		configMap := inputValues.Infrastructure[infrastructureType]
+		configMap := inputValues.Infrastructures[infrastructureType]
 		if configMap == nil {
 			askIfNotRequired = true
 			configMap = make(config.DynamicMap)
@@ -327,7 +455,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			convertBooleanToString, &configMap); err != nil {
 			return err
 		}
-		inputValues.Infrastructure[infrastructureType] = configMap
+		inputValues.Infrastructures[infrastructureType] = configMap
 	} else {
 
 		// Hosts Pool
@@ -356,10 +484,17 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	fmt.Println("\nGetting Compute instances configuration")
 
-	askIfNotRequired = false
 	if inputValues.Compute == nil {
-		askIfNotRequired = true
 		inputValues.Compute = make(config.DynamicMap)
+	}
+	bootstrapExtraComputeParams.readConfFn(&inputValues)
+	for _, computeParam := range bootstrapExtraComputeParams.viperNames {
+		bootstrapExtraComputeParams.storeFn(&inputValues, computeParam)
+	}
+
+	askIfNotRequired = false
+	if len(inputValues.Compute) == 0 {
+		askIfNotRequired = true
 	}
 	nodeType := fmt.Sprintf("yorc.nodes.%s.Compute", infrastructureType)
 	// On-demand resources boolean values need to be passed to
@@ -378,9 +513,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 		askIfNotRequired = false
 		if inputValues.Credentials == nil {
-			askIfNotRequired = true
 			var creds CredentialsConfiguration
 			inputValues.Credentials = &creds
+		}
+		if inputValues.Credentials.User == "" {
+			askIfNotRequired = true
 		}
 		if err := getComputeCredentials(askIfNotRequired, inputValues.Credentials); err != nil {
 			return err
@@ -391,10 +528,18 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	if networkNodeType != "" {
 
 		fmt.Println("\nGetting Network configuration")
-		askIfNotRequired = false
+
 		if inputValues.Address == nil {
-			askIfNotRequired = true
 			inputValues.Address = make(config.DynamicMap)
+		}
+		bootstrapExtraAddressParams.readConfFn(&inputValues)
+		for _, addressParam := range bootstrapExtraAddressParams.viperNames {
+			bootstrapExtraAddressParams.storeFn(&inputValues, addressParam)
+		}
+
+		askIfNotRequired = false
+		if len(inputValues.Address) == 0 {
+			askIfNotRequired = true
 		}
 		if err := getResourceInputs(topology, networkNodeType, askIfNotRequired,
 			convertBooleanToString, &inputValues.Address); err != nil {
@@ -498,21 +643,26 @@ func getComputeCredentials(askIfNotRequired bool, creds *CredentialsConfiguratio
 		creds.User = answer.Value
 	}
 
-	if askIfNotRequired {
-		prompt := &survey.Input{
-			Message: "Private key:",
-		}
-		question := &survey.Question{
-			Name:   "value",
-			Prompt: prompt,
-		}
-		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
-			return err
-		}
-		creds.Keys = make(map[string]string)
-		creds.Keys["0"] = answer.Value
+	creds.Keys = make(map[string]string)
+	creds.Keys["0"] = inputValues.Yorc.PrivateKeyFile
+	/*
 
-	}
+		if askIfNotRequired {
+			prompt := &survey.Input{
+				Message: "Private key:",
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+			creds.Keys = make(map[string]string)
+			creds.Keys["0"] = answer.Value
+
+		}
+	*/
 
 	return nil
 }
@@ -812,10 +962,7 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 // getFormattedDescription reformats the description found in yaml node types
 // definitions
 func getFormattedDescription(description string) string {
-	result := strings.TrimPrefix(description, "The ")
-	result = strings.TrimPrefix(result, "the ")
-	result = strings.TrimPrefix(result, "A ")
-	result = strings.TrimSpace(result)
+	result := strings.TrimSpace(description)
 	result = strings.TrimSuffix(result, ".")
 	return result
 }

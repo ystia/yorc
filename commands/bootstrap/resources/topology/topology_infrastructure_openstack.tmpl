@@ -1,6 +1,6 @@
 {{ define "Infrastructure" }}
       type: org.ystia.yorc.infrastructure.OpenStackConfig
-      properties: {{formatAsYAML .Infrastructure.openstack 8}}
+      properties: {{formatAsYAML .Infrastructures.openstack 8}}
       requirements:
         - infraHostedOnYorcServer:
             type_requirement: host

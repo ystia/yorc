@@ -26,10 +26,6 @@ import (
 	"github.com/ystia/yorc/commands"
 )
 
-const (
-	environmentVariablePrefix = "YORC"
-)
-
 // Variables with an uknown values are initialized in the root Makefile
 var (
 	alien4cloudVersion = getAlien4CloudVersionFromTOSCATypes()
@@ -75,8 +71,9 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 
-	// Adding flags and environment variables for inputs having default values
-	setDefaultInputValues()
+	// Adding extra parameters for bootstrap configuration values
+	args := os.Args
+	setBootstrapExtraParams(args, bootstrapCmd)
 
 	cleanCmd := &cobra.Command{
 		Use:   "cleanup",
@@ -88,9 +85,8 @@ func init() {
 	}
 	bootstrapCmd.AddCommand(cleanCmd)
 
-	args := os.Args
-
-	commands.ServerInitExtraFlags(args)
+	// Adding flags related to the infrastructure
+	commands.InitExtraFlags(args, bootstrapCmd)
 
 }
 
@@ -122,14 +118,14 @@ func bootstrap() error {
 	}
 
 	// Read config if any
-	viper.SetEnvPrefix(environmentVariablePrefix)
+	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
 	viper.AutomaticEnv()               // read in environment variables that match
 	viper.SetConfigName("config.yorc") // name of config file (without extension)
 	viper.AddConfigPath(workingDirectoryPath)
-	viper.AddConfigPath(".")
 	viper.ReadInConfig()
 
 	configuration := commands.GetConfig()
+
 	// Initializing parameters from environment variables, CLI options
 	// input file, and asking for user input if needed
 	if err := initializeInputs(inputsPath, resourcesDir, configuration); err != nil {

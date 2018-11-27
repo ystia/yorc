@@ -93,19 +93,19 @@ type CredentialsConfiguration struct {
 
 // TopologyValues provides inputs to the topology templates
 type TopologyValues struct {
-	Ansible        AnsibleConfiguration
-	Alien4cloud    Alien4CloudConfiguration
-	YorcPlugin     YorcPluginConfiguration `mapstructure:"yorc_plugin"`
-	Consul         ConsulConfiguration
-	Terraform      TerraformConfiguration
-	Yorc           YorcConfiguration
-	Infrastructure map[string]config.DynamicMap
-	Compute        config.DynamicMap
-	Credentials    *CredentialsConfiguration
-	Address        config.DynamicMap
-	Jdk            JdkConfiguration
-	Location       LocationConfiguration
-	Hosts          []rest.HostConfig
+	Ansible         AnsibleConfiguration
+	Alien4cloud     Alien4CloudConfiguration
+	YorcPlugin      YorcPluginConfiguration `mapstructure:"yorc_plugin"`
+	Consul          ConsulConfiguration
+	Terraform       TerraformConfiguration
+	Yorc            YorcConfiguration
+	Infrastructures map[string]config.DynamicMap
+	Compute         config.DynamicMap
+	Credentials     *CredentialsConfiguration
+	Address         config.DynamicMap
+	Jdk             JdkConfiguration
+	Location        LocationConfiguration
+	Hosts           []rest.HostConfig
 }
 
 // formatAsYAML is a function used in templates to output the yaml representation
@@ -114,6 +114,29 @@ func formatAsYAML(data interface{}, indentations int) (string, error) {
 
 	result := ""
 	bSlice, err := yaml.Marshal(data)
+	if err == nil {
+		result = indent(string(bSlice), indentations)
+	}
+	return result, err
+}
+
+// formatAsformatOnDemandResourceCredsAsYAMLYAML is a function used in
+// on-demand resources templates to output the yaml representation
+// of crednetials
+func formatOnDemandResourceCredsAsYAML(creds *CredentialsConfiguration, indentations int) (string, error) {
+
+	var onDemandCreds CredentialsConfiguration
+	onDemandCreds.User = creds.User
+	if len(creds.Keys) > 0 {
+		// Credentials keys contains the path to a private key used by the
+		// local Yorc Server. Defining here the path to private key available
+		// on the remote bootsrtrapped Yorc Server
+		onDemandCreds.Keys = make(map[string]string)
+		onDemandCreds.Keys["0"] = filepath.Join(inputValues.Yorc.DataDir, ".ssh", "yorc.pem")
+
+	}
+	result := ""
+	bSlice, err := yaml.Marshal(onDemandCreds)
 	if err == nil {
 		result = indent(string(bSlice), indentations)
 	}
@@ -256,11 +279,12 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
-		"formatAsYAML":          formatAsYAML,
-		"indent":                indent,
-		"getFile":               getFile,
-		"getRepositoryURL":      getRepositoryURL,
-		"getAlien4CloudVersion": getAlien4CloudVersion,
+		"formatAsYAML":                      formatAsYAML,
+		"formatOnDemandResourceCredsAsYAML": formatOnDemandResourceCredsAsYAML,
+		"indent":                            indent,
+		"getFile":                           getFile,
+		"getRepositoryURL":                  getRepositoryURL,
+		"getAlien4CloudVersion":             getAlien4CloudVersion,
 	}
 
 	parsedTemplate, err := template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...)

@@ -34,12 +34,14 @@ func init() {
 	// Get the CLI args
 	args := os.Args
 
-	ServerInitExtraFlags(args)
+	serverInitExtraFlags(args)
 	setConfig()
 }
 
 const (
-	environmentVariablePrefix = "YORC"
+	// EnvironmentVariablePrefix is the prefix used in Yorc commands parameters
+	// passed as environment variables
+	EnvironmentVariablePrefix = "YORC"
 )
 
 var (
@@ -132,8 +134,13 @@ func RunServer(shutdownCh chan struct{}) error {
 	return server.RunServer(configuration, shutdownCh)
 }
 
-// ServerInitExtraFlags inits infrastructure and vault flags
-func ServerInitExtraFlags(args []string) {
+func serverInitExtraFlags(args []string) {
+	InitExtraFlags(args, serverCmd)
+}
+
+// InitExtraFlags inits infrastructure and vault flags
+func InitExtraFlags(args []string, cmd *cobra.Command) {
+
 	resolvedServerExtraParams = []*serverExtraParams{
 		&serverExtraParams{
 			argPrefix:   "infrastructure_",
@@ -165,10 +172,10 @@ func ServerInitExtraFlags(args []string) {
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
 					if len(flagParts) == 1 {
 						// Boolean flag
-						serverCmd.PersistentFlags().Bool(flagName, false, "")
+						cmd.PersistentFlags().Bool(flagName, false, "")
 						viper.SetDefault(viperName, false)
 					} else {
-						serverCmd.PersistentFlags().String(flagName, "", "")
+						cmd.PersistentFlags().String(flagName, "", "")
 						viper.SetDefault(viperName, "")
 					}
 				} else {
@@ -176,16 +183,28 @@ func ServerInitExtraFlags(args []string) {
 					flagName = strings.TrimLeft(args[i], "-")
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
 					if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
-						serverCmd.PersistentFlags().String(flagName, "", "")
-						viper.SetDefault(viperName, "")
+
+						// Arguments ending wih a plural 's' are considered to
+						// be slices
+						if strings.HasSuffix(args[i], "s") {
+							// May have already been defined as string slice
+							// flags can appear several times
+							if cmd.PersistentFlags().Lookup(flagName) == nil {
+								cmd.PersistentFlags().StringSlice(flagName, []string{}, "")
+								viper.SetDefault(viperName, []string{})
+							}
+						} else {
+							cmd.PersistentFlags().String(flagName, "", "")
+							viper.SetDefault(viperName, "")
+						}
 					} else {
 						// Boolean flag
-						serverCmd.PersistentFlags().Bool(flagName, false, "")
+						cmd.PersistentFlags().Bool(flagName, false, "")
 						viper.SetDefault(viperName, false)
 					}
 				}
 				// Add viper flag
-				viper.BindPFlag(viperName, serverCmd.PersistentFlags().Lookup(flagName))
+				viper.BindPFlag(viperName, cmd.PersistentFlags().Lookup(flagName))
 				sep.viperNames = append(sep.viperNames, viperName)
 			}
 		}
@@ -318,7 +337,7 @@ func setConfig() {
 	}
 
 	//Environment Variables
-	viper.SetEnvPrefix(environmentVariablePrefix)
+	viper.SetEnvPrefix(EnvironmentVariablePrefix)
 	viper.AutomaticEnv() // read in environment variables that match
 	viper.BindEnv("working_directory")
 	viper.BindEnv("plugins_directory")
@@ -515,7 +534,7 @@ func toFlatKey(nestedKey string) string {
 // variable
 func toEnvVar(key string) string {
 
-	name := environmentVariablePrefix + "_" + toFlatKey(key)
+	name := EnvironmentVariablePrefix + "_" + toFlatKey(key)
 	return strings.ToUpper(name)
 }
 

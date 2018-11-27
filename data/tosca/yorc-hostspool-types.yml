@@ -14,7 +14,7 @@ node_types:
     properties:
       shareable:
         type: boolean
-        description: Can the compute can be shared
+        description: Can the compute node be shared
         required: false
         default: false
       filters:
@@ -26,7 +26,7 @@ node_types:
     attributes:
       hostname:
         type: string
-        description: The hostname as known in the hosts pool
+        description: Hostname as known in the hosts pool
     capabilities:
       endpoint:
         type: yorc.capabilities.Endpoint.ProvisioningAdmin
