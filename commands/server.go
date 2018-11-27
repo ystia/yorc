@@ -468,7 +468,25 @@ func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
 		params = make(config.DynamicMap)
 		cfg.Infrastructures[paramParts[1]] = params
 	}
-	params.Set(paramParts[2], value)
+
+	// When the key/value pair is read from an environment variable, the value is
+	// read as a string. This needs to be changed if the variable is expected to
+	// be an array
+	if strings.HasSuffix(paramParts[2], "s") {
+		// value should be a slice
+		switch value.(type) {
+		case string:
+			vSlice := strings.Split(fmt.Sprint(value), ",")
+			for i, val := range vSlice {
+				vSlice[i] = strings.TrimSpace(val)
+			}
+			params.Set(paramParts[2], vSlice)
+		default:
+			params.Set(paramParts[2], value)
+		}
+	} else {
+		params.Set(paramParts[2], value)
+	}
 }
 
 func addServerExtraVaultParam(cfg *config.Configuration, vaultParam string) {

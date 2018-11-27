@@ -58,18 +58,33 @@ func init() {
 	commands.RootCmd.AddCommand(bootstrapCmd)
 	bootstrapCmd.PersistentFlags().StringVarP(&infrastructureType,
 		"infrastructure", "i", "", "Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool")
+	viper.BindPFlag("infrastructure", bootstrapCmd.PersistentFlags().Lookup("infrastructure"))
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentType,
 		"deployment_type", "d", "single_node", "Define deployment type: single_node or HA")
+	viper.BindPFlag("deployment_type", bootstrapCmd.PersistentFlags().Lookup("deployment_type"))
 	bootstrapCmd.PersistentFlags().StringVarP(&followType,
 		"follow", "f", "steps", "Follow bootstrap deployment steps, logs, or none")
+	viper.BindPFlag("follow", bootstrapCmd.PersistentFlags().Lookup("follow"))
 	bootstrapCmd.PersistentFlags().StringVarP(&inputsPath,
 		"values", "v", "", "Path to file containing input values")
 	bootstrapCmd.PersistentFlags().BoolVarP(&reviewInputs, "review", "r", false,
 		"Review and update input values before starting the bootstrap")
+	viper.BindPFlag("review", bootstrapCmd.PersistentFlags().Lookup("review"))
 	bootstrapCmd.PersistentFlags().StringVarP(&resourcesZipFilePath,
 		"resources_zip", "z", "", "Path to bootstrap resources zip file")
+	viper.BindPFlag("resources_zip", bootstrapCmd.PersistentFlags().Lookup("resources_zip"))
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
+	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
+
+	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
+	viper.AutomaticEnv() // read in environment variables that match
+	viper.BindEnv("infrastructure")
+	viper.BindEnv("deployment_type")
+	viper.BindEnv("follow")
+	viper.BindEnv("review")
+	viper.BindEnv("resources_zip")
+	viper.BindEnv("working_directory")
 
 	// Adding extra parameters for bootstrap configuration values
 	args := os.Args
@@ -87,6 +102,11 @@ func init() {
 
 	// Adding flags related to the infrastructure
 	commands.InitExtraFlags(args, bootstrapCmd)
+
+	// When review is set through an environment variable
+	// it has to be converted as a boolean or it is not taken into account
+	// correctly
+	reviewInputs = viper.GetBool("review")
 
 }
 
@@ -118,8 +138,6 @@ func bootstrap() error {
 	}
 
 	// Read config if any
-	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
-	viper.AutomaticEnv()               // read in environment variables that match
 	viper.SetConfigName("config.yorc") // name of config file (without extension)
 	viper.AddConfigPath(workingDirectoryPath)
 	viper.ReadInConfig()
