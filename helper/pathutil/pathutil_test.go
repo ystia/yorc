@@ -22,7 +22,7 @@ func TestIsValidPath(t *testing.T) {
 		arg  string
 		want bool
 	}{
-		{"ExistingPathWithTilde", "~/.ssh/yorc.pem", true},
+		{"ExistingPath", "./pathutil_test.go", true},
 		{"FakePath", "/this/is/not/a/valid/path", false},
 	}
 	for _, tt := range tests {
