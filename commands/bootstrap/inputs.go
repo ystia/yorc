@@ -70,6 +70,10 @@ var (
 			description: "Path to ssh private key accessible locally",
 			value:       "",
 		},
+		"yorc.workers_number": defaultInputType{
+			description: "Number of Yorc workers handling bootstrap deployment tasks",
+			value:       config.DefaultWorkersNumber,
+		},
 	}
 
 	yorcPluginDefaultInputs = map[string]defaultInputType{
@@ -566,9 +570,19 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	inputValues.Location.Name = inputValues.Location.Type
 
 	if reviewInputs {
-		err = reviewAndUpdateInputs()
+		if err := reviewAndUpdateInputs(); err != nil {
+			return err
+		}
 	}
-	return err
+
+	// Post treatment needed on Google Cloud
+	if infrastructureType == "google" {
+		if err := prepareGoogleInfraInputs(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // reviewAndUpdateInputs allows the user to review and change deployment inputs
@@ -957,6 +971,28 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 
 	return nil
 
+}
+
+// prepareGoogleInfraInputs updates inputs for a Google Infrastructure if needed
+// to use the content of service account key file instead of the path to this file
+func prepareGoogleInfraInputs() error {
+
+	if !inputValues.Infrastructures["google"].IsSet("application_credentials") {
+		return nil
+	}
+
+	credsPath := inputValues.Infrastructures["google"].GetString("application_credentials")
+	if credsPath == "" {
+		return nil
+	}
+	data, err := ioutil.ReadFile(credsPath)
+	if err != nil {
+		return err
+	}
+	// Using file content instead of file path
+	inputValues.Infrastructures["google"].Set("credentials", string(data[:]))
+	inputValues.Infrastructures["google"].Set("application_credentials", "")
+	return nil
 }
 
 // getFormattedDescription reformats the description found in yaml node types

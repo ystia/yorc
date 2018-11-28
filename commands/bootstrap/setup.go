@@ -71,9 +71,13 @@ func setupYorcServer(workingDirectoryPath string) error {
 	// First creating a Yorc config file defining the infrastructure
 	serverConfig := config.Configuration{
 		WorkingDirectory: workingDirectoryPath,
-		ResourcesPrefix:  "bootstrap",
+		ResourcesPrefix:  "bootstrap-",
+		WorkersNumber:    inputValues.Yorc.WorkersNumber,
 		Infrastructures:  inputValues.Infrastructures,
-		Ansible:          config.Ansible{KeepGeneratedRecipes: true},
+		Ansible: config.Ansible{
+			DebugExec:            true,
+			KeepGeneratedRecipes: true,
+		},
 	}
 
 	bSlice, err := yaml.Marshal(serverConfig)

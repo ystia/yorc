@@ -45,6 +45,7 @@ type YorcConfiguration struct {
 	PrivateKeyContent string `yaml:"private_key_content" mapstructure:"private_key_content"`
 	PrivateKeyFile    string `yaml:"private_key_file" mapstructure:"private_key_file"`
 	DataDir           string `yaml:"data_dir" mapstructure:"data_dir"`
+	WorkersNumber     int    `yaml:"workers_number" mapstructure:"workers_number"`
 }
 
 // YorcPluginConfiguration provides Yorc plugin user-defined settings

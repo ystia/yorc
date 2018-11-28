@@ -371,8 +371,6 @@ topology_template:
           activities:
             - delegate: install
           on_success:
-            - TerraformRuntime_initial
-            - AnsibleRuntime_initial
             - ConsulAgentYorcServer_initial
             - NFSClient_initial
             - YorcServer_initial
@@ -769,6 +767,7 @@ topology_template:
             - set_state: created
           on_success:
             - AnsibleRuntime_configuring
+            - TerraformRuntime_initial
         YorcServer_configure:
           target: YorcServer
           activities:
@@ -899,6 +898,7 @@ topology_template:
             - set_state: created
           on_success:
             - ConsulAgentYorcServer_configuring
+            - AnsibleRuntime_initial
         TerraformRuntime_creating:
           target: TerraformRuntime
           activities:

@@ -236,8 +236,6 @@ topology_template:
           activities:
             - delegate: install
           on_success:
-            - TerraformRuntime_initial
-            - AnsibleRuntime_initial
             - OracleJDK_initial
             - ConsulServer_initial
             - YorcServer_initial
@@ -348,6 +346,7 @@ topology_template:
             - set_state: created
           on_success:
             - ConsulServer_configuring
+            - AnsibleRuntime_initial
         Infrastructure_starting:
           target: Infrastructure
           activities:
@@ -735,6 +734,7 @@ topology_template:
             - set_state: created
           on_success:
             - AnsibleRuntime_configuring
+            - TerraformRuntime_initial
         YorcServer_configure:
           target: YorcServer
           activities:
