@@ -119,13 +119,15 @@ func TestTruncate(t *testing.T) {
 		args args
 		want string
 	}{
-		{"TruncateToFiveChar", args{"abcdefghijklm", 5}, "abcde..."},
+		{"TruncateToFiveChar", args{"abcdefghijklm", 5}, "ab..."},
+		{"TruncateTo-1", args{"abcdefghijklm", -1}, "abcdefghijklm"},
+		{"TruncateTo2", args{"abcdefghijklm", 2}, "abcdefghijklm"},
 		{"NoTruncate", args{"abcdefg", 20}, "abcdefg"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Truncate(tt.args.str, tt.args.l); got != tt.want {
-				t.Errorf("IsValidPath() = %v, want %v", got, tt.want)
+				t.Errorf("Truncate() = %v, want %v", got, tt.want)
 			}
 		})
 	}

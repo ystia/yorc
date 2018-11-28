@@ -49,7 +49,7 @@ func (g *osGenerator) getStringFormConsul(kv *api.KV, baseURL, property string) 
 	return string(getResult.Value), nil
 }
 
-func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, func(), error) {
+func (g *osGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	cClient, err := cfg.GetConsulClient()
 	if err != nil {

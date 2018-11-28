@@ -29,6 +29,9 @@ import (
 // FileOutputPrefix is the prefix to identify file output
 const FileOutputPrefix = "file:"
 
+// PostApplyCallback is a callback function called after Terraform apply execution
+type PostApplyCallback func()
+
 // A Generator is used to generate the Terraform infrastructure for a given TOSCA node
 type Generator interface {
 	// GenerateTerraformInfraForNode generates the Terraform infrastructure file for the given node.
@@ -38,7 +41,7 @@ type Generator interface {
 	// And a list of environment variables in form "key=value" to be added to the current process environment when running terraform commands.
 	// This is particularly useful for adding secrets that should not be in tf files.
 	// It returns too a callback function allowing execution some cleanup stuff once the infrastructure has been applied
-	GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, func(), error)
+	GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, PostApplyCallback, error)
 }
 
 // PreDestroyInfraCallback is a function that is call before destroying an infrastructure. If it returns false the node will not be destroyed.

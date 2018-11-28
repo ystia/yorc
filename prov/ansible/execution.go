@@ -52,6 +52,7 @@ import (
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
+	"golang.org/x/crypto/ssh"
 )
 
 const ansibleConfig = `[defaults]
@@ -776,7 +777,12 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		if !e.cfg.UseSSHAgent && sshCredentials.privateKey != "" {
 			// check privateKey's a valid path
 			if is, err := pathutil.IsValidPath(sshCredentials.privateKey); err != nil || !is {
-				return errors.Errorf("%q is not a valid path", stringutil.Truncate(sshCredentials.privateKey, 20))
+				// Truncate it if it's a private key
+				ufo := sshCredentials.privateKey
+				if _, err = ssh.ParsePrivateKey([]byte(sshCredentials.privateKey)); err == nil {
+					ufo = stringutil.Truncate(sshCredentials.privateKey, 20)
+				}
+				return errors.Errorf("%q is not a valid path", ufo)
 			}
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
 		} else if sshCredentials.password != "" {

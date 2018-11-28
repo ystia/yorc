@@ -33,6 +33,7 @@ import (
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
+	"golang.org/x/crypto/ssh"
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
@@ -293,7 +294,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	if len(devices) > 0 {
 		// need to use an SSH Agent to make it
 		if sshAgent == nil && cfg.UseSSHAgent {
-			sshAgent, err = getSSHAgent(ctx, privateKey)
+			sshAgent, err = commons.GetSSHAgent(ctx, privateKey)
 			if err != nil {
 				return err
 			}
@@ -335,7 +336,12 @@ func handleDeviceAttributes(cfg config.Configuration, infrastructure *commons.In
 		} else {
 			// check privateKey's a valid path
 			if is, err := pathutil.IsValidPath(privateKey); err != nil || !is {
-				return errors.Errorf("%q is not a valid path", stringutil.Truncate(privateKey, 20))
+				// Truncate it if it's a private key
+				ufo := privateKey
+				if _, err = ssh.ParsePrivateKey([]byte(privateKey)); err == nil {
+					ufo = stringutil.Truncate(privateKey, 20)
+				}
+				return errors.Errorf("%q is not a valid path", ufo)
 			}
 			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKey, user, accessIP, dev, dev)
 		}

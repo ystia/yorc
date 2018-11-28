@@ -38,19 +38,7 @@ const infrastructureName = "google"
 type googleGenerator struct {
 }
 
-func getSSHAgent(ctx context.Context, privateKey string) (*sshutil.SSHAgent, error) {
-	sshAgent, err := sshutil.NewSSHAgent(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = sshAgent.AddKey(privateKey, 3600)
-	if err != nil {
-		return nil, err
-	}
-	return sshAgent, nil
-}
-
-func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, func(), error) {
+func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string) (bool, map[string]string, []string, commons.PostApplyCallback, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 
 	cClient, err := cfg.GetConsulClient()

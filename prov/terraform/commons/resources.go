@@ -15,6 +15,7 @@
 package commons
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -192,4 +193,17 @@ func AddConnectionCheckResource(infrastructure *Infrastructure, user, privateKey
 
 	AddResource(infrastructure, "null_resource", resourceName+"-ConnectionCheck", &nullResource)
 	return nil
+}
+
+// GetSSHAgent provides an SSH-agent for specific Terraform needs
+func GetSSHAgent(ctx context.Context, privateKey string) (*sshutil.SSHAgent, error) {
+	sshAgent, err := sshutil.NewSSHAgent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = sshAgent.AddKey(privateKey, 3600)
+	if err != nil {
+		return nil, err
+	}
+	return sshAgent, nil
 }

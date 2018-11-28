@@ -144,15 +144,13 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 // - or the content or this private key file
 func ReadPrivateKey(pk string) (ssh.AuthMethod, error) {
 	raw, err := ToPrivateKeyContent(pk)
-
+	if err != nil {
+		return nil, err
+	}
 	signer, err := ssh.ParsePrivateKey(raw)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to parse key file %q", pk)
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	return ssh.PublicKeys(signer), nil
 }
 
