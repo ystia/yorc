@@ -35,7 +35,8 @@ import (
 
 // AnsibleConfiguration provides Ansible user-defined settings
 type AnsibleConfiguration struct {
-	Version string
+	Version              string
+	PackageRepositoryURL string `yaml:"extra_package_repository_url" mapstructure:"extra_package_repository_url"`
 }
 
 // YorcConfiguration provides Yorc user-defined settings

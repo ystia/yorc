@@ -51,6 +51,10 @@ var (
 			description: "Ansible version",
 			value:       ansibleVersion,
 		},
+		"ansible.extra_package_repository_url": defaultInputType{
+			description: "URL of package indexes where to find the ansible package, instead of the default Python Package repository",
+			value:       "",
+		},
 	}
 
 	yorcDefaultInputs = map[string]defaultInputType{
