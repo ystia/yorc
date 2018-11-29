@@ -97,6 +97,12 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	if err != nil {
 		return err
 	}
+	// Execute callback if needed
+	defer func() {
+		if cb != nil {
+			cb()
+		}
+	}()
 	if infraGenerated {
 		if err = e.applyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infrastructurePath, outputs, env); err != nil {
 			return err
@@ -107,11 +113,6 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 		if err != nil {
 			return err
 		}
-	}
-
-	// Execute callback if needed
-	if cb != nil {
-		cb()
 	}
 	return nil
 }
@@ -127,6 +128,12 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 	if err != nil {
 		return err
 	}
+	// Execute callback if needed
+	defer func() {
+		if cb != nil {
+			cb()
+		}
+	}()
 	if infraGenerated {
 		if err = e.destroyInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infrastructurePath, outputs, env); err != nil {
 			return err
@@ -137,10 +144,6 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 		if err != nil {
 			return err
 		}
-	}
-	// Execute callback if needed
-	if cb != nil {
-		cb()
 	}
 	return nil
 }
