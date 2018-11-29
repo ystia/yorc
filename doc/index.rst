@@ -27,6 +27,7 @@ Yorc |release| Documentation
    :maxdepth: 2
 
    install
+   bootstrap
    configuration
    run
    cli
