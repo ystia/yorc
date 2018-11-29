@@ -67,7 +67,7 @@ var (
 			value:       config.DefaultHTTPPort,
 		},
 		"yorc.data_dir": defaultInputType{
-			description: "Yorc Home directory",
+			description: "Bootstrapped Yorc Home directory",
 			value:       "/var/yorc",
 		},
 		"yorc.private_key_file": defaultInputType{
@@ -474,6 +474,12 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			if err != nil {
 				return err
 			}
+		} else {
+			// The private SSH key used to connect to each host is the Yorc private key
+			privateKeyPath := filepath.Join(inputValues.Yorc.DataDir, ".ssh", "yorc.pem")
+			for i, _ := range inputValues.Hosts {
+				inputValues.Hosts[i].Connection.PrivateKey = privateKeyPath
+			}
 		}
 	}
 
@@ -810,7 +816,7 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 
 			hostConfig.Labels[labelKey] = answer.Value
 
-			// If the public address label is alreay defined
+			// If the public address label is already defined
 			// asking if a new label must be defined
 			// else a new label must be defined, because public_address is
 			// mandatory for the bootstrap
