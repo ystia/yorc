@@ -186,7 +186,7 @@ func InitExtraFlags(args []string, cmd *cobra.Command) {
 
 						// Arguments ending wih a plural 's' are considered to
 						// be slices
-						if strings.HasSuffix(args[i], "s") {
+						if strings.HasSuffix(args[i], "s") && !strings.HasSuffix(args[i], "credentials") {
 							// May have already been defined as string slice
 							// flags can appear several times
 							if cmd.PersistentFlags().Lookup(flagName) == nil {
@@ -472,7 +472,7 @@ func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
 	// When the key/value pair is read from an environment variable, the value is
 	// read as a string. This needs to be changed if the variable is expected to
 	// be an array
-	if strings.HasSuffix(paramParts[2], "s") {
+	if strings.HasSuffix(paramParts[2], "s") && !strings.HasSuffix(paramParts[2], "credentials") {
 		// value should be a slice
 		switch value.(type) {
 		case string:
