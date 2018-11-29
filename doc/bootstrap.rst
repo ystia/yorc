@@ -225,21 +225,21 @@ described at :ref:`_yorc_config_section`, the bootstrap configuration can be pro
 in a configuration file following the same naming rules for configuration variables,
 for example :
 
-code-block:: YAML
+.. code-block:: YAML
 
   alien4cloud:
     user: admin
     port: 8088
   infrastructures:
     openstack:
-    auth_url: http://10.1.2.3:5000/v2.0
+      auth_url: http://10.1.2.3:5000/v2.0
 
 Sections below provide examples of configuration files for each type of infrastructure.
 
 Example of a Google Cloud deployment configuration file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-code-block:: YAML
+.. code-block:: YAML
 
   yorc:
     # Path to private key file on local host
@@ -267,7 +267,7 @@ code-block:: YAML
 Example of an AWS deployment configuration file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-code-block:: YAML
+.. code-block:: YAML
 
   yorc:
     # Path to private key file on local host
@@ -293,7 +293,7 @@ code-block:: YAML
 Example of an OpenStack deployment configuration file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-code-block:: YAML
+.. code-block:: YAML
 
   yorc:
     # Path to private key file on local host
@@ -324,7 +324,7 @@ code-block:: YAML
 Example of a Hosts Pool deployment configuration file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-code-block:: YAML
+.. code-block:: YAML
 
   yorc:
     # Path to private key file on local host
