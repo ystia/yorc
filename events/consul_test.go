@@ -27,36 +27,36 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 	defer srv.Stop()
 
 	t.Run("groupEvents", func(t *testing.T) {
-		//t.Run("TestConsulPubSubStatusChange", func(t *testing.T) {
-		//	testConsulPubSubStatusChange(t, kv)
-		//})
-		//t.Run("TestConsulPubSubNewEvents", func(t *testing.T) {
-		//	testConsulPubSubNewEvents(t, kv)
-		//})
-		//t.Run("TestConsulPubSubNewEventsTimeout", func(t *testing.T) {
-		//	testConsulPubSubNewEventsTimeout(t, kv)
-		//})
-		//t.Run("TestConsulPubSubNewEventsWithIndex", func(t *testing.T) {
-		//	testConsulPubSubNewEventsWithIndex(t, kv)
-		//})
-		//t.Run("TestConsulPubSubNewNodeEvents", func(t *testing.T) {
-		//	testConsulPubSubNewNodeEvents(t, kv)
-		//})
-		//t.Run("TestDeploymentStatusChange", func(t *testing.T) {
-		//	testconsulDeploymentStatusChange(t, kv)
-		//})
-		//t.Run("TestCustomCommandStatusChange", func(t *testing.T) {
-		//	testconsulCustomCommandStatusChange(t, kv)
-		//})
-		//t.Run("TestScalingStatusChange", func(t *testing.T) {
-		//	testconsulScalingStatusChange(t, kv)
-		//})
-		//t.Run("TestWorkflowStatusChange", func(t *testing.T) {
-		//	testconsulWorkflowStatusChange(t, kv)
-		//})
-		//t.Run("TestGetStatusEvents", func(t *testing.T) {
-		//	testconsulGetStatusEvents(t, kv)
-		//})
+		t.Run("TestConsulPubSubStatusChange", func(t *testing.T) {
+			testConsulPubSubStatusChange(t, kv)
+		})
+		t.Run("TestConsulPubSubNewEvents", func(t *testing.T) {
+			testConsulPubSubNewEvents(t, kv)
+		})
+		t.Run("TestConsulPubSubNewEventsTimeout", func(t *testing.T) {
+			testConsulPubSubNewEventsTimeout(t, kv)
+		})
+		t.Run("TestConsulPubSubNewEventsWithIndex", func(t *testing.T) {
+			testConsulPubSubNewEventsWithIndex(t, kv)
+		})
+		t.Run("TestConsulPubSubNewNodeEvents", func(t *testing.T) {
+			testConsulPubSubNewNodeEvents(t, kv)
+		})
+		t.Run("TestDeploymentStatusChange", func(t *testing.T) {
+			testconsulDeploymentStatusChange(t, kv)
+		})
+		t.Run("TestCustomCommandStatusChange", func(t *testing.T) {
+			testconsulCustomCommandStatusChange(t, kv)
+		})
+		t.Run("TestScalingStatusChange", func(t *testing.T) {
+			testconsulScalingStatusChange(t, kv)
+		})
+		t.Run("TestWorkflowStatusChange", func(t *testing.T) {
+			testconsulWorkflowStatusChange(t, kv)
+		})
+		t.Run("TestGetStatusEvents", func(t *testing.T) {
+			testconsulGetStatusEvents(t, kv)
+		})
 		t.Run("TestGetLogs", func(t *testing.T) {
 			testconsulGetLogs(t, kv)
 		})

@@ -43,7 +43,13 @@ func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status s
 func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
 
-	e := newEventStatusChange(ctx, StatusChangeTypeInstance, nil, deploymentID, status)
+	info := make(Info)
+	info[infoNodeID] = nodeName
+	info[infoInstanceID] = instance
+	e, err := newStatusChange(StatusChangeTypeInstance, info, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
 	id, err := e.register()
 	if err != nil {
 		return "", err
@@ -65,7 +71,10 @@ func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, er
 //
 // PublishAndLogDeploymentStatusChange returns the published event id
 func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploymentID, status string) (string, error) {
-	e := newEventStatusChange(ctx, StatusChangeTypeDeployment, nil, deploymentID, status)
+	e, err := newStatusChange(StatusChangeTypeDeployment, nil, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
 	id, err := e.register()
 	if err != nil {
 		return "", err
@@ -90,7 +99,12 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	e := newEventStatusChange(ctx, StatusChangeTypeCustomCommand, nil, deploymentID, status)
+	info := make(Info)
+	info[infoExecutionID] = taskID
+	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
 	id, err := e.register()
 	if err != nil {
 		return "", err
@@ -115,7 +129,12 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	e := newEventStatusChange(ctx, StatusChangeTypeScaling, nil, deploymentID, status)
+	info := make(Info)
+	info[infoExecutionID] = taskID
+	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
 	id, err := e.register()
 	if err != nil {
 		return "", err
@@ -133,6 +152,62 @@ func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (stri
 	return PublishAndLogWorkflowStatusChange(nil, kv, deploymentID, taskID, status)
 }
 
+// PublishAndLogWorkflowStepStatusChange publishes a status change for a workflow step execution and log this change into the log API
+//
+// PublishAndLogWorkflowStepStatusChange returns the published event id
+func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowName, nodeName, stepName, operationName, targetNodeID, targetInstanceID, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
+	}
+	info := make(Info)
+	info[infoExecutionID] = taskID
+	info[infoWorkFlowID] = workflowName
+	info[infoNodeID] = nodeName
+	info[infoStepID] = stepName
+	info[infoOperationName] = operationName
+	info[infoTargetNodeID] = targetNodeID
+	info[infoTargetInstanceID] = targetInstanceID
+	e, err := newStatusChange(StatusChangeTypeWorkflowStep, info, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
+	if err != nil {
+		return "", err
+	}
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
+	return id, nil
+}
+
+// PublishAndLogAlienTaskStatusChange publishes a status change for a task execution and log this change into the log API
+//
+// PublishAndLogAlienTaskStatusChange returns the published event id
+func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, taskExecutionID, workflowName, nodeName, stepName, operationName, targetNodeID, targetInstanceID, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
+	}
+	info := make(Info)
+	info[infoExecutionID] = taskID
+	// Warning: Alien task corresponds to what we call taskExecution
+	info[infoAlienTaskID] = taskExecutionID
+	info[infoWorkFlowID] = workflowName
+	info[infoNodeID] = nodeName
+	info[infoWorkflowStepID] = stepName
+	info[infoOperationName] = operationName
+	info[infoTargetNodeID] = targetNodeID
+	info[infoTargetInstanceID] = targetInstanceID
+	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
+	if err != nil {
+		return "", err
+	}
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
+	return id, nil
+}
+
 // PublishAndLogWorkflowStatusChange publishes a status change for a workflow task and log this change into the log API
 //
 // PublishAndLogWorkflowStatusChange returns the published event id
@@ -140,7 +215,12 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	e := newEventStatusChange(ctx, StatusChangeTypeWorkflow, nil, deploymentID, status)
+	info := make(Info)
+	info[infoExecutionID] = taskID
+	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
 	id, err := e.register()
 	if err != nil {
 		return "", err

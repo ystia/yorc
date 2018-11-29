@@ -35,9 +35,11 @@ const (
 	StatusChangeTypeWorkflow
 	// StatusChangeTypeWorkflowStep is a StatusChangeType of type WorkflowStep
 	StatusChangeTypeWorkflowStep
+	// StatusChangeTypeAlienTask is a StatusChangeType of type AlienTask
+	StatusChangeTypeAlienTask
 )
 
-const _StatusChangeTypeName = "InstanceDeploymentCustomCommandScalingWorkflowWorkflowStep"
+const _StatusChangeTypeName = "InstanceDeploymentCustomCommandScalingWorkflowWorkflowStepAlienTask"
 
 var _StatusChangeTypeMap = map[StatusChangeType]string{
 	0: _StatusChangeTypeName[0:8],
@@ -46,6 +48,7 @@ var _StatusChangeTypeMap = map[StatusChangeType]string{
 	3: _StatusChangeTypeName[31:38],
 	4: _StatusChangeTypeName[38:46],
 	5: _StatusChangeTypeName[46:58],
+	6: _StatusChangeTypeName[58:67],
 }
 
 // String implements the Stringer interface.
@@ -69,6 +72,8 @@ var _StatusChangeTypeValue = map[string]StatusChangeType{
 	strings.ToLower(_StatusChangeTypeName[38:46]): 4,
 	_StatusChangeTypeName[46:58]:                  5,
 	strings.ToLower(_StatusChangeTypeName[46:58]): 5,
+	_StatusChangeTypeName[58:67]:                  6,
+	strings.ToLower(_StatusChangeTypeName[58:67]): 6,
 }
 
 // ParseStatusChangeType attempts to convert a string to a StatusChangeType
