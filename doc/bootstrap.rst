@@ -40,6 +40,7 @@ Packages
 The bootstrap operation will install a basic Yorc setup on the local host.
 
 It requires the following packages to be installed on the local host:
+
   * python
   * python-pip
   * zip/unzip
@@ -49,14 +50,14 @@ It requires the following packages to be installed on the local host:
 This basic installation on the local host will attempt to install python ansible
 module |ansible_version| if needed, without sudo privileges.
 So if this ansible module is not yet installed on the local host, you could either
-add it yourself, with sudo privileges, running :
+add it yourself, with sudo privileges, running:
 
 .. parsed-literal::
 
     sudo pip install ansible==\ |ansible_version|
 
-Or you could create a python virtual environment, and let the Yorc CLI install
-the ansible module within this virtual environment (operation which doesn't require sudo privileges).
+Or you could create a python virtual environment, and let the Yorc bootstrap command
+install the ansible module within this virtual environment (operation which doesn't require sudo privileges).
 
 You can run these commands to create a virtual environment, here a virtual 
 environment called ``yorcenv`` :
@@ -77,7 +78,7 @@ You are now ready to download Yorc binary, running :
 Bootstrap process overview
 --------------------------
 
-The command ``yorc bootstrap`` will configure on the local host, a basic setup with 
+The command ``yorc bootstrap`` will configure on the local host a basic setup with 
 Yorc and a Consul data store.
 
 This basic setup will then be used to bootstrap the full stack Alien4Cloud/Yorc
@@ -88,6 +89,7 @@ on several nodes as described in :ref:`_yorc_ha_section`, using ``yorc bootstrap
 command line option ``--deployment_type HA`` described below.
 
 Configuration values can be provided by the user:
+
  * in interactive mode,
  * through a configuration file,
  * using ``yorc bootstrap`` command line options
@@ -97,22 +99,24 @@ You can combine these modes, ``yorc bootstrap`` will check in any case if
 required configuration values are missing, and will ask for missing values.
 
 These configuration values will allow you to specify:
+
   * optional Alien4Cloud configuration values
-  * Yorc configuration values, all optional, except from a ssh private key that
-    will be used by the local orchestrator to connect to the bootstrapped setup
+  * Yorc configuration values, all optional, except from the path to a ssh private
+    key that will be used by the local orchestrator to connect to the bootstrapped setup
   * Infrastructure configuration with required configuration values depending on
-    the infrastucture, described at :ref:`_infrastructures_configuration_section`
+    the infrastucture, as described at :ref:`_infrastructures_configuration_section`
   * Configuration of compute Nodes to create on demand,
   * User used to connect to these compute nodes,
   * Configuration of the connection to public network created on demand.
 
-Details of these on-demand resources configuration are provided it the Alien4Cloud Yorc plugin at 
-https://yorc-a4c-plugin.readthedocs.io/en/latest/location.html and the last sections 
-below in this page provide an example of configuration for each infrastructure type.
+Details of these on-demand resources configuration values are provided in the Alien4Cloud
+Yorc plugin at https://yorc-a4c-plugin.readthedocs.io/en/latest/location.html and 
+the last sections below in this page provide an example of configuration for each
+infrastructure type.
 
 Once configuration settings are provided, ``yorc bootstrap`` will proceed to the
 full stack deployment, showing deployment steps progress (by default, but you can see 
-deployment logs instead trough the option ``--follow logs `` described below).
+deployment logs instead trough the option ``--follow logs`` described below).
 
 Once the deployment is finished, the orchestrator on the local host is still running,
 so you can perform commands like ``./yorc deployments list``, ``./yorc deployments logs -b``, etc...
@@ -120,7 +124,7 @@ Or perform any deployment troubleshooting if needed.
 
 To undeploy a bootstrapped setup, you can also use the CLI, running ``./yorc deployments undeploy <deployment id>``.
 
-To clean the local host setup, run :
+To clean the local host setup, run:
 
 .. parsed-literal::
 
@@ -133,7 +137,8 @@ setup installed on remote hosts.
 Bootstrapping the setup in interactive mode
 -------------------------------------------
 
-You can bootstrap the setup in interactive mode running :
+You can bootstrap the setup in interactive mode running:
+
 .. parsed-literal::
 
     ./yorc bootstrap [--review]
@@ -149,13 +154,14 @@ environment variable ``EDITOR`` if defined or using vi or vim if available.
 Bootstrapping the setup using command line options
 --------------------------------------------------
 
-The following ``yorc bootstrap`` option are available :
+The following ``yorc bootstrap`` option are available:
+
   * ``--alien4cloud_download_url`` Alien4Cloud download URL (defaults to the Alien4Cloud version compatible with this Yorc, under https://fastconnect.org/maven/content/repositories/opensource/alien4cloud/alien4cloud-dist/)
   * ``--alien4cloud_password`` Alien4Cloud password (default, admin)
   * ``--alien4cloud_port`` Alien4Cloud port (default 8088)
   * ``--alien4cloud_user`` Alien4Cloud user (default, admin)
   * ``--ansible_extra_package_repository_url`` URL of package indexes where to find the ansible package, instead of the default Python Package repository
-  * ``--ansible_version`` Ansible version (default 2.6.3)
+  * ``--ansible_version`` Ansible version (default \ |ansible_version|\ )
   * ``--consul_download_url`` Consul download URL (default, Consul version compatible with this Yorc, under https://releases.hashicorp.com/consul/)
   * ``--consul_port`` Consul port (default 8500)
   * ``--credentials_user`` User Yorc uses to connect to Compute Nodes
@@ -180,9 +186,10 @@ The following ``yorc bootstrap`` option are available :
 In addition, similarly to the configuration of infrastructures in ``yorc server``
 command described at :ref:`_infrastructures_configuration_section`, you can use options to
 define infrastructure and on-demand resources configuration values, for example :
+
   * ``--infrastructure_openstack_auth_url`` allows to define the authentication URL of an OpenStack infrastructure.
 
-The ``--resources_zip`` is an advanced usage option allowing you to change
+The option ``--resources_zip`` is an advanced usage option allowing you to change
 the bootstrap deployment description. You need to clone first the Yorc source code repository at
 https://github.com/ystia/yorc, go into to directory ``commands``, change deployment 
 description files under ``bootstrap/resources/topology``, then zip the content of ``bootstrap/resources/``
@@ -193,7 +200,8 @@ Bootstrapping the setup using environment variables
 
 Similarly to the configuration of ``yorc server`` through environment variables
 described at :ref:`_yorc_config_section`, the bootstrap configuration can be provided
-through environment variables following the same naming rules, for example :
+through environment variables following the same naming rules, for example:
+
   * ``YORC_ALIEN4CLOUD_PORT`` allows to define the Alien4Cloud port
   * ``YORC_INFRA_OPENSTACK_AUTH_URL`` allows to define the authentication URL of an OpenStack infrastructure.
 
@@ -205,7 +213,8 @@ Once these environment variables are defined, you can bootstrap the setup runnin
 Bootstrapping the setup using a configuration file
 --------------------------------------------------
 
-You can bootstrap the setup using a configuration file running :
+You can bootstrap the setup using a configuration file running:
+
 .. parsed-literal::
 
     ./yorc bootstrap --values <path to configuration file> [--review]
