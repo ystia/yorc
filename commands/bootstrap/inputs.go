@@ -914,18 +914,18 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 				additionalMsg = "(required"
 			}
 			if isList {
-				if additionalMsg != "" {
-					additionalMsg = "(comma-separated list"
+				if additionalMsg == "" {
+					additionalMsg = " (comma-separated list"
 				} else {
 					additionalMsg += ", comma-separated list"
 				}
 
 			}
 			if definition.Default != nil {
-				if additionalMsg != "" {
-					additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
+				if additionalMsg == "" {
+					additionalMsg = fmt.Sprintf(" (default: %v", definition.Default.GetLiteral())
 				} else {
-					additionalMsg = fmt.Sprintf("(default: %v", definition.Default.GetLiteral())
+					additionalMsg = fmt.Sprintf(", default: %v", definition.Default.GetLiteral())
 				}
 			}
 			if additionalMsg != "" {

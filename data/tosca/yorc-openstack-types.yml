@@ -19,7 +19,7 @@ node_types:
     properties:
       image:
         type: string
-        description: The Openstack VM Image ID either this property or the 'imageName' property is required
+        description: Openstack VM Image ID, either this property or the 'imageName' property is required
         required: false
       imageName:
         type: string
@@ -29,12 +29,12 @@ node_types:
         required: false
       flavor:
         type: string
-        description: Openstack VM Flavor ID either this property or the 'flavorName' property is required
+        description: Openstack VM Flavor ID, either this property or the 'flavorName' property is required
         required: false
       flavorName:
         type: string
         description: >
-          Openstack VM Image Name either this property or the 'flavor' property is required.
+          Openstack VM Image Name, either this property or the 'flavor' property is required.
         required: false
       availability_zone:
         type: string
@@ -81,11 +81,11 @@ node_types:
     properties:
       ip:
         type: string
-        description: Specific Floating IP to use. Note that either 'ip' or 'floating_network_name' should be specified and 'ip' take the precedence.
+        description: Specific Floating IP to use. Note that either this property or the 'floating_network_name' property should be specified and 'ip' takes precedence.
         required: false
       floating_network_name:
         type: string
-        description: Name of the Pool of Floating IPs to use. Note that either 'ip' or 'floating_network_name' should be specified and 'ip' take the precedence.
+        description: Name of the Pool of Floating IPs to use. Note that either this property or the 'ip' should be specified and 'ip' takes precedence.
         required: false
     capabilities:
       connection:

@@ -180,7 +180,7 @@ node_types:
       metadata:
         type: string
         description: >
-          Comma-separated list of label KEY=VALUE pairs made available to the
+          Comma-separated list of metadata KEY=VALUE pairs made available to the
           Compute Node Operating System. On Google official images, the metadata
           keys startup-script or startup-script-url can be used to specify a script
           that will be executed by the Compute Node once it starts running.
