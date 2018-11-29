@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### FEATURES
+
+* Allow to bootstrap a full stack Alien4Cloud/Yorc setup using yorc CLI ([GH-131](https://github.com/ystia/yorc/issues/131))
+
 ## 3.1.0-M6 (November 16, 2018)
 
 ### FEATURES
