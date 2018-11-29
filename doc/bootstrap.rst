@@ -68,7 +68,8 @@ environment called ``yorcenv`` :
     virtualenv yorcenv
     source yorcenv/bin/activate
 
-You are now ready to download Yorc binary, running :
+You are now ready to download Yorc binary, running:
+
 .. parsed-literal::
 
     wget \https://github.com/ystia/yorc/releases/download/\ |yorc_version|\ /yorc-\ |yorc_version|\ .tgz
