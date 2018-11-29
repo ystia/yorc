@@ -255,7 +255,7 @@ Example of a Google Cloud deployment configuration file
   compute:
     image_project: centos-cloud
     image_family: centos-7
-    machine_type: n1-standard-1
+    machine_type: n1-standard-2
     zone: europe-west1-b
     # User and public key to define on created compute instance
     metadata: "ssh-keys=user1:ssh-ed25519 AAAABCd/gV/C+b3h3r5K011evEELMD72S4..."
