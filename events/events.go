@@ -100,7 +100,7 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoExecutionID] = taskID
+	info[infoAlienExecutionID] = taskID
 	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, status)
 	if err != nil {
 		return "", err
@@ -130,7 +130,7 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoExecutionID] = taskID
+	info[infoAlienExecutionID] = taskID
 	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, status)
 	if err != nil {
 		return "", err
@@ -155,18 +155,22 @@ func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (stri
 // PublishAndLogWorkflowStepStatusChange publishes a status change for a workflow step execution and log this change into the log API
 //
 // PublishAndLogWorkflowStepStatusChange returns the published event id
-func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowName, nodeName, stepName, operationName, targetNodeID, targetInstanceID, status string) (string, error) {
+func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
+	if wfStepInfo == nil {
+		return "", errors.Errorf("WorkflowStep information  param must be provided")
+	}
 	info := make(Info)
-	info[infoExecutionID] = taskID
-	info[infoWorkFlowID] = workflowName
-	info[infoNodeID] = nodeName
-	info[infoStepID] = stepName
-	info[infoOperationName] = operationName
-	info[infoTargetNodeID] = targetNodeID
-	info[infoTargetInstanceID] = targetInstanceID
+	info[infoAlienExecutionID] = taskID
+	info[infoInstanceID] = wfStepInfo.InstanceName
+	info[infoWorkFlowID] = wfStepInfo.WorkflowName
+	info[infoNodeID] = wfStepInfo.NodeName
+	info[infoWorkflowStepID] = wfStepInfo.StepName
+	info[infoOperationName] = wfStepInfo.OperationName
+	info[infoTargetNodeID] = wfStepInfo.TargetNodeID
+	info[infoTargetInstanceID] = wfStepInfo.TargetInstanceID
 	e, err := newStatusChange(StatusChangeTypeWorkflowStep, info, deploymentID, status)
 	if err != nil {
 		return "", err
@@ -182,21 +186,22 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 // PublishAndLogAlienTaskStatusChange publishes a status change for a task execution and log this change into the log API
 //
 // PublishAndLogAlienTaskStatusChange returns the published event id
-func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, taskExecutionID, workflowName, nodeName, stepName, operationName, targetNodeID, targetInstanceID, status string) (string, error) {
+func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, taskExecutionID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoExecutionID] = taskID
+	info[infoAlienExecutionID] = taskID
 	// Warning: Alien task corresponds to what we call taskExecution
-	info[infoAlienTaskID] = taskExecutionID
-	info[infoWorkFlowID] = workflowName
-	info[infoNodeID] = nodeName
-	info[infoWorkflowStepID] = stepName
-	info[infoOperationName] = operationName
-	info[infoTargetNodeID] = targetNodeID
-	info[infoTargetInstanceID] = targetInstanceID
-	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, status)
+	info[infoAlienTaskExecutionID] = taskExecutionID
+	info[infoWorkFlowID] = wfStepInfo.WorkflowName
+	info[infoNodeID] = wfStepInfo.NodeName
+	info[infoWorkflowStepID] = wfStepInfo.StepName
+	info[infoInstanceID] = wfStepInfo.InstanceName
+	info[infoOperationName] = wfStepInfo.OperationName
+	info[infoTargetNodeID] = wfStepInfo.TargetNodeID
+	info[infoTargetInstanceID] = wfStepInfo.TargetInstanceID
+	e, err := newStatusChange(StatusChangeTypeAlienTask, info, deploymentID, status)
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +221,7 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoExecutionID] = taskID
+	info[infoAlienExecutionID] = taskID
 	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, status)
 	if err != nil {
 		return "", err

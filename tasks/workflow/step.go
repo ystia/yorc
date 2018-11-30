@@ -171,6 +171,11 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 		s.setStatus(tasks.TaskStepStatusDONE)
 		return nil
 	}
+
+	// Let's publish initial event status for workflow step (just before run it)
+	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name}
+	events.PublishAndLogWorkflowStepStatusChange(ctx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
+	events.PublishAndLogAlienTaskStatusChange(ctx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
 	s.setStatus(tasks.TaskStepStatusRUNNING)
 
 	logOptFields, _ := events.FromContext(ctx)
@@ -255,6 +260,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		return err
 	}
 
+	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name}
 	switch activity.Type() {
 	case builder.ActivityTypeDelegate:
 		nodeType, err := deployments.GetNodeType(kv, deploymentID, s.Target)
@@ -268,8 +274,9 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		delegateOp := activity.Value()
 		wfCtx = events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InterfaceName: "delegate", events.OperationName: delegateOp})
 		for _, instanceName := range instances {
-			// TODO: replace this with workflow steps events
-			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("executing delegate operation")
+			eventInfo.InstanceName = instanceName
+			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusRUNNING.String())
+			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusRUNNING.String())
 		}
 		err = func() error {
 			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
@@ -279,15 +286,17 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
 			for _, instanceName := range instances {
-				// TODO: replace this with workflow steps events
-				events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("delegate operation failed")
+				eventInfo.InstanceName = instanceName
+				events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusERROR.String())
+				events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusERROR.String())
 			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
 		for _, instanceName := range instances {
-			// TODO: replace this with workflow steps events
-			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("delegate operation succeeded")
+			eventInfo.InstanceName = instanceName
+			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusDONE.String())
+			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusDONE.String())
 		}
 	case builder.ActivityTypeSetState:
 		setNodeStatus(wfCtx, kv, s.t.taskID, deploymentID, s.Target, activity.Value())
@@ -312,8 +321,13 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		}
 		wfCtx = operations.SetOperationLogFields(wfCtx, op)
 		for _, instanceName := range instances {
-			// TODO: replace this with workflow steps events
-			events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("executing operation")
+			eventInfo.OperationName = op.Name
+			eventInfo.InstanceName = instanceName
+			if op.RelOp.IsRelationshipOperation {
+				eventInfo.TargetNodeID = op.RelOp.TargetNodeName
+			}
+			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusRUNNING.String())
+			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusRUNNING.String())
 		}
 		// In function of the operation, the execution is sync or async
 		if s.Async {
@@ -347,16 +361,18 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
 			for _, instanceName := range instances {
-				// TODO: replace this with workflow steps events
-				events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("operation failed")
+				eventInfo.InstanceName = instanceName
+				events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusERROR.String())
+				events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusERROR.String())
 			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
 		if !s.Async {
 			for _, instanceName := range instances {
-				// TODO: replace this with workflow steps events
-				events.WithContextOptionalFields(events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString("operation succeeded")
+				eventInfo.InstanceName = instanceName
+				events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusDONE.String())
+				events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusDONE.String())
 			}
 		}
 	case builder.ActivityTypeInline:

@@ -44,15 +44,21 @@ type Info map[infoType]interface{}
 type infoType int
 
 const (
-	infoWorkFlowID infoType = iota
+	infoDeploymentID infoType = iota
 
-	infoExecutionID
+	infoStatus
+
+	infoTimestamp
+
+	infoEventType
+
+	infoWorkFlowID
+
+	infoAlienExecutionID
 
 	infoNodeID
 
 	infoInstanceID
-
-	infoStepID
 
 	infoOperationName
 
@@ -60,39 +66,45 @@ const (
 
 	infoTargetInstanceID
 
-	infoAlienTaskID
+	infoAlienTaskExecutionID
 
 	infoWorkflowStepID
 )
 
 func (i infoType) String() string {
 	switch i {
+	case infoDeploymentID:
+		return "deploymentId"
+	case infoStatus:
+		return "status"
+	case infoTimestamp:
+		return "timestamp"
+	case infoEventType:
+		return "type"
 	case infoWorkFlowID:
 		return "workFlowID"
-	case infoExecutionID:
-		return "executionID"
+	case infoAlienExecutionID:
+		return "alienExecutionID"
 	case infoNodeID:
 		return "nodeId"
 	case infoInstanceID:
 		return "instanceId"
-	case infoStepID:
-		return "stepId"
 	case infoOperationName:
 		return "operationName"
 	case infoTargetNodeID:
 		return "targetNodeId"
 	case infoTargetInstanceID:
 		return "targetInstanceId"
-	case infoAlienTaskID:
-		return "taskId"
+	case infoAlienTaskExecutionID:
+		return "alienTaskId"
 	case infoWorkflowStepID:
-		return "workflowStepId"
+		return "stepId"
 	}
 	return ""
 }
 
-// StatusChange represents status change event
-type StatusChange struct {
+// statusChange represents status change event
+type statusChange struct {
 	timestamp    string
 	eventType    StatusChangeType
 	deploymentID string
@@ -100,11 +112,22 @@ type StatusChange struct {
 	info         Info
 }
 
+// WorkflowStepInfo represents specific workflow step event information
+type WorkflowStepInfo struct {
+	WorkflowName     string
+	InstanceName     string
+	NodeName         string
+	StepName         string
+	OperationName    string
+	TargetNodeID     string
+	TargetInstanceID string
+}
+
 // Create a KVPair corresponding to an event and put it to Consul under the event prefix,
 // in a sub-tree corresponding to its deployment
 // The eventType goes to the KVPair's Flags field
 // The content is JSON format
-func (e *StatusChange) register() (string, error) {
+func (e *statusChange) register() (string, error) {
 	e.timestamp = time.Now().Format(time.RFC3339Nano)
 	eventsPrefix := path.Join(consulutil.EventsPrefix, e.deploymentID)
 
@@ -121,40 +144,42 @@ func (e *StatusChange) register() (string, error) {
 	return e.timestamp, nil
 }
 
-func (e *StatusChange) flat() map[string]interface{} {
+func (e *statusChange) flat() map[string]interface{} {
 	flat := make(map[string]interface{})
 
-	flat["deploymentId"] = e.deploymentID
-	flat["status"] = e.status
-	flat["timestamp"] = e.timestamp
-	flat["eventType"] = e.eventType.String()
+	flat[infoDeploymentID.String()] = e.deploymentID
+	flat[infoStatus.String()] = e.status
+	flat[infoTimestamp.String()] = e.timestamp
+	flat[infoEventType.String()] = e.eventType.String()
 	for k, v := range e.info {
 		flat[k.String()] = v
 	}
 	return flat
 }
 
-// newStatusChange allows to create a new StatusChange if mandatory information is ok
-func newStatusChange(eventType StatusChangeType, info Info, deploymentID, status string) (*StatusChange, error) {
-	e := &StatusChange{info: info, eventType: eventType, status: status, deploymentID: deploymentID}
+// newStatusChange allows to create a new statusChange if mandatory information is ok
+func newStatusChange(eventType StatusChangeType, info Info, deploymentID, status string) (*statusChange, error) {
+	e := &statusChange{info: info, eventType: eventType, status: status, deploymentID: deploymentID}
 	if err := e.check(); err != nil {
-		return nil, err
+		// Just print Warning log if any mandatory field is not set
+		// But let's us the possibility to return an error
+		log.Print("[WARNING] " + err.Error())
 	}
 	return e, nil
 }
 
-func (e *StatusChange) check() error {
+func (e *statusChange) check() error {
 	if e.deploymentID == "" || e.status == "" {
 		return errors.New("DeploymentID and status are mandatory parameters for EventStatusVChange")
 	}
 
 	mandatoryMap := map[StatusChangeType][]infoType{
 		StatusChangeTypeInstance:      {infoNodeID, infoInstanceID},
-		StatusChangeTypeCustomCommand: {infoExecutionID},
-		StatusChangeTypeScaling:       {infoExecutionID},
-		StatusChangeTypeWorkflow:      {infoExecutionID},
-		StatusChangeTypeWorkflowStep:  {infoExecutionID, infoWorkFlowID, infoNodeID, infoStepID, infoOperationName},
-		StatusChangeTypeAlienTask:     {infoExecutionID, infoWorkFlowID, infoNodeID, infoWorkflowStepID, infoOperationName, infoAlienTaskID},
+		StatusChangeTypeCustomCommand: {infoAlienExecutionID},
+		StatusChangeTypeScaling:       {infoAlienExecutionID},
+		StatusChangeTypeWorkflow:      {infoAlienExecutionID},
+		StatusChangeTypeWorkflowStep:  {infoAlienExecutionID, infoWorkFlowID, infoNodeID, infoWorkflowStepID, infoInstanceID},
+		StatusChangeTypeAlienTask:     {infoAlienExecutionID, infoWorkFlowID, infoNodeID, infoWorkflowStepID, infoInstanceID, infoAlienTaskExecutionID},
 	}
 	// Check mandatory info in function of status change type
 	if mandatoryInfos, is := mandatoryMap[e.eventType]; is {
@@ -168,7 +193,6 @@ func (e *StatusChange) check() error {
 			if _, is := e.info[mandatoryInfo]; !is {
 				missing = append(missing, mandatoryInfo.String())
 			}
-
 			if len(missing) > 0 {
 				return errors.Errorf("Missing mandatory parameters:%q for event:%q", strings.Join(missing, ","), e.eventType.String())
 			}
