@@ -477,7 +477,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		} else {
 			// The private SSH key used to connect to each host is the Yorc private key
 			privateKeyPath := filepath.Join(inputValues.Yorc.DataDir, ".ssh", "yorc.pem")
-			for i, _ := range inputValues.Hosts {
+			for i := range inputValues.Hosts {
 				inputValues.Hosts[i].Connection.PrivateKey = privateKeyPath
 			}
 		}

@@ -105,9 +105,9 @@ func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, fol
 			// the CLI is folliwng the undeployment steps
 			fmt.Printf("%s undeployed.\n", deploymentID)
 			return nil
-		} else {
-			httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		}
+
+		httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
 		var dep rest.Deployment
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
