@@ -76,6 +76,25 @@ You are now ready to download Yorc binary, running:
     tar xzf yorc-\ |yorc_version|\ .tgz
     ./yorc bootstrap --help
 
+Define firewall rules on your Cloud Provider infrastructure
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To access Alien4Cloud UI from the local host, you may need to define firewall
+rules before attempting to bootstrap the full stack on a cloud provider infrastructure.
+
+For example on Google Cloud, you could define this firewall rule for the port 8088
+used by the UI, and associate it to a tag (here a4c) :
+
+.. code-block:: bash
+
+    $ gcloud compute firewall-rules create a4c-rule \
+      --allow tcp:8088 --target-tags a4c
+
+Uou could then speficy this tag `a4c` in the compute instance to create by the
+bootstrap deployment, as it is done in the example below in  :ref:`_yorc_google_example_section`.
+This way the created compute instance where Alien4Cloud will be deployed will
+have its port 8088 open.
+
 Bootstrap process overview
 --------------------------
 
@@ -236,6 +255,8 @@ for example :
 
 Sections below provide examples of configuration files for each type of infrastructure.
 
+.. _yorc_google_example_section:
+
 Example of a Google Cloud deployment configuration file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -259,7 +280,7 @@ Example of a Google Cloud deployment configuration file
     zone: europe-west1-b
     # User and public key to define on created compute instance
     metadata: "ssh-keys=user1:ssh-ed25519 AAAABCd/gV/C+b3h3r5K011evEELMD72S4..."
-  tags: mytag
+    tags: a4c
   credentials:
     # User on compute instance created on demand
     user: user1
