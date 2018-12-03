@@ -128,9 +128,9 @@ func StreamsEvents(client *httputil.YorcClient, deploymentID string, colorize, f
 		lastIdx = evts.LastIndex
 		for _, event := range evts.Events {
 			if colorize {
-				fmt.Printf("%s\n", color.MagentaString("%s", format(event)))
+				fmt.Printf("%s\n", color.MagentaString("%s", string(event)))
 			} else {
-				fmt.Printf("%s\n", format(event))
+				fmt.Printf("%s\n", string(event))
 			}
 		}
 		response.Body.Close()

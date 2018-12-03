@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"strings"
 )
 
 // InstanceStatusChange publishes a status change for a given instance of a given node
@@ -171,7 +172,7 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 	info[infoOperationName] = wfStepInfo.OperationName
 	info[infoTargetNodeID] = wfStepInfo.TargetNodeID
 	info[infoTargetInstanceID] = wfStepInfo.TargetInstanceID
-	e, err := newStatusChange(StatusChangeTypeWorkflowStep, info, deploymentID, status)
+	e, err := newStatusChange(StatusChangeTypeWorkflowStep, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -201,7 +202,7 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploym
 	info[infoOperationName] = wfStepInfo.OperationName
 	info[infoTargetNodeID] = wfStepInfo.TargetNodeID
 	info[infoTargetInstanceID] = wfStepInfo.TargetInstanceID
-	e, err := newStatusChange(StatusChangeTypeAlienTask, info, deploymentID, status)
+	e, err := newStatusChange(StatusChangeTypeAlienTask, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
