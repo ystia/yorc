@@ -52,7 +52,7 @@ const (
 
 	infoEventType
 
-	infoWorkFlowID
+	infoWorkflowID
 
 	infoAlienExecutionID
 
@@ -81,10 +81,10 @@ func (i infoType) String() string {
 		return "timestamp"
 	case infoEventType:
 		return "type"
-	case infoWorkFlowID:
-		return "workFlowID"
+	case infoWorkflowID:
+		return "workflowId"
 	case infoAlienExecutionID:
-		return "alienExecutionID"
+		return "alienExecutionId"
 	case infoNodeID:
 		return "nodeId"
 	case infoInstanceID:
@@ -178,8 +178,8 @@ func (e *statusChange) check() error {
 		StatusChangeTypeCustomCommand: {infoAlienExecutionID},
 		StatusChangeTypeScaling:       {infoAlienExecutionID},
 		StatusChangeTypeWorkflow:      {infoAlienExecutionID},
-		StatusChangeTypeWorkflowStep:  {infoAlienExecutionID, infoWorkFlowID, infoNodeID, infoWorkflowStepID, infoInstanceID},
-		StatusChangeTypeAlienTask:     {infoAlienExecutionID, infoWorkFlowID, infoNodeID, infoWorkflowStepID, infoInstanceID, infoAlienTaskExecutionID},
+		StatusChangeTypeWorkflowStep:  {infoAlienExecutionID, infoWorkflowID, infoNodeID, infoWorkflowStepID, infoInstanceID},
+		StatusChangeTypeAlienTask:     {infoAlienExecutionID, infoWorkflowID, infoNodeID, infoWorkflowStepID, infoInstanceID, infoAlienTaskExecutionID},
 	}
 	// Check mandatory info in function of status change type
 	if mandatoryInfos, is := mandatoryMap[e.eventType]; is {

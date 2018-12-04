@@ -47,7 +47,7 @@ func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deployme
 	info := make(Info)
 	info[infoNodeID] = nodeName
 	info[infoInstanceID] = instance
-	e, err := newStatusChange(StatusChangeTypeInstance, info, deploymentID, status)
+	e, err := newStatusChange(StatusChangeTypeInstance, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +72,7 @@ func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, er
 //
 // PublishAndLogDeploymentStatusChange returns the published event id
 func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploymentID, status string) (string, error) {
-	e, err := newStatusChange(StatusChangeTypeDeployment, nil, deploymentID, status)
+	e, err := newStatusChange(StatusChangeTypeDeployment, nil, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +102,7 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 	}
 	info := make(Info)
 	info[infoAlienExecutionID] = taskID
-	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, status)
+	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -132,7 +132,7 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 	}
 	info := make(Info)
 	info[infoAlienExecutionID] = taskID
-	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, status)
+	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
@@ -149,8 +149,8 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 // WorkflowStatusChange returns the published event id
 //
 // Deprecated: use PublishAndLogWorkflowStatusChange instead
-func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
-	return PublishAndLogWorkflowStatusChange(nil, kv, deploymentID, taskID, status)
+func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, workflowName, status string) (string, error) {
+	return PublishAndLogWorkflowStatusChange(nil, kv, deploymentID, taskID, workflowName, status)
 }
 
 // PublishAndLogWorkflowStepStatusChange publishes a status change for a workflow step execution and log this change into the log API
@@ -166,7 +166,7 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 	info := make(Info)
 	info[infoAlienExecutionID] = taskID
 	info[infoInstanceID] = wfStepInfo.InstanceName
-	info[infoWorkFlowID] = wfStepInfo.WorkflowName
+	info[infoWorkflowID] = wfStepInfo.WorkflowName
 	info[infoNodeID] = wfStepInfo.NodeName
 	info[infoWorkflowStepID] = wfStepInfo.StepName
 	info[infoOperationName] = wfStepInfo.OperationName
@@ -195,7 +195,7 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploym
 	info[infoAlienExecutionID] = taskID
 	// Warning: Alien task corresponds to what we call taskExecution
 	info[infoAlienTaskExecutionID] = taskExecutionID
-	info[infoWorkFlowID] = wfStepInfo.WorkflowName
+	info[infoWorkflowID] = wfStepInfo.WorkflowName
 	info[infoNodeID] = wfStepInfo.NodeName
 	info[infoWorkflowStepID] = wfStepInfo.StepName
 	info[infoInstanceID] = wfStepInfo.InstanceName
@@ -217,13 +217,14 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploym
 // PublishAndLogWorkflowStatusChange publishes a status change for a workflow task and log this change into the log API
 //
 // PublishAndLogWorkflowStatusChange returns the published event id
-func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, status string) (string, error) {
+func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowID, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
 	info[infoAlienExecutionID] = taskID
-	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, status)
+	info[infoWorkflowID] = workflowID
+	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}

@@ -128,7 +128,7 @@ func getOperationExecutor(kv *api.KV, deploymentID, artifact string) (prov.Opera
 	return nil, originalErr
 }
 
-func (w *worker) monitorTaskCancellation(ctx context.Context, cancelFunc context.CancelFunc, t *taskExecution) {
+func (w *worker) monitorTaskCancellation(ctx context.Context, cancelFunc context.CancelFunc, t *taskExecution, workflowName string) {
 	go func() {
 		var lastIndex uint64
 		for {
@@ -149,7 +149,7 @@ func (w *worker) monitorTaskCancellation(ctx context.Context, cancelFunc context
 				if strings.ToLower(string(kvp.Value)) == "true" {
 					log.Debugln("Task cancellation requested.")
 					checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusCANCELED)
-					events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, tasks.TaskStatusCANCELED.String())
+					events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, workflowName, tasks.TaskStatusCANCELED.String())
 					cancelFunc()
 					return
 				}
@@ -285,7 +285,7 @@ func (w *worker) handleExecution(t *taskExecution) {
 		log.Printf("%+v", err)
 		return
 	}
-	w.monitorTaskCancellation(ctx, cancelFunc, t)
+	w.monitorTaskCancellation(ctx, cancelFunc, t, wfName)
 	w.monitorTaskFailure(ctx, cancelFunc, t)
 	defer func(t *taskExecution, start time.Time) {
 		if taskStatus, err := t.getTaskStatus(); err != nil && taskStatus != tasks.TaskStatusRUNNING {
@@ -577,7 +577,7 @@ func (w *worker) runDeploy(ctx context.Context, t *taskExecution) {
 		log.Printf("%+v", err)
 		w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_FAILED)
 		checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusFAILED)
-		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, tasks.TaskStatusFAILED.String())
+		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, "install", tasks.TaskStatusFAILED.String())
 		return
 	}
 	if wfDone {
@@ -587,7 +587,7 @@ func (w *worker) runDeploy(ctx context.Context, t *taskExecution) {
 			log.Printf("%+v", err)
 			return
 		}
-		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, tasks.TaskStatusDONE.String())
+		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, "install", tasks.TaskStatusDONE.String())
 	}
 }
 
@@ -605,7 +605,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) {
 			log.Printf("%+v", err)
 			w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
 			checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusFAILED)
-			events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, tasks.TaskStatusFAILED.String())
+			events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, "uninstall", tasks.TaskStatusFAILED.String())
 			return
 		}
 		if wfDone {
@@ -619,7 +619,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) {
 				w.runPurge(ctx, t)
 			}
 		}
-		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, tasks.TaskStatusDONE.String())
+		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, "uninstall", tasks.TaskStatusDONE.String())
 	} else if t.taskType == tasks.TaskTypePurge {
 		w.runPurge(ctx, t)
 	}

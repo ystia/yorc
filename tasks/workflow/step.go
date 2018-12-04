@@ -171,13 +171,7 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 		s.setStatus(tasks.TaskStepStatusDONE)
 		return nil
 	}
-
-	// Let's publish initial event status for workflow step (just before run it)
-	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name}
-	events.PublishAndLogWorkflowStepStatusChange(ctx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
-	events.PublishAndLogAlienTaskStatusChange(ctx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
 	s.setStatus(tasks.TaskStepStatusRUNNING)
-
 	logOptFields, _ := events.FromContext(ctx)
 	// Create a new context to handle gracefully current step termination when an error occurred during another step
 	wfCtx, cancelWf := context.WithCancel(events.NewContext(context.Background(), logOptFields))
@@ -260,6 +254,13 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		return err
 	}
 
+	//// Let's publish initial event status for workflow step (just before run it)
+	//for _, instanceName := range instances {
+	//	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name, InstanceName: instanceName}
+	//	events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
+	//	events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
+	//}
+
 	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name}
 	switch activity.Type() {
 	case builder.ActivityTypeDelegate:
@@ -275,6 +276,10 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		wfCtx = events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InterfaceName: "delegate", events.OperationName: delegateOp})
 		for _, instanceName := range instances {
 			eventInfo.InstanceName = instanceName
+			eventInfo.OperationName = fmt.Sprintf("delegate.%s", delegateOp)
+			// Need to publish INITIAL status before RUNNING one with operationName set
+			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
+			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
 			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusRUNNING.String())
 			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusRUNNING.String())
 		}
@@ -326,6 +331,9 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 			if op.RelOp.IsRelationshipOperation {
 				eventInfo.TargetNodeID = op.RelOp.TargetNodeName
 			}
+			// Need to publish INITIAL status before RUNNING one with operationName set
+			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
+			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
 			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusRUNNING.String())
 			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusRUNNING.String())
 		}
