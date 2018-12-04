@@ -124,7 +124,7 @@ func setupYorcServer(workingDirectoryPath string) error {
 			return err
 		}
 
-		err = waitForYorcServerUP(5 * time.Second)
+		err = waitForYorcServerUP(30 * time.Second)
 		if err != nil {
 			return err
 		}
@@ -212,7 +212,7 @@ func waitForYorcServerUP(timeout time.Duration) error {
 		time.Sleep(1 * time.Second)
 	}
 
-	return fmt.Errorf("Timeout waiting %s seconds for Yorc Server to be up", nbAttempts)
+	return fmt.Errorf("Timeout waiting %d seconds for Yorc Server to be up", timeout/time.Second)
 }
 
 // cleanBootstrapSetup stops yorc and consul processes, cleans working directories
