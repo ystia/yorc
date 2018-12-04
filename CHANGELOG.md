@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* The orchestrator requires now at least Ansible 2.7.2 (upgrade from 2.6.3 introduced in [GH-194](https://github.com/ystia/yorc/issues/194))
+
 ### FEATURES
 
 * Allow to bootstrap a full stack Alien4Cloud/Yorc setup using yorc CLI ([GH-131](https://github.com/ystia/yorc/issues/131))
