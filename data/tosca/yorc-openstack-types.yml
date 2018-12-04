@@ -81,11 +81,11 @@ node_types:
     properties:
       ip:
         type: string
-        description: Specific Floating IP to use. Note that either this property or the 'floating_network_name' property should be specified and 'ip' takes precedence.
+        description: Floating IP address to use. Note that either this property or the 'floating_network_name' property should be specified and 'ip' takes precedence.
         required: false
       floating_network_name:
         type: string
-        description: Name of the Pool of Floating IPs to use. Note that either this property or the 'ip' should be specified and 'ip' takes precedence.
+        description: Floating Network name, name of the Pool of Floating IPs to use. Note that either this property or the 'ip' address property should be specified and 'ip' takes precedence.
         required: false
     capabilities:
       connection:
