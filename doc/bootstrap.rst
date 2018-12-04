@@ -387,3 +387,79 @@ Example of a Hosts Pool deployment configuration file
       os.version: "7.3.1611"
       private_address: "10.0.0.11"
       public_address: "10.129.1.11"
+
+Troubleshooting
+===============
+
+By default, debug logs are disabled. To enable them, you can export the environment
+variable YORC_LOG and set it to ``1`` or ``DEBUG`` before starting the bootstrap:
+
+.. parsed-literal::
+
+    export YORC_LOG=1
+
+Once the bootstrap deployment has started, the local yorc server logs are available
+under ``<working dir>/yorc.log``, (<working dir> default value being the directory ``./work``).
+
+To get the bootstrap deployment ID and current status, run :
+
+.. parsed-literal::
+
+    ./yorc deployments list
+
+To follow deployment logs and see these logs from the beginning, run :
+
+.. parsed-literal::
+
+    ./yorc deployments logs <deployment ID> --from-beginning
+
+When a deployment has failed, in addition to logs failure in the logs, you can
+also get of summary of the deployment steps statuses to identify quickly which
+step failed, running :
+
+.. parsed-literal::
+
+    ./yorc deployments info <deployment ID>
+
+If a step failed on a transient error that is now addressed, it is possible to run
+again manually the failed step, and resume the deployment running the following
+commands.
+
+First from the previous command ``./yorc deployments info <deployment ID>`` output,
+you can find the task ID that failed.
+
+You can now run this command to get the exact name of the step that failed :
+
+.. parsed-literal::
+
+    ./yorc deployments tasks info --steps <deployment ID> <task ID>
+
+Identify the name of the step that failed.
+
+Let's say for the example that it is the step ``TerraformRuntime_create`` which failed
+on timeout downloading the Terraform distribution.
+
+You can then go to the directory where you will find the ansible playbook correpsonding to this step :
+
+.. parsed-literal::
+
+    cd <working directory>/deployments/<deployment ID>/ansible/<task ID>/TerraformRuntime/standard.create/
+
+And from this directory, run again this step through this command:
+
+.. parsed-literal::
+
+    ansible-playbook -i hosts run.ansible.yml -v
+
+If this manual execution was successful, you can mark the corresponding step as
+fixed in the deployment, running :
+
+.. parsed-literal::
+
+    ./yorc deployments tasks fix <deployment ID> <task ID> TerraformRuntime
+
+You can now resume the bootstrap deployment running :
+
+.. parsed-literal::
+
+    ./yorc deployments tasks resume <deployment ID>
