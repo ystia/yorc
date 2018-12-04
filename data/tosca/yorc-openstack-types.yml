@@ -34,7 +34,7 @@ node_types:
       flavorName:
         type: string
         description: >
-          Openstack VM Image Name, either this property or the 'flavor' property is required.
+          Openstack Flavor Name, either this property or the 'flavor' ID property is required.
         required: false
       availability_zone:
         type: string
