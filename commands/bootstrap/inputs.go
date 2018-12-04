@@ -644,8 +644,7 @@ func reviewAndUpdateInputs() error {
 	return nil
 }
 
-// getResourceInputs asks for input parameters of an infrastructure or on-demand
-// resource
+// getComputeCredentials asks for the user used to connect to an on-demand compute node
 func getComputeCredentials(askIfNotRequired bool, creds *CredentialsConfiguration) error {
 
 	answer := struct {
@@ -886,6 +885,7 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 
 		description := getFormattedDescription(definition.Description)
 
+		isList := (definition.Type == "list")
 		if definition.Type == "boolean" {
 			defaultValue := "false"
 			if definition.Default != nil {
@@ -910,7 +910,6 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 
 		} else {
 
-			isList := (definition.Type == "list")
 			answer := struct {
 				Value string
 			}{}
@@ -964,7 +963,7 @@ func getResourceInputs(topology tosca.Topology, resourceName string,
 			}
 
 			if answer.Value != "" {
-				if !strings.Contains(answer.Value, ",") {
+				if !isList {
 					resultMap.Set(propName, answer.Value)
 				} else {
 					value := strings.Split(answer.Value, ",")
