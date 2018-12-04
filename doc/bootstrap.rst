@@ -439,7 +439,7 @@ Identify the name of the step that failed.
 Let's say for the example that it is the step ``TerraformRuntime_create`` which failed
 on timeout downloading the Terraform distribution.
 
-You can then go to the directory where you will find the ansible playbook correpsonding to this step :
+You can then go to the directory where you will find the ansible playbook corresponding to this step :
 
 .. parsed-literal::
 
