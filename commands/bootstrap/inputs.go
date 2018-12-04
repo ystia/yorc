@@ -434,7 +434,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	} else {
 		// Store this content locally to be used by the local Yorc
 		// when bootstrapping the remote Yorc
-		inputValues.Yorc.PrivateKeyFile = filepath.Join(resourcesPath, "yorc.pem")
+		absolutePath, err := filepath.Abs(resourcesPath)
+		if err != nil {
+			return err
+		}
+		inputValues.Yorc.PrivateKeyFile = filepath.Join(absolutePath, "yorc.pem")
 		err = ioutil.WriteFile(inputValues.Yorc.PrivateKeyFile, []byte(inputValues.Yorc.PrivateKeyContent), 0700)
 		if err != nil {
 			return err
