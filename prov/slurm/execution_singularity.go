@@ -22,6 +22,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/ystia/yorc/tosca"
+
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/deployments"
@@ -41,7 +43,7 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
-	case "tosca.interfaces.node.lifecycle.runnable.submit":
+	case strings.ToLower(tosca.RunnableSubmitOperationName):
 
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Build Job Information
@@ -75,7 +77,7 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id an manual cleanup may be necessary: ")
 		}
-	case "tosca.interfaces.node.lifecycle.runnable.cancel":
+	case strings.ToLower(tosca.RunnableCancelOperationName):
 		jobInfo, err := e.getJobInfoFromTaskContext()
 		if err != nil {
 			return err

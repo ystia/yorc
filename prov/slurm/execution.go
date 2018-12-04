@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ystia/yorc/tosca"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -119,7 +121,7 @@ func (e *executionCommon) executeAsync(ctx context.Context) (*prov.Action, time.
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
-	case "tosca.interfaces.node.lifecycle.runnable.run":
+	case strings.ToLower(tosca.RunnableRunOperationName):
 		// Build Job Information
 		var err error
 		e.jobInfo, err = e.getJobInfoFromTaskContext()
@@ -137,7 +139,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 	log.Debugf("Execute the operation:%+v", e.operation)
 	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
-	case "tosca.interfaces.node.lifecycle.runnable.submit":
+	case strings.ToLower(tosca.RunnableSubmitOperationName):
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
@@ -176,7 +178,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve job id an manual cleanup may be necessary: ")
 		}
-	case "tosca.interfaces.node.lifecycle.runnable.cancel":
+	case strings.ToLower(tosca.RunnableCancelOperationName):
 		var jobID string
 		if jobInfo, err := e.getJobInfoFromTaskContext(); err != nil {
 			if !tasks.IsTaskDataNotFoundError(err) {

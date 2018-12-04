@@ -15,18 +15,16 @@
 package workflow
 
 import (
-	"strings"
-	"time"
-
-	"sync"
-
 	"math"
-
 	"path"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
@@ -177,29 +175,7 @@ func (d *Dispatcher) Run() {
 			if strings.HasPrefix(execID, executionLockPrefix) {
 				continue
 			}
-			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
-			if err != nil {
-				log.Debugf("Ignore execution with ID:%q due to error:%v", execID, err)
-				d.deleteExecutionTree(execID)
-				continue
-			}
-			// Check TaskExecution status
-			status, err := tasks.GetTaskStatus(kv, taskID)
-			if err != nil {
-				log.Debugf("Seems the task with id:%q is no longer relevant due to error:%s so related execution will be removed", taskID, err)
-				d.deleteExecutionTree(execID)
-				continue
-			}
-			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
-				log.Debugf("Skipping Task Execution with status %q", status)
-				// Delete useless execution
-				d.deleteExecutionTree(execID)
-				continue
-			}
-			// Ignore processing execution to avoid useless treatment
-			if processingExecution, _, _ := kv.Get(path.Join(consulutil.ExecutionsTaskPrefix, execID, ".processing"), nil); processingExecution != nil {
-				continue
-			}
+
 			log.Debugf("Try to acquire processing lock for task execution %s", execKey)
 			opts := &api.LockOptions{
 				Key:          path.Join(consulutil.ExecutionsTaskPrefix, executionLockPrefix+execID),
@@ -221,12 +197,41 @@ func (d *Dispatcher) Run() {
 				log.Debugf("Another instance got the lock for key %s", execKey)
 				continue
 			}
+
 			log.Debugf("Got processing lock for Task Execution %s", execKey)
 
-			t, err := buildTaskExecution(kv, execID)
+			taskID, err := getExecutionKeyValue(kv, execID, "taskID")
+			if err != nil {
+				log.Debugf("Ignore execution with ID:%q due to error:%v", execID, err)
+				d.deleteExecutionTree(execID)
+				lock.Unlock()
+				lock.Destroy()
+				continue
+			}
+			// Check TaskExecution status
+			status, err := tasks.GetTaskStatus(kv, taskID)
+			if err != nil {
+				log.Debugf("Seems the task with id:%q is no longer relevant due to error:%s so related execution will be removed", taskID, err)
+				d.deleteExecutionTree(execID)
+				lock.Unlock()
+				lock.Destroy()
+				continue
+			}
+			if status != tasks.TaskStatusINITIAL && status != tasks.TaskStatusRUNNING {
+				log.Debugf("Skipping Task Execution with status %q", status)
+				// Delete useless execution
+				d.deleteExecutionTree(execID)
+				lock.Unlock()
+				lock.Destroy()
+				continue
+			}
+
+			t, err := buildTaskExecution(d.client, execID)
 			if err != nil {
 				log.Print(err)
 				log.Debugf("%+v", err)
+				lock.Unlock()
+				lock.Destroy()
 				continue
 			}
 			log.Printf("Processing Task Execution %q linked to deployment %q", execID, t.targetID)

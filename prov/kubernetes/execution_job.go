@@ -27,11 +27,12 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/tosca"
 )
 
 func (e *execution) executeAsync(ctx context.Context, stepName string, clientset kubernetes.Interface) (*prov.Action, time.Duration, error) {
-	if strings.ToLower(e.operation.Name) != "tosca.interfaces.node.lifecycle.runnable.run" {
-		return nil, 0, errors.Errorf("%q operation is not supported by the Kubernetes executor only \"tosca.interfaces.node.lifecycle.Runnable.run\" is.", e.operation.Name)
+	if strings.ToLower(e.operation.Name) != strings.ToLower(tosca.RunnableRunOperationName) {
+		return nil, 0, errors.Errorf("%q operation is not supported by the Kubernetes executor only %q is.", e.operation.Name, tosca.RunnableRunOperationName)
 	}
 
 	if e.nodeType != "yorc.nodes.kubernetes.api.types.JobResource" {
@@ -110,9 +111,9 @@ func (e *execution) cancelJob(ctx context.Context, clientset kubernetes.Interfac
 
 func (e *execution) executeJobOperation(ctx context.Context, clientset kubernetes.Interface) (err error) {
 	switch strings.ToLower(e.operation.Name) {
-	case "tosca.interfaces.node.lifecycle.runnable.submit":
+	case strings.ToLower(tosca.RunnableSubmitOperationName):
 		return e.submitJob(ctx, clientset)
-	case "tosca.interfaces.node.lifecycle.runnable.cancel":
+	case strings.ToLower(tosca.RunnableCancelOperationName):
 		return e.cancelJob(ctx, clientset)
 	default:
 		return errors.Errorf("unsupported operation %q for node %q", e.operation.Name, e.nodeName)

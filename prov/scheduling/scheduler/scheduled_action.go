@@ -74,6 +74,9 @@ func (sca *scheduledAction) schedule() {
 			err := sca.proceed()
 			if err != nil {
 				log.Printf("Failed to schedule action:%+v due to err:%+v", sca, err)
+				// TODO(loicalbertin) ok if we stop the ticker on error this action will never be rescheduled.
+				// And the routine will be blocked on select until chStop is closed.
+				// Is it really what we want?
 				ticker.Stop()
 			}
 		}
@@ -89,6 +92,7 @@ func (sca *scheduledAction) proceed() error {
 	sca.Data["actionType"] = sca.ActionType
 	sca.Data["id"] = sca.ID
 	sca.Data["asyncOperation"] = sca.asyncOperationString
+	// TODO(loicalbertin) should we schedule another task if the previous is not over?
 	taskID, err := defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
 	if err != nil {
 		return err

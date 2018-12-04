@@ -46,6 +46,11 @@ func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 				Key:   path.Join(stepExecPath, "step"),
 				Value: []byte(step.Name),
 			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions", execID),
+				Value: []byte(""),
+			},
 		}
 		ops = append(ops, stepOps...)
 	}
