@@ -45,12 +45,13 @@ It requires the following packages to be installed on the local host:
   * python-pip
   * zip/unzip
   * openssh-client
-  * wget 
+  * wget
 
-This basic installation on the local host will attempt to install python ansible
-module |ansible_version| if needed, without sudo privileges.
-So if this ansible module is not yet installed on the local host, you could either
-add it yourself, with sudo privileges, running:
+This basic installation on the local host will attempt to install without sudo privileges
+python ansible module |ansible_version| if needed as well as python packages
+MarkupSafe, jinja2, PyYAML, six, cryptography, setuptools.
+So if this ansible module or python packages are not yet installed on the local host,
+you could either add them yourself, with sudo privileges, running for example:
 
 .. parsed-literal::
 
