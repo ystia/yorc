@@ -211,9 +211,14 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 			if err != nil {
 				setNodeStatus(ctx, kv, s.t.taskID, deploymentID, s.Target, tosca.NodeStateError.String())
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("TaskStep %q: error details: %+v", s.Name, err)
-				// Set step in error but continue
+				// Set step in error but continue if needed
 				s.setStatus(tasks.TaskStepStatusERROR)
 				if !bypassErrors {
+					tasks.NotifyErrorOnTask(s.t.taskID)
+					err2 := s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
+					if err2 != nil {
+						events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to register on failure steps: %v", err2)
+					}
 					return err
 				}
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).Registerf("TaskStep %q: Bypassing error: %+v but workflow continue", s.Name, err)
@@ -221,17 +226,6 @@ func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, de
 			return nil
 		}()
 		if err != nil {
-			status, err2 := tasks.GetTaskStepStatus(kv, s.t.taskID, s.Name)
-			if err2 != nil {
-				log.Printf("Deployment %q: Skipping TaskStep %q", deploymentID, s.Name, err2)
-				return err
-			}
-			if status == tasks.TaskStepStatusERROR {
-				err2 := s.registerOnCancelOrFailureSteps(ctx, workflowName, s.OnFailure)
-				if err2 != nil {
-					events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).Registerf("failed to register on failure steps: %v", err2)
-				}
-			}
 			return err
 		}
 	}
@@ -386,11 +380,10 @@ func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) 
 	return nil
 }
 
-func (s *step) checkIfWorkflowIsDone(ctx context.Context, workflowName string) (bool, error) {
-
+func (s *step) updateTaskStatusIfWorkflowIsDone(ctx context.Context, workflowName string) error {
 	l, e, err := numberOfRunningExecutionsForTask(s.cc, s.t.taskID)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer l.Unlock()
 
@@ -398,11 +391,11 @@ func (s *step) checkIfWorkflowIsDone(ctx context.Context, workflowName string) (
 		// We are the latest
 		hasCancelledFlag, err := tasks.TaskHasCancellationFlag(s.cc.KV(), s.t.taskID)
 		if err != nil {
-			return false, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
+			return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
 		}
 		hasErrorFlag, err := tasks.TaskHasErrorFlag(s.cc.KV(), s.t.taskID)
 		if err != nil {
-			return false, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
+			return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
 		}
 
 		status := tasks.TaskStatusDONE
@@ -417,15 +410,10 @@ func (s *step) checkIfWorkflowIsDone(ctx context.Context, workflowName string) (
 		}
 
 		err = checkAndSetTaskStatus(s.t.cc.KV(), s.t.taskID, status)
-		if err != nil {
-			return false, errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%+v", s.t.taskID, err)
-		}
-
-		// anyway we are done
-		return true, nil
+		return errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%+v", s.t.taskID, err)
 	}
-	log.Debugf("Step Mq ended but still some workflow steps need to be run for workflow:%q ", workflowName)
-	return false, nil
+	log.Debugf("Step %q ended but still some workflow steps need to be run for workflow: %q ", s.Name, workflowName)
+	return nil
 }
 
 func (s *step) checkIfPreviousOfNextStepAreDone(ctx context.Context, nextStep *step, workflowName string) (bool, error) {
@@ -450,12 +438,11 @@ func (s *step) checkIfPreviousOfNextStepAreDone(ctx context.Context, nextStep *s
 	return false, nil
 }
 
-// bool return indicates if the workflow is done
-func (s *step) registerNextSteps(ctx context.Context, workflowName string) (bool, error) {
+func (s *step) registerNextSteps(ctx context.Context, workflowName string) error {
 	// If step is terminal, we check if workflow is done
 	if s.IsTerminal() {
 		log.Debugf("Step:%q is terminal: check if workflow %q is done", s.Name, s.WorkflowName)
-		return s.checkIfWorkflowIsDone(ctx, workflowName)
+		return s.updateTaskStatusIfWorkflowIsDone(ctx, workflowName)
 	}
 
 	// Register workflow step to handle step statuses for next steps
@@ -466,7 +453,7 @@ func (s *step) registerNextSteps(ctx context.Context, workflowName string) (bool
 		if len(nStep.Previous) > 1 {
 			done, err := s.checkIfPreviousOfNextStepAreDone(ctx, nStep, workflowName)
 			if err != nil {
-				return false, err
+				return err
 			}
 			if done {
 				regSteps = append(regSteps, nStep)
@@ -477,22 +464,22 @@ func (s *step) registerNextSteps(ctx context.Context, workflowName string) (bool
 	}
 	l, err := acquireRunningExecLock(s.cc, s.t.taskID)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer l.Unlock()
 	ops := createWorkflowStepsOperations(s.t.taskID, regSteps)
 	ok, response, _, err := s.cc.KV().Txn(ops, nil)
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
+		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q", s.t.taskID)
 	}
 	if !ok {
 		errs := make([]string, 0)
 		for _, e := range response.Errors {
 			errs = append(errs, e.What)
 		}
-		return false, errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q due to:%s", s.t.taskID, strings.Join(errs, ", "))
+		return errors.Wrapf(err, "Failed to register executionTasks with TaskID:%q due to:%s", s.t.taskID, strings.Join(errs, ", "))
 	}
-	return false, nil
+	return nil
 }
 
 func (s *step) registerOnCancelOrFailureSteps(ctx context.Context, workflowName string, steps []*builder.Step) error {
@@ -503,8 +490,7 @@ func (s *step) registerOnCancelOrFailureSteps(ctx context.Context, workflowName 
 		regSteps = append(regSteps, nStep)
 	}
 	if len(regSteps) == 0 {
-		_, err := s.checkIfWorkflowIsDone(ctx, workflowName)
-		return err
+		return s.updateTaskStatusIfWorkflowIsDone(ctx, workflowName)
 	}
 	l, err := acquireRunningExecLock(s.cc, s.t.taskID)
 	if err != nil {

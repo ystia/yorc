@@ -109,6 +109,18 @@ func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consuluti
 	return l, len(keys), nil
 }
 
+func doIfNoMoreOtherExecutions(cc *api.Client, taskID string, f func() error) error {
+	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
+	if err != nil {
+		return err
+	}
+	defer l.Unlock()
+	if e <= 1 && f != nil {
+		return f()
+	}
+	return nil
+}
+
 func (t *taskExecution) notifyEnd() error {
 	execPath := path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions")
 	execLock, err := acquireRunningExecLock(t.cc, t.taskID)
