@@ -241,3 +241,34 @@ func getNamespace(deploymentID string, objectMeta metav1.ObjectMeta) (string, bo
 
 	return namespace, isProvided
 }
+
+// Return the first healthy node found in the cluster
+func getHealthyNode(clientset kubernetes.Interface) (string, error) {
+	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get nodes")
+	}
+	for _, node := range nodes.Items {
+		for _, cond := range node.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				return node.ObjectMeta.Name, nil
+			}
+		}
+	}
+	//No healthy node found (error or warning to throw maybe)
+	return "", nil
+}
+
+//Return the external IP of a given node
+func getExternalIPAdress(clientset kubernetes.Interface, nodeName string) (string, error) {
+	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get node "+nodeName)
+	}
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == corev1.NodeExternalIP {
+			return addr.Address, nil
+		}
+	}
+	return "", errors.Wrap(err, "Node "+nodeName+" don't have external IP adress")
+}

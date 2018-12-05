@@ -517,11 +517,9 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 		}
 		var s string
 		for _, val := range serv.Spec.Ports {
-			kubConf := e.cfg.Infrastructures["kubernetes"]
-			kubMasterIP := kubConf.GetString("master_url")
-			u, _ := url.Parse(kubMasterIP)
-			h := strings.Split(u.Host, ":")
-			str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+			node, _ := getHealthyNode(clientset)
+			h, _ := getExternalIPAdress(clientset, node)
+			str := fmt.Sprintf("http://%s:%d", h, val.NodePort)
 
 			log.Printf("%s : %s: %d:%d mapped to %s", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
 
@@ -531,7 +529,7 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 				// The service is accessible to an external IP address through
 				// this port. Updating the corresponding public endpoints
 				// kubernetes port mapping
-				err := e.updatePortMappingPublicEndpoints(val.Port, h[0], val.NodePort)
+				err := e.updatePortMappingPublicEndpoints(val.Port, h, val.NodePort)
 				if err != nil {
 					return errors.Wrap(err, "Failed to update endpoint capabilities port mapping")
 				}
