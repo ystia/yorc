@@ -42,10 +42,10 @@ type LogEntryDraft struct {
 	additionalInfo LogOptionalFields
 }
 
-// LogOptionalFields are log's additional additionalInfo
+// LogOptionalFields are log's additional info
 type LogOptionalFields map[FieldType]interface{}
 
-// FieldType is allowed/expected additional additionalInfo types
+// FieldType is allowed/expected additional info types
 type FieldType int
 
 const (
@@ -220,7 +220,7 @@ func (e LogEntry) toFlatMap() map[string]interface{} {
 	// order
 	flatMap["timestamp"] = e.timestamp.Format(time.RFC3339Nano)
 
-	// NewLogEntry additional additionalInfo
+	// NewLogEntry additional info
 	for k, v := range e.additionalInfo {
 		flatMap[k.String()] = v
 	}

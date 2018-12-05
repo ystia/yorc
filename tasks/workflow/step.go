@@ -254,13 +254,6 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		return err
 	}
 
-	//// Let's publish initial event status for workflow step (just before run it)
-	//for _, instanceName := range instances {
-	//	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name, InstanceName: instanceName}
-	//	events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
-	//	events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
-	//}
-
 	eventInfo := &events.WorkflowStepInfo{WorkflowName: workflowName, NodeName: s.Target, StepName: s.Name}
 	switch activity.Type() {
 	case builder.ActivityTypeDelegate:
