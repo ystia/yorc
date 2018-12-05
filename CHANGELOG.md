@@ -6,6 +6,10 @@
 
 * The orchestrator requires now at least Ansible 2.7.2 (upgrade from 2.6.3 introduced in [GH-194](https://github.com/ystia/yorc/issues/194))
 
+### BUG FIXES
+
+* ConnectTo relationship not working for kubernetes topologies ([GH-212](https://github.com/ystia/yorc/issues/212))
+
 ## 3.1.0-M6 (November 16, 2018)
 
 ### FEATURES
