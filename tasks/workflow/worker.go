@@ -596,6 +596,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) {
 	if err != nil {
 		log.Printf("Deployment id: %q, Task id: %q, Failed to get deployment status: %+v", t.targetID, t.taskID, err)
 		checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusFAILED)
+		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, "uninstall", tasks.TaskStatusFAILED.String())
 		return
 	}
 	if status != deployments.UNDEPLOYED {
@@ -618,8 +619,8 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) {
 			if t.taskType == tasks.TaskTypePurge {
 				w.runPurge(ctx, t)
 			}
+			events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, "uninstall", tasks.TaskStatusDONE.String())
 		}
-		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, "uninstall", tasks.TaskStatusDONE.String())
 	} else if t.taskType == tasks.TaskTypePurge {
 		w.runPurge(ctx, t)
 	}
