@@ -38,66 +38,67 @@ import (
 type StatusChangeType int
 
 // Info allows to provide custom/specific additional information for event
-type Info map[infoType]interface{}
+type Info map[InfoType]interface{}
 
-// infoType represents Event status change information type
-type infoType int
+// InfoType represents Event status change information type
+type InfoType int
 
 const (
-	infoDeploymentID infoType = iota
-
-	infoStatus
-
-	infoTimestamp
-
-	infoEventType
-
-	infoWorkflowID
-
-	infoAlienExecutionID
-
-	infoNodeID
-
-	infoInstanceID
-
-	infoOperationName
-
-	infoTargetNodeID
-
-	infoTargetInstanceID
-
-	infoAlienTaskExecutionID
-
-	infoWorkflowStepID
+	// EDeploymentID is event information related to deploymentIS
+	EDeploymentID InfoType = iota
+	// EStatus is event information related to status
+	EStatus
+	// ETimestamp is event timestamp
+	ETimestamp
+	// EType is type event information
+	EType
+	// EWorkflowID is event information related to workflow
+	EWorkflowID
+	// ETaskID is event information related to task
+	ETaskID
+	// ENodeID is event information related to node
+	ENodeID
+	// EInstanceID is event information related to instance
+	EInstanceID
+	// EOperationName is event information related to operation
+	EOperationName
+	// ETargetNodeID is event information related to target node
+	ETargetNodeID
+	// ETargetInstanceID is event information related to target instance
+	ETargetInstanceID
+	// ETaskExecutionID is event information related to task execution
+	ETaskExecutionID
+	// EWorkflowStepID is event information related to workflow step
+	EWorkflowStepID
 )
 
-func (i infoType) String() string {
+func (i InfoType) String() string {
 	switch i {
-	case infoDeploymentID:
+	case EDeploymentID:
 		return "deploymentId"
-	case infoStatus:
+	case EStatus:
 		return "status"
-	case infoTimestamp:
+	case ETimestamp:
 		return "timestamp"
-	case infoEventType:
+	case EType:
 		return "type"
-	case infoWorkflowID:
+	case EWorkflowID:
 		return "workflowId"
-	case infoAlienExecutionID:
+	case ETaskID:
 		return "alienExecutionId"
-	case infoNodeID:
+	case ENodeID:
 		return "nodeId"
-	case infoInstanceID:
+	case EInstanceID:
 		return "instanceId"
-	case infoOperationName:
+	case EOperationName:
 		return "operationName"
-	case infoTargetNodeID:
+	case ETargetNodeID:
 		return "targetNodeId"
-	case infoTargetInstanceID:
+	case ETargetInstanceID:
 		return "targetInstanceId"
-	case infoAlienTaskExecutionID:
+	case ETaskExecutionID:
 		return "alienTaskId"
-	case infoWorkflowStepID:
+	case EWorkflowStepID:
 		return "stepId"
 	}
 	return ""
@@ -147,12 +148,15 @@ func (e *statusChange) register() (string, error) {
 func (e *statusChange) flat() map[string]interface{} {
 	flat := make(map[string]interface{})
 
-	flat[infoDeploymentID.String()] = e.deploymentID
-	flat[infoStatus.String()] = e.status
-	flat[infoTimestamp.String()] = e.timestamp
-	flat[infoEventType.String()] = e.eventType.String()
+	flat[EDeploymentID.String()] = e.deploymentID
+	flat[EStatus.String()] = e.status
+	flat[ETimestamp.String()] = e.timestamp
+	flat[EType.String()] = e.eventType.String()
 	for k, v := range e.info {
-		flat[k.String()] = v
+		if v != "" {
+			flat[k.String()] = v
+		}
+
 	}
 	return flat
 }
@@ -173,13 +177,13 @@ func (e *statusChange) check() error {
 		return errors.New("DeploymentID and status are mandatory parameters for EventStatusVChange")
 	}
 
-	mandatoryMap := map[StatusChangeType][]infoType{
-		StatusChangeTypeInstance:      {infoNodeID, infoInstanceID},
-		StatusChangeTypeCustomCommand: {infoAlienExecutionID},
-		StatusChangeTypeScaling:       {infoAlienExecutionID},
-		StatusChangeTypeWorkflow:      {infoAlienExecutionID},
-		StatusChangeTypeWorkflowStep:  {infoAlienExecutionID, infoWorkflowID, infoNodeID, infoWorkflowStepID, infoInstanceID},
-		StatusChangeTypeAlienTask:     {infoAlienExecutionID, infoWorkflowID, infoNodeID, infoWorkflowStepID, infoInstanceID, infoAlienTaskExecutionID},
+	mandatoryMap := map[StatusChangeType][]InfoType{
+		StatusChangeTypeInstance:      {ENodeID, EInstanceID},
+		StatusChangeTypeCustomCommand: {ETaskID},
+		StatusChangeTypeScaling:       {ETaskID},
+		StatusChangeTypeWorkflow:      {ETaskID},
+		StatusChangeTypeWorkflowStep:  {ETaskID, EWorkflowID, ENodeID, EWorkflowStepID, EInstanceID},
+		StatusChangeTypeAlienTask:     {ETaskID, EWorkflowID, ENodeID, EWorkflowStepID, EInstanceID, ETaskExecutionID},
 	}
 	// Check mandatory info in function of status change type
 	if mandatoryInfos, is := mandatoryMap[e.eventType]; is {

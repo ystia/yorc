@@ -68,10 +68,10 @@ func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := testData[index]
 		res := toStatusChangeMap(t, string(kvp.Value))
-		assert.Equal(t, tc.node, res[infoNodeID.String()], "unexpected node value for statusChange")
-		assert.Equal(t, tc.status, res[infoStatus.String()], "unexpected status value for statusChange")
-		assert.Equal(t, deploymentID, res[infoDeploymentID.String()], "unexpected deploymentID value for statusChange")
-		assert.Equal(t, tc.instance, res[infoInstanceID.String()], "unexpected instance value for statusChange")
+		assert.Equal(t, tc.node, res[ENodeID.String()], "unexpected node value for statusChange")
+		assert.Equal(t, tc.status, res[EStatus.String()], "unexpected status value for statusChange")
+		assert.Equal(t, deploymentID, res[EDeploymentID.String()], "unexpected deploymentID value for statusChange")
+		assert.Equal(t, tc.instance, res[EInstanceID.String()], "unexpected instance value for statusChange")
 	}
 }
 
@@ -102,9 +102,9 @@ func testConsulPubSubNewEvents(t *testing.T, kv *api.KV) {
 		require.Len(t, events, 1)
 
 		event := toStatusChangeMap(t, string(events[0]))
-		assert.Equal(t, event[infoNodeID.String()], nodeName)
-		assert.Equal(t, event[infoStatus.String()], nodeStatus)
-		assert.Equal(t, event[infoInstanceID.String()], instance)
+		assert.Equal(t, event[ENodeID.String()], nodeName)
+		assert.Equal(t, event[EStatus.String()], nodeStatus)
+		assert.Equal(t, event[EInstanceID.String()], instance)
 	}()
 	<-ready
 	_, err := PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instance, nodeStatus)
@@ -151,9 +151,9 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 	require.Len(t, rawEvents, 4)
 	for index, event := range rawEvents {
 		evt := toStatusChangeMap(t, string(event))
-		assert.Equal(t, testData[index].node, evt[infoNodeID.String()])
-		assert.Equal(t, testData[index].instance, evt[infoInstanceID.String()])
-		assert.Equal(t, testData[index].status, evt[infoStatus.String()])
+		assert.Equal(t, testData[index].node, evt[ENodeID.String()])
+		assert.Equal(t, testData[index].instance, evt[EInstanceID.String()])
+		assert.Equal(t, testData[index].status, evt[EStatus.String()])
 	}
 
 	testData = []struct {
@@ -178,9 +178,9 @@ func testConsulPubSubNewEventsWithIndex(t *testing.T, kv *api.KV) {
 
 	for index, rawEvent := range rawEvents {
 		event := toStatusChangeMap(t, string(rawEvent))
-		assert.Equal(t, testData[index].node, event[infoNodeID.String()])
-		assert.Equal(t, testData[index].instance, event[infoInstanceID.String()])
-		assert.Equal(t, testData[index].status, event[infoStatus.String()])
+		assert.Equal(t, testData[index].node, event[ENodeID.String()])
+		assert.Equal(t, testData[index].instance, event[EInstanceID.String()])
+		assert.Equal(t, testData[index].status, event[EStatus.String()])
 	}
 }
 
@@ -238,7 +238,7 @@ func testconsulDeploymentStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := tests[index]
 		event := toStatusChangeMap(t, string(kvp.Value))
-		assert.Equal(t, tc.args.status, event[infoStatus.String()])
+		assert.Equal(t, tc.args.status, event[EStatus.String()])
 	}
 
 }
@@ -287,8 +287,8 @@ func testconsulCustomCommandStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := tests[index]
 		event := toStatusChangeMap(t, string(kvp.Value))
-		assert.Equal(t, tc.args.status, event[infoStatus.String()])
-		assert.Equal(t, tc.args.taskID, event[infoAlienExecutionID.String()])
+		assert.Equal(t, tc.args.status, event[EStatus.String()])
+		assert.Equal(t, tc.args.taskID, event[ETaskID.String()])
 	}
 
 }
@@ -337,8 +337,8 @@ func testconsulScalingStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := tests[index]
 		event := toStatusChangeMap(t, string(kvp.Value))
-		assert.Equal(t, tc.args.status, event[infoStatus.String()])
-		assert.Equal(t, tc.args.taskID, event[infoAlienExecutionID.String()])
+		assert.Equal(t, tc.args.status, event[EStatus.String()])
+		assert.Equal(t, tc.args.taskID, event[ETaskID.String()])
 	}
 
 }
@@ -388,9 +388,9 @@ func testconsulWorkflowStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := tests[index]
 		event := toStatusChangeMap(t, string(kvp.Value))
-		assert.Equal(t, tc.args.status, event[infoStatus.String()])
-		assert.Equal(t, tc.args.taskID, event[infoAlienExecutionID.String()])
-		assert.Equal(t, tc.args.workflowName, event[infoWorkflowID.String()])
+		assert.Equal(t, tc.args.status, event[EStatus.String()])
+		assert.Equal(t, tc.args.taskID, event[ETaskID.String()])
+		assert.Equal(t, tc.args.workflowName, event[EWorkflowID.String()])
 	}
 }
 
@@ -438,12 +438,12 @@ func testconsulWorkflowStepStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := tests[index]
 		event := toStatusChangeMap(t, string(kvp.Value))
-		assert.Equal(t, tc.args.status, event[infoStatus.String()])
-		assert.Equal(t, tc.args.taskID, event[infoAlienExecutionID.String()])
-		assert.Equal(t, "install", event[infoWorkflowID.String()])
-		assert.Equal(t, "0", event[infoInstanceID.String()])
-		assert.Equal(t, "step1", event[infoWorkflowStepID.String()])
-		assert.Equal(t, "node1", event[infoNodeID.String()])
+		assert.Equal(t, tc.args.status, event[EStatus.String()])
+		assert.Equal(t, tc.args.taskID, event[ETaskID.String()])
+		assert.Equal(t, "install", event[EWorkflowID.String()])
+		assert.Equal(t, "0", event[EInstanceID.String()])
+		assert.Equal(t, "step1", event[EWorkflowStepID.String()])
+		assert.Equal(t, "node1", event[ENodeID.String()])
 	}
 }
 
@@ -492,13 +492,13 @@ func testconsulAlienTaskStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
 		tc := tests[index]
 		event := toStatusChangeMap(t, string(kvp.Value))
-		assert.Equal(t, tc.args.status, event[infoStatus.String()])
-		assert.Equal(t, tc.args.taskID, event[infoAlienExecutionID.String()])
-		assert.Equal(t, tc.args.taskExecutionID, event[infoAlienTaskExecutionID.String()])
-		assert.Equal(t, "install", event[infoWorkflowID.String()])
-		assert.Equal(t, "0", event[infoInstanceID.String()])
-		assert.Equal(t, "step1", event[infoWorkflowStepID.String()])
-		assert.Equal(t, "node1", event[infoNodeID.String()])
+		assert.Equal(t, tc.args.status, event[EStatus.String()])
+		assert.Equal(t, tc.args.taskID, event[ETaskID.String()])
+		assert.Equal(t, tc.args.taskExecutionID, event[ETaskExecutionID.String()])
+		assert.Equal(t, "install", event[EWorkflowID.String()])
+		assert.Equal(t, "0", event[EInstanceID.String()])
+		assert.Equal(t, "step1", event[EWorkflowStepID.String()])
+		assert.Equal(t, "node1", event[ENodeID.String()])
 	}
 }
 
@@ -532,41 +532,41 @@ func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {
 		events[i] = toStatusChangeMap(t, string(rawEvent))
 	}
 
-	require.Equal(t, StatusChangeTypeInstance.String(), events[0][infoEventType.String()])
-	require.Equal(t, "node1", events[0][infoNodeID.String()])
-	require.Equal(t, "1", events[0][infoInstanceID.String()])
-	require.Equal(t, "started", events[0][infoStatus.String()])
-	require.Equal(t, ids[0], events[0][infoTimestamp.String()])
-	require.Equal(t, "", events[0][infoAlienExecutionID.String()])
+	require.Equal(t, StatusChangeTypeInstance.String(), events[0][EType.String()])
+	require.Equal(t, "node1", events[0][ENodeID.String()])
+	require.Equal(t, "1", events[0][EInstanceID.String()])
+	require.Equal(t, "started", events[0][EStatus.String()])
+	require.Equal(t, ids[0], events[0][ETimestamp.String()])
+	require.Equal(t, "", events[0][ETaskID.String()])
 
-	require.Equal(t, StatusChangeTypeDeployment.String(), events[1][infoEventType.String()])
-	require.Equal(t, "", events[1][infoNodeID.String()])
-	require.Equal(t, "", events[1][infoInstanceID.String()])
-	require.Equal(t, "deployed", events[1][infoStatus.String()])
-	require.Equal(t, ids[1], events[1][infoTimestamp.String()])
-	require.Equal(t, "", events[1][infoAlienExecutionID.String()])
+	require.Equal(t, StatusChangeTypeDeployment.String(), events[1][EType.String()])
+	require.Equal(t, "", events[1][ENodeID.String()])
+	require.Equal(t, "", events[1][EInstanceID.String()])
+	require.Equal(t, "deployed", events[1][EStatus.String()])
+	require.Equal(t, ids[1], events[1][ETimestamp.String()])
+	require.Equal(t, "", events[1][ETaskID.String()])
 
-	require.Equal(t, StatusChangeTypeScaling.String(), events[2][infoEventType.String()])
-	require.Equal(t, "", events[2][infoNodeID.String()])
-	require.Equal(t, "", events[2][infoInstanceID.String()])
-	require.Equal(t, "failed", events[2][infoStatus.String()])
-	require.Equal(t, ids[2], events[2][infoTimestamp.String()])
-	require.Equal(t, "t2", events[2][infoAlienExecutionID.String()])
+	require.Equal(t, StatusChangeTypeScaling.String(), events[2][EType.String()])
+	require.Equal(t, "", events[2][ENodeID.String()])
+	require.Equal(t, "", events[2][EInstanceID.String()])
+	require.Equal(t, "failed", events[2][EStatus.String()])
+	require.Equal(t, ids[2], events[2][ETimestamp.String()])
+	require.Equal(t, "t2", events[2][ETaskID.String()])
 
-	require.Equal(t, StatusChangeTypeCustomCommand.String(), events[3][infoEventType.String()])
-	require.Equal(t, "", events[3][infoNodeID.String()])
-	require.Equal(t, "", events[3][infoInstanceID.String()])
-	require.Equal(t, "running", events[3][infoStatus.String()])
-	require.Equal(t, ids[3], events[3][infoTimestamp.String()])
-	require.Equal(t, "t3", events[3][infoAlienExecutionID.String()])
+	require.Equal(t, StatusChangeTypeCustomCommand.String(), events[3][EType.String()])
+	require.Equal(t, "", events[3][ENodeID.String()])
+	require.Equal(t, "", events[3][EInstanceID.String()])
+	require.Equal(t, "running", events[3][EStatus.String()])
+	require.Equal(t, ids[3], events[3][ETimestamp.String()])
+	require.Equal(t, "t3", events[3][ETaskID.String()])
 
-	require.Equal(t, StatusChangeTypeWorkflow.String(), events[4][infoEventType.String()])
-	require.Equal(t, "", events[4][infoNodeID.String()])
-	require.Equal(t, "", events[4][infoInstanceID.String()])
-	require.Equal(t, "done", events[4][infoStatus.String()])
-	require.Equal(t, ids[4], events[4][infoTimestamp.String()])
-	require.Equal(t, "t4", events[4][infoAlienExecutionID.String()])
-	require.Equal(t, "install", events[4][infoWorkflowID.String()])
+	require.Equal(t, StatusChangeTypeWorkflow.String(), events[4][EType.String()])
+	require.Equal(t, "", events[4][ENodeID.String()])
+	require.Equal(t, "", events[4][EInstanceID.String()])
+	require.Equal(t, "done", events[4][EStatus.String()])
+	require.Equal(t, ids[4], events[4][ETimestamp.String()])
+	require.Equal(t, "t4", events[4][ETaskID.String()])
+	require.Equal(t, "install", events[4][EWorkflowID.String()])
 }
 
 func testconsulGetLogs(t *testing.T, kv *api.KV) {

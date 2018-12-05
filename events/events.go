@@ -45,8 +45,8 @@ func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deployme
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
 
 	info := make(Info)
-	info[infoNodeID] = nodeName
-	info[infoInstanceID] = instance
+	info[ENodeID] = nodeName
+	info[EInstanceID] = instance
 	e, err := newStatusChange(StatusChangeTypeInstance, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
@@ -101,7 +101,7 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoAlienExecutionID] = taskID
+	info[ETaskID] = taskID
 	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
@@ -131,7 +131,7 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoAlienExecutionID] = taskID
+	info[ETaskID] = taskID
 	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
@@ -164,14 +164,14 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 		return "", errors.Errorf("WorkflowStep information  param must be provided")
 	}
 	info := make(Info)
-	info[infoAlienExecutionID] = taskID
-	info[infoInstanceID] = wfStepInfo.InstanceName
-	info[infoWorkflowID] = wfStepInfo.WorkflowName
-	info[infoNodeID] = wfStepInfo.NodeName
-	info[infoWorkflowStepID] = wfStepInfo.StepName
-	info[infoOperationName] = wfStepInfo.OperationName
-	info[infoTargetNodeID] = wfStepInfo.TargetNodeID
-	info[infoTargetInstanceID] = wfStepInfo.TargetInstanceID
+	info[ETaskID] = taskID
+	info[EInstanceID] = wfStepInfo.InstanceName
+	info[EWorkflowID] = wfStepInfo.WorkflowName
+	info[ENodeID] = wfStepInfo.NodeName
+	info[EWorkflowStepID] = wfStepInfo.StepName
+	info[EOperationName] = wfStepInfo.OperationName
+	info[ETargetNodeID] = wfStepInfo.TargetNodeID
+	info[ETargetInstanceID] = wfStepInfo.TargetInstanceID
 	e, err := newStatusChange(StatusChangeTypeWorkflowStep, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
@@ -192,16 +192,16 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploym
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoAlienExecutionID] = taskID
+	info[ETaskID] = taskID
 	// Warning: Alien task corresponds to what we call taskExecution
-	info[infoAlienTaskExecutionID] = taskExecutionID
-	info[infoWorkflowID] = wfStepInfo.WorkflowName
-	info[infoNodeID] = wfStepInfo.NodeName
-	info[infoWorkflowStepID] = wfStepInfo.StepName
-	info[infoInstanceID] = wfStepInfo.InstanceName
-	info[infoOperationName] = wfStepInfo.OperationName
-	info[infoTargetNodeID] = wfStepInfo.TargetNodeID
-	info[infoTargetInstanceID] = wfStepInfo.TargetInstanceID
+	info[ETaskExecutionID] = taskExecutionID
+	info[EWorkflowID] = wfStepInfo.WorkflowName
+	info[ENodeID] = wfStepInfo.NodeName
+	info[EWorkflowStepID] = wfStepInfo.StepName
+	info[EInstanceID] = wfStepInfo.InstanceName
+	info[EOperationName] = wfStepInfo.OperationName
+	info[ETargetNodeID] = wfStepInfo.TargetNodeID
+	info[ETargetInstanceID] = wfStepInfo.TargetInstanceID
 	e, err := newStatusChange(StatusChangeTypeAlienTask, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
@@ -222,8 +222,8 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
 	info := make(Info)
-	info[infoAlienExecutionID] = taskID
-	info[infoWorkflowID] = workflowID
+	info[ETaskID] = taskID
+	info[EWorkflowID] = workflowID
 	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
@@ -257,7 +257,6 @@ func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout tim
 		if kvp.ModifyIndex <= waitIndex {
 			continue
 		}
-		//eventType := StatusChangeType(kvp.Flags)
 		events = append(events, kvp.Value)
 	}
 	log.Debugf("Found %d events after index", len(events))

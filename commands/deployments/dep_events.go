@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/ystia/yorc/commands/httputil"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/rest"
 )
 
@@ -127,15 +128,86 @@ func StreamsEvents(client *httputil.YorcClient, deploymentID string, colorize, f
 		}
 		lastIdx = evts.LastIndex
 		for _, event := range evts.Events {
-			if colorize {
-				fmt.Printf("%s\n", color.MagentaString("%s", string(event)))
-			} else {
-				fmt.Printf("%s\n", string(event))
-			}
+			fmt.Printf("%s\n", formatEvent(event, colorize))
 		}
 		response.Body.Close()
 		if stop {
 			return
 		}
 	}
+}
+
+func formatEvent(event json.RawMessage, colorize bool) string {
+	//fmt.Printf("%q", event)
+	var ret string
+	var data map[string]string
+	err := json.Unmarshal(event, &data)
+	if err != nil {
+		if colorize {
+			ret += fmt.Sprintf("%s: ", color.MagentaString("Warning"))
+		} else {
+			ret += fmt.Sprintf("Warning: ")
+		}
+		ret += fmt.Sprintf("Failed to unmarshal json:%q", event)
+		return ret
+	}
+
+	evType, is := data[events.EType.String()]
+	if !is {
+		if colorize {
+			ret += fmt.Sprintf("%s: ", color.MagentaString("Warning"))
+		} else {
+			ret += fmt.Sprintf("Warning: ")
+		}
+		ret += fmt.Sprintf("Misssing event type in json event:%q", event)
+		return ret
+	}
+
+	ts := data[events.ETimestamp.String()]
+	if colorize {
+		ts = color.CyanString("%s", ts)
+	}
+
+	statusChange, err := events.ParseStatusChangeType(evType)
+	if err != nil {
+		if colorize {
+			ret += fmt.Sprintf("%s: ", color.MagentaString("Warning"))
+		} else {
+			ret += fmt.Sprintf("Warning: ")
+		}
+		ret += fmt.Sprintf("Unknown event type: %q\n", evType)
+		return ret
+	}
+
+	switch statusChange {
+	case events.StatusChangeTypeInstance:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Node: %s\t Instance: %s\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ENodeID.String()], data[events.EInstanceID.String()], data[events.EStatus.String()])
+	case events.StatusChangeTypeDeployment:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Deployment Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.EStatus.String()])
+	case events.StatusChangeTypeCustomCommand:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (custom command)\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EStatus.String()])
+	case events.StatusChangeTypeScaling:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (scaling)\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EStatus.String()])
+	case events.StatusChangeTypeWorkflow:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (workflow)\t Workflow: %s\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EWorkflowID.String()], data[events.EStatus.String()])
+	case events.StatusChangeTypeWorkflowStep:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (workflowStep)\t Workflow: %s\t Instance: %s\t Step: %s\t Node: %s\t Operation: %s%s\t Status: %s\n", ts, data[events.EDeploymentID.String()],
+			data[events.ETaskID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.EOperationName.String()], data[events.ENodeID.String()], formatOptionalInfo(data), data[events.EStatus.String()])
+	case events.StatusChangeTypeAlienTask:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (Execution)\t Execution: %q\t Workflow: %s\t Instance: %s\t Step: %s\t Node: %s\t Operation: %s%s\t Status: %s\n", ts, data[events.EDeploymentID.String()],
+			data[events.ETaskID.String()], data[events.ETaskExecutionID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.EOperationName.String()], data[events.ENodeID.String()], formatOptionalInfo(data), data[events.EStatus.String()])
+	}
+
+	return ret
+}
+
+func formatOptionalInfo(data map[string]string) string {
+	var ret string
+	if targetInst, is := data[events.ETargetInstanceID.String()]; is && targetInst != "" {
+		ret += fmt.Sprintf("\t TargetInstance: %s", targetInst)
+	}
+	if targetNode, is := data[events.ETargetNodeID.String()]; is && targetNode != "" {
+		ret += fmt.Sprintf("\t TargetNode: %s", targetNode)
+	}
+	return ret
 }
