@@ -94,6 +94,7 @@ It prints the deployment status and the status of all the nodes contained in thi
      
 Flags:
   * ``-d``, ``--detailed``: Add details to the info command making it less concise and readable.
+  * ``-f``, ``--follow``: Follow deployment info updates (without details) until the deployment is finished.
 
 Get deployment events
 ~~~~~~~~~~~~~~~~~~~~~

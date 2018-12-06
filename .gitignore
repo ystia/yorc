@@ -20,6 +20,7 @@ work
 **/debug.test
 **/debug
 build/consul
+build/*.zip
 /doc/_build/*
 /doc/.doctrees
 /dist

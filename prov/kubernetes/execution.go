@@ -227,6 +227,9 @@ func (e *execution) manageDeploymentResource(ctx context.Context, clientset kube
 		}
 		// Update resource_spec with actual reference to used services, if necessary
 		rSpec, err = e.replaceServiceIPInDeploymentSpec(ctx, clientset, namespaceName, rSpec)
+		if err = json.Unmarshal([]byte(rSpec), &deploymentRepr); err != nil {
+			return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
+		}
 		if err != nil {
 			return err
 		}

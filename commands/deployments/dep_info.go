@@ -17,9 +17,12 @@ package deployments
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ystia/yorc/tasks"
 	"io/ioutil"
 	"strings"
+	"time"
+
+	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/tasks"
 
 	"path"
 
@@ -43,6 +46,7 @@ var commErrorMsg = httputil.YorcAPIDefaultErrorMsg
 
 func init() {
 	var detailedInfo bool
+	var follow bool
 
 	var infoCmd = &cobra.Command{
 		Use:   "info <DeploymentId>",
@@ -57,60 +61,106 @@ It prints the deployment status and the status of all the nodes contained in thi
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			colorize := !NoColor
-			if colorize {
-				commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(httputil.YorcAPIDefaultErrorMsg)
-			}
-			request, err := client.NewRequest("GET", "/deployments/"+args[0], nil)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			request.Header.Add("Accept", "application/json")
-			response, err := client.Do(request)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			defer response.Body.Close()
-			httputil.HandleHTTPStatusCode(response, args[0], "deployment", http.StatusOK)
-			var dep rest.Deployment
-			body, err := ioutil.ReadAll(response.Body)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			err = json.Unmarshal(body, &dep)
-			if err != nil {
-				httputil.ErrExit(err)
-			}
-			fmt.Println("Deployment: ", dep.ID)
 
-			fmt.Println("Global status:", getColoredDeploymentStatus(colorize, dep.Status))
-			if colorize {
-				defer color.Unset()
+			err = DisplayInfo(client, args[0], detailedInfo, follow, 3*time.Second)
+			if err != nil {
+				httputil.ErrExit(err)
 			}
-			var errs []error
-			if !detailedInfo {
-				errs = tableBasedDeploymentRendering(client, dep, colorize)
-			} else {
-				errs = detailedDeploymentRendering(client, dep, colorize)
-			}
-			if len(errs) > 0 {
-				fmt.Fprintln(os.Stderr, "\n\nErrors encountered:")
-				for _, err := range errs {
-					fmt.Fprintln(os.Stderr, "###################\n", err)
-				}
-			}
-			return nil
+
+			return err
 		},
 	}
 	infoCmd.PersistentFlags().BoolVarP(&detailedInfo, "detailed", "d", false, "Add details to the info command making it less concise and readable.")
+	infoCmd.PersistentFlags().BoolVarP(&follow, "follow", "f", false, "Follow deployment info updates (without details) until the deployment is finished.")
 
 	DeploymentsCmd.AddCommand(infoCmd)
 }
 
+// DisplayInfo displays deployment info
+func DisplayInfo(client *httputil.YorcClient, deploymentID string, detailed, follow bool, refreshTime time.Duration) error {
+
+	colorize := !NoColor
+	if colorize {
+		commErrorMsg = color.New(color.FgHiRed, color.Bold).SprintFunc()(httputil.YorcAPIDefaultErrorMsg)
+	}
+	request, err := client.NewRequest("GET", "/deployments/"+deploymentID, nil)
+	if err != nil {
+		return err
+	}
+	finished := false
+	lastStatus := ""
+	for !finished {
+		request.Header.Add("Accept", "application/json")
+		response, err := client.Do(request)
+		if err != nil {
+			if lastStatus != "" {
+				// Following a deployment that was purged, ending wihtout error
+				return nil
+			}
+			return err
+		}
+		defer response.Body.Close()
+		if follow && response.StatusCode == http.StatusNotFound {
+			// Undeployment done, not exiting on error when
+			// the CLI is folliwng the undeployment steps
+			fmt.Printf("%s undeployed.\n", deploymentID)
+			return nil
+		}
+
+		httputil.HandleHTTPStatusCode(response, deploymentID, "deployment", http.StatusOK)
+		var dep rest.Deployment
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(body, &dep)
+		if err != nil {
+			return err
+		}
+		if follow {
+			// Set the cursor to row 0, column 0
+			fmt.Printf("\033[0;0H")
+			if lastStatus != dep.Status {
+				// Clear screen to remove end of line when new status is shorter
+				print("\033[H\033[2J")
+				lastStatus = dep.Status
+			}
+		}
+		fmt.Println("Deployment: ", dep.ID)
+
+		fmt.Println("Global status:", getColoredDeploymentStatus(colorize, dep.Status))
+		if colorize {
+			defer color.Unset()
+		}
+		var errs []error
+		if !detailed || follow {
+			errs = tableBasedDeploymentRendering(client, dep, colorize)
+		} else {
+			errs = detailedDeploymentRendering(client, dep, colorize)
+		}
+		if len(errs) > 0 {
+			fmt.Fprintln(os.Stderr, "\n\nErrors encountered:")
+			for _, err := range errs {
+				fmt.Fprintln(os.Stderr, "###################\n", err)
+			}
+		}
+
+		finished = !follow ||
+			dep.Status == deployments.DEPLOYED.String() ||
+			dep.Status == deployments.UNDEPLOYED.String() ||
+			dep.Status == deployments.DEPLOYMENT_FAILED.String() ||
+			dep.Status == deployments.UNDEPLOYMENT_FAILED.String()
+		if !finished {
+			time.Sleep(refreshTime)
+		}
+
+	}
+	return nil
+}
 func tableBasedDeploymentRendering(client *httputil.YorcClient, dep rest.Deployment, colorize bool) []error {
 	errs := make([]error, 0)
 	nodesTable := tabutil.NewTable()
-	nodesTable.AddHeaders("Node", "Statuses")
+	nodesTable.AddHeaders("Node", "Status (instance/total)")
 
 	tasksTable := tabutil.NewTable()
 	tasksTable.AddHeaders("Id", "Type", "Status")
