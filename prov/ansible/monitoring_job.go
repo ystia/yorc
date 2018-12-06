@@ -74,7 +74,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 			return true, opErr
 		case "FAILED":
 			if opErr == nil {
-				opErr = errors.Errorf("operation %q for node %q failed", operation.Name, nodeName)
+				opErr = errors.Errorf("job implementation of node %q was detected as failed", nodeName)
 			}
 			return true, opErr
 		}
