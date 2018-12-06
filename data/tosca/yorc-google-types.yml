@@ -135,7 +135,7 @@ node_types:
       image_project:
         type: string
         description: >
-          The project against which all image and image family references will be
+          Project against which all image and image family references will be
           resolved.
           If not specified, and either image or image_family is provided, the current
           default project is used.
@@ -144,7 +144,7 @@ node_types:
       image_family:
         type: string
         description: >
-          The family of the image from which to initialize the boot disk.
+          Family of the image from which to initialize the boot disk.
           When a family is specified instead of an image, the latest non-deprecated 
           image associated with that family is used.
           At least one of the tuples image_project/image_family, image_project/image, family, image, should be defined.
@@ -160,27 +160,27 @@ node_types:
       machine_type:
         type: string
         description: >
-          The machine type used for the Compute Node, defining the Compute Node 
+          Machine type used for the Compute Node, defining the Compute Node
           CPU and Memory resources.
         default: n1-standard-1
       zone:
         type: string
         description: >
-          The zone on which the Compute Node should be hosted.
+          Zone on which the Compute Node should be hosted
       description:
         type: string
         description: >
-          Textual description of this Compute Node.
+          Textual description of this Compute Node
         required: false
       labels:
         type: string
         description: >
-          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Node. 
+          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Node
         required: false
       metadata:
         type: string
         description: >
-          Comma-separated list of label KEY=VALUE pairs made available to the
+          Comma-separated list of metadata KEY=VALUE pairs made available to the
           Compute Node Operating System. On Google official images, the metadata
           keys startup-script or startup-script-url can be used to specify a script
           that will be executed by the Compute Node once it starts running.
@@ -188,12 +188,12 @@ node_types:
       no_address:
         type: boolean
         description: >
-          If set to true, the instance will not be assigned an external IP address
+          Don't assign an external IP address to the instance
         required: false
       preemptible:
         type: boolean
         description: >
-          If set to true, the Compute Node is preemptible and time-limited.
+          Is the Compute Node preemptible and time-limited
         required: false
       scopes:
         type: string
@@ -361,39 +361,39 @@ node_types:
       address_type:
         type: string
         description: >
-          The type of address to reserve, either INTERNAL or EXTERNAL. If unspecified, defaults to EXTERNAL.
+          Type of address to reserve, either INTERNAL or EXTERNAL. If unspecified, defaults to EXTERNAL.
         required: false
       description:
         type: string
         description: >
-          An optional description of this resource.
+          Optional description of this resource
         required: false
       network_tier:
         type: string
         description: >
-          The networking tier used for configuring this address. This field can take the following values: PREMIUM or STANDARD.
+          Networking tier used for configuring this address. This field can take the following values: PREMIUM or STANDARD.
           If this field is not specified, it is assumed to be PREMIUM.
         required: false
       subnetwork:
         type: string
         description: >
-          The URL of the subnetwork in which to reserve the address. If an IP address is specified, it must be within the subnetwork's IP range.
+          URL of the subnetwork in which to reserve the address. If an IP address is specified, it must be within the subnetwork's IP range.
           This field can only be used with INTERNAL type with GCE_ENDPOINT/DNS_RESOLVER purposes.
         required: false
       labels:
         type: string
         description: >
-          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Address.
+          Comma-separated list of label KEY=VALUE pairs to assign to the Compute Address
         required: false
       region:
         type: string
         description: >
-          The Region in which the created address should reside. If it is not provided, the infrastructure location region is used.
+          Region in which the created address should reside. If it is not provided, the infrastructure location region is used.
         required: false
       project:
         type: string
         description: >
-          The ID of the project in which the resource belongs. If it is not provided, the infrastructure location project is used.
+          ID of the project in which the resource belongs. If it is not provided, the infrastructure location project is used.
         required: false
     capabilities:
       assignment:
