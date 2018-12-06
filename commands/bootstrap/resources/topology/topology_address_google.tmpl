@@ -1,0 +1,4 @@
+{{ define "ComputeAddress" }}
+      type: yorc.nodes.google.Address
+      properties: {{formatAsYAML .Address 8}}
+{{ end }}

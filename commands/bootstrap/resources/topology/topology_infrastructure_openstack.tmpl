@@ -1,0 +1,10 @@
+{{ define "Infrastructure" }}
+      type: org.ystia.yorc.infrastructure.OpenStackConfig
+      properties: {{formatAsYAML .Infrastructures.openstack 8}}
+      requirements:
+        - infraHostedOnYorcServer:
+            type_requirement: host
+            node: YorcServer
+            capability: org.ystia.yorc.pub.capabilities.YorcConfigContainer
+            relationship: org.ystia.yorc.linux.ansible.relationships.YorcConfigOpenstackHostedOnYorc
+{{ end }}

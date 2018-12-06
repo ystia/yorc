@@ -1,0 +1,17 @@
+resources:
+  - resourceType: "yorc.nodes.google.Address"
+    resourceName: "address"
+    archiveName: yorc-google-types
+    archiveVersion: 1.0.0
+    id: "yorc.nodes.google.Address:1.0.0"
+    properties: {{formatAsYAML .Address 8}}
+  - resourceType: "yorc.nodes.google.Compute"
+    resourceName: "Compute"
+    archiveName: yorc-google-types
+    archiveVersion: 1.0.0
+    id: "yorc.nodes.google.Compute:1.0.0"
+    properties: {{formatAsYAML .Compute 8}}
+    capabilities:
+      endpoint:
+        properties:
+          credentials: {{formatOnDemandResourceCredsAsYAML .Credentials 12}}

@@ -14,42 +14,44 @@ node_types:
     properties:
       image_id:
         type: string
-        description: The AMI (Amazon Machine Image) ID.
+        description: AMI (Amazon Machine Image) ID
         required: true
       instance_type:
         type: string
-        description: The AWS type representing Amazon flavor. It's a combination of CPU, memory, storage, and networking capacity (By instance t2.micro)
+        description: AWS type representing Amazon flavor (combination of CPU, memory, storage, and networking capacity, for example t2.micro)
         required: true
       key_name:
         type: string
+        description: >
+          AWS Key Pair name to use when creating this Compute
         required: true
       security_groups:
         type: string
         description: >
-          Coma separated list of security groups to add to the Compute
+          Comma-separated list of security groups to add to the Compute
         required: true
       availability_zone:
         type: string
         required: false
-        description: AWS Availability zone on which to create the instance.
+        description: AWS Availability zone on which to create the instance
       placement_group:
         type: string
         required: false
-        description: AWS Placement Group on which to add the instance.
+        description: AWS Placement Group on which to add the instance
       elastic_ips:
         type: string
-        description: Coma separated list of Elastic IPs to use.
+        description: Comma-separated list of Elastic IPs to use
         required: false
       delete_volume_on_termination:
         type: boolean
         description: >
-          Whether the root device volume should be destroyed on instance termination (Default: true).
+          Destroy the root device volume on instance termination
         required: false
         default: true
     attributes:
       public_dns:
         type: string
-        description: The public DNS name assigned to the instance.
+        description: Public DNS name assigned to the instance
 
   yorc.nodes.aws.PublicNetwork:
     derived_from: tosca.nodes.Network
