@@ -37,12 +37,12 @@ Upgrading to Yorc 3.1.0
 Ansible
 ~~~~~~~
 
-Ansible needs to be upgraded to version 2.6.3, run the following command to
+Ansible needs to be upgraded to version 2.7.2, run the following command to
 do it:
 
 .. code-block:: bash
 
-    sudo pip install ansible==2.6.3
+    sudo pip install ansible==2.7.2
 
 Terraform
 ~~~~~~~~~
@@ -81,7 +81,7 @@ binary. So you also need to download them separately.
 Consul
 ~~~~~~
 
-Ansible needs to be upgraded to version 1.2.3, run the following command to
+Consul needs to be upgraded to version 1.2.3, run the following command to
 do it:
 
 .. code-block:: bash

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/events"
@@ -31,6 +33,10 @@ func (d *myDelegateExecutor) ExecDelegate(ctx context.Context, cfg config.Config
 }
 
 type myOperationExecutor struct{}
+
+func (d *myOperationExecutor) ExecAsyncOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation, stepName string) (*prov.Action, time.Duration, error) {
+	return nil, 0, fmt.Errorf("asynchronous operations %v not yet supported by this sample", operation)
+}
 
 func (d *myOperationExecutor) ExecOperation(ctx context.Context, cfg config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
 	log.Printf("Hello from myOperationExecutor")

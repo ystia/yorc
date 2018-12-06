@@ -806,6 +806,7 @@ Environment variables
 
   * ``YORC_TERRAFORM_KEEP_GENERATED_FILES``: Equivalent to :ref:`--terraform_keep_generated_files <option_terraform_keep_generated_files_cmd>` command-line flag.
 
+.. _infrastructures_configuration: 
 
 Infrastructures configuration
 -----------------------------

@@ -63,27 +63,27 @@ const DefaultWfStepGracefulTerminationTimeout = 2 * time.Minute
 
 // Configuration holds config information filled by Cobra and Viper (see commands package for more information)
 type Configuration struct {
-	Ansible                          Ansible               `mapstructure:"ansible"`
-	PluginsDirectory                 string                `mapstructure:"plugins_directory"`
-	WorkingDirectory                 string                `mapstructure:"working_directory"`
-	WorkersNumber                    int                   `mapstructure:"workers_number"`
-	ServerGracefulShutdownTimeout    time.Duration         `mapstructure:"server_graceful_shutdown_timeout"`
-	HTTPPort                         int                   `mapstructure:"http_port"`
-	HTTPAddress                      string                `mapstructure:"http_address"`
-	KeyFile                          string                `mapstructure:"key_file"`
-	CertFile                         string                `mapstructure:"cert_file"`
-	CAFile                           string                `mapstructure:"ca_file"`
-	CAPath                           string                `mapstructure:"ca_path"`
-	SSLVerify                        bool                  `mapstructure:"ssl_verify"`
-	ResourcesPrefix                  string                `mapstructure:"resources_prefix"`
-	Consul                           Consul                `mapstructure:"consul"`
-	Telemetry                        Telemetry             `mapstructure:"telemetry"`
-	Infrastructures                  map[string]DynamicMap `mapstructure:"infrastructures"`
-	Vault                            DynamicMap            `mapstructure:"vault"`
-	WfStepGracefulTerminationTimeout time.Duration         `mapstructure:"wf_step_graceful_termination_timeout"`
-	ServerID                         string                `mapstructure:"server_id"`
-	Terraform                        Terraform             `mapstructure:"terraform"`
-	UseSSHAgent                      bool                  `mapstructure:"use_ssh_agent"`
+	Ansible                          Ansible               `yaml:"ansible,omitempty" mapstructure:"ansible"`
+	PluginsDirectory                 string                `yaml:"plugins_directory,omitempty" mapstructure:"plugins_directory"`
+	WorkingDirectory                 string                `yaml:"working_directory,omitempty" mapstructure:"working_directory"`
+	WorkersNumber                    int                   `yaml:"workers_number,omitempty" mapstructure:"workers_number"`
+	ServerGracefulShutdownTimeout    time.Duration         `yaml:"server_graceful_shutdown_timeout,omitempty" mapstructure:"server_graceful_shutdown_timeout"`
+	HTTPPort                         int                   `yaml:"http_port,omitempty" mapstructure:"http_port"`
+	HTTPAddress                      string                `yaml:"http_address,omitempty" mapstructure:"http_address"`
+	KeyFile                          string                `yaml:"key_file,omitempty" mapstructure:"key_file"`
+	CertFile                         string                `yaml:"cert_file,omitempty" mapstructure:"cert_file"`
+	CAFile                           string                `yaml:"ca_file,omitempty" mapstructure:"ca_file"`
+	CAPath                           string                `yaml:"ca_path,omitempty" mapstructure:"ca_path"`
+	SSLVerify                        bool                  `yaml:"ssl_verify,omitempty" mapstructure:"ssl_verify"`
+	ResourcesPrefix                  string                `yaml:"resources_prefix,omitempty" mapstructure:"resources_prefix"`
+	Consul                           Consul                `yaml:"consul,omitempty" mapstructure:"consul"`
+	Telemetry                        Telemetry             `yaml:"telemetry,omitempty" mapstructure:"telemetry"`
+	Infrastructures                  map[string]DynamicMap `yaml:"infrastructures,omitempty" mapstructure:"infrastructures"`
+	Vault                            DynamicMap            `yaml:"vault,omitempty" mapstructure:"vault"`
+	WfStepGracefulTerminationTimeout time.Duration         `yaml:"wf_step_graceful_termination_timeout,omitempty" mapstructure:"wf_step_graceful_termination_timeout"`
+	ServerID                         string                `yaml:"server_id,omitempty" mapstructure:"server_id"`
+	Terraform                        Terraform             `yaml:"terraform,omitempty" mapstructure:"terraform"`
+	UseSSHAgent                      bool                  `yaml:"use_ssh_agent" mapstructure:"use_ssh_agent"`
 }
 
 // DockerSandbox holds the configuration for a docker sandbox
@@ -111,49 +111,49 @@ func (ho HostedOperations) Format(s fmt.State, verb rune) {
 
 // Ansible configuration
 type Ansible struct {
-	UseOpenSSH              bool             `mapstructure:"use_openssh"`
-	DebugExec               bool             `mapstructure:"debug"`
-	ConnectionRetries       int              `mapstructure:"connection_retries"`
-	OperationRemoteBaseDir  string           `mapstructure:"operation_remote_base_dir"`
-	KeepOperationRemotePath bool             `mapstructure:"keep_operation_remote_path"`
-	KeepGeneratedRecipes    bool             `mapstructure:"keep_generated_recipes"`
-	ArchiveArtifacts        bool             `mapstructure:"archive_artifacts"`
-	CacheFacts              bool             `mapstructure:"cache_facts"`
-	HostedOperations        HostedOperations `mapstructure:"hosted_operations"`
+	UseOpenSSH              bool             `yaml:"use_openssh,omitempty" mapstructure:"use_openssh"`
+	DebugExec               bool             `yaml:"debug,omitempty" mapstructure:"debug"`
+	ConnectionRetries       int              `yaml:"connection_retries,omitempty" mapstructure:"connection_retries"`
+	OperationRemoteBaseDir  string           `yaml:"operation_remote_base_dir,omitempty" mapstructure:"operation_remote_base_dir"`
+	KeepOperationRemotePath bool             `yaml:"keep_operation_remote_path,omitempty" mapstructure:"keep_operation_remote_path"`
+	KeepGeneratedRecipes    bool             `yaml:"keep_generated_recipes,omitempty" mapstructure:"keep_generated_recipes"`
+	ArchiveArtifacts        bool             `yaml:"archive_artifacts,omitempty" mapstructure:"archive_artifacts"`
+	CacheFacts              bool             `yaml:"cache_facts,omitempty" mapstructure:"cache_facts"`
+	HostedOperations        HostedOperations `yaml:"hosted_operations,omitempty" mapstructure:"hosted_operations"`
 }
 
 // Consul configuration
 type Consul struct {
-	Token          string `mapstructure:"token"`
-	Datacenter     string `mapstructure:"datacenter"`
-	Address        string `mapstructure:"address"`
-	Key            string `mapstructure:"key_file"`
-	Cert           string `mapstructure:"cert_file"`
-	CA             string `mapstructure:"ca_cert"`
-	CAPath         string `mapstructure:"ca_path"`
-	SSL            bool   `mapstructure:"ssl"`
-	SSLVerify      bool   `mapstructure:"ssl_verify"`
-	PubMaxRoutines int    `mapstructure:"publisher_max_routines"`
+	Token          string `yaml:"token,omitempty" mapstructure:"token"`
+	Datacenter     string `yaml:"datacenter,omitempty" mapstructure:"datacenter"`
+	Address        string `yaml:"address,omitempty" mapstructure:"address"`
+	Key            string `yaml:"key_file,omitempty" mapstructure:"key_file"`
+	Cert           string `yaml:"cert_file,omitempty" mapstructure:"cert_file"`
+	CA             string `yaml:"ca_cert,omitempty" mapstructure:"ca_cert"`
+	CAPath         string `yaml:"ca_path,omitempty" mapstructure:"ca_path"`
+	SSL            bool   `yaml:"ssl,omitempty" mapstructure:"ssl"`
+	SSLVerify      bool   `yaml:"ssl_verify,omitempty" mapstructure:"ssl_verify"`
+	PubMaxRoutines int    `yaml:"publisher_max_routines,omitempty" mapstructure:"publisher_max_routines"`
 }
 
 // Telemetry holds the configuration for the telemetry service
 type Telemetry struct {
-	StatsdAddress           string `mapstructure:"statsd_address"`
-	StatsiteAddress         string `mapstructure:"statsite_address"`
-	PrometheusEndpoint      bool   `mapstructure:"expose_prometheus_endpoint"`
-	ServiceName             string `mapstructure:"service_name"`
-	DisableHostName         bool   `mapstructure:"disable_hostname"`
-	DisableGoRuntimeMetrics bool   `mapstructure:"disable_go_runtime_metrics"`
+	StatsdAddress           string `yaml:"statsd_address,omitempty" mapstructure:"statsd_address"`
+	StatsiteAddress         string `yaml:"statsite_address,omitempty" mapstructure:"statsite_address"`
+	PrometheusEndpoint      bool   `yaml:"expose_prometheus_endpoint,omitempty" mapstructure:"expose_prometheus_endpoint"`
+	ServiceName             string `yaml:"service_name,omitempty" mapstructure:"service_name"`
+	DisableHostName         bool   `yaml:"disable_hostname,omitempty" mapstructure:"disable_hostname"`
+	DisableGoRuntimeMetrics bool   `yaml:"disable_go_runtime_metrics,omitempty" mapstructure:"disable_go_runtime_metrics"`
 }
 
 // Terraform configuration
 type Terraform struct {
-	PluginsDir                       string `mapstructure:"plugins_dir"`
-	ConsulPluginVersionConstraint    string `mapstructure:"consul_plugin_version_constraint"`
-	AWSPluginVersionConstraint       string `mapstructure:"aws_plugin_version_constraint"`
-	GooglePluginVersionConstraint    string `mapstructure:"google_plugin_version_constraint"`
-	OpenStackPluginVersionConstraint string `mapstructure:"openstack_plugin_version_constraint"`
-	KeepGeneratedFiles               bool   `mapstructure:"keep_generated_files"`
+	PluginsDir                       string `yaml:"plugins_dir,omitempty" mapstructure:"plugins_dir"`
+	ConsulPluginVersionConstraint    string `yaml:"consul_plugin_version_constraint,omitempty" mapstructure:"consul_plugin_version_constraint"`
+	AWSPluginVersionConstraint       string `yaml:"aws_plugin_version_constraint,omitempty" mapstructure:"aws_plugin_version_constraint"`
+	GooglePluginVersionConstraint    string `yaml:"google_plugin_version_constraint,omitempty" mapstructure:"google_plugin_version_constraint"`
+	OpenStackPluginVersionConstraint string `yaml:"openstack_plugin_version_constraint,omitempty" mapstructure:"openstack_plugin_version_constraint"`
+	KeepGeneratedFiles               bool   `yaml:"keep_generated_files,omitempty" mapstructure:"keep_generated_files"`
 }
 
 // DynamicMap allows to store configuration parameters that are not known in advance.

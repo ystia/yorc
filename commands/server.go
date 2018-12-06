@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ystia/yorc/config"
@@ -38,21 +39,27 @@ func init() {
 }
 
 const (
-	environmentVariablePrefix = "YORC"
+	// EnvironmentVariablePrefix is the prefix used in Yorc commands parameters
+	// passed as environment variables
+	EnvironmentVariablePrefix = "YORC"
 )
 
 var (
-	tfConsulPluginVersion           = "tf Consul plugin version"
-	tfConsulPluginVersionConstraint = versionToConstraint("~>", tfConsulPluginVersion, "minor")
+	// TfConsulPluginVersion is the Terraform Consul plugin lowest supported version
+	TfConsulPluginVersion           = "tf Consul plugin version"
+	tfConsulPluginVersionConstraint = versionToConstraint("~>", TfConsulPluginVersion, "minor")
 
-	tfAWSPluginVersion           = "tf AWS plugin version"
-	tfAWSPluginVersionConstraint = versionToConstraint("~>", tfAWSPluginVersion, "minor")
+	// TfAWSPluginVersion is the Terraform AWS plugin lowest supported version
+	TfAWSPluginVersion           = "tf AWS plugin version"
+	tfAWSPluginVersionConstraint = versionToConstraint("~>", TfAWSPluginVersion, "minor")
 
-	tfOpenStackPluginVersion           = "tf OpenStack plugin version"
-	tfOpenStackPluginVersionConstraint = versionToConstraint("~>", tfOpenStackPluginVersion, "minor")
+	// TfOpenStackPluginVersion is the Terraform OpenStack plugin lowest supported version
+	TfOpenStackPluginVersion           = "tf OpenStack plugin version"
+	tfOpenStackPluginVersionConstraint = versionToConstraint("~>", TfOpenStackPluginVersion, "minor")
 
-	tfGooglePluginVersion           = "tf Google plugin version"
-	tfGooglePluginVersionConstraint = versionToConstraint("~>", tfGooglePluginVersion, "minor")
+	// TfGooglePluginVersion is the Terraform Google plugin lowest supported version
+	TfGooglePluginVersion           = "tf Google plugin version"
+	tfGooglePluginVersionConstraint = versionToConstraint("~>", TfGooglePluginVersion, "minor")
 )
 
 var ansibleConfiguration = map[string]interface{}{
@@ -115,14 +122,25 @@ var serverCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Println("Using config file:", viper.ConfigFileUsed())
-		configuration := getConfig()
-		log.Debugf("Configuration :%+v", configuration)
 		shutdownCh := make(chan struct{})
-		return server.RunServer(configuration, shutdownCh)
+		return RunServer(shutdownCh)
 	},
 }
 
+// RunServer starts a Yorc Server
+func RunServer(shutdownCh chan struct{}) error {
+	configuration := GetConfig()
+	log.Debugf("Configuration :%+v", configuration)
+	return server.RunServer(configuration, shutdownCh)
+}
+
 func serverInitExtraFlags(args []string) {
+	InitExtraFlags(args, serverCmd)
+}
+
+// InitExtraFlags inits infrastructure and vault flags
+func InitExtraFlags(args []string, cmd *cobra.Command) {
+
 	resolvedServerExtraParams = []*serverExtraParams{
 		&serverExtraParams{
 			argPrefix:   "infrastructure_",
@@ -154,10 +172,10 @@ func serverInitExtraFlags(args []string) {
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
 					if len(flagParts) == 1 {
 						// Boolean flag
-						serverCmd.PersistentFlags().Bool(flagName, false, "")
+						cmd.PersistentFlags().Bool(flagName, false, "")
 						viper.SetDefault(viperName, false)
 					} else {
-						serverCmd.PersistentFlags().String(flagName, "", "")
+						cmd.PersistentFlags().String(flagName, "", "")
 						viper.SetDefault(viperName, "")
 					}
 				} else {
@@ -165,16 +183,28 @@ func serverInitExtraFlags(args []string) {
 					flagName = strings.TrimLeft(args[i], "-")
 					viperName = strings.Replace(strings.Replace(flagName, sep.argPrefix, sep.viperPrefix, 1), "_", ".", sep.subSplit)
 					if len(args) > i+1 && !strings.HasPrefix(args[i+1], "--") {
-						serverCmd.PersistentFlags().String(flagName, "", "")
-						viper.SetDefault(viperName, "")
+
+						// Arguments ending wih a plural 's' are considered to
+						// be slices
+						if strings.HasSuffix(args[i], "s") && !strings.HasSuffix(args[i], "credentials") {
+							// May have already been defined as string slice
+							// flags can appear several times
+							if cmd.PersistentFlags().Lookup(flagName) == nil {
+								cmd.PersistentFlags().StringSlice(flagName, []string{}, "")
+								viper.SetDefault(viperName, []string{})
+							}
+						} else {
+							cmd.PersistentFlags().String(flagName, "", "")
+							viper.SetDefault(viperName, "")
+						}
 					} else {
 						// Boolean flag
-						serverCmd.PersistentFlags().Bool(flagName, false, "")
+						cmd.PersistentFlags().Bool(flagName, false, "")
 						viper.SetDefault(viperName, false)
 					}
 				}
 				// Add viper flag
-				viper.BindPFlag(viperName, serverCmd.PersistentFlags().Lookup(flagName))
+				viper.BindPFlag(viperName, cmd.PersistentFlags().Lookup(flagName))
 				sep.viperNames = append(sep.viperNames, viperName)
 			}
 		}
@@ -200,6 +230,13 @@ func initConfig() {
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
 		log.Println("Can't use config file:", err)
+	} else {
+		// Watch config to take into account config changes
+		viper.WatchConfig()
+		viper.OnConfigChange(func(e fsnotify.Event) {
+			log.Printf("Reloading config on config file %s change\n", e.Name)
+			viper.ReadInConfig()
+		})
 	}
 
 	// Deprecate Ansible and Consul flat keys if they are defined in
@@ -302,7 +339,7 @@ func setConfig() {
 	}
 
 	//Environment Variables
-	viper.SetEnvPrefix(environmentVariablePrefix)
+	viper.SetEnvPrefix(EnvironmentVariablePrefix)
 	viper.AutomaticEnv() // read in environment variables that match
 	viper.BindEnv("working_directory")
 	viper.BindEnv("plugins_directory")
@@ -370,7 +407,8 @@ func setConfig() {
 
 }
 
-func getConfig() config.Configuration {
+// GetConfig gets configuration from viper
+func GetConfig() config.Configuration {
 	configuration := config.Configuration{}
 	err := viper.Unmarshal(&configuration)
 	if err != nil {
@@ -434,7 +472,25 @@ func addServerExtraInfraParams(cfg *config.Configuration, infraParam string) {
 		params = make(config.DynamicMap)
 		cfg.Infrastructures[paramParts[1]] = params
 	}
-	params.Set(paramParts[2], value)
+
+	// When the key/value pair is read from an environment variable, the value is
+	// read as a string. This needs to be changed if the variable is expected to
+	// be an array
+	if strings.HasSuffix(paramParts[2], "s") && !strings.HasSuffix(paramParts[2], "credentials") {
+		// value should be a slice
+		switch value.(type) {
+		case string:
+			vSlice := strings.Split(fmt.Sprint(value), ",")
+			for i, val := range vSlice {
+				vSlice[i] = strings.TrimSpace(val)
+			}
+			params.Set(paramParts[2], vSlice)
+		default:
+			params.Set(paramParts[2], value)
+		}
+	} else {
+		params.Set(paramParts[2], value)
+	}
 }
 
 func addServerExtraVaultParam(cfg *config.Configuration, vaultParam string) {
@@ -500,7 +556,7 @@ func toFlatKey(nestedKey string) string {
 // variable
 func toEnvVar(key string) string {
 
-	name := environmentVariablePrefix + "_" + toFlatKey(key)
+	name := EnvironmentVariablePrefix + "_" + toFlatKey(key)
 	return strings.ToUpper(name)
 }
 

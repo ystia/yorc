@@ -1,0 +1,4 @@
+{{ define "ComputeAddress" }}
+      type: yorc.nodes.aws.PublicNetwork
+      properties: {{formatAsYAML .Address 8}}
+{{ end }}
