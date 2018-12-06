@@ -354,8 +354,14 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 		}
 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Service %s created in namespace %s", service.Name, namespace)
-		node, _ := getHealthyNode(clientset)
-		h, _ := getExternalIPAdress(clientset, node)
+		node, err := getHealthyNode(clientset)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Not able to find an healthy node")
+		}
+		h, err := getExternalIPAdress(clientset, node)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Error getting external ip of node %s", node)
+		}
 		for _, val := range service.Spec.Ports {
 			if val.NodePort != 0 {
 				str := fmt.Sprintf("http://%s:%d", h, val.NodePort)
@@ -515,9 +521,15 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 			return errors.Wrap(err, "Failed to create service")
 		}
 		var s string
+		node, err := getHealthyNode(clientset)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Not able to find an healthy node")
+		}
+		h, err := getExternalIPAdress(clientset, node)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Error getting external ip of node %s", node)
+		}
 		for _, val := range serv.Spec.Ports {
-			node, _ := getHealthyNode(clientset)
-			h, _ := getExternalIPAdress(clientset, node)
 			str := fmt.Sprintf("http://%s:%d", h, val.NodePort)
 
 			log.Printf("%s : %s: %d:%d mapped to %s", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, str)

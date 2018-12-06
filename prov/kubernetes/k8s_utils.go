@@ -255,8 +255,7 @@ func getHealthyNode(clientset kubernetes.Interface) (string, error) {
 			}
 		}
 	}
-	//No healthy node found (error or warning to throw maybe)
-	return "", nil
+	return "", errors.Wrap(err, "No healthy node found")
 }
 
 //Return the external IP of a given node
