@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -352,14 +351,11 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 		}
 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Service %s created in namespace %s", service.Name, namespace)
-
-		kubConf := e.cfg.Infrastructures["kubernetes"]
-		kubMasterIP := kubConf.GetString("master_url")
-		u, _ := url.Parse(kubMasterIP)
-		h := strings.Split(u.Host, ":")
+		node, _ := getHealthyNode(clientset)
+		h, _ := getExternalIPAdress(clientset, node)
 		for _, val := range service.Spec.Ports {
 			if val.NodePort != 0 {
-				str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+				str := fmt.Sprintf("http://%s:%d", h, val.NodePort)
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%s : %s: %d:%d mapped to %s", service.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
 				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "k8s_service_url", str)
 				if err != nil {
