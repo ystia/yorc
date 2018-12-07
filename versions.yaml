@@ -1,4 +1,4 @@
-yorc_version: 3.1.0-M7
+yorc_version: 3.1.0-SNAPSHOT
 consul_version: 1.2.3
 terraform_version: 0.11.8
 ansible_version: 2.7.2
