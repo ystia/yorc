@@ -66,3 +66,10 @@ func TestSSHAgent(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, keys, 0, "no key expected")
 }
+
+// BER SSH key is not handled by crypto/ssh
+// https://github.com/golang/go/issues/14145
+func TestReadPrivateKey(t *testing.T) {
+	_, err := ReadPrivateKey("./testdata/test.pem")
+	require.NotNil(t, err)
+}
