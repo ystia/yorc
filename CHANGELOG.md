@@ -1,6 +1,6 @@
 # Yorc Changelog
 
-## UNRELEASED
+## 3.1.0-M7 (December 07, 2018)
 
 ### DEPENDENCIES
 
