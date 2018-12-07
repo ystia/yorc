@@ -10,6 +10,10 @@
 
 * Allow to bootstrap a full stack Alien4Cloud/Yorc setup using yorc CLI ([GH-131](https://github.com/ystia/yorc/issues/131))
 
+### ENHANCEMENTS
+
+* Use ssh-agent to not write ssh private keys on disk ([GH-201](https://github.com/ystia/yorc/issues/201))
+
 ### BUG FIXES
 
 * ConnectTo relationship not working for kubernetes topologies ([GH-212](https://github.com/ystia/yorc/issues/212))

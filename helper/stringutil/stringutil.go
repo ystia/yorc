@@ -15,6 +15,7 @@
 package stringutil
 
 import (
+	"github.com/ystia/yorc/log"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -75,4 +76,18 @@ func GetFilePath(pathOrContent string) (string, bool, error) {
 	file.Sync()
 
 	return filepath, false, file.Close()
+}
+
+// Truncate truncates a string if longer than defined max length
+// The defined max length must be > 3 otherwise no truncation will be done.
+// The returned string length is "max length" and ends with "..."
+func Truncate(str string, maxLength int) string {
+	if maxLength < 3 {
+		log.Print("maxLength parameter must be greater than 3. No truncation will be done")
+		return str
+	}
+	if len(str) > maxLength {
+		return str[0:maxLength-3] + "..."
+	}
+	return str
 }
