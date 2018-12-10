@@ -19,12 +19,13 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/prov"
 )
 
 type actionOperator struct {
@@ -67,8 +68,9 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 		if err != nil {
 			return false, err
 		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).Registerf("got job status %q, error: %v", status, err)
 		switch status {
-		case "RUNNING":
+		case "RUNNING", "QUEUED":
 			return false, opErr
 		case "COMPLETED":
 			return true, opErr
