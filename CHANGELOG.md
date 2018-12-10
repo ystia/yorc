@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* No output properties for services on GKE ([GH-214](https://github.com/ystia/yorc/issues/214))
+
 ## 3.1.0-M7 (December 07, 2018)
 
 ### DEPENDENCIES
