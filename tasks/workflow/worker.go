@@ -600,7 +600,10 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) {
 		return
 	}
 	if status != deployments.UNDEPLOYED {
-		w.setDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
+		if status != deployments.UNDEPLOYMENT_IN_PROGRESS {
+			w.setDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
+		}
+
 		wfDone, err := w.runWorkflowStep(ctx, t, "uninstall", true)
 		if err != nil {
 			log.Printf("%+v", err)
