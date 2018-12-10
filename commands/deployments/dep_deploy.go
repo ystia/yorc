@@ -72,7 +72,7 @@ func init() {
 				}
 				fileType := http.DetectContentType(buff)
 				if fileType == "application/zip" {
-					location, err = submitCSAR(buff, client, deploymentID)
+					location, err = SubmitCSAR(buff, client, deploymentID)
 					if err != nil {
 						httputil.ErrExit(err)
 					}
@@ -84,7 +84,7 @@ func init() {
 				if err != nil {
 					httputil.ErrExit(err)
 				}
-				location, err = submitCSAR(csarZip, client, deploymentID)
+				location, err = SubmitCSAR(csarZip, client, deploymentID)
 
 				if err != nil {
 					httputil.ErrExit(err)
@@ -113,7 +113,8 @@ func init() {
 	DeploymentsCmd.AddCommand(deployCmd)
 }
 
-func submitCSAR(csarZip []byte, client *httputil.YorcClient, deploymentID string) (string, error) {
+// SubmitCSAR submits the deployment of an archive
+func SubmitCSAR(csarZip []byte, client *httputil.YorcClient, deploymentID string) (string, error) {
 	var request *http.Request
 	var err error
 	if deploymentID != "" {

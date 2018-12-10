@@ -32,7 +32,7 @@ import (
 	"github.com/ystia/yorc/prov/terraform/commons"
 )
 
-func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string) error {
+func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
@@ -146,7 +146,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	}
 
 	// Get connection info (user, private key)
-	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -336,9 +336,6 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 
 	commons.AddResource(infrastructure, "openstack_compute_instance_v2", instance.Name, &instance)
 
-	nullResource := commons.Resource{}
-	// Do this in order to be sure that ansible will be able to log on the instance
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`}, Connection: &commons.Connection{User: user, PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
 	var accessIP string
 	if fipAssociateName != "" && cfg.Infrastructures[infrastructureName].GetBool("provisioning_over_fip_allowed") {
 		// Use Floating IP for provisioning
@@ -346,14 +343,12 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	} else {
 		accessIP = "${openstack_compute_instance_v2." + instance.Name + ".network.0.fixed_ip_v4}"
 	}
-	re.Connection.Host = accessIP
 	consulKeys.Keys = append(consulKeys.Keys, commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: accessIP}) // Use access ip here
-	nullResource.Provisioners = make([]map[string]interface{}, 0)
-	provMap := make(map[string]interface{})
-	provMap["remote-exec"] = re
-	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
 
-	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
+	// Add Connection check
+	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env); err != nil {
+		return err
+	}
 
 	consulKeyAttrib := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)} // Use latest provisioned network for private access
 	consulKeyFixedIP := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${openstack_compute_instance_v2.%s.network.%d.fixed_ip_v4}", instance.Name, len(instance.Networks)-1)}

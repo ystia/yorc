@@ -15,9 +15,12 @@
 package commons
 
 import (
+	"context"
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/log"
 )
 
@@ -84,10 +87,10 @@ type RemoteExec struct {
 
 // LocalExec allows to invoke a local executable after a resource is created. This invokes a process on the machine running Terraform, not on the resource
 type LocalExec struct {
-	Command     string `json:"command"`
-	WorkingDir  string `json:"working_dir,omitempty"`
-	interpreter string `json:"interpreter,omitempty"`
-	environment string `json:"environment,omitempty"`
+	Command     string                 `json:"command"`
+	WorkingDir  string                 `json:"working_dir,omitempty"`
+	Interpreter string                 `json:"interpreter,omitempty"`
+	Environment map[string]interface{} `json:"environment,omitempty"`
 }
 
 // A Connection allows to overwrite the way Terraform connects to a resource
@@ -158,4 +161,49 @@ func GetConnInfoFromEndpointCredentials(kv *api.KV, deploymentID, nodeName strin
 		pkfp = privateKeyFilePath.RawString()
 	}
 	return user.RawString(), pkfp, nil
+}
+
+// AddConnectionCheckResource builds a null specific resource to check SSH connection with SSH key passed via env variable
+func AddConnectionCheckResource(infrastructure *Infrastructure, user, privateKey, accessIP, resourceName string, env *[]string) error {
+	// Check the connection in order to be sure that ansible will be able to log on the instance
+	pkeyContent, err := sshutil.ToPrivateKeyContent(privateKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve private key content")
+	}
+
+	// Define private_key variable
+	infrastructure.Variable = make(map[string]interface{})
+	infrastructure.Variable["private_key"] = struct{}{}
+
+	// Add env TF variable for private key
+	*env = append(*env, fmt.Sprintf("%s=%s", "TF_VAR_private_key", string(pkeyContent)))
+
+	// Build null Resource
+	nullResource := Resource{}
+	re := RemoteExec{Inline: []string{`echo "connected"`},
+		Connection: &Connection{
+			User:       user,
+			Host:       accessIP,
+			PrivateKey: "${var.private_key}",
+		}}
+	nullResource.Provisioners = make([]map[string]interface{}, 0)
+	provMap := make(map[string]interface{})
+	provMap["remote-exec"] = re
+	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
+
+	AddResource(infrastructure, "null_resource", resourceName+"-ConnectionCheck", &nullResource)
+	return nil
+}
+
+// GetSSHAgent provides an SSH-agent for specific Terraform needs
+func GetSSHAgent(ctx context.Context, privateKey string) (*sshutil.SSHAgent, error) {
+	sshAgent, err := sshutil.NewSSHAgent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = sshAgent.AddKey(privateKey, 3600)
+	if err != nil {
+		return nil, err
+	}
+	return sshAgent, nil
 }

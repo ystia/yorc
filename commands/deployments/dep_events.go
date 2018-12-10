@@ -192,10 +192,10 @@ func formatEvent(event json.RawMessage, colorize bool) string {
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (workflow)\t Workflow: %s\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EWorkflowID.String()], data[events.EStatus.String()])
 	case events.StatusChangeTypeWorkflowStep:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (workflowStep)\t Workflow: %s\t Instance: %s\t Step: %s\t Node: %s\t Operation: %s%s\t Status: %s\n", ts, data[events.EDeploymentID.String()],
-			data[events.ETaskID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.EOperationName.String()], data[events.ENodeID.String()], formatOptionalInfo(data), data[events.EStatus.String()])
+			data[events.ETaskID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.ENodeID.String()], data[events.EOperationName.String()], formatOptionalInfo(data), data[events.EStatus.String()])
 	case events.StatusChangeTypeAlienTask:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (Execution)\t Execution: %q\t Workflow: %s\t Instance: %s\t Step: %s\t Node: %s\t Operation: %s%s\t Status: %s\n", ts, data[events.EDeploymentID.String()],
-			data[events.ETaskID.String()], data[events.ETaskExecutionID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.EOperationName.String()], data[events.ENodeID.String()], formatOptionalInfo(data), data[events.EStatus.String()])
+			data[events.ETaskID.String()], data[events.ETaskExecutionID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.ENodeID.String()], data[events.EOperationName.String()], formatOptionalInfo(data), data[events.EStatus.String()])
 	}
 
 	return ret
