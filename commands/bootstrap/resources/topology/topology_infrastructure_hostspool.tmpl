@@ -1,0 +1,11 @@
+{{ define "Infrastructure" }}
+      type: org.ystia.yorc.pub.infrastructure.HostsPoolConfig
+      properties:
+        hosts: |{{formatAsYAML .Hosts 10}}
+      requirements:
+        - infraHostedOnYorcServer:
+            type_requirement: yorc
+            node: YorcServer
+            capability: org.ystia.yorc.pub.capabilities.YorcConfigContainer
+            relationship: org.ystia.yorc.linux.ansible.relationships.YorcConfigHostsPoolHostedOnYorc
+{{ end }}

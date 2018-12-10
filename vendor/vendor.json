@@ -653,6 +653,18 @@
 			"versionExact": "1.0.0"
 		},
 		{
+			"checksumSHA1": "gEjGS03N1eysvpQ+FCHTxPcbxXc=",
+			"path": "github.com/kardianos/osext",
+			"revision": "ae77be60afb1dcacde03767a8c37337fad28ac14",
+			"revisionTime": "2017-05-10T13:15:34Z"
+		},
+		{
+			"checksumSHA1": "aaUR0FaTkm9HdCovPv3tecD71/s=",
+			"path": "github.com/kballard/go-shellquote",
+			"revision": "95032a82bc518f77982ea72343cc1ade730072f0",
+			"revisionTime": "2018-04-28T03:00:07Z"
+		},
+		{
 			"checksumSHA1": "KQhA4EQp4Ldwj9nJZnEURlE6aQw=",
 			"path": "github.com/kr/fs",
 			"revision": "2788f0dbd16903de03cb8186e5c7d97b69ad387b",
@@ -699,6 +711,12 @@
 			"path": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"revision": "c12348ce28de40eed0136aa2b644d0ee0650e56c",
 			"revisionTime": "2016-04-24T11:30:07Z"
+		},
+		{
+			"checksumSHA1": "CIK3BBNX3nuUQCmNqTQydNfMNKI=",
+			"path": "github.com/mgutz/ansi",
+			"revision": "9520e82c474b0a04dd04f8a40959027271bab992",
+			"revisionTime": "2017-02-06T15:57:36Z"
 		},
 		{
 			"checksumSHA1": "V/quM7+em2ByJbWBLOsEwnY3j/Q=",
@@ -1103,6 +1121,12 @@
 			"revisionTime": "2018-02-11T11:39:43Z"
 		},
 		{
+			"checksumSHA1": "/U7f2gaH6DnEmLguVLDbipU6kXU=",
+			"path": "golang.org/x/crypto/internal/subtle",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
+			"revisionTime": "2018-06-14T19:19:50Z"
+		},
+		{
 			"checksumSHA1": "kVKE0OX1Xdw5mG7XKT86DLLKE2I=",
 			"path": "golang.org/x/crypto/poly1305",
 			"revision": "9de5f2eaf759b4c4550b3db39fed2e9e5f86f45c",
@@ -1113,6 +1137,12 @@
 			"path": "golang.org/x/crypto/ssh",
 			"revision": "9de5f2eaf759b4c4550b3db39fed2e9e5f86f45c",
 			"revisionTime": "2018-02-11T11:39:43Z"
+		},
+		{
+			"checksumSHA1": "R9VBzgWGaphXv2/b4DLeMAbq9Xg=",
+			"path": "golang.org/x/crypto/ssh/agent",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
+			"revisionTime": "2018-06-14T19:19:50Z"
 		},
 		{
 			"checksumSHA1": "iXuNYJHz0a0gjQvtQ7m8v4wAsL8=",
@@ -1278,6 +1308,30 @@
 			"path": "google.golang.org/appengine/urlfetch",
 			"revision": "03cac3b07182cfb08c0d0c0b6ee72a1ceb151c92",
 			"revisionTime": "2018-08-27T17:01:13Z"
+		},
+		{
+			"checksumSHA1": "AYfbNbjs4bB7VV1ijIqMIOJkAPc=",
+			"path": "gopkg.in/AlecAivazis/survey.v1",
+			"revision": "0be4439d90f533f1ea2e0adddd5b1a405e6f5559",
+			"revisionTime": "2018-10-25T01:51:22Z"
+		},
+		{
+			"checksumSHA1": "doqz2h/EObmclSlrnuUiV+tImR0=",
+			"path": "gopkg.in/AlecAivazis/survey.v1/core",
+			"revision": "0be4439d90f533f1ea2e0adddd5b1a405e6f5559",
+			"revisionTime": "2018-10-25T01:51:22Z"
+		},
+		{
+			"checksumSHA1": "FNtf3Absmc8S45pa91pxaT19ZV4=",
+			"path": "gopkg.in/AlecAivazis/survey.v1/terminal",
+			"revision": "0be4439d90f533f1ea2e0adddd5b1a405e6f5559",
+			"revisionTime": "2018-10-25T01:51:22Z"
+		},
+		{
+			"checksumSHA1": "ONWjfvB7wTruXlhgaPf9whtMXxs=",
+			"path": "gopkg.in/cookieo9/resources-go.v2",
+			"revision": "d27c04069d0d5dfe11c202dacbf745ae8d1ab181",
+			"revisionTime": "2015-02-25T11:57:33Z"
 		},
 		{
 			"checksumSHA1": "1GjIiJAA3m4mFTZ6zmtl3VZ6dCk=",

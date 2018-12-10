@@ -111,7 +111,7 @@ func IsOrchestratorHostOperation(op prov.Operation) bool {
 	return op.OperationHost == "ORCHESTRATOR"
 }
 
-// Set logs optionals fields related to the given action
+// SetOperationLogFields set logs optionals fields related to the given action
 func SetOperationLogFields(ctx context.Context, op prov.Operation) context.Context {
 	logOptFields, ok := events.FromContext(ctx)
 	if !ok {

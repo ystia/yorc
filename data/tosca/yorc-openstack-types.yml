@@ -19,42 +19,42 @@ node_types:
     properties:
       image:
         type: string
-        description: The Openstack VM Image ID either this property or the 'imageName' property is required
+        description: Openstack VM Image ID, either this property or the 'imageName' property is required
         required: false
       imageName:
         type: string
         description: >
-          The Openstack VM Image Name either this property or the 'image' property is required. This property can be used only if the image
+          Openstack VM Image Name either this property or the 'image' property is required. This property can be used only if the image
           name is unique.
         required: false
       flavor:
         type: string
-        description: The Openstack VM Flavor ID either this property or the 'flavorName' property is required
+        description: Openstack VM Flavor ID, either this property or the 'flavorName' property is required
         required: false
       flavorName:
         type: string
         description: >
-          The Openstack VM Image Name either this property or the 'flavor' property is required.
+          Openstack VM Flavor Name, either this property or the 'flavor' ID property is required.
         required: false
       availability_zone:
         type: string
         description: >
-          The Openstack Availability Zone on which the Compute should be hosted.
+          Openstack Availability Zone on which the Compute should be hosted.
         required: false
       region:
         type: string
         description: >
-          The Openstack Region. Defaults to 'RegionOne'
+          Openstack Region. Defaults to 'RegionOne'
         required: false
       key_pair:
         type: string
         description: >
-          The Openstack Key Pair name to use when creating this Compute
+          Openstack Key Pair name to use when creating this Compute
         required: false
       security_groups:
         type: string
         description: >
-          Coma separated list of security groups to add to the Compute
+          Comma-separated list of security groups to add to the Compute
         required: false
 
   yorc.nodes.openstack.BlockStorage:
@@ -63,12 +63,12 @@ node_types:
       availability_zone:
         type: string
         description: >
-          The Openstack Availability Zone on which the BlockStorage should be hosted.
+          Openstack Availability Zone on which the BlockStorage should be hosted.
         required: false
       region:
         type: string
         description: >
-          The Openstack Region. Defaults to 'RegionOne'
+          Openstack Region. Defaults to 'RegionOne'
         required: false
       deletable:
         type: boolean
@@ -81,11 +81,11 @@ node_types:
     properties:
       ip:
         type: string
-        description: A specific Floating IP to use. Note that either 'ip' or 'floating_network_name' should be specified and 'ip' take the precedence.
+        description: Floating IP address to use. Note that either this property or the 'floating_network_name' property should be specified and 'ip' takes precedence.
         required: false
       floating_network_name:
         type: string
-        description: Name of the Pool of Floating IPs to use. Note that either 'ip' or 'floating_network_name' should be specified and 'ip' take the precedence.
+        description: Floating Network name, name of the Pool of Floating IPs to use. Note that either this property or the 'ip' address property should be specified and 'ip' takes precedence.
         required: false
     capabilities:
       connection:
@@ -97,14 +97,14 @@ node_types:
     properties:
       start_ip:
         type: string
-        description: The IP address to be used as the 1st one in a pool of addresses derived from the cidr block full IP range
+        description: IP address to be used as the 1st one in a pool of addresses derived from the cidr block full IP range
         required: false
       end_ip:
         type: string
-        description: The IP address to be used as the last one in a pool of addresses derived from the cidr block full IP range
+        description: IP address to be used as the last one in a pool of addresses derived from the cidr block full IP range
         required: false
       dhcp_enabled:
         type: boolean
-        description: Indicates the TOSCA container to create a virtual network instance with or without a DHCP service.
+        description: Has the TOSCA container used to create a virtual network instance a DHCP service.
         required: false
         default: true
