@@ -1,0 +1,17 @@
+resources:
+  - resourceType: "yorc.nodes.openstack.PublicNetwork"
+    resourceName: "public-starlings"
+    archiveName: yorc-openstack-types
+    archiveVersion: 1.0.0
+    id: "yorc.nodes.openstack.PublicNetwork:1.0.0"
+    properties: {{formatAsYAML .Address 8}}
+  - resourceType: "yorc.nodes.openstack.Compute"
+    resourceName: "Compute"
+    archiveName: yorc-openstack-types
+    archiveVersion: 1.0.0
+    id: "yorc.nodes.openstack.Compute:1.0.0"
+    properties: {{formatAsYAML .Compute 8}}
+    capabilities:
+      endpoint:
+        properties:
+          credentials: {{formatOnDemandResourceCredsAsYAML .Credentials 12}}

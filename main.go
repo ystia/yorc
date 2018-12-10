@@ -16,6 +16,7 @@ package main
 
 import (
 	"github.com/ystia/yorc/commands"
+	_ "github.com/ystia/yorc/commands/bootstrap"
 	_ "github.com/ystia/yorc/commands/deployments"
 	_ "github.com/ystia/yorc/commands/deployments/tasks"
 	_ "github.com/ystia/yorc/commands/deployments/workflows"

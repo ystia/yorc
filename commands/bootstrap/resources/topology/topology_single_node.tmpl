@@ -1,0 +1,1435 @@
+tosca_definitions_version: alien_dsl_2_0_0
+
+metadata:
+  template_name: YorcOnSingleNode
+  template_version: 0.1.0-SNAPSHOT
+  template_author: Yorc
+
+description: ""
+
+imports:
+  - alien-base-types/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/alien-base-types.yml
+  - <normative-types.yml>
+  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - <yorc-google-types.yml>
+  - <yorc-openstack-types.yml>
+  - <yorc-aws-types.yml>
+  - <yorc-hostspool-types.yml>
+  - org.ystia.yorc.experimental.consul.linux.ansible/2.1.0-SNAPSHOT/types.yaml
+  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.ystia.terraform.linux.terraform/2.1.0-SNAPSHOT/types.yaml
+  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.consul.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.ystia.yorc.linux.ansible/2.1.0-SNAPSHOT/types.yaml
+  - <yorc-types.yml>
+  - org.alien4cloud.java.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.ystia.yorc.pub/2.1.0-SNAPSHOT/types.yaml
+  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.ystia.yorc.experimental.consul.pub/2.1.0-SNAPSHOT/types.yaml
+  - org.ystia.ansible.linux.ansible/2.1.0-SNAPSHOT/types.yaml
+  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.ystia.yorc.alien4cloud/2.1.0-SNAPSHOT/types.yaml
+  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.ystia.terraform.pub/2.1.0-SNAPSHOT/types.yaml
+  - org.ystia.ansible.pub/2.1.0-SNAPSHOT/types.yaml
+
+topology_template:
+  node_templates:
+    OracleJDK:
+      type: org.alien4cloud.java.jdk.linux.nodes.OracleJDK
+      properties:
+        java_url: "{{.Jdk.DownloadURL}}"
+        java_home: "/opt/java"
+        component_version: "{{.Jdk.Version}}"
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: YorcCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Alien4Cloud:
+      type: org.alien4cloud.alien4cloud.webapp.nodes.Alien4Cloud
+      properties:
+        context_root: "/"
+        component_version: "{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}"
+        data_dir: "/opt/alien4cloud/data"
+      requirements:
+        - javaSoftwareHostedOnJdkOracleJdkJdk:
+            type_requirement: java
+            node: OracleJDK
+            capability: org.alien4cloud.java.pub.capabilities.JDK
+            relationship: org.alien4cloud.java.pub.relationships.JavaSoftwareHostedOnJDK
+      capabilities:
+        consul:
+          properties:
+            tls_enabled: false
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+        jolokia:
+          properties:
+            port: 8778
+        http:
+          properties:
+            port: 9200
+            protocol: http
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+        rest:
+          properties:
+            user: {{.Alien4cloud.User}}
+            password: {{.Alien4cloud.Password}}
+            port: {{.Alien4cloud.Port}}
+            protocol: http
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+      artifacts:
+        alien_dist:
+          file: {{getFile .Alien4cloud.DownloadURL}}
+          type: tosca.artifacts.File
+    YorcPlugin:
+      type: org.ystia.yorc.alien4cloud.nodes.YorcPlugin
+      properties:
+        download_url: "{{.YorcPlugin.DownloadURL}}"
+        name: Yorc
+        discriminator: yorc
+        pluginId: "alien4cloud-yorc-plugin"
+        pluginBean: "yorc-orchestrator-factory"
+      requirements:
+        - alienConfiguratorHostedOnAlienAlien4CloudConfig:
+            type_requirement: host
+            node: Alien4Cloud
+            capability: org.alien4cloud.alien4cloud.pub.capabilities.AlienConfigContainer
+            relationship: org.alien4cloud.alien4cloud.pub.relationships.AlienConfiguratorHostedOnAlien
+        - connectsToYorcYorcServerRest:
+            type_requirement: yorc
+            node: YorcServer
+            capability: org.ystia.yorc.pub.capabilities.YorcRestAPI
+            relationship: org.ystia.yorc.alien4cloud.relationships.ConnectsToYorc
+    YorcOnDemandLocationResources:
+      type: org.ystia.yorc.alien4cloud.nodes.YorcOnDemandLocationResourcesConfigurator
+      properties:
+        type: "{{.Location.Type}}"
+        name: "{{.Location.Name}}"
+      requirements:
+        - locationHostedOnOrchestratorYorcPluginLocation_config:
+            type_requirement: orchestrator
+            node: YorcPlugin
+            capability: org.alien4cloud.alien4cloud.config.pub.capabilities.OrchestratorConfigurator
+            relationship: org.alien4cloud.alien4cloud.config.pub.relationships.LocationHostedOnOrchestrator
+      artifacts:
+        resources_file_artifact:
+          file: {{.Location.ResourcesFile}}
+    AnsibleRuntime:
+      type: org.ystia.ansible.linux.ansible.nodes.AnsibleRuntime
+      properties:
+        component_version: "{{.Ansible.Version}}"
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: YorcCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    YorcServer:
+      type: org.ystia.yorc.linux.ansible.nodes.YorcServer
+      properties:
+        download_url: "{{.Yorc.DownloadURL}}"
+        install_dir: "/usr/local/bin"
+        config_dir: "/etc/yorc"
+        data_dir: "{{.Yorc.DataDir}}"
+        private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: YorcCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+        - joinConsulAgentConsulServerConsul_agent:
+            type_requirement: consul
+            node: ConsulServer
+            capability: org.alien4cloud.consul.pub.capabilities.ConsulAgent
+            relationship: org.ystia.yorc.linux.ansible.relationships.JoinConsulAgent
+        - dependsOnAnsibleRuntimeAnsibleRuntimeFeature:
+            type_requirement: ansible
+            node: AnsibleRuntime
+            capability: tosca.capabilities.Node
+            relationship: org.ystia.ansible.pub.relationships.DependsOnAnsibleRuntime
+        - dependsOnTerraformRuntimeTerraformRuntimeFeature:
+            type_requirement: terraform
+            node: TerraformRuntime
+            capability: tosca.capabilities.Node
+            relationship: org.ystia.yorc.linux.ansible.relationships.DependsOnTerraformRuntime
+      capabilities:
+        rest:
+          properties:
+            port: {{.Yorc.Port}}
+            protocol: http
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+    ConsulServer:
+      type: org.ystia.yorc.experimental.consul.linux.ansible.nodes.ConsulServer
+      properties:
+        install_dnsmasq: true
+        mode: server
+        tls_enabled: false
+        download_url: "{{.Consul.DownloadURL}}"
+        install_dir: "/usr/local/bin"
+        config_dir: "/etc/consul.d"
+        datacenter: dc1
+        domain: consul
+        web_ui: false
+        data_dir: "/var/consul"
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: YorcCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+      capabilities:
+        consul_agent:
+          properties:
+            port: {{.Consul.Port}}
+            protocol: tcp
+            secure: false
+            network_name: PRIVATE
+            initiator: source
+    TerraformRuntime:
+      type: org.ystia.terraform.linux.terraform.nodes.TerraformRuntime
+      properties:
+        install_dir: "/usr/local/bin"
+        plugins_dir: "/var/terraform/plugins"{{formatAsYAML .Terraform 8}}
+      requirements:
+        - hostedOnComputeHost:
+            type_requirement: host
+            node: YorcCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    Infrastructure: {{block "Infrastructure" .}} {{end}}
+    {{if not .Address}}
+    YorcCompute: {{block "Compute" .}} {{end}}
+    {{else}}
+    YorcCompute: {{block "ComputeWithAddress" .}} {{end}}
+    ComputeAddress:  {{block "ComputeAddress" .}} {{end}}
+    {{end}}
+  outputs:
+    Alien4Cloud_alien_url:
+      value: { get_attribute: [ Alien4Cloud, alien_url ] }
+  workflows:
+    install:
+      steps:
+        OracleJDK_create:
+          target: OracleJDK
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - OracleJDK_created
+        A4C_Yorc_install:
+          target: YorcCompute
+          activities:
+            - delegate: install
+          on_success:
+            - OracleJDK_initial
+            - ConsulServer_initial
+            - YorcServer_initial
+        OracleJDK_creating:
+          target: OracleJDK
+          activities:
+            - set_state: creating
+          on_success:
+            - OracleJDK_create
+        Infrastructure_initial:
+          target: Infrastructure
+          activities:
+            - set_state: initial
+          on_success:
+            - Infrastructure_creating
+        YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source:
+          target: YorcServer
+          target_relationship: dependsOnTerraformRuntimeTerraformRuntimeFeature
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
+          on_success:
+            - Infrastructure_yorcConfigInfrastructureHostedOnYorcYorcServerConfig_post_configure_target
+            - YorcServer_configured
+        YorcPlugin_creating:
+          target: YorcPlugin
+          activities:
+            - set_state: creating
+          on_success:
+            - YorcPlugin_created
+        YorcOnDemandLocationResources_created:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: created
+          on_success:
+            - YorcOnDemandLocationResources_configuring
+        AnsibleRuntime_initial:
+          target: AnsibleRuntime
+          activities:
+            - set_state: initial
+          on_success:
+            - AnsibleRuntime_creating
+        ConsulServer_create:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - ConsulServer_created
+        AnsibleRuntime_configuring:
+          target: AnsibleRuntime
+          activities:
+            - set_state: configuring
+          on_success:
+            - AnsibleRuntime_configured
+        YorcServer_created:
+          target: YorcServer
+          activities:
+            - set_state: created
+          on_success:
+            - YorcServer_configuring
+        TerraformRuntime_configuring:
+          target: TerraformRuntime
+          activities:
+            - set_state: configuring
+          on_success:
+            - TerraformRuntime_configured
+        TerraformRuntime_started:
+          target: TerraformRuntime
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_initial
+        YorcPlugin_configuring:
+          target: YorcPlugin
+          activities:
+            - set_state: configuring
+          on_success:
+            - YorcPlugin_connectsToYorcYorcServerRest_pre_configure_source
+        ConsulServer_starting:
+          target: ConsulServer
+          activities:
+            - set_state: starting
+          on_success:
+            - ConsulServer_start
+        YorcServer_joinConsulAgentConsulServerConsul_agent_pre_configure_source:
+          target: YorcServer
+          target_relationship: joinConsulAgentConsulServerConsul_agent
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - YorcServer_configure
+        AnsibleRuntime_starting:
+          target: AnsibleRuntime
+          activities:
+            - set_state: starting
+          on_success:
+            - AnsibleRuntime_started
+        ConsulServer_configure:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.configure
+          on_success:
+            - ConsulServer_configured
+        ConsulServer_created:
+          target: ConsulServer
+          activities:
+            - set_state: created
+          on_success:
+            - ConsulServer_configuring
+            - AnsibleRuntime_initial
+        Infrastructure_starting:
+          target: Infrastructure
+          activities:
+            - set_state: starting
+          on_success:
+        {{if not .Hosts}}
+            - Infrastructure_started
+        {{else}}
+            - Infrastructure_start
+		    {{end}}
+        {{if .Hosts}}
+        Infrastructure_start:
+          target: Infrastructure
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Infrastructure_started
+		    {{end}}
+        Alien4Cloud_starting:
+          target: Alien4Cloud
+          activities:
+            - set_state: starting
+          on_success:
+            - Alien4Cloud_start
+        YorcServer_configuring:
+          target: YorcServer
+          activities:
+            - set_state: configuring
+          on_success:
+            - YorcServer_joinConsulAgentConsulServerConsul_agent_pre_configure_source
+        ConsulServer_configured:
+          target: ConsulServer
+          activities:
+            - set_state: configured
+          on_success:
+            - ConsulServer_starting
+        OracleJDK_configured:
+          target: OracleJDK
+          activities:
+            - set_state: configured
+          on_success:
+            - OracleJDK_starting
+        YorcOnDemandLocationResources_starting:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcOnDemandLocationResources_start
+        Alien4Cloud_configuring:
+          target: Alien4Cloud
+          activities:
+            - set_state: configuring
+          on_success:
+            - Alien4Cloud_configure
+        TerraformRuntime_creating:
+          target: TerraformRuntime
+          activities:
+            - set_state: creating
+          on_success:
+            - TerraformRuntime_create
+        YorcServer_creating:
+          target: YorcServer
+          activities:
+            - set_state: creating
+          on_success:
+            - YorcServer_create
+        Alien4Cloud_initial:
+          target: Alien4Cloud
+          activities:
+            - set_state: initial
+          on_success:
+            - Alien4Cloud_creating
+        YorcOnDemandLocationResources_configuring:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: configuring
+          on_success:
+            - YorcOnDemandLocationResources_configured
+        YorcServer_started:
+          target: YorcServer
+          activities:
+            - set_state: started
+          on_success:
+            - Infrastructure_initial
+            - YorcPlugin_initial
+        TerraformRuntime_created:
+          target: TerraformRuntime
+          activities:
+            - set_state: created
+          on_success:
+            - TerraformRuntime_configuring
+        YorcServer_initial:
+          target: YorcServer
+          activities:
+            - set_state: initial
+          on_success:
+            - YorcServer_creating
+        TerraformRuntime_configured:
+          target: TerraformRuntime
+          activities:
+            - set_state: configured
+          on_success:
+            - TerraformRuntime_starting
+        YorcOnDemandLocationResources_create:
+          target: YorcOnDemandLocationResources
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - YorcOnDemandLocationResources_created
+        Alien4Cloud_started:
+          target: Alien4Cloud
+          activities:
+            - set_state: started
+          on_success:
+            - YorcPlugin_initial
+        OracleJDK_starting:
+          target: OracleJDK
+          activities:
+            - set_state: starting
+          on_success:
+            - OracleJDK_started
+        Infrastructure_configuring:
+          target: Infrastructure
+          activities:
+            - set_state: configuring
+          on_success:
+            - Infrastructure_configured
+        YorcOnDemandLocationResources_start:
+          target: YorcOnDemandLocationResources
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - YorcOnDemandLocationResources_started
+        OracleJDK_configuring:
+          target: OracleJDK
+          activities:
+            - set_state: configuring
+          on_success:
+            - OracleJDK_configured
+        YorcPlugin_start:
+          target: YorcPlugin
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - YorcPlugin_started
+        Infrastructure_created:
+          target: Infrastructure
+          activities:
+            - set_state: created
+          on_success:
+            - Infrastructure_configuring
+        Alien4Cloud_created:
+          target: Alien4Cloud
+          activities:
+            - set_state: created
+          on_success:
+            - Alien4Cloud_configuring
+        Infrastructure_started:
+          target: Infrastructure
+          activities:
+            - set_state: started
+        YorcPlugin_connectsToYorcYorcServerRest_pre_configure_source:
+          target: YorcPlugin
+          target_relationship: connectsToYorcYorcServerRest
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - YorcPlugin_configured
+        TerraformRuntime_initial:
+          target: TerraformRuntime
+          activities:
+            - set_state: initial
+          on_success:
+            - TerraformRuntime_creating
+        YorcPlugin_starting:
+          target: YorcPlugin
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcPlugin_start
+        Alien4Cloud_start:
+          target: Alien4Cloud
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Alien4Cloud_started
+        ConsulServer_initial:
+          target: ConsulServer
+          activities:
+            - set_state: initial
+          on_success:
+            - ConsulServer_creating
+        OracleJDK_created:
+          target: OracleJDK
+          activities:
+            - set_state: created
+          on_success:
+            - OracleJDK_configuring
+        AnsibleRuntime_started:
+          target: AnsibleRuntime
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_initial
+        YorcServer_start:
+          target: YorcServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - YorcServer_started
+        ConsulServer_configuring:
+          target: ConsulServer
+          activities:
+            - set_state: configuring
+          on_success:
+            - ConsulServer_configure
+        Alien4Cloud_create:
+          target: Alien4Cloud
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - Alien4Cloud_created
+        Infrastructure_configured:
+          target: Infrastructure
+          activities:
+            - set_state: configured
+          on_success:
+            - Infrastructure_starting
+        ConsulServer_creating:
+          target: ConsulServer
+          activities:
+            - set_state: creating
+          on_success:
+            - ConsulServer_create
+        AnsibleRuntime_creating:
+          target: AnsibleRuntime
+          activities:
+            - set_state: creating
+          on_success:
+            - AnsibleRuntime_create
+        YorcPlugin_started:
+          target: YorcPlugin
+          activities:
+            - set_state: started
+          on_success:
+            - YorcOnDemandLocationResources_initial
+        AnsibleRuntime_create:
+          target: AnsibleRuntime
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - AnsibleRuntime_created
+        Infrastructure_creating:
+          target: Infrastructure
+          activities:
+            - set_state: creating
+          on_success:
+            - Infrastructure_created
+        YorcPlugin_initial:
+          target: YorcPlugin
+          activities:
+            - set_state: initial
+          on_success:
+            - YorcPlugin_creating
+        ConsulServer_started:
+          target: ConsulServer
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_initial
+        AnsibleRuntime_configured:
+          target: AnsibleRuntime
+          activities:
+            - set_state: configured
+          on_success:
+            - AnsibleRuntime_starting
+        Alien4Cloud_creating:
+          target: Alien4Cloud
+          activities:
+            - set_state: creating
+          on_success:
+            - Alien4Cloud_create
+        TerraformRuntime_create:
+          target: TerraformRuntime
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - TerraformRuntime_created
+        YorcOnDemandLocationResources_creating:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: creating
+          on_success:
+            - YorcOnDemandLocationResources_create
+        ConsulServer_start:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - ConsulServer_started
+        Alien4Cloud_configure:
+          target: Alien4Cloud
+          activities:
+            - call_operation: Standard.configure
+          on_success:
+            - Alien4Cloud_configured
+        TerraformRuntime_starting:
+          target: TerraformRuntime
+          activities:
+            - set_state: starting
+          on_success:
+            - TerraformRuntime_started
+        Alien4Cloud_configured:
+          target: Alien4Cloud
+          activities:
+            - set_state: configured
+          on_success:
+            - Alien4Cloud_starting
+        Infrastructure_yorcConfigInfrastructureHostedOnYorcYorcServerConfig_post_configure_target:
+          target: Infrastructure
+          target_relationship: infraHostedOnYorcServer
+          operation_host: TARGET
+          activities:
+            - call_operation: Configure.post_configure_target
+          on_success:
+            - YorcServer_configured
+        YorcOnDemandLocationResources_initial:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: initial
+          on_success:
+            - YorcOnDemandLocationResources_creating
+        YorcOnDemandLocationResources_configured:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: configured
+          on_success:
+            - YorcOnDemandLocationResources_starting
+        YorcOnDemandLocationResources_started:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: started
+        YorcServer_configured:
+          target: YorcServer
+          activities:
+            - set_state: configured
+          on_success:
+            - YorcServer_starting
+        {{if .Address}}
+        ComputeAddress_install:
+          target: ComputeAddress
+          activities:
+            - delegate: install
+          on_success:
+            - A4C_Yorc_install
+        {{end}}
+        YorcServer_starting:
+          target: YorcServer
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcServer_start
+        YorcPlugin_configured:
+          target: YorcPlugin
+          activities:
+            - set_state: configured
+          on_success:
+            - YorcPlugin_starting
+        YorcServer_create:
+          target: YorcServer
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - YorcServer_created
+        OracleJDK_initial:
+          target: OracleJDK
+          activities:
+            - set_state: initial
+          on_success:
+            - OracleJDK_creating
+        AnsibleRuntime_created:
+          target: AnsibleRuntime
+          activities:
+            - set_state: created
+          on_success:
+            - AnsibleRuntime_configuring
+            - TerraformRuntime_initial
+        YorcServer_configure:
+          target: YorcServer
+          activities:
+            - call_operation: Standard.configure
+          on_success:
+            - YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source
+        YorcPlugin_created:
+          target: YorcPlugin
+          activities:
+            - set_state: created
+          on_success:
+            - YorcPlugin_configuring
+        OracleJDK_started:
+          target: OracleJDK
+          activities:
+            - set_state: started
+          on_success:
+            - Alien4Cloud_initial
+    uninstall:
+      steps:
+        Infrastructure_deleted:
+          target: Infrastructure
+          activities:
+            - set_state: deleted
+          on_success:
+            - YorcServer_stopping
+        OracleJDK_deleted:
+          target: OracleJDK
+          activities:
+            - set_state: deleted
+          on_success:
+            - A4C_Yorc_uninstall
+        TerraformRuntime_delete:
+          target: TerraformRuntime
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - TerraformRuntime_deleted
+        YorcServer_stopping:
+          target: YorcServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcServer_stop
+        A4C_Yorc_uninstall:
+          target: YorcCompute
+          activities:
+            - delegate: uninstall
+          {{if .Address}}
+          on_success:
+            - ComputeAddress_uninstall
+          {{end}}
+        OracleJDK_stopped:
+          target: OracleJDK
+          activities:
+            - set_state: stopped
+          on_success:
+            - OracleJDK_deleting
+        OracleJDK_stopping:
+          target: OracleJDK
+          activities:
+            - set_state: stopping
+          on_success:
+            - OracleJDK_stopped
+        Infrastructure_stopped:
+          target: Infrastructure
+          activities:
+            - set_state: stopped
+          on_success:
+            - Infrastructure_deleting
+        ConsulServer_stop:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - ConsulServer_stopped
+        YorcPlugin_stopping:
+          target: YorcPlugin
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcPlugin_stopped
+        YorcOnDemandLocationResources_deleted:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: deleted
+          on_success:
+            - YorcPlugin_stopping
+        YorcServer_stopped:
+          target: YorcServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - YorcServer_deleting
+        Alien4Cloud_stopped:
+          target: Alien4Cloud
+          activities:
+            - set_state: stopped
+          on_success:
+            - Alien4Cloud_deleting
+        YorcOnDemandLocationResources_stopped:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: stopped
+          on_success:
+            - YorcOnDemandLocationResources_deleting
+        OracleJDK_deleting:
+          target: OracleJDK
+          activities:
+            - set_state: deleting
+          on_success:
+            - OracleJDK_deleted
+        AnsibleRuntime_delete:
+          target: AnsibleRuntime
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - AnsibleRuntime_deleted
+        YorcServer_deleting:
+          target: YorcServer
+          activities:
+            - set_state: deleting
+          on_success:
+            - YorcServer_delete
+        Alien4Cloud_deleted:
+          target: Alien4Cloud
+          activities:
+            - set_state: deleted
+          on_success:
+            - OracleJDK_stopping
+        TerraformRuntime_stopped:
+          target: TerraformRuntime
+          activities:
+            - set_state: stopped
+          on_success:
+            - TerraformRuntime_deleting
+        YorcServer_stop:
+          target: YorcServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - YorcServer_stopped
+        YorcServer_delete:
+          target: YorcServer
+          activities:
+            - call_operation: Standard.delete
+          on_success:
+            - YorcServer_deleted
+        YorcPlugin_deleted:
+          target: YorcPlugin
+          activities:
+            - set_state: deleted
+          on_success:
+            - Alien4Cloud_stopping
+            - YorcServer_stopping
+        TerraformRuntime_deleted:
+          target: TerraformRuntime
+          activities:
+            - set_state: deleted
+          on_success:
+            - A4C_Yorc_uninstall
+        AnsibleRuntime_deleted:
+          target: AnsibleRuntime
+          activities:
+            - set_state: deleted
+          on_success:
+            - A4C_Yorc_uninstall
+        YorcPlugin_stopped:
+          target: YorcPlugin
+          activities:
+            - set_state: stopped
+          on_success:
+            - YorcPlugin_deleting
+        AnsibleRuntime_stopped:
+          target: AnsibleRuntime
+          activities:
+            - set_state: stopped
+          on_success:
+            - AnsibleRuntime_deleting
+        ConsulServer_stopping:
+          target: ConsulServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - ConsulServer_stop
+        Infrastructure_stopping:
+          target: Infrastructure
+          activities:
+            - set_state: stopping
+          on_success:
+            - Infrastructure_stopped
+        YorcOnDemandLocationResources_deleting:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: deleting
+          on_success:
+            - YorcOnDemandLocationResources_deleted
+        Alien4Cloud_stopping:
+          target: Alien4Cloud
+          activities:
+            - set_state: stopping
+          on_success:
+            - Alien4Cloud_stopped
+        AnsibleRuntime_stopping:
+          target: AnsibleRuntime
+          activities:
+            - set_state: stopping
+          on_success:
+            - AnsibleRuntime_stopped
+        TerraformRuntime_deleting:
+          target: TerraformRuntime
+          activities:
+            - set_state: deleting
+          on_success:
+            - TerraformRuntime_delete
+        {{if .Address}}
+        ComputeAddress_uninstall:
+          target: ComputeAddress
+          activities:
+            - delegate: uninstall
+        {{end}}
+        Alien4Cloud_deleting:
+          target: Alien4Cloud
+          activities:
+            - set_state: deleting
+          on_success:
+            - Alien4Cloud_deleted
+        YorcServer_deleted:
+          target: YorcServer
+          activities:
+            - set_state: deleted
+          on_success:
+            - TerraformRuntime_stopping
+            - A4C_Yorc_uninstall
+            - AnsibleRuntime_stopping
+            - ConsulServer_stopping
+        ConsulServer_stopped:
+          target: ConsulServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - ConsulServer_deleting
+        ConsulServer_deleted:
+          target: ConsulServer
+          activities:
+            - set_state: deleted
+          on_success:
+            - A4C_Yorc_uninstall
+        YorcOnDemandLocationResources_stopping:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcOnDemandLocationResources_stopped
+        YorcPlugin_deleting:
+          target: YorcPlugin
+          activities:
+            - set_state: deleting
+          on_success:
+            - YorcPlugin_deleted
+        Infrastructure_deleting:
+          target: Infrastructure
+          activities:
+            - set_state: deleting
+          on_success:
+            - Infrastructure_deleted
+        TerraformRuntime_stopping:
+          target: TerraformRuntime
+          activities:
+            - set_state: stopping
+          on_success:
+            - TerraformRuntime_stopped
+        ConsulServer_deleting:
+          target: ConsulServer
+          activities:
+            - set_state: deleting
+          on_success:
+            - ConsulServer_deleted
+        AnsibleRuntime_deleting:
+          target: AnsibleRuntime
+          activities:
+            - set_state: deleting
+          on_success:
+            - AnsibleRuntime_delete
+    start:
+      steps:
+        Alien4Cloud_started:
+          target: Alien4Cloud
+          activities:
+            - set_state: started
+          on_success:
+            - YorcPlugin_starting
+        OracleJDK_starting:
+          target: OracleJDK
+          activities:
+            - set_state: starting
+          on_success:
+            - OracleJDK_started
+        AnsibleRuntime_starting:
+          target: AnsibleRuntime
+          activities:
+            - set_state: starting
+          on_success:
+            - AnsibleRuntime_started
+        YorcOnDemandLocationResources_start:
+          target: YorcOnDemandLocationResources
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - YorcOnDemandLocationResources_started
+        YorcPlugin_start:
+          target: YorcPlugin
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - YorcPlugin_started
+        ConsulServer_started:
+          target: ConsulServer
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_starting
+        Infrastructure_starting:
+          target: Infrastructure
+          activities:
+            - set_state: starting
+          on_success:
+        {{if not .Hosts}}
+            - Infrastructure_started
+        {{else}}
+            - Infrastructure_start
+		    {{end}}
+        {{if .Hosts}}
+        Infrastructure_start:
+          target: Infrastructure
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Infrastructure_started
+		    {{end}}
+        Alien4Cloud_starting:
+          target: Alien4Cloud
+          activities:
+            - set_state: starting
+          on_success:
+            - Alien4Cloud_start
+        Infrastructure_started:
+          target: Infrastructure
+          activities:
+            - set_state: started
+        YorcOnDemandLocationResources_starting:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcOnDemandLocationResources_start
+        ConsulServer_start:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - ConsulServer_started
+        TerraformRuntime_starting:
+          target: TerraformRuntime
+          activities:
+            - set_state: starting
+          on_success:
+            - TerraformRuntime_started
+        YorcOnDemandLocationResources_started:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: started
+        YorcPlugin_starting:
+          target: YorcPlugin
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcPlugin_start
+        Alien4Cloud_start:
+          target: Alien4Cloud
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - Alien4Cloud_started
+        A4C_Yorc_start:
+          target: YorcCompute
+          activities:
+            - delegate: start
+          on_success:
+            - TerraformRuntime_starting
+            - OracleJDK_starting
+            - ConsulServer_starting
+            - AnsibleRuntime_starting
+            - YorcServer_starting
+        YorcServer_starting:
+          target: YorcServer
+          activities:
+            - set_state: starting
+          on_success:
+            - YorcServer_start
+        AnsibleRuntime_started:
+          target: AnsibleRuntime
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_starting
+        YorcServer_start:
+          target: YorcServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - YorcServer_started
+        {{if .Address}}
+        ComputeAddress_start:
+          target: ComputeAddress
+          activities:
+            - delegate: start
+          on_success:
+            - A4C_Yorc_start
+        {{end}}
+        TerraformRuntime_started:
+          target: TerraformRuntime
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_starting
+        YorcServer_started:
+          target: YorcServer
+          activities:
+            - set_state: started
+          on_success:
+            - YorcPlugin_starting
+            - Infrastructure_starting
+        ConsulServer_starting:
+          target: ConsulServer
+          activities:
+            - set_state: starting
+          on_success:
+            - ConsulServer_start
+        YorcPlugin_started:
+          target: YorcPlugin
+          activities:
+            - set_state: started
+          on_success:
+            - YorcOnDemandLocationResources_starting
+        OracleJDK_started:
+          target: OracleJDK
+          activities:
+            - set_state: started
+          on_success:
+            - Alien4Cloud_starting
+    stop:
+      steps:
+        Infrastructure_stopping:
+          target: Infrastructure
+          activities:
+            - set_state: stopping
+          on_success:
+            - Infrastructure_stopped
+        Alien4Cloud_stopping:
+          target: Alien4Cloud
+          activities:
+            - set_state: stopping
+          on_success:
+            - Alien4Cloud_stopped
+        YorcServer_stopping:
+          target: YorcServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcServer_stop
+        AnsibleRuntime_stopping:
+          target: AnsibleRuntime
+          activities:
+            - set_state: stopping
+          on_success:
+            - AnsibleRuntime_stopped
+        {{if .Address}}
+        ComputeAddress_stop:
+          target: ComputeAddress
+          activities:
+            - delegate: stop
+        {{end}}
+        OracleJDK_stopped:
+          target: OracleJDK
+          activities:
+            - set_state: stopped
+          on_success:
+            - A4C_Yorc_stop
+        OracleJDK_stopping:
+          target: OracleJDK
+          activities:
+            - set_state: stopping
+          on_success:
+            - OracleJDK_stopped
+        Infrastructure_stopped:
+          target: Infrastructure
+          activities:
+            - set_state: stopped
+          on_success:
+            - YorcServer_stopping
+        YorcPlugin_stopping:
+          target: YorcPlugin
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcPlugin_stopped
+        ConsulServer_stop:
+          target: ConsulServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - ConsulServer_stopped
+        YorcServer_stopped:
+          target: YorcServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - TerraformRuntime_stopping
+            - A4C_Yorc_stop
+            - AnsibleRuntime_stopping
+            - ConsulServer_stopping
+        Alien4Cloud_stopped:
+          target: Alien4Cloud
+          activities:
+            - set_state: stopped
+          on_success:
+            - OracleJDK_stopping
+        ConsulServer_stopped:
+          target: ConsulServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - A4C_Yorc_stop
+        A4C_Yorc_stop:
+          target: YorcCompute
+          activities:
+            - delegate: stop
+          {{if .Address}}
+          on_success:
+            - ComputeAddress_stop
+          {{end}}
+        YorcOnDemandLocationResources_stopped:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: stopped
+          on_success:
+            - YorcPlugin_stopping
+        TerraformRuntime_stopped:
+          target: TerraformRuntime
+          activities:
+            - set_state: stopped
+          on_success:
+            - A4C_Yorc_stop
+        YorcServer_stop:
+          target: YorcServer
+          activities:
+            - call_operation: Standard.stop
+          on_success:
+            - YorcServer_stopped
+        YorcOnDemandLocationResources_stopping:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: stopping
+          on_success:
+            - YorcOnDemandLocationResources_stopped
+        TerraformRuntime_stopping:
+          target: TerraformRuntime
+          activities:
+            - set_state: stopping
+          on_success:
+            - TerraformRuntime_stopped
+        YorcPlugin_stopped:
+          target: YorcPlugin
+          activities:
+            - set_state: stopped
+          on_success:
+            - Alien4Cloud_stopping
+            - YorcServer_stopping
+        AnsibleRuntime_stopped:
+          target: AnsibleRuntime
+          activities:
+            - set_state: stopped
+          on_success:
+            - A4C_Yorc_stop
+        ConsulServer_stopping:
+          target: ConsulServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - ConsulServer_stop
+    run:
+      steps:
+        YorcServer_submitted:
+          target: YorcServer
+          activities:
+            - set_state: submitted
+          on_success:
+            - YorcServer_executed
+        Infrastructure_submitted:
+          target: Infrastructure
+          activities:
+            - set_state: submitted
+          on_success:
+            - Infrastructure_executed
+        YorcPlugin_submitted:
+          target: YorcPlugin
+          activities:
+            - set_state: submitted
+          on_success:
+            - YorcPlugin_executed
+        YorcServer_executed:
+          target: YorcServer
+          activities:
+            - set_state: executed
+          on_success:
+            - Infrastructure_submitted
+            - YorcPlugin_submitted
+        TerraformRuntime_executed:
+          target: TerraformRuntime
+          activities:
+            - set_state: executed
+          on_success:
+            - YorcServer_submitted
+        Alien4Cloud_executed:
+          target: Alien4Cloud
+          activities:
+            - set_state: executed
+          on_success:
+            - YorcPlugin_submitted
+        TerraformRuntime_submitted:
+          target: TerraformRuntime
+          activities:
+            - set_state: submitted
+          on_success:
+            - TerraformRuntime_executed
+        YorcOnDemandLocationResources_executed:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: executed
+        Alien4Cloud_submitted:
+          target: Alien4Cloud
+          activities:
+            - set_state: submitted
+          on_success:
+            - Alien4Cloud_executed
+        OracleJDK_executed:
+          target: OracleJDK
+          activities:
+            - set_state: executed
+          on_success:
+            - Alien4Cloud_submitted
+        AnsibleRuntime_executed:
+          target: AnsibleRuntime
+          activities:
+            - set_state: executed
+          on_success:
+            - YorcServer_submitted
+        YorcOnDemandLocationResources_submitted:
+          target: YorcOnDemandLocationResources
+          activities:
+            - set_state: submitted
+          on_success:
+            - YorcOnDemandLocationResources_executed
+        OracleJDK_submitted:
+          target: OracleJDK
+          activities:
+            - set_state: submitted
+          on_success:
+            - OracleJDK_executed
+        Infrastructure_executed:
+          target: Infrastructure
+          activities:
+            - set_state: executed
+        AnsibleRuntime_submitted:
+          target: AnsibleRuntime
+          activities:
+            - set_state: submitted
+          on_success:
+            - AnsibleRuntime_executed
+        YorcPlugin_executed:
+          target: YorcPlugin
+          activities:
+            - set_state: executed
+          on_success:
+            - YorcOnDemandLocationResources_submitted
+        ConsulServer_executed:
+          target: ConsulServer
+          activities:
+            - set_state: executed
+          on_success:
+            - YorcServer_submitted
+        ConsulServer_submitted:
+          target: ConsulServer
+          activities:
+            - set_state: submitted
+          on_success:
+            - ConsulServer_executed

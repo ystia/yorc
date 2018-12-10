@@ -1,0 +1,26 @@
+{{ define "ComputeWithAddress" }}
+      type: yorc.nodes.openstack.Compute
+      properties: {{formatAsYAML .Compute 8}}
+      requirements:
+        - Compute_ComputeAddress:
+            type_requirement: network
+            node: ComputeAddress
+            capability: yorc.capabilities.openstack.FIPConnectivity
+            relationship: tosca.relationships.Network
+      capabilities:
+        endpoint:
+          properties:
+            credentials: {{formatAsYAML .Credentials 14}}
+            secure: true
+            protocol: tcp
+            network_name: PRIVATE
+            initiator: source
+        os:
+          properties:
+            type: linux
+        scalable:
+          properties:
+            min_instances: 1
+            max_instances: 1
+            default_instances: 1
+{{ end }}

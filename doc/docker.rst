@@ -14,6 +14,8 @@
    limitations under the License.
    ---
 
+.. _yorc_docker_section:
+
 Run Yorc in a docker container
 ==============================
 
