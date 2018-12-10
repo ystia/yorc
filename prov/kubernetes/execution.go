@@ -368,6 +368,10 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 				if err != nil {
 					return errors.Wrap(err, "Failed to set attribute")
 				}
+				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "node_port", strconv.Itoa(int(val.NodePort)))
+				if err != nil {
+					return errors.Wrap(err, "Failed to set attribute")
+				}
 			}
 		}
 	case k8sDeleteOperation:
