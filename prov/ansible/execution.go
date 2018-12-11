@@ -774,7 +774,7 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		sshCredentials := e.getSSHCredentials(ctx, host, true)
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
 		// Set with priority private key against password
-		if !e.cfg.UseSSHAgent && sshCredentials.privateKey != "" {
+		if e.cfg.DisableSSHAgent && sshCredentials.privateKey != "" {
 			// check privateKey's a valid path
 			if is, err := pathutil.IsValidPath(sshCredentials.privateKey); err != nil || !is {
 				// Truncate it if it's a private key
@@ -1070,7 +1070,7 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 			cmd.Args = append(cmd.Args, "-c", "paramiko")
 		}
 
-		if e.cfg.UseSSHAgent {
+		if !e.cfg.DisableSSHAgent {
 			// Check if SSHAgent is needed
 			sshAgent, err := e.configureSSHAgent(ctx)
 			if err != nil {
