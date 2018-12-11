@@ -84,6 +84,10 @@ func (i InfoType) String() string {
 		return "type"
 	case EWorkflowID:
 		return "workflowId"
+	// Warning: A Yorc task is corresponding more or less to what Alien names an execution...
+	// ie a workflow execution
+	// But in Yorc semantic, task execution is referring to more or less what Alien names a task
+	// ie a workflow step execution
 	case ETaskID:
 		return "alienExecutionId"
 	case ENodeID:
