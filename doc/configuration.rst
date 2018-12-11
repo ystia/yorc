@@ -776,7 +776,7 @@ Environment variables
 
 .. _option_disable_ssh_agent_env:
 
-  * ``YORC_disable_ssh_agent``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
+  * ``YORC_DISABLE_SSH_AGENT``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
 
 .. _option_log_env: 
 
