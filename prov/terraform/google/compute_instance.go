@@ -29,13 +29,17 @@ import (
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/pathutil"
+	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
+	"golang.org/x/crypto/ssh"
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
 	cfg config.Configuration, deploymentID, nodeName, instanceName string, instanceID int,
 	infrastructure *commons.Infrastructure,
-	outputs map[string]string) error {
+	outputs map[string]string, env *[]string, sshAgent *sshutil.SSHAgent) error {
 
 	nodeType, err := deployments.GetNodeType(kv, deploymentID, nodeName)
 	if err != nil {
@@ -193,7 +197,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 	}
 
 	// Get connection info (user, private key)
-	user, privateKeyFilePath, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
+	user, privateKey, err := commons.GetConnInfoFromEndpointCredentials(kv, deploymentID, nodeName)
 	if err != nil {
 		return err
 	}
@@ -281,33 +285,38 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	commons.AddResource(infrastructure, "consul_keys", instance.Name, &consulKeys)
 
-	// Check the connection in order to be sure that ansible will be able to log on the instance
-	nullResource := commons.Resource{}
-	re := commons.RemoteExec{Inline: []string{`echo "connected"`},
-		Connection: &commons.Connection{User: user, Host: accessIP,
-			PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
-	nullResource.Provisioners = make([]map[string]interface{}, 0)
-	provMap := make(map[string]interface{})
-	provMap["remote-exec"] = re
-	nullResource.Provisioners = append(nullResource.Provisioners, provMap)
-
-	commons.AddResource(infrastructure, "null_resource", instance.Name+"-ConnectionCheck", &nullResource)
+	// Add Connection check
+	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env); err != nil {
+		return err
+	}
 
 	// Retrieve devices
-	handleDeviceAttributes(infrastructure, &instance, devices, user, privateKeyFilePath, accessIP)
+	if len(devices) > 0 {
+		// need to use an SSH Agent to make it if allowed by config
+		if !cfg.DisableSSHAgent && sshAgent == nil {
+			sshAgent, err = commons.GetSSHAgent(ctx, privateKey)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err = handleDeviceAttributes(cfg, infrastructure, &instance, devices, user, privateKey, accessIP, sshAgent); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
-func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKeyFilePath, accessIP string) {
+func handleDeviceAttributes(cfg config.Configuration, infrastructure *commons.Infrastructure, instance *ComputeInstance, devices []string, user, privateKey, accessIP string, sshAgent *sshutil.SSHAgent) error {
+	var env map[string]interface{}
 	// Retrieve devices {
 	for _, dev := range devices {
 		devResource := commons.Resource{}
 
 		// Remote exec to retrieve the logical device for google device ID and to redirect stdout to file
 		re := commons.RemoteExec{Inline: []string{fmt.Sprintf("readlink -f /dev/disk/by-id/%s > %s", dev, dev)},
-			Connection: &commons.Connection{User: user, Host: accessIP,
-				PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+			Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: "${var.private_key}"}}
 		devResource.Provisioners = make([]map[string]interface{}, 0)
 		provMap := make(map[string]interface{})
 		provMap["remote-exec"] = re
@@ -318,10 +327,27 @@ func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *Co
 		}
 		commons.AddResource(infrastructure, "null_resource", fmt.Sprintf("%s-GetDevice-%s", instance.Name, dev), &devResource)
 
-		// local exec to scp the stdout file locally
-		scpCommand := fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKeyFilePath, user, accessIP, dev, dev)
+		// local exec to scp the stdout file locally (use ssh-agent to make it if allowed by config)
+		var scpCommand string
+		if !cfg.DisableSSHAgent {
+			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s:~/%s %s", user, accessIP, dev, dev)
+			env = make(map[string]interface{})
+			env["SSH_AUTH_SOCK"] = sshAgent.Socket
+		} else {
+			// check privateKey's a valid path
+			if is, err := pathutil.IsValidPath(privateKey); err != nil || !is {
+				// Truncate it if it's a private key
+				ufo := privateKey
+				if _, err = ssh.ParsePrivateKey([]byte(privateKey)); err == nil {
+					ufo = stringutil.Truncate(privateKey, 20)
+				}
+				return errors.Errorf("%q is not a valid path", ufo)
+			}
+			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %s %s@%s:~/%s %s", privateKey, user, accessIP, dev, dev)
+		}
 		loc := commons.LocalExec{
-			Command: scpCommand,
+			Command:     scpCommand,
+			Environment: env,
 		}
 		locMap := make(map[string]interface{})
 		locMap["local-exec"] = loc
@@ -333,8 +359,7 @@ func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *Co
 		// Remote exec to cleanup  created file
 		cleanResource := commons.Resource{}
 		re = commons.RemoteExec{Inline: []string{fmt.Sprintf("rm -f %s", dev)},
-			Connection: &commons.Connection{User: user, Host: accessIP,
-				PrivateKey: `${file("` + privateKeyFilePath + `")}`}}
+			Connection: &commons.Connection{User: user, Host: accessIP, PrivateKey: "${var.private_key}"}}
 		cleanResource.Provisioners = make([]map[string]interface{}, 0)
 		m := make(map[string]interface{})
 		m["remote-exec"] = re
@@ -345,6 +370,7 @@ func handleDeviceAttributes(infrastructure *commons.Infrastructure, instance *Co
 		consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
 		consulKeys.DependsOn = []string{fmt.Sprintf("null_resource.%s", fmt.Sprintf("%s-CopyOut-%s", instance.Name, dev))}
 	}
+	return nil
 }
 
 func attributeLookup(ctx context.Context, kv *api.KV, deploymentID, instanceName, nodeName, attribute string) (string, error) {

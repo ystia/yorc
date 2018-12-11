@@ -43,13 +43,16 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/helper/executil"
+	"github.com/ystia/yorc/helper/pathutil"
 	"github.com/ystia/yorc/helper/provutil"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
+	"golang.org/x/crypto/ssh"
 )
 
 const taskContextOutput = "task_context"
@@ -811,9 +814,16 @@ func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *by
 		sshCredentials := e.getSSHCredentials(ctx, host, true)
 		buffer.WriteString(fmt.Sprintf(" ansible_ssh_user=%s ansible_ssh_common_args=\"-o ConnectionAttempts=20\"", sshCredentials.user))
 		// Set with priority private key against password
-		if sshCredentials.privateKey != "" {
-			// TODO if not a path store it somewhere
-			// Note whould be better if we can use it directly https://github.com/ansible/ansible/issues/22382
+		if e.cfg.DisableSSHAgent && sshCredentials.privateKey != "" {
+			// check privateKey's a valid path
+			if is, err := pathutil.IsValidPath(sshCredentials.privateKey); err != nil || !is {
+				// Truncate it if it's a private key
+				ufo := sshCredentials.privateKey
+				if _, err = ssh.ParsePrivateKey([]byte(sshCredentials.privateKey)); err == nil {
+					ufo = stringutil.Truncate(sshCredentials.privateKey, 20)
+				}
+				return errors.Errorf("%q is not a valid path", ufo)
+			}
 			buffer.WriteString(fmt.Sprintf(" ansible_ssh_private_key_file=%s", sshCredentials.privateKey))
 		} else if sshCredentials.password != "" {
 			// TODO use vault
@@ -875,7 +885,6 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
-	log.Debugf("Generating hosts files hosts: %+v ", e.hosts)
 	var buffer bytes.Buffer
 	buffer.WriteString("[all]\n")
 	for instanceName, host := range e.hosts {
@@ -1085,7 +1094,8 @@ func (e *executionCommon) getInstanceIDFromHost(host string) (string, error) {
 func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 	ansibleRecipePath string, handler outputHandler) error {
 	cmd := executil.Command(ctx, "ansible-playbook", "-i", "hosts", "run.ansible.yml", "--vault-password-file", filepath.Join(ansibleRecipePath, ".vault_pass"))
-	cmd.Env = append(os.Environ(), "VAULT_PASSWORD="+e.vaultToken)
+	env := os.Environ()
+	env = append(env, "VAULT_PASSWORD="+e.vaultToken)
 	if _, err := os.Stat(filepath.Join(ansibleRecipePath, "run.ansible.retry")); retry && (err == nil || !os.IsNotExist(err)) {
 		cmd.Args = append(cmd.Args, "--limit", filepath.Join("@", ansibleRecipePath, "run.ansible.retry"))
 	}
@@ -1103,8 +1113,31 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 		} else {
 			cmd.Args = append(cmd.Args, "-c", "paramiko")
 		}
+
+		if !e.cfg.DisableSSHAgent {
+			// Check if SSHAgent is needed
+			sshAgent, err := e.configureSSHAgent(ctx)
+			if err != nil {
+				return errors.Wrap(err, "failed to configure SSH agent for ansible-playbook execution")
+			}
+			if sshAgent != nil {
+				log.Debugf("Add SSH_AUTH_SOCK env var for ssh-agent")
+				env = append(env, "SSH_AUTH_SOCK="+sshAgent.Socket)
+				defer func() {
+					err = sshAgent.RemoveAllKeys()
+					if err != nil {
+						log.Debugf("Warning: failed to remove all SSH agents keys due to error:%+v", err)
+					}
+					err = sshAgent.Stop()
+					if err != nil {
+						log.Debugf("Warning: failed to stop SSH agent due to error:%+v", err)
+					}
+				}()
+			}
+		}
 	}
 	cmd.Dir = ansibleRecipePath
+	cmd.Env = env
 	errbuf := events.NewBufferedLogEntryWriter()
 	cmd.Stderr = errbuf
 
@@ -1127,6 +1160,32 @@ func (e *executionCommon) executePlaybook(ctx context.Context, retry bool,
 		return e.checkAnsibleRetriableError(ctx, err)
 	}
 	return nil
+}
+
+func (e *executionCommon) configureSSHAgent(ctx context.Context) (*sshutil.SSHAgent, error) {
+	var addSSHAgent bool
+	for _, host := range e.hosts {
+		if host.privateKey != "" {
+			addSSHAgent = true
+			break
+		}
+	}
+	if !addSSHAgent {
+		return nil, nil
+	}
+
+	agent, err := sshutil.NewSSHAgent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, host := range e.hosts {
+		if host.privateKey != "" {
+			if err = agent.AddKey(host.privateKey, 3600); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return agent, nil
 }
 
 func buildArchive(rootDir, artifactDir, tarPath string) error {

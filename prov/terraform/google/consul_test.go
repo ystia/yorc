@@ -29,6 +29,7 @@ func TestRunConsulGooglePackageTests(t *testing.T) {
 
 	// AWS infrastructure config
 	cfg := config.Configuration{
+		DisableSSHAgent: true,
 		Infrastructures: map[string]config.DynamicMap{
 			infrastructureName: config.DynamicMap{
 				"credentials": "/tmp/creds.json",
