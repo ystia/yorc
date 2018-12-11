@@ -22,8 +22,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/prov/terraform/commons"
 	"strconv"
 )
@@ -41,8 +43,9 @@ func testSimpleAWSInstanceFailed(t *testing.T, kv *api.KV, cfg config.Configurat
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Error(t, err, "Expecting missing mandatory parameter 'instance_type' error")
 }
 
@@ -51,8 +54,9 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
@@ -86,18 +90,25 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	require.Equal(t, "centos", rex.Connection.User)
-	require.Equal(t, `${file("~/.ssh/yorc.pem")}`, rex.Connection.PrivateKey)
+
+	yorcPem, err := sshutil.ToPrivateKeyContent("~/.ssh/yorc.pem")
+	require.Nil(t, err)
+	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
+	require.Len(t, env, 1)
+	assert.Equal(t, "TF_VAR_private_key="+string(yorcPem), env[0], "env var for private key expected")
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }
 
 func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Configuration) {
+	privateKey := []byte(`-----BEGIN RSA PRIVATE KEY----- my secure private key -----END RSA PRIVATE KEY-----`)
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
@@ -117,7 +128,9 @@ func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Co
 	rex, ok := mapProv["remote-exec"].(commons.RemoteExec)
 	require.True(t, ok)
 	require.Equal(t, "centos", rex.Connection.User)
-	require.Equal(t, `${file("/path/to/my-keypair.pem")}`, rex.Connection.PrivateKey)
+	assert.Equal(t, "${var.private_key}", rex.Connection.PrivateKey)
+	require.Len(t, env, 1)
+	assert.Equal(t, "TF_VAR_private_key="+string(privateKey), env[0], "env var for private key expected")
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
 }
@@ -127,8 +140,9 @@ func testSimpleAWSInstanceWithNoDeleteVolumeOnTermination(t *testing.T, kv *api.
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
@@ -146,8 +160,9 @@ func testSimpleAWSInstanceWithEIP(t *testing.T, kv *api.KV, cfg config.Configura
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.Contains(t, infrastructure.Resource, "aws_eip")
@@ -173,8 +188,9 @@ func testSimpleAWSInstanceWithProvidedEIP(t *testing.T, kv *api.KV, cfg config.C
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Nil(t, err)
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip")
@@ -195,6 +211,7 @@ func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV, cfg co
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
 	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "ComputeAWS")
 	require.Nil(t, err)
@@ -202,7 +219,7 @@ func testSimpleAWSInstanceWithListOfProvidedEIP(t *testing.T, kv *api.KV, cfg co
 
 	for i := 0; i < int(nb); i++ {
 		istr := strconv.Itoa(i)
-		err = g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string))
+		err = g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string), &env)
 		require.Nil(t, err)
 		require.NotContains(t, infrastructure.Resource, "aws_eip")
 		require.Contains(t, infrastructure.Resource, "aws_eip_association")
@@ -230,8 +247,9 @@ func testSimpleAWSInstanceWithMalformedEIP(t *testing.T, kv *api.KV, cfg config.
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string))
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
 	require.Error(t, err, "An error was expected due to malformed provided Elastic IP: 12.12.oups.12")
 }
 
@@ -240,6 +258,7 @@ func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV, cf
 	deploymentID := loadTestYaml(t, kv)
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
+	env := make([]string, 0)
 
 	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "ComputeAWS")
 	require.Nil(t, err)
@@ -247,7 +266,7 @@ func testSimpleAWSInstanceWithNotEnoughProvidedEIPS(t *testing.T, kv *api.KV, cf
 
 	for i := 0; i < int(nb); i++ {
 		istr := strconv.Itoa(i)
-		err = g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string))
+		err = g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", istr, &infrastructure, make(map[string]string), &env)
 		require.Nil(t, err)
 		// EIP is only created for the last instance (only 4 EIPs are provided for 5 default instances
 		if i < 4 {

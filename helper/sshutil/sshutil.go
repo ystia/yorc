@@ -15,7 +15,6 @@
 package sshutil
 
 import (
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,11 +24,18 @@ import (
 	"github.com/bramvdbogaerde/go-scp"
 	"strings"
 
+	"bytes"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/executil"
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/net/context"
+	"net"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 )
 
 // Client is interface allowing running command
@@ -49,6 +55,14 @@ type SSHClient struct {
 	Config *ssh.ClientConfig
 	Host   string
 	Port   int
+}
+
+// SSHAgent is an SSH agent
+type SSHAgent struct {
+	agent  agent.Agent
+	conn   net.Conn
+	Socket string
+	pid    int
 }
 
 // Sessions Pool used to provide reusable sessions for each sshClient
@@ -129,6 +143,19 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 // - either a path to the private key file,
 // - or the content or this private key file
 func ReadPrivateKey(pk string) (ssh.AuthMethod, error) {
+	raw, err := ToPrivateKeyContent(pk)
+	if err != nil {
+		return nil, err
+	}
+	signer, err := ssh.ParsePrivateKey(raw)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse key file %q", pk)
+	}
+	return ssh.PublicKeys(signer), nil
+}
+
+// ToPrivateKeyContent allows to convert private key content or file to byte array
+func ToPrivateKeyContent(pk string) ([]byte, error) {
 	var p []byte
 	// check if pk is a path
 	keyPath, err := homedir.Expand(pk)
@@ -143,25 +170,7 @@ func ReadPrivateKey(pk string) (ssh.AuthMethod, error) {
 	} else {
 		p = []byte(pk)
 	}
-
-	// We parse the private key on our own first so that we can
-	// show a nicer error if the private key has a password.
-	block, _ := pem.Decode(p)
-	if block == nil {
-		return nil, errors.Errorf("Failed to read key %q: no key found", pk)
-	}
-	if block.Headers["Proc-Type"] == "4,ENCRYPTED" {
-		return nil, errors.Errorf(
-			"Failed to read key %q: password protected keys are\n"+
-				"not supported. Please decrypt the key prior to use.", pk)
-	}
-
-	signer, err := ssh.ParsePrivateKey(p)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse key file %q", pk)
-	}
-
-	return ssh.PublicKeys(signer), nil
+	return p, nil
 }
 
 // CopyFile allows to copy a reader over SSH with defined remote path and specific permissions
@@ -189,4 +198,119 @@ func (client *SSHClient) CopyFile(source io.Reader, remotePath, permissions stri
 	log.Debugf("Copy source over SSH to remote path:%s", remotePath)
 	scpClient.CopyFile(source, remotePath, permissions)
 	return nil
+}
+
+// NewSSHAgent allows to return a new SSH Agent
+func NewSSHAgent(ctx context.Context) (*SSHAgent, error) {
+	bin, err := exec.LookPath("ssh-agent")
+	if err != nil {
+		return nil, errors.Wrap(err, "could not find ssh-agent")
+	}
+
+	cmd := executil.Command(ctx, bin)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to run ssh-agent")
+	}
+
+	fields := bytes.Split(out, []byte(";"))
+	line := bytes.SplitN(fields[0], []byte("="), 2)
+	line[0] = bytes.TrimLeft(line[0], "\n")
+	if string(line[0]) != "SSH_AUTH_SOCK" {
+		return nil, errors.Wrapf(err, "failed to retrieve SSH_AUTH_SOCK in %q", fields[0])
+	}
+	socket := string(line[1])
+
+	line = bytes.SplitN(fields[2], []byte("="), 2)
+	line[0] = bytes.TrimLeft(line[0], "\n")
+	if string(line[0]) != "SSH_AGENT_PID" {
+		return nil, errors.Wrapf(err, "failed to retrieve SSH_AGENT_PID in %q", fields[2])
+	}
+	pidStr := line[1]
+	pid, err := strconv.Atoi(string(pidStr))
+	if err != nil {
+		return nil, errors.Wrapf(err, "unexpected format for ssh-agent pid:%q", pidStr)
+	}
+
+	conn, err := net.Dial("unix", string(socket))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to dial with ssh-agent")
+	}
+
+	return &SSHAgent{
+		agent.NewClient(conn),
+		conn,
+		socket,
+		pid,
+	}, nil
+}
+
+// AddKey allows to add a key into ssh-agent keys list
+func (sa *SSHAgent) AddKey(privateKey string, lifeTime uint32) error {
+	log.Debugf("Add key for SSH-AGENT")
+	keyContent, err := ToPrivateKeyContent(privateKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve private key content")
+	}
+
+	rawKey, err := ssh.ParseRawPrivateKey(keyContent)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse raw private key")
+	}
+
+	addedKey := &agent.AddedKey{
+		PrivateKey:   rawKey,
+		LifetimeSecs: lifeTime,
+	}
+	return sa.agent.Add(*addedKey)
+}
+
+// RemoveKey allows to remove a key into ssh-agent keys list
+func (sa *SSHAgent) RemoveKey(privateKey string) error {
+	keyContent, err := ToPrivateKeyContent(privateKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve private key content")
+	}
+
+	rawKey, err := ssh.ParseRawPrivateKey(keyContent)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse raw private key")
+	}
+
+	signer, err := ssh.NewSignerFromKey(rawKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed create new signer from key")
+	}
+
+	return sa.agent.Remove(signer.PublicKey())
+}
+
+// RemoveAllKeys allows to remove all keys into ssh-agent keys list
+func (sa *SSHAgent) RemoveAllKeys() error {
+	log.Debugf("Remove all keys for SSH-AGENT")
+	return sa.agent.RemoveAll()
+}
+
+// Stop allows to cleanup and stop ssh-agent process
+func (sa *SSHAgent) Stop() error {
+	log.Debugf("Stop SSH-AGENT")
+	proc, err := os.FindProcess(sa.pid)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find ssh-agent process")
+	}
+	if proc != nil {
+		proc.Kill()
+	}
+	if sa.conn != nil {
+		err = sa.conn.Close()
+		if err != nil {
+			return errors.Wrapf(err, "failed to close ssh-agent connection")
+		}
+	}
+	return os.RemoveAll(filepath.Dir(sa.Socket))
+}
+
+// GetAuthMethod returns the auth method with all agent keys
+func (sa *SSHAgent) GetAuthMethod() ssh.AuthMethod {
+	return ssh.PublicKeysCallback(sa.agent.Signers)
 }
