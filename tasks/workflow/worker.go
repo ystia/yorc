@@ -607,8 +607,9 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 		w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		err := w.runWorkflowStep(ctx, t, "uninstall", true)
 
-		f := func() error {
-			err = w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYED)
+		doIfNoMoreOtherExecutions(t.cc, t.taskID, func() error {
+			// Set it to undeployed anyway
+			err = w.setDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYED)
 			if err != nil {
 				return err
 			}
@@ -619,14 +620,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 				}
 			}
 			return nil
-		}
-		if err != nil {
-			f = func() error {
-				return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_FAILED)
-			}
-		}
-		err2 := doIfNoMoreOtherExecutions(t.cc, t.taskID, f)
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, t.targetID).Registerf("%v", err2)
+		})
 		return err
 	} else if t.taskType == tasks.TaskTypePurge {
 		err = w.runPurge(ctx, t)
