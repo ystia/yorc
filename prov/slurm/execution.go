@@ -27,10 +27,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/tosca"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
@@ -41,7 +41,7 @@ import (
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/prov/operations"
 	"github.com/ystia/yorc/tasks"
-	"golang.org/x/sync/errgroup"
+	"github.com/ystia/yorc/tosca"
 )
 
 type execution interface {
@@ -437,7 +437,11 @@ func (e *executionCommon) runJobCommand(ctx context.Context) error {
 		execFile = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
 	}
 	if e.jobInfo.BatchMode {
-		e.jobInfo.OperationRemoteExecDir = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
+		if e.Primary != "" {
+			e.jobInfo.OperationRemoteExecDir = path.Dir(execFile)
+		} else {
+			e.jobInfo.OperationRemoteExecDir = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
+		}
 		err := e.findBatchOutput(ctx)
 		if err != nil {
 			return err

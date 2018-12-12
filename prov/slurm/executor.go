@@ -18,12 +18,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
-
 	"sync"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
@@ -32,7 +33,6 @@ import (
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-	"golang.org/x/sync/errgroup"
 )
 
 type defaultExecutor struct {
