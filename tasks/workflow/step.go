@@ -268,13 +268,9 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		delegateOp := activity.Value()
 		wfCtx = events.AddLogOptionalFields(wfCtx, events.LogOptionalFields{events.InterfaceName: "delegate", events.OperationName: delegateOp})
 		for _, instanceName := range instances {
-			eventInfo.InstanceName = instanceName
 			eventInfo.OperationName = fmt.Sprintf("delegate.%s", delegateOp)
 			// Need to publish INITIAL status before RUNNING one with operationName set
-			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
-			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
-			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusRUNNING.String())
-			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusRUNNING.String())
+			s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
 		err = func() error {
 			defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp}), time.Now())
@@ -284,17 +280,13 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "failures"}), 1)
 			for _, instanceName := range instances {
-				eventInfo.InstanceName = instanceName
-				events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusERROR.String())
-				events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusERROR.String())
+				s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "delegate", deploymentID, nodeType, delegateOp, "successes"}), 1)
 		for _, instanceName := range instances {
-			eventInfo.InstanceName = instanceName
-			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusDONE.String())
-			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusDONE.String())
+			s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
 		}
 	case builder.ActivityTypeSetState:
 		setNodeStatus(wfCtx, kv, s.t.taskID, deploymentID, s.Target, activity.Value())
@@ -319,16 +311,13 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		}
 		wfCtx = operations.SetOperationLogFields(wfCtx, op)
 		for _, instanceName := range instances {
+			// Check for specific info about relationships
 			eventInfo.OperationName = op.Name
-			eventInfo.InstanceName = instanceName
 			if op.RelOp.IsRelationshipOperation {
 				eventInfo.TargetNodeID = op.RelOp.TargetNodeName
 			}
 			// Need to publish INITIAL status before RUNNING one with operationName set
-			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusINITIAL.String())
-			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusINITIAL.String())
-			events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusRUNNING.String())
-			events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusRUNNING.String())
+			s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusINITIAL, tasks.TaskStepStatusRUNNING)
 		}
 		// In function of the operation, the execution is sync or async
 		if s.Async {
@@ -362,18 +351,14 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		if err != nil {
 			metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "failures"}), 1)
 			for _, instanceName := range instances {
-				eventInfo.InstanceName = instanceName
-				events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusERROR.String())
-				events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusERROR.String())
+				s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusERROR)
 			}
 			return err
 		}
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", deploymentID, nodeType, op.Name, "successes"}), 1)
 		if !s.Async {
 			for _, instanceName := range instances {
-				eventInfo.InstanceName = instanceName
-				events.PublishAndLogWorkflowStepStatusChange(wfCtx, kv, deploymentID, s.t.taskID, eventInfo, tasks.TaskStepStatusDONE.String())
-				events.PublishAndLogAlienTaskStatusChange(wfCtx, kv, deploymentID, s.t.taskID, s.t.id, eventInfo, tasks.TaskStepStatusDONE.String())
+				s.publishInstanceRelatedEvents(wfCtx, kv, deploymentID, instanceName, eventInfo, tasks.TaskStepStatusDONE)
 			}
 		}
 	case builder.ActivityTypeInline:
@@ -381,4 +366,14 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 		return w.registerInlineWorkflow(wfCtx, s.t, activity.Value())
 	}
 	return nil
+}
+
+func (s *step) publishInstanceRelatedEvents(ctx context.Context, kv *api.KV, deploymentID, instanceName string, eventInfo *events.WorkflowStepInfo, statuses ...tasks.TaskStepStatus) {
+	// taskExecutionID has to be unique for each instance, so we concat it to instanceName
+	eventInfo.InstanceName = instanceName
+	instanceTaskExecutionID := fmt.Sprintf("%s-%s", s.t.id, instanceName)
+	for _, status := range statuses {
+		events.PublishAndLogWorkflowStepStatusChange(ctx, kv, deploymentID, s.t.taskID, eventInfo, status.String())
+		events.PublishAndLogAlienTaskStatusChange(ctx, kv, deploymentID, s.t.taskID, instanceTaskExecutionID, eventInfo, status.String())
+	}
 }
