@@ -5,6 +5,7 @@
 ### ENHANCEMENTS
 
 * Support Jobs lifecycle enhancements (new operations `submit`, `run`, `cancel`) ([GH-196](https://github.com/ystia/yorc/issues/196))
+* Forbid the parallel execution of several scheduled actions. This is for instance used for the asynchronous run operation of Jobs. This will prevent a same action to be scheduled in parallel (for jobs it will prevent checking and doing same actions several times) ([GH-230](https://github.com/ystia/yorc/issues/230))
 
 ## 3.1.0-M7 (December 07, 2018)
 

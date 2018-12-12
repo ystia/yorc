@@ -16,8 +16,11 @@ package scheduler
 
 import (
 	"path"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/ystia/yorc/tasks"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
@@ -57,6 +60,31 @@ func testProceedScheduledAction(t *testing.T, client *api.Client) {
 	id, err := scheduling.RegisterAction(client, deploymentID, ti, action)
 	require.Nil(t, err, "Unexpected error while registering action")
 	require.NotEmpty(t, id, "id is not expected to be empty")
+
+	closeCh := make(chan struct{})
+	defer close(closeCh)
+	go func() {
+		var latestIndex uint64
+		for {
+			select {
+			case <-closeCh:
+				return
+			default:
+			}
+			keys, meta, err := client.KV().Keys(consulutil.TasksPrefix+"/", "/", &api.QueryOptions{WaitIndex: latestIndex})
+			if err != nil {
+				t.Logf("%v", err)
+				continue
+			}
+			if latestIndex == meta.LastIndex {
+				continue
+			}
+			for _, key := range keys {
+				// set all tasks to done asap to reschedule them
+				client.KV().Put(&api.KVPair{Key: path.Join(key, "status"), Value: []byte(strconv.Itoa(int(tasks.TaskStatusDONE)))}, nil)
+			}
+		}
+	}()
 
 	var check = func(index, cpt int) {
 		cpt++
