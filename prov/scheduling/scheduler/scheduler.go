@@ -211,6 +211,13 @@ func (sc *scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 	if kvp != nil && len(kvp.Value) > 0 {
 		sca.asyncOperationString = string(kvp.Value)
 	}
+	kvp, _, err = sc.cc.KV().Get(path.Join(actionPrefix, "latestTaskID"), nil)
+	if err != nil {
+		return nil, err
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		sca.latestTaskID = string(kvp.Value)
+	}
 
 	kvps, _, err := sc.cc.KV().List(path.Join(consulutil.SchedulingKVPrefix, "actions", id, "data"), nil)
 	if err != nil {
