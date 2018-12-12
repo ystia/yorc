@@ -161,7 +161,7 @@ func (s *step) isRunnable() (bool, error) {
 // run allows to execute a workflow step
 func (s *step) run(ctx context.Context, cfg config.Configuration, kv *api.KV, deploymentID string, bypassErrors bool, workflowName string, w *worker) error {
 	// Fill log optional fields for log registration
-	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target})
+	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.WorkFlowID: workflowName, events.NodeID: s.Target, events.TaskExecutionID: s.t.id})
 	// First: we check if Step is runnable
 	if runnable, err := s.isRunnable(); err != nil {
 		return err

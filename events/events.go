@@ -189,7 +189,7 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 // PublishAndLogAlienTaskStatusChange returns the published event id
 func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, taskExecutionID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
 	if ctx == nil {
-		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID, TaskExecutionID: taskExecutionID})
 	}
 	info := make(Info)
 	info[ETaskID] = taskID
