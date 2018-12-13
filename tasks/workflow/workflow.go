@@ -15,14 +15,18 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"path"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/workflow/builder"
 )
 
@@ -65,4 +69,29 @@ func getCallOperationsFromStep(s *step) []string {
 		}
 	}
 	return ops
+}
+
+func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowName string) error {
+	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(kv, taskID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
+	}
+	hasErrorFlag, err := tasks.TaskHasErrorFlag(kv, taskID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
+	}
+
+	status := tasks.TaskStatusDONE
+	if hasCancelledFlag {
+		status = tasks.TaskStatusCANCELED
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q canceled", workflowName)
+	} else if hasErrorFlag {
+		status = tasks.TaskStatusFAILED
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended in error", workflowName)
+	} else {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
+	}
+
+	err = checkAndSetTaskStatus(kv, taskID, status)
+	return errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%+v", taskID, err)
 }

@@ -359,12 +359,13 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 		}
 		return err
 	}
-	checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
+	// Already done in parent function
+	// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
 	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "successes"}), 1)
 	return err
 }
 
-func (w *worker) endAction(ctx context.Context, action *prov.Action, wasCancelled bool, actionErr error) {
+func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.Action, wasCancelled bool, actionErr error) {
 	if action.AsyncOperation.TaskID == "" {
 		return
 	}
@@ -426,7 +427,7 @@ func (w *worker) endAction(ctx context.Context, action *prov.Action, wasCancelle
 	}
 
 	// This is a fake task execution as the original one was deleted
-	t := newTaskExecution(
+	s := wrapBuilderStep(bs, w.consulClient, newTaskExecution(
 		action.AsyncOperation.ExecutionID,
 		action.AsyncOperation.TaskID,
 		action.AsyncOperation.DeploymentID,
@@ -434,25 +435,18 @@ func (w *worker) endAction(ctx context.Context, action *prov.Action, wasCancelle
 		w.consulClient,
 		time.Now(),
 		taskType,
-	)
-	s := wrapBuilderStep(bs, w.consulClient, t)
+	))
+
+	t.finalFunction = func() error {
+		return updateTaskStatusAccordingToWorkflowStatus(ctx, w.consulClient.KV(), action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
+	}
 
 	if wasCancelled {
 		s.registerOnCancelOrFailureSteps(ctx, action.AsyncOperation.WorkflowName, s.OnCancel)
-		err = setTaskStatusIfLatest(w.consulClient, action.AsyncOperation.TaskID, tasks.TaskStatusCANCELED)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
-			log.Debugf("%+v", err)
-		}
+
 	} else if actionErr != nil {
 		tasks.NotifyErrorOnTask(action.AsyncOperation.TaskID)
 		s.registerOnCancelOrFailureSteps(ctx, action.AsyncOperation.WorkflowName, s.OnFailure)
-		err = setTaskStatusIfLatest(w.consulClient, action.AsyncOperation.TaskID, tasks.TaskStatusFAILED)
-		if err != nil {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
-			log.Debugf("%+v", err)
-		}
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", actionErr)
 	} else {
 		// we are not stopped or erroed we just have to reschedule next steps
 		err = s.registerNextSteps(ctx, action.AsyncOperation.WorkflowName)
@@ -530,12 +524,13 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 	deregister, err := operator.ExecAction(ctx, w.cfg, t.taskID, t.targetID, action)
 	if deregister || *wasCancelled {
 		scheduling.UnregisterAction(w.consulClient, action.ID)
-		w.endAction(ctx, action, *wasCancelled, err)
+		w.endAction(ctx, t, action, *wasCancelled, err)
 	}
 	if err != nil {
 		return err
 	}
-	checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
+	// useless as we will delete the task at the end of the function
+	// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
 	log.Printf("Action:%+v successfully executed", action)
 	return nil
 }
@@ -572,7 +567,8 @@ func (w *worker) runQuery(ctx context.Context, t *taskExecution) error {
 				return errors.Wrap(err, "Failed to store query result")
 			}
 		}
-		checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
+		// done in parent function
+		// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
 	default:
 		return errors.Errorf("Unknown query: %q", query)
 	}
@@ -587,6 +583,10 @@ func (w *worker) runDeploy(ctx context.Context, t *taskExecution) error {
 	err = w.runWorkflowStep(ctx, t, "install", false)
 
 	f := func() error {
+		err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "install")
+		if err != nil {
+			return err
+		}
 		return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYED)
 	}
 	if err != nil {
@@ -594,7 +594,7 @@ func (w *worker) runDeploy(ctx context.Context, t *taskExecution) error {
 			return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_FAILED)
 		}
 	}
-	doIfNoMoreOtherExecutions(t.cc, t.taskID, f)
+	t.finalFunction = f
 	return err
 }
 
@@ -607,7 +607,11 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 		w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		err := w.runWorkflowStep(ctx, t, "uninstall", true)
 
-		doIfNoMoreOtherExecutions(t.cc, t.taskID, func() error {
+		t.finalFunction = func() error {
+			err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
+			if err != nil {
+				return err
+			}
 			// Set it to undeployed anyway
 			err = w.setDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYED)
 			if err != nil {
@@ -620,7 +624,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 				}
 			}
 			return nil
-		})
+		}
 		return err
 	} else if t.taskType == tasks.TaskTypePurge {
 		err = w.runPurge(ctx, t)
@@ -685,14 +689,22 @@ func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
 	err = w.runWorkflowStep(ctx, t, "install", false)
 
 	f := func() error {
+		err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "install")
+		if err != nil {
+			return err
+		}
 		return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYED)
 	}
 	if err != nil {
 		f = func() error {
+			err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "install")
+			if err != nil {
+				return err
+			}
 			return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_FAILED)
 		}
 	}
-	doIfNoMoreOtherExecutions(t.cc, t.taskID, f)
+	t.finalFunction = f
 	return err
 }
 
@@ -704,14 +716,22 @@ func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
 	err = w.runWorkflowStep(ctx, t, "uninstall", true)
 
 	f := func() error {
+		err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
+		if err != nil {
+			return err
+		}
 		return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYED)
 	}
 	if err != nil {
 		f = func() error {
+			err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
+			if err != nil {
+				return err
+			}
 			return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_FAILED)
 		}
 	}
-	doIfNoMoreOtherExecutions(t.cc, t.taskID, f)
+	t.finalFunction = f
 	return err
 }
 
@@ -728,8 +748,11 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 	if err != nil {
 		return errors.Wrap(err, "failed to parse \"continueOnError\" flag for custom workflow")
 	}
-	err = w.runWorkflowStep(ctx, t, wfName, bypassErrors)
-	return err
+	t.finalFunction = func() error {
+		return updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, wfName)
+	}
+
+	return w.runWorkflowStep(ctx, t, wfName, bypassErrors)
 }
 
 // bool return indicates if the workflow is done

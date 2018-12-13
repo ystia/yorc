@@ -38,6 +38,8 @@ type taskExecution struct {
 	lock         *api.Lock
 	cc           *api.Client
 	step         string
+	// finalFunction is function a function called at the end of the taskExecution if no other taskExecution are running
+	finalFunction func() error
 }
 
 func (t *taskExecution) releaseLock() {
@@ -123,16 +125,22 @@ func doIfNoMoreOtherExecutions(cc *api.Client, taskID string, f func() error) er
 
 func (t *taskExecution) notifyEnd() error {
 	execPath := path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions")
-	execLock, err := acquireRunningExecLock(t.cc, t.taskID)
+	l, e, err := numberOfRunningExecutionsForTask(t.cc, t.taskID)
 	if err != nil {
 		return err
 	}
-	defer execLock.Unlock()
+	defer l.Unlock()
 
 	kv := t.cc.KV()
 	// Delete our execID
 	_, err = kv.Delete(path.Join(execPath, t.id), nil)
-	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if e <= 1 && t.finalFunction != nil {
+		return t.finalFunction()
+	}
+	return nil
 }
 
 func (t *taskExecution) delete() error {

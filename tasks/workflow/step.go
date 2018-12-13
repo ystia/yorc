@@ -380,41 +380,41 @@ func (s *step) registerInlineWorkflow(ctx context.Context, workflowName string) 
 	return nil
 }
 
-func (s *step) updateTaskStatusIfWorkflowIsDone(ctx context.Context, workflowName string) error {
-	l, e, err := numberOfRunningExecutionsForTask(s.cc, s.t.taskID)
-	if err != nil {
-		return err
-	}
-	defer l.Unlock()
+// func (s *step) updateTaskStatusIfWorkflowIsDone(ctx context.Context, workflowName string) error {
+// 	l, e, err := numberOfRunningExecutionsForTask(s.cc, s.t.taskID)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer l.Unlock()
 
-	if e == 1 {
-		// We are the latest
-		hasCancelledFlag, err := tasks.TaskHasCancellationFlag(s.cc.KV(), s.t.taskID)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
-		}
-		hasErrorFlag, err := tasks.TaskHasErrorFlag(s.cc.KV(), s.t.taskID)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
-		}
+// 	if e == 1 {
+// 		// We are the latest
+// 		hasCancelledFlag, err := tasks.TaskHasCancellationFlag(s.cc.KV(), s.t.taskID)
+// 		if err != nil {
+// 			return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
+// 		}
+// 		hasErrorFlag, err := tasks.TaskHasErrorFlag(s.cc.KV(), s.t.taskID)
+// 		if err != nil {
+// 			return errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", s.t.taskID)
+// 		}
 
-		status := tasks.TaskStatusDONE
-		if hasCancelledFlag {
-			status = tasks.TaskStatusCANCELED
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).Registerf("Workflow %q canceled", workflowName)
-		} else if hasErrorFlag {
-			status = tasks.TaskStatusFAILED
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).Registerf("Workflow %q ended in error", workflowName)
-		} else {
-			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).Registerf("Workflow %q ended without error", workflowName)
-		}
+// 		status := tasks.TaskStatusDONE
+// 		if hasCancelledFlag {
+// 			status = tasks.TaskStatusCANCELED
+// 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).Registerf("Workflow %q canceled", workflowName)
+// 		} else if hasErrorFlag {
+// 			status = tasks.TaskStatusFAILED
+// 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).Registerf("Workflow %q ended in error", workflowName)
+// 		} else {
+// 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, s.t.targetID).Registerf("Workflow %q ended without error", workflowName)
+// 		}
 
-		err = checkAndSetTaskStatus(s.t.cc.KV(), s.t.taskID, status)
-		return errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%+v", s.t.taskID, err)
-	}
-	log.Debugf("Step %q ended but still some workflow steps need to be run for workflow: %q ", s.Name, workflowName)
-	return nil
-}
+// 		err = checkAndSetTaskStatus(s.t.cc.KV(), s.t.taskID, status)
+// 		return errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%+v", s.t.taskID, err)
+// 	}
+// 	log.Debugf("Step %q ended but still some workflow steps need to be run for workflow: %q ", s.Name, workflowName)
+// 	return nil
+// }
 
 func (s *step) checkIfPreviousOfNextStepAreDone(ctx context.Context, nextStep *step, workflowName string) (bool, error) {
 	cpt := 0
@@ -441,8 +441,10 @@ func (s *step) checkIfPreviousOfNextStepAreDone(ctx context.Context, nextStep *s
 func (s *step) registerNextSteps(ctx context.Context, workflowName string) error {
 	// If step is terminal, we check if workflow is done
 	if s.IsTerminal() {
-		log.Debugf("Step:%q is terminal: check if workflow %q is done", s.Name, s.WorkflowName)
-		return s.updateTaskStatusIfWorkflowIsDone(ctx, workflowName)
+		// This is now done at the end of the taskExecution
+		// log.Debugf("Step:%q is terminal: check if workflow %q is done", s.Name, s.WorkflowName)
+		// return s.updateTaskStatusIfWorkflowIsDone(ctx, workflowName)
+		return nil
 	}
 
 	// Register workflow step to handle step statuses for next steps
@@ -483,15 +485,18 @@ func (s *step) registerNextSteps(ctx context.Context, workflowName string) error
 }
 
 func (s *step) registerOnCancelOrFailureSteps(ctx context.Context, workflowName string, steps []*builder.Step) error {
+	if len(steps) == 0 {
+		// This is now done at the end of the taskExecution
+		// return s.updateTaskStatusIfWorkflowIsDone(ctx, workflowName)
+		return nil
+	}
 	// Register workflow step to handle cancellation
 	regSteps := make([]*step, 0)
 	for _, bnStep := range steps {
 		nStep := wrapBuilderStep(bnStep, s.cc, s.t)
 		regSteps = append(regSteps, nStep)
 	}
-	if len(regSteps) == 0 {
-		return s.updateTaskStatusIfWorkflowIsDone(ctx, workflowName)
-	}
+
 	l, err := acquireRunningExecLock(s.cc, s.t.taskID)
 	if err != nil {
 		return err
