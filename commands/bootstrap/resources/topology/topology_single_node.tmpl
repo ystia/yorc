@@ -8,34 +8,34 @@ metadata:
 description: ""
 
 imports:
-  - alien-base-types/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/alien-base-types.yml
+  - alien-base-types/{{getAlien4CloudVersionFromTOSCATypes}}/alien-base-types.yml
   - <normative-types.yml>
-  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
   - <yorc-google-types.yml>
   - <yorc-openstack-types.yml>
   - <yorc-aws-types.yml>
   - <yorc-hostspool-types.yml>
-  - org.ystia.yorc.experimental.consul.linux.ansible/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.ystia.terraform.linux.terraform/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.alien4cloud.consul.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.ystia.yorc.linux.ansible/2.1.0-SNAPSHOT/types.yaml
+  - org.ystia.yorc.experimental.consul.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
+  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.ystia.terraform.linux.terraform/{{getForgeVersionFromTOSCATypes}}/types.yaml
+  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.consul.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.ystia.yorc.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - <yorc-types.yml>
-  - org.alien4cloud.java.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.ystia.yorc.pub/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.ystia.yorc.experimental.consul.pub/2.1.0-SNAPSHOT/types.yaml
-  - org.ystia.ansible.linux.ansible/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.ystia.yorc.alien4cloud/2.1.0-SNAPSHOT/types.yaml
-  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}/types.yml
-  - org.ystia.terraform.pub/2.1.0-SNAPSHOT/types.yaml
-  - org.ystia.ansible.pub/2.1.0-SNAPSHOT/types.yaml
+  - org.alien4cloud.java.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.ystia.yorc.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
+  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.ystia.yorc.experimental.consul.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
+  - org.ystia.ansible.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
+  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.ystia.yorc.alien4cloud/{{getForgeVersionFromTOSCATypes}}/types.yaml
+  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.ystia.terraform.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
+  - org.ystia.ansible.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
 
 topology_template:
   node_templates:

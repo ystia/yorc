@@ -106,9 +106,23 @@ func extractResources(resourcesZipFilePath, resourcesDir string) error {
 	return nil
 }
 
-// getAlien4CloudDefaultVersion returns the ALien4Cloud version from the bundled
-// resources zip file containing TOSCA types needed for the bootstrap
+// getAlien4CloudVersionFromTOSCATypes returns the ALien4Cloud version from the
+// bundled resources zip file containing TOSCA types needed for the bootstrap
 func getAlien4CloudVersionFromTOSCATypes() string {
+
+	return getVersionFromTOSCATypes("alien-base-types")
+}
+
+// getForgeDefaultVersion returns the Forge version from the bundled
+// resources zip file containing TOSCA types needed for the bootstrap
+func getForgeVersionFromTOSCATypes() string {
+
+	return getVersionFromTOSCATypes("org.ystia.yorc.pub")
+}
+
+// getVersionFromTOSCATypes returns the version from the bundled
+// resources zip file containing TOSCA types needed for the bootstrap
+func getVersionFromTOSCATypes(path string) string {
 	// Use the embedded resources
 	version := "unknown"
 	exePath, err := resources.ExecutablePath()
@@ -130,7 +144,7 @@ func getAlien4CloudVersionFromTOSCATypes() string {
 		return version
 	}
 
-	re := regexp.MustCompile(`alien-base-types/([0-9a-zA-Z.-]+)/`)
+	re := regexp.MustCompile(path + "/" + `([0-9a-zA-Z.-]+)/`)
 	for _, resource := range allResources {
 		if !strings.HasSuffix(resource.Path(), "tosca_types.zip") {
 			continue

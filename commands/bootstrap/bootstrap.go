@@ -28,7 +28,7 @@ import (
 
 // Variables with an uknown values are initialized in the root Makefile
 var (
-	alien4cloudVersion = getAlien4CloudVersionFromTOSCATypes()
+	alien4cloudVersion = "unknown"
 	ansibleVersion     = "unknown"
 	consulVersion      = "unknown"
 	terraformVersion   = "unknown"
