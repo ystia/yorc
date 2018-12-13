@@ -4,7 +4,7 @@
 
 ### BUG FIXES
 
-* Bootstrap of HA setup fails on GCP, at step configuring the NFS Client component (GH-218)
+* Bootstrap of HA setup fails on GCP, at step configuring the NFS Client component [GH-218](https://github.com/ystia/yorc/issues/218))
 
 ## 3.1.0-M7 (December 07, 2018)
 
