@@ -7,6 +7,7 @@
   "http_port": 8800,
   "http_address": "0.0.0.0",
   "resources_prefix": "yorc-",
+  "disable_ssh_agent": false,
   "infrastructures":{
     "openstack": {
       "auth_url": "http://openstack:5000/v2.0",

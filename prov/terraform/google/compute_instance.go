@@ -292,8 +292,8 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 
 	// Retrieve devices
 	if len(devices) > 0 {
-		// need to use an SSH Agent to make it
-		if sshAgent == nil && cfg.UseSSHAgent {
+		// need to use an SSH Agent to make it if allowed by config
+		if !cfg.DisableSSHAgent && sshAgent == nil {
 			sshAgent, err = commons.GetSSHAgent(ctx, privateKey)
 			if err != nil {
 				return err
@@ -329,7 +329,7 @@ func handleDeviceAttributes(cfg config.Configuration, infrastructure *commons.In
 
 		// local exec to scp the stdout file locally (use ssh-agent to make it if allowed by config)
 		var scpCommand string
-		if cfg.UseSSHAgent {
+		if !cfg.DisableSSHAgent {
 			scpCommand = fmt.Sprintf("scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %s@%s:~/%s %s", user, accessIP, dev, dev)
 			env = make(map[string]interface{})
 			env["SSH_AUTH_SOCK"] = sshAgent.Socket

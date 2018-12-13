@@ -54,6 +54,12 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 		t.Run("TestWorkflowStatusChange", func(t *testing.T) {
 			testconsulWorkflowStatusChange(t, kv)
 		})
+		t.Run("TestWorkflowStepStatusChange", func(t *testing.T) {
+			testconsulWorkflowStepStatusChange(t, kv)
+		})
+		t.Run("testAlienTaskStatusChange", func(t *testing.T) {
+			testconsulAlienTaskStatusChange(t, kv)
+		})
 		t.Run("TestGetStatusEvents", func(t *testing.T) {
 			testconsulGetStatusEvents(t, kv)
 		})

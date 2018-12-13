@@ -319,11 +319,11 @@ func IsTaskRelatedNode(kv *api.KV, taskID, nodeName string) (bool, error) {
 //
 // Deprecated: use EmitTaskEventWithContextualLogs instead
 func EmitTaskEvent(kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (string, error) {
-	return EmitTaskEventWithContextualLogs(nil, kv, deploymentID, taskID, taskType, status)
+	return EmitTaskEventWithContextualLogs(nil, kv, deploymentID, taskID, taskType, "unknown", status)
 }
 
 // EmitTaskEventWithContextualLogs emits a task event based on task type
-func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, taskID string, taskType TaskType, status string) (string, error) {
+func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deploymentID, taskID string, taskType TaskType, workflowName, status string) (string, error) {
 	if ctx == nil {
 		ctx = events.NewContext(context.Background(), events.LogOptionalFields{events.ExecutionID: taskID})
 	}
@@ -331,7 +331,7 @@ func EmitTaskEventWithContextualLogs(ctx context.Context, kv *api.KV, deployment
 	case TaskTypeCustomCommand:
 		return events.PublishAndLogCustomCommandStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
 	case TaskTypeCustomWorkflow, TaskTypeDeploy, TaskTypeUnDeploy:
-		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
+		return events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, strings.ToLower(status))
 	case TaskTypeScaleIn, TaskTypeScaleOut:
 		return events.PublishAndLogScalingStatusChange(ctx, kv, deploymentID, taskID, strings.ToLower(status))
 	}
