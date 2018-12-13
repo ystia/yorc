@@ -20,17 +20,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ystia/yorc/helper/stringutil"
-
 	"github.com/armon/go-metrics"
-	"github.com/ystia/yorc-premium/helper/metricsutil"
-
-	"github.com/ystia/yorc/events"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
