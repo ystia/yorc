@@ -113,7 +113,7 @@ func (c *Collector) registerTaskWithoutDestroyLock(targetID string, taskType Tas
 	if err != nil {
 		return nil, nil, taskID, err
 	}
-	EmitTaskEventWithContextualLogs(nil, kv, targetID, taskID, taskType, TaskStatusINITIAL.String())
+	EmitTaskEventWithContextualLogs(nil, kv, targetID, taskID, taskType, "unknown", TaskStatusINITIAL.String())
 
 	destroy := func(taskLockCreate *api.Lock, taskId, targetId string) {
 		log.Debugf("Unlocking newly created task with id %q (target id %q)", taskId, targetId)
