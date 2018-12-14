@@ -180,7 +180,7 @@ func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, depl
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow step %q changed to %q", wfStepInfo.StepName, status)
 	return id, nil
 }
 
@@ -210,7 +210,7 @@ func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploym
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for task execution %q changed to %q", taskExecutionID, status)
 	return id, nil
 }
 
@@ -232,7 +232,7 @@ func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deployme
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow %q changed to %q", workflowID, status)
 	return id, nil
 }
 
