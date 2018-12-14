@@ -281,12 +281,14 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
-		"formatAsYAML":                      formatAsYAML,
-		"formatOnDemandResourceCredsAsYAML": formatOnDemandResourceCredsAsYAML,
-		"indent":                            indent,
-		"getFile":                           getFile,
-		"getRepositoryURL":                  getRepositoryURL,
-		"getAlien4CloudVersion":             getAlien4CloudVersion,
+		"formatAsYAML":                        formatAsYAML,
+		"formatOnDemandResourceCredsAsYAML":   formatOnDemandResourceCredsAsYAML,
+		"indent":                              indent,
+		"getFile":                             getFile,
+		"getRepositoryURL":                    getRepositoryURL,
+		"getAlien4CloudVersion":               getAlien4CloudVersion,
+		"getAlien4CloudVersionFromTOSCATypes": getAlien4CloudVersionFromTOSCATypes,
+		"getForgeVersionFromTOSCATypes":       getForgeVersionFromTOSCATypes,
 	}
 
 	parsedTemplate, err := template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...)

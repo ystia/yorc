@@ -71,6 +71,18 @@ func getCallOperationsFromStep(s *step) []string {
 	return ops
 }
 
+func updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx context.Context, cc *api.Client, deploymentID, taskID, workflowName string) error {
+	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
+	if err != nil {
+		return err
+	}
+	defer l.Unlock()
+	if e <= 1 {
+		// we are the latest
+		return updateTaskStatusAccordingToWorkflowStatus(ctx, cc.KV(), deploymentID, taskID, workflowName)
+	}
+	return nil
+}
 func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowName string) error {
 	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(kv, taskID)
 	if err != nil {
@@ -92,6 +104,6 @@ func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
 	}
 
-	err = checkAndSetTaskStatus(kv, taskID, status)
-	return errors.Wrapf(err, "Failed to update task status to DONE with TaskID:%q due to error:%+v", taskID, err)
+	events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, status.String())
+	return errors.Wrapf(checkAndSetTaskStatus(kv, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
 }

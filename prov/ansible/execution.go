@@ -752,6 +752,7 @@ func (e *executionCommon) execute(ctx context.Context, retry bool) error {
 		for _, instanceID := range instances {
 			instanceName := operations.GetInstanceName(nodeName, instanceID)
 			log.Debugf("Executing operation %q, on node %q, with current instance %q", e.operation.Name, e.NodeName, instanceName)
+			ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instanceID})
 			err := e.executeWithCurrentInstance(ctx, retry, instanceName)
 			if err != nil {
 				return err

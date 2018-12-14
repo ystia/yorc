@@ -337,11 +337,19 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 	}
 	op, err := operations.GetOperation(ctx, kv, t.targetID, nodeName, interfaceName+"."+commandName, "", "")
 	if err != nil {
-		return err
+		err = setNodeStatus(ctx, t.cc.KV(), t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.targetID, t.taskID, nodeName, err)
+		}
+		return errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
 	}
 	exec, err := getOperationExecutor(kv, t.targetID, op.ImplementationArtifact)
 	if err != nil {
-		return err
+		err = setNodeStatus(ctx, t.cc.KV(), t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
+		if err != nil {
+			log.Printf("Deployment id: %q, Task id: %q, Failed to set status for node %q: %+v", t.targetID, t.taskID, nodeName, err)
+		}
+		return errors.Wrapf(err, "Command TaskExecution failed for node %q", nodeName)
 	}
 
 	ctx = operations.SetOperationLogFields(ctx, op)
@@ -352,6 +360,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 		return exec.ExecOperation(ctx, w.cfg, t.taskID, t.targetID, nodeName, op)
 	}()
 	if err != nil {
+		events.PublishAndLogCustomCommandStatusChange(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusFAILED.String())
 		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "failures"}), 1)
 		err2 := setNodeStatus(ctx, t.cc.KV(), t.taskID, t.targetID, nodeName, tosca.NodeStateError.String())
 		if err2 != nil {
@@ -361,6 +370,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 	}
 	// Already done in parent function
 	// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
+	events.PublishAndLogCustomCommandStatusChange(ctx, t.cc.KV(), t.targetID, t.taskID, tasks.TaskStatusDONE.String())
 	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name, "successes"}), 1)
 	return err
 }
@@ -437,9 +447,7 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		taskType,
 	))
 
-	t.finalFunction = func() error {
-		return updateTaskStatusAccordingToWorkflowStatus(ctx, w.consulClient.KV(), action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
-	}
+	defer updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx, w.consulClient, action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
 
 	if wasCancelled {
 		s.registerOnCancelOrFailureSteps(ctx, action.AsyncOperation.WorkflowName, s.OnCancel)
@@ -453,7 +461,6 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("Failed to register steps preceded by %q for execution: %v", action.AsyncOperation.StepName, err)
 			log.Debugf("%+v", err)
-			return
 		}
 	}
 }

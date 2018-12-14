@@ -82,19 +82,6 @@ func (t *taskExecution) notifyStart() error {
 	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions", t.id), consulNodeName)
 }
 
-func setTaskStatusIfLatest(cc *api.Client, taskID string, status tasks.TaskStatus) error {
-	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
-	if err != nil {
-		return err
-	}
-	defer l.Unlock()
-	if e == 1 {
-		// Change status
-		return checkAndSetTaskStatus(cc.KV(), taskID, status)
-	}
-	return nil
-}
-
 func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consulutil.AutoDeleteLock, int, error) {
 	l, err := acquireRunningExecLock(cc, taskID)
 	if err != nil {
@@ -184,6 +171,7 @@ func checkAndSetTaskStatus(kv *api.KV, taskID string, finalStatus tasks.TaskStat
 }
 
 func setTaskStatus(kv *api.KV, taskID string, status tasks.TaskStatus, lastIndex uint64) error {
+	log.Debugf("Updating task status to %q: %+v", status, errors.New("Remove this log"))
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	p.ModifyIndex = lastIndex
 	set, _, err := kv.CAS(p, nil)

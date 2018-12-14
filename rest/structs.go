@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/prov/hostspool"
 	"github.com/ystia/yorc/registry"
 	"github.com/ystia/yorc/tosca"
@@ -102,8 +101,8 @@ type DeploymentsCollection struct {
 
 // EventsCollection is a collection of instances status change events
 type EventsCollection struct {
-	Events    []events.StatusUpdate `json:"events"`
-	LastIndex uint64                `json:"last_index"`
+	Events    []json.RawMessage `json:"events"`
+	LastIndex uint64            `json:"last_index"`
 }
 
 // LogsCollection is a collection of logs events
