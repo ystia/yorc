@@ -754,11 +754,15 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 		checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusFAILED)
 		return
 	}
-	_, err = w.runWorkflowStep(ctx, t, wfName, bypassErrors)
+	wfDone, err := w.runWorkflowStep(ctx, t, wfName, bypassErrors)
 	if err != nil {
 		log.Printf("%+v", err)
 		checkAndSetTaskStatus(ctx, t.kv, t.taskID, t.step, tasks.TaskStatusFAILED)
+		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, wfName, tasks.TaskStatusFAILED.String())
 		return
+	}
+	if wfDone {
+		events.PublishAndLogWorkflowStatusChange(ctx, w.consulClient.KV(), t.targetID, t.taskID, wfName, tasks.TaskStatusDONE.String())
 	}
 }
 
