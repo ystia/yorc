@@ -575,6 +575,16 @@ func (w *worker) runQuery(ctx context.Context, t *taskExecution) error {
 	return nil
 }
 
+func (w *worker) makeWorkflowFinalFunction(ctx context.Context, kv *api.KV, deploymentID, taskID, wfName string, wfStatus deployments.DeploymentStatus) func() error {
+	return func() error {
+		err := updateTaskStatusAccordingToWorkflowStatus(ctx, kv, deploymentID, taskID, wfName)
+		if err != nil {
+			return err
+		}
+		return w.checkAndSetDeploymentStatus(ctx, deploymentID, wfStatus)
+	}
+}
+
 func (w *worker) runDeploy(ctx context.Context, t *taskExecution) error {
 	err := w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_IN_PROGRESS)
 	if err != nil {
@@ -582,19 +592,10 @@ func (w *worker) runDeploy(ctx context.Context, t *taskExecution) error {
 	}
 	err = w.runWorkflowStep(ctx, t, "install", false)
 
-	f := func() error {
-		err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "install")
-		if err != nil {
-			return err
-		}
-		return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYED)
-	}
+	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYED)
 	if err != nil {
-		f = func() error {
-			return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_FAILED)
-		}
+		t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYMENT_FAILED)
 	}
-	t.finalFunction = f
 	return err
 }
 
@@ -688,23 +689,10 @@ func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
 	}
 	err = w.runWorkflowStep(ctx, t, "install", false)
 
-	f := func() error {
-		err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "install")
-		if err != nil {
-			return err
-		}
-		return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYED)
-	}
+	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYED)
 	if err != nil {
-		f = func() error {
-			err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "install")
-			if err != nil {
-				return err
-			}
-			return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_FAILED)
-		}
+		t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYMENT_FAILED)
 	}
-	t.finalFunction = f
 	return err
 }
 
@@ -715,23 +703,11 @@ func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
 	}
 	err = w.runWorkflowStep(ctx, t, "uninstall", true)
 
-	f := func() error {
-		err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
-		if err != nil {
-			return err
-		}
-		return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYED)
-	}
+	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall", deployments.DEPLOYED)
+
 	if err != nil {
-		f = func() error {
-			err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
-			if err != nil {
-				return err
-			}
-			return w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_FAILED)
-		}
+		t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYMENT_FAILED)
 	}
-	t.finalFunction = f
 	return err
 }
 
