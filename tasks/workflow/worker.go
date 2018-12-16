@@ -389,33 +389,6 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 		w.consulClient.KV().Delete(path.Join(consulutil.TasksPrefix, action.AsyncOperation.TaskID, ".runningExecutions", action.ID), nil)
 	}()
 
-	stepStatus := tasks.TaskStepStatusDONE
-	endMsg := "operation succeeded"
-	if wasCancelled {
-		stepStatus = tasks.TaskStepStatusCANCELED
-		if actionErr != nil {
-			endMsg = actionErr.Error()
-		} else {
-			endMsg = fmt.Sprintf("action cancelled due to asynchronous parent operation tasks %q cancelled", action.AsyncOperation.TaskID)
-		}
-	} else if actionErr != nil {
-		stepStatus = tasks.TaskStepStatusERROR
-		endMsg = actionErr.Error()
-	}
-	err := tasks.UpdateTaskStepWithStatus(w.consulClient.KV(), action.AsyncOperation.TaskID, action.AsyncOperation.StepName, stepStatus)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
-		log.Debugf("%+v", err)
-	}
-	instances, err := tasks.GetInstances(w.consulClient.KV(), action.AsyncOperation.TaskID, action.AsyncOperation.DeploymentID, action.AsyncOperation.NodeName)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
-		log.Debugf("%+v", err)
-	}
-	for _, instanceName := range instances {
-		// TODO: replace this with workflow steps events
-		events.WithContextOptionalFields(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: instanceName})).NewLogEntry(events.LogLevelDEBUG, action.AsyncOperation.DeploymentID).RegisterAsString(endMsg)
-	}
 	// Rebuild the original workflow step
 	steps, err := builder.BuildWorkFlow(w.consulClient.KV(), action.AsyncOperation.DeploymentID, action.AsyncOperation.WorkflowName)
 	if err != nil {
@@ -449,10 +422,12 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 
 	defer updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx, w.consulClient, action.AsyncOperation.DeploymentID, action.AsyncOperation.TaskID, action.AsyncOperation.WorkflowName)
 
+	stepStatus := tasks.TaskStepStatusDONE
 	if wasCancelled {
+		stepStatus = tasks.TaskStepStatusCANCELED
 		s.registerOnCancelOrFailureSteps(ctx, action.AsyncOperation.WorkflowName, s.OnCancel)
-
 	} else if actionErr != nil {
+		stepStatus = tasks.TaskStepStatusERROR
 		tasks.NotifyErrorOnTask(action.AsyncOperation.TaskID)
 		s.registerOnCancelOrFailureSteps(ctx, action.AsyncOperation.WorkflowName, s.OnFailure)
 	} else {
@@ -462,6 +437,21 @@ func (w *worker) endAction(ctx context.Context, t *taskExecution, action *prov.A
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("Failed to register steps preceded by %q for execution: %v", action.AsyncOperation.StepName, err)
 			log.Debugf("%+v", err)
 		}
+	}
+
+	err = tasks.UpdateTaskStepWithStatus(w.consulClient.KV(), action.AsyncOperation.TaskID, action.AsyncOperation.StepName, stepStatus)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
+		log.Debugf("%+v", err)
+	}
+
+	instances, err := tasks.GetInstances(w.consulClient.KV(), action.AsyncOperation.TaskID, action.AsyncOperation.DeploymentID, action.AsyncOperation.NodeName)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, action.AsyncOperation.DeploymentID).Registerf("%v", err)
+		log.Debugf("%+v", err)
+	}
+	for _, instanceName := range instances {
+		s.publishInstanceRelatedEvents(ctx, w.consulClient.KV(), action.AsyncOperation.DeploymentID, instanceName, action.AsyncOperation.WorkflowStepInfo, stepStatus)
 	}
 }
 
