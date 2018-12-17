@@ -51,11 +51,11 @@ type ansibleTaskContext struct {
 	context                   context.Context
 	deploymentID              string
 	nodeName                  string
-	hostsConn                 map[string]hostConnection
+	hostsConn                 map[string]*hostConnection
 	playbookMode              bool
 }
 
-func getInstanceIDForHost(host string, hostConnectionMap map[string]hostConnection) string {
+func getInstanceIDForHost(host string, hostConnectionMap map[string]*hostConnection) string {
 	instanceID := ""
 	for _, connection := range hostConnectionMap {
 		if host == connection.host {
@@ -179,7 +179,7 @@ func endTaskSectionAndLogTaskResult(ansibleTask *ansibleTaskContext) {
 // this is used when running scripts to not let appear in logs that the
 // Orchestrator encapsulated this script in an Ansible playbook to run it
 func logAnsibleOutput(ctx context.Context, deploymentID, nodeName string,
-	hostsConn map[string]hostConnection,
+	hostsConn map[string]*hostConnection,
 	output io.ReadCloser,
 	playbookMode bool) {
 
@@ -263,12 +263,12 @@ func logAnsibleOutput(ctx context.Context, deploymentID, nodeName string,
 
 type logAnsibleOutputInConsulFn func(context.Context, string, string, map[string]hostConnection, io.ReadCloser)
 
-func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeName string, hostsConn map[string]hostConnection, output io.ReadCloser) {
+func logAnsibleOutputInConsulFromScript(ctx context.Context, deploymentID, nodeName string, hostsConn map[string]*hostConnection, output io.ReadCloser) {
 	playbookMode := false
 	logAnsibleOutput(ctx, deploymentID, nodeName, hostsConn, output, playbookMode)
 }
 
-func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string, hostsConn map[string]hostConnection, output io.ReadCloser) {
+func logAnsibleOutputInConsul(ctx context.Context, deploymentID, nodeName string, hostsConn map[string]*hostConnection, output io.ReadCloser) {
 	playbookMode := true
 	logAnsibleOutput(ctx, deploymentID, nodeName, hostsConn, output, playbookMode)
 }

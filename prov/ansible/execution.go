@@ -145,7 +145,7 @@ type executionCommon struct {
 	Primary                  string
 	BasePrimary              string
 	Dependencies             []string
-	hosts                    map[string]hostConnection
+	hosts                    map[string]*hostConnection
 	OperationPath            string
 	NodePath                 string
 	NodeTypePath             string
@@ -391,10 +391,10 @@ func (e *executionCommon) setHostConnection(kv *api.KV, host, instanceID, capTyp
 }
 
 func (e *executionCommon) resolveHostsOrchestratorLocal(nodeName string, instances []string) error {
-	e.hosts = make(map[string]hostConnection, len(instances))
+	e.hosts = make(map[string]*hostConnection, len(instances))
 	for i := range instances {
 		instanceName := operations.GetInstanceName(nodeName, instances[i])
-		e.hosts[instanceName] = hostConnection{host: instanceName, instanceID: instances[i]}
+		e.hosts[instanceName] = &hostConnection{host: instanceName, instanceID: instances[i]}
 	}
 	return nil
 }
@@ -414,7 +414,7 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 		}
 	}
 
-	hosts := make(map[string]hostConnection)
+	hosts := make(map[string]*hostConnection)
 	var found bool
 	for i := len(hostedOnList) - 1; i >= 0 && !found; i-- {
 		host := hostedOnList[i]
@@ -436,8 +436,8 @@ func (e *executionCommon) resolveHostsOnCompute(nodeName string, instances []str
 				if ipAddress != nil && ipAddress.RawString() != "" {
 					ipAddressStr := config.DefaultConfigTemplateResolver.ResolveValueWithTemplates("host.ip_address", ipAddress.RawString()).(string)
 					instanceName := operations.GetInstanceName(nodeName, instance)
-					hostConn := hostConnection{host: ipAddressStr, instanceID: instance}
-					err = e.setHostConnection(e.kv, host, instance, capType, &hostConn)
+					hostConn := &hostConnection{host: ipAddressStr, instanceID: instance}
+					err = e.setHostConnection(e.kv, host, instance, capType, hostConn)
 					if err != nil {
 						mess := fmt.Sprintf("[ERROR] failed to set host connection with error: %+v", err)
 						log.Debug(mess)
@@ -748,7 +748,7 @@ func (e *executionCommon) generateHostConnectionForOrchestratorOperation(ctx con
 	return nil
 }
 
-func (e *executionCommon) getSSHCredentials(ctx context.Context, host hostConnection, warnOfMissingValues bool) sshCredentials {
+func (e *executionCommon) getSSHCredentials(ctx context.Context, host *hostConnection, warnOfMissingValues bool) sshCredentials {
 	sshUser := host.user
 	if sshUser == "" {
 		// Use root as default user
@@ -759,12 +759,13 @@ func (e *executionCommon) getSSHCredentials(ctx context.Context, host hostConnec
 	sshPrivateKey := host.privateKey
 	if sshPrivateKey == "" && sshPassword == "" {
 		sshPrivateKey = "~/.ssh/yorc.pem"
+		host.privateKey = sshPrivateKey
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).RegisterAsString("Ansible provisioning: Missing ssh password or private key information, trying to use default private key ~/.ssh/yorc.pem.")
 	}
 	return sshCredentials{user: sshUser, password: sshPassword, privateKey: sshPrivateKey}
 }
 
-func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host hostConnection) error {
+func (e *executionCommon) generateHostConnection(ctx context.Context, buffer *bytes.Buffer, host *hostConnection) error {
 	buffer.WriteString(host.host)
 	if e.isOrchestratorOperation {
 		err := e.generateHostConnectionForOrchestratorOperation(ctx, buffer)
