@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -355,16 +354,23 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 		}
 
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s Service %s created in namespace %s", service.Name, namespace)
-
-		kubConf := e.cfg.Infrastructures["kubernetes"]
-		kubMasterIP := kubConf.GetString("master_url")
-		u, _ := url.Parse(kubMasterIP)
-		h := strings.Split(u.Host, ":")
+		node, err := getHealthyNode(clientset)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Not able to find an healthy node")
+		}
+		h, err := getExternalIPAdress(clientset, node)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Error getting external ip of node %s", node)
+		}
 		for _, val := range service.Spec.Ports {
 			if val.NodePort != 0 {
-				str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+				str := fmt.Sprintf("http://%s:%d", h, val.NodePort)
 				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("%s : %s: %d:%d mapped to %s", service.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
 				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "k8s_service_url", str)
+				if err != nil {
+					return errors.Wrap(err, "Failed to set attribute")
+				}
+				err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.nodeName, "node_port", strconv.Itoa(int(val.NodePort)))
 				if err != nil {
 					return errors.Wrap(err, "Failed to set attribute")
 				}
@@ -519,12 +525,16 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 			return errors.Wrap(err, "Failed to create service")
 		}
 		var s string
+		node, err := getHealthyNode(clientset)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Not able to find an healthy node")
+		}
+		h, err := getExternalIPAdress(clientset, node)
+		if err != nil {
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, e.deploymentID).Registerf("Error getting external ip of node %s", node)
+		}
 		for _, val := range serv.Spec.Ports {
-			kubConf := e.cfg.Infrastructures["kubernetes"]
-			kubMasterIP := kubConf.GetString("master_url")
-			u, _ := url.Parse(kubMasterIP)
-			h := strings.Split(u.Host, ":")
-			str := fmt.Sprintf("http://%s:%d", h[0], val.NodePort)
+			str := fmt.Sprintf("http://%s:%d", h, val.NodePort)
 
 			log.Printf("%s : %s: %d:%d mapped to %s", serv.Name, val.Name, val.Port, val.TargetPort.IntVal, str)
 
@@ -534,7 +544,7 @@ func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interfa
 				// The service is accessible to an external IP address through
 				// this port. Updating the corresponding public endpoints
 				// kubernetes port mapping
-				err := e.updatePortMappingPublicEndpoints(val.Port, h[0], val.NodePort)
+				err := e.updatePortMappingPublicEndpoints(val.Port, h, val.NodePort)
 				if err != nil {
 					return errors.Wrap(err, "Failed to update endpoint capabilities port mapping")
 				}
