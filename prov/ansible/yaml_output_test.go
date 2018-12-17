@@ -41,9 +41,9 @@ func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {
 	deploymentID := testutil.BuildDeploymentID(t)
 	nodeName := "node"
 
-	hosts := map[string]hostConnection{
-		"Instance_0": hostConnection{host: "10.0.0.132", instanceID: "0"},
-		"Instance_1": hostConnection{host: "10.0.0.133", instanceID: "1"},
+	hosts := map[string]*hostConnection{
+		"Instance_0": {host: "10.0.0.132", instanceID: "0"},
+		"Instance_1": {host: "10.0.0.133", instanceID: "1"},
 	}
 
 	logOptFields := events.LogOptionalFields{
@@ -132,9 +132,9 @@ func testLogAnsibleOutputInConsulFromScript(t *testing.T, kv *api.KV) {
 	deploymentID := testutil.BuildDeploymentID(t)
 	nodeName := "node"
 
-	hosts := map[string]hostConnection{
-		"Instance_0": hostConnection{host: "10.0.0.132", instanceID: "0"},
-		"Instance_1": hostConnection{host: "10.0.0.133", instanceID: "1"},
+	hosts := map[string]*hostConnection{
+		"Instance_0": {host: "10.0.0.132", instanceID: "0"},
+		"Instance_1": {host: "10.0.0.133", instanceID: "1"},
 	}
 
 	logOptFields := events.LogOptionalFields{
@@ -187,8 +187,8 @@ func testLogAnsibleOutputInConsulFromScriptFailure(t *testing.T, kv *api.KV) {
 	deploymentID := testutil.BuildDeploymentID(t)
 	nodeName := "node"
 
-	hosts := map[string]hostConnection{
-		"Instance_0": hostConnection{host: "192.168.2.11", instanceID: "0"},
+	hosts := map[string]*hostConnection{
+		"Instance_0": {host: "192.168.2.11", instanceID: "0"},
 	}
 
 	logOptFields := events.LogOptionalFields{

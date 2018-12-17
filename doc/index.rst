@@ -40,4 +40,5 @@ Yorc |release| Documentation
    telemetry
    performance
    upgrade
+   issues
 

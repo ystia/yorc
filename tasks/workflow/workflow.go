@@ -15,14 +15,18 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"path"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tasks/workflow/builder"
 )
 
@@ -46,6 +50,11 @@ func createWorkflowStepsOperations(taskID string, steps []*step) api.KVTxnOps {
 				Key:   path.Join(stepExecPath, "step"),
 				Value: []byte(step.Name),
 			},
+			&api.KVTxnOp{
+				Verb:  api.KVSet,
+				Key:   path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions", execID),
+				Value: []byte(""),
+			},
 		}
 		ops = append(ops, stepOps...)
 	}
@@ -60,4 +69,43 @@ func getCallOperationsFromStep(s *step) []string {
 		}
 	}
 	return ops
+}
+
+func updateTaskStatusAccordingToWorkflowStatusIfLatest(ctx context.Context, cc *api.Client, deploymentID, taskID, workflowName string) error {
+	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
+	if err != nil {
+		return err
+	}
+	defer l.Unlock()
+	if e <= 1 {
+		// we are the latest
+		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, cc.KV(), deploymentID, taskID, workflowName)
+		return err
+	}
+	return nil
+}
+
+func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowName string) (tasks.TaskStatus, error) {
+	hasCancelledFlag, err := tasks.TaskHasCancellationFlag(kv, taskID)
+	if err != nil {
+		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
+	}
+	hasErrorFlag, err := tasks.TaskHasErrorFlag(kv, taskID)
+	if err != nil {
+		return tasks.TaskStatusFAILED, errors.Wrapf(err, "Failed to retrieve workflow step statuses with TaskID:%q", taskID)
+	}
+
+	status := tasks.TaskStatusDONE
+	if hasCancelledFlag {
+		status = tasks.TaskStatusCANCELED
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q canceled", workflowName)
+	} else if hasErrorFlag {
+		status = tasks.TaskStatusFAILED
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended in error", workflowName)
+	} else {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
+	}
+
+	events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, status.String())
+	return status, errors.Wrapf(checkAndSetTaskStatus(kv, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
 }

@@ -12,14 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package builder
+package consulutil
 
 import (
-	"strings"
-
-	"github.com/ystia/yorc/tosca"
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 )
 
-func isAsyncOperation(operation string) bool {
-	return operation == strings.ToLower(tosca.RunnableRunOperationName)
+// AutoDeleteLock is a composition of an consul Lock but its Unlock function also call the Destroy function
+type AutoDeleteLock struct {
+	*api.Lock
+}
+
+// Unlock calls in sequence Unlock from the original lock then destroy
+func (adl *AutoDeleteLock) Unlock() error {
+	err := adl.Lock.Unlock()
+	if err != nil {
+		return errors.Wrap(err, ConsulGenericErrMsg)
+	}
+	return errors.Wrap(adl.Lock.Destroy(), ConsulGenericErrMsg)
 }

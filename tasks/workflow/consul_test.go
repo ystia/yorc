@@ -23,12 +23,11 @@ import (
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
 func TestRunConsulWorkflowPackageTests(t *testing.T) {
 	srv, client := testutil.NewTestConsulInstance(t)
-	kv := client.KV()
 	defer srv.Stop()
 
 	t.Run("groupWorkflow", func(t *testing.T) {
 		t.Run("testRunStep", func(t *testing.T) {
-			testRunStep(t, srv, kv)
+			testRunStep(t, srv, client)
 		})
 	})
 }

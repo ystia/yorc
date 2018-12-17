@@ -719,3 +719,56 @@ func GetOperationHostFromTypeOperationByName(kv *api.KV, deploymentID, typeName,
 	}
 	return string(kvp.Value), nil
 }
+
+// IsOperationImplemented checks if a given operation is implemented either in the node template or in the node type hierarchy
+//
+// An implemented operation means that it has a non empty primary implementation or file for an implementation artifact
+func IsOperationImplemented(kv *api.KV, deploymentID, nodeName, operationName string) (bool, error) {
+	// First check on node template
+	nodeTemplateOpPath := getOperationPath(deploymentID, nodeName, "", strings.ToLower(operationName))
+	result, err := isOperationPathImplemented(kv, nodeTemplateOpPath)
+	if err != nil {
+		return false, err
+	}
+	if result {
+		return true, nil
+	}
+
+	// Then check type hierarchy
+	typeName, err := GetNodeType(kv, deploymentID, nodeName)
+	if err != nil {
+		return false, err
+	}
+	for typeName != "" {
+		typeNameOpPath := getOperationPath(deploymentID, "", typeName, strings.ToLower(operationName))
+		result, err := isOperationPathImplemented(kv, typeNameOpPath)
+		if err != nil {
+			return false, err
+		}
+		if result {
+			return true, nil
+		}
+		typeName, err = GetParentType(kv, deploymentID, typeName)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
+}
+
+func isOperationPathImplemented(kv *api.KV, operationPath string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(operationPath, "implementation", "primary"), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if kvp != nil && len(kvp.Value) != 0 {
+		return true, nil
+	}
+
+	kvp, _, err = kv.Get(path.Join(operationPath, "implementation", "file"), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return kvp != nil && len(kvp.Value) != 0, nil
+}

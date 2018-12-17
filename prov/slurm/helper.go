@@ -112,11 +112,12 @@ func getAttributes(client sshutil.Client, key string, params ...string) ([]strin
 	switch key {
 	case "cuda_visible_devices":
 		if len(params) == 2 && params[0] != "" {
-			cmd := fmt.Sprintf("srun --jobid=%s env|grep CUDA_VISIBLE_DEVICES", params[0])
+			cmd := fmt.Sprintf("srun --jobid=%s  bash -c 'env|grep CUDA_VISIBLE_DEVICES'", params[0])
 			stdout, err := client.RunCommand(cmd)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, params[1])
 			}
+			stdout = strings.Trim(stdout, "\r\n")
 			value, err := getEnvValue(stdout)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Unable to retrieve (%s) for node:%q", key, params[1])

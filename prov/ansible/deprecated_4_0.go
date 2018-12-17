@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package builder
+package ansible
 
 import (
-	"strings"
-
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/prov"
 )
 
-func isAsyncOperation(operation string) bool {
-	return operation == strings.ToLower(tosca.RunnableRunOperationName)
+// NewExecutor returns an Executor
+//
+// Deprecated: no alternatives should never been exported. will be removed in Yorc 4.0
+func NewExecutor() prov.OperationExecutor {
+	return newExecutor()
 }

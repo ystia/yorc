@@ -136,12 +136,12 @@ func getColoredTaskStepStatus(colorize bool, status string) string {
 	if !colorize {
 		return status
 	}
-	switch {
-	case strings.ToLower(status) == "error":
+	switch strings.ToLower(status) {
+	case "error":
 		return color.New(color.FgHiRed, color.Bold).SprintFunc()(status)
-	case strings.ToLower(status) == "canceled":
+	case "canceled", "running":
 		return color.New(color.FgHiYellow, color.Bold).SprintFunc()(status)
-	case strings.ToLower(status) == "done":
+	case "done":
 		return color.New(color.FgHiGreen, color.Bold).SprintFunc()(status)
 	default:
 		return status

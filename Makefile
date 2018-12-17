@@ -24,6 +24,7 @@ VERSION:=$(if $(BUILD_TAG),$(VERSION)+$(BUILD_TAG),$(VERSION))
 COMMIT_HASH=$(shell git rev-parse HEAD)
 ANSIBLE_VERSION=$(shell grep "ansible_version" versions.yaml | awk '{print $$2}')
 CONSUL_VERSION=$(shell grep "consul_version" versions.yaml | awk '{print $$2}')
+ALIEN4CLOUD_VERSION=$(shell grep "alien4cloud_version" versions.yaml | awk '{print $$2}')
 TERRAFORM_VERSION=$(shell grep "terraform_version" versions.yaml | awk '{print $$2}')
 TF_CONSUL_PLUGIN_VERSION=$(shell grep "tf_consul_plugin_version" versions.yaml | awk '{print $$2}')
 TF_AWS_PLUGIN_VERSION=$(shell grep "tf_aws_plugin_version" versions.yaml | awk '{print $$2}')
@@ -40,6 +41,7 @@ build: test
 	 -X github.com/ystia/yorc/commands.TfGooglePluginVersion=$(TF_GOOGLE_PLUGIN_VERSION) \
 	 -X github.com/ystia/yorc/commands/bootstrap.ansibleVersion=$(ANSIBLE_VERSION) \
 	 -X github.com/ystia/yorc/commands/bootstrap.consulVersion=$(CONSUL_VERSION) \
+	 -X github.com/ystia/yorc/commands/bootstrap.alien4cloudVersion=$(ALIEN4CLOUD_VERSION) \
 	 -X github.com/ystia/yorc/commands/bootstrap.terraformVersion=$(TERRAFORM_VERSION) \
 	 -X github.com/ystia/yorc/commands/bootstrap.yorcVersion=$(YORC_VERSION)"
 	 @rm -f ./build/bootstrapResources.zip

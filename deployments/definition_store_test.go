@@ -39,6 +39,9 @@ func testDefinitionStore(t *testing.T, kv *api.KV) {
 		t.Run("TestValueAssignments", func(t *testing.T) {
 			testValueAssignments(t, kv)
 		})
+		t.Run("TestRunnableWorkflowsAutoCancel", func(t *testing.T) {
+			testRunnableWorkflowsAutoCancel(t, kv)
+		})
 	})
 }
 
@@ -980,5 +983,41 @@ func testTopologyTemplateMetadata(t *testing.T, kv *api.KV) {
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
 		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
 	}
+
+}
+
+// Testing topology runnable wf autocancel
+func testRunnableWorkflowsAutoCancel(t *testing.T, kv *api.KV) {
+	t.Parallel()
+
+	// Storing the Deployment definition
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_runnable_wf_modifer.yml")
+	require.NoError(t, err, "Failed to store test topology deployment definition")
+
+	// Check the stored template metadata
+	// This topology template imports a tempologuy template with metatadata
+	// Checking the imported template metadata
+	expectedKeyValuePairs := map[string]string{
+		"workflows/run/steps/yorc_automatic_cancellation_of_Job_submit/target":               "Job",
+		"workflows/run/steps/Job_submit/on-cancel/yorc_automatic_cancellation_of_Job_submit": "",
+		"workflows/run/steps/yorc_automatic_cancellation_of_Job_run/target":                  "Job",
+		"workflows/run/steps/Job_run/on-cancel/yorc_automatic_cancellation_of_Job_run":       "",
+	}
+
+	for key, expectedValue := range expectedKeyValuePairs {
+		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
+		kvp, _, err := kv.Get(consulKey, nil)
+		require.NoError(t, err, "Error getting value for key %s", consulKey)
+		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
+		assert.Equal(t, string(kvp.Value), expectedValue, "Wrong value for key %s", key)
+	}
+
+	wf, err := ReadWorkflow(kv, deploymentID, "run")
+	require.NoError(t, err)
+	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_submit")
+	assert.Contains(t, wf.Steps, "yorc_automatic_cancellation_of_Job_run")
+	assert.Contains(t, wf.Steps["Job_run"].OnCancel, "yorc_automatic_cancellation_of_Job_run")
+	assert.Contains(t, wf.Steps["Job_submit"].OnCancel, "yorc_automatic_cancellation_of_Job_submit")
 
 }
