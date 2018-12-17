@@ -730,47 +730,62 @@ func storeArtifactTypes(ctx context.Context, topology tosca.Topology, topologyPr
 	}
 }
 
+func storeWorkflowStep(consulStore consulutil.ConsulStore, deploymentID, workflowName, stepName string, step *tosca.Step) {
+	stepPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows", url.QueryEscape(workflowName), "steps", url.QueryEscape(stepName))
+	if step.Target != "" {
+		consulStore.StoreConsulKeyAsString(stepPrefix+"/target", step.Target)
+	}
+	if step.TargetRelationShip != "" {
+		consulStore.StoreConsulKeyAsString(stepPrefix+"/target_relationship", step.TargetRelationShip)
+	}
+	if step.OperationHost != "" {
+		consulStore.StoreConsulKeyAsString(stepPrefix+"/operation_host", strings.ToUpper(step.OperationHost))
+	}
+	activitiesPrefix := stepPrefix + "/activities"
+	for actIndex, activity := range step.Activities {
+		activityPrefix := activitiesPrefix + "/" + strconv.Itoa(actIndex)
+		if activity.CallOperation != "" {
+			// Preserve case for requirement and target node name in case of relationship operation
+			opSlice := strings.SplitN(activity.CallOperation, "/", 2)
+			opSlice[0] = strings.ToLower(opSlice[0])
+			consulStore.StoreConsulKeyAsString(activityPrefix+"/call-operation", strings.Join(opSlice, "/"))
+		}
+		if activity.Delegate != "" {
+			consulStore.StoreConsulKeyAsString(activityPrefix+"/delegate", strings.ToLower(activity.Delegate))
+		}
+		if activity.SetState != "" {
+			consulStore.StoreConsulKeyAsString(activityPrefix+"/set-state", strings.ToLower(activity.SetState))
+		}
+		if activity.Inline != "" {
+			consulStore.StoreConsulKeyAsString(activityPrefix+"/inline", strings.ToLower(activity.Inline))
+		}
+	}
+	for _, next := range step.OnSuccess {
+		// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSuccess_value
+		consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
+	}
+	for _, of := range step.OnFailure {
+		// store in consul a prefix for the next step to be executed on failure ; this prefix is stepPrefix/on-failure/onFailure_value
+		consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/on-failure/%s", stepPrefix, url.QueryEscape(of)), "")
+	}
+	for _, oc := range step.OnCancel {
+		// store in consul a prefix for the next step to be executed on cancel ; this prefix is stepPrefix/on-cancel/onCancel_value
+		consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/on-cancel/%s", stepPrefix, url.QueryEscape(oc)), "")
+	}
+}
+
+// storeWorkflow stores a workflow
+func storeWorkflow(consulStore consulutil.ConsulStore, deploymentID, workflowName string, workflow tosca.Workflow) {
+	for stepName, step := range workflow.Steps {
+		storeWorkflowStep(consulStore, deploymentID, workflowName, stepName, step)
+	}
+}
+
 // storeWorkflows stores topology workflows
 func storeWorkflows(ctx context.Context, topology tosca.Topology, deploymentID string) {
 	consulStore := ctx.Value(consulStoreKey).(consulutil.ConsulStore)
-	workflowsPrefix := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "workflows")
 	for wfName, workflow := range topology.TopologyTemplate.Workflows {
-		workflowPrefix := workflowsPrefix + "/" + url.QueryEscape(wfName)
-		for stepName, step := range workflow.Steps {
-			stepPrefix := workflowPrefix + "/steps/" + url.QueryEscape(stepName)
-			if step.Target != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/target", step.Target)
-			}
-			if step.TargetRelationShip != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/target_relationship", step.TargetRelationShip)
-			}
-			if step.OperationHost != "" {
-				consulStore.StoreConsulKeyAsString(stepPrefix+"/operation_host", strings.ToUpper(step.OperationHost))
-			}
-			activitiesPrefix := stepPrefix + "/activities"
-			for actIndex, activity := range step.Activities {
-				activityPrefix := activitiesPrefix + "/" + strconv.Itoa(actIndex)
-				if activity.CallOperation != "" {
-					// Preserve case for requirement and target node name in case of relationship operation
-					opSlice := strings.SplitN(activity.CallOperation, "/", 2)
-					opSlice[0] = strings.ToLower(opSlice[0])
-					consulStore.StoreConsulKeyAsString(activityPrefix+"/call-operation", strings.Join(opSlice, "/"))
-				}
-				if activity.Delegate != "" {
-					consulStore.StoreConsulKeyAsString(activityPrefix+"/delegate", strings.ToLower(activity.Delegate))
-				}
-				if activity.SetState != "" {
-					consulStore.StoreConsulKeyAsString(activityPrefix+"/set-state", strings.ToLower(activity.SetState))
-				}
-				if activity.Inline != "" {
-					consulStore.StoreConsulKeyAsString(activityPrefix+"/inline", strings.ToLower(activity.Inline))
-				}
-			}
-			for _, next := range step.OnSuccess {
-				// store in consul a prefix for the next step to be executed ; this prefix is stepPrefix/next/onSuccess_value
-				consulStore.StoreConsulKeyAsString(fmt.Sprintf("%s/next/%s", stepPrefix, url.QueryEscape(next)), "")
-			}
-		}
+		storeWorkflow(consulStore, deploymentID, wfName, workflow)
 	}
 }
 
@@ -947,6 +962,8 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 			return err
 		}
 	}
+
+	enhanceWorkflows(consulStore, kv, deploymentID)
 	return errGroup.Wait()
 }
 
@@ -1248,6 +1265,51 @@ func checkOperationHost(operationHost string, isRelationshipType bool) error {
 			return errors.Errorf("Invalid value for Implementation operation_host property associated to non-relationship type:%q", operationHost)
 
 		}
+	}
+	return nil
+}
+
+func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string) error {
+	wf, err := ReadWorkflow(kv, deploymentID, "run")
+	if err != nil {
+		return err
+	}
+	var wasUpdated bool
+	for sn, s := range wf.Steps {
+		var isCancellable bool
+		for _, a := range s.Activities {
+			switch strings.ToLower(a.CallOperation) {
+			case tosca.RunnableSubmitOperationName, tosca.RunnableRunOperationName:
+				isCancellable = true
+			}
+		}
+		if isCancellable && len(s.OnCancel) == 0 {
+			// Cancellable and on-cancel not defined
+			// Check if there is an cancel op
+			hasCancelOp, err := IsOperationImplemented(kv, deploymentID, s.Target, tosca.RunnableCancelOperationName)
+			if err != nil {
+				return err
+			}
+			if hasCancelOp {
+				cancelStep := &tosca.Step{
+					Target:             s.Target,
+					TargetRelationShip: s.TargetRelationShip,
+					OperationHost:      s.OperationHost,
+					Activities: []tosca.Activity{
+						tosca.Activity{
+							CallOperation: tosca.RunnableCancelOperationName,
+						},
+					},
+				}
+				csName := "yorc_automatic_cancellation_of_" + sn
+				wf.Steps[csName] = cancelStep
+				s.OnCancel = []string{csName}
+				wasUpdated = true
+			}
+		}
+	}
+	if wasUpdated {
+		storeWorkflow(consulStore, deploymentID, "run", wf)
 	}
 	return nil
 }

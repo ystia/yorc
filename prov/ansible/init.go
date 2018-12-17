@@ -25,11 +25,13 @@ const (
 
 func init() {
 	reg := registry.GetRegistry()
+	executor := newExecutor()
 	reg.RegisterOperationExecutor(
 		[]string{
 			implementationArtifactBash,
 			implementationArtifactPython,
 			implementationArtifactAnsible,
 			implementationArtifactAnsibleAlien,
-		}, NewExecutor(), registry.BuiltinOrigin)
+		}, executor, registry.BuiltinOrigin)
+	reg.RegisterActionOperator([]string{"ansible-job-monitoring"}, &actionOperator{executor: executor}, registry.BuiltinOrigin)
 }

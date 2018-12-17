@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package builder
+package tosca
 
-import (
-	"strings"
+// RunnableInterfaceName is the fully qualified name of the Runnable interface
+const RunnableInterfaceName = "tosca.interfaces.node.lifecycle.runnable"
 
-	"github.com/ystia/yorc/tosca"
-)
+// RunnableSubmitOperationName is the fully qualified name of the Submit operation
+const RunnableSubmitOperationName = RunnableInterfaceName + ".submit"
 
-func isAsyncOperation(operation string) bool {
-	return operation == strings.ToLower(tosca.RunnableRunOperationName)
-}
+// RunnableRunOperationName is the fully qualified name of the Run operation
+const RunnableRunOperationName = RunnableInterfaceName + ".run"
+
+// RunnableCancelOperationName is the fully qualified name of the Cancel operation
+const RunnableCancelOperationName = RunnableInterfaceName + ".cancel"

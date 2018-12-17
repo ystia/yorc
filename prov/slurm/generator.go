@@ -16,26 +16,21 @@ package slurm
 
 import (
 	"context"
+	"path"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tosca"
-	"path"
 )
 
 const infrastructureName = "slurm"
 
-type defaultGenerator interface {
-	generateInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, operation string) (*infrastructure, error)
-}
-
-type slurmGenerator struct {
-}
-
-func (g *slurmGenerator) generateInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, operation string) (*infrastructure, error) {
+func generateInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, operation string) (*infrastructure, error) {
 	log.Debugf("Generating infrastructure for deployment with id %s", deploymentID)
 	nodeKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "nodes", nodeName)
 	infra := &infrastructure{}
@@ -66,7 +61,7 @@ func (g *slurmGenerator) generateInfrastructure(ctx context.Context, kv *api.KV,
 				continue
 			}
 
-			if err := g.generateNodeAllocation(ctx, kv, cfg, deploymentID, nodeName, instanceName, infra); err != nil {
+			if err := generateNodeAllocation(ctx, kv, cfg, deploymentID, nodeName, instanceName, infra); err != nil {
 				return nil, err
 			}
 		}

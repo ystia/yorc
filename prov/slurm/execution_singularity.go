@@ -16,11 +16,13 @@ package slurm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"path"
 	"strings"
-	"time"
+
+	"github.com/ystia/yorc/tosca"
 
 	"github.com/pkg/errors"
 
@@ -28,7 +30,7 @@ import (
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/tasks"
 )
 
 type executionSingularity struct {
@@ -36,39 +38,61 @@ type executionSingularity struct {
 	singularityInfo *singularityInfo
 }
 
-func (e *executionSingularity) executeAsync(ctx context.Context) (*prov.Action, time.Duration, error) {
+func (e *executionSingularity) execute(ctx context.Context) error {
 	// Only runnable operation is currently supported
 	log.Debugf("Execute the operation:%+v", e.operation)
-
+	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
-	case "tosca.interfaces.node.lifecycle.runnable.run":
+	case strings.ToLower(tosca.RunnableSubmitOperationName):
+
 		log.Printf("Running the job: %s", e.operation.Name)
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
-			return nil, 0, errors.Wrap(err, "failed to build job information")
+			return errors.Wrap(err, "failed to build job information")
 		}
 
 		// Build singularity information
 		if err := e.buildSingularityInfo(ctx); err != nil {
-			return nil, 0, errors.Wrap(err, "failed to build singularity information")
+			return errors.Wrap(err, "failed to build singularity information")
 		}
 
 		// Run the command
 		err := e.runJobCommand(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			return nil, 0, errors.Wrap(err, "failed to run command")
+			return errors.Wrap(err, "failed to run command")
 		}
-		return e.buildJobMonitoringAction(), e.jobInfo.monitoringTimeInterval, nil
+
+		jobInfoJSON, err := json.Marshal(e.jobInfo)
+		if err != nil {
+			return errors.Wrap(err, "Failed to marshal Slurm job information")
+		}
+		err = tasks.SetTaskData(e.kv, e.taskID, e.NodeName+"-jobInfo", string(jobInfoJSON))
+		if err != nil {
+			return err
+		}
+		// Set the JobID attribute
+		// TODO(should be contextual to the current workflow)
+		err = deployments.SetAttributeForAllInstances(e.kv, e.deploymentID, e.NodeName, "job_id", e.jobInfo.ID)
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve job id an manual cleanup may be necessary: ")
+		}
+	case strings.ToLower(tosca.RunnableCancelOperationName):
+		jobInfo, err := e.getJobInfoFromTaskContext()
+		if err != nil {
+			return err
+		}
+		return cancelJobID(jobInfo.ID, e.client)
 	default:
-		return nil, 0, errors.Errorf("Unsupported operation %q", e.operation.Name)
+		return errors.Errorf("Unsupported operation %q", e.operation.Name)
 	}
+	return nil
 }
 
 func (e *executionSingularity) runJobCommand(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
-	e.OperationRemoteExecDir = e.OperationRemoteBaseDir
-	if e.jobInfo.batchMode {
+	e.jobInfo.OperationRemoteExecDir = e.OperationRemoteBaseDir
+	if e.jobInfo.BatchMode {
 		// get outputs for batch mode
 		err := e.searchForBatchOutputs(ctx)
 		if err != nil {
@@ -87,23 +111,23 @@ func (e *executionSingularity) runJobCommand(ctx context.Context) error {
 }
 
 func (e *executionSingularity) searchForBatchOutputs(ctx context.Context) error {
-	outputs := parseOutputConfigFromOpts(e.jobInfo.opts)
-	e.jobInfo.outputs = outputs
-	log.Debugf("job outputs:%+v", e.jobInfo.outputs)
+	outputs := parseOutputConfigFromOpts(e.jobInfo.Opts)
+	e.jobInfo.Outputs = outputs
+	log.Debugf("job outputs:%+v", e.jobInfo.Outputs)
 	return nil
 }
 
 func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) error {
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
-	for k, v := range e.jobInfo.inputs {
+	for k, v := range e.jobInfo.Inputs {
 		log.Debugf("Add env var with key:%q and value:%q", k, v)
 		export := fmt.Sprintf("export %s=%s;", k, v)
 		exports += export
 	}
 	innerCmd := fmt.Sprintf("%ssrun %s singularity %s %s %s", exports, opts, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
 	cmd := fmt.Sprintf("mkdir -p %s;cd %s;sbatch --wrap=\"%s\"", e.OperationRemoteBaseDir, e.OperationRemoteBaseDir, innerCmd)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)
@@ -113,6 +137,11 @@ func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) er
 	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
 		return err
 	}
+	// Set default output if nothing is specified by user
+	// this is the default output generated by sbatch
+	if len(e.jobInfo.Outputs) == 0 {
+		e.jobInfo.Outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
+	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
 	return nil
 }
@@ -120,17 +149,17 @@ func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) er
 func (e *executionSingularity) runInteractiveMode(ctx context.Context, opts string) error {
 	// Add inputs as env variables
 	var exports string
-	for k, v := range e.jobInfo.inputs {
+	for k, v := range e.jobInfo.Inputs {
 		log.Debugf("Add env var with key:%q and value:%q", k, v)
 		export := fmt.Sprintf("export %s=%s;", k, v)
 		exports += export
 	}
 	redirectFile := stringutil.UniqueTimestampedName("yorc_", "")
-	e.jobInfo.outputs = []string{redirectFile}
+	e.jobInfo.Outputs = []string{redirectFile}
 
-	cmd := fmt.Sprintf("%ssrun %s singularity %s %s %s %s > %s &", exports, opts, e.singularityInfo.command, strings.Join(e.jobInfo.execArgs, " "), e.singularityInfo.imageURI, e.singularityInfo.exec, redirectFile)
+	cmd := fmt.Sprintf("%ssrun %s singularity %s %s %s %s > %s &", exports, opts, e.singularityInfo.command, strings.Join(e.jobInfo.ExecArgs, " "), e.singularityInfo.imageURI, e.singularityInfo.exec, redirectFile)
 	cmd = strings.Trim(cmd, "")
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", output)

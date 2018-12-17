@@ -4,17 +4,20 @@
 
 ### ENHANCEMENTS
 
+* Support Jobs lifecycle enhancements (new operations `submit`, `run`, `cancel`) ([GH-196](https://github.com/ystia/yorc/issues/196))
+* Forbid the parallel execution of several scheduled actions. This is for instance used for the asynchronous run operation of Jobs. This will prevent a same action to be scheduled in parallel (for jobs it will prevent checking and doing same actions several times) ([GH-230](https://github.com/ystia/yorc/issues/230))
 * Generate Alien 2.1-compatible events ([GH-148](https://github.com/ystia/yorc/issues/148))
 
 ### BUG FIXES
 
-* CUDA_VISIBLE_DEVICES contains some unwanted unprintable characters ([GH-210](https://github.com/ystia/yorc/issues/210))
 * No output properties for services on GKE ([GH-214](https://github.com/ystia/yorc/issues/214))
 * K8S service IP missing in runtime view when deploying on GKE ([GH-215](https://github.com/ystia/yorc/issues/215))
 * Bootstrap of HA setup fails on GCP, at step configuring the NFS Client component ([GH-218](https://github.com/ystia/yorc/issues/218))
 * Fix issue when default yorc.pem is used by Ansible with ssh-agent ([GH-233](https://github.com/ystia/yorc/issues/233))
 * Publish workflow events when custom workflow is finished ([GH-234](https://github.com/ystia/yorc/issues/234))
 * Bootstrap without internet access fails to get terraform plugins for local yorc ([GH-239](https://github.com/ystia/yorc/issues/239))
+* CUDA_VISIBLE_DEVICES contains some unwanted unprintable characters [GH-210](https://github.com/ystia/yorc/issues/210))
+
 
 ## 3.1.0-M7 (December 07, 2018)
 

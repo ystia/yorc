@@ -16,12 +16,13 @@ package events
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 //go:generate go-enum -f=structs.go --lower
@@ -119,13 +120,13 @@ type statusChange struct {
 
 // WorkflowStepInfo represents specific workflow step event information
 type WorkflowStepInfo struct {
-	WorkflowName     string
-	InstanceName     string
-	NodeName         string
-	StepName         string
-	OperationName    string
-	TargetNodeID     string
-	TargetInstanceID string
+	WorkflowName     string `json:"workflow_name,omitempty"`
+	InstanceName     string `json:"instance_name,omitempty"`
+	NodeName         string `json:"node_name,omitempty"`
+	StepName         string `json:"step_name,omitempty"`
+	OperationName    string `json:"operation_name,omitempty"`
+	TargetNodeID     string `json:"target_node_id,omitempty"`
+	TargetInstanceID string `json:"target_instance_id,omitempty"`
 }
 
 // Create a KVPair corresponding to an event and put it to Consul under the event prefix,

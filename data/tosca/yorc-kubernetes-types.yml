@@ -50,7 +50,15 @@ node_types:
     derived_from: org.alien4cloud.kubernetes.api.types.JobResource
     interfaces:
       tosca.interfaces.node.lifecycle.Runnable:
+        submit:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
         run:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.Kubernetes
+        cancel:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.Kubernetes

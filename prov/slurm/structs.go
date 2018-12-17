@@ -31,20 +31,21 @@ type nodeAllocation struct {
 }
 
 type jobInfo struct {
-	ID                     string
-	name                   string
-	state                  string
-	tasks                  int
-	cpus                   int
-	nodes                  int
-	mem                    int
-	maxTime                string
-	batchMode              bool
-	opts                   []string
-	execArgs               []string
-	outputs                []string
-	inputs                 map[string]string
-	monitoringTimeInterval time.Duration
+	ID                     string            `json:"id,omitempty"`
+	Name                   string            `json:"name,omitempty"`
+	State                  string            `json:"state,omitempty"`
+	Tasks                  int               `json:"tasks,omitempty"`
+	Cpus                   int               `json:"cpus,omitempty"`
+	Nodes                  int               `json:"nodes,omitempty"`
+	Mem                    int               `json:"mem,omitempty"`
+	MaxTime                string            `json:"max_time,omitempty"`
+	BatchMode              bool              `json:"batch_mode,omitempty"`
+	Opts                   []string          `json:"opts,omitempty"`
+	ExecArgs               []string          `json:"exec_args,omitempty"`
+	Outputs                []string          `json:"outputs,omitempty"`
+	Inputs                 map[string]string `json:"inputs,omitempty"`
+	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
+	OperationRemoteExecDir string            `json:"operation_remote_exec_dir,omitempty"`
 }
 
 type jobInfoShort struct {

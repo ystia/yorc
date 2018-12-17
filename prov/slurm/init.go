@@ -17,18 +17,21 @@ package slurm
 import "github.com/ystia/yorc/registry"
 
 const (
-	artifactBinImplementation   = "yorc.artifacts.Deployment.SlurmJobBin"
-	artifactImageImplementation = "yorc.artifacts.Deployment.SlurmJobImage"
+	artifactGenericImplementation = "yorc.artifacts.Deployment.SlurmJob"
+	artifactBinImplementation     = "yorc.artifacts.Deployment.SlurmJobBin"
+	artifactImageImplementation   = "yorc.artifacts.Deployment.SlurmJobImage"
 )
 
 func init() {
+	executor := &defaultExecutor{}
 	reg := registry.GetRegistry()
-	reg.RegisterDelegates([]string{`yorc\.nodes\.slurm\..*`}, newExecutor(&slurmGenerator{}), registry.BuiltinOrigin)
+	reg.RegisterDelegates([]string{`yorc\.nodes\.slurm\..*`}, executor, registry.BuiltinOrigin)
 	reg.RegisterOperationExecutor(
 		[]string{
+			artifactGenericImplementation,
 			artifactBinImplementation,
 			artifactImageImplementation,
-		}, &defaultExecutor{}, registry.BuiltinOrigin)
+		}, executor, registry.BuiltinOrigin)
 
 	reg.RegisterActionOperator([]string{"job-monitoring"}, &actionOperator{}, registry.BuiltinOrigin)
 }

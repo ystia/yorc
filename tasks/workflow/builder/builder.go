@@ -51,10 +51,50 @@ func BuildWorkFlow(kv *api.KV, deploymentID, wfName string) (map[string]*Step, e
 			steps[stepName] = visitStep.s
 		}
 	}
+
+	for _, s := range steps {
+		if !s.IsOnFailurePath && !s.IsOnCancelPath {
+			// otherwise we are sure we already processed it and its successors in both ways
+			for _, n := range s.OnFailure {
+				setFailurePath(n)
+			}
+			for _, n := range s.OnCancel {
+				setCancelPath(n)
+			}
+		}
+	}
 	return steps, nil
 }
 
-func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSteps map[string]tosca.Step, visitedMap map[string]*visitStep) (*Step, error) {
+func setFailurePath(s *Step) {
+	s.IsOnFailurePath = true
+	for _, n := range s.Next {
+		setFailurePath(n)
+	}
+	for _, n := range s.OnFailure {
+		setFailurePath(n)
+	}
+	for _, n := range s.OnFailure {
+		setFailurePath(n)
+		setCancelPath(n)
+	}
+}
+
+func setCancelPath(s *Step) {
+	s.IsOnCancelPath = true
+	for _, n := range s.Next {
+		setCancelPath(n)
+	}
+	for _, n := range s.OnFailure {
+		setCancelPath(n)
+		setFailurePath(n)
+	}
+	for _, n := range s.OnCancel {
+		setCancelPath(n)
+	}
+}
+
+func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSteps map[string]*tosca.Step, visitedMap map[string]*visitStep) (*Step, error) {
 	wfStep := wfSteps[stepName]
 	s := &Step{
 		Name:               stepName,
@@ -89,9 +129,27 @@ func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSt
 		return nil, errors.Errorf("Missing target attribute for Step %s", stepName)
 	}
 
-	s.Next = make([]*Step, 0)
 	s.Previous = make([]*Step, 0)
-	for _, nextStepName := range wfStep.OnSuccess {
+	var err error
+	s.Next, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnSuccess, visitedMap)
+	if err != nil {
+		return nil, err
+	}
+	s.OnFailure, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnFailure, visitedMap)
+	if err != nil {
+		return nil, err
+	}
+	s.OnCancel, err = buildStepsFromList(kv, deploymentID, wfName, stepName, s, wfSteps, wfStep.OnCancel, visitedMap)
+	if err != nil {
+		return nil, err
+	}
+	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
+	return s, nil
+}
+
+func buildStepsFromList(kv *api.KV, deploymentID, wfName, stepName string, currentStep *Step, wfSteps map[string]*tosca.Step, stepsList []string, visitedMap map[string]*visitStep) ([]*Step, error) {
+	res := make([]*Step, 0)
+	for _, nextStepName := range stepsList {
 		var nextStep *Step
 		if visitStep, ok := visitedMap[nextStepName]; ok {
 			nextStep = visitStep.s
@@ -103,13 +161,11 @@ func buildStepFromWFStep(kv *api.KV, deploymentID, wfName, stepName string, wfSt
 			}
 		}
 
-		s.Next = append(s.Next, nextStep)
-		nextStep.Previous = append(nextStep.Previous, s)
+		res = append(res, nextStep)
+		nextStep.Previous = append(nextStep.Previous, currentStep)
 		visitedMap[nextStepName].refCount++
 	}
-	visitedMap[stepName] = &visitStep{refCount: 0, s: s}
-
-	return s, nil
+	return res, nil
 }
 
 // BuildInitExecutionOperations returns Consul transactional KV operations for initiating workflow execution
@@ -143,6 +199,11 @@ func BuildInitExecutionOperations(kv *api.KV, deploymentID, taskID, workflowName
 					Verb:  api.KVSet,
 					Key:   path.Join(stepExecPath, "step"),
 					Value: []byte(step.Name),
+				},
+				&api.KVTxnOp{
+					Verb:  api.KVSet,
+					Key:   path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions", execID),
+					Value: []byte(""),
 				},
 			}
 			ops = append(ops, stepOps...)

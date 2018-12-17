@@ -15,17 +15,17 @@
 package tasks
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"path"
 	"strconv"
-
 	"strings"
-
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
@@ -277,6 +277,20 @@ func GetAllTaskData(kv *api.KV, taskID string) (map[string]string, error) {
 	return data, nil
 }
 
+// SetTaskData sets a data in the task's context
+func SetTaskData(kv *api.KV, taskID, dataName, dataValue string) error {
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "data", dataName), dataValue)
+}
+
+// SetTaskDataList sets a list of data into the task's context
+func SetTaskDataList(kv *api.KV, taskID string, data map[string]string) error {
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	for k, v := range data {
+		store.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, "data", k), v)
+	}
+	return errGrp.Wait()
+}
+
 // GetInstances retrieve instances in the context of this task.
 //
 // Basically it checks if a list of instances is defined for this task for example in case of scaling.
@@ -383,7 +397,12 @@ func UpdateTaskStepStatus(kv *api.KV, taskID string, step *TaskStep) error {
 	if err != nil {
 		return err
 	}
-	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, taskID, step.Name), status.String())
+	return UpdateTaskStepWithStatus(kv, taskID, step.Name, status)
+}
+
+// UpdateTaskStepWithStatus allows to update the task step status
+func UpdateTaskStepWithStatus(kv *api.KV, taskID, stepName string, status TaskStepStatus) error {
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.WorkflowsPrefix, taskID, stepName), status.String())
 }
 
 // CheckTaskStepStatusChange checks if a status change is allowed
@@ -436,4 +455,82 @@ func GetQueryTaskIDs(kv *api.KV, taskType TaskType, query string, target string)
 		}
 	}
 	return tasks, nil
+}
+
+// TaskHasErrorFlag check if a task has was flagged as error
+func TaskHasErrorFlag(kv *api.KV, taskID string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, ".errorFlag"), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return kvp != nil && string(kvp.Value) == "true", nil
+}
+
+// TaskHasCancellationFlag check if a task has was flagged as canceled
+func TaskHasCancellationFlag(kv *api.KV, taskID string) (bool, error) {
+	kvp, _, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, ".canceledFlag"), nil)
+	if err != nil {
+		return false, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return kvp != nil && string(kvp.Value) == "true", nil
+}
+
+// NotifyErrorOnTask sets a flag that is used to notify task executors that a part of the task failed.
+//
+// MonitorTaskFailure can be used to be notified.
+func NotifyErrorOnTask(taskID string) error {
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, taskID, ".errorFlag"), "true")
+}
+
+// MonitorTaskCancellation runs a routine that will constantly check if a given task is requested to be cancelled
+//
+// If so and if the given f function is not nil then f is called and the routine stop itself.
+// To stop this routine the given context should be cancelled.
+func MonitorTaskCancellation(ctx context.Context, kv *api.KV, taskID string, f func()) {
+	monitorTaskFlag(ctx, kv, taskID, ".canceledFlag", []byte("true"), f)
+}
+
+// MonitorTaskFailure runs a routine that will constantly check if a given task is tagged as failed.
+//
+// If so and if the given f function is not nil then f is called and the routine stop itself.
+// To stop this routine the given context should be cancelled.
+func MonitorTaskFailure(ctx context.Context, kv *api.KV, taskID string, f func()) {
+	monitorTaskFlag(ctx, kv, taskID, ".errorFlag", []byte("true"), f)
+}
+
+func monitorTaskFlag(ctx context.Context, kv *api.KV, taskID, flag string, value []byte, f func()) {
+	go func() {
+		var lastIndex uint64
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debugf("Task monitoring for flag %s exit", flag)
+				return
+			default:
+			}
+
+			kvp, qMeta, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, flag), &api.QueryOptions{WaitIndex: lastIndex})
+
+			select {
+			case <-ctx.Done():
+				log.Debugf("Task monitoring for flag %s exit", flag)
+				return
+			default:
+			}
+
+			if qMeta != nil {
+				lastIndex = qMeta.LastIndex
+			}
+
+			if err == nil && kvp != nil {
+				if bytes.Equal(kvp.Value, value) {
+					log.Debugf("Task monitoring detected flag %s", flag)
+					if f != nil {
+						f()
+					}
+					return
+				}
+			}
+		}
+	}()
 }
