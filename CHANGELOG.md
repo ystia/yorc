@@ -15,7 +15,6 @@
 * No output properties for services on GKE ([GH-214](https://github.com/ystia/yorc/issues/214))
 * K8S service IP missing in runtime view when deploying on GKE ([GH-215](https://github.com/ystia/yorc/issues/215))
 * Fix issue when default yorc.pem is used by Ansible with ssh-agent ([GH-233](https://github.com/ystia/yorc/issues/233))
-
 * CUDA_VISIBLE_DEVICES contains some unwanted unprintable characters [GH-210](https://github.com/ystia/yorc/issues/210))
 
 ## 3.1.0-M7 (December 07, 2018)
