@@ -157,39 +157,6 @@ func (w *worker) cleanupScaledDownNodes(t *taskExecution) error {
 	return nil
 }
 
-func (w *worker) checkAndSetDeploymentStatus(ctx context.Context, deploymentID string, finalStatus deployments.DeploymentStatus) error {
-	depStatus, err := deployments.GetDeploymentStatus(w.consulClient.KV(), deploymentID)
-	if err != nil {
-		return err
-	}
-
-	if depStatus == deployments.DEPLOYMENT_FAILED && finalStatus != deployments.DEPLOYMENT_FAILED {
-		mess := fmt.Sprintf("Can't set deployment status with deploymentID:%q to %q because status is already:%q", deploymentID, finalStatus.String(), deployments.DEPLOYMENT_FAILED)
-		log.Printf(mess)
-		return errors.Errorf(mess)
-	}
-
-	if finalStatus != depStatus {
-		kv := w.consulClient.KV()
-		err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), finalStatus.String())
-		if err != nil {
-			return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", finalStatus.String(), deploymentID)
-		}
-		events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(finalStatus.String()))
-	}
-	return nil
-}
-
-func (w *worker) setDeploymentStatus(ctx context.Context, deploymentID string, finalStatus deployments.DeploymentStatus) error {
-	kv := w.consulClient.KV()
-	err := consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(finalStatus))
-	if err != nil {
-		return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", finalStatus.String(), deploymentID)
-	}
-	events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(finalStatus.String()))
-	return nil
-}
-
 func (w *worker) handleExecution(t *taskExecution) {
 	log.Debugf("Handle task execution:%+v", t)
 	err := t.notifyStart()
@@ -582,12 +549,12 @@ func (w *worker) makeWorkflowFinalFunction(ctx context.Context, kv *api.KV, depl
 		if taskStatus != tasks.TaskStatusDONE {
 			wfStatus = failureWfStatus
 		}
-		return w.checkAndSetDeploymentStatus(ctx, deploymentID, wfStatus)
+		return deployments.SetDeploymentStatus(ctx, kv, deploymentID, wfStatus)
 	}
 }
 
 func (w *worker) runDeploy(ctx context.Context, t *taskExecution) error {
-	err := w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.DEPLOYMENT_IN_PROGRESS)
+	err := deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.DEPLOYMENT_IN_PROGRESS)
 	if err != nil {
 		return err
 	}
@@ -602,14 +569,14 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 		return err
 	}
 	if status != deployments.UNDEPLOYED {
-		w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
+		deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		t.finalFunction = func() error {
 			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
 			if err != nil {
 				return err
 			}
 			// Set it to undeployed anyway
-			err = w.setDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYED)
+			err = deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
 			if err != nil {
 				return err
 			}
@@ -678,7 +645,7 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
-	err := w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.SCALING_IN_PROGRESS)
+	err := deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.SCALING_IN_PROGRESS)
 	if err != nil {
 		return err
 	}
@@ -687,7 +654,7 @@ func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
-	err := w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.SCALING_IN_PROGRESS)
+	err := deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.SCALING_IN_PROGRESS)
 	if err != nil {
 		return err
 	}
