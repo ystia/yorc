@@ -2,8 +2,14 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Generate Alien 2.1-compatible events ([GH-148](https://github.com/ystia/yorc/issues/148))
+
 ### BUG FIXES
 
+* Bootstrap of HA setup fails on GCP, at step configuring the NFS Client component [GH-218](https://github.com/ystia/yorc/issues/218))
+* Publish workflow events when custom workflow is finished [GH-234](https://github.com/ystia/yorc/issues/234))
 * No output properties for services on GKE ([GH-214](https://github.com/ystia/yorc/issues/214))
 * K8S service IP missing in runtime view when deploying on GKE ([GH-215](https://github.com/ystia/yorc/issues/215))
 

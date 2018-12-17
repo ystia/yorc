@@ -18,7 +18,6 @@ import (
 	"context"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"encoding/json"
@@ -27,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"strings"
 )
 
 // InstanceStatusChange publishes a status change for a given instance of a given node
@@ -44,7 +44,14 @@ func InstanceStatusChange(kv *api.KV, deploymentID, nodeName, instance, status s
 func PublishAndLogInstanceStatusChange(ctx context.Context, kv *api.KV, deploymentID, nodeName, instance, status string) (string, error) {
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
 
-	id, err := storeStatusUpdateEvent(kv, deploymentID, InstanceStatusChangeType, nodeName+"\n"+status+"\n"+instance)
+	info := make(Info)
+	info[ENodeID] = nodeName
+	info[EInstanceID] = instance
+	e, err := newStatusChange(StatusChangeTypeInstance, info, deploymentID, strings.ToLower(status))
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -65,7 +72,11 @@ func DeploymentStatusChange(kv *api.KV, deploymentID, status string) (string, er
 //
 // PublishAndLogDeploymentStatusChange returns the published event id
 func PublishAndLogDeploymentStatusChange(ctx context.Context, kv *api.KV, deploymentID, status string) (string, error) {
-	id, err := storeStatusUpdateEvent(kv, deploymentID, DeploymentStatusChangeType, status)
+	e, err := newStatusChange(StatusChangeTypeDeployment, nil, deploymentID, strings.ToLower(status))
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +100,13 @@ func PublishAndLogCustomCommandStatusChange(ctx context.Context, kv *api.KV, dep
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	id, err := storeStatusUpdateEvent(kv, deploymentID, CustomCommandStatusChangeType, taskID+"\n"+status)
+	info := make(Info)
+	info[ETaskID] = taskID
+	e, err := newStatusChange(StatusChangeTypeCustomCommand, info, deploymentID, strings.ToLower(status))
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -113,7 +130,13 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	id, err := storeStatusUpdateEvent(kv, deploymentID, ScalingStatusChangeType, taskID+"\n"+status)
+	info := make(Info)
+	info[ETaskID] = taskID
+	e, err := newStatusChange(StatusChangeTypeScaling, info, deploymentID, strings.ToLower(status))
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
 	if err != nil {
 		return "", err
 	}
@@ -126,94 +149,117 @@ func PublishAndLogScalingStatusChange(ctx context.Context, kv *api.KV, deploymen
 // WorkflowStatusChange returns the published event id
 //
 // Deprecated: use PublishAndLogWorkflowStatusChange instead
-func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, status string) (string, error) {
-	return PublishAndLogWorkflowStatusChange(nil, kv, deploymentID, taskID, status)
+func WorkflowStatusChange(kv *api.KV, deploymentID, taskID, workflowName, status string) (string, error) {
+	return PublishAndLogWorkflowStatusChange(nil, kv, deploymentID, taskID, workflowName, status)
+}
+
+// PublishAndLogWorkflowStepStatusChange publishes a status change for a workflow step execution and log this change into the log API
+//
+// PublishAndLogWorkflowStepStatusChange returns the published event id
+func PublishAndLogWorkflowStepStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
+	}
+	if wfStepInfo == nil {
+		return "", errors.Errorf("WorkflowStep information  param must be provided")
+	}
+	info := make(Info)
+	info[ETaskID] = taskID
+	info[EInstanceID] = wfStepInfo.InstanceName
+	info[EWorkflowID] = wfStepInfo.WorkflowName
+	info[ENodeID] = wfStepInfo.NodeName
+	info[EWorkflowStepID] = wfStepInfo.StepName
+	info[EOperationName] = wfStepInfo.OperationName
+	info[ETargetNodeID] = wfStepInfo.TargetNodeID
+	info[ETargetInstanceID] = wfStepInfo.TargetInstanceID
+	e, err := newStatusChange(StatusChangeTypeWorkflowStep, info, deploymentID, strings.ToLower(status))
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
+	if err != nil {
+		return "", err
+	}
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow step %q changed to %q", wfStepInfo.StepName, status)
+	return id, nil
+}
+
+// PublishAndLogAlienTaskStatusChange publishes a status change for a task execution and log this change into the log API
+//
+// PublishAndLogAlienTaskStatusChange returns the published event id
+func PublishAndLogAlienTaskStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, taskExecutionID string, wfStepInfo *WorkflowStepInfo, status string) (string, error) {
+	if ctx == nil {
+		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID, TaskExecutionID: taskExecutionID})
+	}
+	info := make(Info)
+	info[ETaskID] = taskID
+	// Warning: Alien task corresponds to what we call taskExecution
+	info[ETaskExecutionID] = taskExecutionID
+	info[EWorkflowID] = wfStepInfo.WorkflowName
+	info[ENodeID] = wfStepInfo.NodeName
+	info[EWorkflowStepID] = wfStepInfo.StepName
+	info[EInstanceID] = wfStepInfo.InstanceName
+	info[EOperationName] = wfStepInfo.OperationName
+	info[ETargetNodeID] = wfStepInfo.TargetNodeID
+	info[ETargetInstanceID] = wfStepInfo.TargetInstanceID
+	e, err := newStatusChange(StatusChangeTypeAlienTask, info, deploymentID, strings.ToLower(status))
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
+	if err != nil {
+		return "", err
+	}
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for task execution %q changed to %q", taskExecutionID, status)
+	return id, nil
 }
 
 // PublishAndLogWorkflowStatusChange publishes a status change for a workflow task and log this change into the log API
 //
 // PublishAndLogWorkflowStatusChange returns the published event id
-func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, status string) (string, error) {
+func PublishAndLogWorkflowStatusChange(ctx context.Context, kv *api.KV, deploymentID, taskID, workflowID, status string) (string, error) {
 	if ctx == nil {
 		ctx = NewContext(context.Background(), LogOptionalFields{ExecutionID: taskID})
 	}
-	id, err := storeStatusUpdateEvent(kv, deploymentID, WorkflowStatusChangeType, taskID+"\n"+status)
+	info := make(Info)
+	info[ETaskID] = taskID
+	info[EWorkflowID] = workflowID
+	e, err := newStatusChange(StatusChangeTypeWorkflow, info, deploymentID, strings.ToLower(status))
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow task %q changed to %q", taskID, status)
+	id, err := e.register()
+	if err != nil {
+		return "", err
+	}
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Status for workflow %q changed to %q", workflowID, status)
 	return id, nil
 }
 
-// Create a KVPair corresponding to an event and put it to Consul under the event prefix,
-// in a sub-tree corresponding to its deployment
-// The eventType goes to the KVPair's Flags field
-func storeStatusUpdateEvent(kv *api.KV, deploymentID string, eventType StatusUpdateType, data string) (string, error) {
-	now := time.Now().Format(time.RFC3339Nano)
-	eventsPrefix := path.Join(consulutil.EventsPrefix, deploymentID)
-	err := consulutil.StoreConsulKeyAsStringWithFlags(path.Join(eventsPrefix, now), data, uint64(eventType))
-	if err != nil {
-		return "", err
-	}
-	return now, nil
-}
-
 // StatusEvents return a list of events (StatusUpdate instances) for all, or a given deployment
-func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]StatusUpdate, uint64, error) {
-	events := make([]StatusUpdate, 0)
-
+func StatusEvents(kv *api.KV, deploymentID string, waitIndex uint64, timeout time.Duration) ([]json.RawMessage, uint64, error) {
+	events := make([]json.RawMessage, 0)
 	var eventsPrefix string
-	var depIDProvided bool
 	if deploymentID != "" {
 		// the returned list of events must correspond to the provided deploymentID
 		eventsPrefix = path.Join(consulutil.EventsPrefix, deploymentID)
-		depIDProvided = true
 	} else {
 		// the returned list of events must correspond to all the deployments
 		eventsPrefix = path.Join(consulutil.EventsPrefix)
-		depIDProvided = false
 	}
 
 	kvps, qm, err := kv.List(eventsPrefix, &api.QueryOptions{WaitIndex: waitIndex, WaitTime: timeout})
 	if err != nil || qm == nil {
 		return events, 0, err
 	}
+	log.Debugf("Found %d events before accessing index[%q]", len(kvps), strconv.FormatUint(qm.LastIndex, 10))
 	for _, kvp := range kvps {
 		if kvp.ModifyIndex <= waitIndex {
 			continue
 		}
-		var eventTimestamp string
-		if depIDProvided {
-			eventTimestamp = strings.TrimPrefix(kvp.Key, eventsPrefix+"/")
-		} else {
-			depIDAndTimestamp := strings.Split(strings.TrimPrefix(kvp.Key, eventsPrefix+"/"), "/")
-			deploymentID = depIDAndTimestamp[0]
-			eventTimestamp = depIDAndTimestamp[1]
-		}
-
-		values := strings.Split(string(kvp.Value), "\n")
-		eventType := StatusUpdateType(kvp.Flags)
-
-		switch eventType {
-		case InstanceStatusChangeType:
-			if len(values) != 3 {
-				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-			}
-			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Node: values[0], Status: values[1], Instance: values[2], DeploymentID: deploymentID})
-		case DeploymentStatusChangeType:
-			if len(values) != 1 {
-				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-			}
-			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), Status: values[0], DeploymentID: deploymentID})
-		case CustomCommandStatusChangeType, ScalingStatusChangeType, WorkflowStatusChangeType:
-			if len(values) != 2 {
-				return events, qm.LastIndex, errors.Errorf("Unexpected event value %q for event %q", string(kvp.Value), kvp.Key)
-			}
-			events = append(events, StatusUpdate{Timestamp: eventTimestamp, Type: eventType.String(), TaskID: values[0], Status: values[1], DeploymentID: deploymentID})
-		default:
-			return events, qm.LastIndex, errors.Errorf("Unsupported event type %d for event %q", kvp.Flags, kvp.Key)
-		}
+		events = append(events, kvp.Value)
 	}
+	log.Debugf("Found %d events after index", len(events))
 	return events, qm.LastIndex, nil
 }
 

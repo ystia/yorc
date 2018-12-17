@@ -261,7 +261,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().StringP("resources_prefix", "x", "", "Prefix created resources (like Computes and so on)")
 	serverCmd.PersistentFlags().Duration("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout, "Timeout to wait for a graceful termination of a workflow step during concurrent workflow step failure. After this delay the step is set on error.")
 	serverCmd.PersistentFlags().String("server_id", host, "The server ID used to identify the server node in a cluster.")
-	serverCmd.PersistentFlags().Bool("use_ssh_agent", true, "Whether or not allow using SSH-agent for SSH authentication on provisioned computes. Default is true. If false, compute credentials must provide a path to private key file.")
+	serverCmd.PersistentFlags().Bool("disable_ssh_agent", false, "Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.")
 
 	// Flags definition for Yorc HTTP REST API
 	serverCmd.PersistentFlags().Int("http_port", config.DefaultHTTPPort, "Port number for the Yorc HTTP REST API. If omitted or set to '0' then the default port number is used, any positive integer will be used as it, and finally any negative value will let use a random port.")
@@ -317,7 +317,7 @@ func setConfig() {
 	viper.BindPFlag("resources_prefix", serverCmd.PersistentFlags().Lookup("resources_prefix"))
 	viper.BindPFlag("wf_step_graceful_termination_timeout", serverCmd.PersistentFlags().Lookup("wf_step_graceful_termination_timeout"))
 	viper.BindPFlag("server_id", serverCmd.PersistentFlags().Lookup("server_id"))
-	viper.BindPFlag("use_ssh_agent", serverCmd.PersistentFlags().Lookup("use_ssh_agent"))
+	viper.BindPFlag("disable_ssh_agent", serverCmd.PersistentFlags().Lookup("disable_ssh_agent"))
 
 	//Bind Flags Yorc HTTP REST API
 	viper.BindPFlag("http_port", serverCmd.PersistentFlags().Lookup("http_port"))
@@ -354,7 +354,7 @@ func setConfig() {
 	viper.BindEnv("SSL_verify")
 	viper.BindEnv("resources_prefix")
 	viper.BindEnv("server_id")
-	viper.BindEnv("use_ssh_agent")
+	viper.BindEnv("disable_ssh_agent")
 
 	//Bind Consul environment variables flags
 	for key := range consulConfiguration {
@@ -383,7 +383,7 @@ func setConfig() {
 	viper.SetDefault("workers_number", config.DefaultWorkersNumber)
 	viper.SetDefault("wf_step_graceful_termination_timeout", config.DefaultWfStepGracefulTerminationTimeout)
 	viper.SetDefault("server_id", host)
-	viper.SetDefault("use_ssh_agent", true)
+	viper.SetDefault("disable_ssh_agent", false)
 
 	// Consul configuration default settings
 	for key, value := range consulConfiguration {
