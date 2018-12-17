@@ -22,9 +22,13 @@ type Step struct {
 	OperationHost      string
 	Activities         []Activity
 	Next               []*Step
+	OnFailure          []*Step
+	OnCancel           []*Step
 	Previous           []*Step
 	WorkflowName       string
 	Async              bool
+	IsOnFailurePath    bool
+	IsOnCancelPath     bool
 }
 
 type visitStep struct {

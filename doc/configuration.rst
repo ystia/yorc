@@ -177,9 +177,9 @@ Globals Command-line options
 
   * ``--server_id``: Specify the server ID used to identify the server node in a cluster. The default is the hostname.
 
-.. _option_use_ssh_agent_cmd:
+.. _option_disable_ssh_agent_cmd:
 
-  * ``--use_ssh-agent``: Specify whether or not allowing the use of ssh-agent for SSH authentication on provisioned computes. Default is true. If false, compute credentials must provide a path to a private key file instead of key content.
+  * ``--disable_ssh_agent``: Allow disabling ssh-agent use for SSH authentication on provisioned computes. Default is false. If true, compute credentials must provide a path to a private key file instead of key content.
 
 .. _yorc_config_file_section:
 
@@ -281,9 +281,9 @@ Below is an example of configuration file with TLS enabled.
 
   * ``server_id``: Equivalent to :ref:`--server_id <option_server_id_cmd>` command-line flag.
 
-.. _option_use_ssh_agent_cfg:
+.. _option_disable_ssh_agent_cfg:
 
-  * ``use_ssh_agent``: Equivalent to :ref:`--use_ssh_agent <option_use_ssh_agent_cmd>` command-line flag.
+  * ``disable_ssh_agent``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
 
 .. _yorc_config_file_ansible_section:
 
@@ -774,9 +774,9 @@ Environment variables
 
   * ``YORC_SERVER_ID``: Equivalent to :ref:`--server_id <option_server_id_cmd>` command-line flag.
 
-.. _option_use_ssh_agent_env:
+.. _option_disable_ssh_agent_env:
 
-  * ``YORC_USE_SSH_AGENT``: Equivalent to :ref:`--use_ssh_agent <option_use_ssh_agent_cmd>` command-line flag.
+  * ``YORC_DISABLE_SSH_AGENT``: Equivalent to :ref:`--disable_ssh_agent <option_disable_ssh_agent_cmd>` command-line flag.
 
 .. _option_log_env: 
 

@@ -15,9 +15,12 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
+
+	"github.com/ystia/yorc/events"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -93,4 +96,47 @@ func DoesDeploymentExists(kv *api.KV, deploymentID string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// SetDeploymentStatus sets the deployment status to the given status.
+//
+// This function will first check for an update of the current status and do it only if necessary.
+// It will also emit a proper event to notify of status change.
+// It is safe for concurrent use by using a CAS mechanism.
+func SetDeploymentStatus(ctx context.Context, kv *api.KV, deploymentID string, status DeploymentStatus) error {
+RETRY:
+	// As we loop check if context is not cancelled
+	select {
+	case <-ctx.Done():
+		return errors.Wrapf(ctx.Err(), "failed to update deployment %q status to %q", deploymentID, status.String())
+	default:
+	}
+
+	kvp, meta, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	if kvp == nil || len(kvp.Value) == 0 || meta == nil {
+		return errors.WithStack(&deploymentNotFound{deploymentID})
+	}
+
+	currentStatus, err := DeploymentStatusFromString(string(kvp.Value), true)
+	if err != nil {
+		return err
+	}
+
+	if status != currentStatus {
+		kvp.Value = []byte(status.String())
+		kvp.ModifyIndex = meta.LastIndex
+		ok, _, err := kv.CAS(kvp, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to set deployment status to %q for deploymentID:%q", status.String(), deploymentID)
+		}
+		if !ok {
+			goto RETRY
+		}
+		events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
+	}
+	return nil
 }

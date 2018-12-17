@@ -15,15 +15,19 @@
 package scheduler
 
 import (
+	"context"
 	"path"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/helper/stringutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
@@ -37,6 +41,7 @@ type scheduledAction struct {
 	latestDataIndex      uint64
 	asyncOperationString string
 
+	latestTaskID       string
 	stopScheduling     bool
 	stopSchedulingLock sync.Mutex
 	chStop             chan struct{}
@@ -74,6 +79,9 @@ func (sca *scheduledAction) schedule() {
 			err := sca.proceed()
 			if err != nil {
 				log.Printf("Failed to schedule action:%+v due to err:%+v", sca, err)
+				// TODO(loicalbertin) ok if we stop the ticker on error this action will never be rescheduled.
+				// And the routine will be blocked on select until chStop is closed.
+				// Is it really what we want?
 				ticker.Stop()
 			}
 		}
@@ -81,6 +89,7 @@ func (sca *scheduledAction) schedule() {
 }
 
 func (sca *scheduledAction) proceed() error {
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"scheduling", sca.ActionType, sca.ID, "ticks"}), 1)
 	// To fit with Task Manager, pass the id/actionType in data
 	err := sca.updateData()
 	if err != nil {
@@ -89,11 +98,41 @@ func (sca *scheduledAction) proceed() error {
 	sca.Data["actionType"] = sca.ActionType
 	sca.Data["id"] = sca.ID
 	sca.Data["asyncOperation"] = sca.asyncOperationString
-	taskID, err := defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
+
+	if sca.latestTaskID != "" {
+		ok, err := tasks.TaskExists(sca.kv, sca.latestTaskID)
+		if err != nil {
+			return err
+		}
+		if ok {
+			status, err := tasks.GetTaskStatus(sca.kv, sca.latestTaskID)
+			if err != nil {
+				return err
+			}
+			if status == tasks.TaskStatusINITIAL || status == tasks.TaskStatusRUNNING {
+				ctx := context.Background()
+				if sca.AsyncOperation.TaskID != "" {
+					ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{
+						events.ExecutionID:   sca.AsyncOperation.TaskID,
+						events.WorkFlowID:    sca.AsyncOperation.WorkflowName,
+						events.NodeID:        sca.AsyncOperation.NodeName,
+						events.InterfaceName: stringutil.GetAllExceptLastElement(sca.AsyncOperation.Operation.Name, "."),
+						events.OperationName: stringutil.GetLastElement(sca.AsyncOperation.Operation.Name, "."),
+					})
+				}
+				events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, sca.deploymentID).Registerf("Scheduled action: %+v miss trigger due to another execution (task ID: %q) already planned or running. Will try to be rescheduled on next trigger.", sca, sca.latestTaskID)
+				metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"scheduling", sca.ActionType, sca.ID, "misses"}), 1)
+				return nil
+			}
+		}
+	}
+
+	sca.latestTaskID, err = defaultScheduler.collector.RegisterTaskWithData(sca.deploymentID, tasks.TaskTypeAction, sca.Data)
 	if err != nil {
 		return err
 	}
-	log.Debugf("Proceed scheduled action:%+v with taskID:%q", sca, taskID)
+	consulutil.StoreConsulKeyAsString(path.Join(consulutil.SchedulingKVPrefix, "actions", sca.ID, "latestTaskID"), sca.latestTaskID)
+	log.Debugf("Proceed scheduled action:%+v with taskID:%q", sca, sca.latestTaskID)
 	return nil
 }
 

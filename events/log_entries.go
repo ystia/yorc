@@ -69,6 +69,9 @@ const (
 
 	// TypeID is the field type representing the type ID in log entry
 	TypeID
+
+	// TaskExecutionID is the field type representing the task execution ID in log entry
+	TaskExecutionID
 )
 
 // String allows to stringify the field type enumeration in JSON standard
@@ -88,6 +91,8 @@ func (ft FieldType) String() string {
 		return "operationName"
 	case TypeID:
 		return "type"
+	case TaskExecutionID:
+		return "alienTaskId"
 	}
 	return ""
 }
@@ -152,6 +157,13 @@ func (e LogEntry) Register(content []byte) {
 
 	// Get the timestamp
 	e.timestamp = time.Now()
+
+	// Handle TaskExecutionID field which needs to be enrich with instanceID
+	inst, existInst := e.additionalInfo[InstanceID]
+	id, existID := e.additionalInfo[TaskExecutionID]
+	if existInst && existID {
+		e.additionalInfo[TaskExecutionID] = fmt.Sprintf("%s-%s", id, inst)
+	}
 
 	// Get the value to store and the flat log entry representation to log entry
 	val, flat := e.generateValue()
@@ -227,10 +239,10 @@ func (e LogEntry) toFlatMap() map[string]interface{} {
 	return flatMap
 }
 
-// FormatLog allows to format the flat map log representation in the following format :[Timestamp][Level][DeploymentID][WorkflowID][ExecutionID][NodeID][InstanceID][InterfaceName][OperationName][TypeID]Content
+// FormatLog allows to format the flat map log representation in the following format :[Timestamp][Level][DeploymentID][WorkflowID][ExecutionID][TaskExecutionID][NodeID][InstanceID][InterfaceName][OperationName][TypeID]Content
 func FormatLog(flat map[string]interface{}) string {
 	var str string
-	sliceOfKeys := []string{"timestamp", "level", "deploymentId", WorkFlowID.String(), ExecutionID.String(), NodeID.String(), InstanceID.String(), InterfaceName.String(), OperationName.String(), TypeID.String(), "content"}
+	sliceOfKeys := []string{"timestamp", "level", "deploymentId", WorkFlowID.String(), ExecutionID.String(), TaskExecutionID.String(), NodeID.String(), InstanceID.String(), InterfaceName.String(), OperationName.String(), TypeID.String(), "content"}
 	for _, k := range sliceOfKeys {
 		if val, ok := flat[k].(string); ok {
 			if k != "content" {

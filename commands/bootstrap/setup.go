@@ -74,6 +74,9 @@ func setupYorcServer(workingDirectoryPath string) error {
 		ResourcesPrefix:  "bootstrap-",
 		WorkersNumber:    inputValues.Yorc.WorkersNumber,
 		Infrastructures:  inputValues.Infrastructures,
+		Terraform: config.Terraform{
+			PluginsDir: workDirAbsolutePath,
+		},
 		Ansible: config.Ansible{
 			DebugExec:            true,
 			KeepGeneratedRecipes: true,
@@ -330,6 +333,11 @@ func installDependencies(workingDirectoryPath string) error {
 	}
 
 	// Donwload Terraform plugins
+	for _, url := range inputValues.Terraform.PluginURLs {
+		if err := downloadUnzip(url, workingDirectoryPath); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

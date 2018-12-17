@@ -15,7 +15,6 @@
 package workflow
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"strconv"
@@ -37,8 +36,10 @@ type taskExecution struct {
 	taskType     tasks.TaskType
 	creationDate time.Time
 	lock         *api.Lock
-	kv           *api.KV
+	cc           *api.Client
 	step         string
+	// finalFunction is function a function called at the end of the taskExecution if no other taskExecution are running
+	finalFunction func() error
 }
 
 func (t *taskExecution) releaseLock() {
@@ -48,12 +49,98 @@ func (t *taskExecution) releaseLock() {
 	}
 }
 
+func acquireRunningExecLock(cc *api.Client, taskID string) (*consulutil.AutoDeleteLock, error) {
+	execPath := path.Join(consulutil.TasksPrefix, taskID, ".runningExecutionsLock")
+RETRY:
+	execLock, err := cc.LockKey(execPath)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+
+	lCh, err := execLock.Lock(nil)
+	if err != nil {
+		return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if lCh == nil {
+		goto RETRY
+	}
+	return &consulutil.AutoDeleteLock{Lock: execLock}, nil
+
+}
+
+func (t *taskExecution) notifyStart() error {
+	execLock, err := acquireRunningExecLock(t.cc, t.taskID)
+	if err != nil {
+		return err
+	}
+	defer execLock.Unlock()
+
+	consulNodeName, err := t.cc.Agent().NodeName()
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return consulutil.StoreConsulKeyAsString(path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions", t.id), consulNodeName)
+}
+
+func numberOfRunningExecutionsForTask(cc *api.Client, taskID string) (*consulutil.AutoDeleteLock, int, error) {
+	l, err := acquireRunningExecLock(cc, taskID)
+	if err != nil {
+		return nil, 0, err
+	}
+	execPath := path.Join(consulutil.TasksPrefix, taskID, ".runningExecutions")
+	kv := cc.KV()
+	// Check if we were the latest
+	keys, _, err := kv.Keys(execPath+"/", "/", nil)
+	if err != nil {
+		l.Unlock()
+		return nil, 0, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	return l, len(keys), nil
+}
+
+func doIfNoMoreOtherExecutions(cc *api.Client, taskID string, f func() error) error {
+	l, e, err := numberOfRunningExecutionsForTask(cc, taskID)
+	if err != nil {
+		return err
+	}
+	defer l.Unlock()
+	if e <= 1 && f != nil {
+		return f()
+	}
+	return nil
+}
+
+func (t *taskExecution) notifyEnd() error {
+	execPath := path.Join(consulutil.TasksPrefix, t.taskID, ".runningExecutions")
+	l, e, err := numberOfRunningExecutionsForTask(t.cc, t.taskID)
+	if err != nil {
+		return err
+	}
+	defer l.Unlock()
+
+	kv := t.cc.KV()
+	// Delete our execID
+	_, err = kv.Delete(path.Join(execPath, t.id), nil)
+	if err != nil {
+		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if e <= 1 && t.finalFunction != nil {
+		return t.finalFunction()
+	}
+	return nil
+}
+
+func (t *taskExecution) delete() error {
+	_, err := t.cc.KV().DeleteTree(path.Join(consulutil.ExecutionsTaskPrefix, t.id), nil)
+	return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+}
+
 func (t *taskExecution) getTaskStatus() (tasks.TaskStatus, error) {
-	return tasks.GetTaskStatus(t.kv, t.taskID)
+	return tasks.GetTaskStatus(t.cc.KV(), t.taskID)
 }
 
 // checkAndSetTaskStatus allows to check the task status before updating it
-func checkAndSetTaskStatus(ctx context.Context, kv *api.KV, taskID, step string, finalStatus tasks.TaskStatus) error {
+func checkAndSetTaskStatus(kv *api.KV, taskID string, finalStatus tasks.TaskStatus) error {
 	kvp, meta, err := kv.Get(path.Join(consulutil.TasksPrefix, taskID, "status"), nil)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get task status for taskID:%q", taskID)
@@ -78,12 +165,13 @@ func checkAndSetTaskStatus(ctx context.Context, kv *api.KV, taskID, step string,
 			log.Printf(mess)
 			return errors.Errorf(mess)
 		}
-		return setTaskStatus(ctx, kv, taskID, step, finalStatus, meta.LastIndex)
+		return setTaskStatus(kv, taskID, finalStatus, meta.LastIndex)
 	}
 	return nil
 }
 
-func setTaskStatus(ctx context.Context, kv *api.KV, taskID, step string, status tasks.TaskStatus, lastIndex uint64) error {
+func setTaskStatus(kv *api.KV, taskID string, status tasks.TaskStatus, lastIndex uint64) error {
+	log.Debugf("Updating task status to %q: %+v", status, errors.New("Remove this log"))
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	p.ModifyIndex = lastIndex
 	set, _, err := kv.CAS(p, nil)
@@ -93,42 +181,13 @@ func setTaskStatus(ctx context.Context, kv *api.KV, taskID, step string, status 
 	}
 	if !set {
 		log.Debugf("[WARNING] Failed to set task status to:%q for taskID:%q as last index has been changed before. Retry it", status.String(), taskID)
-		return checkAndSetTaskStatus(ctx, kv, taskID, step, status)
-	}
-	if status == tasks.TaskStatusFAILED {
-		return addTaskErrorFlag(ctx, taskID, step)
+		return checkAndSetTaskStatus(kv, taskID, status)
 	}
 	return nil
 }
 
-// Add task error flag for monitoring failures in case of workflow task execution
-func addTaskErrorFlag(ctx context.Context, taskID, step string) error {
-	if step != "" {
-		log.Debugf("Create error flag key for taskID:%q", taskID)
-		err := consulutil.StoreConsulKey(path.Join(consulutil.TasksPrefix, taskID, ".errorFlag"), nil)
-		if err != nil {
-			log.Printf("Failed to set error flag for taskID:%q due to error:%+v", taskID, err)
-			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-		}
-	}
-	return nil
-}
-
-func (t *taskExecution) deleteTaskErrorFlag(ctx context.Context, kvp *api.KVPair, lastIndex uint64) error {
-	log.Debugf("Try to delete error flag key for taskID:%q", t.taskID)
-	kvp.ModifyIndex = lastIndex
-	del, _, err := t.kv.DeleteCAS(kvp, nil)
-	if err != nil {
-		log.Printf("Failed to delete error flag for taskID:%q due to error:%+v", t.taskID, err)
-		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-	}
-	if !del {
-		return errors.Errorf("Failed to delete task error flag for taskID:%q as last index has been changed before", t.taskID)
-	}
-	return nil
-}
-
-func buildTaskExecution(kv *api.KV, execID string) (*taskExecution, error) {
+func buildTaskExecution(cc *api.Client, execID string) (*taskExecution, error) {
+	kv := cc.KV()
 	taskID, err := getExecutionKeyValue(kv, execID, "taskID")
 	if err != nil {
 		return nil, err
@@ -169,13 +228,18 @@ func buildTaskExecution(kv *api.KV, execID string) (*taskExecution, error) {
 		}
 	}
 
+	return newTaskExecution(execID, taskID, targetID, step, cc, creationDate, tasks.TaskType(taskType)), nil
+}
+
+// This may seams useless but as sometimes we create a fake task exec (like for actions) it force to provide all needed parameters
+func newTaskExecution(id, taskID, targetID, step string, cc *api.Client, creationDate time.Time, taskType tasks.TaskType) *taskExecution {
 	return &taskExecution{
-		id:           execID,
+		id:           id,
 		taskID:       taskID,
 		targetID:     targetID,
-		kv:           kv,
+		cc:           cc,
 		creationDate: creationDate,
 		taskType:     tasks.TaskType(taskType),
 		step:         step,
-	}, nil
+	}
 }

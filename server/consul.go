@@ -21,10 +21,11 @@ import (
 
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/server/upgradeschema"
 )
 
 var upgradeToMap = map[string]func(*api.KV, <-chan struct{}) error{
-	"1.0.0": upgradeFromPre31,
+	"1.0.0": upgradeschema.UpgradeFromPre31,
 }
 
 var orderedUpgradesVersions []semver.Version
@@ -86,13 +87,13 @@ func setupConsulDBSchema(client *api.Client) error {
 			return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 		}
 		if len(kvps) > 0 {
-			return upgradeFromVersion(kv, leaderCh, "0.0.0")
+			return upgradeFromVersion(client, leaderCh, "0.0.0")
 		}
 
 		return setNewVersion(kv)
 	}
 
-	return upgradeFromVersion(kv, leaderCh, string(kvp.Value))
+	return upgradeFromVersion(client, leaderCh, string(kvp.Value))
 }
 
 func setNewVersion(kv *api.KV) error {
@@ -103,7 +104,7 @@ func setNewVersion(kv *api.KV) error {
 	return nil
 }
 
-func upgradeFromVersion(kv *api.KV, leaderCh <-chan struct{}, fromVersion string) error {
+func upgradeFromVersion(client *api.Client, leaderCh <-chan struct{}, fromVersion string) error {
 	vCurrent, err := semver.Make(fromVersion)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse current version of consul db schema")
@@ -118,11 +119,25 @@ func upgradeFromVersion(kv *api.KV, leaderCh <-chan struct{}, fromVersion string
 		// Same version nothing to do
 		return nil
 	case 1:
+		// Make a Consul snapshot and restore it if any error occurs
+		snap := client.Snapshot()
+		snapReader, _, err := snap.Save(nil)
+		if err != nil {
+			return errors.Wrapf(err, "failed to upgrade consul db schema to %q", err)
+		}
+		defer snapReader.Close()
 		for _, vUp := range orderedUpgradesVersions {
 			if vUp.GE(vCurrent) {
-				err = upgradeToMap[vUp.String()](kv, leaderCh)
+				err = upgradeToMap[vUp.String()](client.KV(), leaderCh)
 				if err != nil {
-					return errors.Wrapf(err, "failed to upgrade consul db schema to %q", vUp)
+					// Restore Consul snapshot
+					restoreErr := snap.Restore(nil, snapReader)
+					if restoreErr != nil {
+						log.Printf("failed to restore consul db schema to %q due to error:%+v", fromVersion, restoreErr)
+					} else {
+						log.Printf("As any error occurred, schema has been successfully restored to version %q", fromVersion)
+					}
+					return errors.Wrapf(err, "failed to upgrade consul db schema to %q.", vUp)
 				}
 			}
 		}
@@ -131,10 +146,5 @@ func upgradeFromVersion(kv *api.KV, leaderCh <-chan struct{}, fromVersion string
 
 	}
 
-	return setNewVersion(kv)
-}
-
-func upgradeFromPre31(kv *api.KV, leaderch <-chan struct{}) error {
-	// Nothing to do right now
-	return nil
+	return setNewVersion(client.KV())
 }

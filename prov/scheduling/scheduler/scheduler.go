@@ -15,6 +15,7 @@
 package scheduler
 
 import (
+	"encoding/json"
 	"path"
 	"strings"
 	"sync"
@@ -136,20 +137,21 @@ func (sc *scheduler) startScheduling() {
 						actionToStop.stop()
 						// Remove it from actions
 						delete(sc.actions, id)
-						// Unregister it definitively
-						sc.unregisterAction(id)
 					}
+					// Unregister it definitively
+					sc.unregisterAction(id)
 					continue
 				}
-				sca, err := sc.buildScheduledAction(id)
-				if err != nil {
-					handleError(err)
-					continue
-				}
+
 				// Store the action if not already present and start it
 				_, is := sc.actions[id]
 				if !is {
 					log.Debugf("start action id:%q", id)
+					sca, err := sc.buildScheduledAction(id)
+					if err != nil {
+						handleError(err)
+						continue
+					}
 					sc.actions[id] = sca
 					sca.start()
 				}
@@ -197,19 +199,31 @@ func (sc *scheduler) buildScheduledAction(id string) (*scheduledAction, error) {
 	if err != nil {
 		return nil, err
 	}
-	if kvp != nil && len(kvp.Value) > 0 {
-		d, err := time.ParseDuration(string(kvp.Value))
-		if err != nil {
-			return nil, err
-		}
-		sca.timeInterval = d
+	if kvp == nil || len(kvp.Value) == 0 {
+		return nil, errors.Errorf("Missing interval for action: %q", id)
 	}
+	d, err := time.ParseDuration(string(kvp.Value))
+	if err != nil {
+		return nil, err
+	}
+	sca.timeInterval = d
 	kvp, _, err = sc.cc.KV().Get(path.Join(actionPrefix, "async_op"), nil)
 	if err != nil {
 		return nil, err
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
 		sca.asyncOperationString = string(kvp.Value)
+		err = json.Unmarshal(kvp.Value, &sca.AsyncOperation)
+		if err != nil {
+			return nil, err
+		}
+	}
+	kvp, _, err = sc.cc.KV().Get(path.Join(actionPrefix, "latestTaskID"), nil)
+	if err != nil {
+		return nil, err
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		sca.latestTaskID = string(kvp.Value)
 	}
 
 	kvps, _, err := sc.cc.KV().List(path.Join(consulutil.SchedulingKVPrefix, "actions", id, "data"), nil)
