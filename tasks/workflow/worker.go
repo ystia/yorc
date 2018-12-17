@@ -572,11 +572,15 @@ func (w *worker) runQuery(ctx context.Context, t *taskExecution) error {
 	return nil
 }
 
-func (w *worker) makeWorkflowFinalFunction(ctx context.Context, kv *api.KV, deploymentID, taskID, wfName string, wfStatus deployments.DeploymentStatus) func() error {
+func (w *worker) makeWorkflowFinalFunction(ctx context.Context, kv *api.KV, deploymentID, taskID, wfName string, successWfStatus, failureWfStatus deployments.DeploymentStatus) func() error {
 	return func() error {
-		err := updateTaskStatusAccordingToWorkflowStatus(ctx, kv, deploymentID, taskID, wfName)
+		taskStatus, err := updateTaskStatusAccordingToWorkflowStatus(ctx, kv, deploymentID, taskID, wfName)
 		if err != nil {
 			return err
+		}
+		wfStatus := successWfStatus
+		if taskStatus != tasks.TaskStatusDONE {
+			wfStatus = failureWfStatus
 		}
 		return w.checkAndSetDeploymentStatus(ctx, deploymentID, wfStatus)
 	}
@@ -587,13 +591,9 @@ func (w *worker) runDeploy(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return err
 	}
-	err = w.runWorkflowStep(ctx, t, "install", false)
+	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
 
-	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYED)
-	if err != nil {
-		t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYMENT_FAILED)
-	}
-	return err
+	return w.runWorkflowStep(ctx, t, "install", false)
 }
 
 func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
@@ -603,10 +603,8 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 	}
 	if status != deployments.UNDEPLOYED {
 		w.checkAndSetDeploymentStatus(ctx, t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
-		err := w.runWorkflowStep(ctx, t, "uninstall", true)
-
 		t.finalFunction = func() error {
-			err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
+			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
 			if err != nil {
 				return err
 			}
@@ -623,7 +621,7 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 			}
 			return nil
 		}
-		return err
+		return w.runWorkflowStep(ctx, t, "uninstall", true)
 	} else if t.taskType == tasks.TaskTypePurge {
 		err = w.runPurge(ctx, t)
 		if err != nil {
@@ -684,13 +682,8 @@ func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return err
 	}
-	err = w.runWorkflowStep(ctx, t, "install", false)
-
-	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYED)
-	if err != nil {
-		t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYMENT_FAILED)
-	}
-	return err
+	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
+	return w.runWorkflowStep(ctx, t, "install", false)
 }
 
 func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
@@ -698,14 +691,8 @@ func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return err
 	}
-	err = w.runWorkflowStep(ctx, t, "uninstall", true)
-
-	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall", deployments.DEPLOYED)
-
-	if err != nil {
-		t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYMENT_FAILED)
-	}
-	return err
+	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall", deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
+	return w.runWorkflowStep(ctx, t, "uninstall", true)
 }
 
 func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName string) error {
@@ -722,7 +709,8 @@ func (w *worker) runCustomWorkflow(ctx context.Context, t *taskExecution, wfName
 		return errors.Wrap(err, "failed to parse \"continueOnError\" flag for custom workflow")
 	}
 	t.finalFunction = func() error {
-		return updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, wfName)
+		_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, wfName)
+		return err
 	}
 
 	return w.runWorkflowStep(ctx, t, wfName, bypassErrors)
