@@ -37,10 +37,9 @@ func loadTestYaml(t *testing.T, kv *api.KV) string {
 func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-	g := slurmGenerator{}
 	infrastructure := infrastructure{}
 
-	err := g.generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure)
+	err := generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.nodes, 1)
@@ -56,10 +55,9 @@ func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configur
 func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-	g := slurmGenerator{}
 	infrastructure := infrastructure{}
 
-	err := g.generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure)
+	err := generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", "0", &infrastructure)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.nodes, 1)
@@ -75,7 +73,6 @@ func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg con
 func testMultipleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	t.Parallel()
 	deploymentID := loadTestYaml(t, kv)
-	g := slurmGenerator{}
 	infrastructure := infrastructure{}
 
 	nb, err := deployments.GetDefaultNbInstancesForNode(kv, deploymentID, "Compute")
@@ -84,7 +81,7 @@ func testMultipleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Config
 
 	for i := 0; i < int(nb); i++ {
 		istr := strconv.Itoa(i)
-		err := g.generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", istr, &infrastructure)
+		err := generateNodeAllocation(context.Background(), kv, cfg, deploymentID, "Compute", istr, &infrastructure)
 		require.Nil(t, err)
 
 		require.Len(t, infrastructure.nodes, i+1)

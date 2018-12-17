@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/events"
 )
 
 // DelegateExecutor is the interface that wraps the ExecDelegate method
@@ -104,13 +105,14 @@ type Action struct {
 
 // AsyncOperation represents an asynchronous operation
 type AsyncOperation struct {
-	DeploymentID string    `json:"deployment_id,omitempty"`
-	TaskID       string    `json:"task_id,omitempty"`
-	ExecutionID  string    `json:"execution_id,omitempty"`
-	WorkflowName string    `json:"workflow_name,omitempty"`
-	StepName     string    `json:"step_name,omitempty"`
-	NodeName     string    `json:"node_name,omitempty"`
-	Operation    Operation `json:"operation,omitempty"`
+	DeploymentID     string                   `json:"deployment_id,omitempty"`
+	TaskID           string                   `json:"task_id,omitempty"`
+	ExecutionID      string                   `json:"execution_id,omitempty"`
+	WorkflowName     string                   `json:"workflow_name,omitempty"`
+	StepName         string                   `json:"step_name,omitempty"`
+	NodeName         string                   `json:"node_name,omitempty"`
+	Operation        Operation                `json:"operation,omitempty"`
+	WorkflowStepInfo *events.WorkflowStepInfo `json:"workflow_step_info,omitempty"`
 }
 
 // ActionOperator is the interface for executing an action

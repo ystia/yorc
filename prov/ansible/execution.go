@@ -55,6 +55,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const taskContextOutput = "task_context"
+
 const ansibleConfig = `[defaults]
 host_key_checking=False
 timeout=30
@@ -643,6 +645,41 @@ func (e *executionCommon) resolveOperationOutputPath() error {
 	return nil
 }
 
+func (e *executionCommon) addRunnablesSpecificInputsAndOutputs() error {
+	opName := strings.ToLower(e.operation.Name)
+	if !strings.HasPrefix(opName, tosca.RunnableInterfaceName) {
+		return nil
+	}
+	for i, instanceID := range e.sourceNodeInstances {
+		// TODO(loicalbertin) This part should be refactored to store properly the instance ID
+		// don't to it for now as it is for a quickfix
+		if opName == tosca.RunnableSubmitOperationName {
+			e.Outputs["TOSCA_JOB_ID_"+fmt.Sprint(instanceID)] = taskContextOutput
+			e.HaveOutput = true
+		} else if opName == tosca.RunnableRunOperationName {
+			e.Outputs["TOSCA_JOB_STATUS_"+fmt.Sprint(instanceID)] = taskContextOutput
+			e.HaveOutput = true
+		}
+
+		// Now store jobID as input for run and cancel ops
+		if opName == tosca.RunnableRunOperationName || opName == tosca.RunnableCancelOperationName {
+			jobID, err := tasks.GetTaskData(e.kv, e.taskID, e.NodeName+"-"+instanceID+"-TOSCA_JOB_ID")
+			if err != nil {
+				return errors.Wrap(err, "failed to retrieve job id for monitoring, this is likely that the submit operation does not properly export a TOSCA_JOB_ID output")
+			}
+			e.EnvInputs = append(e.EnvInputs, &operations.EnvInput{
+				Name:         "TOSCA_JOB_ID",
+				InstanceName: operations.GetInstanceName(e.NodeName, instanceID),
+				Value:        jobID,
+			})
+			if i == 0 {
+				e.VarInputsNames = append(e.VarInputsNames, "TOSCA_JOB_ID")
+			}
+		}
+	}
+	return nil
+}
+
 // resolveIsPerInstanceOperation sets e.isPerInstanceOperation to true if the given operationName contains one of the following patterns (case doesn't matter):
 //	add_target, remove_target, add_source, remove_source, target_changed
 // And in case of a relationship operation the relationship does not derive from "tosca.relationships.HostedOn" as it makes no sense till we scale at compute level
@@ -678,6 +715,7 @@ func (e *executionCommon) resolveExecution() error {
 	if err = e.resolveInputs(); err != nil {
 		return err
 	}
+
 	if err = e.resolveArtifacts(); err != nil {
 		return err
 	}
@@ -692,7 +730,9 @@ func (e *executionCommon) resolveExecution() error {
 	if err = e.resolveOperationOutputPath(); err != nil {
 		return err
 	}
-
+	if err = e.addRunnablesSpecificInputsAndOutputs(); err != nil {
+		return err
+	}
 	return e.resolveContext()
 
 }
@@ -811,7 +851,7 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 		return err
 	}
 
-	ansibleRecipePath := filepath.Join(ansiblePath, e.taskID, e.NodeName)
+	ansibleRecipePath := filepath.Join(ansiblePath, stringutil.UniqueTimestampedName(e.taskID+"_", ""), e.NodeName)
 	if e.operation.RelOp.IsRelationshipOperation {
 		ansibleRecipePath = filepath.Join(ansibleRecipePath, e.relationshipType, e.operation.RelOp.TargetRelationship, e.operation.Name, currentInstance)
 	} else {
@@ -1009,8 +1049,12 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 				if instanceID != fileInstanceID {
 					continue
 				}
-				if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
-					return err
+				if e.Outputs[line[0]] != taskContextOutput {
+					if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
+						return err
+					}
+				} else {
+					tasks.SetTaskData(e.kv, e.taskID, e.NodeName+"-"+instanceID+"-"+strings.Join(splits[0:len(splits)-1], "_"), line[1])
 				}
 			}
 		}

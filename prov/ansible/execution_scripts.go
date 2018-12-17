@@ -32,6 +32,20 @@ import (
 )
 
 const scriptCustomWrapper = `#!/usr/bin/env bash
+
+[[[if .HaveOutput]]]
+# Retrieving outputs in a trap to be sure to get them even if the script exists prematurely (even with success code)
+function finish {
+  [[[range $artName, $art := .Outputs -]]]
+  [[[printf "echo %s,\\\"$%s\\\" >> $HOME/%s/out.csv" $artName (cut $artName) $.OperationRemotePath]]]
+  [[[printf "echo $%s" $artName]]]
+  [[[end]]]
+  [[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
+}
+
+trap finish EXIT
+[[[end]]]
+
 # Workaround JSON structures being treated as python objects
 # basically it prevent double quotes to be changed into single quotes
 # by prefixing the value by a space
@@ -42,13 +56,7 @@ do
   eval "[[ \"\${${yorc_escape_workaround}}\" == \" \"* ]] && { export ${yorc_escape_workaround}=\${${yorc_escape_workaround}:1};}"
 done
 [[[printf ". $HOME/%s/%s" $.OperationRemotePath .BasePrimary]]]
-[[[range $artName, $art := .Outputs -]]]
-[[[printf "echo %s,\\\"$%s\\\" >> $HOME/%s/out.csv" $artName (cut $artName) $.OperationRemotePath]]]
-[[[printf "echo $%s" $artName]]]
-[[[end]]]
-[[[if .HaveOutput]]]
-[[[printf "chmod 777 $HOME/%s/out.csv" $.OperationRemotePath]]]
-[[[end]]]
+
 `
 
 const pythonCustomWrapper = `#!/usr/bin/env python

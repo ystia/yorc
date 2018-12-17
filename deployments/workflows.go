@@ -15,16 +15,16 @@
 package deployments
 
 import (
-	"path"
-
 	"net/url"
+	"path"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/tosca"
-	"strconv"
-	"strings"
 )
 
 // GetWorkflows returns the list of workflows names for a given deployment
@@ -49,7 +49,7 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 	if err != nil {
 		return wf, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	wf.Steps = make(map[string]tosca.Step, len(steps))
+	wf.Steps = make(map[string]*tosca.Step, len(steps))
 	for _, stepKey := range steps {
 		stepName, err := url.QueryUnescape(path.Base(stepKey))
 		if err != nil {
@@ -64,8 +64,8 @@ func ReadWorkflow(kv *api.KV, deploymentID, workflowName string) (tosca.Workflow
 	return wf, nil
 }
 
-func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (tosca.Step, error) {
-	step := tosca.Step{}
+func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (*tosca.Step, error) {
+	step := &tosca.Step{}
 	targetIsMandatory := false
 	// Get the step operation's host (not mandatory)
 	kvp, _, err := kv.Get(path.Join(stepKey, "operation_host"), nil)
@@ -138,6 +138,36 @@ func readWfStep(kv *api.KV, stepKey string, stepName string, wfName string) (tos
 				return step, errors.Wrapf(err, "Failed to get back step name from Consul")
 			}
 			step.OnSuccess[i] = nextName
+		}
+	}
+	// Get the on cancel steps of the current step and use it to set the OnSuccess filed
+	onCancelSteps, _, err := kv.Keys(stepKey+"/on-cancel/", "/", nil)
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if len(nextSteps) > 0 {
+		step.OnCancel = make([]string, len(onCancelSteps))
+		for i, nextKey := range onCancelSteps {
+			nextName, err := url.QueryUnescape(path.Base(nextKey))
+			if err != nil {
+				return step, errors.Wrapf(err, "Failed to get back step name from Consul")
+			}
+			step.OnCancel[i] = nextName
+		}
+	}
+	// Get the on cancel steps of the current step and use it to set the OnSuccess filed
+	onFailureSteps, _, err := kv.Keys(stepKey+"/on-failure/", "/", nil)
+	if err != nil {
+		return step, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+	}
+	if len(onFailureSteps) > 0 {
+		step.OnFailure = make([]string, len(onFailureSteps))
+		for i, nextKey := range onFailureSteps {
+			nextName, err := url.QueryUnescape(path.Base(nextKey))
+			if err != nil {
+				return step, errors.Wrapf(err, "Failed to get back step name from Consul")
+			}
+			step.OnFailure[i] = nextName
 		}
 	}
 	return step, nil

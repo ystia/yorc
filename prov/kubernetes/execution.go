@@ -99,7 +99,12 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}, nil
 }
 
-func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface) (err error) {
+func (e *execution) execute(ctx context.Context, clientset kubernetes.Interface) error {
+
+	if e.nodeType == "yorc.nodes.kubernetes.api.types.JobResource" {
+		return e.executeJobOperation(ctx, clientset)
+	}
+
 	// TODO is there any reason for recreating a new generator for each execution?
 	generator := newGenerator(e.kv, e.cfg)
 	instances, err := tasks.GetInstances(e.kv, e.taskID, e.deploymentID, e.nodeName)

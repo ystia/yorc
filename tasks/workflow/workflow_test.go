@@ -73,7 +73,8 @@ func (m *mockActivityHook) hook(ctx context.Context, cfg config.Configuration, t
 	m.activity = activity
 }
 
-func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
+func testRunStep(t *testing.T, srv1 *testutil.TestServer, cc *api.Client) {
+	kv := cc.KV()
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
 	err := deployments.StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/workflow.yaml")
 	require.Nil(t, err)
@@ -131,7 +132,7 @@ func testRunStep(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {
 
 			bs.Next = nil
 			te := &taskExecution{id: "taskExecutionID", taskID: "taskID", targetID: deploymentID}
-			s := wrapBuilderStep(bs, kv, te)
+			s := wrapBuilderStep(bs, cc, te)
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "WFNode_create"), []byte("initial"))
 			srv1.SetKV(t, path.Join(consulutil.WorkflowsPrefix, s.t.taskID, "Compute_install"), []byte("initial"))
 			err = s.run(context.Background(), config.Configuration{}, kv, deploymentID, tt.args.bypassErrors, tt.args.workflowName, &worker{})

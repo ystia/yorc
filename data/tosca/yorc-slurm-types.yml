@@ -111,7 +111,15 @@ node_types:
         description: The ID of the job.
     interfaces:
       tosca.interfaces.node.lifecycle.Runnable:
+        submit:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.SlurmJob
         run:
+          implementation:
+            file: "embedded"
+            type: yorc.artifacts.Deployment.SlurmJob
+        cancel:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.SlurmJob

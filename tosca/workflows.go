@@ -18,7 +18,7 @@ package tosca
 //
 // Currently Workflows are not part of the TOSCA specification
 type Workflow struct {
-	Steps map[string]Step `yaml:"steps,omitempty" json:"steps,omitempty"`
+	Steps map[string]*Step `yaml:"steps,omitempty" json:"steps,omitempty"`
 }
 
 // An Step is the representation of a TOSCA Workflow Step
@@ -30,7 +30,11 @@ type Step struct {
 	TargetRelationShip string     `yaml:"target_relationship,omitempty" json:"target_relationship,omitempty"`
 	Activities         []Activity `yaml:"activities" json:"activities"`
 	OnSuccess          []string   `yaml:"on_success,omitempty" json:"on_success,omitempty"`
+	OnFailure          []string   `yaml:"on_failure,omitempty" json:"on_failure,omitempty"`
 	OperationHost      string     `yaml:"operation_host,omitempty" json:"operation_host,omitempty"`
+
+	// Non standard
+	OnCancel []string `yaml:"on_cancel,omitempty" json:"on_cancel,omitempty"`
 }
 
 // An Activity is the representation of a TOSCA Workflow Step Activity
