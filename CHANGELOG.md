@@ -17,7 +17,6 @@
 * Fix issue when default yorc.pem is used by Ansible with ssh-agent ([GH-233](https://github.com/ystia/yorc/issues/233))
 * CUDA_VISIBLE_DEVICES contains some unwanted unprintable characters [GH-210](https://github.com/ystia/yorc/issues/210))
 
-
 ## 3.1.0-M7 (December 07, 2018)
 
 ### DEPENDENCIES
