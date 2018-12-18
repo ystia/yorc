@@ -337,14 +337,8 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 	if job.MonitoringTimeInterval == 0 {
-		ti := e.cfg.Infrastructures[infrastructureName].GetString("job_monitoring_time_interval")
-		if ti != "" {
-			jmti, err := time.ParseDuration(ti)
-			if err != nil {
-				log.Printf("Invalid format for job monitoring time interval configuration:%q. Default 5s time interval will be used instead.", ti)
-			}
-			job.MonitoringTimeInterval = jmti
-		} else {
+		job.MonitoringTimeInterval = e.cfg.Infrastructures[infrastructureName].GetDuration("job_monitoring_time_interval")
+		if job.MonitoringTimeInterval <= 0 {
 			// Default value
 			job.MonitoringTimeInterval = 5 * time.Second
 		}

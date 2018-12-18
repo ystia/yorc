@@ -60,7 +60,7 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 		}
 	}
 
-	return exec.executeAsync(ctx, stepName, e.clientset)
+	return exec.executeAsync(ctx, conf, stepName, e.clientset)
 }
 
 func (e *defaultExecutor) ExecOperation(ctx context.Context, conf config.Configuration, taskID, deploymentID, nodeName string, operation prov.Operation) error {
