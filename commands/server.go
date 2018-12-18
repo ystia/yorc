@@ -63,14 +63,15 @@ var (
 )
 
 var ansibleConfiguration = map[string]interface{}{
-	"ansible.use_openssh":                false,
-	"ansible.debug":                      false,
-	"ansible.connection_retries":         5,
-	"ansible.operation_remote_base_dir":  ".yorc",
-	"ansible.keep_operation_remote_path": config.DefaultKeepOperationRemotePath,
-	"ansible.archive_artifacts":          config.DefaultArchiveArtifacts,
-	"ansible.cache_facts":                config.DefaultCacheFacts,
-	"ansible.keep_generated_recipes":     false,
+	"ansible.use_openssh":                  false,
+	"ansible.debug":                        false,
+	"ansible.connection_retries":           5,
+	"ansible.operation_remote_base_dir":    ".yorc",
+	"ansible.keep_operation_remote_path":   config.DefaultKeepOperationRemotePath,
+	"ansible.archive_artifacts":            config.DefaultArchiveArtifacts,
+	"ansible.cache_facts":                  config.DefaultCacheFacts,
+	"ansible.keep_generated_recipes":       false,
+	"ansible.job_monitoring_time_interval": config.DefaultAnsibleJobMonInterval,
 }
 
 var consulConfiguration = map[string]interface{}{
@@ -293,6 +294,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("ansible_archive_artifacts", config.DefaultArchiveArtifacts, "Define wether artifacts should be ./archived before being copied on remote nodes (requires tar to be installed on remote nodes).")
 	serverCmd.PersistentFlags().Bool("ansible_cache_facts", config.DefaultCacheFacts, "Define wether Ansible facts (useful variables about remote hosts) should be cached.")
 	serverCmd.PersistentFlags().Bool("ansible_keep_generated_recipes", false, "Define if Yorc should not delete generated Ansible recipes")
+	serverCmd.PersistentFlags().Duration("ansible_job_monitoring_time_interval", config.DefaultAnsibleJobMonInterval, "Default duration for monitoring time interval for jobs handled by Ansible")
 
 	//Flags definition for Terraform
 	serverCmd.PersistentFlags().Bool("terraform_keep_generated_files", false, "Define if Yorc should not delete generated Terraform infrastructures files")

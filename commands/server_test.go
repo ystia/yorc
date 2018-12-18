@@ -18,6 +18,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -168,6 +169,7 @@ func TestConfigFile(t *testing.T) {
 				KeepOperationRemotePath: true,
 				ArchiveArtifacts:        true,
 				CacheFacts:              true,
+				JobsChecksPeriod:        15 * time.Second,
 			},
 			ConsulConfig: config.Consul{
 				Token:          "testToken",
@@ -191,6 +193,7 @@ func TestConfigFile(t *testing.T) {
 				KeepOperationRemotePath: true,
 				ArchiveArtifacts:        true,
 				CacheFacts:              true,
+				JobsChecksPeriod:        15 * time.Second,
 			},
 			ConsulConfig: config.Consul{
 				Token:          "testToken2",
@@ -230,6 +233,7 @@ func TestAnsibleDefaultValues(t *testing.T) {
 		ConnectionRetries:       5,
 		OperationRemoteBaseDir:  ".yorc",
 		KeepOperationRemotePath: false,
+		JobsChecksPeriod:        15 * time.Second,
 	}
 
 	testResetConfig()
@@ -272,6 +276,7 @@ func TestAnsibleEnvVariables(t *testing.T) {
 		ConnectionRetries:       12,
 		OperationRemoteBaseDir:  "testEnvBaseDir",
 		KeepOperationRemotePath: true,
+		JobsChecksPeriod:        15 * time.Second,
 	}
 
 	// Set Ansible configuration environment ariables
@@ -353,6 +358,7 @@ func TestAnsiblePersistentFlags(t *testing.T) {
 		ConnectionRetries:       15,
 		OperationRemoteBaseDir:  "testPFlagBaseDir",
 		KeepOperationRemotePath: true,
+		JobsChecksPeriod:        15 * time.Second,
 	}
 
 	ansiblePFlagConfiguration := map[string]string{

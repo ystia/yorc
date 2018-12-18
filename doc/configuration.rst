@@ -46,6 +46,10 @@ Globals Command-line options
 
   * ``--ansible_archive_artifacts``: If set to true, archives operation bash/python scripts locally, copies this archive and unarchives it on remote hosts (requires tar to be installed on remote hosts), to avoid multiple time consuming remote copy operations of individual scripts (false by default: no archive).
 
+.. _option_ansible_job_monitoring_time_interval_cmd:
+
+  * ``--ansible_job_monitoring_time_interval``: Default duration for monitoring time interval for jobs handled by Ansible (defaults to 15s).
+
 .. _option_ansible_keep_generated_recipes_cmd:
 
   * ``--ansible_keep_generated_recipes``: If set to true, generated Ansible recipes on Yorc server are not deleted. (false by default: generated recipes are deleted).
@@ -341,6 +345,10 @@ All available configuration options for Ansible are:
 .. _option_ansible_archive_artifacts_cfg:
 
   * ``archive_artifacts``: Equivalent to :ref:`--ansible_archive_artifacts <option_ansible_archive_artifacts_cmd>` command-line flag.
+
+.. _option_ansible_job_monitoring_time_interval_cfg:
+
+  * ``job_monitoring_time_interval``: Equivalent to :ref:`--ansible_job_monitoring_time_interval <option_ansible_job_monitoring_time_interval_cmd>` command-line flag.
 
 .. _option_operation_remote_base_dir_cfg:
 
@@ -668,7 +676,7 @@ Environment variables
 
 .. _option_ansible_archive_artifacts_env:
 
-  * ``YORC_ANSIBLE_ARCHIVE_ARTIFACTS``: Equivalent to :ref:`--ansible_archive_artifacts <option_ansible_archive_artifacts_cmd>` command-line flag.
+  * ``YORC_ANSIBLE_JOB_MONITORING_TIME_INTERVAL``: Equivalent to :ref:`--ansible_job_monitoring_time_interval <option_ansible_job_monitoring_time_interval_cmd>` command-line flag.
 
 .. _option_ansible_keep_generated_recipes_env:
 
@@ -897,24 +905,26 @@ Kubernetes infrastructure key name is ``kubernetes`` in lower case.
    http://www.sphinx-doc.org/en/stable/markup/misc.html#tables
 .. tabularcolumns:: |l|L|L|L|L|
 
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-|  Option Name                |                                   Description                                   | Data Type | Required | Default |
-|                             |                                                                                 |           |          |         |
-+=============================+=================================================================================+===========+==========+=========+
-| ``kubeconfig``              | Path or content of Kubernetes cluster configuration file*                       | string    | no       |         |
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``application_credentials`` | Path or content of file containing credentials**                                | string    | no       |         |
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``master_url``              | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | no       |         |
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``ca_file``                 | Path to a trusted root certificates for server                                  | string    | no       |         |
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``cert_file``               | Path to the TLS client certificate used for authentication                      | string    | no       |         |
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``key_file``                | Path to the TLS client key used for authentication                              | string    | no       |         |
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
-| ``insecure``                | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
-+-----------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+|           Option Name            |                                   Description                                   | Data Type | Required | Default |
+|                                  |                                                                                 |           |          |         |
++==================================+=================================================================================+===========+==========+=========+
+| ``kubeconfig``                   | Path or content of Kubernetes cluster configuration file*                       | string    | no       |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``application_credentials``      | Path or content of file containing credentials**                                | string    | no       |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``master_url``                   | URL of the HTTP API of Kubernetes is exposed. Format: ``https://<host>:<port>`` | string    | no       |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``ca_file``                      | Path to a trusted root certificates for server                                  | string    | no       |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``cert_file``                    | Path to the TLS client certificate used for authentication                      | string    | no       |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``key_file``                     | Path to the TLS client key used for authentication                              | string    | no       |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``insecure``                     | Server should be accessed without verifying the TLS certificate (testing only)  | boolean   | no       |         |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
+| ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                               | string    | no       | 5s      |
++----------------------------------+---------------------------------------------------------------------------------+-----------+----------+---------+
 
 * ``kubeconfig`` is the path (accessible to Yorc server) or the content of a Kubernetes
   cluster configuration file.

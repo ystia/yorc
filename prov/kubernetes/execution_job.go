@@ -23,14 +23,16 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
 )
 
-func (e *execution) executeAsync(ctx context.Context, stepName string, clientset kubernetes.Interface) (*prov.Action, time.Duration, error) {
+func (e *execution) executeAsync(ctx context.Context, cfg config.Configuration, stepName string, clientset kubernetes.Interface) (*prov.Action, time.Duration, error) {
 	if strings.ToLower(e.operation.Name) != strings.ToLower(tosca.RunnableRunOperationName) {
 		return nil, 0, errors.Errorf("%q operation is not supported by the Kubernetes executor only %q is.", e.operation.Name, tosca.RunnableRunOperationName)
 	}
@@ -55,7 +57,14 @@ func (e *execution) executeAsync(ctx context.Context, stepName string, clientset
 	data["stepName"] = stepName
 	// TODO deal with outputs?
 	// data["outputs"] = strings.Join(e.jobInfo.outputs, ",")
-	return &prov.Action{ActionType: "k8s-job-monitoring", Data: data}, 5 * time.Second, nil
+	k8sCfg := cfg.Infrastructures["kubernetes"]
+	checksPeriod := k8sCfg.GetDuration("job_monitoring_time_interval")
+	if checksPeriod <= 0 {
+		checksPeriod = 5 * time.Second
+		log.Debugf("\"job_monitoring_time_interval\" configuration parameter is missing in Kubernetes configuration. Using default %s.", checksPeriod)
+	}
+
+	return &prov.Action{ActionType: "k8s-job-monitoring", Data: data}, checksPeriod, nil
 }
 
 func (e *execution) submitJob(ctx context.Context, clientset kubernetes.Interface) error {

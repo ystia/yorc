@@ -62,7 +62,13 @@ func (e *defaultExecutor) ExecAsyncOperation(ctx context.Context, conf config.Co
 	data["operation"] = string(jsonOp)
 	// TODO deal with outputs?
 	// data["outputs"] = strings.Join(e.jobInfo.outputs, ",")
-	return &prov.Action{ActionType: "ansible-job-monitoring", Data: data}, 15 * time.Second, nil
+	checkPeriod := conf.Ansible.JobsChecksPeriod
+	if checkPeriod <= 0 {
+		checkPeriod = 15 * time.Second
+		log.Debugf("\"job_monitoring_time_interval\" configuration parameter is missing in Ansible configuration. Using default %s.", checkPeriod)
+	}
+
+	return &prov.Action{ActionType: "ansible-job-monitoring", Data: data}, checkPeriod, nil
 
 }
 
