@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* Technical update to use Alien4Cloud 2.1.0 final version (Used in bootstrap)
+
 ## 3.1.0-RC1 (December 17, 2018)
 
 ### ENHANCEMENTS
@@ -19,7 +23,6 @@
 * Publish workflow events when custom workflow is finished ([GH-234](https://github.com/ystia/yorc/issues/234))
 * Bootstrap without internet access fails to get terraform plugins for local yorc ([GH-239](https://github.com/ystia/yorc/issues/239))
 * CUDA_VISIBLE_DEVICES contains some unwanted unprintable characters [GH-210](https://github.com/ystia/yorc/issues/210))
-
 
 ## 3.1.0-M7 (December 07, 2018)
 
