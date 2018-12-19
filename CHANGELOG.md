@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Increase default workers number per Yorc server from `3` to `30` ([GH-244](https://github.com/ystia/yorc/issues/244))
+
 ## 3.1.0-RC2 (December 18, 2018)
 
 ### DEPENDENCIES

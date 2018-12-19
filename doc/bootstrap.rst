@@ -203,7 +203,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--yorc_plugin_download_url`` Yorc plugin download URL (default, current Yorc plugin release under https://github.com/ystia/yorc-a4c-plugin/releases)
   * ``--yorc_port`` Yorc HTTP REST API port (default 8800)
   * ``--yorc_private_key_file`` Path to ssh private key accessible locally
-  * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 3)
+  * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
 
 In addition, similarly to the configuration of infrastructures in ``yorc server``
 command described at :ref:`_infrastructures_configuration_section`, you can use options to
