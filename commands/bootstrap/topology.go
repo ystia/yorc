@@ -161,14 +161,14 @@ func indent(data string, indentations int) string {
 func getAlien4CloudVersion(url string) (string, error) {
 	match := regexp.MustCompile(`-dist-([0-9a-zA-Z.-]+)-dist.tar.gz`).FindStringSubmatch(url)
 	version := ""
-	var err error
 	if match != nil {
 		version = match[1]
 	} else {
-		err = fmt.Errorf("Failed to retrieve Alien4Cloud version from URL %s", url)
+		fmt.Printf("Failed to retrieve Alien4Cloud version from URL %s, we will use a default value.\n", url)
+		return getAlien4CloudVersionFromTOSCATypes(), nil
 	}
 
-	return version, err
+	return version, nil
 }
 
 // getFile returns the file part of a URL

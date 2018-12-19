@@ -92,7 +92,7 @@ topology_template:
             initiator: source
       artifacts:
         alien_dist:
-          file: {{getFile .Alien4cloud.DownloadURL}}
+          file: alien4cloud-dist.tar.gz
           type: tosca.artifacts.File
     YorcPlugin:
       type: org.ystia.yorc.alien4cloud.nodes.YorcPlugin
