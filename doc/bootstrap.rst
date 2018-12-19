@@ -33,7 +33,7 @@ Hosts
 The local host from where the command ``yorc bootstrap`` will be run, as well as
 remote hosts where the full stack will be deployed, should be Linux x86_64 systems
 operating with at least 2 CPUs and 4 Go of RAM.
-The booststrap was validated on CentOS 7.
+The booststrap was validated on CentOS 7 and Red Hat Enterprise Linux 7.5.
 
 Packages
 ~~~~~~~~
