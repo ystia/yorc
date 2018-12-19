@@ -32,14 +32,14 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 	// Download Alien4Cloud whose zip is expected to be provided in the
 	// deployment
 	// First downloading it in the work dir if not yet there
-	// like other extenrla downloadable dependencies
-	url := inputValues.Alien4cloud.DownloadURL
-	if _, err := download(url, workdDir); err != nil {
+	// like other external downloadable dependencies
+	a4cFilePath, err := download(inputValues.Alien4cloud.DownloadURL, "alien4cloud-dist.tar.gz", workdDir)
+	if err != nil {
 		return "", err
 	}
 
 	// Copying this file now to the deployment dir
-	_, filename := filepath.Split(url)
+	_, filename := filepath.Split(a4cFilePath)
 	srcPath := filepath.Join(workdDir, filename)
 	dstPath := filepath.Join(deploymentDir, filename)
 	src, err := os.Open(srcPath)
@@ -78,7 +78,7 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 	return deploymentID, err
 }
 
-// followDeployment follows deployments steps or deploymnet logs
+// followDeployment follows deployments steps or deployment logs
 // until the deployment is finished
 func followDeployment(deploymentID, followType string) error {
 

@@ -323,18 +323,18 @@ func installDependencies(workingDirectoryPath string) error {
 	}
 
 	// Download Consul
-	if err := downloadUnzip(inputValues.Consul.DownloadURL, workingDirectoryPath); err != nil {
+	if err := downloadUnzip(inputValues.Consul.DownloadURL, "consul.zip", workingDirectoryPath); err != nil {
 		return err
 	}
 
 	// Download Terraform
-	if err := downloadUnzip(inputValues.Terraform.DownloadURL, workingDirectoryPath); err != nil {
+	if err := downloadUnzip(inputValues.Terraform.DownloadURL, "terraform.zip", workingDirectoryPath); err != nil {
 		return err
 	}
 
 	// Donwload Terraform plugins
-	for _, url := range inputValues.Terraform.PluginURLs {
-		if err := downloadUnzip(url, workingDirectoryPath); err != nil {
+	for i, url := range inputValues.Terraform.PluginURLs {
+		if err := downloadUnzip(url, fmt.Sprintf("terraform-plugin-%d.zip", i), workingDirectoryPath); err != nil {
 			return err
 		}
 	}
@@ -349,8 +349,8 @@ func getFilePath(url, destinationPath string) string {
 }
 
 // downloadUnzip donwloads and unzips a URL to a given destination
-func downloadUnzip(url, destinationPath string) error {
-	filePath, err := download(url, destinationPath)
+func downloadUnzip(url, fileName, destinationPath string) error {
+	filePath, err := download(url, fileName, destinationPath)
 	if err != nil {
 		return err
 	}
@@ -365,9 +365,9 @@ func downloadUnzip(url, destinationPath string) error {
 
 // download donwloads and optionally unzips a URL to a given destination
 // returns the path to destination file
-func download(url, destinationPath string) (string, error) {
+func download(url, fileName, destinationPath string) (string, error) {
 
-	filePath := getFilePath(url, destinationPath)
+	filePath := filepath.Join(destinationPath, fileName)
 
 	fmt.Println("Downloading", url, "to", filePath)
 
