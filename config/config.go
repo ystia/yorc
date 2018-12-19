@@ -33,7 +33,7 @@ import (
 const DefaultConsulPubMaxRoutines int = 500
 
 // DefaultWorkersNumber is the default number of workers in the Yorc server
-const DefaultWorkersNumber int = 3
+const DefaultWorkersNumber int = 30
 
 // DefaultHTTPPort is the default port number for the HTTP REST API
 const DefaultHTTPPort int = 8800

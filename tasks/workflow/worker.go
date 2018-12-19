@@ -84,7 +84,7 @@ func (w *worker) Start() {
 
 			case <-w.shutdownCh:
 				// we have received a signal to stop
-				log.Printf("Worker received shutdown signal. Exiting...")
+				log.Debugln("Worker received shutdown signal. Exiting...")
 				return
 			}
 		}

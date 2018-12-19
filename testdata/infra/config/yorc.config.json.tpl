@@ -1,6 +1,6 @@
 {
     "working_directory": "work",
-    "workers_number": 3,
+    "workers_number": 30,
     "server_id": "${server_id}",
     "resources_prefix": "${prefix}",
     "infrastructures":{

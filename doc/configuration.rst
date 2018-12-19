@@ -171,7 +171,7 @@ Globals Command-line options
 
 .. _option_workers_cmd:
 
-  * ``--workers_number``: Yorc instances use a pool of workers to handle deployment tasks. This option defines the size of this pool. If not set the default value of `3` will be used.
+  * ``--workers_number``: Yorc instances use a pool of workers to handle deployment tasks. This option defines the size of this pool. If not set the default value of `30` will be used.
 
 .. _option_workdir_cmd: 
 
