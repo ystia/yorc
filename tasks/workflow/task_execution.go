@@ -171,7 +171,6 @@ func checkAndSetTaskStatus(kv *api.KV, taskID string, finalStatus tasks.TaskStat
 }
 
 func setTaskStatus(kv *api.KV, taskID string, status tasks.TaskStatus, lastIndex uint64) error {
-	log.Debugf("Updating task status to %q: %+v", status, errors.New("Remove this log"))
 	p := &api.KVPair{Key: path.Join(consulutil.TasksPrefix, taskID, "status"), Value: []byte(strconv.Itoa(int(status)))}
 	p.ModifyIndex = lastIndex
 	set, _, err := kv.CAS(p, nil)
