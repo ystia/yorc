@@ -4,6 +4,7 @@
 
 ### BUG FIXES
 
+* When scaling down instances are not cleaned from consul ([GH-257](https://github.com/ystia/yorc/issues/257))
 * Yorc bootstrap fails if downloadable URLs are too long ([GH-247](https://github.com/ystia/yorc/issues/247))
 
 ### ENHANCEMENTS

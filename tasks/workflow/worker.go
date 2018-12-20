@@ -658,7 +658,16 @@ func (w *worker) runScaleIn(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return err
 	}
-	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall", deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
+
+	classicFinalFn := w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall", deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
+	t.finalFunction = func() error {
+		err := w.cleanupScaledDownNodes(t)
+		if err != nil {
+			return err
+		}
+		return classicFinalFn()
+	}
+
 	return w.runWorkflowStep(ctx, t, "uninstall", true)
 }
 
