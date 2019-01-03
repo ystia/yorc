@@ -53,8 +53,8 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	}
 	// Check if namespace was provided
 	var namespaceProvided bool
-	namespaceProvidedStr, ok := action.Data["providedNamespace"]
-	if b, err := strconv.ParseBool(namespaceProvidedStr); ok && err != nil {
+	namespaceProvidedStr, ok := action.Data["namespaceProvided"]
+	if b, err := strconv.ParseBool(namespaceProvidedStr); ok && err == nil {
 		namespaceProvided = b
 	}
 
