@@ -26,6 +26,7 @@ package tasks
 // CustomWorkflow,
 // Query,
 // Action
+// ForcePurge
 // )
 type TaskType int
 
