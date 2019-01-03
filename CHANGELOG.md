@@ -4,6 +4,12 @@
 
 ### BUG FIXES
 
+* Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
+
+## 3.1.0 (December 20, 2018)
+
+### BUG FIXES
+
 * When scaling down instances are not cleaned from consul ([GH-257](https://github.com/ystia/yorc/issues/257))
 * Yorc bootstrap fails if downloadable URLs are too long ([GH-247](https://github.com/ystia/yorc/issues/247))
 
