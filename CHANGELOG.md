@@ -4,9 +4,14 @@
 
 ### BUG FIXES
 
+* K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
+
+## 3.1.0 (December 20, 2018)
+
+### BUG FIXES
+
 * When scaling down instances are not cleaned from consul ([GH-257](https://github.com/ystia/yorc/issues/257))
 * Yorc bootstrap fails if downloadable URLs are too long ([GH-247](https://github.com/ystia/yorc/issues/247))
-* K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
 
 ### ENHANCEMENTS
 
