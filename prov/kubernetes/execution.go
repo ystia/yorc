@@ -44,6 +44,7 @@ import (
 
 const deploymentResourceType string = "yorc.nodes.kubernetes.api.types.DeploymentResource"
 const serviceResourceType string = "yorc.nodes.kubernetes.api.types.ServiceResource"
+const simpleRessourceType string = "yorc.nodes.kubernetes.api.types.SimpleResource"
 
 type k8sResourceOperation int
 
@@ -164,6 +165,19 @@ func (e *execution) manageKubernetesResource(ctx context.Context, clientset kube
 		return e.manageDeploymentResource(ctx, clientset, generator, op, rSpec.RawString())
 	case serviceResourceType:
 		return e.manageServiceResource(ctx, clientset, generator, op, rSpec.RawString())
+	case simpleRessourceType:
+		rType, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.nodeName, "resource_type")
+		if err != nil {
+			return err
+		}
+		switch rType.RawString() {
+		case "pvc":
+			return e.manageSimpleResourcePVC(ctx, clientset, generator, op, rSpec.RawString())
+		default:
+			return errors.Errorf("Unsupported k8s SimpleResource type %q", e.nodeType)
+		}
+
+		//return errors.Errorf("============Not yet supported k8s simple ressource type %q", e.nodeType)
 	default:
 		return errors.Errorf("Unsupported k8s resource type %q", e.nodeType)
 	}
@@ -399,6 +413,21 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 	return nil
 }
 
+//Manage kubernetes PersistentVolumeClaim 
+func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
+	switch operationType {
+	case k8sCreateOperation:
+		//TODO
+		return errors.Errorf("Unsupported create operation on k8s SimpleresourcePVC")
+	case k8sDeleteOperation:
+		//TODO
+		return errors.Errorf("Unsupported delete operation on k8s SimpleResourcePVC")
+	default:
+		return errors.Errorf("Unsupported operation on k8s SimpleResourcePVC")
+	}
+	return nil
+}
+
 // Below code is for legacy way of managing Kubernetes containers
 
 // Deprecated
@@ -491,6 +520,7 @@ func (e *execution) scaleNode(ctx context.Context, clientset kubernetes.Interfac
 	return nil
 }
 
+//Is it used ?
 func (e *execution) deployNode(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, nbInstances int32) error {
 	namespace, err := defaultNamespace(e.deploymentID)
 	if err != nil {
