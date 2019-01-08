@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
@@ -218,11 +219,9 @@ func (w *worker) handleExecution(t *taskExecution) {
 		err = w.runCustomWorkflow(ctx, t, wfName)
 	case tasks.TaskTypeAction:
 		err = w.runAction(ctx, t)
-	case tasks.TaskTypeQuery, tasks.TaskTypeCustomCommand:
+	case tasks.TaskTypeQuery, tasks.TaskTypeCustomCommand, tasks.TaskTypeForcePurge:
 		// Those kind of task will manage monitoring of taskFailure differently
 		err = w.runOneExecutionTask(ctx, t)
-	case tasks.TaskTypeForcePurge:
-		err = w.runPurge(ctx, t)
 	default:
 		err = errors.Errorf("Unknown TaskType %d (%s) for TaskExecution with id %q", t.taskType, t.taskType.String(), t.taskID)
 	}
@@ -269,6 +268,8 @@ func (w *worker) runOneExecutionTask(ctx context.Context, t *taskExecution) erro
 		err = w.runQuery(ctx, t)
 	case tasks.TaskTypeCustomCommand:
 		err = w.runCustomCommand(ctx, t)
+	case tasks.TaskTypeForcePurge:
+		err = w.runPurge(ctx, t)
 	default:
 		err = errors.Errorf("Unknown TaskType %d (%s) for TaskExecution with id %q", t.taskType, t.taskType.String(), t.taskID)
 	}
@@ -571,23 +572,27 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 	if status != deployments.UNDEPLOYED {
 		deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		t.finalFunction = func() error {
-			var err error
+			// Here we can potentially return multiple errors
+			var mErr *multierror.Error
 			defer func() {
 				// in all cases, if purge has been requested, run it at the end
 				if t.taskType == tasks.TaskTypePurge {
 					err = w.runPurge(ctx, t)
+					if err != nil {
+						mErr = multierror.Append(mErr, err)
+					}
 				}
 			}()
-			_, err = updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
+			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
 			if err != nil {
-				return err
+				return multierror.Append(mErr, err)
 			}
 			// Set it to undeployed anyway
 			err = deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
 			if err != nil {
-				return err
+				return multierror.Append(mErr, err)
 			}
-			return err
+			return mErr.ErrorOrNil()
 		}
 		return w.runWorkflowStep(ctx, t, "uninstall", true)
 	} else if t.taskType == tasks.TaskTypePurge {
