@@ -413,13 +413,13 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 	return nil
 }
 
-//Manage kubernetes PersistentVolumeClaim 
+//Manage kubernetes PersistentVolumeClaim
 func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
 	if rSpec == "" {
 		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
 	}
 	var pvcRepr apiv1.PersistentVolumeClaim
-	//Unmarshall 
+	//Unmarshall
 	if err = json.Unmarshal([]byte(rSpec), &pvcRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
@@ -427,8 +427,11 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 
 	switch operationType {
 	case k8sCreateOperation:
-		//TODO
-		return errors.Errorf("Unsupported create operation on k8s SimpleresourcePVC")
+		pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Create(&pvcRepr)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to create persistent volume claim %s", pvc.Name)
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("k8s PVC %s created in namespace %s", pvc.Name, namespace)
 
 	case k8sDeleteOperation:
 		var pvcName = pvcRepr.Name
