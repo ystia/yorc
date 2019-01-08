@@ -423,10 +423,17 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 	if err = json.Unmarshal([]byte(rSpec), &pvcRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
-	namespace, _ := getNamespace(e.deploymentID, pvcRepr.ObjectMeta)
+	namespace, nsProvided := getNamespace(e.deploymentID, pvcRepr.ObjectMeta)
 
 	switch operationType {
 	case k8sCreateOperation:
+		if !nsProvided {
+			err = createNamespaceIfMissing(e.deploymentID, namespace, clientset)
+			if err != nil {
+				return err
+			}
+			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s Namespace %s created", namespace)
+		}
 		pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Create(&pvcRepr)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create persistent volume claim %s", pvc.Name)
