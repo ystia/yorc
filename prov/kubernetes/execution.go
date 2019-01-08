@@ -415,13 +415,29 @@ func (e *execution) manageServiceResource(ctx context.Context, clientset kuberne
 
 //Manage kubernetes PersistentVolumeClaim 
 func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kubernetes.Interface, generator *k8sGenerator, operationType k8sResourceOperation, rSpec string) (err error) {
+	if rSpec == "" {
+		return errors.Errorf("Missing mandatory resource_spec property for node %s", e.nodeName)
+	}
+	var pvcRepr apiv1.PersistentVolumeClaim
+	//Unmarshall 
+	if err = json.Unmarshal([]byte(rSpec), &pvcRepr); err != nil {
+		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
+	}
+	namespace, _ := getNamespace(e.deploymentID, pvcRepr.ObjectMeta)
+
 	switch operationType {
 	case k8sCreateOperation:
 		//TODO
 		return errors.Errorf("Unsupported create operation on k8s SimpleresourcePVC")
+
 	case k8sDeleteOperation:
-		//TODO
-		return errors.Errorf("Unsupported delete operation on k8s SimpleResourcePVC")
+		var pvcName = pvcRepr.Name
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf("Deleting k8s PVC %s", pvcName)
+		err = clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(pvcName, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to delete persistent volume claim %s", pvcName)
+		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, e.deploymentID).Registerf("k8s PVC %s deleted!", pvcName)
 	default:
 		return errors.Errorf("Unsupported operation on k8s SimpleResourcePVC")
 	}
