@@ -29,7 +29,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/events"
@@ -572,27 +571,21 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 	if status != deployments.UNDEPLOYED {
 		deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		t.finalFunction = func() error {
-			// Here we can potentially return multiple errors
-			var mErr *multierror.Error
 			defer func() {
 				// in all cases, if purge has been requested, run it at the end
 				if t.taskType == tasks.TaskTypePurge {
-					err = w.runPurge(ctx, t)
+					err := w.runPurge(ctx, t)
 					if err != nil {
-						mErr = multierror.Append(mErr, err)
+						log.Printf("%+v", err)
 					}
 				}
 			}()
 			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
 			if err != nil {
-				return multierror.Append(mErr, err)
+				return err
 			}
 			// Set it to undeployed anyway
-			err = deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
-			if err != nil {
-				return multierror.Append(mErr, err)
-			}
-			return mErr.ErrorOrNil()
+			return deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
 		}
 		return w.runWorkflowStep(ctx, t, "uninstall", true)
 	} else if t.taskType == tasks.TaskTypePurge {
