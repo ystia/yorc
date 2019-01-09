@@ -216,11 +216,9 @@ func (w *worker) handleExecution(t *taskExecution) {
 		err = w.runScaleIn(ctx, t)
 	case tasks.TaskTypeCustomWorkflow:
 		err = w.runCustomWorkflow(ctx, t, wfName)
-
 	case tasks.TaskTypeAction:
 		err = w.runAction(ctx, t)
-
-	case tasks.TaskTypeQuery, tasks.TaskTypeCustomCommand:
+	case tasks.TaskTypeQuery, tasks.TaskTypeCustomCommand, tasks.TaskTypeForcePurge:
 		// Those kind of task will manage monitoring of taskFailure differently
 		err = w.runOneExecutionTask(ctx, t)
 	default:
@@ -269,6 +267,8 @@ func (w *worker) runOneExecutionTask(ctx context.Context, t *taskExecution) erro
 		err = w.runQuery(ctx, t)
 	case tasks.TaskTypeCustomCommand:
 		err = w.runCustomCommand(ctx, t)
+	case tasks.TaskTypeForcePurge:
+		err = w.runPurge(ctx, t)
 	default:
 		err = errors.Errorf("Unknown TaskType %d (%s) for TaskExecution with id %q", t.taskType, t.taskType.String(), t.taskID)
 	}
@@ -571,29 +571,25 @@ func (w *worker) runUndeploy(ctx context.Context, t *taskExecution) error {
 	if status != deployments.UNDEPLOYED {
 		deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYMENT_IN_PROGRESS)
 		t.finalFunction = func() error {
+			defer func() {
+				// in all cases, if purge has been requested, run it at the end
+				if t.taskType == tasks.TaskTypePurge {
+					err := w.runPurge(ctx, t)
+					if err != nil {
+						log.Printf("%+v", err)
+					}
+				}
+			}()
 			_, err := updateTaskStatusAccordingToWorkflowStatus(ctx, t.cc.KV(), t.targetID, t.taskID, "uninstall")
 			if err != nil {
 				return err
 			}
 			// Set it to undeployed anyway
-			err = deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
-			if err != nil {
-				return err
-			}
-			if t.taskType == tasks.TaskTypePurge {
-				err = w.runPurge(ctx, t)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
+			return deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.UNDEPLOYED)
 		}
 		return w.runWorkflowStep(ctx, t, "uninstall", true)
 	} else if t.taskType == tasks.TaskTypePurge {
-		err = w.runPurge(ctx, t)
-		if err != nil {
-			return err
-		}
+		return w.runPurge(ctx, t)
 	}
 	return nil
 }
