@@ -4,6 +4,7 @@
 
 ### BUG FIXES
 
+* K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
 * Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
 
 ## 3.1.0 (December 20, 2018)
