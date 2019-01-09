@@ -18,7 +18,7 @@
 
     "version": {
         "name": "${VERSION_NAME}",
-        "desc": "",
+        "desc": "Ystia Orchestrator distributions and documentations ${VERSION_NAME}",
         "released": "${RELEASE_DATE}",
         "vcs_tag": "${TAG_NAME}",
         "attributes": [],
