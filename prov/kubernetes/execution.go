@@ -423,6 +423,10 @@ func (e *execution) manageSimpleResourcePVC(ctx context.Context, clientset kuber
 	if err = json.Unmarshal([]byte(rSpec), &pvcRepr); err != nil {
 		return errors.Errorf("The resource-spec JSON unmarshaling failed: %s", err)
 	}
+	//Test if ressource request field is filled
+	if len(pvcRepr.Spec.Resources.Requests) == 0 {
+		return errors.Errorf("Missing mandatory field resource request property for node %s", e.nodeName)
+	}
 	namespace, nsProvided := getNamespace(e.deploymentID, pvcRepr.ObjectMeta)
 
 	switch operationType {
