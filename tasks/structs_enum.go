@@ -87,9 +87,11 @@ const (
 	TaskTypeQuery
 	// TaskTypeAction is a TaskType of type Action
 	TaskTypeAction
+	// TaskTypeForcePurge is a TaskType of type ForcePurge
+	TaskTypeForcePurge
 )
 
-const _TaskTypeName = "DeployUnDeployScaleOutScaleInPurgeCustomCommandCustomWorkflowQueryAction"
+const _TaskTypeName = "DeployUnDeployScaleOutScaleInPurgeCustomCommandCustomWorkflowQueryActionForcePurge"
 
 var _TaskTypeMap = map[TaskType]string{
 	0: _TaskTypeName[0:6],
@@ -101,6 +103,7 @@ var _TaskTypeMap = map[TaskType]string{
 	6: _TaskTypeName[47:61],
 	7: _TaskTypeName[61:66],
 	8: _TaskTypeName[66:72],
+	9: _TaskTypeName[72:82],
 }
 
 // String implements the Stringer interface.
@@ -121,6 +124,7 @@ var _TaskTypeValue = map[string]TaskType{
 	_TaskTypeName[47:61]: 6,
 	_TaskTypeName[61:66]: 7,
 	_TaskTypeName[66:72]: 8,
+	_TaskTypeName[72:82]: 9,
 }
 
 // ParseTaskType attempts to convert a string to a TaskType
