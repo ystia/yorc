@@ -40,7 +40,7 @@ after_success:
   - bash <(curl -s https://codecov.io/bash)
 
 before_deploy:
-  - "./build/pre_bintray_release.sh"
+  - "bash ./build/pre_bintray_release.sh"
 
 deploy:
   - provider: script
