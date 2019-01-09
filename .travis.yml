@@ -39,6 +39,9 @@ after_script:
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
+before_deploy:
+  - "./build/pre_bintray_release.sh"
+
 deploy:
   - provider: script
     script: bash deploy.sh
@@ -61,6 +64,15 @@ deploy:
       - dist/yorc-*.tgz
       - dist/yorc-server-*-distrib.zip
       - pkg/docker-ystia-yorc-*.tgz
+    skip_cleanup: true
+    on:
+      tags: true
+  
+  - provider: bintray
+    file: "build/bintray_release.json"
+    user: "stebenoist"
+    key: 
+      secure: gXwZlcsYZtbp4P/xABkXeBRHawfoUoBosS65s2fahC7xXJB3JPNsDNvvKMPz2sT4UIQ7bwsu2fJIUG3mFH2YjxvZsdKiQwNe+ghj+YpGPL6HPe08ZuxR+E84khK8zoSBtb80NdhxJvYVRJm0IaZK2dQx+BUtsSRTHNR859EdOL/MdVc0fgBRluar4jfq1MlVZH26AYZlZIdD40ZUmJXI18dsG+YSEXB+W4re5bpz5C++qdC3EiCghOPG1SOQRnMTG+6iyb3sWlyUlDfOa20uf3NPWc/pQCPRsKITenWuxd86DRYvhoknzGM4oxUtNymHv7n3fNZ/K49WDMzAhEd/kfNjOMc+CpLWtugqnSPpYIjKzDA8rMuvaIWjjgNcg6u5DV3uxohyJw/bIv23BB7i4b9C5mifymFMhkRqK01JbCMjIxRgzBspf3v3wvZrFntt2M/ic3A8BLxRLnaz76eKANlPejwhKkbvAYHqZQKQEywRyV6iKlfQjB2sbSty8bJW/vxXbigjFydIT4Af2CLzhU2XyT1vMXw8HPV1bKqJW1acpxlVDHrINcmKRhA//zEg0Z7a0fBlhmK/m5e7omrMDxxKFGDkDyKNy90WQZ+vh5Cxi2TWMs113ug/R91svAmAhUnUZV6dwx7dfxTbXVdiSxGnNbunNHNr4Pnbvdogyhk=
     skip_cleanup: true
     on:
       tags: true
