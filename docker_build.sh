@@ -75,6 +75,8 @@ if [[ "${TRAVIS}" == "true" ]]; then
     ls -lh docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
 
     if [[ -n "${TRAVIS_TAG}" ]] && [[ "${DOCKER_TAG}" != *"-"* ]] ; then
+        # temporary stop pushing on docker hub while testing
+        exit 0
         ## Push Image to the Docker hub
         docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
         docker push "ystia/yorc:${DOCKER_TAG:-latest}"
