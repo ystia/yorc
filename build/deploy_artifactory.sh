@@ -10,7 +10,7 @@ fi
 
 if [[ -n "${TRAVIS_TAG}" ]] ; then
     deploy_path="yorc-bin-release-local/ystia/yorc/dist/${TRAVIS_TAG}/{1}"
-elif [[ "${TRAVIS_PULL_REQUEST}" != "false" ]]
+elif [[ "${TRAVIS_PULL_REQUEST}" != "false" ]]; then
     deploy_path="yorc-bin-dev-local/ystia/yorc/dist/PR-${TRAVIS_PULL_REQUEST}/{1}"
 else
     deploy_path="yorc-bin-dev-local/ystia/yorc/dist/${TRAVIS_BRANCH}/{1}"
