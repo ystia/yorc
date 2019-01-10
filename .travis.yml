@@ -51,12 +51,6 @@ deploy:
       all_branches: true
     skip_cleanup: true
 
-  - provider: script
-    script: bash build/cleanup_bintray.sh
-    on:
-      all_branches: true
-    skip_cleanup: true
-
   - provider: releases
     overwrite: true
     file_glob: true

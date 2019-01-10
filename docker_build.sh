@@ -82,7 +82,8 @@ if [[ "${TRAVIS}" == "true" ]]; then
         docker tag "ystia/yorc:${DOCKER_TAG:-latest}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}"
         curl -fL https://getcli.jfrog.io | sh
         build_name="yorc-travis-ci"
-        ./jfrog rt docker-push --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" "$(cat "${rootDir}/docker-artifactory.txt")" yorc-docker-dev-local
+        ./jfrog rt c --apikey="${ARTIFACTORY_API_KEY}" --url=https://ystia.jfrog.io/ystia ystia
+        ./jfrog rt docker-push --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}" yorc-docker-dev-local
         ./jfrog rt bag "${build_name}" "${TRAVIS_BUILD_NUMBER}"
         ./jfrog rt bp "${build_name}" "${TRAVIS_BUILD_NUMBER}"
     fi
