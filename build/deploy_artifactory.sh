@@ -25,5 +25,9 @@ build_name="yorc-travis-ci"
 ./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
 # Do not publish environment variables as it may expose some secrets
 #./jfrog rt bce "${build_name}" "${TRAVIS_BUILD_NUMBER}"
+if [[ -e "${rootDir}/docker-artifactory.txt" ]] ; then
+    ./jfrog rt docker-push --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" "$(cat "${rootDir}/docker-artifactory.txt")" yorc-docker-dev-local
+fi
+
 ./jfrog rt bag "${build_name}" "${TRAVIS_BUILD_NUMBER}"
 ./jfrog rt bp "${build_name}" "${TRAVIS_BUILD_NUMBER}"

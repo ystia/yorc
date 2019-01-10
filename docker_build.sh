@@ -21,8 +21,8 @@ script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 #### Bintray Variables
 bintray_api_user="stebenoist"
-bintray_docker_registry="ystia-docker-yorc.bintray.io"
-bintray_docker_repo="ystia/yorc"
+artifactory_docker_registry="ystia-yorc-docker-dev-local.jfrog.io"
+artifactory_docker_repo="ystia/yorc"
 
 if [[ ! -e ${script_dir}/yorc ]]; then
     cd ${script_dir}
@@ -80,8 +80,7 @@ if [[ "${TRAVIS}" == "true" ]]; then
         docker push "ystia/yorc:${DOCKER_TAG:-latest}"
     else
         ## Push Image on Bintray Docker Registry
-        docker login -u ${bintray_api_user} -p $BINTRAY_API_KEY ${bintray_docker_registry}
-        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
-        docker push ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}
+        echo "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}" > ${script_dir}/docker-artifactory.txt
     fi
 fi
