@@ -133,7 +133,7 @@ These configuration values will allow you to specify:
 
 Details of these on-demand resources configuration values are provided in the Alien4Cloud
 Yorc plugin Documentation at https://yorc-a4c-plugin.readthedocs.io/en/latest/location.html.
-By example, In the :ref:`Google Configuration file example <yorc_google_example_section>`, you can see on-demand ``compute``  and ``address`` configuration values.
+For example, in the :ref:`Google Configuration file example <yorc_google_example_section>`, you can see on-demand ``compute``  and ``address`` configuration values.
 
 Once configuration settings are provided, ``yorc bootstrap`` will proceed to the
 full stack deployment, showing deployment steps progress (by default, but you can see 
