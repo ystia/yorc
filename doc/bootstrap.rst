@@ -17,7 +17,7 @@
 .. _yorc_bootstrap_section:
 
 Bootstrap a full stack installation
-==================================
+===================================
 
 The command ``yorc bootstrap`` can be used to bootstrap the full stack, from Alien4Cloud
 to Yorc and its dependencies, over different types of infrastructures, on a single node
@@ -33,7 +33,7 @@ Hosts
 The local host from where the command ``yorc bootstrap`` will be run, as well as
 remote hosts where the full stack will be deployed, should be Linux x86_64 systems
 operating with at least 2 CPUs and 4 Go of RAM.
-The booststrap was validated on CentOS 7 and Red Hat Enterprise Linux 7.5.
+The bootstrap was validated on CentOS 7 and Red Hat Enterprise Linux 7.5.
 
 Packages
 ~~~~~~~~
@@ -74,7 +74,7 @@ You are now ready to download Yorc binary, running:
 
 .. parsed-literal::
 
-    wget \https://github.com/ystia/yorc/releases/download/\ |yorc_version|\ /yorc-\ |yorc_version|\ .tgz
+    wget \https://github.com/ystia/yorc/releases/download/v\ |yorc_version|\ /yorc-\ |yorc_version|\ .tgz
     tar xzf yorc-\ |yorc_version|\ .tgz
     ./yorc bootstrap --help
 
@@ -92,8 +92,8 @@ used by the UI, and associate it to a tag (here ``a4c``) :
     $ gcloud compute firewall-rules create a4c-rule \
       --allow tcp:8088 --target-tags a4c
 
-You could then speficy this tag ``a4c`` in the compute instance to create by the
-bootstrap deployment, as it is done in the example below in  :ref:`_yorc_google_example_section`.
+You could then specify this tag ``a4c`` in the compute instance to create by the
+bootstrap deployment, as it is done in :ref:`Google Configuration file example <yorc_google_example_section>`.
 This way the created compute instance where Alien4Cloud will be deployed will
 have its port 8088 open.
 
@@ -107,7 +107,7 @@ This basic setup will then be used to bootstrap the full stack Alien4Cloud/Yorc
 and its dependencies over a selected infrastructure.
 
 You can deploy the full stack either on a single node (by default), or distributed
-on several nodes as described in :ref:`_yorc_ha_section`, using ``yorc bootstrap``
+on several nodes as described in :ref:`Run Yorc in HA mode <yorc_ha_section>`, using ``yorc bootstrap``
 command line option ``--deployment_type HA`` described below.
 
 Configuration values can be provided by the user:
@@ -126,15 +126,14 @@ These configuration values will allow you to specify:
   * Yorc configuration values, all optional, except from the path to a ssh private
     key that will be used by the local orchestrator to connect to the bootstrapped setup
   * Infrastructure configuration with required configuration values depending on
-    the infrastucture, as described at :ref:`_infrastructures_configuration_section`
+    the infrastucture, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
   * Configuration of compute Nodes to create on demand,
   * User used to connect to these compute nodes,
   * Configuration of the connection to public network created on demand.
 
 Details of these on-demand resources configuration values are provided in the Alien4Cloud
-Yorc plugin at https://yorc-a4c-plugin.readthedocs.io/en/latest/location.html and 
-the last sections below in this page provide an example of configuration for each
-infrastructure type.
+Yorc plugin Documentation at https://yorc-a4c-plugin.readthedocs.io/en/latest/location.html.
+For example, in the :ref:`Google Configuration file example <yorc_google_example_section>`, you can see on-demand ``compute``  and ``address`` configuration values.
 
 Once configuration settings are provided, ``yorc bootstrap`` will proceed to the
 full stack deployment, showing deployment steps progress (by default, but you can see 
@@ -150,7 +149,7 @@ To clean the local host setup, run:
 
 .. parsed-literal::
 
-    ./yorc bootstrap --cleanup
+    ./yorc bootstrap cleanup
 
 This will only clean the local host environment, it won't undeploy the bootstrapped
 setup installed on remote hosts. 
@@ -190,12 +189,12 @@ The following ``yorc bootstrap`` option are available:
   * ``--deployment_type`` Define deployment type: single_node or HA (default, single_node)
   * ``--follow`` Follow bootstrap deployment steps, logs, or none (default, steps)
   * ``--infrastructure`` Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool
-  * ``--jdk_download_url`` Java Development Kit download URL (default, JDK donwloaded from https://edelivery.oracle.com/otn-pub/java/jdk/)
+  * ``--jdk_download_url`` Java Development Kit download URL (default, JDK downloaded from https://edelivery.oracle.com/otn-pub/java/jdk/)
   * ``--jdk_version`` Java Development Kit version (default 1.8.0-131-b11)
   * ``--resources_zip`` Path to bootstrap resources zip file (default, zip bundled within Yorc)
   * ``--review`` Review and update input values before starting the bootstrap
   * ``--terraform_download_url`` Terraform download URL (default, Terraform version compatible with this Yorc, under https://releases.hashicorp.com/terraform/)
-  * ``--terraform_plugins_download_urls`` Terraform plugins dowload URLs (default, Terraform plugins compatible with this Yorc, under https://releases.hashicorp.com/terraform-provider-xxx/)
+  * ``--terraform_plugins_download_urls`` Terraform plugins download URLs (default, Terraform plugins compatible with this Yorc, under https://releases.hashicorp.com/terraform-provider-xxx/)
   * ``--values`` Path to file containing input values
   * ``--working_directory`` Working directory where to place deployment files (default, work)
   * ``--yorc_data_dir`` Bootstrapped Yorc Home directory (default, /var/yorc)
@@ -206,7 +205,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
 
 In addition, similarly to the configuration of infrastructures in ``yorc server``
-command described at :ref:`_infrastructures_configuration_section`, you can use options to
+command described at :ref:`Infrastructures Configuration <infrastructures_configuration>`, you can use options to
 define infrastructure and on-demand resources configuration values, for example :
 
   * ``--infrastructure_openstack_auth_url`` allows to define the authentication URL of an OpenStack infrastructure.
@@ -218,10 +217,10 @@ description files under ``bootstrap/resources/topology``, then zip the content o
 so that this zip will be used to perform the bootstrap deployment.
 
 Bootstrapping the setup using environment variables
---------------------------------------------------
+---------------------------------------------------
 
 Similarly to the configuration of ``yorc server`` through environment variables
-described at :ref:`_yorc_config_section`, the bootstrap configuration can be provided
+described at :ref:`Yorc Server Configuration <yorc_config_section>`, the bootstrap configuration can be provided
 through environment variables following the same naming rules, for example:
 
   * ``YORC_ALIEN4CLOUD_PORT`` allows to define the Alien4Cloud port
@@ -242,7 +241,7 @@ You can bootstrap the setup using a configuration file running:
     ./yorc bootstrap --values <path to configuration file> [--review]
 
 Similarly to the configuration of ``yorc server`` through a configuration file,
-described at :ref:`_yorc_config_section`, the bootstrap configuration can be provided
+described at :ref:`Yorc Server Configuration <yorc_config_section>`, the bootstrap configuration can be provided
 in a configuration file following the same naming rules for configuration variables,
 for example :
 
