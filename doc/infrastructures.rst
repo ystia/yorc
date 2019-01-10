@@ -131,10 +131,10 @@ Jobs have been modeled in Tosca and this allows Yorc to execute them, either as 
 `Singularity <https://www.sylabs.io/singularity/>`_ is a container system similar to Docker but designed to integrate well HPC environments. and let users execute a command inside a Singularity or Docker container as a job submission.
 See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
 
-Yorc support the following resources on Slurm:
+Yorc supports the following resources on Slurm:
 
-  * Node Allocations as Computes.
-  * Jobs.
+  * Node Allocations as Computes
+  * Jobs
   * Singularity Jobs.
 
 
@@ -159,9 +159,9 @@ Google Cloud Platform
 
 The Google Cloud Platform integration within Yorc is ready for production and we support the following resources:
 
-  * Computes.
-  * Persistent Disks.
-  * Virtual Private Clouds (VPC).
+  * Compute Instances
+  * Persistent Disks
+  * Virtual Private Clouds (VPC)
   * Static IP Addresses.
 
 Future work
@@ -181,7 +181,7 @@ AWS
    |dev|
 
 The AWS integration within Yorc allows to provision:
-  * Computes EC2.
+  * EC2 Compute Instances.
   * Elastic IPs.
 
 This part is ready for production but we plan to support soon the following features to make it production-ready:
@@ -207,9 +207,9 @@ OpenStack
 The `OpenStack <https://www.openstack.org/>`_ integration within Yorc is production-ready.
 Yorc is currently supporting:
 
-  * Computes.
-  * Block Storages.
-  * Virtual Networks.
+  * Compute Instances
+  * Block Storages
+  * Virtual Networks
   * Floating IPs provisioning.
 
 Future work
