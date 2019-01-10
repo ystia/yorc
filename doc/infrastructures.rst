@@ -164,6 +164,13 @@ The Google Cloud Platform integration within Yorc is ready for production and we
   * Virtual Private Clouds (VPC).
   * Static IP Addresses.
 
+Future work
+~~~~~~~~~~~
+
+It is planned to support soon the following feature:
+
+  * Cloud VPN
+
 .. _yorc_infras_aws_section:
 
 AWS
@@ -228,6 +235,14 @@ Yorc is currently supporting the following K8s resources:
   * Services.
 
 The `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`_ is also supported as a Kubernetes cluster.
+
+Future work
+~~~~~~~~~~~
+
+It is planned to support soon the following features:
+
+  * Persistent Volume Claims.
+  * StatefulSets.
 
 .. |prod| image:: https://img.shields.io/badge/stability-production%20ready-green.svg
 .. |dev| image:: https://img.shields.io/badge/stability-stable%20but%20some%20features%20missing-yellow.svg
