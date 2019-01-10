@@ -24,10 +24,10 @@ fi
 
 TAG_NAME="${TRAVIS_TAG}"
 VERSION_NAME="${TAG_NAME#v*}"
-RELEASE_DATE="$(git tag -l --format='%(creatordate:short)' ${TAG_NAME})"
+RELEASE_DATE="$(git tag -l --format='%(creatordate:short)' "${TAG_NAME}")"
 
 export TAG_NAME VERSION_NAME RELEASE_DATE
-cat "${scriptDir}/bintray_release.json.tpl" | envsubst > "${scriptDir}/bintray_release.json" 
+envsubst < "${scriptDir}/bintray_release.json.tpl" > "${scriptDir}/bintray_release.json" 
 
 echo "Resulting bintray release spec"
 cat "${scriptDir}/bintray_release.json" 

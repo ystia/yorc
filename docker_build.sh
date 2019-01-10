@@ -19,8 +19,7 @@
 
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-#### Bintray Variables
-bintray_api_user="stebenoist"
+#### Artifactory Variables
 artifactory_docker_registry="ystia-yorc-docker-dev-local.jfrog.io"
 artifactory_docker_repo="ystia/yorc"
 
@@ -80,7 +79,11 @@ if [[ "${TRAVIS}" == "true" ]]; then
         docker push "ystia/yorc:${DOCKER_TAG:-latest}"
     else
         ## Push Image on Bintray Docker Registry
-        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}
-        echo "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}" > ${script_dir}/docker-artifactory.txt
+        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}"
+        curl -fL https://getcli.jfrog.io | sh
+        build_name="yorc-travis-ci"
+        ./jfrog rt docker-push --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" "$(cat "${rootDir}/docker-artifactory.txt")" yorc-docker-dev-local
+        ./jfrog rt bag "${build_name}" "${TRAVIS_BUILD_NUMBER}"
+        ./jfrog rt bp "${build_name}" "${TRAVIS_BUILD_NUMBER}"
     fi
 fi
