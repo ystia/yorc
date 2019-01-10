@@ -21,6 +21,7 @@ Install Yorc and requirements
 
 This section describes how to install Yorc manually.
 Different ways of installing Yorc are described in other sections:
+
   * :ref:`yorc_bootstrap_section` using ``yorc bootstrap`` CLI. This will allow you deploy Yorc, its dependencies, and the UI Alien4Cloud on a given infrastructure (Google Cloud, AWS, OpenStack or Hosts Pool)
   * :ref:`yorc_docker_section`.
 
