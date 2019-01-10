@@ -21,8 +21,8 @@ curl -fL https://getcli.jfrog.io | sh
 build_name="yorc-travis-ci"
 
 ./jfrog rt c --apikey="${ARTIFACTORY_API_KEY}" --url=https://ystia.jfrog.io/ystia ystia
-./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
-./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
+./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-.*.tgz)" "${deploy_path}"
+./jfrog rt u --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" --props="artifactory.licenses=Apache-2.0" --regexp "dist/(yorc-server.*-distrib.zip)" "${deploy_path}"
 # Do not publish environment variables as it may expose some secrets
 #./jfrog rt bce "${build_name}" "${TRAVIS_BUILD_NUMBER}"
 if [[ -e "${rootDir}/docker-artifactory.txt" ]] ; then
