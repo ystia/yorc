@@ -78,13 +78,14 @@ if [[ "${TRAVIS}" == "true" ]]; then
         docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
         docker push "ystia/yorc:${DOCKER_TAG:-latest}"
     else
-        ## Push Image on Bintray Docker Registry
+        echo "${DOCKER_HUB_USER}"
+        ## Push Image on Artifact Docker Registry
         docker tag "ystia/yorc:${DOCKER_TAG:-latest}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}"
         curl -fL https://getcli.jfrog.io | sh
         build_name="yorc-travis-ci"
-        ./jfrog rt c --apikey="${ARTIFACTORY_API_KEY}" --url=https://ystia.jfrog.io/ystia ystia
+        ./jfrog rt c --user=travis --apikey="${ARTIFACTORY_API_KEY}" --url=https://ystia.jfrog.io/ystia ystia
         ./jfrog rt docker-push --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}" yorc-docker-dev-local
-        ./jfrog rt bag "${build_name}" "${TRAVIS_BUILD_NUMBER}"
+        ./jfrog rt bag "${build_name}" "${TRAVIS_BUILD_NUMBER}" "${script_dir}/.git"
         ./jfrog rt bp "${build_name}" "${TRAVIS_BUILD_NUMBER}"
     fi
 fi
