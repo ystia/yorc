@@ -24,14 +24,14 @@ Along with a Yorc release we also provide a docker image that ships Yorc and its
 This docker image is published in several ways:
 
   * A ``tgz`` version of the image is published on the `github release page <https://github.com/ystia/yorc/releases>`_ for each release.
-  
-  * Pre-release (milestone) versions and development branches are published in `bintray <https://bintray.com/ystia/yorc>`_. 
-    You can use it to pull the image directly from the docker command. 
-    For instance: ``docker pull ystia-docker-yorc.bintray.io/ystia/yorc:3.0.0-M5``   
+
+  * Pre-release (milestone) versions and development branches are published in `Artifactory <https://ystia.jfrog.io/ystia/webapp/#/artifacts/browse/tree/General/docker>`_.
+    You can use it to pull the image directly from the docker command.
+    For instance: ``docker pull ystia-docker.jfrog.io/ystia/yorc:3.0.0-M5``
 
   * Starting with Yorc 3.0 GA version are also published on `the docker hub <https://hub.docker.com/r/ystia/yorc/>`_
-    You can use it to pull the image directly from the docker command. 
-    For instance: ``docker pull ystia/yorc:3.0.0``   
+    You can use it to pull the image directly from the docker command.
+    For instance: ``docker pull ystia/yorc:3.0.0``
 
 Image components
 ----------------
@@ -42,17 +42,17 @@ S6 init system
 ~~~~~~~~~~~~~~
 
 We use the `S6 overlay for containers <https://github.com/just-containers/s6-overlay>`_ in order to
-have a minimal init system that supervise our services and 
+have a minimal init system that supervise our services and
 `reap zombies processes <https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/>`_.
 
 Consul
 ~~~~~~
 
 `Consul <https://www.consul.io/>`_ is the distributed data store for Yorc. By default it will run in an isolated server mode
-to provide a fully fonctional container out of the box. But it could be configured to connect
+to provide a fully functional container out of the box. But it could be configured to connect
 to a server and run in agent mode.
 
-The Consul binary is installed in this image as described in the 
+The Consul binary is installed in this image as described in the
 :ref:`Yorc install section<yorc_install_section>`. It is run as a user and group named ``consul``.
 Consul data directory is set by default to ``/var/consul``.
 
@@ -65,7 +65,7 @@ or use environment variables. Following special variables are recognized:
   * ``CONSUL_MODE``: if set to ``server`` or not defined then Consul will run in server mode. Any other configuration
     will lead to Consul running in agent mode.
 
-  * ``NB_CONSUL_SERVER``: allows to set the `bootstrap-expect <https://www.consul.io/docs/agent/options.html#_bootstrap_expect>`_ 
+  * ``NB_CONSUL_SERVER``: allows to set the `bootstrap-expect <https://www.consul.io/docs/agent/options.html#_bootstrap_expect>`_
     command line flag for consul. If ``CONSUL_MODE`` is ``server`` and ``NB_CONSUL_SERVER`` is not defined then it defaults to ``1``.
 
   * ``SERVERS_TO_JOIN``: allows to provide a coma-separated list of server to connects to. This works either in server or agent mode.
@@ -91,12 +91,12 @@ go-dnsmasq
 go-dnsmasq is a lightweight DNS caching server/forwarder with minimal filesystem and runtime overhead.
 It is used in this image to forward any ``*.consul`` dns request directly to Consul and forward others
 dns requests to your standard upstream dns server. This allows to support dns resolving of Consul
-services out of the box.  
+services out of the box.
 
 Ansible & Terraform
 ~~~~~~~~~~~~~~~~~~~
 
-`Ansible <https://www.ansible.com/>`_ and `Terraform <https://www.terraform.io/>`_ are installed in this image as described in the 
+`Ansible <https://www.ansible.com/>`_ and `Terraform <https://www.terraform.io/>`_ are installed in this image as described in the
 :ref:`Yorc install section<yorc_install_section>`.
 
 There is no specific configuration needed for those components.
@@ -104,7 +104,7 @@ There is no specific configuration needed for those components.
 Docker
 ~~~~~~
 
-The Docker client binary and the ``docker-py`` python library are installed in this image as described in the 
+The Docker client binary and the ``docker-py`` python library are installed in this image as described in the
 :ref:`Yorc install section<yorc_install_section>`.
 
 They are necessary to support :ref:`Orchestrator-hosted operations <tosca_orchestrator_hosted_operations>`
@@ -115,9 +115,9 @@ and configure Yorc to use this endpoint or mount the Docker socket into the cont
 
 Here is the command line that allows to mount the Docker socket into the Yorc container:
 
-.. code-block:: BASH 
+.. code-block:: BASH
 
-  # Using the --mount flag (recommended way on Docker 17.06+) 
+  # Using the --mount flag (recommended way on Docker 17.06+)
   docker run --mount "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock" ystia/yorc
   # Using the -v flag (for Docker < 17.06)
   docker run -v /var/run/docker.sock:/var/run/docker.sock ystia/yorc
@@ -125,7 +125,7 @@ Here is the command line that allows to mount the Docker socket into the Yorc co
 Yorc
 ~~~~
 
-The Yorc binary is installed in this image as described in the 
+The Yorc binary is installed in this image as described in the
 :ref:`Yorc install section <yorc_install_section>`.
 
 Yorc is run as a ``yorc`` (group ``yorc``) user. This user's home directory is
