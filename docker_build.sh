@@ -78,7 +78,6 @@ if [[ "${TRAVIS}" == "true" ]]; then
         docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
         docker push "ystia/yorc:${DOCKER_TAG:-latest}"
     else
-        echo "${DOCKER_HUB_USER}"
         ## Push Image on Artifact Docker Registry
         docker tag "ystia/yorc:${DOCKER_TAG:-latest}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}"
         curl -fL https://getcli.jfrog.io | sh
