@@ -55,10 +55,10 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	var namespaceProvided bool
 	namespaceProvidedStr, ok := action.Data["namespaceProvided"]
 	if ok {
-		b, err := strconv.ParseBool(namespaceProvidedStr);
-		if err != nil{
+		b, err := strconv.ParseBool(namespaceProvidedStr)
+		if err != nil {
 			return true, errors.New(`unable to transform namespaceProvided value to boolean`)
-		} 
+		}
 		namespaceProvided = b
 	}
 
