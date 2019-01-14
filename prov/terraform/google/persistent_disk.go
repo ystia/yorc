@@ -122,14 +122,10 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		volumeID = fmt.Sprintf("${google_compute_disk.%s.name}", persistentDisk.Name)
 	}
 
-	// Provide Consul Key for attribute volume_id
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	consulKeyVolumeID := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/volume_id"),
-		Value: volumeID}
-
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyVolumeID)
-	commons.AddResource(infrastructure, "consul_keys", persistentDisk.Name, &consulKeys)
+	// Provide output for attribute ip_address
+	volumeKey := nodeName + "-" + instanceName + "-volume"
+	commons.AddOutput(infrastructure, volumeKey, &commons.Output{Value: volumeID})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/volume_id")] = volumeKey
 	return nil
 }
 
