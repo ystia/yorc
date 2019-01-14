@@ -73,6 +73,11 @@ if [[ "${TRAVIS}" == "true" ]]; then
     docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
     ls -lh docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
 
+    if [[ "${TRAVIS_PULL_REQUEST}" != "false" ]] && [[ -z "${ARTIFACTORY_API_KEY}" ]] ; then
+        echo "Building an external pull request, artifactory publication is disabled"
+        exit 0
+    fi
+    
     if [[ -n "${TRAVIS_TAG}" ]] && [[ "${DOCKER_TAG}" != *"-"* ]] ; then
         ## Push Image to the Docker hub
         docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
