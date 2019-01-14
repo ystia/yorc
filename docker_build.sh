@@ -19,10 +19,9 @@
 
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-#### Bintray Variables
-bintray_api_user="stebenoist"
-bintray_docker_registry="ystia-docker-yorc.bintray.io"
-bintray_docker_repo="ystia/yorc"
+#### Artifactory Variables
+artifactory_docker_registry="ystia-yorc-docker-dev-local.jfrog.io"
+artifactory_docker_repo="ystia/yorc"
 
 if [[ ! -e ${script_dir}/yorc ]]; then
     cd ${script_dir}
@@ -74,14 +73,23 @@ if [[ "${TRAVIS}" == "true" ]]; then
     docker save "ystia/yorc:${DOCKER_TAG:-latest}" | gzip > docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
     ls -lh docker-ystia-yorc-${DOCKER_TAG:-latest}.tgz
 
+    if [[ "${TRAVIS_PULL_REQUEST}" != "false" ]] && [[ -z "${ARTIFACTORY_API_KEY}" ]] ; then
+        echo "Building an external pull request, artifactory publication is disabled"
+        exit 0
+    fi
+    
     if [[ -n "${TRAVIS_TAG}" ]] && [[ "${DOCKER_TAG}" != *"-"* ]] ; then
         ## Push Image to the Docker hub
         docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
         docker push "ystia/yorc:${DOCKER_TAG:-latest}"
     else
-        ## Push Image on Bintray Docker Registry
-        docker login -u ${bintray_api_user} -p $BINTRAY_API_KEY ${bintray_docker_registry}
-        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
-        docker push ${bintray_docker_registry}/${bintray_docker_repo}:${DOCKER_TAG:-latest}
+        ## Push Image on Artifact Docker Registry
+        docker tag "ystia/yorc:${DOCKER_TAG:-latest}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}"
+        curl -fL https://getcli.jfrog.io | sh
+        build_name="yorc-travis-ci"
+        ./jfrog rt c --user=travis --apikey="${ARTIFACTORY_API_KEY}" --url=https://ystia.jfrog.io/ystia ystia
+        ./jfrog rt docker-push --build-name="${build_name}" --build-number="${TRAVIS_BUILD_NUMBER}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}" yorc-docker-dev-local
+        ./jfrog rt bag "${build_name}" "${TRAVIS_BUILD_NUMBER}" "${script_dir}"
+        ./jfrog rt bp "${build_name}" "${TRAVIS_BUILD_NUMBER}"
     fi
 fi

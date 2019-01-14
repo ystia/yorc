@@ -100,16 +100,18 @@ if [[ "develop" == "${branch}" ]] && [[ -z "${prerelease}" ]]; then
     # create release branch
     releaseBranch="release/${major}.${minor}"
     git checkout -b "${releaseBranch}"
+    sed -i -e "s@svg?branch=[^)]*@svg?branch=${releaseBranch}@g" README.md
+    git commit -m "Update travis links in readme for release ${version}" README.md
 fi
 
 # Now checks are passed then tag, build, release and cleanup :)
 cherries=()
 # Update changelog Release date
-if [[ -e CHANGELOG.md ]]; then
-    sed -i -e "s/^## UNRELEASED.*$/## ${version} ($(LC_ALL=C date +'%B %d, %Y'))/g" CHANGELOG.md
-    git commit -m "Update changelog for release ${version}" CHANGELOG.md
-    cherries+=("$(git log -1 --pretty=format:"%h")")
-fi
+sed -i -e "s/^## UNRELEASED.*$/## ${version} ($(LC_ALL=C date +'%B %d, %Y'))/g" CHANGELOG.md
+# Update readme for Release number
+sed -i -e "s@download.svg?version=[^)]*@download.svg?version=${version}@g" -e "s@distributions/[^/]*/link@distributions/${version}/link@g" README.md
+git commit -m "Update changelog and readme for release ${version}" CHANGELOG.md README.md
+cherries+=("$(git log -1 --pretty=format:"%h")")
 
 if [[ -e versions.yaml ]]; then
     # Update version
@@ -119,12 +121,10 @@ fi
 
 git tag -a v${version} -m "Release tag v${version}"
 
-# Update changelog Release date
-if [[ -e CHANGELOG.md ]]; then
-    sed -i -e "2a## UNRELEASED\n" CHANGELOG.md
-    git commit -m "Update changelog for future release" CHANGELOG.md
-    cherries+=("$(git log -1 --pretty=format:"%h")")
-fi
+# Update changelog for future release
+sed -i -e "2a## UNRELEASED\n" CHANGELOG.md
+git commit -m "Update changelog for future release" CHANGELOG.md
+cherries+=("$(git log -1 --pretty=format:"%h")")
 
 if [[ -e versions.yaml ]]; then
     # Update version
@@ -177,15 +177,6 @@ if [[ -z "${prerelease}" ]]; then
 
     fi
 fi
-
-
-####################################################
-# Make our build
-####################################################
-#echo "Building version v${version}"
-#git checkout "v${version}"
-#make tools || { exit 2; }
-#SKIP_TESTS=1 make dist || { exit 2; }
 
 # Push changes
 if [ "${dryRun}" = false ] ; then

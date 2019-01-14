@@ -9,14 +9,14 @@ services:
 
 env:
   global:
-    # Code climate key
+    # Code climate key (CC_TEST_REPORTER_ID)
     - secure: iyv/cQh7z/PjRyEySKELsd3L69AdRVlCnZrtozvM/Z+poeSnGtQIRLWgOw/Pe5ueNa/v7Wq2BKw1DHeTrgSnvNNt/uoTUWLY5UcHkPHQYm67DeB7CffSELgr8l6K7eBOqTn2Hu6mzPlmU6l3v8CBHg8uSJT6wv/XKqn2Ut74OBA7wCYRQyEXcnr26C7ytnN/XaaR/RPzXYyxoB6/l6aH1/PK9rt+btdBu4TPo5zZm6KVA8pp85KG7xfGjq6kNG+kDwFiaj6/DJmnxYKxsiyv/AsEtLmElxGKQQqCnOefbNwqSsdYDDqy5AikZ+ZfJQLRrLJzcHDzgREaiPCF0QVfGttcuX5AXpPkrBlKeixku91Dir4hebYAN7SWWwKktu8hqKTtQjc8eJMEbQVKTtk3yeRKqC4I8lUK6TBrJA7tnQpgq8w67Vm81P18UPPjKm6Wf6aCJEKSvrnVSwLvIrEN8q/ybrCupvvcze0l9nsQhJG/79BQX31mjZkqT9MdskgYgD3wrB2LexLYkw4BeyKOV1/fTyz7q82ocfEdNMHTnPKD4B2bXtl1Alx8wluIFjwOvy8QZ9Hopz+cNnfN/dOJcQn7hPQbjqIP7uumUTP2vVk3mtwPDKLYqfCeO1ZLwHClXog6Q2k8gb6mkEfVx6ygq/JxM5LkSnTdfyowLLTp7W0=
-    # Bintray key
-    - secure: gXwZlcsYZtbp4P/xABkXeBRHawfoUoBosS65s2fahC7xXJB3JPNsDNvvKMPz2sT4UIQ7bwsu2fJIUG3mFH2YjxvZsdKiQwNe+ghj+YpGPL6HPe08ZuxR+E84khK8zoSBtb80NdhxJvYVRJm0IaZK2dQx+BUtsSRTHNR859EdOL/MdVc0fgBRluar4jfq1MlVZH26AYZlZIdD40ZUmJXI18dsG+YSEXB+W4re5bpz5C++qdC3EiCghOPG1SOQRnMTG+6iyb3sWlyUlDfOa20uf3NPWc/pQCPRsKITenWuxd86DRYvhoknzGM4oxUtNymHv7n3fNZ/K49WDMzAhEd/kfNjOMc+CpLWtugqnSPpYIjKzDA8rMuvaIWjjgNcg6u5DV3uxohyJw/bIv23BB7i4b9C5mifymFMhkRqK01JbCMjIxRgzBspf3v3wvZrFntt2M/ic3A8BLxRLnaz76eKANlPejwhKkbvAYHqZQKQEywRyV6iKlfQjB2sbSty8bJW/vxXbigjFydIT4Af2CLzhU2XyT1vMXw8HPV1bKqJW1acpxlVDHrINcmKRhA//zEg0Z7a0fBlhmK/m5e7omrMDxxKFGDkDyKNy90WQZ+vh5Cxi2TWMs113ug/R91svAmAhUnUZV6dwx7dfxTbXVdiSxGnNbunNHNr4Pnbvdogyhk=
-    # Docker hub key
+    # Docker hub key (DOCKER_HUB_USER)
     - secure: j6S26JA04B+6bwr6detZauFu/UVPwmPhWvEcbVfNhvnNX3YKma8D2X9hvE6jDUOKeapiE/UsCHVgg8GFyPGu4M0ixUXUmu7HPNHFQ2x4a0tDgTyu0p9im5fPeJv4qbV+ORuE4Kvg54ZaZec3iBN94MegPVISpme86pMKdJui0cMEy/YPMUd1sh13h95WkESAshJd0n5AHO4xwD0NJjCK2waoA6ygvcwXhIpfTc9HsNgs6S8WVpRAfjkTj7+VGjoXTqov5g9d6SxBYvcJI/iBa0KgY7LhBRiC6AsE2WowVZeGDpnvL1nFsA2DQKcCC6Tv4VlP7jcyZMWcnELn8n6ucsHzT52bEhGu60KtZc5eohqW/1Ejb0riHvEJQMy875keBwIjuzERgxRaKEVGPQ3nZFu/rjEjHZSm0qi9+usb/vBcdKeu9fgjBeEDIkL5bE632P379VLI1bzzQS+dt+sPw1gqqDP+FJ1nED5r3g4zSPh4WqXAz4ohrX8CCqbxpy+Wjirer/yc7S+Bqx/iI2gKjdb6kwy1xePobFJyAMlOyHrwh5Tb6K23wJqVMoHL5mqG0Ent/3iXmvRS6PxsxwNPscyATUbazyGwXMj4oMWzcfs7yf0ADy/nbZLYUPVfHuysRZ6LAjptn+V8bdJ9A0rQmFUFDcP6VmMidxRlTcHR8yA=
-    # Docker hub key (why 2???)
+    # Docker hub key (DOCKER_HUB_PASS)
     - secure: RynCQ7vWsIJUWVYWphTHRY0pI8b4EZVksaE6w8ghiFSvCzb6nvzGDkOafCXz7S9i1iWTOSPpnCW4Q977JKDxa8Godp1xuP8oWn1AmJpPltk/Wbc5qvLsAhIomXe9BDIzG90YDw7vQu5kjh+tbBhbnoKI7BM5BJ8r1oaHL3Vf7ooGWHI2NaEVnRQMNRij5OUSlRroy9bpeeJqibQBEzuPlb6Lsp4Vx4YWfsWpvhBgWzPyppYuMHQgA3tg7DlWeYL2NPgOOfr28VH8BHTUiCY/dO5BL4tGoM2C9xqUv1K2QOj1MXWkE3mjhOdSWgHMPx62ZBLgfbSBWflmLlnCZ9wMmrxIK3UKTSluMqRrQKTjp+e80cw287mRAQhj68XtELLQ3Pw3RobuEY0wnXkCvAkW+N2OPyq7/DK564ZHpkyuRMVibbmMP20EOoKG525WFM+WiZT8CSLwrY7BiP+1zurxnM1Bf6Zpte1ikHlHK7zJfZWPzvusMVoJGPfLlAF5KiG8RPzIRDAKqxtery+3JxBcqDeBeVh/3l1HrCgYkLKO/Bd41U2hSfqKPOWFBSV29n2m1K/m3RtgYc0r0M247uGZ+PGJzAZe/qXQoQJgW8OAoOFx/cFpqBI5rEIGbPjyX/ypFckcs3Vn2uQ430agsMcWj0rzfvVKKZS4Co4FcYp3OJw=
+    # ARTIFACTORY_API_KEY
+    - secure: "Zt5jCb10K4mnjqL0Bx5pR+qvexrLDz3nIk/IaOjL+QfHQI5w3uXv9qc+ultgsYpdT4ORmN235kJia294UTa+N/F/aJwCS4y+gBlssDkABz0D2/dSSK9iMjdUxyv2lg4NT6yUzefYI+nWziJqhVDg3tgcxy61ENn2c+AWHeEYrRyfgbuvehuyl56ZKggJe1WJkaHSRd1UVc/7i/pPo2nomaaWF8jjDxcqlIiV1onqVzb5p/79psuFZyHKH9Xr59lNsLDPEunyXQu0U8Y3ivV4gCL2+GyiZz7INpPemu5IQtA2luViepJcyRWAZOitL+vTScJgeV4k/OKZWHtNAspH4aiRFc3xVV0xe8itoHvnRN4IMJtEAqD4ODZ1XEyGovUkozoLLTfM20fXfLujLT+g9EjtmSWFap5CdvELs2foPYyiKjx2tB35Km/Pg9DgTMn5lsjMNPOm9N6QhHYCrMm095CceYHFZsfqIfONLJSd5RssnNrScsqGbS5BqKuqza8ffH6BvdoBwJauJwGvSBakaOpEtkCs+Sl4RVCtajTPMG/KgatCUk0HJELIUJyj83LpTUA8K85WcTh8dYb/0K2Lo5TU4Hd9pa8u3KbHtf3CVEmxIaece7rDiwuzQK0DTB4E599u5FJiG7tPaMG+Hvll98cn1czcqlYSU6jgn/nTeC8="
 
 install:
   - make tools
@@ -32,6 +32,7 @@ script:
   - TESTARGS="-coverprofile coverage.txt" make dist
   - cp coverage.txt c.out
   - "./docker_build.sh"
+  -  bash build/deploy_artifactory.sh
 
 after_script:
   - "./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT"
@@ -39,28 +40,15 @@ after_script:
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
+before_deploy:
+  - "bash ./build/pre_bintray_release.sh"
+
 deploy:
-  - provider: script
-    script: bash deploy.sh
-    on:
-      all_branches: true
-    skip_cleanup: true
-
-  - provider: script
-    script: bash build/cleanup_bintray.sh
-    on:
-      all_branches: true
-    skip_cleanup: true
-
-  - provider: releases
-    overwrite: true
-    file_glob: true
-    api_key:
-      secure: N4G6gM4QaEUNn0DqgLazDeUh99VZzoKhbUF/v3sqvQLBLAQqL7k6pCfocuv8lLjhP4W1Xp+KpvUPC3jm8cWVApyuw0Ye9N4RBmpMNueujBO16beXXQf9oRWSCK7l9gcT++RjgIZNErcImQ99qObNB22XWzgVxvgRrqrsom+48qW/Vznh03Euv20xDBp96fvBkoTWKWW4nWZWg6sNx26c23vNZRPv49/sxa5brVdod7HD5x0QB3ZjeiChUQV7nOVfGJRtHiQuBZYGNOzStYUiLXClTB4xO5dywJ31pwLMJaOk2qLosHw+Kng5z1BghwzCfPhzMmJwVXdhUDqaVoXDRYMIHRyQFP48l3mYq0pw66JyoWyS82TnVjF4xvhbvUh7VW76kJWA15tyyM6kQ12o/14YG6GNgKp/qwRaTl5OiyH7G+8mt6ifHH/SIMkfpWQp4kTx4fHgrC6OYTuQe0YIvHt7SxRBAEXfj2wlosK7aLLzQ8OrVga/FDri85LfONE4U7anxpoDjAn8IzZrp2hFDyvZd6S7v7f6IusE0QJhSqDT1hsP9OTeKyrZSHYy9pVaZbmPKvmoz/xhx2hSEaa5gVACuPNMEfcy401SLunvrQqWQQq+qFdpTFRwCNtldWOJZeJlECZmJfz8CKbvYtJFixp+YvyjXzviO9RV83ZcY1U=
-    file:
-      - dist/yorc-*.tgz
-      - dist/yorc-server-*-distrib.zip
-      - pkg/docker-ystia-yorc-*.tgz
+  - provider: bintray
+    file: "build/bintray_release.json"
+    user: "loicalbertin"
+    key: 
+      secure: "qC48VD6cU2jxx1Px+jsu3s3D7Qz9dAMSrNwLEoV4h+qG0TYR/2qLuHQIWj4amO4aLXjDQKxg8YcUb5Z63a8AKDoaXH5kiWoYt3+zNj0Sv5C9kv+/DqA4T/G63mOZXxbDkD/3WYxslZhnB4R4/qMhK+yyZNRp7BmuO1IDj320fTyZqBd4ZoHM29ihOHIr/+GRENXY+VSHFvyiZ7JMOiUwWVyR/8miBaNLblQqU5vTy0HdJmuJD4jlNaS68pnvuhSnIGuVHuYbdo9BOHemw1XYCt7T3te8C1CkMk9eGhuBlhxlFDZeKInqioaquoD7dcz7kw1tvfD5kM/XrZ4fw+E2yOP3ZY9bIkHzh9kFh+mknT3VHQ7K8BWT5OPHLoFmTtdld9q96PRVvBQMiBssckBqnxD/MFiym/498L4nN7R6E4yydkHeH9RWkPn7LMjfGJl/GbkThGXg4aViNbs0a9XpVGl+TcKKY7zZdh+Wj/OvEHZZbpmm44EcnMcyE04AMyhgVqEipB61FhIMDXWwlQRJX0wF+YKMJo0BfDjU2YEeNYL87bhslQQf4z46ZHL9EAAaqq74r5KI6ivvLK8hYpYRSkS0l3DOmNunbnfw38MxHNTZUMer7pD8quRhdHCBiSwPbj/FIKeY4/Ujt66evkASqEkKR20y1MYmE3N1VI0DusE="
     skip_cleanup: true
     on:
       tags: true
