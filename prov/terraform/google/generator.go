@@ -76,7 +76,12 @@ func (g *googleGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg
 	infrastructure.Terraform = map[string]interface{}{
 		"backend": map[string]interface{}{
 			"consul": map[string]interface{}{
-				"path": terraformStateKey,
+				"path":      terraformStateKey,
+				"address":   consulAddress,
+				"scheme":    consulScheme,
+				"ca_file":   consulCA,
+				"cert_file": consulCert,
+				"key_file":  consulKey,
 			},
 		},
 	}
