@@ -177,6 +177,10 @@ func SetInstanceAttributeComplex(deploymentID, nodeName, instanceName, attribute
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	storeComplexType(store, attrPath, attributeValue)
+	err := publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, attributeName, attributeValue)
+	if err != nil {
+		return err
+	}
 	return errGrp.Wait()
 }
 
@@ -200,6 +204,19 @@ func SetAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, attr
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		storeComplexType(store, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
+		err = publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, attributeName, attributeValue)
+		if err != nil {
+			return err
+		}
 	}
 	return errGrp.Wait()
+}
+
+func publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
+	sValue, ok := attributeValue.(string)
+	if ok {
+		_, err := events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, sValue)
+		return err
+	}
+	return nil
 }

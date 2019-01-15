@@ -29,6 +29,29 @@ import (
 	"strings"
 )
 
+// PublishAndLogAttributeValueChange publishes a value change for a given attribute instance of a given node and log this change into the log API
+//
+// PublishAndLogAttributeValueChange returns the published event id
+func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeName, instance, attributeName, value string) (string, error) {
+	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
+
+	info := make(Info)
+	info[ENodeID] = nodeName
+	info[EInstanceID] = instance
+	info[EAttributeName] = attributeName
+	info[EAttributeValue] = value
+	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, "Updated")
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
+	if err != nil {
+		return "", err
+	}
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Attribute value for node %q, instance %q changed to %q", nodeName, instance, value)
+	return id, nil
+}
+
 // InstanceStatusChange publishes a status change for a given instance of a given node
 //
 // InstanceStatusChange returns the published event id

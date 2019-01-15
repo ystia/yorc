@@ -239,18 +239,10 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		return err
 	}
 
-	// Provide Consul Keys
-	//consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	//
 	// Define the private IP address using the value exported by Terraform
 	privateIP := fmt.Sprintf("${google_compute_instance.%s.network_interface.0.address}",
 		instance.Name)
 
-	//consulKeyPrivateAddr := commons.ConsulKey{
-	//	Path:  path.Join(instancesKey, instanceName, "/attributes/private_address"),
-	//	Value: privateIP}
-	//
-	//consulKeys.Keys = append(consulKeys.Keys, consulKeyPrivateAddr)
 	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
 	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: privateIP})
 	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey

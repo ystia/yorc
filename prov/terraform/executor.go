@@ -36,6 +36,7 @@ import (
 	"github.com/ystia/yorc/prov/terraform/commons"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
+	"regexp"
 )
 
 type defaultExecutor struct {
@@ -220,6 +221,11 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
 		}
 		store.StoreConsulKeyAsString(outPath, output.Value)
+
+		err = publishAttributeOutputs(ctx, outPath, output.Value)
+		if err != nil {
+			return errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", outPath, output.Value)
+		}
 	}
 
 	return errGrp.Wait()
@@ -241,6 +247,10 @@ func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, inf
 			_, err = kv.Put(&api.KVPair{Key: k, Value: []byte(contentStr)}, nil)
 			if err != nil {
 				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
+			}
+			err = publishAttributeOutputs(ctx, k, contentStr)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", k, contentStr)
 			}
 		} else {
 			filteredOutputs[k] = v
@@ -296,4 +306,20 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 // in commands if duplicates only the last one is taken into account
 func mergeEnvironments(env []string) []string {
 	return append(os.Environ(), env...)
+}
+
+// Check if the output path is attribute as: _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
+// or capability attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/capabilities/(/*)*/attributes/<ATTRIBUTE_NAME>
+// or relationship attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/relationship_instances/<NODE_NAME>/<REQUIREMENT_INDEX>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
+// Publish attribute value change event if it is
+func publishAttributeOutputs(ctx context.Context, outputPath, outputValue string) error {
+	if strings.Contains(outputPath, "/attributes/") {
+		match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
+		if match != nil && len(match) == 4 {
+			_, err := events.PublishAndLogAttributeValueChange(ctx, match[0], match[1], match[2], match[3], outputValue)
+			return err
+		}
+
+	}
+	return nil
 }
