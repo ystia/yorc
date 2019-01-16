@@ -40,7 +40,7 @@ func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeNa
 	info[EInstanceID] = instance
 	info[EAttributeName] = attributeName
 	info[EAttributeValue] = value
-	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, "Updated")
+	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, "updated")
 	if err != nil {
 		return "", err
 	}

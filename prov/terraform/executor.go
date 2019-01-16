@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"path"
 
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -222,7 +223,7 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 		}
 		store.StoreConsulKeyAsString(outPath, output.Value)
 
-		err = publishAttributeOutputs(ctx, outPath, output.Value)
+		err = publishAttributeOutputsEvents(ctx, outPath, output.Value)
 		if err != nil {
 			return errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", outPath, output.Value)
 		}
@@ -248,7 +249,7 @@ func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, inf
 			if err != nil {
 				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 			}
-			err = publishAttributeOutputs(ctx, k, contentStr)
+			err = publishAttributeOutputsEvents(ctx, k, contentStr)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", k, contentStr)
 			}
@@ -308,18 +309,66 @@ func mergeEnvironments(env []string) []string {
 	return append(os.Environ(), env...)
 }
 
-// Check if the output path is attribute as: _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
-// or capability attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/capabilities/(/*)*/attributes/<ATTRIBUTE_NAME>
-// or relationship attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/relationship_instances/<NODE_NAME>/<REQUIREMENT_INDEX>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
-// Publish attribute value change event if it is
-func publishAttributeOutputs(ctx context.Context, outputPath, outputValue string) error {
+// Publish attribute value change event if it's an output path
+func publishAttributeOutputsEvents(ctx context.Context, outputPath, outputValue string) error {
+	log.Debugf("outputPath=%q, outputValue=%q", outputPath, outputValue)
 	if strings.Contains(outputPath, "/attributes/") {
-		match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
-		if match != nil && len(match) == 4 {
-			_, err := events.PublishAndLogAttributeValueChange(ctx, match[0], match[1], match[2], match[3], outputValue)
-			return err
+		attrInfo := retrieveAttributeInfo(outputPath)
+		if attrInfo == nil {
+			return errors.Errorf("failed to retrieve attribute information with output path;%q", outputPath)
 		}
+		_, err := events.PublishAndLogAttributeValueChange(ctx, attrInfo.deploymentID, attrInfo.nodeName, attrInfo.instanceName, attrInfo.attributeName, outputValue)
+		return err
+	}
+	return nil
+}
 
+type attrInfo struct {
+	deploymentID  string
+	nodeName      string
+	instanceName  string
+	attributeName string
+}
+
+// Return attribute information from output path for:
+// - instance attribute:     _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
+// - capability attribute:   _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/capabilities/(/*)*/attributes/<ATTRIBUTE_NAME>
+// - relationship attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/relationship_instances/<NODE_NAME>/<REQUIREMENT_INDEX>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
+func retrieveAttributeInfo(outputPath string) *attrInfo {
+	// Find instance attribute path
+	match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
+	log.Printf("match1=%+v", match)
+	if match != nil && len(match) == 5 {
+		return &attrInfo{
+			deploymentID:  match[1],
+			nodeName:      match[2],
+			instanceName:  match[3],
+			attributeName: match[4],
+		}
+	}
+
+	// Find capabilities instance attribute path
+	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/capabilities/([/0-9a-zA-Z]+)/attributes/(\\w+)").FindStringSubmatch(outputPath)
+	log.Printf("match2=%+v", match)
+	if match != nil && len(match) == 6 {
+		return &attrInfo{
+			deploymentID:  match[1],
+			nodeName:      match[2],
+			instanceName:  match[3],
+			attributeName: fmt.Sprintf("capabilities/%s/%s", match[4], match[5]),
+		}
+	}
+
+	// Find relationship instance attribute path
+	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/relationship_instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
+	log.Printf("match3=%+v", match)
+	if match != nil && len(match) == 6 {
+		return &attrInfo{
+			deploymentID:  match[1],
+			nodeName:      match[2],
+			instanceName:  match[4],
+			attributeName: fmt.Sprintf("relationships/%s", match[5]),
+		}
 	}
 	return nil
 }
