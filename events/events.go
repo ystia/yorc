@@ -32,12 +32,12 @@ import (
 // PublishAndLogAttributeValueChange publishes a value change for a given attribute instance of a given node and log this change into the log API
 //
 // PublishAndLogAttributeValueChange returns the published event id
-func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeName, instance, attributeName, value string) (string, error) {
-	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instance})
+func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, attributeName, value string) (string, error) {
+	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instanceName})
 
 	info := make(Info)
 	info[ENodeID] = nodeName
-	info[EInstanceID] = instance
+	info[EInstanceID] = instanceName
 	info[EAttributeName] = attributeName
 	info[EAttributeValue] = value
 	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, "updated")
@@ -48,8 +48,21 @@ func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeNa
 	if err != nil {
 		return "", err
 	}
-	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Attribute value for node %q, instance %q changed to %q", nodeName, instance, value)
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Attribute value for node %q, instance %q changed to %q", nodeName, instanceName, value)
 	return id, nil
+}
+
+// PublishAndLogAttributeValueChange publishes a map attribute/value change for a given attribute instance of a given node and log this change into the log API
+//
+// PublishAndLogAttributeValueChange returns the published event id
+func PublishAndLogMapAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName string, attributesValues map[string]string) error {
+	for attr, attrVal := range attributesValues {
+		_, err := PublishAndLogAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attr, attrVal)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // InstanceStatusChange publishes a status change for a given instance of a given node

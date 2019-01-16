@@ -33,6 +33,10 @@ func SetInstanceStateStringWithContextualLogs(ctx context.Context, kv *api.KV, d
 		return errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
 	_, err = events.PublishAndLogInstanceStatusChange(ctx, kv, deploymentID, nodeName, instanceName, state)
+	if err != nil {
+		return err
+	}
+	err = publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, "state", state)
 	return err
 }
 
