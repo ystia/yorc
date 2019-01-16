@@ -52,9 +52,8 @@ func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeNa
 	return id, nil
 }
 
-// PublishAndLogAttributeValueChange publishes a map attribute/value change for a given attribute instance of a given node and log this change into the log API
-//
-// PublishAndLogAttributeValueChange returns the published event id
+// PublishAndLogMapAttributeValueChange publishes a map attribute/value change for a given attribute instance of a given node and log this change into the log API
+// This function doesn't return any published event id
 func PublishAndLogMapAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName string, attributesValues map[string]string) error {
 	for attr, attrVal := range attributesValues {
 		_, err := PublishAndLogAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attr, attrVal)
