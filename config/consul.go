@@ -15,11 +15,12 @@
 package config
 
 import (
+	"sync"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/log"
-	"sync"
-	"time"
 )
 
 var consulClient *api.Client
@@ -45,7 +46,7 @@ func (cfg Configuration) buildConsulClientInstance() (*api.Client, error) {
 	consulCustomConfig.Transport.MaxIdleConnsPerHost = cfg.Consul.PubMaxRoutines
 	consulCustomConfig.Transport.MaxIdleConns = cfg.Consul.PubMaxRoutines
 	consulCustomConfig.Transport.IdleConnTimeout = 10 * time.Second
-	log.Debugf("consul http Transport config: %+v", consulCustomConfig.Transport)
+	consulCustomConfig.Transport.TLSHandshakeTimeout = 50 * time.Second
 	if cfg.Consul.Address != "" {
 		consulCustomConfig.Address = cfg.Consul.Address
 	}
@@ -73,6 +74,7 @@ func (cfg Configuration) buildConsulClientInstance() (*api.Client, error) {
 	if !cfg.Consul.SSLVerify {
 		consulCustomConfig.TLSConfig.InsecureSkipVerify = true
 	}
+	log.Debugf("consul http Transport config: %+v", consulCustomConfig.Transport)
 	client, err := api.NewClient(consulCustomConfig)
 	return client, errors.Wrapf(err, "Failed to connect to consul %q", cfg.Consul.Address)
 }
