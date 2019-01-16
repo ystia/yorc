@@ -11,7 +11,7 @@ anyways. The worst that can happen is that you'll be politely asked to change so
 
 ## How to build Yorc from source
 
-Go 1.9+ is required. The easiest way to install it to follow [the official guide](https://golang.org/doc/install)
+Go 1.11+ is required. The easiest way to install it to follow [the official guide](https://golang.org/doc/install)
 
 Here is how to install and setup the Yorc project:
 

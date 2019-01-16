@@ -41,7 +41,7 @@ Hosts management
 ~~~~~~~~~~~~~~~~
 
 Yorc comes with a REST API that allows to manage hosts in the pool and to easily integrate it with other systems. The Yorc CLI leverage this REST API 
-to make it user friendly, please refer to :ref:`yorc_cli_hostspool_section` for more informations
+to make it user friendly, please refer to :ref:`yorc_cli_hostspool_section` for more information
 
 Hosts Pool labels & filters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -124,7 +124,19 @@ Slurm
 `Slurm <https://slurm.schedmd.com/>`_ is an open source, fault-tolerant, and highly scalable cluster management and job scheduling system for large and small Linux clusters.
 It is wildly used in High Performance Computing and it is the default scheduler of the `Bull Super Computer Suite <https://atos.net/en/products/high-performance-computing-hpc>`_ .
 
-Yorc interacts with Slurm to allocate nodes on its cluster.
+Yorc interacts with Slurm to allocate nodes on its cluster but also to run Slurm jobs.
+
+Jobs have been modeled in Tosca and this allows Yorc to execute them, either as simple jobs or as ``Singularity`` jobs.
+
+`Singularity <https://www.sylabs.io/singularity/>`_ is a container system similar to Docker but designed to integrate well HPC environments. and let users execute a command inside a Singularity or Docker container as a job submission.
+See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
+
+Yorc supports the following resources on Slurm:
+
+  * Node Allocations as Computes
+  * Jobs
+  * Singularity Jobs.
+
 
 Resources based scheduling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -136,13 +148,6 @@ across several deployments. If not specified a whole compute node will be alloca
 Yorc also support `Slurm GRES <https://slurm.schedmd.com/gres.html>`_ based scheduling. This is generally used to request a host with a specific type of resource (consumable or not) 
 such as GPUs.
 
-Future work
-~~~~~~~~~~~
-
-  * We plan to soon work on modeling Slurm Jobs in TOSCA and execute them thanks to Yorc.
-  * We also plan to support `Singularity <http://singularity.lbl.gov/>`_ , a container system similar to Docker but designed to integrate well HPC environments.
-    This feature, as it will leverage some Bull HPC proprietary integration with Slurm, will be part of a premium version of Yorc.
-
 .. _yorc_infras_google_section:
 
 Google Cloud Platform
@@ -150,22 +155,21 @@ Google Cloud Platform
 
 .. only:: html
 
-   |dev|
+   |prod|
 
-The Google Cloud Platform integration within Yorc allows to provision Compute nodes on top of `Google Compute Engine <https://cloud.google.com/compute/>`_.
-This part is ready for production.
+The Google Cloud Platform integration within Yorc is ready for production and we support the following resources:
 
-It is planned to support soon the following features and have them production-ready:
-
-  * Persistent Disks provisioning
-  * Virtual Private Cloud Networks provisioning 
+  * Compute Instances
+  * Persistent Disks
+  * Virtual Private Clouds (VPC)
+  * Static IP Addresses.
 
 Future work
 ~~~~~~~~~~~
 
-The following feature is planned to be supported in a next release:
+It is planned to support soon the following feature:
 
-  * `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`_ to deploy containers
+  * Cloud VPN
 
 .. _yorc_infras_aws_section:
 
@@ -176,11 +180,14 @@ AWS
 
    |dev|
 
-The AWS integration within Yorc allows to provision Compute nodes and Elastic IPs on top of `AWS EC2 <https://aws.amazon.com/ec2/>`_ this part is ready for production
-but we plan to support soon the following features to make it production-ready:
+The AWS integration within Yorc allows to provision:
+  * EC2 Compute Instances.
+  * Elastic IPs.
 
-  * Support Elastic Block Store provisioning
-  * Support Networks provisioning with Virtual Private Cloud
+This part is ready for production but we plan to support soon the following features to make it production-ready:
+
+  * Elastic Block Store provisioning
+  * Networks provisioning with Virtual Private Cloud
 
 Future work
 ~~~~~~~~~~~
@@ -197,8 +204,13 @@ OpenStack
 
    |prod|
 
-The `OpenStack <https://www.openstack.org/>`_ integration within Yorc is production-ready. We support Compute, Block Storage, Virtual Networks and Floating IPs
-provisioning.
+The `OpenStack <https://www.openstack.org/>`_ integration within Yorc is production-ready.
+Yorc is currently supporting:
+
+  * Compute Instances
+  * Block Storages
+  * Virtual Networks
+  * Floating IPs provisioning.
 
 Future work
 ~~~~~~~~~~~
@@ -213,9 +225,24 @@ Kubernetes
 
 .. only:: html
    
-   |incubation|
+   |prod|
 
-Kubernetes support is in a kind of Proof Of Concept phase for now. We are currently working on a total refactoring of this part.
+The `Kubernetes <https://kubernetes.io/>`_ integration within Yorc is now production-ready.
+Yorc is currently supporting the following K8s resources:
+
+  * Deployments.
+  * Jobs.
+  * Services.
+
+The `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`_ is also supported as a Kubernetes cluster.
+
+Future work
+~~~~~~~~~~~
+
+It is planned to support soon the following features:
+
+  * Persistent Volume Claims.
+  * StatefulSets.
 
 .. |prod| image:: https://img.shields.io/badge/stability-production%20ready-green.svg
 .. |dev| image:: https://img.shields.io/badge/stability-stable%20but%20some%20features%20missing-yellow.svg
