@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
+
 ## 3.1.0 (December 20, 2018)
 
 ### BUG FIXES
