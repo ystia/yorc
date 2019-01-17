@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/log"
@@ -30,6 +31,8 @@ const (
 	DefaultSSHPrivateKeyFilePath = "~/.ssh/yorc.pem"
 	// NullPluginVersionConstraint is the Terraform null plugin version constraint
 	NullPluginVersionConstraint = "~> 1.0"
+	// DefaultConsulProviderAddress is Default Address to use  for Terraform Consul Provider
+	DefaultConsulProviderAddress = "127.0.0.1:8500"
 )
 
 // An Infrastructure is the top-level element of a Terraform infrastructure definition
@@ -206,4 +209,59 @@ func GetSSHAgent(ctx context.Context, privateKey string) (*sshutil.SSHAgent, err
 		return nil, err
 	}
 	return sshAgent, nil
+}
+
+// GetBackendConfiguration returns the Terraform Backend configuration
+// to store the state in the Consul KV store at a given path
+func GetBackendConfiguration(path string, cfg config.Configuration) map[string]interface{} {
+
+	consulAddress := DefaultConsulProviderAddress
+	if cfg.Consul.Address != "" {
+		consulAddress = cfg.Consul.Address
+	}
+	consulScheme := "http"
+	if cfg.Consul.SSL {
+		consulScheme = "https"
+	}
+
+	log.Debugf("Terraform Consul backend configuration address %s", consulAddress)
+	log.Debugf("Terraform Consul backend configuration scheme %s", consulScheme)
+	log.Debugf("Terraform Consul backend configuration use ca file %s", cfg.Consul.CA)
+	log.Debugf("Terraform Consul backend configuration cert file %s", cfg.Consul.Key)
+	log.Debugf("Terraform Consul backend configuration key file %s", cfg.Consul.Cert)
+
+	return map[string]interface{}{
+		"backend": map[string]interface{}{
+			"consul": map[string]interface{}{
+				"path":      path,
+				"address":   consulAddress,
+				"scheme":    consulScheme,
+				"ca_file":   cfg.Consul.CA,
+				"cert_file": cfg.Consul.Cert,
+				"key_file":  cfg.Consul.Key,
+			},
+		},
+	}
+}
+
+// GetConsulProviderfiguration returns the Terraform Consul Provider configuration
+func GetConsulProviderfiguration(cfg config.Configuration) map[string]interface{} {
+
+	consulAddress := DefaultConsulProviderAddress
+	if cfg.Consul.Address != "" {
+		consulAddress = cfg.Consul.Address
+	}
+	consulScheme := "http"
+	if cfg.Consul.SSL {
+		consulScheme = "https"
+	}
+
+	return map[string]interface{}{
+		"version":   cfg.Terraform.ConsulPluginVersionConstraint,
+		"address":   consulAddress,
+		"scheme":    consulScheme,
+		"ca_file":   cfg.Consul.CA,
+		"cert_file": cfg.Consul.Cert,
+		"key_file":  cfg.Consul.Key,
+	}
 }
