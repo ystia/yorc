@@ -172,16 +172,18 @@ func TestConfigFile(t *testing.T) {
 				JobsChecksPeriod:        15 * time.Second,
 			},
 			ConsulConfig: config.Consul{
-				Token:          "testToken",
-				Datacenter:     "testDC",
-				Address:        "http://127.0.0.1:8500",
-				Key:            "testKeyFile",
-				Cert:           "testCertFile",
-				CA:             "testCACert",
-				CAPath:         "testCAPath",
-				SSL:            true,
-				SSLVerify:      false,
-				PubMaxRoutines: 1234},
+				Token:               "testToken",
+				Datacenter:          "testDC",
+				Address:             "http://127.0.0.1:8500",
+				Key:                 "testKeyFile",
+				Cert:                "testCertFile",
+				CA:                  "testCACert",
+				CAPath:              "testCAPath",
+				SSL:                 true,
+				SSLVerify:           false,
+				PubMaxRoutines:      1234,
+				TLSHandshakeTimeout: 30 * time.Second,
+			},
 		},
 		{SubTestName: "config_structured",
 			FileName: "testdata/config_structured.yorc.json",
@@ -196,16 +198,17 @@ func TestConfigFile(t *testing.T) {
 				JobsChecksPeriod:        15 * time.Second,
 			},
 			ConsulConfig: config.Consul{
-				Token:          "testToken2",
-				Datacenter:     "testDC2",
-				Address:        "http://127.0.0.1:8502",
-				Key:            "testKeyFile2",
-				Cert:           "testCertFile2",
-				CA:             "testCACert2",
-				CAPath:         "testCAPath2",
-				SSL:            true,
-				SSLVerify:      false,
-				PubMaxRoutines: 4321,
+				Token:               "testToken2",
+				Datacenter:          "testDC2",
+				Address:             "http://127.0.0.1:8502",
+				Key:                 "testKeyFile2",
+				Cert:                "testCertFile2",
+				CA:                  "testCACert2",
+				CAPath:              "testCAPath2",
+				SSL:                 true,
+				SSLVerify:           false,
+				PubMaxRoutines:      4321,
+				TLSHandshakeTimeout: 51 * time.Second,
 			},
 		},
 	}
@@ -248,16 +251,17 @@ func TestAnsibleDefaultValues(t *testing.T) {
 func TestConsulDefaultValues(t *testing.T) {
 
 	expectedConsulConfig := config.Consul{
-		Token:          "anonymous",
-		Datacenter:     "dc1",
-		Address:        "",
-		Key:            "",
-		Cert:           "",
-		CA:             "",
-		CAPath:         "",
-		SSL:            false,
-		SSLVerify:      true,
-		PubMaxRoutines: config.DefaultConsulPubMaxRoutines,
+		Token:               "anonymous",
+		Datacenter:          "dc1",
+		Address:             "",
+		Key:                 "",
+		Cert:                "",
+		CA:                  "",
+		CAPath:              "",
+		SSL:                 false,
+		SSLVerify:           true,
+		PubMaxRoutines:      config.DefaultConsulPubMaxRoutines,
+		TLSHandshakeTimeout: config.DefaultConsulTLSHandshakeTimeout,
 	}
 
 	testResetConfig()
@@ -305,16 +309,17 @@ func TestAnsibleEnvVariables(t *testing.T) {
 func TestConsulEnvVariables(t *testing.T) {
 
 	expectedConsulConfig := config.Consul{
-		Token:          "testEnvToken",
-		Datacenter:     "testEnvDC",
-		Address:        "testEnvAddress",
-		Key:            "testEnvKey",
-		Cert:           "testEnvCert",
-		CA:             "testEnvCA",
-		CAPath:         "testEnvCAPath",
-		SSL:            true,
-		SSLVerify:      false,
-		PubMaxRoutines: 125,
+		Token:               "testEnvToken",
+		Datacenter:          "testEnvDC",
+		Address:             "testEnvAddress",
+		Key:                 "testEnvKey",
+		Cert:                "testEnvCert",
+		CA:                  "testEnvCA",
+		CAPath:              "testEnvCAPath",
+		SSL:                 true,
+		SSLVerify:           false,
+		PubMaxRoutines:      125,
+		TLSHandshakeTimeout: 11 * time.Second,
 	}
 
 	// Set Consul configuration environment variables
@@ -328,6 +333,7 @@ func TestConsulEnvVariables(t *testing.T) {
 	os.Setenv("YORC_CONSUL_SSL", strconv.FormatBool(expectedConsulConfig.SSL))
 	os.Setenv("YORC_CONSUL_SSL_VERIFY", strconv.FormatBool(expectedConsulConfig.SSLVerify))
 	os.Setenv("YORC_CONSUL_PUBLISHER_MAX_ROUTINES", strconv.Itoa(expectedConsulConfig.PubMaxRoutines))
+	os.Setenv("YORC_CONSUL_TLS_HANDSHAKE_TIMEOUT", expectedConsulConfig.TLSHandshakeTimeout.String())
 
 	testResetConfig()
 	setConfig()
@@ -347,6 +353,7 @@ func TestConsulEnvVariables(t *testing.T) {
 	os.Unsetenv("YORC_CONSUL_SSL")
 	os.Unsetenv("YORC_CONSUL_SSL_VERIFY")
 	os.Unsetenv("YORC_CONSUL_PUBLISHER_MAX_ROUTINES")
+	os.Unsetenv("YORC_CONSUL_TLS_HANDSHAKE_TIMEOUT")
 }
 
 // Tests Ansible configuration using persistent flags
@@ -389,16 +396,17 @@ func TestAnsiblePersistentFlags(t *testing.T) {
 func TestConsulPersistentFlags(t *testing.T) {
 
 	expectedConsulConfig := config.Consul{
-		Token:          "testPFlagToken",
-		Datacenter:     "testPFlagDC",
-		Address:        "testPFlagAddress",
-		Key:            "testPFlagKey",
-		Cert:           "testPFlagCert",
-		CA:             "testPFlagCA",
-		CAPath:         "testEnvCAPath",
-		SSL:            true,
-		SSLVerify:      false,
-		PubMaxRoutines: 123,
+		Token:               "testPFlagToken",
+		Datacenter:          "testPFlagDC",
+		Address:             "testPFlagAddress",
+		Key:                 "testPFlagKey",
+		Cert:                "testPFlagCert",
+		CA:                  "testPFlagCA",
+		CAPath:              "testEnvCAPath",
+		SSL:                 true,
+		SSLVerify:           false,
+		PubMaxRoutines:      123,
+		TLSHandshakeTimeout: 12 * time.Second,
 	}
 
 	consulPFlagConfiguration := map[string]string{
@@ -412,6 +420,7 @@ func TestConsulPersistentFlags(t *testing.T) {
 		"consul_ssl":                    strconv.FormatBool(expectedConsulConfig.SSL),
 		"consul_ssl_verify":             strconv.FormatBool(expectedConsulConfig.SSLVerify),
 		"consul_publisher_max_routines": strconv.Itoa(expectedConsulConfig.PubMaxRoutines),
+		"consul_tls_handshake_timeout":  expectedConsulConfig.TLSHandshakeTimeout.String(),
 	}
 
 	testResetConfig()

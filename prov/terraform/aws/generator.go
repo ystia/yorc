@@ -48,35 +48,9 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 
 	infrastructure := commons.Infrastructure{}
 
-	consulAddress := "127.0.0.1:8500"
-	if cfg.Consul.Address != "" {
-		consulAddress = cfg.Consul.Address
-	}
-	consulScheme := "http"
-	if cfg.Consul.SSL {
-		consulScheme = "https"
-	}
-	consulCA := ""
-	if cfg.Consul.CA != "" {
-		consulCA = cfg.Consul.CA
-	}
-	consulKey := ""
-	if cfg.Consul.Key != "" {
-		consulKey = cfg.Consul.Key
-	}
-	consulCert := ""
-	if cfg.Consul.Cert != "" {
-		consulCert = cfg.Consul.Cert
-	}
-
 	// Remote Configuration for Terraform State to store it in the Consul KV store
-	infrastructure.Terraform = map[string]interface{}{
-		"backend": map[string]interface{}{
-			"consul": map[string]interface{}{
-				"path": terraformStateKey,
-			},
-		},
-	}
+	infrastructure.Terraform = commons.GetBackendConfiguration(terraformStateKey, cfg)
+
 	cmdEnv := []string{
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", cfg.Infrastructures[infrastructureName].GetString("access_key")),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", cfg.Infrastructures[infrastructureName].GetString("secret_key")),
@@ -87,14 +61,7 @@ func (g *awsGenerator) GenerateTerraformInfraForNode(ctx context.Context, cfg co
 			"region":  cfg.Infrastructures[infrastructureName].GetString("region"),
 			"version": cfg.Terraform.AWSPluginVersionConstraint,
 		},
-		"consul": map[string]interface{}{
-			"version":   cfg.Terraform.ConsulPluginVersionConstraint,
-			"address":   consulAddress,
-			"scheme":    consulScheme,
-			"ca_file":   consulCA,
-			"cert_file": consulCert,
-			"key_file":  consulKey,
-		},
+		"consul": commons.GetConsulProviderfiguration(cfg),
 		"null": map[string]interface{}{
 			"version": commons.NullPluginVersionConstraint,
 		},
