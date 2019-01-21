@@ -1322,13 +1322,10 @@ func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deployment
 	return nil
 }
 
-// enhanceAttributes walk through the topology nodes an for each of them if needed it creates instances attributes with notifiers
-// to allow resolving any attribute when one of its operand is updated
+// enhanceAttributes walk through the topology nodes an for each of them if needed it creates instances attributes notifications
+// to allow resolving any attribute when one is updated
 func enhanceAttributes(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string, nodes []string) error {
 	for _, nodeName := range nodes {
-		log.Debugf("**************************nodeName = %q", nodeName)
-		//instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
-
 		// retrieve all node attributes
 		attributes, err := GetNodeAttributesNames(kv, deploymentID, nodeName)
 		if err != nil {
@@ -1342,11 +1339,8 @@ func enhanceAttributes(consulStore consulutil.ConsulStore, kv *api.KV, deploymen
 		}
 
 		for _, instanceName := range instances {
-			log.Debugf("**************************instance = %q", instanceName)
-			// Create instance attributes from node type inheritance
 			for _, attribute := range attributes {
-				log.Debugf("**************************Attribute = %q", attribute)
-				err := addInstanceAttributeNotification(kv, deploymentID, nodeName, instanceName, attribute)
+				err := addAttributeNotifications(consulStore, kv, deploymentID, nodeName, instanceName, attribute)
 				if err != nil {
 					return err
 				}

@@ -19,7 +19,6 @@ import (
 	"path"
 	"strings"
 
-	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/consulutil"
@@ -352,11 +351,6 @@ func SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instanceName,
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	storeComplexType(store, attrPath, attributeValue)
-	capabilityAttribute := fmt.Sprintf("capabilities/%s/%s", capabilityName, attributeName)
-	err := publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, capabilityAttribute, attributeValue)
-	if err != nil {
-		return err
-	}
 	return errGrp.Wait()
 }
 
@@ -381,11 +375,6 @@ func SetCapabilityAttributeComplexForAllInstances(kv *api.KV, deploymentID, node
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
 		storeComplexType(store, attrPath, attributeValue)
-		capabilityAttribute := fmt.Sprintf("capabilities/%s/%s", capabilityName, attributeName)
-		err := publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, capabilityAttribute, attributeValue)
-		if err != nil {
-			return err
-		}
 	}
 	return errGrp.Wait()
 }

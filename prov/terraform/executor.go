@@ -45,6 +45,13 @@ type defaultExecutor struct {
 	preDestroyCheck commons.PreDestroyInfraCallback
 }
 
+type attrInfo struct {
+	deploymentID  string
+	nodeName      string
+	instanceName  string
+	attributeName string
+}
+
 // NewExecutor returns an Executor
 func NewExecutor(generator commons.Generator, preDestroyCheck commons.PreDestroyInfraCallback) prov.DelegateExecutor {
 	return &defaultExecutor{generator: generator, preDestroyCheck: preDestroyCheck}
@@ -221,9 +228,7 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 		if !ok {
 			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
 		}
-		store.StoreConsulKeyAsString(outPath, output.Value)
-
-		err = publishAttributeOutputsEvents(ctx, outPath, output.Value)
+		err = storeOutput(store, outPath, output.Value)
 		if err != nil {
 			return errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", outPath, output.Value)
 		}
@@ -234,6 +239,7 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 
 // File outputs are outputs that terraform can't resolve and which need to be retrieved in local files
 func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, infraPath string, outputs map[string]string) (map[string]string, error) {
+	_, errGrp, store := consulutil.WithContext(ctx)
 	filteredOutputs := make(map[string]string, 0)
 	for k, v := range outputs {
 		if strings.HasPrefix(v, commons.FileOutputPrefix) {
@@ -244,12 +250,7 @@ func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, inf
 				return nil, errors.Wrapf(err, "Failed to retrieve file output from file:%q", file)
 			}
 			contentStr := strings.Trim(string(content), "\r\n")
-			// Store keyValue in Consul
-			_, err = kv.Put(&api.KVPair{Key: k, Value: []byte(contentStr)}, nil)
-			if err != nil {
-				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
-			err = publishAttributeOutputsEvents(ctx, k, contentStr)
+			err = storeOutput(store, k, contentStr)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", k, contentStr)
 			}
@@ -257,7 +258,7 @@ func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, inf
 			filteredOutputs[k] = v
 		}
 	}
-	return filteredOutputs, nil
+	return filteredOutputs, errGrp.Wait()
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, outputs map[string]string, env []string) error {
@@ -309,25 +310,18 @@ func mergeEnvironments(env []string) []string {
 	return append(os.Environ(), env...)
 }
 
-// Publish attribute value change event if it's an output path
-func publishAttributeOutputsEvents(ctx context.Context, outputPath, outputValue string) error {
+// Attributes are specifically stored via deployments.SetInstanceAttribute
+func storeOutput(store consulutil.ConsulStore, outputPath, outputValue string) error {
 	log.Debugf("outputPath=%q, outputValue=%q", outputPath, outputValue)
 	if strings.Contains(outputPath, "/attributes/") {
 		attrInfo := retrieveAttributeInfo(outputPath)
 		if attrInfo == nil {
 			return errors.Errorf("failed to retrieve attribute information with output path;%q", outputPath)
 		}
-		_, err := events.PublishAndLogAttributeValueChange(ctx, attrInfo.deploymentID, attrInfo.nodeName, attrInfo.instanceName, attrInfo.attributeName, outputValue)
-		return err
+		return deployments.SetInstanceAttribute(attrInfo.deploymentID, attrInfo.nodeName, attrInfo.instanceName, attrInfo.attributeName, outputValue)
 	}
+	store.StoreConsulKeyAsString(outputPath, outputValue)
 	return nil
-}
-
-type attrInfo struct {
-	deploymentID  string
-	nodeName      string
-	instanceName  string
-	attributeName string
 }
 
 // Return attribute information from output path for:
@@ -337,7 +331,6 @@ type attrInfo struct {
 func retrieveAttributeInfo(outputPath string) *attrInfo {
 	// Find instance attribute path
 	match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
-	log.Printf("match1=%+v", match)
 	if match != nil && len(match) == 5 {
 		return &attrInfo{
 			deploymentID:  match[1],
@@ -349,7 +342,6 @@ func retrieveAttributeInfo(outputPath string) *attrInfo {
 
 	// Find capabilities instance attribute path
 	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/capabilities/([/0-9a-zA-Z]+)/attributes/(\\w+)").FindStringSubmatch(outputPath)
-	log.Printf("match2=%+v", match)
 	if match != nil && len(match) == 6 {
 		return &attrInfo{
 			deploymentID:  match[1],
@@ -361,7 +353,6 @@ func retrieveAttributeInfo(outputPath string) *attrInfo {
 
 	// Find relationship instance attribute path
 	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/relationship_instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
-	log.Printf("match3=%+v", match)
 	if match != nil && len(match) == 6 {
 		return &attrInfo{
 			deploymentID:  match[1],

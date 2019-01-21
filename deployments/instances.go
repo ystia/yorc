@@ -22,9 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tosca"
-	"gopkg.in/yaml.v2"
 )
 
 // SetInstanceStateStringWithContextualLogs stores the state of a given node instance and publishes a status change event
@@ -38,8 +36,7 @@ func SetInstanceStateStringWithContextualLogs(ctx context.Context, kv *api.KV, d
 	if err != nil {
 		return err
 	}
-	err = publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, "state", state)
-	return err
+	return notifyAndPublishAttributeValueChange(kv, deploymentID, nodeName, instanceName, "state", state)
 }
 
 // SetInstanceStateWithContextualLogs stores the state of a given node instance and publishes a status change event
@@ -183,7 +180,7 @@ func SetInstanceAttributeComplex(deploymentID, nodeName, instanceName, attribute
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	storeComplexType(store, attrPath, attributeValue)
-	err := publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, attributeName, attributeValue)
+	err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, attributeName, attributeValue)
 	if err != nil {
 		return err
 	}
@@ -210,7 +207,7 @@ func SetAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, attr
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	for _, instanceName := range ids {
 		storeComplexType(store, path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName), attributeValue)
-		err = publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, attributeName, attributeValue)
+		err = notifyAndPublishAttributeValueChange(kv, deploymentID, nodeName, instanceName, attributeName, attributeValue)
 		if err != nil {
 			return err
 		}
@@ -218,97 +215,16 @@ func SetAttributeComplexForAllInstances(kv *api.KV, deploymentID, nodeName, attr
 	return errGrp.Wait()
 }
 
-func publishAttributeValueChangeEvent(deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
+func notifyAndPublishAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
+	// First, Publish event
 	sValue, ok := attributeValue.(string)
 	if ok {
 		_, err := events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, sValue)
-		return err
-	}
-	return nil
-}
-
-func addInstanceAttributeNotification(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string, nestedKeys ...string) error {
-	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
-	if err != nil {
-		return err
-	}
-
-	// Nothing to do (TBC)
-	if substitutionInstance || isSubstitutionMappingAttribute(attributeName) {
-		return nil
-	}
-
-	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
-	if err != nil {
-		return err
-	}
-
-	var attrDataType string
-	hasAttr, err := TypeHasAttribute(kv, deploymentID, nodeType, attributeName, true)
-	if err != nil {
-		return err
-	}
-	if hasAttr {
-		attrDataType, err = GetTypeAttributeDataType(kv, deploymentID, nodeType, attributeName)
 		if err != nil {
 			return err
 		}
 	}
 
-	// First look at instance-scoped attributes
-	vaPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
-	value, isFunction, err := getValueAssignmentWithoutResolve(kv, deploymentID, vaPath, attrDataType, nestedKeys...)
-	if err != nil || (value != nil && !isFunction) {
-		return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-	}
-
-	// Then look at global node level (not instance-scoped)
-	if value == nil {
-		vaPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "attributes", attributeName)
-		value, isFunction, err = getValueAssignmentWithoutResolve(kv, deploymentID, vaPath, attrDataType, nestedKeys...)
-		if err != nil || (value != nil && !isFunction) {
-			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-		}
-	}
-
-	// Not found look at node type
-	if value == nil {
-		value, isFunction, err = getTypeDefaultAttribute(kv, deploymentID, nodeType, attributeName, nestedKeys...)
-		if err != nil || (value != nil && !isFunction) {
-			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
-		}
-	}
-
-	// all possibilities have been checked: parse potential function
-	if value != nil {
-		return parseFunction(value.RawString(), nodeName)
-	}
-
-	return nil
-}
-
-func parseFunction(rawFunction string, nodeName string) error {
-	// Function
-	va := &tosca.ValueAssignment{}
-	err := yaml.Unmarshal([]byte(rawFunction), va)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to parse TOSCA function %q for node %q", rawFunction, nodeName)
-	}
-	log.Debugf("function = %+v", va.GetFunction())
-
-	f := va.GetFunction()
-
-	switch f.Operator {
-	case tosca.ConcatOperator:
-		for _, op := range f.Operands {
-			if !op.IsLiteral() {
-				// Recursive function parsing
-				parseFunction(op.String(), nodeName)
-			}
-		}
-	case tosca.GetAttributeOperator:
-		// Process
-	}
-
-	return nil
+	// Next, notify dependent attributes if existing
+	return notifyAttributeValueChange(kv, deploymentID, nodeName, instanceName, attributeName)
 }

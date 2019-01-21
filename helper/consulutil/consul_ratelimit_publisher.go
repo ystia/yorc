@@ -46,6 +46,11 @@ type consulStore struct {
 	ctx context.Context
 }
 
+// GetKV returns the KV associated to the consul publisher
+func GetKV() *api.KV {
+	return consulPub.kv
+}
+
 // WithContext uses a given context to create an errgroup.Group that will be use to store keys in Consul in parallel.
 //
 // If the given context is cancelled then keys storing are not executed. If an error occurs when storing a key then the context is cancelled
