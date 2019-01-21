@@ -4,6 +4,7 @@
 
 ### BUG FIXES
 
+* Can't deploy applications using a secured yorc/consul ([GH-274](https://github.com/ystia/yorc/issues/274))
 * Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
 
 ## 3.1.0 (December 20, 2018)
