@@ -226,5 +226,5 @@ func notifyAndPublishAttributeValueChange(kv *api.KV, deploymentID, nodeName, in
 	}
 
 	// Next, notify dependent attributes if existing
-	return notifyAttributeValueChange(kv, deploymentID, nodeName, instanceName, attributeName)
+	return notifyInstanceAttributeValueChange(kv, deploymentID, nodeName, instanceName, attributeName)
 }

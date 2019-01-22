@@ -35,24 +35,46 @@ type attributeNotificationsHandler struct {
 }
 
 type attributeData struct {
-	nodeName      string
-	instanceName  string
-	attributeName string
+	nodeName       string
+	instanceName   string
+	attributeName  string
+	capabilityName string
 }
 
-// Get related attribute notifications to update notified attributes
-func notifyAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
+// Get related instance capability attribute notifications to update notified attributes
+func notifyInstanceCapabilityAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string) error {
+	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, instanceName, "capabilities", capabilityName, "attribute_notifications", attributeName)
+	return notifyAttributeValueChange(kv, notificationsPath, deploymentID, nodeName, instanceName, capabilityName, attributeName)
+}
+
+// Get related instance attribute notifications to update notified attributes
+func notifyInstanceAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
 	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, instanceName, "attribute_notifications", attributeName)
+	return notifyAttributeValueChange(kv, notificationsPath, deploymentID, nodeName, instanceName, "", attributeName)
+}
+
+func notifyAttributeValueChange(kv *api.KV, notificationsPath, deploymentID, nodeName, instanceName, capabilityName, attributeName string) error {
 	kvps, _, err := kv.List(notificationsPath, nil)
 	if err != nil {
 		return err
 	}
 	for _, kvp := range kvps {
 		notified, err := getNotifiedAttribute(string(kvp.Value))
-		log.Debugf("Need to notify attribute:%+v from attribute value change:[nodeName:%q, instanceName:%q, attributeName:%q]", notified, nodeName, instanceName, attributeName)
+		log.Debugf("Need to notify attribute:%+v from attribute value change:[nodeName:%q, instanceName:%q, capabilityName:%q, attributeName:%q]", notified, nodeName, instanceName, capabilityName, attributeName)
 		if err != nil {
 			return err
 		}
+		if notified.capabilityName != "" {
+			value, err := GetInstanceCapabilityAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName)
+			if err != nil {
+				return err
+			}
+			if err = SetInstanceCapabilityAttribute(deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName, value.String()); err != nil {
+				return err
+			}
+			return nil
+		}
+
 		value, err := GetInstanceAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.attributeName)
 		if err != nil {
 			return err
@@ -173,8 +195,8 @@ func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) erro
 
 func (anh *attributeNotificationsHandler) findGetAttributeNotifier(operands []string) (*attributeData, error) {
 	funcString := fmt.Sprintf("get_attribute: [%s]", strings.Join(operands, ", "))
-	if len(operands) != 2 {
-		return nil, errors.Errorf("expecting two parameters for a non-relationship context get_attribute function (%s)", funcString)
+	if len(operands) < 2 || len(operands) > 3 {
+		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
 	}
 
 	var node string
@@ -194,15 +216,28 @@ func (anh *attributeNotificationsHandler) findGetAttributeNotifier(operands []st
 	if node == "" {
 		return nil, errors.Errorf("unable to find node name related to get_attribute function (%s)", funcString)
 	}
-	return &attributeData{
-		nodeName:      node,
-		attributeName: operands[1],
-	}, nil
+
+	attribData := &attributeData{
+		nodeName: node,
+	}
+	if len(operands) == 2 {
+		attribData.attributeName = operands[1]
+	} else {
+		attribData.capabilityName = operands[1]
+		attribData.attributeName = operands[2]
+	}
+	return attribData, nil
 }
 
 func (anh *attributeNotificationsHandler) saveNotification(notifier *attributeData) error {
-	notificationPath := path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", notifier.nodeName, anh.attribute.instanceName, "attribute_notifications", notifier.attributeName)
-	notifs, _, err := anh.kv.Keys(notificationPath+"/", "/", nil)
+	var notificationsPath string
+	if notifier.capabilityName != "" {
+		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", notifier.nodeName, anh.attribute.instanceName, "capabilities", notifier.capabilityName, "attribute_notifications", notifier.attributeName)
+
+	} else {
+		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", notifier.nodeName, anh.attribute.instanceName, "attribute_notifications", notifier.attributeName)
+	}
+	notifs, _, err := anh.kv.Keys(notificationsPath+"/", "/", nil)
 	if err != nil {
 		return err
 	}
@@ -211,23 +246,38 @@ func (anh *attributeNotificationsHandler) saveNotification(notifier *attributeDa
 		index = len(notifs)
 	}
 
-	anh.consulStore.StoreConsulKeyAsString(path.Join(notificationPath, strconv.Itoa(index)), buildNotificationValue(anh.attribute.nodeName, anh.attribute.instanceName, anh.attribute.attributeName))
+	anh.consulStore.StoreConsulKeyAsString(path.Join(notificationsPath, strconv.Itoa(index)), buildNotificationValue(anh.attribute.nodeName, anh.attribute.instanceName, anh.attribute.capabilityName, anh.attribute.attributeName))
 	return nil
 }
 
 // notification value is path-based as: "<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
-func buildNotificationValue(nodeName, instanceName, attributeName string) string {
-	return path.Join(nodeName, instanceName, attributeName)
+// or "<NODE_NAME>/<INSTANCE_NAME>/capabilities/<CAPABILITY_NAME>/attributes/<ATTRIBUTE_NAME>"
+func buildNotificationValue(nodeName, instanceName, capabilityName, attributeName string) string {
+	if capabilityName != "" {
+		return path.Join(nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
+	}
+	return path.Join(nodeName, instanceName, "attributes", attributeName)
 }
 
 func getNotifiedAttribute(notification string) (*attributeData, error) {
 	notified := strings.Split(notification, "/")
-	if len(notified) != 3 {
+	if len(notified) != 4 && len(notified) != 6 {
 		return nil, errors.Errorf("unexpected format %q for notification", notification)
 	}
-	return &attributeData{
-		nodeName:      notified[0],
-		instanceName:  notified[1],
-		attributeName: notified[2],
-	}, nil
+	var attribData *attributeData
+	if len(notified) == 4 {
+		attribData = &attributeData{
+			nodeName:      notified[0],
+			instanceName:  notified[1],
+			attributeName: notified[3],
+		}
+	} else {
+		attribData = &attributeData{
+			nodeName:       notified[0],
+			instanceName:   notified[1],
+			capabilityName: notified[3],
+			attributeName:  notified[5],
+		}
+	}
+	return attribData, nil
 }

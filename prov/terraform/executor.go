@@ -46,10 +46,11 @@ type defaultExecutor struct {
 }
 
 type attrInfo struct {
-	deploymentID  string
-	nodeName      string
-	instanceName  string
-	attributeName string
+	deploymentID   string
+	nodeName       string
+	instanceName   string
+	capabilityName string
+	attributeName  string
 }
 
 // NewExecutor returns an Executor
@@ -316,7 +317,10 @@ func storeOutput(store consulutil.ConsulStore, outputPath, outputValue string) e
 	if strings.Contains(outputPath, "/attributes/") {
 		attrInfo := retrieveAttributeInfo(outputPath)
 		if attrInfo == nil {
-			return errors.Errorf("failed to retrieve attribute information with output path;%q", outputPath)
+			return errors.Errorf("failed to retrieve attribute information with output path:%q", outputPath)
+		}
+		if attrInfo.capabilityName != "" {
+			return deployments.SetInstanceCapabilityAttribute(attrInfo.deploymentID, attrInfo.nodeName, attrInfo.instanceName, attrInfo.capabilityName, attrInfo.attributeName, outputValue)
 		}
 		return deployments.SetInstanceAttribute(attrInfo.deploymentID, attrInfo.nodeName, attrInfo.instanceName, attrInfo.attributeName, outputValue)
 	}
@@ -344,10 +348,11 @@ func retrieveAttributeInfo(outputPath string) *attrInfo {
 	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/capabilities/([/0-9a-zA-Z]+)/attributes/(\\w+)").FindStringSubmatch(outputPath)
 	if match != nil && len(match) == 6 {
 		return &attrInfo{
-			deploymentID:  match[1],
-			nodeName:      match[2],
-			instanceName:  match[3],
-			attributeName: fmt.Sprintf("capabilities/%s/%s", match[4], match[5]),
+			deploymentID:   match[1],
+			nodeName:       match[2],
+			instanceName:   match[3],
+			capabilityName: match[4],
+			attributeName:  match[5],
 		}
 	}
 
@@ -355,9 +360,10 @@ func retrieveAttributeInfo(outputPath string) *attrInfo {
 	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/relationship_instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
 	if match != nil && len(match) == 6 {
 		return &attrInfo{
-			deploymentID:  match[1],
-			nodeName:      match[2],
-			instanceName:  match[4],
+			deploymentID: match[1],
+			nodeName:     match[2],
+			instanceName: match[4],
+			//TODO
 			attributeName: fmt.Sprintf("relationships/%s", match[5]),
 		}
 	}
