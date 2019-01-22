@@ -380,28 +380,29 @@ func storeSubstitutionMappingAttributeNamesInSet(kv *api.KV, deploymentID, nodeN
 	exploreParents := true
 	// Get the capabilities exposed for this node
 	for _, capMapping := range substMapping.Capabilities {
+		if len(capMapping.Mapping) > 1 {
+			capability := capMapping.Mapping[1]
+			var attributeNames []string
 
-		capability := capMapping.Mapping[1]
-		var attributeNames []string
+			if capMapping.Mapping[0] == nodeName {
+				if capMapping.Attributes != nil {
+					attributeNames := make([]string, len(capMapping.Attributes))
+					i := 0
+					for name := range capMapping.Attributes {
+						attributeNames[i] = name
+						i++
+					}
+				} else {
+					// Expose all attributes
+					attributeNames, err = GetNodeCapabilityAttributeNames(
+						kv, deploymentID, nodeName, capability, exploreParents)
+					if err != nil {
+						return err
+					}
+				}
 
-		if capMapping.Mapping[0] == nodeName {
-			if capMapping.Attributes != nil {
-				attributeNames := make([]string, len(capMapping.Attributes))
-				i := 0
-				for name := range capMapping.Attributes {
-					attributeNames[i] = name
-					i++
-				}
-			} else {
-				// Expose all attributes
-				attributeNames, err = GetNodeCapabilityAttributeNames(
-					kv, deploymentID, nodeName, capability, exploreParents)
-				if err != nil {
-					return err
-				}
+				capabilityToAttrNames[capability] = attributeNames
 			}
-
-			capabilityToAttrNames[capability] = attributeNames
 		}
 	}
 

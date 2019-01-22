@@ -30,72 +30,72 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		t.Run("testArtifacts", func(t *testing.T) {
 			testArtifacts(t, srv, kv)
 		})
-		//t.Run("testCapabilities", func(t *testing.T) {
-		//	testCapabilities(t, srv, kv)
-		//})
-		//t.Run("testDefinitionStore", func(t *testing.T) {
-		//	testDefinitionStore(t, kv)
-		//})
-		//t.Run("testDeploymentNodes", func(t *testing.T) {
-		//	testDeploymentNodes(t, srv, kv)
-		//})
-		//t.Run("testRequirements", func(t *testing.T) {
-		//	testRequirements(t, srv, kv)
-		//})
-		//t.Run("testResolver", func(t *testing.T) {
-		//	testResolver(t, kv)
-		//})
-		//t.Run("testGetTypePropertyDataType", func(t *testing.T) {
-		//	testGetTypePropertyDataType(t, kv)
-		//})
-		//t.Run("testGetNestedDataType", func(t *testing.T) {
-		//	testGetNestedDataType(t, kv)
-		//})
-		//t.Run("testReadComplexVA", func(t *testing.T) {
-		//	testReadComplexVA(t, kv)
-		//})
-		//t.Run("testIssueGetEmptyPropRel", func(t *testing.T) {
-		//	testIssueGetEmptyPropRel(t, kv)
-		//})
-		//t.Run("testRelationshipWorkflow", func(t *testing.T) {
-		//	testRelationshipWorkflow(t, kv)
-		//})
-		//t.Run("testGlobalInputs", func(t *testing.T) {
-		//	testGlobalInputs(t, kv)
-		//})
-		//t.Run("testInlineWorkflow", func(t *testing.T) {
-		//	testInlineWorkflow(t, kv)
-		//})
-		//t.Run("testCheckCycleInNestedWorkflows", func(t *testing.T) {
-		//	testCheckCycleInNestedWorkflows(t, kv)
-		//})
-		//t.Run("testGetCapabilityProperties", func(t *testing.T) {
-		//	testGetCapabilityProperties(t, kv)
-		//})
-		//t.Run("testImportTopologyTemplate", func(t *testing.T) {
-		//	testImportTopologyTemplate(t, kv)
-		//})
-		//t.Run("testTopologyTemplateMetadata", func(t *testing.T) {
-		//	testTopologyTemplateMetadata(t, kv)
-		//})
-		//t.Run("testSubstitutionServiceCapabilityMappings", func(t *testing.T) {
-		//	testSubstitutionServiceCapabilityMappings(t, kv)
-		//})
-		//t.Run("testSubstitutionServiceRequirementMappings", func(t *testing.T) {
-		//	testSubstitutionServiceRequirementMappings(t, kv)
-		//})
-		//t.Run("testSubstitutionClientDirective", func(t *testing.T) {
-		//	testSubstitutionClientDirective(t, kv)
-		//})
-		//t.Run("testSubstitutionClientServiceInstance", func(t *testing.T) {
-		//	testSubstitutionClientServiceInstance(t, kv)
-		//})
-		//t.Run("TestOperationImplementationArtifact", func(t *testing.T) {
-		//	testOperationImplementationArtifact(t, kv)
-		//})
-		//t.Run("TestOperationHost", func(t *testing.T) {
-		//	testOperationHost(t, kv)
-		//})
+		t.Run("testCapabilities", func(t *testing.T) {
+			testCapabilities(t, srv, kv)
+		})
+		t.Run("testDefinitionStore", func(t *testing.T) {
+			testDefinitionStore(t, kv)
+		})
+		t.Run("testDeploymentNodes", func(t *testing.T) {
+			testDeploymentNodes(t, srv, kv)
+		})
+		t.Run("testRequirements", func(t *testing.T) {
+			testRequirements(t, srv, kv)
+		})
+		t.Run("testResolver", func(t *testing.T) {
+			testResolver(t, kv)
+		})
+		t.Run("testGetTypePropertyDataType", func(t *testing.T) {
+			testGetTypePropertyDataType(t, kv)
+		})
+		t.Run("testGetNestedDataType", func(t *testing.T) {
+			testGetNestedDataType(t, kv)
+		})
+		t.Run("testReadComplexVA", func(t *testing.T) {
+			testReadComplexVA(t, kv)
+		})
+		t.Run("testIssueGetEmptyPropRel", func(t *testing.T) {
+			testIssueGetEmptyPropRel(t, kv)
+		})
+		t.Run("testRelationshipWorkflow", func(t *testing.T) {
+			testRelationshipWorkflow(t, kv)
+		})
+		t.Run("testGlobalInputs", func(t *testing.T) {
+			testGlobalInputs(t, kv)
+		})
+		t.Run("testInlineWorkflow", func(t *testing.T) {
+			testInlineWorkflow(t, kv)
+		})
+		t.Run("testCheckCycleInNestedWorkflows", func(t *testing.T) {
+			testCheckCycleInNestedWorkflows(t, kv)
+		})
+		t.Run("testGetCapabilityProperties", func(t *testing.T) {
+			testGetCapabilityProperties(t, kv)
+		})
+		t.Run("testImportTopologyTemplate", func(t *testing.T) {
+			testImportTopologyTemplate(t, kv)
+		})
+		t.Run("testTopologyTemplateMetadata", func(t *testing.T) {
+			testTopologyTemplateMetadata(t, kv)
+		})
+		t.Run("testSubstitutionServiceCapabilityMappings", func(t *testing.T) {
+			testSubstitutionServiceCapabilityMappings(t, kv)
+		})
+		t.Run("testSubstitutionServiceRequirementMappings", func(t *testing.T) {
+			testSubstitutionServiceRequirementMappings(t, kv)
+		})
+		t.Run("testSubstitutionClientDirective", func(t *testing.T) {
+			testSubstitutionClientDirective(t, kv)
+		})
+		t.Run("testSubstitutionClientServiceInstance", func(t *testing.T) {
+			testSubstitutionClientServiceInstance(t, kv)
+		})
+		t.Run("TestOperationImplementationArtifact", func(t *testing.T) {
+			testOperationImplementationArtifact(t, kv)
+		})
+		t.Run("TestOperationHost", func(t *testing.T) {
+			testOperationHost(t, kv)
+		})
 		t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
 			testIssueGetEmptyPropOnRelationship(t, kv)
 		})

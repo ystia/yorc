@@ -122,7 +122,7 @@ func (g *googleGenerator) generatePersistentDisk(ctx context.Context, kv *api.KV
 		volumeID = fmt.Sprintf("${google_compute_disk.%s.name}", persistentDisk.Name)
 	}
 
-	// Provide output for attribute ip_address
+	// Provide output for attribute volume_id
 	volumeKey := nodeName + "-" + instanceName + "-volume"
 	commons.AddOutput(infrastructure, volumeKey, &commons.Output{Value: volumeID})
 	outputs[path.Join(instancesKey, instanceName, "/attributes/volume_id")] = volumeKey
