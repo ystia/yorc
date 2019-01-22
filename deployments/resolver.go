@@ -255,7 +255,7 @@ func (fr *functionResolver) resolveGetPropertyOrAttribute(rType string, operands
 	var args []string
 	var result *TOSCAValue
 	// Check if second param is a capability or requirement
-	// this does not makes sens for a REQTARGET
+	// this does not makes sense for a REQTARGET
 	if entity != funcKeywordREQTARGET {
 		if len(operands) > 2 {
 			cap, err := GetNodeCapabilityType(fr.kv, fr.deploymentID, actualNode, operands[1])

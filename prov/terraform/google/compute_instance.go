@@ -265,7 +265,7 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = publicIPKey
 	}
 
-	// IP ComputeAddress capability
+	// ip_adress attribute and endpoint capability
 	outputs[path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address")] = accessIPKey
 	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
 
