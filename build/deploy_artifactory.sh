@@ -22,6 +22,11 @@ if [[ "${TRAVIS}" != "true" ]] ; then
     exit 0
 fi
 
+if [[ "${DISABLE_ARTIFACTORY}" == "true" ]] ; then
+    echo "Skipping Artifactory publication"
+    exit 0
+fi
+
 if [[ "${TRAVIS_PULL_REQUEST}" != "false" ]] && [[ -z "${ARTIFACTORY_API_KEY}" ]] ; then
     echo "Building an external pull request, artifactory publication is disabled"
     exit 0
