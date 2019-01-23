@@ -27,40 +27,64 @@ import (
 	"strings"
 )
 
+// Notifier represents the action of notify it's value change
+type Notifier interface {
+	NotifyValueChange(kv *api.KV, deploymentID string) error
+}
+
+// AttributeNotifier is an attribute notifying its value changes
+type AttributeNotifier struct {
+	NodeName       string
+	InstanceName   string
+	AttributeName  string
+	CapabilityName string
+}
+
+// OperationOutputNotifier is an operation output notifying its value changes
+type OperationOutputNotifier struct {
+	NodeName      string
+	InstanceName  string
+	InterfaceName string
+	OperationName string
+	OutputName    string
+}
+
 type attributeNotificationsHandler struct {
 	kv           *api.KV
 	consulStore  consulutil.ConsulStore
 	deploymentID string
-	attribute    *attributeData
+	attribute    *notifiedAttribute
 }
 
-type attributeData struct {
+type notifiedAttribute struct {
 	nodeName       string
 	instanceName   string
 	attributeName  string
 	capabilityName string
 }
 
-// Get related instance capability attribute notifications to update notified attributes
-func notifyInstanceCapabilityAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string) error {
-	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, instanceName, "capabilities", capabilityName, "attribute_notifications", attributeName)
-	return notifyAttributeValueChange(kv, notificationsPath, deploymentID, nodeName, instanceName, capabilityName, attributeName)
+// NotifyValueChange allows to notify output value change
+func (oon *OperationOutputNotifier) NotifyValueChange(kv *api.KV, deploymentID string) error {
+	log.Debugf("Received operation output value change notification for [deploymentID:%q, nodeName:%q, instanceName:%q, interfaceName:%q, operationName:%q, outputName:%q", deploymentID, oon.NodeName, oon.InstanceName, oon.InterfaceName, oon.OperationName, oon.OutputName)
+	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", oon.NodeName, oon.InstanceName, "outputs", oon.InterfaceName, oon.OperationName, "attribute_notifications", oon.OutputName)
+	return notifyAttributeOnValueChange(kv, notificationsPath, deploymentID)
 }
 
-// Get related instance attribute notifications to update notified attributes
-func notifyInstanceAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
-	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName, instanceName, "attribute_notifications", attributeName)
-	return notifyAttributeValueChange(kv, notificationsPath, deploymentID, nodeName, instanceName, "", attributeName)
+// NotifyValueChange allows to notify attribute value change
+func (an *AttributeNotifier) NotifyValueChange(kv *api.KV, deploymentID string) error {
+	log.Debugf("Received instance capability attribute value change notification for [deploymentID:%q, nodeName:%q, instanceName:%q, capabilityName:%q, attributeName:%q", deploymentID, an.NodeName, an.InstanceName, an.CapabilityName, an.AttributeName)
+	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", an.NodeName, an.InstanceName, "capabilities", an.CapabilityName, "attribute_notifications", an.AttributeName)
+	return notifyAttributeOnValueChange(kv, notificationsPath, deploymentID)
 }
 
-func notifyAttributeValueChange(kv *api.KV, notificationsPath, deploymentID, nodeName, instanceName, capabilityName, attributeName string) error {
+func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID string) error {
 	kvps, _, err := kv.List(notificationsPath, nil)
 	if err != nil {
 		return err
 	}
 	for _, kvp := range kvps {
 		notified, err := getNotifiedAttribute(string(kvp.Value))
-		log.Debugf("Need to notify attribute:%+v from attribute value change:[nodeName:%q, instanceName:%q, capabilityName:%q, attributeName:%q]", notified, nodeName, instanceName, capabilityName, attributeName)
+		log.Debugf("Need to notify attribute:%+v from attribute/operation output value change", notified)
 		if err != nil {
 			return err
 		}
@@ -144,7 +168,7 @@ func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, d
 			consulStore:  consulStore,
 			kv:           kv,
 			deploymentID: deploymentID,
-			attribute: &attributeData{
+			attribute: &notifiedAttribute{
 				nodeName:      nodeName,
 				instanceName:  instanceName,
 				attributeName: attributeName,
@@ -156,7 +180,7 @@ func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, d
 	return nil
 }
 
-// This is looking for Tosca get_attribute functions
+// This is looking for Tosca get_attribute and get_operation_output functions
 func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) error {
 	// Function
 	va := &tosca.ValueAssignment{}
@@ -175,7 +199,26 @@ func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) erro
 		for i, op := range fct.Operands {
 			operands[i] = op.String()
 		}
-		notifier, err := anh.findGetAttributeNotifier(operands)
+		notifier, err := anh.findAttributeNotifier(operands)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, anh.attribute.nodeName)
+		}
+
+		// Store notification
+		err = anh.saveNotification(notifier)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to save notification from notifier:%+v and notified %+v", notifier, anh.attribute)
+		}
+	}
+
+	fcts = f.GetFunctionsByOperator(tosca.GetOperationOutputOperator)
+	for _, fct := range fcts {
+		// Find related notifier
+		operands := make([]string, len(fct.Operands))
+		for i, op := range fct.Operands {
+			operands[i] = op.String()
+		}
+		notifier, err := anh.findOperationOutputNotifier(operands)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, anh.attribute.nodeName)
 		}
@@ -189,7 +232,21 @@ func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) erro
 	return nil
 }
 
-func (anh *attributeNotificationsHandler) findGetAttributeNotifier(operands []string) (*attributeData, error) {
+func (anh *attributeNotificationsHandler) findOperationOutputNotifier(operands []string) (Notifier, error) {
+	funcString := fmt.Sprintf("get_operation_output: [%s]", strings.Join(operands, ", "))
+	if len(operands) != 4 {
+		return nil, errors.Errorf("expecting exactly four parameters for a get_operation_output function (%s)", funcString)
+	}
+	return &OperationOutputNotifier{
+		InstanceName:  anh.attribute.instanceName,
+		NodeName:      anh.attribute.nodeName,
+		OperationName: strings.ToLower(operands[2]),
+		InterfaceName: strings.ToLower(operands[1]),
+		OutputName:    operands[3],
+	}, nil
+}
+
+func (anh *attributeNotificationsHandler) findAttributeNotifier(operands []string) (Notifier, error) {
 	funcString := fmt.Sprintf("get_attribute: [%s]", strings.Join(operands, ", "))
 	if len(operands) < 2 || len(operands) > 3 {
 		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
@@ -213,26 +270,36 @@ func (anh *attributeNotificationsHandler) findGetAttributeNotifier(operands []st
 		return nil, errors.Errorf("unable to find node name related to get_attribute function (%s)", funcString)
 	}
 
-	attribData := &attributeData{
-		nodeName: node,
+	notifier := &AttributeNotifier{
+		NodeName:     node,
+		InstanceName: anh.attribute.instanceName,
 	}
 	if len(operands) == 2 {
-		attribData.attributeName = operands[1]
+		notifier.AttributeName = operands[1]
 	} else {
-		attribData.capabilityName = operands[1]
-		attribData.attributeName = operands[2]
+		notifier.CapabilityName = operands[1]
+		notifier.AttributeName = operands[2]
 	}
-	return attribData, nil
+	return notifier, nil
 }
 
-func (anh *attributeNotificationsHandler) saveNotification(notifier *attributeData) error {
+func (anh *attributeNotificationsHandler) saveNotification(notifier Notifier) error {
 	var notificationsPath string
-	if notifier.capabilityName != "" {
-		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", notifier.nodeName, anh.attribute.instanceName, "capabilities", notifier.capabilityName, "attribute_notifications", notifier.attributeName)
+	switch n := notifier.(type) {
+	case *AttributeNotifier:
+		if n.CapabilityName != "" {
+			notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", n.NodeName, anh.attribute.instanceName, "capabilities", n.CapabilityName, "attribute_notifications", n.AttributeName)
 
-	} else {
-		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", notifier.nodeName, anh.attribute.instanceName, "attribute_notifications", notifier.attributeName)
+		} else {
+			notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", n.NodeName, anh.attribute.instanceName, "attribute_notifications", n.AttributeName)
+		}
+	case *OperationOutputNotifier:
+		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, anh.deploymentID, "topology", "instances", n.NodeName, n.InstanceName, "outputs", n.InterfaceName, n.OperationName, "attribute_notifications", n.OutputName)
+
+	default:
+		return errors.Errorf("Unexpected type %T for saving notifications", n)
 	}
+
 	notifs, _, err := anh.kv.Keys(notificationsPath+"/", "/", nil)
 	if err != nil {
 		return err
@@ -244,7 +311,7 @@ func (anh *attributeNotificationsHandler) saveNotification(notifier *attributeDa
 
 	key := path.Join(notificationsPath, strconv.Itoa(index))
 	val := buildNotificationValue(anh.attribute.nodeName, anh.attribute.instanceName, anh.attribute.capabilityName, anh.attribute.attributeName)
-	log.Debugf("************************************ store notification with[key=%q, value:%q", key, val)
+	log.Debugf("store notification with[key=%q, value:%q", key, val)
 	anh.consulStore.StoreConsulKeyAsString(key, val)
 	return nil
 }
@@ -258,20 +325,20 @@ func buildNotificationValue(nodeName, instanceName, capabilityName, attributeNam
 	return path.Join(nodeName, instanceName, "attributes", attributeName)
 }
 
-func getNotifiedAttribute(notification string) (*attributeData, error) {
+func getNotifiedAttribute(notification string) (*notifiedAttribute, error) {
 	notified := strings.Split(notification, "/")
 	if len(notified) != 4 && len(notified) != 6 {
 		return nil, errors.Errorf("unexpected format %q for notification", notification)
 	}
-	var attribData *attributeData
+	var attribData *notifiedAttribute
 	if len(notified) == 4 {
-		attribData = &attributeData{
+		attribData = &notifiedAttribute{
 			nodeName:      notified[0],
 			instanceName:  notified[1],
 			attributeName: notified[3],
 		}
 	} else {
-		attribData = &attributeData{
+		attribData = &notifiedAttribute{
 			nodeName:       notified[0],
 			instanceName:   notified[1],
 			capabilityName: notified[3],

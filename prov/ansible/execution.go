@@ -1053,6 +1053,27 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 					if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
 						return err
 					}
+
+					// Notify attributes on value change
+					ind := strings.LastIndex(e.Outputs[line[0]], "/outputs/")
+					if ind != -1 {
+						outputPath := e.Outputs[line[0]][ind+len("/outputs/"):]
+						data := strings.Split(outputPath, "/")
+						if len(data) > 2 {
+							notifier := &deployments.OperationOutputNotifier{
+								InstanceName:  instanceID,
+								NodeName:      e.NodeName,
+								InterfaceName: data[0],
+								OperationName: data[1],
+								OutputName:    data[2],
+							}
+							err = notifier.NotifyValueChange(e.kv, e.deploymentID)
+							if err != nil {
+								return err
+							}
+						}
+					}
+
 				} else {
 					tasks.SetTaskData(e.kv, e.taskID, e.NodeName+"-"+instanceID+"-"+strings.Join(splits[0:len(splits)-1], "_"), line[1])
 				}

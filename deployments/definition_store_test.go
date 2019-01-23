@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/prov"
 )
 
@@ -1025,6 +1026,7 @@ func testRunnableWorkflowsAutoCancel(t *testing.T, kv *api.KV) {
 // Testing topology template metadata
 func testAttributeNotifications(t *testing.T, kv *api.KV) {
 	t.Parallel()
+	log.SetDebug(true)
 
 	// Storing the Deployment definition
 	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
@@ -1035,11 +1037,8 @@ func testAttributeNotifications(t *testing.T, kv *api.KV) {
 	expectedKeyValuePairs := map[string]string{
 		"topology/instances/TestContainer/0/attribute_notifications/public_ip_address/0":                "TestComponent/0/attributes/url",
 		"topology/instances/TestContainer/0/capabilities/endpoint/attribute_notifications/ip_address/0": "TestComponent/0/attributes/url_from_cap",
+		"topology/instances/TestComponent/0/outputs/standard/create/attribute_notifications/URL/0":      "TestComponent/0/attributes/url_from_output",
 	}
-
-	//_topology/instances/TestContainer/0/attribute_notifications/public_ip_address/0
-	// topology/instances/TestContainer/0/capabilities/endpoint/attribute_notifications/ip_address/0
-
 	for key, expectedValue := range expectedKeyValuePairs {
 		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
 		kvp, _, err := kv.Get(consulKey, nil)
@@ -1047,5 +1046,4 @@ func testAttributeNotifications(t *testing.T, kv *api.KV) {
 		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
 		assert.Equal(t, expectedValue, string(kvp.Value), "Wrong value for key %s", key)
 	}
-
 }

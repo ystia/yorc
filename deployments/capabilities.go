@@ -456,5 +456,12 @@ func notifyAndPublishCapabilityAttributeValueChange(kv *api.KV, deploymentID, no
 	}
 
 	// Next, notify dependent attributes if existing
-	return notifyInstanceCapabilityAttributeValueChange(kv, deploymentID, nodeName, instanceName, capabilityName, attributeName)
+	// Next, notify dependent attributes if existing
+	an := &AttributeNotifier{
+		NodeName:       nodeName,
+		InstanceName:   instanceName,
+		AttributeName:  attributeName,
+		CapabilityName: capabilityName,
+	}
+	return an.NotifyValueChange(kv, deploymentID)
 }
