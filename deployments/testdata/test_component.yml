@@ -33,6 +33,7 @@ node_types:
         - get_attribute: [HOST, public_ip_address]
         - ':'
         - get_property: [HOST, port]
+      url_from_cap: { concat: ["http://", get_attribute: [HOST, endpoint, ip_address], ":", get_property: [SELF, endpoint, port] ] }
     requirements:
     - host: {capability: yorc.test.capabilities.TestContainerCapability, relationship: yorc.test.relationships.TestComponentOnContainer}
     - php: {capability: yorc.test.capabilities.TestModuleCapability, relationship: yorc.test.relationships.TestComponentConnectsToModule}

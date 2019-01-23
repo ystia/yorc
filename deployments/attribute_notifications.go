@@ -168,27 +168,23 @@ func (anh *attributeNotificationsHandler) parseFunction(rawFunction string) erro
 
 	f := va.GetFunction()
 
-	switch f.Operator {
-	case tosca.ConcatOperator:
-		for _, op := range f.Operands {
-			if !op.IsLiteral() {
-				// Recursive function parsing
-				anh.parseFunction(op.String())
-			}
-		}
-	case tosca.GetAttributeOperator:
+	fcts := f.GetFunctionsByOperator(tosca.GetAttributeOperator)
+	for _, fct := range fcts {
 		// Find related notifier
-		operands := make([]string, len(f.Operands))
-		for i, op := range f.Operands {
+		operands := make([]string, len(fct.Operands))
+		for i, op := range fct.Operands {
 			operands[i] = op.String()
 		}
 		notifier, err := anh.findGetAttributeNotifier(operands)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", rawFunction, anh.attribute.nodeName)
+			return errors.Wrapf(err, "Failed to find get_attribute notifier for function: %q and node %q", fct, anh.attribute.nodeName)
 		}
 
 		// Store notification
-		return anh.saveNotification(notifier)
+		err = anh.saveNotification(notifier)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to save notification from notifier:%+v and notified %+v", notifier, anh.attribute)
+		}
 	}
 	return nil
 }
@@ -246,7 +242,10 @@ func (anh *attributeNotificationsHandler) saveNotification(notifier *attributeDa
 		index = len(notifs)
 	}
 
-	anh.consulStore.StoreConsulKeyAsString(path.Join(notificationsPath, strconv.Itoa(index)), buildNotificationValue(anh.attribute.nodeName, anh.attribute.instanceName, anh.attribute.capabilityName, anh.attribute.attributeName))
+	key := path.Join(notificationsPath, strconv.Itoa(index))
+	val := buildNotificationValue(anh.attribute.nodeName, anh.attribute.instanceName, anh.attribute.capabilityName, anh.attribute.attributeName)
+	log.Debugf("************************************ store notification with[key=%q, value:%q", key, val)
+	anh.consulStore.StoreConsulKeyAsString(key, val)
 	return nil
 }
 
