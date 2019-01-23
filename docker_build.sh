@@ -84,6 +84,10 @@ if [[ "${TRAVIS}" == "true" ]]; then
         docker push "ystia/yorc:${DOCKER_TAG:-latest}"
     else
         ## Push Image on Artifact Docker Registry
+        if [[ "${DISABLE_ARTIFACTORY}" == "true" ]] ; then
+            echo "Skipping Artifactory publication"
+            exit 0
+        fi
         docker tag "ystia/yorc:${DOCKER_TAG:-latest}" "${artifactory_docker_registry}/${artifactory_docker_repo}:${DOCKER_TAG:-latest}"
         curl -fL https://getcli.jfrog.io | sh
         build_name="yorc-travis-ci"
