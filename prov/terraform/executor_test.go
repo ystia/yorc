@@ -31,7 +31,7 @@ func TestRetrieveAttributeInfo(t *testing.T) {
 		{"PathWithInstanceAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/instances/Compute/0/attributes/public_ip_address"}, &attrInfo{deploymentID: "welcomeApp-Environment", nodeName: "Compute", instanceName: "0", capabilityName: "", attributeName: "public_ip_address"}},
 		{"PathWithNodeAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/instances/Compute//attributes/public_ip_address"}, &attrInfo{deploymentID: "welcomeApp-Environment", nodeName: "Compute", instanceName: "", capabilityName: "", attributeName: "public_ip_address"}},
 		{"PathWithCapabilityAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/instances/Compute/0/capabilities/endpoint/attributes/ip_address"}, &attrInfo{deploymentID: "welcomeApp-Environment", nodeName: "Compute", instanceName: "0", capabilityName: "endpoint", attributeName: "ip_address"}},
-		{"PathWithRelationshipAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/relationship_instances/MyVolume/0/1/attributes/device"}, &attrInfo{deploymentID: "welcomeApp-Environment", nodeName: "MyVolume", instanceName: "1", capabilityName: "", attributeName: "relationships/device"}},
+		{"PathWithRelationshipAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/relationship_instances/MyVolume/0/1/attributes/device"}, &attrInfo{deploymentID: "welcomeApp-Environment", nodeName: "MyVolume", instanceName: "1", requirementIndex: "0", capabilityName: "", attributeName: "device"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

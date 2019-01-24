@@ -448,7 +448,7 @@ func notifyAndPublishCapabilityAttributeValueChange(kv *api.KV, deploymentID, no
 	sValue, ok := attributeValue.(string)
 	if ok {
 		// First, Publish event
-		capabilityAttribute := fmt.Sprintf("capabilities/%s/%s", capabilityName, attributeName)
+		capabilityAttribute := fmt.Sprintf("capabilities.%s.%s", capabilityName, attributeName)
 		_, err := events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, capabilityAttribute, sValue)
 		if err != nil {
 			return err

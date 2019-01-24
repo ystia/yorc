@@ -19,8 +19,10 @@ import (
 	"path"
 	"strings"
 
+	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/helper/consulutil"
 )
@@ -157,6 +159,11 @@ func SetInstanceRelationshipAttributeComplex(deploymentID, nodeName, instanceNam
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	storeComplexType(store, attrPath, attributeValue)
+	err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
+	if err != nil {
+		return err
+	}
+
 	return errGrp.Wait()
 }
 
@@ -181,6 +188,10 @@ func SetRelationshipAttributeComplexForAllInstances(kv *api.KV, deploymentID, no
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/relationship_instances", nodeName, requirementIndex, instanceName, "attributes", attributeName)
 		storeComplexType(store, attrPath, attributeValue)
+		err := publishRelationshipAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, requirementIndex, attributeName, attributeValue)
+		if err != nil {
+			return err
+		}
 	}
 	return errGrp.Wait()
 }
@@ -283,5 +294,21 @@ func DeleteRelationshipInstance(kv *api.KV, deploymentID, nodeName, instanceName
 	// now delete from targets in relationships instances
 	addOrRemoveInstanceFromTargetRelationship(kv, deploymentID, nodeName, instanceName, false)
 
+	return nil
+}
+
+func publishRelationshipAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
+	sValue, ok := attributeValue.(string)
+	if ok {
+		relationshipName, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		if err != nil {
+			return err
+		}
+		relationshipAttribute := fmt.Sprintf("relationship.%s.%s", relationshipName, attributeName)
+		_, err = events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, relationshipAttribute, sValue)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

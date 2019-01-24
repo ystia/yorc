@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"path"
 
-	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
@@ -46,11 +45,12 @@ type defaultExecutor struct {
 }
 
 type attrInfo struct {
-	deploymentID   string
-	nodeName       string
-	instanceName   string
-	capabilityName string
-	attributeName  string
+	deploymentID     string
+	nodeName         string
+	instanceName     string
+	capabilityName   string
+	attributeName    string
+	requirementIndex string
 }
 
 // NewExecutor returns an Executor
@@ -319,11 +319,9 @@ func storeOutput(store consulutil.ConsulStore, outputPath, outputValue string) e
 		if attrInfo == nil {
 			return errors.Errorf("failed to retrieve attribute information with output path:%q", outputPath)
 		}
-		if attrInfo.capabilityName != "" {
-			return deployments.SetInstanceCapabilityAttribute(attrInfo.deploymentID, attrInfo.nodeName, attrInfo.instanceName, attrInfo.capabilityName, attrInfo.attributeName, outputValue)
-		}
-		return deployments.SetInstanceAttribute(attrInfo.deploymentID, attrInfo.nodeName, attrInfo.instanceName, attrInfo.attributeName, outputValue)
+		return attrInfo.saveAttributeValue(outputValue)
 	}
+	// if output is not an attribute, store its path/value directly
 	store.StoreConsulKeyAsString(outputPath, outputValue)
 	return nil
 }
@@ -360,12 +358,21 @@ func retrieveAttributeInfo(outputPath string) *attrInfo {
 	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/relationship_instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
 	if match != nil && len(match) == 6 {
 		return &attrInfo{
-			deploymentID: match[1],
-			nodeName:     match[2],
-			instanceName: match[4],
-			//TODO
-			attributeName: fmt.Sprintf("relationships/%s", match[5]),
+			deploymentID:     match[1],
+			nodeName:         match[2],
+			requirementIndex: match[3],
+			instanceName:     match[4],
+			attributeName:    match[5],
 		}
 	}
 	return nil
+}
+
+func (attr *attrInfo) saveAttributeValue(value string) error {
+	if attr.capabilityName != "" {
+		return deployments.SetInstanceCapabilityAttribute(attr.deploymentID, attr.nodeName, attr.instanceName, attr.capabilityName, attr.attributeName, value)
+	} else if attr.requirementIndex != "" {
+		return deployments.SetInstanceRelationshipAttribute(attr.deploymentID, attr.nodeName, attr.instanceName, attr.requirementIndex, attr.attributeName, value)
+	}
+	return deployments.SetInstanceAttribute(attr.deploymentID, attr.nodeName, attr.instanceName, attr.attributeName, value)
 }
