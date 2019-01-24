@@ -57,6 +57,9 @@ topology_template:
         context_root: "/"
         component_version: "{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}"
         data_dir: "/opt/alien4cloud/data"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - javaSoftwareHostedOnJdkOracleJdkJdk:
             type_requirement: java
@@ -86,7 +89,7 @@ topology_template:
             user: {{.Alien4cloud.User}}
             password: {{.Alien4cloud.Password}}
             port: {{.Alien4cloud.Port}}
-            protocol: http
+            protocol: {{.Alien4cloud.Protocol}}
             secure: false
             network_name: PRIVATE
             initiator: source
@@ -145,6 +148,9 @@ topology_template:
         config_dir: "/etc/yorc"
         data_dir: "{{.Yorc.DataDir}}"
         private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - hostedOnComputeHost:
             type_requirement: host
@@ -170,7 +176,7 @@ topology_template:
         rest:
           properties:
             port: {{.Yorc.Port}}
-            protocol: http
+            protocol: {{.Yorc.Protocol}}
             secure: false
             network_name: PRIVATE
             initiator: source
@@ -179,7 +185,9 @@ topology_template:
       properties:
         install_dnsmasq: true
         mode: server
-        tls_enabled: false
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
         download_url: "{{.Consul.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/consul.d"
@@ -187,6 +195,9 @@ topology_template:
         domain: consul
         web_ui: false
         data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - hostedOnComputeHost:
             type_requirement: host

@@ -76,6 +76,9 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
+	bootstrapCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "n", false,
+		"insecure mode - no TLS configuration")
+	viper.BindPFlag("review", bootstrapCmd.PersistentFlags().Lookup("review"))
 
 	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
 	viper.AutomaticEnv() // read in environment variables that match
@@ -119,6 +122,7 @@ var reviewInputs bool
 var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
+var insecure bool
 
 func bootstrap() error {
 

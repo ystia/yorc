@@ -43,8 +43,14 @@ type AnsibleConfiguration struct {
 type YorcConfiguration struct {
 	DownloadURL       string `yaml:"download_url" mapstructure:"download_url"`
 	Port              int
+	Protocol          string
 	PrivateKeyContent string `yaml:"private_key_content" mapstructure:"private_key_content"`
 	PrivateKeyFile    string `yaml:"private_key_file" mapstructure:"private_key_file"`
+	CAPEMContent      string `yaml:"ca_pem" mapstructure:"ca_pem"`
+	CAPEMFile         string `yaml:"ca_pem_file" mapstructure:"ca_pem_file"`
+	CAKeyContent      string `yaml:"ca_key" mapstructure:"ca_key"`
+	CAKeyFile         string `yaml:"ca_key_file" mapstructure:"ca_key_file"`
+	CAPassPhrase      string `yaml:"ca_passphrase" mapstructure:"ca_passphrase"`
 	DataDir           string `yaml:"data_dir" mapstructure:"data_dir"`
 	WorkersNumber     int    `yaml:"workers_number" mapstructure:"workers_number"`
 }
@@ -58,14 +64,18 @@ type YorcPluginConfiguration struct {
 type Alien4CloudConfiguration struct {
 	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
 	Port        int
+	Protocol    string
 	User        string
 	Password    string
 }
 
 // ConsulConfiguration provides Consul user-defined settings
 type ConsulConfiguration struct {
-	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
-	Port        int
+	DownloadURL         string `yaml:"download_url" mapstructure:"download_url"`
+	Port                int
+	TLSEnabled          bool   `yaml:"tls_enabled" mapstructure:"tls_enabled"`
+	TLSForChecksEnabled bool   `yaml:"tls_for_checks_enabled" mapstructure:"tls_for_checks_enabled"`
+	EncryptKey          string `yaml:"encrypt_key" mapstructure:"encrypt_key"`
 }
 
 // TerraformConfiguration provides Terraform settings
