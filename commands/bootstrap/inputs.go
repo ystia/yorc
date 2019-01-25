@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,8 +34,8 @@ import (
 	"github.com/ystia/yorc/commands"
 	"github.com/ystia/yorc/config"
 
-	"gopkg.in/AlecAivazis/survey.v1"
-	"gopkg.in/yaml.v2"
+	survey "gopkg.in/AlecAivazis/survey.v1"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var inputValues TopologyValues
@@ -335,6 +336,22 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	if inputValues.Infrastructures == nil {
 		inputValues.Infrastructures = configuration.Infrastructures
 	}
+
+	//recovering infra type if needed
+	if infrastructureType == "" {
+		switch inputValues.Location.Type {
+		case "OpenStack":
+			infrastructureType = "openstack"
+		case "Google Cloud":
+			infrastructureType = "google"
+		case "AWS":
+			infrastructureType = "aws"
+		case "HostsPool":
+			infrastructureType = "hostspool"
+		default:
+			infrastructureType = ""
+		}
+	}
 	// Now check for missing mandatory parameters and ask them to the user
 
 	if infrastructureType == "" {
@@ -595,6 +612,16 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			return err
 		}
 	}
+
+	bSlice, err := yaml.Marshal(inputValues)
+
+	file, err := os.Create("test_config_export.yaml")
+	if err != nil {
+		log.Fatal("Cannot create file", err)
+	}
+	defer file.Close()
+
+	fmt.Fprintf(file, string(bSlice[:]))
 
 	return nil
 }
@@ -1032,6 +1059,9 @@ func getInputValues(inputFilePath string) (TopologyValues, error) {
 				fmt.Println("Can't use config file:", err)
 			}
 		}
+
+		var infratype = bootstrapViper.GetString("InfrastructureType")
+		infrastructureType = infratype
 	}
 
 	err := bootstrapViper.Unmarshal(&values)
