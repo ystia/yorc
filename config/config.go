@@ -32,6 +32,11 @@ import (
 // See consulutil package for more details
 const DefaultConsulPubMaxRoutines int = 500
 
+// DefaultConsulTLSHandshakeTimeout is the default maximum duration to wait for
+// a TLS handshake.
+// See consulutil package for more details
+const DefaultConsulTLSHandshakeTimeout = 50 * time.Second
+
 // DefaultWorkersNumber is the default number of workers in the Yorc server
 const DefaultWorkersNumber int = 30
 
@@ -128,16 +133,17 @@ type Ansible struct {
 
 // Consul configuration
 type Consul struct {
-	Token          string `yaml:"token,omitempty" mapstructure:"token"`
-	Datacenter     string `yaml:"datacenter,omitempty" mapstructure:"datacenter"`
-	Address        string `yaml:"address,omitempty" mapstructure:"address"`
-	Key            string `yaml:"key_file,omitempty" mapstructure:"key_file"`
-	Cert           string `yaml:"cert_file,omitempty" mapstructure:"cert_file"`
-	CA             string `yaml:"ca_cert,omitempty" mapstructure:"ca_cert"`
-	CAPath         string `yaml:"ca_path,omitempty" mapstructure:"ca_path"`
-	SSL            bool   `yaml:"ssl,omitempty" mapstructure:"ssl"`
-	SSLVerify      bool   `yaml:"ssl_verify,omitempty" mapstructure:"ssl_verify"`
-	PubMaxRoutines int    `yaml:"publisher_max_routines,omitempty" mapstructure:"publisher_max_routines"`
+	Token               string        `yaml:"token,omitempty" mapstructure:"token"`
+	Datacenter          string        `yaml:"datacenter,omitempty" mapstructure:"datacenter"`
+	Address             string        `yaml:"address,omitempty" mapstructure:"address"`
+	Key                 string        `yaml:"key_file,omitempty" mapstructure:"key_file"`
+	Cert                string        `yaml:"cert_file,omitempty" mapstructure:"cert_file"`
+	CA                  string        `yaml:"ca_cert,omitempty" mapstructure:"ca_cert"`
+	CAPath              string        `yaml:"ca_path,omitempty" mapstructure:"ca_path"`
+	SSL                 bool          `yaml:"ssl,omitempty" mapstructure:"ssl"`
+	SSLVerify           bool          `yaml:"ssl_verify,omitempty" mapstructure:"ssl_verify"`
+	PubMaxRoutines      int           `yaml:"publisher_max_routines,omitempty" mapstructure:"publisher_max_routines"`
+	TLSHandshakeTimeout time.Duration `yaml:"tls_handshake_timeout,omitempty" mapstructure:"tls_handshake_timeout"`
 }
 
 // Telemetry holds the configuration for the telemetry service

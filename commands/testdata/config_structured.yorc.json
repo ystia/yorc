@@ -26,7 +26,8 @@
     "ca_cert": "testCACert2",
     "ca_path": "testCAPath2",
     "ssl": true,
-    "ssl_verify": false
+    "ssl_verify": false,
+    "tls_handshake_timeout": "51s"
   }, 
    "telemetry":{
     "statsd_address": "127.0.0.1:8125",
