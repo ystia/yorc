@@ -291,14 +291,15 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 
 	// Mapping from names to functions of functions referenced in templates
 	fmap := template.FuncMap{
-		"formatAsYAML":                        formatAsYAML,
-		"formatOnDemandResourceCredsAsYAML":   formatOnDemandResourceCredsAsYAML,
-		"indent":                              indent,
-		"getFile":                             getFile,
-		"getRepositoryURL":                    getRepositoryURL,
-		"getAlien4CloudVersion":               getAlien4CloudVersion,
-		"getAlien4CloudVersionFromTOSCATypes": getAlien4CloudVersionFromTOSCATypes,
-		"getForgeVersionFromTOSCATypes":       getForgeVersionFromTOSCATypes,
+		"formatAsYAML":                             formatAsYAML,
+		"formatOnDemandResourceCredsAsYAML":        formatOnDemandResourceCredsAsYAML,
+		"indent":                                   indent,
+		"getFile":                                  getFile,
+		"getRepositoryURL":                         getRepositoryURL,
+		"getAlien4CloudVersion":                    getAlien4CloudVersion,
+		"getAlien4CloudVersionFromTOSCATypes":      getAlien4CloudVersionFromTOSCATypes,
+		"getAlien4CloudForgeVersionFromTOSCATypes": getAlien4CloudForgeVersionFromTOSCATypes,
+		"getForgeVersionFromTOSCATypes":            getForgeVersionFromTOSCATypes,
 	}
 
 	parsedTemplate, err := template.New(templateName).Funcs(fmap).ParseFiles(templateFileNames...)
@@ -328,19 +329,24 @@ func createFileFromTemplates(templateFileNames []string, templateName, resultFil
 		return err
 	}
 	// Remove empty lines than may appear in conditional template code parsed
-	err = removeEmptyLines(resultFilePath)
+	// as it would cause issues in Alien4Cloud Workflows parsing
+	err = removeWorkflowsEmptyLines(resultFilePath)
 	return err
 }
 
-func removeEmptyLines(filename string) error {
+func removeWorkflowsEmptyLines(filename string) error {
 	re := regexp.MustCompile("(?m)^\\s*$[\r\n]*")
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
 
-	result := strings.Trim(re.ReplaceAllString(string(data[:]), ""), "\r\n")
-	err = ioutil.WriteFile(filename, []byte(result), 0600)
+	workflowStartIndex := strings.Index(string(data), "workflows:")
+	if workflowStartIndex == -1 {
+		return nil
+	}
+	workflowSection := strings.Trim(re.ReplaceAllString(string(data[workflowStartIndex:]), ""), "\r\n")
+	err = ioutil.WriteFile(filename, []byte(fmt.Sprintf("%s%s", string(data[:workflowStartIndex]), workflowSection)), 0600)
 	return err
 
 }

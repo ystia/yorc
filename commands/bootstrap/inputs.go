@@ -478,7 +478,10 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	if !insecure {
 		fmt.Println("\nGetting Certificate Authority configuration")
-		if err := getCAConfiguration(&inputValues.Yorc, resourcesAbsolutePath); err != nil {
+		if err := getCAConfiguration(
+			&inputValues.Yorc,
+			inputFilePath != "",
+			resourcesAbsolutePath); err != nil {
 			return err
 		}
 
@@ -492,7 +495,8 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		inputValues.Consul.TLSForChecksEnabled = true
 
 		// Get or generate an encrytion key
-		if inputValues.Consul.EncryptKey == "" {
+		if inputValues.Consul.EncryptKey == "" && inputFilePath == "" {
+
 			answer := struct {
 				Value string
 			}{}
@@ -508,14 +512,14 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 				return err
 			}
 
-			encryptKey := strings.TrimSpace(answer.Value)
-			if len(encryptKey) > 0 {
-				inputValues.Consul.EncryptKey = encryptKey
-			} else {
-				inputValues.Consul.EncryptKey, err = generateConsulEncryptKey()
-				if err != nil {
-					return err
-				}
+			inputValues.Consul.EncryptKey = strings.TrimSpace(answer.Value)
+		}
+
+		if inputValues.Consul.EncryptKey == "" {
+			fmt.Println("Generating a 16-bytes, Base64 encoded encyption key used to encrypt Consul network traffic")
+			inputValues.Consul.EncryptKey, err = generateConsulEncryptKey()
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -688,7 +692,7 @@ func generateConsulEncryptKey() (string, error) {
 // getCAConfiguration asks for a CA passphrase if not provided, then gets
 // the content of Certificate Authority and key if provided by the user or generates
 // a key and certificate authority
-func getCAConfiguration(pConfig *YorcConfiguration, resourcesPath string) error {
+func getCAConfiguration(pConfig *YorcConfiguration, inputFileProvided bool, resourcesPath string) error {
 
 	// Mandatory parameter: CA key passphrase
 	if pConfig.CAPassPhrase == "" {
@@ -718,10 +722,16 @@ func getCAConfiguration(pConfig *YorcConfiguration, resourcesPath string) error 
 		pConfig.CAPassPhrase = strings.TrimSpace(answer.Value)
 	}
 
+	// Entering interactive mode if one of CA or Key is defined and the other
+	// is not, if both are undefined they will be generated
+	askForInput := !inputFileProvided ||
+		((pConfig.CAKeyFile == "" || pConfig.CAPEMFile == "") &&
+			pConfig.CAKeyFile != pConfig.CAPEMFile)
+
 	// Get CA key or generate one
 	if pConfig.CAKeyContent == "" {
 
-		if pConfig.CAKeyFile == "" {
+		if pConfig.CAKeyFile == "" && askForInput {
 			answer := struct {
 				Value string
 			}{}
@@ -738,21 +748,22 @@ func getCAConfiguration(pConfig *YorcConfiguration, resourcesPath string) error 
 			}
 
 			pConfig.CAKeyFile = strings.TrimSpace(answer.Value)
-			if len(pConfig.CAKeyFile) == 0 {
-				fmt.Println("Generating a CA key")
-				pConfig.CAKeyFile = filepath.Join(resourcesPath, "ca-key.pem")
-				cmdArgs := fmt.Sprintf("genrsa -aes256 -out %s -passout pass:%s 4096",
-					pConfig.CAKeyFile, pConfig.CAPassPhrase)
-				cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
-				if err := cmd.Run(); err != nil {
-					return err
-				}
+		}
+
+		if pConfig.CAKeyFile == "" {
+			fmt.Println("Generating a CA key")
+			pConfig.CAKeyFile = filepath.Join(resourcesPath, "ca-key.pem")
+			cmdArgs := fmt.Sprintf("genrsa -aes256 -out %s -passout pass:%s 4096",
+				pConfig.CAKeyFile, pConfig.CAPassPhrase)
+			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
+			if err := cmd.Run(); err != nil {
+				return errors.Wrapf(err, "Failed to generate CA key running 'openssl %s'", cmdArgs)
 			}
 		}
 
 		data, err := ioutil.ReadFile(pConfig.CAKeyFile)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read CA key file %s", pConfig.CAKeyFile)
 		}
 		pConfig.CAKeyContent = string(data[:])
 	}
@@ -760,7 +771,7 @@ func getCAConfiguration(pConfig *YorcConfiguration, resourcesPath string) error 
 	// Get CA or generate one
 	if pConfig.CAPEMContent == "" {
 
-		if pConfig.CAPEMFile == "" {
+		if pConfig.CAPEMFile == "" && askForInput {
 			answer := struct {
 				Value string
 			}{}
@@ -777,23 +788,26 @@ func getCAConfiguration(pConfig *YorcConfiguration, resourcesPath string) error 
 			}
 
 			pConfig.CAPEMFile = strings.TrimSpace(answer.Value)
-			if len(pConfig.CAPEMFile) == 0 {
-				fmt.Println("Generating a PEM-encoded Certificate Authority")
-				pConfig.CAPEMFile = filepath.Join(resourcesPath, "ca.pem")
-				cmdArgs := fmt.Sprintf("req -new -x509 -days 365 -key %s -sha256 -passin pass:%s -subj '/CN=yorc/O=ystia/C=US' -out %s",
-					pConfig.CAKeyFile, pConfig.CAPassPhrase, pConfig.CAPEMFile)
-				cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
-				if err := cmd.Run(); err != nil {
-					return err
-				}
+		}
+
+		if pConfig.CAPEMFile == "" {
+			fmt.Println("Generating a PEM-encoded Certificate Authority")
+			pConfig.CAPEMFile = filepath.Join(resourcesPath, "ca.pem")
+			cmdArgs := fmt.Sprintf("req -new -x509 -days 365 -key %s -sha256 -passin pass:%s -subj /CN=yorc/O=ystia/C=US -out %s",
+				pConfig.CAKeyFile, pConfig.CAPassPhrase, pConfig.CAPEMFile)
+			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
+			if err := cmd.Run(); err != nil {
+				return errors.Wrapf(err,
+					"Failed to generate a PEM-encoded Certificate Authority running 'openssl %s'",
+					cmdArgs)
 			}
 		}
 
 		data, err := ioutil.ReadFile(pConfig.CAPEMFile)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read CA file %s", pConfig.CAPEMFile)
 		}
-		pConfig.CAKeyContent = string(data[:])
+		pConfig.CAPEMContent = string(data[:])
 	}
 
 	return nil

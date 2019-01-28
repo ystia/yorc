@@ -265,6 +265,9 @@ func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, c
 	cmd.Stdout = out
 	cmd.Stderr = errbuf
 
+	log.Debug("LOLO dir: %s", cmd.Dir)
+	log.Debug("LOLO env: %+v", cmd.Env)
+	log.Debug("LOLO cmd: terraform apply -input=false -auto-approve")
 	quit := make(chan bool)
 	defer close(quit)
 
