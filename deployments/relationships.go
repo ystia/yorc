@@ -300,11 +300,12 @@ func DeleteRelationshipInstance(kv *api.KV, deploymentID, nodeName, instanceName
 func publishRelationshipAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, requirementIndex, attributeName string, attributeValue interface{}) error {
 	sValue, ok := attributeValue.(string)
 	if ok {
-		relationshipName, err := GetRelationshipForRequirement(kv, deploymentID, nodeName, requirementIndex)
+		// Publish the relationship attribute with the related requirement name
+		requirementName, err := GetRequirementNameByIndexForNode(kv, deploymentID, nodeName, requirementIndex)
 		if err != nil {
 			return err
 		}
-		relationshipAttribute := fmt.Sprintf("relationship.%s.%s", relationshipName, attributeName)
+		relationshipAttribute := fmt.Sprintf("relationship.%s.%s", requirementName, attributeName)
 		_, err = events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, relationshipAttribute, sValue)
 		if err != nil {
 			return err
