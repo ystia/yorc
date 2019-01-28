@@ -11,7 +11,7 @@ imports:
   - alien-base-types/{{getAlien4CloudVersionFromTOSCATypes}}/alien-base-types.yml
   - org.ystia.nfs.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - <normative-types.yml>
-  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - <yorc-google-types.yml>
   - <yorc-openstack-types.yml>
   - <yorc-aws-types.yml>
@@ -19,23 +19,23 @@ imports:
   - org.ystia.yorc.experimental.consul.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
   - org.ystia.terraform.linux.terraform/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.consul.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.consul.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.ystia.nfs.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - <yorc-types.yml>
-  - org.alien4cloud.java.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.java.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.on_demand/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.location_resources.autoconfig/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.experimental.consul.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.ystia.ansible.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.webapp/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.yorc.alien4cloud/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
-  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.java.jdk.linux/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - alien-extended-storage-types/{{getAlien4CloudVersionFromTOSCATypes}}/alien-extended-storage-types.yml
   - org.ystia.terraform.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.ystia.ansible.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
@@ -47,7 +47,9 @@ topology_template:
       properties:
         install_dnsmasq: true
         mode: server
-        tls_enabled: false
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
         download_url: "{{.Consul.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/consul.d"
@@ -55,6 +57,9 @@ topology_template:
         domain: consul
         web_ui: false
         data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - hostedOnComputeConsulHost:
             type_requirement: host
@@ -104,6 +109,9 @@ topology_template:
         context_root: "/"
         component_version: "{{getAlien4CloudVersion .Alien4cloud.DownloadURL}}"
         data_dir: "/opt/alien4cloud/data"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - javaSoftwareHostedOnJdkOracleJdkJdk:
             type_requirement: java
@@ -133,7 +141,7 @@ topology_template:
             user: {{.Alien4cloud.User}}
             password: {{.Alien4cloud.Password}}
             port: {{.Alien4cloud.Port}}
-            protocol: http
+            protocol: {{.Alien4cloud.Protocol}}
             secure: false
             network_name: PRIVATE
             initiator: source
@@ -222,7 +230,9 @@ topology_template:
       properties:
         install_dnsmasq: true
         mode: agent
-        tls_enabled: false
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
         download_url: "{{.Consul.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/consul.d"
@@ -230,6 +240,9 @@ topology_template:
         domain: consul
         web_ui: false
         data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - joinServerConsulServerConsul_server:
             type_requirement: consul_server
@@ -254,7 +267,9 @@ topology_template:
       properties:
         install_dnsmasq: true
         mode: agent
-        tls_enabled: false
+        tls_enabled: {{.Consul.TLSEnabled}}
+        tls_for_checks_enabled: {{.Consul.TLSForChecksEnabled}}
+        encrypt_key: "{{.Consul.EncryptKey}}"
         download_url: "{{.Consul.DownloadURL}}"
         install_dir: "/usr/local/bin"
         config_dir: "/etc/consul.d"
@@ -262,6 +277,9 @@ topology_template:
         domain: consul
         web_ui: false
         data_dir: "/var/consul"
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - joinServerConsulServerConsul_server:
             type_requirement: consul_server
@@ -289,6 +307,9 @@ topology_template:
         config_dir: "/etc/yorc"
         data_dir: "{{.Yorc.DataDir}}"
         private_key_content: |{{indent .Yorc.PrivateKeyContent 10}}
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
         - hostedOnComputeYorcHost:
             type_requirement: host
@@ -319,7 +340,7 @@ topology_template:
         rest:
           properties:
             port: {{.Yorc.Port}}
-            protocol: http
+            protocol: {{.Yorc.Protocol}}
             secure: false
             network_name: PRIVATE
             initiator: source
