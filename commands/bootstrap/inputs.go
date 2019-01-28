@@ -615,7 +615,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	bSlice, err := yaml.Marshal(inputValues)
 
-	file, err := os.Create("test_config_export.yaml")
+	file, err := os.Create(deploymentName + "_config.yaml")
 	if err != nil {
 		log.Fatal("Cannot create file", err)
 	}
@@ -810,11 +810,37 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			hostConfig.Connection.Port = 22
 		}
 
-		fmt.Println("Defining key/value labels for this host, a public_address label should be defined")
+		//asking public address first
+		fmt.Println("Defining key/value labels for this host. Defining public_address value is mandatory")
 		hostConfig.Labels = make(map[string]string)
-		labelsFinished := false
-		publicAddressDefined := false
-		for !labelsFinished {
+
+		prompt = &survey.Input{
+			Message: "public_address value:"}
+
+		question = &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return nil, err
+		}
+
+		hostConfig.Labels["public_address"] = answer.Value
+
+		//asking for additional key values labels
+		for {
+
+			// asking if a new label must be defined
+			promptEnd := &survey.Select{
+				Message: "Add another key/value label for this host ?:",
+				Options: []string{"yes", "no"},
+				Default: "no",
+			}
+			var reply string
+			survey.AskOne(promptEnd, &reply, nil)
+			if reply == "no" {
+				break
+			}
 
 			prompt := &survey.Input{
 				Message: "Label key (required):"}
@@ -829,10 +855,6 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			}
 			labelKey := answer.Value
 
-			if labelKey == "public_address" {
-				publicAddressDefined = true
-			}
-
 			prompt = &survey.Input{
 				Message: "Label value:"}
 
@@ -845,22 +867,6 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			}
 
 			hostConfig.Labels[labelKey] = answer.Value
-
-			// If the public address label is already defined
-			// asking if a new label must be defined
-			// else a new label must be defined, because public_address is
-			// mandatory for the bootstrap
-			if publicAddressDefined {
-				promptEnd := &survey.Select{
-					Message: "Add another key/value label:",
-					Options: []string{"yes", "no"},
-					Default: "no",
-				}
-				var reply string
-				survey.AskOne(promptEnd, &reply, nil)
-				labelsFinished = (reply == "no")
-			}
-
 		}
 
 		// The private SSH key used to connect to the host is the Yorc private key

@@ -76,6 +76,9 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
+	bootstrapCmd.PersistentFlags().StringVarP(&deploymentName,
+		"deployment_name", "n", "", "Name of the deployment. If not specified deployment is based on time.")
+	viper.BindPFlag("deployment_name", bootstrapCmd.PersistentFlags().Lookup("deployment_name"))
 
 	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
 	viper.AutomaticEnv() // read in environment variables that match
@@ -119,6 +122,7 @@ var reviewInputs bool
 var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
+var deploymentName string
 
 func bootstrap() error {
 
