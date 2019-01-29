@@ -613,15 +613,32 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 	}
 
-	bSlice, err := yaml.Marshal(inputValues)
+	if inputsPath == "" {
 
-	file, err := os.Create(deploymentName + "_config.yaml")
-	if err != nil {
-		log.Fatal("Cannot create file", err)
+		bSlice, err := yaml.Marshal(inputValues)
+
+		inputsPathOut := deploymentName + ".yaml"
+
+		count := 1
+		for {
+			inputsPathOut = deploymentName + "_" + strconv.Itoa(count) + ".yaml"
+			if _, err := os.Stat(inputsPathOut); os.IsNotExist(err) {
+				break
+			}
+			count++
+		}
+
+		file, err := os.Create(inputsPathOut)
+
+		println("Exporting set configuration to " + inputsPathOut)
+
+		if err != nil {
+			log.Fatal("Cannot create file to save the configuration", err)
+		}
+		defer file.Close()
+
+		fmt.Fprintf(file, string(bSlice[:]))
 	}
-	defer file.Close()
-
-	fmt.Fprintf(file, string(bSlice[:]))
 
 	return nil
 }
