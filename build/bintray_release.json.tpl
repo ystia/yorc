@@ -27,9 +27,9 @@
 
     "files":
         [
-        {"includePattern": "dist/(yorc-.*\\.tgz)", "uploadPattern": "$1"},
-        {"includePattern": "dist/(yorc-server-.*-distrib\\.zip)", "uploadPattern": "$1"},
-        {"includePattern": "pkg/(docker-ystia-yorc-.*\\.tgz)", "uploadPattern": "$1"}
+        {"includePattern": "dist/(yorc-.*\\.tgz)", "uploadPattern": "${VERSION_NAME}/$1"},
+        {"includePattern": "dist/(yorc-server-.*-distrib\\.zip)", "uploadPattern": "${VERSION_NAME}/$1"},
+        {"includePattern": "pkg/(docker-ystia-yorc-.*\\.tgz)", "uploadPattern": "${VERSION_NAME}/$1"}
         ],
     "publish": true
 }
