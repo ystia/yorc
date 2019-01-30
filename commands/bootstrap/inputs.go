@@ -1065,11 +1065,11 @@ func getYorcDownloadURL() string {
 	var downloadURL string
 	if strings.Contains(yorcVersion, "SNAPSHOT") {
 		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-engine/snapshots/develop/yorc-%s.tgz",
+			"https://ystia.jfrog.io/ystia/binaries/ystia/yorc/dist/develop/yorc-%s.tgz",
 			yorcVersion)
 	} else {
 		downloadURL = fmt.Sprintf(
-			"https://github.com/ystia/yorc/releases/download/v%s/yorc-%s.tgz",
+			"https://dl.bintray.com/ystia/yorc-engine/%s/yorc-%s.tgz",
 			yorcVersion, yorcVersion)
 	}
 	return downloadURL
@@ -1081,11 +1081,11 @@ func getYorcPluginDownloadURL() string {
 	var downloadURL string
 	if strings.Contains(yorcVersion, "SNAPSHOT") {
 		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-a4c-plugin/snapshots/develop/alien4cloud-yorc-plugin-%s.zip",
+			"https://ystia.jfrog.io/ystia/binaries/ystia/yorc-a4c-plugin/dist/develop/alien4cloud-yorc-plugin-%s.zip",
 			yorcVersion)
 	} else {
 		downloadURL = fmt.Sprintf(
-			"https://github.com/ystia/yorc-a4c-plugin/releases/download/v%s/alien4cloud-yorc-plugin-%s.zip",
+			"https://dl.bintray.com/ystia/yorc-a4c-plugin/%s/alien4cloud-yorc-plugin-%s.zip",
 			yorcVersion, yorcVersion)
 	}
 	return downloadURL
