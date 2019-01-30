@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### DEPENDENCIES
+
+* Technical update to use Alien4Cloud 2.1.1 (Used in bootstrap)
+
 ### BUG FIXES
 
 * Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283)
