@@ -289,8 +289,6 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 	if err != nil && !tasks.IsTaskDataNotFoundError(err) {
 		return errors.Wrap(err, "failed to retrieve custom interface name")
 	}
-
-	log.Debugf("laaaaaaaaaaaaaaaaaa interfaceName interfaceName%+v", interfaceName)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve custom command interface name")
 	}
