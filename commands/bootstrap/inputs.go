@@ -621,10 +621,10 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 		count := 1
 		for {
-			inputsPathOut = deploymentName + "_" + strconv.Itoa(count) + ".yaml"
 			if _, err := os.Stat(inputsPathOut); os.IsNotExist(err) {
 				break
 			}
+			inputsPathOut = deploymentName + "_" + strconv.Itoa(count) + ".yaml"
 			count++
 		}
 
@@ -635,12 +635,18 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		if err != nil {
 			log.Fatal("Cannot create file to save the configuration", err)
 		}
-		defer file.Close()
 
 		fmt.Fprintf(file, string(bSlice[:]))
+
+		file.Close()
 	}
 
+	if configOnly == true {
+		println("config_only option is set, exiting.")
+		os.Exit(0)
+	}
 	return nil
+
 }
 
 // reviewAndUpdateInputs allows the user to review and change deployment inputs

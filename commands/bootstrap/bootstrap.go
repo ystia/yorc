@@ -79,6 +79,10 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentName,
 		"deployment_name", "n", "", "Name of the deployment. If not specified deployment is based on time.")
 	viper.BindPFlag("deployment_name", bootstrapCmd.PersistentFlags().Lookup("deployment_name"))
+	bootstrapCmd.PersistentFlags().BoolVarP(&configOnly,
+		"config_only", "", false, "Makes the bootstrapping abhort right after exporting the inputs")
+	bootstrapCmd.PersistentFlags().Lookup("config_only").NoOptDefVal = "true"
+	viper.BindPFlag("config_only", bootstrapCmd.PersistentFlags().Lookup("config_only"))
 
 	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
 	viper.AutomaticEnv() // read in environment variables that match
@@ -123,6 +127,7 @@ var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
 var deploymentName string
+var configOnly bool
 
 func bootstrap() error {
 
