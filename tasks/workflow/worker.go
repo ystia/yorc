@@ -282,9 +282,11 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve custom command name")
 	}
-	interfaceNameKv, _, err := kv.Get(path.Join(consulutil.TasksPrefix, t.taskID, "interfaceName"), nil)
+
+	var interfaceName string
+	interfaceName, err = tasks.GetTaskData(kv, t.taskID, "interfaceName")
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve custom command interface name")
+		return errors.Wrap(err, "failed to retrieve custom interface name")
 	}
 	nodes, err := tasks.GetTaskRelatedNodes(kv, t.taskID)
 	if err != nil {
@@ -294,10 +296,6 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 		return errors.Wrapf(err, "expecting custom command to be related to \"1\" node while it is actually related to \"%d\" nodes", len(nodes))
 	}
 	nodeName := nodes[0]
-	interfaceName := "custom"
-	if interfaceNameKv != nil && len(interfaceNameKv.Value) != 0 {
-		interfaceName = string(interfaceNameKv.Value)
-	}
 	nodeType, err := deployments.GetNodeType(w.consulClient.KV(), t.targetID, nodeName)
 	if err != nil {
 		return err
