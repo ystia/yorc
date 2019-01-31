@@ -285,12 +285,8 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 
 	var interfaceName string
 	interfaceName, err = tasks.GetTaskData(kv, t.taskID, "interfaceName")
-	if err != nil && !tasks.IsTaskDataNotFoundError(err) {
+	if err != nil {
 		return errors.Wrap(err, "failed to retrieve custom interface name")
-	}
-	// default interface name is custom
-	if interfaceName == "" {
-		interfaceName = "custom"
 	}
 	nodes, err := tasks.GetTaskRelatedNodes(kv, t.taskID)
 	if err != nil {
