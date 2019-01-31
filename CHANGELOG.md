@@ -9,6 +9,7 @@
 ### BUG FIXES
 
 * Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283)
+* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289)
 
 ## 3.2.0-M1 (January 28, 2019)
 
