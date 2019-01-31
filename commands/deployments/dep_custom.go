@@ -91,8 +91,8 @@ func init() {
 		},
 	}
 	customCmd.PersistentFlags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the custom command")
-	customCmd.PersistentFlags().StringVarP(&nodeName, "node", "n", "", "Provide the node name (use with flag c and i)")
-	customCmd.PersistentFlags().StringVarP(&customCName, "custom", "", "", "Provide the custom command name (use with flag n and i)")
-	customCmd.PersistentFlags().StringArrayVarP(&inputs, "input", "i", make([]string, 0), "Provide the input for the custom command (use with flag c and n)")
+	customCmd.PersistentFlags().StringVarP(&nodeName, "node", "n", "", "Provide the node name (use with flag custom and input)")
+	customCmd.PersistentFlags().StringVarP(&customCName, "custom", "", "", "Provide the custom command name (use with flag node and input)")
+	customCmd.PersistentFlags().StringArrayVarP(&inputs, "input", "i", make([]string, 0), "Provide the input for the custom command (use with flag custom and node)")
 	DeploymentsCmd.AddCommand(customCmd)
 }
