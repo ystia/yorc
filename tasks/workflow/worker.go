@@ -639,40 +639,43 @@ func (w *worker) runPurge(ctx context.Context, t *taskExecution) error {
 }
 
 func (w *worker) runScaleOut(ctx context.Context, t *taskExecution) error {
-	log.Debugf("************************************************************** runScaleOutrunScaleOut")
-	err := deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.SCALING_IN_PROGRESS)
+	status, err := deployments.GetDeploymentStatus(w.consulClient.KV(), t.targetID)
 	if err != nil {
 		return err
 	}
+	if status == deployments.DEPLOYED {
+		nodeName, err := tasks.GetTaskData(t.cc.KV(), t.taskID, "nodeName")
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve scale out node name")
+		}
 
-	nodeName, err := tasks.GetTaskData(t.cc.KV(), t.taskID, "nodeName")
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve scale out node name")
-	}
+		var instancesDelta int
+		instancesDeltaStr, err := tasks.GetTaskData(t.cc.KV(), t.taskID, "instancesDelta")
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve scale out instancesDelta")
+		}
+		if instancesDelta, err = strconv.Atoi(instancesDeltaStr); err != nil {
+			return errors.Wrap(err, "failed to convert instancesDelta into int")
+		}
 
-	var instancesDelta int
-	instancesDeltaStr, err := tasks.GetTaskData(t.cc.KV(), t.taskID, "instancesDelta")
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve scale out instancesDelta")
-	}
-	if instancesDelta, err = strconv.Atoi(instancesDeltaStr); err != nil {
-		return errors.Wrap(err, "failed to convert instancesDelta into int")
-	}
-	log.Debugf("instancesDelta=%d", instancesDelta)
+		// Create and store related node instances for scaling
+		instancesByNodes, err := deployments.CreateNewNodeStackInstances(t.cc.KV(), t.targetID, nodeName, instancesDelta)
+		if err != nil {
+			return errors.Wrap(err, "failed to create new nodes instances in topology")
+		}
+		data := make(map[string]string)
+		for scalableNode, nodeInstances := range instancesByNodes {
+			data[path.Join("nodes", scalableNode)] = nodeInstances
+		}
+		err = tasks.SetTaskDataList(t.cc.KV(), t.taskID, data)
+		if err != nil {
+			return errors.Wrap(err, "failed to set task data with nodes for scaling out")
+		}
 
-	// Create and store related node instances for scaling
-	instancesByNodes, err := deployments.CreateNewNodeStackInstances(t.cc.KV(), t.targetID, nodeName, instancesDelta)
-	if err != nil {
-		return errors.Wrap(err, "failed to create new nodes instances in topology")
-	}
-	log.Debugf("instances=%+v", instancesByNodes)
-	data := make(map[string]string)
-	for scalableNode, nodeInstances := range instancesByNodes {
-		data[path.Join("nodes", scalableNode)] = nodeInstances
-	}
-	err = tasks.SetTaskDataList(t.cc.KV(), t.taskID, data)
-	if err != nil {
-		return errors.Wrap(err, "failed to set task data with nodes for scaling out")
+		err = deployments.SetDeploymentStatus(ctx, w.consulClient.KV(), t.targetID, deployments.SCALING_IN_PROGRESS)
+		if err != nil {
+			return err
+		}
 	}
 
 	t.finalFunction = w.makeWorkflowFinalFunction(ctx, t.cc.KV(), t.targetID, t.taskID, "install", deployments.DEPLOYED, deployments.DEPLOYMENT_FAILED)
