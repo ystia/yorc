@@ -28,6 +28,8 @@ func CleanupMetricKey(key []string) []string {
 		res[i] = strings.Replace(res[i], "_", "-", -1)
 		res[i] = strings.Replace(res[i], "|", "-", -1)
 		res[i] = strings.Replace(res[i], ":", "-", -1)
+		// " should be banned from keys
+		res[i] = strings.Replace(res[i], "\"", "", -1)
 	}
 	return res
 }
