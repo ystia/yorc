@@ -7,6 +7,7 @@
 * Can't deploy applications using a secured yorc/consul ([GH-274](https://github.com/ystia/yorc/issues/274))
 * Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
 * K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
+* Deployment status inconsistency when restarting Alien4Cloud and an application finishes to deploy  ([GH-77](https://github.com/ystia/yorc-a4c-plugin/issues/77))
 
 ## 3.1.0 (December 20, 2018)
 
