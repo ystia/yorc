@@ -212,31 +212,27 @@ func DeleteTask(kv *api.KV, taskID string) error {
 //
 // Only Deploy, UnDeploy, ScaleOut, ScaleIn and Purge task type are considered.
 func TargetHasLivingTasks(kv *api.KV, targetID string) (bool, string, string, error) {
-	tasksKeys, _, err := kv.Keys(consulutil.TasksPrefix+"/", "/", nil)
+
+	taskIDs, err := GetTasksIdsForTarget(kv, targetID)
 	if err != nil {
 		return false, "", "", errors.Wrap(err, consulutil.ConsulGenericErrMsg)
 	}
-	for _, taskKey := range tasksKeys {
-		taskID := path.Base(taskKey)
-		ttID, err := GetTaskTarget(kv, taskID)
+
+	for _, taskID := range taskIDs {
+
+		tStatus, err := GetTaskStatus(kv, taskID)
 		if err != nil {
 			return false, "", "", err
 		}
-		if ttID == targetID {
-			tStatus, err := GetTaskStatus(kv, taskID)
-			if err != nil {
-				return false, "", "", err
-			}
-			tType, err := GetTaskType(kv, taskID)
-			if err != nil {
-				return false, "", "", err
-			}
+		tType, err := GetTaskType(kv, taskID)
+		if err != nil {
+			return false, "", "", err
+		}
 
-			switch tType {
-			case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut:
-				if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
-					return true, taskID, tStatus.String(), nil
-				}
+		switch tType {
+		case TaskTypeDeploy, TaskTypeUnDeploy, TaskTypePurge, TaskTypeScaleIn, TaskTypeScaleOut:
+			if tStatus == TaskStatusINITIAL || tStatus == TaskStatusRUNNING {
+				return true, taskID, tStatus.String(), nil
 			}
 		}
 	}
