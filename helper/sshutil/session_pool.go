@@ -146,7 +146,7 @@ func (p *pool) getConn(k, addr string, config *ssh.ClientConfig) *conn {
 	p.tab[k] = c
 	p.mu.Unlock()
 	c.netC, c.c, c.err = p.dial("tcp", addr, config)
-	c.name = fmt.Sprintf("%s-%x", k, c.c.SessionID())
+	c.name = fmt.Sprintf("%s-%s-%x", addr, config.User, c.c.SessionID())
 	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "creations", c.name}), 1)
 	close(c.ok)
 	return c
