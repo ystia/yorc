@@ -21,8 +21,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/helper/metricsutil"
 )
 
 type pool struct {
@@ -52,6 +55,7 @@ func (p *pool) openSession(client *SSHClient) (*sshSession, error) {
 		if err == nil {
 			return s, nil
 		}
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", c.name, "sessions", "open-failed"}), 1)
 		// can't open session this is probably due to too many session open
 		// remove this connection from cache
 		p.removeConn(k, c)
@@ -72,10 +76,13 @@ func (s *sshSession) Close() error {
 	s.conn.lockSessionsCount.Lock()
 	defer s.conn.lockSessionsCount.Unlock()
 	s.conn.opennedSessions--
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", s.conn.name, "sessions", "closes"}), 1)
+	metrics.SetGauge(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", s.conn.name, "sessions", "open"}), float32(s.conn.opennedSessions))
 	return errors.Wrap(err, "failed to close ssh session")
 }
 
 type conn struct {
+	name              string
 	netC              net.Conn
 	c                 *ssh.Client
 	ok                chan bool
@@ -87,6 +94,7 @@ type conn struct {
 // closes the ssh client
 func (c *conn) close() {
 	c.c.Close()
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "closes", c.name}), 1)
 }
 
 // asynchronously wait for all openned sessions to finish and then close the connection.
@@ -115,6 +123,9 @@ func (c *conn) newSession() (*sshSession, error) {
 	c.lockSessionsCount.Lock()
 	defer c.lockSessionsCount.Unlock()
 	c.opennedSessions++
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", c.name, "sessions", "creations"}), 1)
+	metrics.SetGauge(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", c.name, "sessions", "open"}), float32(c.opennedSessions))
+
 	return &sshSession{Session: ss, conn: c}, nil
 }
 
@@ -135,6 +146,8 @@ func (p *pool) getConn(k, addr string, config *ssh.ClientConfig) *conn {
 	p.tab[k] = c
 	p.mu.Unlock()
 	c.netC, c.c, c.err = p.dial("tcp", addr, config)
+	c.name = fmt.Sprintf("%s-%x", k, c.c.SessionID())
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "creations", c.name}), 1)
 	close(c.ok)
 	return c
 }
