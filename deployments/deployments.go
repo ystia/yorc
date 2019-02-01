@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/log"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
@@ -136,6 +137,8 @@ RETRY:
 		if !ok {
 			goto RETRY
 		}
+		log.Debugf("Deployment status change for %s from %s to %s",
+			deploymentID, currentStatus.String(), status.String())
 		events.PublishAndLogDeploymentStatusChange(ctx, kv, deploymentID, strings.ToLower(status.String()))
 	}
 	return nil
