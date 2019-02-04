@@ -164,7 +164,7 @@ Yorc SSH connection pool
 | ``yorc.ssh-connections-pool.<connection_id>.sessions.open-failed`` | This tracks the number of failures when opening an SSH session       | number of            | counter     |
 |                                                                    | (multiplexed on top of an existing connection).                      | failures             |             |
 +--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
-| ``yorc.ssh-connections-pool.<connection_id>.sessions.creation``    | This measures the number of sessions created for a given connection. | number of sessions   | counter     |
+| ``yorc.ssh-connections-pool.<connection_id>.sessions.creations``    | This measures the number of sessions created for a given connection. | number of sessions   | counter     |
 +--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
 | ``yorc.ssh-connections-pool.<connection_id>.sessions.closes``      | This measures the number of sessions closed for a given connection.  | number of sessions   | counter     |
 +--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
