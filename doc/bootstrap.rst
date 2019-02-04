@@ -154,7 +154,6 @@ To clean the local host setup, run:
 This will only clean the local host environment, it won't undeploy the bootstrapped
 setup installed on remote hosts. 
 
-
 Bootstrapping the setup in interactive mode
 -------------------------------------------
 
@@ -388,6 +387,38 @@ Example of a Hosts Pool deployment configuration file
       os.version: "7.3.1611"
       private_address: "10.0.0.11"
       public_address: "10.129.1.11"
+
+
+Exporting and loading an interactive configuration file
+------------------------------------------
+
+When deploying, the final configuration of the bootstrapping is automatically exported to a file. The name of the 
+file is the deployment id, which is a timestamp of current year to second. You can create a custom deployment id 
+using ''-n'' option :
+
+.. parser-literal::
+
+    ./yorc bootstrap -n a_deploy_name 
+
+If you specify an already existing name (an input config file of the same name this already exists), an unique name will
+be created, of the form ''nameN'', where N is an integer, generated incrementally. 
+
+You can then load a config file using the "-v" option :
+
+.. parser-literal::
+
+    ./yorc bootstrap -v an_existing_deploy_name
+
+Please note than if a config is loaded using this option, it will not be exported again.
+
+If you wish to only export the interactive configuration without doing an actual bootstrap, just set the ''--config_only'' flag : 
+
+.. parser-literal::
+
+    ./yorc bootstrap --config_only 
+
+it will cause the yorc invocation to terminate straight after the export of interactive config.
+
 
 Troubleshooting
 ===============
