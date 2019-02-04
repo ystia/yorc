@@ -1,5 +1,17 @@
 # Yorc Changelog
 
+## UNRELEASED
+
+### BUG FIXES
+
+* Purging n deployment in parallel, one can fail on error: Missing targetId for task with id ([GH-293](https://github.com/ystia/yorc/issues/293))
+* Can't deploy applications using a secured yorc/consul ([GH-274](https://github.com/ystia/yorc/issues/274))
+* Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
+* K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
+* Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283)
+* Interface name is not retrieved from custom command Rest request ([GH-287](https://github.com/ystia/yorc/issues/287)
+* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289)
+
 ## 3.1.0 (December 20, 2018)
 
 ### BUG FIXES

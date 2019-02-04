@@ -1,6 +1,6 @@
 # Ystia Orchestrator
 
-[![Build Status](https://travis-ci.org/ystia/yorc.svg?branch=develop)](https://travis-ci.org/ystia/yorc) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest) [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![license](https://img.shields.io/github/license/ystia/yorc.svg)](https://github.com/ystia/yorc/blob/develop/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![Download](https://api.bintray.com/packages/ystia/yorc-engine/distributions/images/download.svg?version=3.1.0)](https://bintray.com/ystia/yorc-engine/distributions/3.1.0/link) [![Build Status](https://travis-ci.org/ystia/yorc.svg?branch=develop)](https://travis-ci.org/ystia/yorc) [![Documentation Status](https://readthedocs.org/projects/yorc/badge/?version=latest)](http://yorc.readthedocs.io/en/latest/?badge=latest) [![Go Report Card](https://goreportcard.com/badge/github.com/ystia/yorc)](https://goreportcard.com/report/github.com/ystia/yorc) [![license](https://img.shields.io/github/license/ystia/yorc.svg)](https://github.com/ystia/yorc/blob/develop/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com) [![Docker Pulls](https://img.shields.io/docker/pulls/ystia/yorc.svg?style=flat)](https://hub.docker.com/r/ystia/yorc)
 
 Yorc is an hybrid cloud/HPC [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html) orchestrator.
 
@@ -18,7 +18,11 @@ we developed an [Alien4Cloud plugin for Yorc](https://github.com/ystia/yorc-a4c-
 
 ## How to download the Ystia Orchestrator
 
-Yorc releases can be downloaded from the [github project releases page](https://github.com/ystia/yorc/releases).
+Yorc releases can be downloaded from our [BinTray account](https://bintray.com/ystia/yorc-engine/distributions).
+
+Grab the [latest release here](https://bintray.com/ystia/yorc-engine/distributions/_latestVersion).
+
+Docker images could be found on [Docker Hub](https://hub.docker.com/r/ystia/yorc).
 
 ## How to contribute to this project
 

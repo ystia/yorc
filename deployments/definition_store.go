@@ -58,28 +58,35 @@ func StoreDeploymentDefinition(ctx context.Context, kv *api.KV, deploymentID str
 	topology := tosca.Topology{}
 	definition, err := os.Open(defPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open definition file %q", defPath)
+		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
 	}
 	defBytes, err := ioutil.ReadAll(definition)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open definition file %q", defPath)
+		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to open definition file %q", defPath))
 	}
 
 	err = yaml.Unmarshal(defBytes, &topology)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to unmarshal yaml definition for file %q", defPath)
+		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to unmarshal yaml definition for file %q", defPath))
 	}
 
 	err = storeDeployment(ctx, topology, deploymentID, filepath.Dir(defPath))
 	if err != nil {
-		return errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath)
+		return handleDeploymentStatus(deploymentID, errors.Wrapf(err, "Failed to store TOSCA Definition for deployment with id %q, (file path %q)", deploymentID, defPath))
 	}
 	err = registerImplementationTypes(ctx, kv, deploymentID)
 	if err != nil {
-		return err
+		return handleDeploymentStatus(deploymentID, err)
 	}
 
-	return enhanceNodes(ctx, kv, deploymentID)
+	return handleDeploymentStatus(deploymentID, enhanceNodes(ctx, kv, deploymentID))
+}
+
+func handleDeploymentStatus(deploymentID string, err error) error {
+	if err != nil {
+		consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "status"), fmt.Sprint(DEPLOYMENT_FAILED))
+	}
+	return err
 }
 
 // storeDeployment stores a whole deployment.

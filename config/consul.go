@@ -15,11 +15,12 @@
 package config
 
 import (
+	"sync"
+	"time"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/log"
-	"sync"
-	"time"
 )
 
 var consulClient *api.Client
@@ -45,6 +46,7 @@ func (cfg Configuration) buildConsulClientInstance() (*api.Client, error) {
 	consulCustomConfig.Transport.MaxIdleConnsPerHost = cfg.Consul.PubMaxRoutines
 	consulCustomConfig.Transport.MaxIdleConns = cfg.Consul.PubMaxRoutines
 	consulCustomConfig.Transport.IdleConnTimeout = 10 * time.Second
+	consulCustomConfig.Transport.TLSHandshakeTimeout = cfg.Consul.TLSHandshakeTimeout
 	log.Debugf("consul http Transport config: %+v", consulCustomConfig.Transport)
 	if cfg.Consul.Address != "" {
 		consulCustomConfig.Address = cfg.Consul.Address

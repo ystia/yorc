@@ -200,22 +200,23 @@ Executes a custom command for a given node of a deployment <DeploymentId>.
      yorc deployments custom <DeploymentId> [flags]
 
 Flags:                                                                                                                                                        
-  * ``-c``, ``--custom``: Provide the custom command name (use with flag n and i)                                                                       
-  * ``-d``, ``--data``: Need to provide the JSON format of the custom command                                                                         
-  * ``-i``, ``--input``: Provide the input for the custom command (use with flag c and n)
-  * ``-n``, ``--node``: Provide the node name (use with flag c and i)
+  * ``--custom``: Provide the custom command name (mandatory)
+  * ``--interface``: Provide the interface name (mandatory)
+  * ``-d``, ``--data``: Provide the JSON format of the custom command with node, interface, custom and inputs data
+  * ``-i``, ``--input``: Provide the input for the custom command
+  * ``-n``, ``--node``: Provide the node name (mandatory)
 
 Example using ``--input`` flags:
 
 .. code-block:: bash
 
-     yorc deployments custom deployID --custom cmdName --node nodeName --input 'key1=["value1","value2"]' --input 'key2="value3"'
+     yorc deployments custom deployID --custom cmdName --interface interfaceName --node nodeName --input 'key1=["value1","value2"]' --input 'key2="value3"'
 
 Example using ``--data`` flag:
 
 .. code-block:: bash
 
-     yorc deployments custom deployID --data '{"name":"cmdName","node":"nodeName","inputs":{"key1":["value1","value2"],"key2":"value3"}}'
+     yorc deployments custom deployID --data '{"name":"cmdName","interface":"interfaceName",""node":"nodeName","inputs":{"key1":["value1","value2"],"key2":"value3"}}'
 
 
 List workflows of a given deployment

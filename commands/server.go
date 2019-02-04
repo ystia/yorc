@@ -85,6 +85,7 @@ var consulConfiguration = map[string]interface{}{
 	"consul.ssl":                    false,
 	"consul.ssl_verify":             true,
 	"consul.publisher_max_routines": config.DefaultConsulPubMaxRoutines,
+	"consul.tls_handshake_timeout":  config.DefaultConsulTLSHandshakeTimeout,
 }
 
 var terraformConfiguration = map[string]interface{}{
@@ -285,6 +286,7 @@ func setConfig() {
 	serverCmd.PersistentFlags().Bool("consul_ssl_verify", true, "Whether or not to disable certificate checking")
 
 	serverCmd.PersistentFlags().Int("consul_publisher_max_routines", config.DefaultConsulPubMaxRoutines, "Maximum number of parallelism used to store TOSCA definitions in Consul. If you increase the default value you may need to tweak the ulimit max open files. If set to 0 or less the default value will be used")
+	serverCmd.PersistentFlags().Duration("consul_tls_handshake_timeout", config.DefaultConsulTLSHandshakeTimeout, "Maximum duration to wait for a TLS handshake with Consul")
 
 	serverCmd.PersistentFlags().Bool("ansible_use_openssh", false, "Prefer OpenSSH over Paramiko a Python implementation of SSH (the default) to provision remote hosts")
 	serverCmd.PersistentFlags().Bool("ansible_debug", false, "Prints massive debug information from Ansible")

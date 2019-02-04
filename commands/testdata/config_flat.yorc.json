@@ -24,6 +24,7 @@
   "consul_ca_path": "testCAPath",
   "consul_ssl": true,
   "consul_ssl_verify": false,
+  "consul_tls_handshake_timeout": "30s",
   "telemetry":{
     "statsd_address": "127.0.0.1:8125",
     "expose_prometheus_endpoint": true
