@@ -396,7 +396,7 @@ When deploying, the final configuration of the bootstrapping is automatically ex
 file is the deployment id, which is a timestamp of current year to second. You can create a custom deployment id 
 using ''-n'' option :
 
-.. parser-literal::
+.. parsed-literal::
 
     ./yorc bootstrap -n a_deploy_name 
 
@@ -405,7 +405,7 @@ be created, of the form ''nameN'', where N is an integer, generated incrementall
 
 You can then load a config file using the "-v" option :
 
-.. parser-literal::
+.. parsed-literal::
 
     ./yorc bootstrap -v an_existing_deploy_name
 
@@ -413,7 +413,7 @@ Please note than if a config is loaded using this option, it will not be exporte
 
 If you wish to only export the interactive configuration without doing an actual bootstrap, just set the ''--config_only'' flag : 
 
-.. parser-literal::
+.. parsed-literal::
 
     ./yorc bootstrap --config_only 
 
