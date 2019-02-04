@@ -16,6 +16,7 @@ package collector
 
 import (
 	"fmt"
+	"github.com/ystia/yorc/log"
 	"path"
 	"strconv"
 	"strings"
@@ -211,5 +212,8 @@ func (c *Collector) prepareForRegistration(operations api.KVTxnOps, taskType tas
 		}
 		return errors.Wrapf(err, "Failed to register task with targetID:%q, taskType:%q due to error:%s", targetID, taskType.String(), strings.Join(errs, ", "))
 	}
+
+	log.Debugf("Registered task %s type %q for target %s\n", taskID, taskType.String(), targetID)
+
 	return nil
 }
