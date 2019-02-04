@@ -628,9 +628,16 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			count++
 		}
 
-		file, err := os.Create(inputsPathOut)
+		if _, err := os.Stat("inputsaves/"); os.IsNotExist(err) {
+			err = os.Mkdir("inputsaves/", 0755)
+			if err != nil {
+				log.Fatal("cannot create inputsave directory.", err)
+			}
+		}
 
-		println("Exporting set configuration to " + inputsPathOut)
+		file, err := os.Create("inputsaves/" + inputsPathOut)
+
+		println("Exporting set configuration to inputsaves/" + inputsPathOut)
 
 		if err != nil {
 			log.Fatal("Cannot create file to save the configuration", err)
