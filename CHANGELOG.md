@@ -10,6 +10,7 @@
 * K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
 * Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283)
 * Interface name is not retrieved from custom command Rest request ([GH-287](https://github.com/ystia/yorc/issues/287)
+* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289)
 
 ## 3.1.0 (December 20, 2018)
 

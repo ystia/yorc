@@ -120,17 +120,11 @@ func (s *Server) scaleOut(id, nodeName string, instancesDelta uint32) (string, e
 		}
 	}
 
-	instancesByNodes, err := deployments.CreateNewNodeStackInstances(kv, id, nodeName, int(instancesDelta))
-	if err != nil {
-		return "", err
-	}
-
+	// Add related workflow, nodeName and instances delta
 	data := make(map[string]string)
-	for scalableNode, nodeInstances := range instancesByNodes {
-		data[path.Join("nodes", scalableNode)] = nodeInstances
-	}
-	// Add related workflow
+	data["instancesDelta"] = strconv.Itoa(int(instancesDelta))
 	data["workflowName"] = "install"
+	data["nodeName"] = nodeName
 	return s.tasksCollector.RegisterTaskWithData(id, tasks.TaskTypeScaleOut, data)
 }
 
