@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,8 +34,8 @@ import (
 	"github.com/ystia/yorc/commands"
 	"github.com/ystia/yorc/config"
 
-	"gopkg.in/AlecAivazis/survey.v1"
-	"gopkg.in/yaml.v2"
+	survey "gopkg.in/AlecAivazis/survey.v1"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var inputValues TopologyValues
@@ -335,6 +336,22 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	if inputValues.Infrastructures == nil {
 		inputValues.Infrastructures = configuration.Infrastructures
 	}
+
+	//recovering infra type if needed
+	if infrastructureType == "" {
+		switch inputValues.Location.Type {
+		case "OpenStack":
+			infrastructureType = "openstack"
+		case "Google Cloud":
+			infrastructureType = "google"
+		case "AWS":
+			infrastructureType = "aws"
+		case "HostsPool":
+			infrastructureType = "hostspool"
+		default:
+			infrastructureType = ""
+		}
+	}
 	// Now check for missing mandatory parameters and ask them to the user
 
 	if infrastructureType == "" {
@@ -596,7 +613,40 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 	}
 
+	if inputsPath == "" {
+
+		bSlice, err := yaml.Marshal(inputValues)
+
+		inputsPathOut := deploymentName + ".yaml"
+
+		count := 1
+		for {
+			if _, err := os.Stat(inputsPathOut); os.IsNotExist(err) {
+				break
+			}
+			inputsPathOut = deploymentName + "_" + strconv.Itoa(count) + ".yaml"
+			count++
+		}
+
+		file, err := os.Create(inputsPathOut)
+
+		println("Exporting set configuration to " + inputsPathOut)
+
+		if err != nil {
+			log.Fatal("Cannot create file to save the configuration", err)
+		}
+
+		fmt.Fprintf(file, string(bSlice[:]))
+
+		file.Close()
+	}
+
+	if configOnly == true {
+		println("config_only option is set, exiting.")
+		os.Exit(0)
+	}
 	return nil
+
 }
 
 // reviewAndUpdateInputs allows the user to review and change deployment inputs
@@ -783,11 +833,37 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			hostConfig.Connection.Port = 22
 		}
 
-		fmt.Println("Defining key/value labels for this host, a public_address label should be defined")
+		//asking public address first
+		fmt.Println("Defining key/value labels for this host. Defining public_address value is mandatory")
 		hostConfig.Labels = make(map[string]string)
-		labelsFinished := false
-		publicAddressDefined := false
-		for !labelsFinished {
+
+		prompt = &survey.Input{
+			Message: "public_address value:"}
+
+		question = &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return nil, err
+		}
+
+		hostConfig.Labels["public_address"] = answer.Value
+
+		//asking for additional key values labels
+		for {
+
+			// asking if a new label must be defined
+			promptEnd := &survey.Select{
+				Message: "Add another key/value label for this host ?:",
+				Options: []string{"yes", "no"},
+				Default: "no",
+			}
+			var reply string
+			survey.AskOne(promptEnd, &reply, nil)
+			if reply == "no" {
+				break
+			}
 
 			prompt := &survey.Input{
 				Message: "Label key (required):"}
@@ -802,10 +878,6 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			}
 			labelKey := answer.Value
 
-			if labelKey == "public_address" {
-				publicAddressDefined = true
-			}
-
 			prompt = &survey.Input{
 				Message: "Label value:"}
 
@@ -818,22 +890,6 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			}
 
 			hostConfig.Labels[labelKey] = answer.Value
-
-			// If the public address label is already defined
-			// asking if a new label must be defined
-			// else a new label must be defined, because public_address is
-			// mandatory for the bootstrap
-			if publicAddressDefined {
-				promptEnd := &survey.Select{
-					Message: "Add another key/value label:",
-					Options: []string{"yes", "no"},
-					Default: "no",
-				}
-				var reply string
-				survey.AskOne(promptEnd, &reply, nil)
-				labelsFinished = (reply == "no")
-			}
-
 		}
 
 		// The private SSH key used to connect to the host is the Yorc private key
@@ -1032,6 +1088,9 @@ func getInputValues(inputFilePath string) (TopologyValues, error) {
 				fmt.Println("Can't use config file:", err)
 			}
 		}
+
+		var infratype = bootstrapViper.GetString("InfrastructureType")
+		infrastructureType = infratype
 	}
 
 	err := bootstrapViper.Unmarshal(&values)

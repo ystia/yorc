@@ -62,9 +62,12 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 		return "", err
 	}
 
-	t := time.Now()
-	deploymentID := fmt.Sprintf("bootstrap-%d-%02d-%02d--%02d-%02d-%02d",
-		t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+	if deploymentName == "" {
+		t := time.Now()
+		deploymentName = fmt.Sprintf("bootstrap-%d-%02d-%02d--%02d-%02d-%02d",
+			t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+	}
+	deploymentID := deploymentName
 	client, err := getYorcClient()
 	if err != nil {
 		return "", err
