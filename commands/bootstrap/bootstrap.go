@@ -80,7 +80,7 @@ func init() {
 		"deployment_name", "n", "", "Name of the deployment. If not specified deployment is based on time.")
 	viper.BindPFlag("deployment_name", bootstrapCmd.PersistentFlags().Lookup("deployment_name"))
 	bootstrapCmd.PersistentFlags().BoolVarP(&configOnly,
-		"config_only", "", false, "Makes the bootstrapping abhort right after exporting the inputs")
+		"config_only", "", false, "Makes the bootstrapping abort right after exporting the inputs")
 	bootstrapCmd.PersistentFlags().Lookup("config_only").NoOptDefVal = "true"
 	viper.BindPFlag("config_only", bootstrapCmd.PersistentFlags().Lookup("config_only"))
 
