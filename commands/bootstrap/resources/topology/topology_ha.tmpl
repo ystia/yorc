@@ -17,7 +17,7 @@ imports:
   - <yorc-aws-types.yml>
   - <yorc-hostspool-types.yml>
   - org.ystia.yorc.experimental.consul.linux.ansible/{{getForgeVersionFromTOSCATypes}}/types.yaml
-  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.elasticsearch.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.ystia.terraform.linux.terraform/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.alien4cloud.java.jmx.jolokia/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.alien4cloud.consul.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
@@ -113,6 +113,10 @@ topology_template:
         ca_key: |{{indent .Yorc.CAKeyContent 10}}
         ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
+        - consul:
+            node: ConsulAgentA4C
+            capability: org.alien4cloud.consul.pub.capabilities.ConsulAgent
+            relationship: org.alien4cloud.consul.relationships.ConnectToConsulAgent
         - javaSoftwareHostedOnJdkOracleJdkJdk:
             type_requirement: java
             node: OracleJDK
@@ -521,7 +525,7 @@ topology_template:
           activities:
             - set_state: configuring
           on_success:
-            - Alien4Cloud_configure
+            - Alien4Cloud_consul_pre_configure_source
         NFSClient_starting:
           target: NFSClient
           activities:
@@ -710,6 +714,8 @@ topology_template:
           target: ConsulAgentA4C
           activities:
             - set_state: started
+          on_success:
+            - Alien4Cloud_initial
         ConsulServer_started:
           target: ConsulServer
           activities:
@@ -735,6 +741,14 @@ topology_template:
             - set_state: creating
           on_success:
             - ConsulAgentYorcServer_create
+        Alien4Cloud_consul_pre_configure_source:
+          target: Alien4Cloud
+          target_relationship: consul
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - Alien4Cloud_configure
         Alien4Cloud_configure:
           target: Alien4Cloud
           activities:
@@ -1426,6 +1440,7 @@ topology_template:
             - set_state: deleted
           on_success:
             - OracleJDK_stopping
+            - ConsulAgentA4C_stopping
         TerraformRuntime_stopped:
           target: TerraformRuntime
           activities:
@@ -1704,6 +1719,8 @@ topology_template:
           target: ConsulAgentA4C
           activities:
             - set_state: started
+          on_success:
+            - Alien4Cloud_initial
         ConsulServer_started:
           target: ConsulServer
           activities:
@@ -1872,6 +1889,7 @@ topology_template:
             - set_state: stopped
           on_success:
             - OracleJDK_stopping
+            - ConsulAgentA4C_stopping
         YorcOnDemandLocationResources_stopped:
           target: YorcOnDemandLocationResources
           activities:
