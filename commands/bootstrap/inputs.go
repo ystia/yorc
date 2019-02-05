@@ -868,8 +868,9 @@ func getHostsInputs(resourcesPath string) ([]rest.HostConfig, error) {
 			Message: "public_address value:"}
 
 		question = &survey.Question{
-			Name:   "value",
-			Prompt: prompt,
+			Name:     "value",
+			Prompt:   prompt,
+			Validate: survey.Required,
 		}
 		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
 			return nil, err
