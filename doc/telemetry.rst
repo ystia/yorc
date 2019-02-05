@@ -153,5 +153,25 @@ dashes and <OpName> the TOSCA operation name where dots where replaced by dashes
 +--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
 | ``yorc.executor.<ExecType>.<DepID>.<NodeType>.<OpName>.successes`` | This counts the number of successful executions. | number of successes | counter     |
 +--------------------------------------------------------------------+--------------------------------------------------+---------------------+-------------+
- 
 
+Yorc SSH connection pool
+~~~~~~~~~~~~~~~~~~~~~~~~
+
++--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
+|                            Metric Name                             |                             Description                              |         Unit         | Metric Type |
+|                                                                    |                                                                      |                      |             |
++====================================================================+======================================================================+======================+=============+
+| ``yorc.ssh-connections-pool.<connection_id>.sessions.open-failed`` | This tracks the number of failures when opening an SSH session       | number of            | counter     |
+|                                                                    | (multiplexed on top of an existing connection).                      | failures             |             |
++--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.<connection_id>.sessions.creations``   | This measures the number of sessions created for a given connection. | number of sessions   | counter     |
++--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.<connection_id>.sessions.closes``      | This measures the number of sessions closed for a given connection.  | number of sessions   | counter     |
++--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.<connection_id>.sessions.open``        | This tracks the number of currently open sessions per connection     | number of sessions   | gauge       |
+|                                                                    |                                                                      |                      |             |
++--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.creations.<connection_id>``            | This measures the number of created connections.                     | number of connection | counter     |
++--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
+| ``yorc.ssh-connections-pool.closes.<connection_id>``               | This measures the number of closed connections.                      | number of connection | counter     |
++--------------------------------------------------------------------+----------------------------------------------------------------------+----------------------+-------------+
