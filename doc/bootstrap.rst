@@ -182,9 +182,11 @@ The following ``yorc bootstrap`` option are available:
   * ``--alien4cloud_user`` Alien4Cloud user (default, admin)
   * ``--ansible_extra_package_repository_url`` URL of package indexes where to find the ansible package, instead of the default Python Package repository
   * ``--ansible_version`` Ansible version (default \ |ansible_version|\ )
+  * ``--config_only`` Makes the bootstrapping abort right after exporting the inputs
   * ``--consul_download_url`` Consul download URL (default, Consul version compatible with this Yorc, under https://releases.hashicorp.com/consul/)
   * ``--consul_port`` Consul port (default 8500)
   * ``--credentials_user`` User Yorc uses to connect to Compute Nodes
+  * ``--deployment_name`` Name of the deployment. If not specified deployment name is based on time.
   * ``--deployment_type`` Define deployment type: single_node or HA (default, single_node)
   * ``--follow`` Follow bootstrap deployment steps, logs, or none (default, steps)
   * ``--infrastructure`` Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool
@@ -202,6 +204,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--yorc_port`` Yorc HTTP REST API port (default 8800)
   * ``--yorc_private_key_file`` Path to ssh private key accessible locally
   * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
+  
 
 In addition, similarly to the configuration of infrastructures in ``yorc server``
 command described at :ref:`Infrastructures Configuration <infrastructures_configuration>`, you can use options to
@@ -407,7 +410,7 @@ You can then load a config file using the "-v" option :
 
 .. parsed-literal::
 
-    ./yorc bootstrap -v an_existing_deploy_name
+    ./yorc bootstrap -v path_to_a_file_containing_input_values
 
 Please note than if a config is loaded using this option, it will not be exported again.
 

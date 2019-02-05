@@ -77,7 +77,7 @@ func init() {
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentID,
-		"deployment_name", "n", "", "Name of the deployment. If not specified deployment is based on time.")
+		"deployment_name", "n", "", "Name of the deployment. If not specified deployment name is based on time.")
 	viper.BindPFlag("deployment_name", bootstrapCmd.PersistentFlags().Lookup("deployment_name"))
 	bootstrapCmd.PersistentFlags().BoolVarP(&configOnly,
 		"config_only", "", false, "Makes the bootstrapping abort right after exporting the inputs")
