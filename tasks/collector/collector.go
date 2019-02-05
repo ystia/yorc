@@ -93,7 +93,7 @@ func (c *Collector) ResumeTask(taskID string) error {
 	}
 	// Set deployment status to initial for some task types
 	switch taskType {
-	case tasks.TaskTypeDeploy, tasks.TaskTypeUnDeploy, tasks.TaskTypeScaleIn, tasks.TaskTypeScaleOut:
+	case tasks.TaskTypeDeploy, tasks.TaskTypeUnDeploy, tasks.TaskTypeScaleIn, tasks.TaskTypeScaleOut, tasks.TaskTypePurge:
 		taskOps = append(taskOps, &api.KVTxnOp{
 			Verb:  api.KVSet,
 			Key:   path.Join(consulutil.DeploymentKVPrefix, targetID, "status"),
