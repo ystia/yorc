@@ -454,8 +454,6 @@ func notifyAndPublishCapabilityAttributeValueChange(kv *api.KV, deploymentID, no
 			return err
 		}
 	}
-
-	// Next, notify dependent attributes if existing
 	// Next, notify dependent attributes if existing
 	an := &AttributeNotifier{
 		NodeName:       nodeName,

@@ -42,6 +42,8 @@ node_types:
       Standard: {create: scripts/create.sh, start: scripts/start.sh}
     artifacts:
     - utils_scripts: {file: test, type: tosca.artifacts.File}
+    capabilities:
+      endpoint: yorc.test.capabilities.Endpoint
 relationship_types:
   yorc.test.relationships.TestComponentOnContainer:
     derived_from: tosca.relationships.HostedOn
@@ -51,6 +53,13 @@ relationship_types:
     valid_target_types: [yorc.test.capabilities.TestModuleCapability]
 capability_types:
   yorc.test.capabilities.GenericCapability: {derived_from: tosca.capabilities.Root}
+  yorc.test.capabilities.Endpoint:
+    derived_from: tosca.capabilities.Endpoint
+    properties:
+      port:
+        type: integer
+        default: 80
+        required: true
 topology_template:
   description: |
     A compute hosting a Test Container, a Test module and a Test Component

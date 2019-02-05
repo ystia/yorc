@@ -1345,11 +1345,25 @@ func enhanceAttributes(consulStore consulutil.ConsulStore, kv *api.KV, deploymen
 			return err
 		}
 
+		// 1. Add attribute notifications
+		// 2. Resolve attributes and publish default values when not nil or empty
 		for _, instanceName := range instances {
 			for _, attribute := range attributes {
 				err := addAttributeNotifications(consulStore, kv, deploymentID, nodeName, instanceName, attribute)
 				if err != nil {
 					return err
+				}
+
+				instanceAttributeValue, err := GetInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attribute)
+				// don't handle error at this step
+				if err != nil {
+					continue
+				}
+
+				if instanceAttributeValue != nil && instanceAttributeValue.String() != "" {
+					if err = SetInstanceAttribute(deploymentID, nodeName, instanceName, attribute, instanceAttributeValue.String()); err != nil {
+						return err
+					}
 				}
 			}
 		}

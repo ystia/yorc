@@ -103,7 +103,7 @@ func GetRequirementIndexByNameForNode(kv *api.KV, deploymentID, nodeName, requir
 	return path.Base(reqPath), nil
 }
 
-// GetRequirementNameByIndex returns the requirement name for a given node and requirement index
+// GetRequirementNameByIndexForNode returns the requirement name for a given node and requirement index
 func GetRequirementNameByIndexForNode(kv *api.KV, deploymentID, nodeName, requirementIndex string) (string, error) {
 	kvp, _, err := kv.Get(path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/nodes", nodeName, "requirements", requirementIndex, "name"), nil)
 	if err != nil || kvp == nil || len(kvp.Value) == 0 {
