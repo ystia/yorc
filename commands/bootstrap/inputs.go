@@ -621,48 +621,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 	}
 
-	if inputsPath == "" {
-
-		bSlice, err := yaml.Marshal(inputValues)
-
-		if err != nil {
-			log.Fatal("cannot marshal inputValues ", err)
-		}
-
-		inputsPathOut := deploymentID + ".yaml"
-
-		count := 1
-		for {
-			if _, err := os.Stat(inputsPathOut); os.IsNotExist(err) {
-				break
-			}
-			inputsPathOut = deploymentID + "_" + strconv.Itoa(count) + ".yaml"
-			count++
-		}
-
-		if _, err := os.Stat("inputsaves/"); os.IsNotExist(err) {
-			err = os.Mkdir("inputsaves/", 0700)
-			if err != nil {
-				log.Fatal("cannot create inputsave directory ", err)
-			}
-		}
-
-		println("Exporting set configuration to inputsaves/" + inputsPathOut)
-
-		file, err := os.OpenFile("inputsaves/"+inputsPathOut, os.O_CREATE|os.O_WRONLY, 0600)
-
-		if err != nil {
-			log.Fatal("Cannot create file to save the configuration ", err)
-		}
-
-		_, err = fmt.Fprintf(file, string(bSlice[:]))
-
-		if err != nil {
-			log.Fatal("Cannot write configuration to file", err)
-		}
-
-		file.Close()
-	}
+	exportInputs()
 
 	if configOnly == true {
 		println("config_only option is set, exiting.")
@@ -719,6 +678,51 @@ func reviewAndUpdateInputs() error {
 	err = yaml.Unmarshal([]byte(reply), &inputValues)
 
 	return nil
+}
+
+func exportInputs() {
+	if inputsPath == "" {
+
+		bSlice, err := yaml.Marshal(inputValues)
+
+		if err != nil {
+			log.Fatal("cannot marshal inputValues ", err)
+		}
+
+		inputsPathOut := deploymentID + ".yaml"
+
+		count := 1
+		for {
+			if _, err := os.Stat(inputsPathOut); os.IsNotExist(err) {
+				break
+			}
+			inputsPathOut = deploymentID + "_" + strconv.Itoa(count) + ".yaml"
+			count++
+		}
+
+		if _, err := os.Stat("inputsaves/"); os.IsNotExist(err) {
+			err = os.Mkdir("inputsaves/", 0700)
+			if err != nil {
+				log.Fatal("cannot create inputsave directory ", err)
+			}
+		}
+
+		println("Exporting set configuration to inputsaves/" + inputsPathOut)
+
+		file, err := os.OpenFile("inputsaves/"+inputsPathOut, os.O_CREATE|os.O_WRONLY, 0600)
+
+		if err != nil {
+			log.Fatal("Cannot create file to save the configuration ", err)
+		}
+
+		_, err = fmt.Fprintf(file, string(bSlice[:]))
+
+		if err != nil {
+			log.Fatal("Cannot write configuration to file", err)
+		}
+
+		file.Close()
+	}
 }
 
 // getComputeCredentials asks for the user used to connect to an on-demand compute node
