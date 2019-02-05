@@ -625,6 +625,10 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 		bSlice, err := yaml.Marshal(inputValues)
 
+		if err != nil {
+			log.Fatal("cannot marshal inputValues ", err)
+		}
+
 		inputsPathOut := deploymentID + ".yaml"
 
 		count := 1
@@ -637,21 +641,25 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 
 		if _, err := os.Stat("inputsaves/"); os.IsNotExist(err) {
-			err = os.Mkdir("inputsaves/", 0755)
+			err = os.Mkdir("inputsaves/", 0700)
 			if err != nil {
-				log.Fatal("cannot create inputsave directory.", err)
+				log.Fatal("cannot create inputsave directory ", err)
 			}
 		}
 
-		file, err := os.Create("inputsaves/" + inputsPathOut)
-
 		println("Exporting set configuration to inputsaves/" + inputsPathOut)
 
+		file, err := os.OpenFile("inputsaves/"+inputsPathOut, os.O_CREATE|os.O_WRONLY, 0600)
+
 		if err != nil {
-			log.Fatal("Cannot create file to save the configuration", err)
+			log.Fatal("Cannot create file to save the configuration ", err)
 		}
 
-		fmt.Fprintf(file, string(bSlice[:]))
+		_, err = fmt.Fprintf(file, string(bSlice[:]))
+
+		if err != nil {
+			log.Fatal("Cannot write configuration to file", err)
+		}
 
 		file.Close()
 	}
