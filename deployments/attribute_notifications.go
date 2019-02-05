@@ -72,8 +72,14 @@ func (oon *OperationOutputNotifier) NotifyValueChange(kv *api.KV, deploymentID s
 
 // NotifyValueChange allows to notify attribute value change
 func (an *AttributeNotifier) NotifyValueChange(kv *api.KV, deploymentID string) error {
-	log.Debugf("Received instance capability attribute value change notification for [deploymentID:%q, nodeName:%q, instanceName:%q, capabilityName:%q, attributeName:%q", deploymentID, an.NodeName, an.InstanceName, an.CapabilityName, an.AttributeName)
-	notificationsPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", an.NodeName, an.InstanceName, "capabilities", an.CapabilityName, "attribute_notifications", an.AttributeName)
+	log.Debugf("Received instance attribute value change notification for [deploymentID:%q, nodeName:%q, instanceName:%q, capabilityName:%q, attributeName:%q", deploymentID, an.NodeName, an.InstanceName, an.CapabilityName, an.AttributeName)
+	var notificationsPath string
+	if an.CapabilityName != "" {
+		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", an.NodeName, an.InstanceName, "capabilities", an.CapabilityName, "attribute_notifications", an.AttributeName)
+	} else {
+		notificationsPath = path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", an.NodeName, an.InstanceName, "attribute_notifications", an.AttributeName)
+	}
+
 	return notifyAttributeOnValueChange(kv, notificationsPath, deploymentID)
 }
 
@@ -83,6 +89,7 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 		return err
 	}
 	for _, kvp := range kvps {
+
 		notified, err := getNotifiedAttribute(string(kvp.Value))
 		log.Debugf("Need to notify attribute:%+v from attribute/operation output value change", notified)
 		if err != nil {
@@ -93,18 +100,23 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 			if err != nil {
 				return err
 			}
-			if err = SetInstanceCapabilityAttribute(deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName, value.String()); err != nil {
-				return err
+			if value != nil {
+				if err = SetInstanceCapabilityAttribute(deploymentID, notified.nodeName, notified.instanceName, notified.capabilityName, notified.attributeName, value.String()); err != nil {
+					return err
+				}
 			}
 			return nil
 		}
 
 		value, err := GetInstanceAttributeValue(kv, deploymentID, notified.nodeName, notified.instanceName, notified.attributeName)
+
 		if err != nil {
 			return err
 		}
-		if err = SetInstanceAttribute(deploymentID, notified.nodeName, notified.instanceName, notified.attributeName, value.String()); err != nil {
-			return err
+		if value != nil {
+			if err = SetInstanceAttribute(deploymentID, notified.nodeName, notified.instanceName, notified.attributeName, value.String()); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

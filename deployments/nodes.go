@@ -789,7 +789,7 @@ func createNodeInstance(kv *api.KV, consulStore consulutil.ConsulStore, deployme
 	attrs["state"] = tosca.NodeStateInitial.String()
 	attrs["tosca_name"] = nodeName
 	attrs["tosca_id"] = toscaID
-	err = events.PublishAndLogMapAttributeValueChange(nil, deploymentID, nodeName, instanceName, attrs)
+	err = events.PublishAndLogMapAttributeValueChange(nil, deploymentID, nodeName, instanceName, attrs, "updated")
 	if err != nil {
 		log.Printf("%+v", err)
 	}

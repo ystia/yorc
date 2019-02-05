@@ -219,7 +219,7 @@ func notifyAndPublishAttributeValueChange(kv *api.KV, deploymentID, nodeName, in
 	// First, Publish event
 	sValue, ok := attributeValue.(string)
 	if ok {
-		_, err := events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, sValue)
+		_, err := events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, sValue, "updated")
 		if err != nil {
 			return err
 		}

@@ -522,7 +522,7 @@ func testconsulAttributeValueChange(t *testing.T, kv *api.KV) {
 	ids := make([]string, 0)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PublishAndLogAttributeValueChange(ctx, deploymentID, tt.args.nodeName, tt.args.instance, tt.args.attributeName, tt.args.attributeValue)
+			got, err := PublishAndLogAttributeValueChange(ctx, deploymentID, tt.args.nodeName, tt.args.instance, tt.args.attributeName, tt.args.attributeValue, "updated")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PublishAndLogAttributeValueChange() error = %v, wantErr %v", err, tt.wantErr)
 				return

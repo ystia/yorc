@@ -32,7 +32,7 @@ import (
 // PublishAndLogAttributeValueChange publishes a value change for a given attribute instance of a given node and log this change into the log API
 //
 // PublishAndLogAttributeValueChange returns the published event id
-func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, attributeName, value string) (string, error) {
+func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, attributeName, value, status string) (string, error) {
 	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instanceName})
 
 	info := make(Info)
@@ -40,7 +40,7 @@ func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeNa
 	info[EInstanceID] = instanceName
 	info[EAttributeName] = attributeName
 	info[EAttributeValue] = value
-	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, "updated")
+	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, status)
 	if err != nil {
 		return "", err
 	}
@@ -54,9 +54,9 @@ func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeNa
 
 // PublishAndLogMapAttributeValueChange publishes a map attribute/value change for a given attribute instance of a given node and log this change into the log API
 // This function doesn't return any published event id
-func PublishAndLogMapAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName string, attributesValues map[string]string) error {
+func PublishAndLogMapAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName string, attributesValues map[string]string, status string) error {
 	for attr, attrVal := range attributesValues {
-		_, err := PublishAndLogAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attr, attrVal)
+		_, err := PublishAndLogAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attr, attrVal, status)
 		if err != nil {
 			return err
 		}

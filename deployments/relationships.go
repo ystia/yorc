@@ -306,7 +306,7 @@ func publishRelationshipAttributeValueChange(kv *api.KV, deploymentID, nodeName,
 			return err
 		}
 		relationshipAttribute := fmt.Sprintf("relationship.%s.%s", requirementName, attributeName)
-		_, err = events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, relationshipAttribute, sValue)
+		_, err = events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, relationshipAttribute, sValue, "updated")
 		if err != nil {
 			return err
 		}
