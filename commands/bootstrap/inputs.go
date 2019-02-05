@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/rest"
@@ -332,6 +333,13 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		return err
 	}
 
+	//generating a deployment name if needed.
+	if deploymentID == "" {
+		t := time.Now()
+		deploymentID = fmt.Sprintf("bootstrap-%d-%02d-%02d--%02d-%02d-%02d",
+			t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+	}
+
 	// Get infrastructure from viper configuration if not provided in inputs
 	if inputValues.Infrastructures == nil {
 		inputValues.Infrastructures = configuration.Infrastructures
@@ -617,14 +625,14 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 		bSlice, err := yaml.Marshal(inputValues)
 
-		inputsPathOut := deploymentName + ".yaml"
+		inputsPathOut := deploymentID + ".yaml"
 
 		count := 1
 		for {
 			if _, err := os.Stat(inputsPathOut); os.IsNotExist(err) {
 				break
 			}
-			inputsPathOut = deploymentName + "_" + strconv.Itoa(count) + ".yaml"
+			inputsPathOut = deploymentID + "_" + strconv.Itoa(count) + ".yaml"
 			count++
 		}
 

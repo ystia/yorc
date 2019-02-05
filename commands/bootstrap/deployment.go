@@ -27,7 +27,7 @@ import (
 
 // deployTopology deploys a topology provided under deploymentDir.
 // Return the the ID of the deployment
-func deployTopology(workdDir, deploymentDir string) (string, error) {
+func deployTopology(workdDir, deploymentDir string) error {
 
 	// Download Alien4Cloud whose zip is expected to be provided in the
 	// deployment
@@ -35,7 +35,7 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 	// like other external downloadable dependencies
 	a4cFilePath, err := download(inputValues.Alien4cloud.DownloadURL, "alien4cloud-dist.tar.gz", workdDir)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// Copying this file now to the deployment dir
@@ -44,41 +44,35 @@ func deployTopology(workdDir, deploymentDir string) (string, error) {
 	dstPath := filepath.Join(deploymentDir, filename)
 	src, err := os.Open(srcPath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	dst, err := os.Create(dstPath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer dst.Close()
 	if _, err := io.Copy(dst, src); err != nil {
-		return "", err
+		return err
 	}
 
 	// Create the deployment archive
 	fmt.Println("Creating the deployment archive")
 	csarZip, err := ziputil.ZipPath(deploymentDir)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	if deploymentName == "" {
-		t := time.Now()
-		deploymentName = fmt.Sprintf("bootstrap-%d-%02d-%02d--%02d-%02d-%02d",
-			t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
-	}
-	deploymentID := deploymentName
 	client, err := getYorcClient()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	fmt.Println("Deploying...")
 	_, err = deployments.SubmitCSAR(csarZip, client, deploymentID)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return deploymentID, err
+	return err
 }
 
 // followDeployment follows deployments steps or deployment logs

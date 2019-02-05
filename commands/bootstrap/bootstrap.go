@@ -76,7 +76,7 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
-	bootstrapCmd.PersistentFlags().StringVarP(&deploymentName,
+	bootstrapCmd.PersistentFlags().StringVarP(&deploymentID,
 		"deployment_name", "n", "", "Name of the deployment. If not specified deployment is based on time.")
 	viper.BindPFlag("deployment_name", bootstrapCmd.PersistentFlags().Lookup("deployment_name"))
 	bootstrapCmd.PersistentFlags().BoolVarP(&configOnly,
@@ -126,7 +126,7 @@ var reviewInputs bool
 var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
-var deploymentName string
+var deploymentID string
 var configOnly bool
 
 func bootstrap() error {
@@ -172,7 +172,7 @@ func bootstrap() error {
 	}
 
 	// A local Yorc server is running, using it to deploy the topology
-	deploymentID, errDeploy := deployTopology(workingDirectoryPath, topologyDir)
+	errDeploy := deployTopology(workingDirectoryPath, topologyDir)
 
 	if errDeploy != nil {
 		return errDeploy
