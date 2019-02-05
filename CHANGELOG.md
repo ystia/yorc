@@ -10,6 +10,10 @@
 
 * Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283)
 
+### ENHANCEMENTS
+
+* Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
+
 ## 3.2.0-M1 (January 28, 2019)
 
 ### BUG FIXES
