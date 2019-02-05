@@ -1283,8 +1283,8 @@ func getYorcDownloadURL() string {
 			yorcVersion)
 	} else {
 		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-engine/releases/yorc-%s.tgz",
-			yorcVersion)
+			"https://dl.bintray.com/ystia/yorc-engine/%s/yorc-%s.tgz",
+			yorcVersion, yorcVersion)
 	}
 	return downloadURL
 }
@@ -1299,8 +1299,8 @@ func getYorcPluginDownloadURL() string {
 			yorcVersion)
 	} else {
 		downloadURL = fmt.Sprintf(
-			"https://dl.bintray.com/ystia/yorc-a4c-plugin/releases/alien4cloud-yorc-plugin-%s.zip",
-			yorcVersion)
+			"https://dl.bintray.com/ystia/yorc-a4c-plugin/%s/alien4cloud-yorc-plugin-%s.zip",
+			yorcVersion, yorcVersion)
 	}
 	return downloadURL
 }
