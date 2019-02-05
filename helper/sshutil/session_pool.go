@@ -16,19 +16,19 @@ package sshutil
 
 import (
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"net"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/armon/go-metrics"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/helper/metricsutil"
 )
 
 type pool struct {
-	// Timeout for Open (for both new and existing
-	// connections). If Dial is not nil, it is up to the Dial func
-	// to enforce the timeout for new connections.
-	Timeout time.Duration
-
 	tab map[string]*conn
 	mu  sync.Mutex
 }
@@ -37,57 +37,101 @@ type pool struct {
 // an existing connection if possible. If no connection exists,
 // or if opening the session fails, Open attempts to dial a new
 // connection. If dialing fails, Open returns the error from Dial.
-func (p *pool) openSession(client *SSHClient) (*ssh.Session, error) {
-	var deadline, sessionDeadline time.Time
-	if p.Timeout > 0 {
-		now := time.Now()
-		deadline = now.Add(p.Timeout)
-
-		// First time, use a NewSession deadline at half of the
-		// overall timeout, to try to leave time for a subsequent
-		// Dial and NewSession.
-		sessionDeadline = now.Add(p.Timeout / 2)
-	}
-
+func (p *pool) openSession(client *SSHClient) (*sshSession, error) {
 	addr := fmt.Sprintf("%s:%d", client.Host, client.Port)
 	k := getUserKey(addr, client.Config)
 	for {
-		c := p.getConn(k, addr, client.Config, deadline)
+		// The algorithm here is to get a connection by reusing existing if any
+		// Then if we open a session. Sometimes open fails due to too many sessions open
+		// in this case we remove the connection from cache and teardown it (wait for other sessions
+		// to be closed and finally close the underlying connection) on next try a new connection is created.
+		c := p.getConn(k, addr, client.Config)
 		if c.err != nil {
+			// Can't open connection stop here
 			p.removeConn(k, c)
 			return nil, c.err
 		}
-		s, err := c.newSession(sessionDeadline)
+		s, err := c.newSession()
 		if err == nil {
 			return s, nil
 		}
-		sessionDeadline = deadline
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", c.name, "sessions", "open-failed"}), 1)
+		// can't open session this is probably due to too many session open
+		// remove this connection from cache
 		p.removeConn(k, c)
-		c.c.Close()
-		if p.Timeout > 0 && time.Now().After(deadline) {
-			return nil, err
-		}
+		// Gracefully teardown it wait for all sessions to finish and then close
+		// the connection. Teardown is asynchronous/non-blocking
+		c.teardown()
 	}
+}
+
+type sshSession struct {
+	*ssh.Session
+
+	conn *conn
+}
+
+func (s *sshSession) Close() error {
+	err := s.Session.Close()
+	s.conn.lockSessionsCount.Lock()
+	defer s.conn.lockSessionsCount.Unlock()
+	s.conn.opennedSessions--
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", s.conn.name, "sessions", "closes"}), 1)
+	metrics.SetGauge(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", s.conn.name, "sessions", "open"}), float32(s.conn.opennedSessions))
+	return errors.Wrap(err, "failed to close ssh session")
 }
 
 type conn struct {
-	netC net.Conn
-	c    *ssh.Client
-	ok   chan bool
-	err  error
+	name              string
+	netC              net.Conn
+	c                 *ssh.Client
+	ok                chan bool
+	err               error
+	lockSessionsCount sync.Mutex
+	opennedSessions   uint
 }
 
-func (c *conn) newSession(deadline time.Time) (*ssh.Session, error) {
-	if !deadline.IsZero() {
-		c.netC.SetDeadline(deadline)
-		defer c.netC.SetDeadline(time.Time{})
+// closes the ssh client
+func (c *conn) close() {
+	c.c.Close()
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "closes", c.name}), 1)
+}
+
+// asynchronously wait for all openned sessions to finish and then close the connection.
+// Actually it closes the ssh client which in turn closes the network connection.
+func (c *conn) teardown() {
+	go func(c *conn) {
+
+		for {
+			<-time.After(5 * time.Second)
+			c.lockSessionsCount.Lock()
+			if c.opennedSessions == 0 {
+				c.close()
+				c.lockSessionsCount.Unlock()
+				return
+			}
+			c.lockSessionsCount.Unlock()
+		}
+	}(c)
+}
+
+func (c *conn) newSession() (*sshSession, error) {
+	ss, err := c.c.NewSession()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open session")
 	}
-	return c.c.NewSession()
+	c.lockSessionsCount.Lock()
+	defer c.lockSessionsCount.Unlock()
+	c.opennedSessions++
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", c.name, "sessions", "creations"}), 1)
+	metrics.SetGauge(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", c.name, "sessions", "open"}), float32(c.opennedSessions))
+
+	return &sshSession{Session: ss, conn: c}, nil
 }
 
 // getConn gets an ssh connection from the pool for key.
 // If none is available, it dials anew.
-func (p *pool) getConn(k, addr string, config *ssh.ClientConfig, deadline time.Time) *conn {
+func (p *pool) getConn(k, addr string, config *ssh.ClientConfig) *conn {
 	p.mu.Lock()
 	if p.tab == nil {
 		p.tab = make(map[string]*conn)
@@ -101,7 +145,9 @@ func (p *pool) getConn(k, addr string, config *ssh.ClientConfig, deadline time.T
 	c = &conn{ok: make(chan bool)}
 	p.tab[k] = c
 	p.mu.Unlock()
-	c.netC, c.c, c.err = p.dial("tcp", addr, config, deadline)
+	c.netC, c.c, c.err = p.dial("tcp", addr, config)
+	c.name = fmt.Sprintf("%s-%s-%x", addr, config.User, c.c.SessionID())
+	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "creations", c.name}), 1)
 	close(c.ok)
 	return c
 }
@@ -116,8 +162,8 @@ func (p *pool) removeConn(k string, c1 *conn) {
 	}
 }
 
-func (p *pool) dial(network, addr string, config *ssh.ClientConfig, deadline time.Time) (net.Conn, *ssh.Client, error) {
-	dialer := net.Dialer{Deadline: deadline}
+func (p *pool) dial(network, addr string, config *ssh.ClientConfig) (net.Conn, *ssh.Client, error) {
+	dialer := net.Dialer{}
 	dial := dialer.Dial
 	netC, err := dial(network, addr)
 	if err != nil {
