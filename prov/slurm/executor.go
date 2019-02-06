@@ -246,12 +246,15 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 
 	// Listen to potential cancellation in case of pending allocation
 	ctxAlloc, cancelAlloc := context.WithCancel(ctx)
+	defer cancelAlloc()
 	chEnd := make(chan struct{})
+	defer close(chEnd)
 	go func() {
 		select {
 		case <-ctx.Done():
 			if &allocResponse != nil && allocResponse.jobID != "" {
-				log.Debug("Cancellation message has been sent: the pending job allocation has to be removed")
+				log.Debug("%s: Cancellation message has been sent: the pending job allocation (%s) has to be removed", deploymentID, allocResponse.jobID)
+				log.Debug("%s: %+v", deploymentID, ctx.Err())
 				if err := cancelJobID(allocResponse.jobID, e.client); err != nil {
 					log.Printf("[Warning] an error occurred during cancelling jobID:%q", allocResponse.jobID)
 					return
@@ -317,8 +320,6 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	if err != nil {
 		return err
 	}
-
-	close(chEnd)
 	return nil
 }
 
