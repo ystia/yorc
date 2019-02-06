@@ -254,7 +254,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 		case <-ctx.Done():
 			if &allocResponse != nil && allocResponse.jobID != "" {
 				log.Debug("%s: Cancellation message has been sent: the pending job allocation (%s) has to be removed", deploymentID, allocResponse.jobID)
-				log.Debug("%s: %+v", ctx.Err())
+				log.Debug("%s: %+v", deploymentID, ctx.Err())
 				if err := cancelJobID(allocResponse.jobID, e.client); err != nil {
 					log.Printf("[Warning] an error occurred during cancelling jobID:%q", allocResponse.jobID)
 					return
