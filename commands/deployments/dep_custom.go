@@ -34,6 +34,7 @@ func init() {
 	var jsonParam string
 	var nodeName string
 	var customCName string
+	var interfaceName string
 	var inputs []string
 	var customCmd = &cobra.Command{
 		Use:   "custom <id>",
@@ -46,14 +47,15 @@ func init() {
 			if err != nil {
 				httputil.ErrExit(err)
 			}
-			if len(jsonParam) == 0 && len(nodeName) == 0 {
-				return errors.Errorf("You need to provide a JSON or complete the arguments")
+			if len(jsonParam) == 0 && (len(nodeName) == 0 || len(interfaceName) == 0 || len(customCName) == 0) {
+				return errors.Errorf("You need to provide a JSON or complete the mandatory flags (\"custom\", \"node\", \"interface\")")
 			}
 
 			if len(jsonParam) == 0 && len(nodeName) != 0 && len(customCName) != 0 {
 				var InputsStruct rest.CustomCommandRequest
 				InputsStruct.CustomCommandName = customCName
 				InputsStruct.NodeName = nodeName
+				InputsStruct.InterfaceName = interfaceName
 				InputsStruct.Inputs = make(map[string]*tosca.ValueAssignment)
 				for _, arg := range inputs {
 					keyValue := strings.Split(arg, "=")
@@ -90,9 +92,10 @@ func init() {
 			return nil
 		},
 	}
-	customCmd.PersistentFlags().StringVarP(&jsonParam, "data", "d", "", "Need to provide the JSON format of the custom command")
-	customCmd.PersistentFlags().StringVarP(&nodeName, "node", "n", "", "Provide the node name (use with flag c and i)")
-	customCmd.PersistentFlags().StringVarP(&customCName, "custom", "c", "", "Provide the custom command name (use with flag n and i)")
-	customCmd.PersistentFlags().StringArrayVarP(&inputs, "input", "i", make([]string, 0), "Provide the input for the custom command (use with flag c and n)")
+	customCmd.PersistentFlags().StringVarP(&jsonParam, "data", "d", "", "Provide the JSON format of the custom command with node, interface, custom and inputs data")
+	customCmd.PersistentFlags().StringVarP(&nodeName, "node", "n", "", "Provide the node name (mandatory)")
+	customCmd.PersistentFlags().StringVarP(&interfaceName, "interface", "", "", "Provide the interface name (mandatory)")
+	customCmd.PersistentFlags().StringVarP(&customCName, "custom", "", "", "Provide the custom command name (mandatory)")
+	customCmd.PersistentFlags().StringArrayVarP(&inputs, "input", "i", make([]string, 0), "Provide the input for the custom command")
 	DeploymentsCmd.AddCommand(customCmd)
 }

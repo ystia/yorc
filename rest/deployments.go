@@ -30,7 +30,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
@@ -277,24 +277,34 @@ func (s *Server) listDeploymentsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	depCol := DeploymentsCollection{Deployments: make([]Deployment, len(depPaths))}
+	deps := make([]Deployment, 0)
 	depPrefix := consulutil.DeploymentKVPrefix + "/"
-	for depIndex, depPath := range depPaths {
+	for _, depPath := range depPaths {
 		deploymentID := strings.TrimRight(strings.TrimPrefix(depPath, depPrefix), "/ ")
 		status, err := deployments.GetDeploymentStatus(kv, deploymentID)
 		if err != nil {
 			if deployments.IsDeploymentNotFoundError(err) {
-				// Deployment purged now
-				status = deployments.UNDEPLOYED
+				// Deployment is not found : we force deletion and ignore it
+				go func() {
+					log.Debugf("Force purge inconsistent deployment with ID:%q", deploymentID)
+					if _, err := s.tasksCollector.RegisterTask(deploymentID, tasks.TaskTypeForcePurge); err != nil {
+						log.Printf("Failed to force purge deployment with ID:%q due to error:%+v", deploymentID, err)
+					}
+				}()
+				continue
 			} else {
 				log.Panic(err)
 			}
 		}
-		depCol.Deployments[depIndex] = Deployment{
+		deps = append(deps, Deployment{
 			ID:     deploymentID,
 			Status: status.String(),
 			Links:  []AtomLink{newAtomLink(LinkRelDeployment, "/deployments/"+deploymentID)},
-		}
+		})
 	}
-	encodeJSONResponse(w, r, depCol)
+	if len(deps) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	encodeJSONResponse(w, r, DeploymentsCollection{Deployments: deps})
 }

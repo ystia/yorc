@@ -214,7 +214,7 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
 	}
 	_, errGrp, store := consulutil.WithContext(ctx)
-	for outPath, outName := range outputs {
+	for outPath, outName := range filteredOutputs {
 		output, ok := outputsList[outName]
 		if !ok {
 			return errors.Errorf("failed to retrieve output %q in terraform result", outName)

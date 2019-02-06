@@ -98,6 +98,10 @@ Globals Command-line options
 
   * ``--consul_ssl_verify``: If set to false, disable Consul certificate checking (true by default is ssl enabled).
 
+.. _option_consul_tls_handshake_timeout_cmd:
+
+  * ``--consul_tls_handshake_timeout``: Maximum duration to wait for a TLS handshake with Consul, the default is ``50s``.
+
 .. _option_terraform_plugins_dir_cmd:
 
   * ``--terraform_plugins_dir``: Specify the directory where to find Terraform pre-installed providers plugins. If not specified, required plugins will be downloaded during deployment. See https://www.terraform.io/guides/running-terraform-in-automation.html#pre-installed-plugins for more information.
@@ -117,6 +121,7 @@ Globals Command-line options
 .. _option_terraform_openstack_plugin_version_constraint_cmd:
 
   * ``--terraform_openstack_plugin_version_constraint``: Specify the Terraform OpenStack plugin version constraint. Default one compatible with our source code is ``"~> 1.9"``. If you choose another, it's at your own risk. See https://www.terraform.io/docs/configuration/providers.html#provider-versions for more information.
+
 .. _option_terraform_keep_generated_files_cmd:
 
   * ``--terraform_keep_generated_files``: If set to true, generated Terraform infrastructures files on Yorc server are not deleted. (false by default: generated files are deleted).
@@ -474,6 +479,10 @@ All available configuration options for Consul are:
 
   * ``ssl_verify``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
 
+.. _option_consul_tls_handshake_timeout:
+
+  * ``tls_handshake_timeout``: Equivalent to :ref:`--consul_tls_handshake_timeout <option_consul_tls_handshake_timeout_cmd>` command-line flag.
+
 .. _option_pub_routines_cfg:
 
   * ``publisher_max_routines``: Equivalent to :ref:`--consul_publisher_max_routines <option_pub_routines_cmd>` command-line flag.
@@ -721,6 +730,11 @@ Environment variables
 .. _option_consul_ssl_verify_env:
 
   * ``YORC_CONSUL_SSL_VERIFY``: Equivalent to :ref:`--consul_ssl_verify <option_consul_ssl_verify_cmd>` command-line flag.
+
+.. _option_consul_tls_handshake_timeout_env:
+
+  * ``YORC_CONSUL_TLS_HANDSHAKE_TIMEOUT``: Equivalent to :ref:`--consul_tls_handshake_timeout <option_consul_tls_handshake_timeout_cmd>` command-line flag.
+
 
 .. _option_pub_routines_env:
 
