@@ -15,9 +15,11 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/consulutil"
 	"github.com/ystia/yorc/log"
 	"github.com/ystia/yorc/tosca"
@@ -122,6 +124,8 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 	return nil
 }
 
+// This allows to store notifications for attributes depending on other ones or on operation outputs  in order to ensure events publication when attribute value change
+// This allows too to publish initial state for default attribute value
 func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
 	substitutionInstance, err := isSubstitutionNodeInstance(kv, deploymentID, nodeName, instanceName)
 	if err != nil {
@@ -169,8 +173,13 @@ func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, d
 	// Not found look at node type
 	if value == nil {
 		value, isFunction, err = getTypeDefaultAttribute(kv, deploymentID, nodeType, attributeName)
-		if err != nil || (value != nil && !isFunction) {
+		if err != nil {
 			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
+		}
+		// Publish default value
+		if value != nil && !isFunction {
+			events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")
+			return nil
 		}
 	}
 

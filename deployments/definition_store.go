@@ -1353,17 +1353,6 @@ func enhanceAttributes(consulStore consulutil.ConsulStore, kv *api.KV, deploymen
 				if err != nil {
 					return err
 				}
-
-				instanceAttributeValue, err := GetInstanceAttributeValue(kv, deploymentID, nodeName, instanceName, attribute)
-				// don't handle error at this step
-				if err != nil {
-					continue
-				}
-
-				if instanceAttributeValue != nil {
-					// Publish default/initial values
-					events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attribute, instanceAttributeValue.String(), "initial")
-				}
 			}
 		}
 	}
