@@ -50,7 +50,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	log.Debugf("Execute Action:%+v with taskID:%q, deploymentID:%q", action, taskID, deploymentID)
 	var err error
 	if o.client == nil {
-		o.client, err = GetSSHClient(cfg)
+		o.client, err = getSSHClient(action.Data["userName"], action.Data["privateKey"], action.Data["password"], cfg)
 		if err != nil {
 			return true, err
 		}

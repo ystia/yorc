@@ -208,6 +208,7 @@ func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal stored Slurm job information")
 	}
+	log.Debugf("***** Unmarshaled Job info for task %s. Got user name info : %s", e.taskID, jobInfo.UserName)
 	return jobInfo, nil
 }
 
@@ -244,6 +245,9 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
 	data["remoteExecDirectory"] = e.jobInfo.OperationRemoteExecDir
 	data["outputs"] = strings.Join(e.jobInfo.Outputs, ",")
+	data["userName"] = e.jobInfo.UserName
+	data["password"] = e.jobInfo.Password
+	data["privateKey"] = e.jobInfo.PrivateKey
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
@@ -610,7 +614,7 @@ func (e *executionCommon) resolveExecution() error {
 		return err
 	}
 
-	e.client, err = GetSSHClient(e.cfg)
+	e.client, err = getSSHClient(e.jobInfo.UserName, e.jobInfo.PrivateKey, e.jobInfo.Password, e.cfg)
 	return err
 }
 

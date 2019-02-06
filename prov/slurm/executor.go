@@ -95,12 +95,6 @@ func (e *defaultExecutor) ExecDelegate(ctx context.Context, cfg config.Configura
 		return err
 	}
 
-	e.client, err = GetSSHClient(cfg)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
-		return err
-	}
-
 	operation := strings.ToLower(delegateOperation)
 	switch {
 	case operation == "install":
@@ -124,6 +118,13 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	if err != nil {
 		return err
 	}
+
+	e.client, err = getSSHClientNode(cfg, *infra.nodes[0])
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
 	return e.createInfrastructure(ctx, kv, cfg, deploymentID, nodeName, infra)
 }
 
