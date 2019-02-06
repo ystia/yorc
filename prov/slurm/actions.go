@@ -57,7 +57,6 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	if err != nil {
 		return true, err
 	}
-	//o.action = action
 	if action.ActionType == "job-monitoring" {
 
 		deregister, err := o.monitorJob(ctx, deploymentID, action)

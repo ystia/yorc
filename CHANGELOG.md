@@ -14,6 +14,7 @@
 * All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291)
 * Missing events for uninstall workflow in purge task ([GH-302](https://github.com/ystia/yorc/issues/302)
 * It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306)
+* Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308)
 
 ## 3.1.0 (December 20, 2018)
 
