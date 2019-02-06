@@ -125,7 +125,7 @@ topology_template:
       capabilities:
         consul:
           properties:
-            tls_enabled: false
+            tls_enabled: {{.Consul.TLSEnabled}}
             protocol: tcp
             secure: false
             network_name: PRIVATE
