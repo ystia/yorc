@@ -15,6 +15,10 @@
 * Missing events for uninstall workflow in purge task ([GH-302](https://github.com/ystia/yorc/issues/302)
 * All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291)
 
+### ENHANCEMENTS
+
+* Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
+
 ## 3.2.0-M1 (January 28, 2019)
 
 ### BUG FIXES

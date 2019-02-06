@@ -33,3 +33,4 @@ build/coverprofiles/*
 
 # Generated sources
 /tosca/assets.go
+inputsaves/
