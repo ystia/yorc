@@ -91,7 +91,7 @@ topology_template:
             node: YorcCompute
             capability: tosca.capabilities.Container
             relationship: tosca.relationships.HostedOn
-    OracleJDK:
+    JDK:
       type: org.alien4cloud.java.jdk.linux.nodes.OracleJDK
       properties:
         java_url: "{{.Jdk.DownloadURL}}"
@@ -113,13 +113,9 @@ topology_template:
         ca_key: |{{indent .Yorc.CAKeyContent 10}}
         ca_passphrase: "{{.Yorc.CAPassPhrase}}"
       requirements:
-        - consul:
-            node: ConsulAgentA4C
-            capability: org.alien4cloud.consul.pub.capabilities.ConsulAgent
-            relationship: org.alien4cloud.consul.relationships.ConnectToConsulAgent
         - javaSoftwareHostedOnJdkOracleJdkJdk:
             type_requirement: java
-            node: OracleJDK
+            node: JDK
             capability: org.alien4cloud.java.pub.capabilities.JDK
             relationship: org.alien4cloud.java.pub.relationships.JavaSoftwareHostedOnJDK
       capabilities:
@@ -384,12 +380,12 @@ topology_template:
             - delegate: install
           on_success:
             - Alien4CloudCompute_install
-        OracleJDK_creating:
-          target: OracleJDK
+        JDK_creating:
+          target: JDK
           activities:
             - set_state: creating
           on_success:
-            - OracleJDK_create
+            - JDK_create
         YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source:
           target: YorcServer
           target_relationship: dependsOnTerraformRuntimeTerraformRuntimeFeature
@@ -525,7 +521,7 @@ topology_template:
           activities:
             - set_state: configuring
           on_success:
-            - Alien4Cloud_consul_pre_configure_source
+            - Alien4Cloud_configure
         NFSClient_starting:
           target: NFSClient
           activities:
@@ -575,12 +571,12 @@ topology_template:
             - set_state: started
           on_success:
             - YorcPlugin_initial
-        OracleJDK_starting:
-          target: OracleJDK
+        JDK_starting:
+          target: JDK
           activities:
             - set_state: starting
           on_success:
-            - OracleJDK_started
+            - JDK_started
         Infrastructure_configuring:
           target: Infrastructure
           activities:
@@ -593,12 +589,12 @@ topology_template:
             - call_operation: Standard.start
           on_success:
             - YorcOnDemandLocationResources_started
-        OracleJDK_configuring:
-          target: OracleJDK
+        JDK_configuring:
+          target: JDK
           activities:
             - set_state: configuring
           on_success:
-            - OracleJDK_configured
+            - JDK_configured
         YorcPlugin_start:
           target: YorcPlugin
           activities:
@@ -660,14 +656,14 @@ topology_template:
           activities:
             - delegate: install
           on_success:
-            - OracleJDK_initial
+            - JDK_initial
             - ConsulAgentA4C_initial
-        OracleJDK_created:
-          target: OracleJDK
+        JDK_created:
+          target: JDK
           activities:
             - set_state: created
           on_success:
-            - OracleJDK_configuring
+            - JDK_configuring
         YorcServer_start:
           target: YorcServer
           activities:
@@ -714,8 +710,6 @@ topology_template:
           target: ConsulAgentA4C
           activities:
             - set_state: started
-          on_success:
-            - Alien4Cloud_initial
         ConsulServer_started:
           target: ConsulServer
           activities:
@@ -741,14 +735,6 @@ topology_template:
             - set_state: creating
           on_success:
             - ConsulAgentYorcServer_create
-        Alien4Cloud_consul_pre_configure_source:
-          target: Alien4Cloud
-          target_relationship: consul
-          operation_host: SOURCE
-          activities:
-            - call_operation: Configure.pre_configure_source
-          on_success:
-            - Alien4Cloud_configure
         Alien4Cloud_configure:
           target: Alien4Cloud
           activities:
@@ -822,12 +808,12 @@ topology_template:
             - set_state: created
           on_success:
             - YorcPlugin_configuring
-        OracleJDK_create:
-          target: OracleJDK
+        JDK_create:
+          target: JDK
           activities:
             - call_operation: Standard.create
           on_success:
-            - OracleJDK_created
+            - JDK_created
         Infrastructure_initial:
           target: Infrastructure
           activities:
@@ -922,12 +908,12 @@ topology_template:
             - set_state: configuring
           on_success:
             - YorcServer_joinConsulAgentConsulAgentConsul_agent_pre_configure_source
-        OracleJDK_configured:
-          target: OracleJDK
+        JDK_configured:
+          target: JDK
           activities:
             - set_state: configured
           on_success:
-            - OracleJDK_starting
+            - JDK_starting
         YorcOnDemandLocationResources_starting:
           target: YorcOnDemandLocationResources
           activities:
@@ -1147,20 +1133,20 @@ topology_template:
             - call_operation: Standard.create
           on_success:
             - YorcServer_created
-        OracleJDK_initial:
-          target: OracleJDK
+        JDK_initial:
+          target: JDK
           activities:
             - set_state: initial
           on_success:
-            - OracleJDK_creating
+            - JDK_creating
         ConsulAgentA4C_configuring:
           target: ConsulAgentA4C
           activities:
             - set_state: configuring
           on_success:
             - ConsulAgentA4C_joinServerConsulServerConsul_server_pre_configure_source
-        OracleJDK_started:
-          target: OracleJDK
+        JDK_started:
+          target: JDK
           activities:
             - set_state: started
           on_success:
@@ -1189,18 +1175,18 @@ topology_template:
             - set_state: stopping
           on_success:
             - YorcServer_stop
-        OracleJDK_stopped:
-          target: OracleJDK
+        JDK_stopped:
+          target: JDK
           activities:
             - set_state: stopped
           on_success:
-            - OracleJDK_deleting
-        OracleJDK_stopping:
-          target: OracleJDK
+            - JDK_deleting
+        JDK_stopping:
+          target: JDK
           activities:
             - set_state: stopping
           on_success:
-            - OracleJDK_stopped
+            - JDK_stopped
         ConsulAgentYorcServer_deleted:
           target: ConsulAgentYorcServer
           activities:
@@ -1397,8 +1383,8 @@ topology_template:
             - set_state: deleted
           on_success:
             - YorcServer_stopping
-        OracleJDK_deleted:
-          target: OracleJDK
+        JDK_deleted:
+          target: JDK
           activities:
             - set_state: deleted
           on_success:
@@ -1416,12 +1402,12 @@ topology_template:
           on_success:
             - NFSServer_stopping
             - ComputeYorc_uninstall
-        OracleJDK_deleting:
-          target: OracleJDK
+        JDK_deleting:
+          target: JDK
           activities:
             - set_state: deleting
           on_success:
-            - OracleJDK_deleted
+            - JDK_deleted
         AnsibleRuntime_delete:
           target: AnsibleRuntime
           activities:
@@ -1439,8 +1425,7 @@ topology_template:
           activities:
             - set_state: deleted
           on_success:
-            - OracleJDK_stopping
-            - ConsulAgentA4C_stopping
+            - JDK_stopping
         TerraformRuntime_stopped:
           target: TerraformRuntime
           activities:
@@ -1592,12 +1577,12 @@ topology_template:
             - call_operation: Standard.start
           on_success:
             - ConsulAgentYorcServer_started
-        OracleJDK_starting:
-          target: OracleJDK
+        JDK_starting:
+          target: JDK
           activities:
             - set_state: starting
           on_success:
-            - OracleJDK_started
+            - JDK_started
         YorcOnDemandLocationResources_start:
           target: YorcOnDemandLocationResources
           activities:
@@ -1631,7 +1616,7 @@ topology_template:
           activities:
             - delegate: start
           on_success:
-            - OracleJDK_starting
+            - JDK_starting
             - ConsulAgentA4C_starting
         Infrastructure_started:
           target: Infrastructure
@@ -1719,8 +1704,6 @@ topology_template:
           target: ConsulAgentA4C
           activities:
             - set_state: started
-          on_success:
-            - Alien4Cloud_initial
         ConsulServer_started:
           target: ConsulServer
           activities:
@@ -1825,8 +1808,8 @@ topology_template:
           on_success:
             - YorcPlugin_starting
             - Infrastructure_starting
-        OracleJDK_started:
-          target: OracleJDK
+        JDK_started:
+          target: JDK
           activities:
             - set_state: started
           on_success:
@@ -1839,18 +1822,18 @@ topology_template:
             - set_state: stopping
           on_success:
             - YorcServer_stop
-        OracleJDK_stopped:
-          target: OracleJDK
+        JDK_stopped:
+          target: JDK
           activities:
             - set_state: stopped
           on_success:
             - Alien4CloudCompute_stop
-        OracleJDK_stopping:
-          target: OracleJDK
+        JDK_stopping:
+          target: JDK
           activities:
             - set_state: stopping
           on_success:
-            - OracleJDK_stopped
+            - JDK_stopped
         ComputeYorc_stop:
           target: YorcCompute
           activities:
@@ -1888,8 +1871,7 @@ topology_template:
           activities:
             - set_state: stopped
           on_success:
-            - OracleJDK_stopping
-            - ConsulAgentA4C_stopping
+            - JDK_stopping
         YorcOnDemandLocationResources_stopped:
           target: YorcOnDemandLocationResources
           activities:
@@ -2102,8 +2084,8 @@ topology_template:
             - set_state: submitted
           on_success:
             - Alien4Cloud_executed
-        OracleJDK_executed:
-          target: OracleJDK
+        JDK_executed:
+          target: JDK
           activities:
             - set_state: executed
           on_success:
@@ -2120,12 +2102,12 @@ topology_template:
             - set_state: submitted
           on_success:
             - YorcOnDemandLocationResources_executed
-        OracleJDK_submitted:
-          target: OracleJDK
+        JDK_submitted:
+          target: JDK
           activities:
             - set_state: submitted
           on_success:
-            - OracleJDK_executed
+            - JDK_executed
         ConsulAgentA4C_executed:
           target: ConsulAgentA4C
           activities:
