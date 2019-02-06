@@ -44,7 +44,7 @@ func (e anotherLivingTaskAlreadyExistsError) Error() string {
 
 // NewAnotherLivingTaskAlreadyExistsError allows to create a new anotherLivingTaskAlreadyExistsError error
 func NewAnotherLivingTaskAlreadyExistsError(taskID, targetID, status string) error {
-	return &anotherLivingTaskAlreadyExistsError{taskID: taskID, targetID: targetID, status: status}
+	return anotherLivingTaskAlreadyExistsError{taskID: taskID, targetID: targetID, status: status}
 }
 
 // IsAnotherLivingTaskAlreadyExistsError checks if an error is due to the fact that another task is currently running
