@@ -49,16 +49,21 @@ type actionData struct {
 func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) (bool, error) {
 	log.Debugf("Execute Action:%+v with taskID:%q, deploymentID:%q", action, taskID, deploymentID)
 	var err error
-	o.client, err = GetSSHClient(cfg)
-	if err != nil {
-		return true, err
+	if o.client == nil {
+		o.client, err = GetSSHClient(cfg)
+		if err != nil {
+			return true, err
+		}
 	}
-	o.consulClient, err = cfg.GetConsulClient()
-	if err != nil {
-		return true, err
-	}
-	if action.ActionType == "job-monitoring" {
 
+	if o.consulClient == nil {
+		o.consulClient, err = cfg.GetConsulClient()
+		if err != nil {
+			return true, err
+		}
+	}
+
+	if action.ActionType == "job-monitoring" {
 		deregister, err := o.monitorJob(ctx, deploymentID, action)
 		if err != nil {
 			// action scheduling needs to be unregistered
