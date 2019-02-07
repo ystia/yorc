@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/config"
@@ -32,8 +31,6 @@ import (
 )
 
 type actionOperator struct {
-	client       *sshutil.SSHClient
-	consulClient *api.Client
 }
 
 type actionData struct {
@@ -48,23 +45,9 @@ type actionData struct {
 
 func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) (bool, error) {
 	log.Debugf("Execute Action:%+v with taskID:%q, deploymentID:%q", action, taskID, deploymentID)
-	var err error
-	if o.client == nil {
-		o.client, err = getSSHClient(action.Data["userName"], action.Data["privateKey"], action.Data["password"], cfg)
-		if err != nil {
-			return true, err
-		}
-	}
-
-	if o.consulClient == nil {
-		o.consulClient, err = cfg.GetConsulClient()
-		if err != nil {
-			return true, err
-		}
-	}
 
 	if action.ActionType == "job-monitoring" {
-		deregister, err := o.monitorJob(ctx, deploymentID, action)
+		deregister, err := o.monitorJob(ctx, cfg, deploymentID, action)
 		if err != nil {
 			// action scheduling needs to be unregistered
 			return true, err
@@ -75,7 +58,7 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 	return true, errors.Errorf("Unsupported actionType %q", action.ActionType)
 }
 
-func (o *actionOperator) monitorJob(ctx context.Context, deploymentID string, action *prov.Action) (bool, error) {
+func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID string, action *prov.Action) (bool, error) {
 	var (
 		err error
 		ok  bool
@@ -123,11 +106,17 @@ func (o *actionOperator) monitorJob(ctx context.Context, deploymentID string, ac
 	// remoteExecDirectory can be empty for interactive jobs
 	actionData.remoteExecDirectory = action.Data["remoteExecDirectory"]
 
-	info, err := getJobInfo(o.client, actionData.jobID, "")
+	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
+	sshClient, err := getSSHClient(action.Data["userName"], action.Data["privateKey"], action.Data["password"], cfg)
+	if err != nil {
+		return true, err
+	}
+
+	info, err := getJobInfo(sshClient, actionData.jobID, "")
 	if err != nil {
 		_, done := err.(*noJobFound)
 		if done {
-			err = o.endJob(ctx, deploymentID, actionData)
+			err = o.endJob(ctx, deploymentID, actionData, sshClient)
 			return true, err
 		}
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
@@ -135,21 +124,21 @@ func (o *actionOperator) monitorJob(ctx context.Context, deploymentID string, ac
 
 	mess := fmt.Sprintf("Job Name:%s, Job ID:%s, Job State:%s", info.name, info.ID, info.state)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mess)
-	o.displayTempOutput(ctx, deploymentID, actionData)
+	o.displayTempOutput(ctx, deploymentID, actionData, sshClient)
 	return false, nil
 }
 
-func (o *actionOperator) endJob(ctx context.Context, deploymentID string, actionData *actionData) error {
+func (o *actionOperator) endJob(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Job with JobID:%s is DONE", actionData.jobID))
 	// If batch job, cleanup needs to be processed after logging output files
 	if actionData.isBatch {
-		err := o.endBatchOutput(ctx, deploymentID, actionData)
+		err := o.endBatchOutput(ctx, deploymentID, actionData, sshClient)
 		if err != nil {
 			return errors.Wrapf(err, "failed to handle batch outputs with jobID:%q", actionData.jobID)
 		}
-		o.cleanUp(actionData)
+		o.cleanUp(actionData, sshClient)
 	} else {
-		err := o.endInteractiveOutput(ctx, deploymentID, actionData)
+		err := o.endInteractiveOutput(ctx, deploymentID, actionData, sshClient)
 		if err != nil {
 			return errors.Wrapf(err, "failed to handle interactive output with jobID:%q", actionData.jobID)
 		}
@@ -157,14 +146,14 @@ func (o *actionOperator) endJob(ctx context.Context, deploymentID string, action
 	return nil
 }
 
-func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string, actionData *actionData) error {
+func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) error {
 	// Look for outputs with relative path
 	relOutputs := make([]string, 0)
 	for _, output := range actionData.outputs {
 		if !path.IsAbs(output) {
 			relOutputs = append(relOutputs, output)
 		} else {
-			o.logFile(ctx, deploymentID, output)
+			o.logFile(ctx, deploymentID, output, sshClient)
 		}
 	}
 
@@ -173,7 +162,7 @@ func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string
 		outputDir := fmt.Sprintf("job_" + actionData.jobID + "_outputs")
 		cmd := fmt.Sprintf("mkdir %s", outputDir)
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-		output, err := o.client.RunCommand(cmd)
+		output, err := sshClient.RunCommand(cmd)
 		if err != nil {
 			return errors.Wrap(err, output)
 		}
@@ -183,11 +172,11 @@ func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string
 			// Copy the file in the output dir
 			cmd := fmt.Sprintf("cp -f %s %s", oldPath, newPath)
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-			output, err := o.client.RunCommand(cmd)
+			output, err := sshClient.RunCommand(cmd)
 			if err != nil {
 				return errors.Wrap(err, output)
 			}
-			err = o.logFile(ctx, deploymentID, newPath)
+			err = o.logFile(ctx, deploymentID, newPath, sshClient)
 			if err != nil {
 				return err
 			}
@@ -196,7 +185,7 @@ func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string
 	return nil
 }
 
-func (o *actionOperator) displayTempOutput(ctx context.Context, deploymentID string, actionData *actionData) {
+func (o *actionOperator) displayTempOutput(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) {
 	for _, output := range actionData.outputs {
 		var tempFile string
 		if path.IsAbs(output) {
@@ -204,17 +193,17 @@ func (o *actionOperator) displayTempOutput(ctx context.Context, deploymentID str
 		} else {
 			tempFile = path.Join(actionData.remoteExecDirectory, output)
 		}
-		o.logFile(ctx, deploymentID, tempFile)
+		o.logFile(ctx, deploymentID, tempFile, sshClient)
 	}
 }
 
-func (o *actionOperator) endInteractiveOutput(ctx context.Context, deploymentID string, actionData *actionData) error {
+func (o *actionOperator) endInteractiveOutput(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) error {
 	// rename the output file and copy it into specific output folder
 	newName := fmt.Sprintf("slurm-%s.out", actionData.jobID)
 	outputDir := fmt.Sprintf("job_" + actionData.jobID + "_outputs")
 	cmd := fmt.Sprintf("mkdir %s", outputDir)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := o.client.RunCommand(cmd)
+	output, err := sshClient.RunCommand(cmd)
 	if err != nil {
 		return errors.Wrap(err, output)
 	}
@@ -223,27 +212,27 @@ func (o *actionOperator) endInteractiveOutput(ctx context.Context, deploymentID 
 	// Move the file in the output dir
 	cmd = fmt.Sprintf("mv %s %s", actionData.outputs[0], newPath)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err = o.client.RunCommand(cmd)
+	output, err = sshClient.RunCommand(cmd)
 	if err != nil {
 		return errors.Wrap(err, output)
 	}
-	return o.logFile(ctx, deploymentID, newPath)
+	return o.logFile(ctx, deploymentID, newPath, sshClient)
 }
 
-func (o *actionOperator) cleanUp(actionData *actionData) {
+func (o *actionOperator) cleanUp(actionData *actionData, sshClient *sshutil.SSHClient) {
 	log.Debugf("Cleanup the operation remote base directory")
 	cmd := fmt.Sprintf("rm -rf %s", actionData.remoteBaseDirectory)
-	_, err := o.client.RunCommand(cmd)
+	_, err := sshClient.RunCommand(cmd)
 	if err != nil {
 		log.Printf("an error:%+v occurred during cleanup for remote base directory:%q", err, actionData.remoteBaseDirectory)
 	}
 }
 
-func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath string) error {
+func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath string, sshClient *sshutil.SSHClient) error {
 	var err error
 	cmd := fmt.Sprintf("cat %s", filePath)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := o.client.RunCommand(cmd)
+	output, err := sshClient.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("an error:%+v occurred during logging file:%q", err, filePath)
 		return errors.Wrapf(err, "failed to log file:%q", filePath)
