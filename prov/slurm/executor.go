@@ -118,8 +118,9 @@ func (e *defaultExecutor) installNode(ctx context.Context, kv *api.KV, cfg confi
 	if err != nil {
 		return err
 	}
-
-	e.client, err = getSSHClientNode(cfg, *infra.nodes[0])
+	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
+	// or if not provided, the user credentials specified in the Yorc configuration
+	e.client, err = getSSHClient(infra.nodes[0].userName, infra.nodes[0].privateKey, infra.nodes[0].password, cfg)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
