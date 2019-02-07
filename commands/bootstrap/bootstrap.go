@@ -76,9 +76,16 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
-	bootstrapCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "n", false,
+	bootstrapCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "", false,
 		"insecure mode - no TLS configuration")
 	viper.BindPFlag("review", bootstrapCmd.PersistentFlags().Lookup("review"))
+	bootstrapCmd.PersistentFlags().StringVarP(&deploymentID,
+		"deployment_name", "n", "", "Name of the deployment. If not specified deployment name is based on time.")
+	viper.BindPFlag("deployment_name", bootstrapCmd.PersistentFlags().Lookup("deployment_name"))
+	bootstrapCmd.PersistentFlags().BoolVarP(&configOnly,
+		"config_only", "", false, "Makes the bootstrapping abort right after exporting the inputs")
+	bootstrapCmd.PersistentFlags().Lookup("config_only").NoOptDefVal = "true"
+	viper.BindPFlag("config_only", bootstrapCmd.PersistentFlags().Lookup("config_only"))
 
 	viper.SetEnvPrefix(commands.EnvironmentVariablePrefix)
 	viper.AutomaticEnv() // read in environment variables that match
@@ -123,6 +130,8 @@ var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
 var insecure bool
+var deploymentID string
+var configOnly bool
 
 func bootstrap() error {
 
@@ -167,7 +176,7 @@ func bootstrap() error {
 	}
 
 	// A local Yorc server is running, using it to deploy the topology
-	deploymentID, errDeploy := deployTopology(workingDirectoryPath, topologyDir)
+	errDeploy := deployTopology(workingDirectoryPath, topologyDir)
 
 	if errDeploy != nil {
 		return errDeploy
