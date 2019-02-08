@@ -21,6 +21,7 @@ work
 **/debug
 build/consul
 build/*.zip
+build/bin
 /doc/_build/*
 /doc/.doctrees
 /dist

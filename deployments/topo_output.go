@@ -19,7 +19,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 // GetTopologyOutputValue returns the value of a given topology output

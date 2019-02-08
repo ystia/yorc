@@ -15,18 +15,16 @@
 package tasks
 
 import (
+	"encoding/json"
+	"fmt"
+	"path"
 	"reflect"
 	"testing"
 
-	"github.com/ystia/yorc/helper/consulutil"
-
-	"path"
-
-	"encoding/json"
-	"fmt"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {

@@ -16,17 +16,17 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"path"
 	"strconv"
+	"strings"
 	"time"
-
-	"encoding/json"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"strings"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // InstanceStatusChange publishes a status change for a given instance of a given node

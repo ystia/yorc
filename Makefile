@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOTOOLS = github.com/kardianos/govendor github.com/jteeuwen/go-bindata/... github.com/abice/go-enum github.com/google/addlicense
+GOTOOLS = github.com/jteeuwen/go-bindata/... github.com/abice/go-enum github.com/google/addlicense
 
 VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
@@ -32,9 +32,15 @@ TF_OPENSTACK_PLUGIN_VERSION=$(shell grep "tf_openstack_plugin_version" versions.
 TF_GOOGLE_PLUGIN_VERSION=$(shell grep "tf_google_plugin_version" versions.yaml | awk '{print $$2}')
 YORC_VERSION=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
 
+export GO111MODULE=on
+export BUILD_DIR=$(shell pwd)/build
+export GOBIN=$(BUILD_DIR)/bin
+export PATH=$(GOBIN):$(shell echo $$PATH)
+export CGO_ENABLED=0
+
 build: test
 	@echo "--> Running go build"
-	@CGO_ENABLED=0 go build $(BUILD_ARGS) -ldflags "-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH) \
+	@go build -o yorc $(BUILD_ARGS) -ldflags "-X github.com/ystia/yorc/commands.version=v$(VERSION) -X github.com/ystia/yorc/commands.gitCommit=$(COMMIT_HASH) \
 	 -X github.com/ystia/yorc/commands.TfConsulPluginVersion=$(TF_CONSUL_PLUGIN_VERSION) \
 	 -X github.com/ystia/yorc/commands.TfAWSPluginVersion=$(TF_AWS_PLUGIN_VERSION) \
 	 -X github.com/ystia/yorc/commands.TfOpenStackPluginVersion=$(TF_OPENSTACK_PLUGIN_VERSION) \
@@ -69,7 +75,7 @@ dist: build
 test: generate header format
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@export PATH=$$PWD/build:$$PATH; go test $(TESTARGS) -p 1 ./...
+	@go test $(TESTARGS) -p 1 ./...
 endif
 
 
@@ -82,23 +88,10 @@ format:
 
 vet:
 	@echo "--> Running go tool vet $(VETARGS) ."
-	@go list ./... \
-		| cut -d '/' -f 4- \
-		| xargs -n1 \
-			go tool vet $(VETARGS) ;\
-	if [ $$? -ne 0 ]; then \
-		echo ""; \
-		echo "Vet found suspicious constructs. Please check the reported constructs"; \
-		echo "and fix them if necessary before submitting the code for reviewal."; \
-	fi
+	@go vet $(VETARGS) ./...
 
 tools:
-	@./build/tools.sh $(GOTOOLS)
-
-savedeps: checks
-	@godep save -v ./...
-
-restoredeps: checks
-	@godep restore -v
+	@echo "--> Installing $(GOTOOLS)"
+	@go install $(GOTOOLS)
 
 .PHONY: build cov checks test cover format vet tools dist

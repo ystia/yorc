@@ -17,15 +17,17 @@ package slurm
 import (
 	"bufio"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/log"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 const reSbatch = `^Submitted batch job (\d+)`

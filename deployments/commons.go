@@ -22,9 +22,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/tosca"
 	"vbom.ml/util/sortorder"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 func urlEscapeAll(keys []string) []string {

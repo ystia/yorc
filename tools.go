@@ -12,28 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workflows
+// +build tools
+
+package main
 
 import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-
-	"github.com/ystia/yorc/v3/commands/deployments"
+	_ "github.com/abice/go-enum"
+	_ "github.com/google/addlicense"
+	_ "github.com/jteeuwen/go-bindata/"
 )
-
-var workflowsCmd = &cobra.Command{
-	Use:     "workflows",
-	Short:   "Perform commands on workflows",
-	Aliases: []string{"wf"},
-	Run: func(cmd *cobra.Command, args []string) {
-		err := cmd.Help()
-		if err != nil {
-			fmt.Print(err)
-		}
-	},
-}
-
-func init() {
-	deployments.DeploymentsCmd.AddCommand(workflowsCmd)
-}

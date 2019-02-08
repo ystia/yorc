@@ -19,22 +19,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
-
 	"regexp"
-
-	"net/url"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
+	uuid "github.com/satori/go.uuid"
+
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func extractFile(f *zip.File, path string) {

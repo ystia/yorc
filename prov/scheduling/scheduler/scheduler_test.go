@@ -20,13 +20,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ystia/yorc/tasks"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/scheduling"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/scheduling"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func testRegisterAction(t *testing.T, client *api.Client) {

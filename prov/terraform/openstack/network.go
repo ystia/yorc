@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/v3/config"
 )
 
 const openstackNetworkType = "yorc.nodes.openstack.Network"

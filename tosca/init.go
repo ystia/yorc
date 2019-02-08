@@ -14,8 +14,8 @@
 
 package tosca
 
-import "github.com/ystia/yorc/registry"
-import "github.com/ystia/yorc/log"
+import "github.com/ystia/yorc/v3/registry"
+import "github.com/ystia/yorc/v3/log"
 
 func init() {
 	reg := registry.GetRegistry()

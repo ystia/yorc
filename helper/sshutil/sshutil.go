@@ -34,8 +34,8 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/net/context"
 
-	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/helper/executil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Client is interface allowing running command

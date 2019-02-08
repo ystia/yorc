@@ -25,18 +25,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/rest"
-
-	"github.com/ystia/yorc/tosca"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/ystia/yorc/commands"
-	"github.com/ystia/yorc/config"
-
 	survey "gopkg.in/AlecAivazis/survey.v1"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/commands"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 var inputValues TopologyValues

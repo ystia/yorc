@@ -23,8 +23,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // LogEntry is the log entry representation

@@ -15,9 +15,9 @@
 package openstack
 
 import (
-	"github.com/ystia/yorc/prov/terraform"
-	"github.com/ystia/yorc/prov/terraform/commons"
-	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/v3/prov/terraform"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
+	"github.com/ystia/yorc/v3/registry"
 )
 
 func init() {

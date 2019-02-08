@@ -30,14 +30,13 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-
-	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/ziputil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/rest"
-
 	"gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/ziputil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/rest"
 )
 
 var cmdConsul *exec.Cmd

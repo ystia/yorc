@@ -24,7 +24,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/helper/collections"
+	"github.com/ystia/yorc/v3/helper/collections"
 )
 
 // FilterFromString generates a Filter from a given input string

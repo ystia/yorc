@@ -16,13 +16,15 @@ package upgradeschema
 
 import (
 	"encoding/json"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
 	"path"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // UpgradeFromPre31 allows to upgrade Consul schema from schema version before 1.0.0 (pre 3.1 yorc version)

@@ -29,12 +29,12 @@ import (
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/operations"
-	yorc_testutil "github.com/ystia/yorc/testutil"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/operations"
+	yorc_testutil "github.com/ystia/yorc/v3/testutil"
 )
 
 // From now only WorkingDirectory is necessary for those tests

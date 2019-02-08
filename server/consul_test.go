@@ -18,13 +18,12 @@ import (
 	"testing"
 
 	"github.com/blang/semver"
-
+	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/helper/consulutil"
 
-	"github.com/hashicorp/consul/api"
-	"github.com/ystia/yorc/testutil"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 func TestConsulServerPackage(t *testing.T) {

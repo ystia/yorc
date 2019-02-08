@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ystia/yorc/commands"
+	"github.com/ystia/yorc/v3/commands"
 )
 
 // Variables with an uknown values are initialized in the root Makefile

@@ -23,8 +23,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ystia/yorc/helper/ziputil"
 	resources "gopkg.in/cookieo9/resources-go.v2"
+
+	"github.com/ystia/yorc/v3/helper/ziputil"
 )
 
 // extractResources extracts resources from the file in argument if any,

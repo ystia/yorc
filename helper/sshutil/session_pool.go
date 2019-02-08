@@ -25,7 +25,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/ystia/yorc/helper/metricsutil"
+	"github.com/ystia/yorc/v3/helper/metricsutil"
 )
 
 type pool struct {

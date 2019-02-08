@@ -15,13 +15,13 @@
 package rest
 
 import (
-	"net"
-
 	"crypto/tls"
+	"net"
 
 	"github.com/hashicorp/go-rootcerts"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
+
+	"github.com/ystia/yorc/v3/config"
 )
 
 func wrapListenerTLS(listener net.Listener, cfg config.Configuration) (net.Listener, error) {
