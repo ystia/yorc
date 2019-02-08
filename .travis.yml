@@ -36,12 +36,11 @@ script:
   # Tweak code climate profile as Go modules are not properly supported yet
   # coverage.txt is for codecov.io while c.out is for codeclimate.com
   - sed -i -e "s@$(go list)/@@g" c.out
-  - cat c.out
   - "./docker_build.sh"
   -  bash build/deploy_artifactory.sh
 
 after_script:
-  - "./cc-test-reporter after-build -d --exit-code $TRAVIS_TEST_RESULT"
+  - "./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT"
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
