@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -170,6 +171,8 @@ func (o *SetOperator) matches(value string) (bool, error) {
 /*  NEW VERSION BEGINS HERE  */
 
 /* ###################################################### */
+/* ###################################################### */
+/* ###################################################### */
 
 //CompositionStrategy is used to define the type of combination used into composite filter
 type CompositionStrategy int
@@ -183,13 +186,46 @@ const (
 
 //CompositeFilter is a filter made of other filters, combined using AND method
 type CompositeFilter struct {
-	Cop     CompositionStrategy //combination operator, AND or OR
+	Strat   CompositionStrategy //combination operator, AND or OR
 	filters []Filter
 }
 
 // Matches implementation of labelsutil.Filter.Matches()
 func (f *CompositeFilter) Matches(labels map[string]string) (bool, error) {
+	switch f.Strat {
+	case And:
+		return f.matchAnd(labels)
+	case Or:
+		return f.matchOr(labels)
+	}
+	//no filter is true
 	return true, nil
+}
+
+func (f *CompositeFilter) matchAnd(labels map[string]string) (bool, error) {
+	i := 0
+	matching := true
+	var err error
+	err = nil
+	for (i < len(f.filters)) && matching && err == nil {
+		matching, err = f.filters[i].Matches(labels)
+		i++
+	}
+
+	return matching, err
+}
+
+func (f *CompositeFilter) matchOr(labels map[string]string) (bool, error) {
+	i := 0
+	matching := false
+	var err error
+	err = nil
+	for (i < len(f.filters)) && !matching && err == nil {
+		matching, err = f.filters[i].Matches(labels)
+		i++
+	}
+
+	return matching, err
 }
 
 /* ###################################################### */
@@ -198,21 +234,53 @@ func (f *CompositeFilter) Matches(labels map[string]string) (bool, error) {
 type RegexStrategy int
 
 const (
-	//Match is used to check if the label matches the filter
-	Match RegexStrategy = iota
-	//Diff is used to check wether the label does not matches the filter
-	Diff RegexStrategy = iota
+	//Contains is used to check if the label contains the regex of the filter
+	Contains RegexStrategy = iota
+	//Excludes is used to check wether the label does not contains the regex of the filter
+	Excludes RegexStrategy = iota
+	//Matches is used to check wether the label matches strictly the regex
+	Matches RegexStrategy = iota
+	//Differs is used to check wether the label differs from the regex
+	Differs RegexStrategy = iota
 )
 
 //RegexFilter is a filter checking if a label matches a regular expression
 type RegexFilter struct {
-	Mop      RegexStrategy
 	LabelKey string
-	Values   []string
+	Strat    RegexStrategy
+	Regex    string
 }
 
 // Matches implementation of labelsutil.Filter.Matches()
 func (f *RegexFilter) Matches(labels map[string]string) (bool, error) {
+	value, exists := labels[f.LabelKey]
+	if !exists {
+		return false, nil
+	}
+	reg := f.Regex
+
+	//removing ^ prefix and $ suffix if existing
+	reg = strings.TrimPrefix(reg, "^")
+	reg = strings.TrimSuffix(reg, "$")
+
+	if (f.Strat == Matches) || (f.Strat == Differs) {
+		//adding ^ prefix and $ suffix
+		reg = "^" + reg + "$"
+	}
+
+	switch f.Strat {
+	case Contains:
+		return regexp.MatchString(reg, value)
+	case Excludes:
+		contains, err := regexp.MatchString(reg, value)
+		return !contains, err
+	case Matches:
+		return regexp.MatchString(reg, value)
+	case Differs:
+		matches, err := regexp.MatchString(reg, value)
+		return !matches, err
+	}
+
 	return true, nil
 }
 
@@ -238,8 +306,8 @@ const (
 
 //ComparisonFilter is a filter checking if a label is higher than a certain value
 type ComparisonFilter struct {
-	Cop      ComparisonOperator
 	LabelKey string
+	Cop      ComparisonOperator
 	Value    float64
 	Unit     *string
 }
@@ -263,15 +331,15 @@ const (
 
 //KeyFilter is a filter checking if a label is existing or not
 type KeyFilter struct {
-	Eop      KeyFilterStrat
 	LabelKey string
+	Strat    KeyFilterStrat
 }
 
 // Matches implementation of labelsutil.Filter.Matches()
 func (f *KeyFilter) Matches(labels map[string]string) (bool, error) {
 	_, exists := labels[f.LabelKey]
 
-	if (f.Eop == Present && !exists) || (f.Eop == Absent && exists) {
+	if (f.Strat == Present && !exists) || (f.Strat == Absent && exists) {
 		return false, nil
 	}
 
