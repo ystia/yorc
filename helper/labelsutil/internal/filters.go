@@ -21,7 +21,7 @@ import (
 
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 
 	"github.com/ystia/yorc/helper/collections"
@@ -165,4 +165,115 @@ func (o *SetOperator) matches(value string) (bool, error) {
 		return !collections.ContainsString(o.Values, value), nil
 	}
 	return collections.ContainsString(o.Values, value), nil
+}
+
+/*  NEW VERSION BEGINS HERE  */
+
+/* ###################################################### */
+
+//CompositionStrategy is used to define the type of combination used into composite filter
+type CompositionStrategy int
+
+const (
+	//And represents the AND combination, all component filters have to match for the composite filter to match.
+	And CompositionStrategy = iota
+	//Or represents the OR combination, at least one  component filter have to match for the composite filter to match.
+	Or CompositionStrategy = iota
+)
+
+//CompositeFilter is a filter made of other filters, combined using AND method
+type CompositeFilter struct {
+	Cop     CompositionStrategy //combination operator, AND or OR
+	filters []Filter
+}
+
+// Matches implementation of labelsutil.Filter.Matches()
+func (f *CompositeFilter) Matches(labels map[string]string) (bool, error) {
+	return true, nil
+}
+
+/* ###################################################### */
+
+//RegexStrategy is used to define the type of search used into regexp filter
+type RegexStrategy int
+
+const (
+	//Match is used to check if the label matches the filter
+	Match RegexStrategy = iota
+	//Diff is used to check wether the label does not matches the filter
+	Diff RegexStrategy = iota
+)
+
+//RegexFilter is a filter checking if a label matches a regular expression
+type RegexFilter struct {
+	Mop      RegexStrategy
+	LabelKey string
+	Values   []string
+}
+
+// Matches implementation of labelsutil.Filter.Matches()
+func (f *RegexFilter) Matches(labels map[string]string) (bool, error) {
+	return true, nil
+}
+
+/* ###################################################### */
+
+//ComparisonOperator is used to define the type of comparison used into comparison filter
+type ComparisonOperator int
+
+const (
+	//Inf represents the less than operator <
+	Inf ComparisonOperator = iota
+	//Sup represents the sup than operator >
+	Sup ComparisonOperator = iota
+	//Infeq represents the inferior or equal operator =<
+	Infeq ComparisonOperator = iota
+	//Supeq represents the superior or equal operator >=
+	Supeq ComparisonOperator = iota
+	//Eq represents the equal operator ==
+	Eq ComparisonOperator = iota
+	//Neq represents the not equal operator !=
+	Neq ComparisonOperator = iota
+)
+
+//ComparisonFilter is a filter checking if a label is higher than a certain value
+type ComparisonFilter struct {
+	Cop      ComparisonOperator
+	LabelKey string
+	Value    float64
+	Unit     *string
+}
+
+// Matches implementation of labelsutil.Filter.Matches()
+func (f *ComparisonFilter) Matches(labels map[string]string) (bool, error) {
+	return false, nil
+}
+
+/* ###################################################### */
+
+//KeyFilterStrat is used to define the type of combination used into LabelExists filter
+type KeyFilterStrat int
+
+const (
+	//Present is used to check if the label exists
+	Present KeyFilterStrat = iota
+	//Absent is used to check if the label does not exists
+	Absent KeyFilterStrat = iota
+)
+
+//KeyFilter is a filter checking if a label is existing or not
+type KeyFilter struct {
+	Eop      KeyFilterStrat
+	LabelKey string
+}
+
+// Matches implementation of labelsutil.Filter.Matches()
+func (f *KeyFilter) Matches(labels map[string]string) (bool, error) {
+	_, exists := labels[f.LabelKey]
+
+	if (f.Eop == Present && !exists) || (f.Eop == Absent && exists) {
+		return false, nil
+	}
+
+	return true, nil
 }

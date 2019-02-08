@@ -15,14 +15,15 @@
 package hostspool
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
 	"net/url"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/log"
 )
 
 func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {
