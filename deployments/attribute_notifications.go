@@ -124,6 +124,95 @@ func notifyAttributeOnValueChange(kv *api.KV, notificationsPath, deploymentID st
 	return nil
 }
 
+func addSubstitutionMappingAttributeHostNotification(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, anh *attributeNotificationsHandler) error {
+	host, err := GetHostedOnNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return err
+	}
+	if host != "" {
+		var notifier *AttributeNotifier
+		capabilityType, err := GetNodeCapabilityType(kv, deploymentID, nodeName, capabilityName)
+		if err != nil {
+			return err
+		}
+
+		isEndpoint, err := IsTypeDerivedFrom(kv, deploymentID, capabilityType,
+			tosca.EndpointCapability)
+		if err != nil {
+			return err
+		}
+
+		// TOSCA specification at :
+		// http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.2/TOSCA-Simple-Profile-YAML-v1.2.html#DEFN_TYPE_CAPABILITIES_ENDPOINT
+		// describes that the ip_address attribute of an endpoint is the IP address
+		// as propagated up by the associated node’s host (Compute) container.
+		if isEndpoint && attributeName == "ip_address" {
+			notifier = &AttributeNotifier{
+				NodeName:      host,
+				InstanceName:  anh.attribute.instanceName,
+				AttributeName: attributeName,
+			}
+		} else {
+			notifier = &AttributeNotifier{
+				NodeName:       host,
+				InstanceName:   anh.attribute.instanceName,
+				AttributeName:  attributeName,
+				CapabilityName: capabilityName,
+			}
+		}
+
+		log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, host, instanceName, notifier)
+		err = anh.saveNotification(notifier)
+		if err != nil {
+			return err
+		}
+		return addSubstitutionMappingAttributeHostNotification(kv, deploymentID, host, instanceName, capabilityName, attributeName, anh)
+	}
+	return nil
+}
+
+func addSubstitutionMappingAttributeNotification(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
+	items := strings.Split(attributeName, ".")
+	capabilityName := items[1]
+	capAttrName := items[2]
+
+	// Check this capability attribute is really exposed before returning its
+	// value
+	attributesSet := make(map[string]struct{})
+	err := storeSubstitutionMappingAttributeNamesInSet(kv, deploymentID, nodeName, attributesSet)
+	if err != nil {
+		return err
+	}
+	if _, ok := attributesSet[attributeName]; ok {
+		anh := &attributeNotificationsHandler{
+			consulStore:  consulStore,
+			kv:           kv,
+			deploymentID: deploymentID,
+			attribute: &notifiedAttribute{
+				nodeName:      nodeName,
+				instanceName:  instanceName,
+				attributeName: attributeName,
+			},
+		}
+
+		// As we can't say if the capability attribute is related to node nodeName or its host, we add notifications for all
+		err = addSubstitutionMappingAttributeHostNotification(kv, deploymentID, nodeName, instanceName, capabilityName, capAttrName, anh)
+		if err != nil {
+			return err
+		}
+
+		notifier := &AttributeNotifier{
+			NodeName:       nodeName,
+			InstanceName:   anh.attribute.instanceName,
+			AttributeName:  capAttrName,
+			CapabilityName: capabilityName,
+		}
+		log.Debugf("Add substitution attribute %s for %s %s %s with notifier:%+v", attributeName, deploymentID, nodeName, instanceName, notifier)
+		return anh.saveNotification(notifier)
+	}
+	return nil
+}
+
 // This allows to store notifications for attributes depending on other ones or on operation outputs  in order to ensure events publication when attribute value change
 // This allows too to publish initial state for default attribute value
 func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID, nodeName, instanceName, attributeName string) error {
@@ -132,9 +221,17 @@ func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, d
 		return err
 	}
 
-	// Nothing to do (TBC)
-	if substitutionInstance || isSubstitutionMappingAttribute(attributeName) {
-		return nil
+	// Publish attributes for substitution attributes
+	if substitutionInstance {
+		found, result := getSubstitutionInstanceAttribute(deploymentID, nodeName, instanceName, attributeName)
+		if found {
+			events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, result, "updated")
+			return nil
+		}
+	}
+
+	if isSubstitutionMappingAttribute(attributeName) && !substitutionInstance {
+		return addSubstitutionMappingAttributeNotification(consulStore, kv, deploymentID, nodeName, instanceName, attributeName)
 	}
 
 	nodeType, err := GetNodeType(kv, deploymentID, nodeName)
@@ -180,6 +277,19 @@ func addAttributeNotifications(consulStore consulutil.ConsulStore, kv *api.KV, d
 		if value != nil && !isFunction {
 			events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, attributeName, value.String(), "default")
 			return nil
+		}
+	}
+
+	if value == nil {
+		// No default found in type hierarchy
+		// then traverse HostedOn relationships to find the value
+		var host string
+		host, err = GetHostedOnNode(kv, deploymentID, nodeName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to add instance attribute notifications %q for node %q (instance %q)", attributeName, nodeName, instanceName)
+		}
+		if host != "" {
+			addAttributeNotifications(consulStore, kv, deploymentID, host, instanceName, attributeName)
 		}
 	}
 
