@@ -33,6 +33,10 @@ script:
   # Go1.10 is required to have proper use of coverprofile for multiple packages
   - TESTARGS="-coverprofile coverage.txt" make dist
   - cp coverage.txt c.out
+  # Tweak code climate profile as Go modules are not properly supported yet
+  # coverage.txt is for codecov.io while c.out is for codeclimate.com
+  - sed -i -e "s@$(go list)/@@g" c.out
+  - cat c.out
   - "./docker_build.sh"
   -  bash build/deploy_artifactory.sh
 
