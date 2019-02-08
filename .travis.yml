@@ -9,6 +9,8 @@ services:
 
 env:
   global:
+    # Make GO111MODULE=on globally for codecov
+    - GO111MODULE=on
     # Code climate key (CC_TEST_REPORTER_ID)
     - secure: iyv/cQh7z/PjRyEySKELsd3L69AdRVlCnZrtozvM/Z+poeSnGtQIRLWgOw/Pe5ueNa/v7Wq2BKw1DHeTrgSnvNNt/uoTUWLY5UcHkPHQYm67DeB7CffSELgr8l6K7eBOqTn2Hu6mzPlmU6l3v8CBHg8uSJT6wv/XKqn2Ut74OBA7wCYRQyEXcnr26C7ytnN/XaaR/RPzXYyxoB6/l6aH1/PK9rt+btdBu4TPo5zZm6KVA8pp85KG7xfGjq6kNG+kDwFiaj6/DJmnxYKxsiyv/AsEtLmElxGKQQqCnOefbNwqSsdYDDqy5AikZ+ZfJQLRrLJzcHDzgREaiPCF0QVfGttcuX5AXpPkrBlKeixku91Dir4hebYAN7SWWwKktu8hqKTtQjc8eJMEbQVKTtk3yeRKqC4I8lUK6TBrJA7tnQpgq8w67Vm81P18UPPjKm6Wf6aCJEKSvrnVSwLvIrEN8q/ybrCupvvcze0l9nsQhJG/79BQX31mjZkqT9MdskgYgD3wrB2LexLYkw4BeyKOV1/fTyz7q82ocfEdNMHTnPKD4B2bXtl1Alx8wluIFjwOvy8QZ9Hopz+cNnfN/dOJcQn7hPQbjqIP7uumUTP2vVk3mtwPDKLYqfCeO1ZLwHClXog6Q2k8gb6mkEfVx6ygq/JxM5LkSnTdfyowLLTp7W0=
     # Docker hub key (DOCKER_HUB_USER)
