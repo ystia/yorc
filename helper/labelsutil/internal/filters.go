@@ -117,15 +117,15 @@ func compareUInts(op string, v1, v2 uint64) (bool, error) {
 }
 
 func (o *ComparableOperator) matches(value string) (bool, error) {
+
+	//done
 	if o.Unit == nil {
-		fValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return false, errors.Wrap(err, "expecting a number for a comparison filter")
-		}
-		return compareFloats(o.Type, fValue, o.Value)
+
 	}
+
 	oValueAsString := strconv.FormatFloat(o.Value, 'f', -1, 64)
 	oDuration, err := time.ParseDuration(oValueAsString + *o.Unit)
+
 	if err == nil {
 		vDuration, err := time.ParseDuration(value)
 		if err != nil {
@@ -133,7 +133,10 @@ func (o *ComparableOperator) matches(value string) (bool, error) {
 		}
 		return compareDurations(o.Type, vDuration, oDuration)
 	}
+	//done
+
 	oBytes, err := humanize.ParseBytes(oValueAsString + *o.Unit)
+
 	if err == nil {
 		vBytes, err := humanize.ParseBytes(value)
 		if err != nil {
@@ -141,6 +144,7 @@ func (o *ComparableOperator) matches(value string) (bool, error) {
 		}
 		return compareUInts(o.Type, vBytes, oBytes)
 	}
+
 	oSI, oUnit, err := humanize.ParseSI(oValueAsString + *o.Unit)
 	if err == nil {
 		vSI, vUnit, err := humanize.ParseSI(value)
@@ -309,12 +313,128 @@ type ComparisonFilter struct {
 	LabelKey string
 	Cop      ComparisonOperator
 	Value    float64
-	Unit     *string
+	Unit     string
 }
 
 // Matches implementation of labelsutil.Filter.Matches()
 func (f *ComparisonFilter) Matches(labels map[string]string) (bool, error) {
-	return false, nil
+	//first we cast values to float
+	lvalS, exists := labels[f.LabelKey]
+	var filterValue float64
+	var labelValue float64
+	var err error
+	if !exists {
+		return false, nil
+	}
+
+	//getting checking unit type
+	switch checkUnitType(f.Unit) {
+	case utRaw:
+		filterValue, labelValue, err = rawToFloat64(f.Value, lvalS)
+	case utDuration:
+		filterValue, labelValue, err = durationToFloat64(f.Value, f.Unit, lvalS)
+	case utBytes:
+		filterValue, labelValue, err = bytesToFloat64(f.Value, f.Unit, lvalS)
+	case utSI:
+		filterValue, labelValue, err = bytesToFloat64(f.Value, f.Unit, lvalS)
+	default:
+		return false, errors.New("Comparison filter found an unkwnown unit type : " + f.Unit)
+	}
+
+	if err != nil {
+		return false, errors.Wrap(err, "Something went wrong when Comparison filtering")
+	}
+
+	//then we compare values
+	switch f.Cop {
+	case Inf:
+		return (filterValue < labelValue), nil
+	case Sup:
+		return (filterValue > labelValue), nil
+	case Infeq:
+		return (filterValue <= labelValue), nil
+	case Supeq:
+		return (filterValue >= labelValue), nil
+	case Eq:
+		return (filterValue == labelValue), nil
+	case Neq:
+		return (filterValue != labelValue), nil
+	}
+
+	return false, errors.New("Comparison Filter has wrong comparison operator")
+}
+
+type unitType int
+
+const (
+	utRaw unitType = iota
+	utDuration
+	utBytes
+	utSI
+	utError
+)
+
+func checkUnitType(unit string) unitType {
+	if unit == "" {
+		return utRaw
+	} else if _, err := time.ParseDuration("0" + unit); err == nil {
+		return utDuration
+	} else if _, err := humanize.ParseBytes("0" + unit); err == nil {
+		return utBytes
+	} else if _, _, err := humanize.ParseSI("0" + unit); err == nil {
+		return utSI
+	} else {
+		return utError
+	}
+}
+
+func rawToFloat64(fval float64, lvalS string) (float64, float64, error) {
+	lval, err := strconv.ParseFloat(lvalS, 64)
+	if err != nil {
+		return 0.0, 0.0, errors.Wrap(err, "Filtering expected raw number, found "+lvalS)
+	}
+
+	return fval, lval, nil
+}
+
+func durationToFloat64(fval float64, funit string, lvalS string) (float64, float64, error) {
+	fvalStr := strconv.FormatFloat(fval, 'f', -1, 64)
+	//no error possible, if we enter this function we already know the filter unit is duration
+	fDuration, _ := time.ParseDuration(fvalStr + funit)
+
+	lDuration, err := time.ParseDuration(lvalS)
+	if err != nil {
+		return 0.0, 0.0, errors.Wrap(err, "Filtering expected duration type, found "+lvalS)
+	}
+
+	return float64(fDuration), float64(lDuration), nil
+}
+
+func bytesToFloat64(fval float64, funit string, lvalS string) (float64, float64, error) {
+	fvalStr := strconv.FormatFloat(fval, 'f', -1, 64)
+	//no error possible, if we enter this function we already know the filter unit is bytes
+	fBytes, _ := humanize.ParseBytes(fvalStr + funit)
+
+	vBytes, err := humanize.ParseBytes(lvalS)
+	if err != nil {
+		return 0.0, 0.0, errors.Wrap(err, "Filtering expected bytes types, found "+lvalS)
+	}
+	return float64(fBytes), float64(vBytes), nil
+}
+
+func siToFloat64(fval float64, funit string, lvalS string) (float64, float64, error) {
+	fvalStr := strconv.FormatFloat(fval, 'f', -1, 64)
+	//no error possible, if we enter this function we already know the filter unit is bytes
+	fSI, funitRes, err := humanize.ParseSI(fvalStr + funit)
+
+	lSI, lunitRes, err := humanize.ParseSI(lvalS)
+	if err != nil {
+		return 0.0, 0.0, errors.Wrap(err, "Filtering expected a International System unit value type, found "+lvalS)
+	}
+	if funitRes != lunitRes {
+		return 0.0, 0.0, errors.Errorf("Units mismatch for comparison filter (can't compare %q with %q", funitRes, lunitRes)
+	}
+	return float64(fSI), float64(lSI), nil
 }
 
 /* ###################################################### */
