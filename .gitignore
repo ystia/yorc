@@ -33,5 +33,4 @@ build/coverprofiles/*
 /testdata/infra/openstack/terraform.tfstate*
 
 # Generated sources
-/tosca/assets.go
 inputsaves/

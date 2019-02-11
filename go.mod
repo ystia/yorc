@@ -1,5 +1,7 @@
 module github.com/ystia/yorc/v3
 
+// Makefile should also be updated when changing module major version (for injected variables)
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Bowery/prompt v0.0.0-20180817134258-8a1d5376df1c // indirect
@@ -71,7 +73,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jefferai/jsonx v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.5 // indirect
-	github.com/jteeuwen/go-bindata v3.0.7+incompatible
 	github.com/julienschmidt/httprouter v0.0.0-20170430222011-975b5c4c7c21c0e3d2764200bf2aa8e34657ae6e
 	github.com/justinas/alice v0.0.0-20160512134231-052b8b6c18ed
 	github.com/kardianos/osext v0.0.0-20170510131534-ae77be60afb1 // indirect

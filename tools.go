@@ -19,5 +19,4 @@ package main
 import (
 	_ "github.com/abice/go-enum"
 	_ "github.com/google/addlicense"
-	_ "github.com/jteeuwen/go-bindata/"
 )

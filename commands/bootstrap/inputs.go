@@ -33,6 +33,7 @@ import (
 	"github.com/ystia/yorc/v3/commands"
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/registry"
 	"github.com/ystia/yorc/v3/rest"
 	"github.com/ystia/yorc/v3/tosca"
 )
@@ -512,7 +513,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	// Get on-demand resources definition for this infrastructure type
 	onDemandResourceName := fmt.Sprintf("yorc-%s-types.yml", infrastructureType)
-	data, err = tosca.Asset(onDemandResourceName)
+
+	data, err = registry.GetRegistry().GetToscaDefinition(onDemandResourceName)
+	if err != nil {
+		return err
+	}
 	if err := yaml.Unmarshal(data, &topology); err != nil {
 		return err
 	}

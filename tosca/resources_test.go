@@ -20,20 +20,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/registry"
 )
 
-func TestGroupedAssetsParallel(t *testing.T) {
-	t.Run("groupAssets", func(t *testing.T) {
-		t.Run("TestAssetNormativeParsing", assetNormativeParsing)
-		t.Run("TestAssetYorcOpenStackParsing", assetYorcOpenStackParsing)
-		t.Run("TestAssetYorcAwsParsing", assetYorcAwsParsing)
-		t.Run("TestAssetYorcGoogleParsing", assetYorcGoogleParsing)
-	})
-}
-
-func assetNormativeParsing(t *testing.T) {
+func TestAssetNormativeParsing(t *testing.T) {
 	t.Parallel()
-	data, err := Asset("normative-types.yml")
+	reg := registry.GetRegistry()
+	data, err := reg.GetToscaDefinition("normative-types.yml")
 	assert.Nil(t, err, "Can't load normative types")
 	assert.NotNil(t, data, "Can't load normative types")
 	var topo Topology
@@ -42,9 +36,10 @@ func assetNormativeParsing(t *testing.T) {
 	assert.Nil(t, err, "Can't parse normative types")
 }
 
-func assetYorcOpenStackParsing(t *testing.T) {
+func TestAssetYorcOpenStackParsing(t *testing.T) {
 	t.Parallel()
-	data, err := Asset("yorc-openstack-types.yml")
+	reg := registry.GetRegistry()
+	data, err := reg.GetToscaDefinition("yorc-openstack-types.yml")
 	assert.Nil(t, err, "Can't load yorc openstack types")
 	assert.NotNil(t, data, "Can't load yorc openstack types")
 	var topo Topology
@@ -53,9 +48,10 @@ func assetYorcOpenStackParsing(t *testing.T) {
 	assert.Nil(t, err, "Can't parse yorc openstack types")
 }
 
-func assetYorcAwsParsing(t *testing.T) {
+func TestAssetYorcAwsParsing(t *testing.T) {
 	t.Parallel()
-	data, err := Asset("yorc-aws-types.yml")
+	reg := registry.GetRegistry()
+	data, err := reg.GetToscaDefinition("yorc-aws-types.yml")
 	assert.Nil(t, err, "Can't load yorc aws types")
 	assert.NotNil(t, data, "Can't load yorc aws types")
 	var topo Topology
@@ -64,9 +60,10 @@ func assetYorcAwsParsing(t *testing.T) {
 	assert.Nil(t, err, "Can't parse yorc aws types")
 }
 
-func assetYorcGoogleParsing(t *testing.T) {
+func TestAssetYorcGoogleParsing(t *testing.T) {
 	t.Parallel()
-	data, err := Asset("yorc-google-types.yml")
+	reg := registry.GetRegistry()
+	data, err := reg.GetToscaDefinition("yorc-google-types.yml")
 	require.NoError(t, err, "Can't load yorc google types")
 	assert.NotNil(t, data, "Can't load yorc google types")
 	var topo Topology
