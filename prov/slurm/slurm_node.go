@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
 	"github.com/ystia/yorc/deployments"
+	"github.com/ystia/yorc/log"
 )
 
 func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {
@@ -52,6 +53,46 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	if memory != nil && memory.RawString() != "" {
 		re := regexp.MustCompile("[[:digit:]]*[[:upper:]]{1}")
 		node.memory = re.FindString(strings.Replace(memory.RawString(), " ", "", -1))
+	}
+
+	user, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "user")
+	if err != nil {
+		return err
+	}
+	if user != nil && user.RawString() != "" {
+		log.Debugf("Got user name from enpoint capability, property credentials : %s", user.RawString())
+		node.userName = user.RawString()
+	}
+
+	token_type, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "token_type")
+	if token_type != nil && token_type.RawString() != "" {
+		log.Debugf("Got token_type from enpoint capability, property credentials : %s", token_type.RawString())
+	}
+
+	if token_type.RawString() == "password" {
+
+		pwd, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "keys", "0")
+		if err != nil {
+			return err
+		}
+		if pwd != nil && pwd.RawString() != "" {
+			log.Debugf("Got pwd from enpoint capability, property credentials : %s", pwd.RawString())
+			node.password = pwd.RawString()
+		}
+
+	} else if token_type.RawString() == "private_key" {
+
+		privateKey, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "keys", "0")
+		if err != nil {
+			return err
+		}
+		if privateKey != nil && privateKey.RawString() != "" {
+			log.Debugf("Got private key from enpoint capability, property credentials : %s", privateKey.RawString())
+			node.privateKey = privateKey.RawString()
+		}
+	} else if node.userName != "" {
+		// If user name provided, then password or private_key expected as token_type
+		return errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", token_type.RawString())
 	}
 
 	// Set the job name property
@@ -94,30 +135,6 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 	if partition != nil {
 		node.partition = partition.RawString()
-	}
-	// Set the user_name property from Tosca slurm.Compute property
-	userName, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_name")
-	if err != nil {
-		return err
-	}
-	if userName != nil {
-		node.userName = userName.RawString()
-	}
-	// Set the password property from Tosca slurm.Compute property
-	password, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "password")
-	if err != nil {
-		return err
-	}
-	if password != nil {
-		node.password = password.RawString()
-	}
-	// Set the privateKey property from Tosca slurm.Compute property
-	privateKey, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "private_key")
-	if err != nil {
-		return err
-	}
-	if privateKey != nil {
-		node.privateKey = privateKey.RawString()
 	}
 	// ToDo - #281
 	// Check that is userName provided, then password or privateKey provided also
