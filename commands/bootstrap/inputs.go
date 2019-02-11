@@ -136,7 +136,7 @@ var (
 			value:       8543,
 		},
 		"consul.encrypt_key": defaultInputType{
-			description: "16-bytes, Base64 encoded value of an encyption key used to encrypt Consul network traffic",
+			description: "16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic",
 			value:       "",
 		},
 	}
@@ -527,7 +527,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 			}{}
 
 			prompt := &survey.Input{
-				Message: "16-bytes, Base64 encoded value of an encyption key used to encrypt Consul network traffic (if none set, one will be generated):",
+				Message: "16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic (if none set, one will be generated):",
 			}
 			question := &survey.Question{
 				Name:   "value",
@@ -541,7 +541,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 
 		if inputValues.Consul.EncryptKey == "" {
-			fmt.Println("Generating a 16-bytes, Base64 encoded encyption key used to encrypt Consul network traffic")
+			fmt.Println("Generating a 16-bytes, Base64 encoded encryption key used to encrypt Consul network traffic")
 			inputValues.Consul.EncryptKey, err = generateConsulEncryptKey()
 			if err != nil {
 				return err
@@ -710,7 +710,7 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 }
 
 // generateConsulEncryptKey generates a 16-bytes, Base64 encoded value of an
-// encyption key used to encrypt Consul network traffic
+// encryption key used to encrypt Consul network traffic
 func generateConsulEncryptKey() (string, error) {
 	bKey := make([]byte, 16)
 	_, err := rand.Read(bKey)
