@@ -25,9 +25,21 @@ import (
 	"github.com/ystia/yorc/tosca"
 	"gopkg.in/yaml.v2"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+// AttributeData represents the related attribute data
+type AttributeData struct {
+	DeploymentID     string
+	NodeName         string
+	InstanceName     string
+	Name             string
+	Value            string
+	CapabilityName   string
+	RequirementIndex string
+}
 
 // Notifier represents the action of notify it's value change
 type Notifier interface {
@@ -63,6 +75,48 @@ type notifiedAttribute struct {
 	instanceName   string
 	attributeName  string
 	capabilityName string
+}
+
+// BuildAttributeDataFromPath allows to return attribute data from path as below:
+// - instance attribute:     _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
+// - capability attribute:   _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/capabilities/(/*)*/attributes/<ATTRIBUTE_NAME>
+// - relationship attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/relationship_instances/<NODE_NAME>/<REQUIREMENT_INDEX>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
+func BuildAttributeDataFromPath(aPath string) (*AttributeData, error) {
+	// Find instance attribute path
+	match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(aPath)
+	if match != nil && len(match) == 5 {
+		return &AttributeData{
+			DeploymentID: match[1],
+			NodeName:     match[2],
+			InstanceName: match[3],
+			Name:         match[4],
+		}, nil
+	}
+
+	// Find capabilities instance attribute path
+	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/capabilities/([/0-9a-zA-Z]+)/attributes/(\\w+)").FindStringSubmatch(aPath)
+	if match != nil && len(match) == 6 {
+		return &AttributeData{
+			DeploymentID:   match[1],
+			NodeName:       match[2],
+			InstanceName:   match[3],
+			CapabilityName: match[4],
+			Name:           match[5],
+		}, nil
+	}
+
+	// Find relationship instance attribute path
+	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/relationship_instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(aPath)
+	if match != nil && len(match) == 6 {
+		return &AttributeData{
+			DeploymentID:     match[1],
+			NodeName:         match[2],
+			RequirementIndex: match[3],
+			InstanceName:     match[4],
+			Name:             match[5],
+		}, nil
+	}
+	return nil, errors.Errorf("failed to build attribute data from path:%q", aPath)
 }
 
 // NotifyValueChange allows to notify output value change

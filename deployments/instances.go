@@ -175,6 +175,13 @@ func SetInstanceAttribute(deploymentID, nodeName, instanceName, attributeName, a
 
 }
 
+// SetInstanceListAttributes sets a list of instance attributes in order to store all attributes together then publish.
+// This is done for avoiding inconsistency at publish time
+func SetInstanceListAttributes(attributes []*AttributeData) error {
+	return SetInstanceListAttributesComplex(attributes)
+
+}
+
 // SetInstanceAttributeComplex sets an instance attribute that may be a literal or a complex data type
 func SetInstanceAttributeComplex(deploymentID, nodeName, instanceName, attributeName string, attributeValue interface{}) error {
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "attributes", attributeName)
@@ -183,6 +190,24 @@ func SetInstanceAttributeComplex(deploymentID, nodeName, instanceName, attribute
 	err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, attributeName, attributeValue)
 	if err != nil {
 		return err
+	}
+	return errGrp.Wait()
+}
+
+// SetInstanceListAttributesComplex sets an instance list of attributes that may be a literal or a complex data type
+// All attributes are stored together
+// Then all notifications are published
+func SetInstanceListAttributesComplex(attributes []*AttributeData) error {
+	_, errGrp, store := consulutil.WithContext(context.Background())
+	for _, attribute := range attributes {
+		attrPath := path.Join(consulutil.DeploymentKVPrefix, attribute.DeploymentID, "topology/instances", attribute.NodeName, attribute.InstanceName, "attributes", attribute.Name)
+		storeComplexType(store, attrPath, attribute.Value)
+	}
+	for _, attribute := range attributes {
+		err := notifyAndPublishAttributeValueChange(consulutil.GetKV(), attribute.DeploymentID, attribute.NodeName, attribute.InstanceName, attribute.Name, attribute.Value)
+		if err != nil {
+			return err
+		}
 	}
 	return errGrp.Wait()
 }

@@ -36,21 +36,11 @@ import (
 	"github.com/ystia/yorc/prov/terraform/commons"
 	"github.com/ystia/yorc/tasks"
 	"github.com/ystia/yorc/tosca"
-	"regexp"
 )
 
 type defaultExecutor struct {
 	generator       commons.Generator
 	preDestroyCheck commons.PreDestroyInfraCallback
-}
-
-type attrInfo struct {
-	deploymentID     string
-	nodeName         string
-	instanceName     string
-	capabilityName   string
-	attributeName    string
-	requirementIndex string
 }
 
 // NewExecutor returns an Executor
@@ -195,16 +185,6 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 		return nil
 	}
 
-	// Filter and handle file output
-	filteredOutputs, err := e.handleFileOutputs(ctx, kv, infraPath, outputs)
-	if err != nil {
-		return err
-	}
-
-	if len(filteredOutputs) == 0 {
-		return nil
-	}
-
 	type tfJSONOutput struct {
 		Sensitive bool   `json:"sensitive,omitempty"`
 		Type      string `json:"type,omitempty"`
@@ -224,42 +204,67 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
 	}
 	_, errGrp, store := consulutil.WithContext(ctx)
-	for outPath, outName := range filteredOutputs {
-		output, ok := outputsList[outName]
-		if !ok {
-			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
-		}
-		err = storeOutput(store, outPath, output.Value)
-		if err != nil {
-			return errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", outPath, output.Value)
-		}
-	}
 
-	return errGrp.Wait()
-}
-
-// File outputs are outputs that terraform can't resolve and which need to be retrieved in local files
-func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, infraPath string, outputs map[string]string) (map[string]string, error) {
-	_, errGrp, store := consulutil.WithContext(ctx)
-	filteredOutputs := make(map[string]string, 0)
-	for k, v := range outputs {
-		if strings.HasPrefix(v, commons.FileOutputPrefix) {
-			file := strings.TrimPrefix(v, commons.FileOutputPrefix)
+	workOutputs := make(map[string]string)
+	for outputPath, outputName := range outputs {
+		// File outputs are outputs that terraform can't resolve and which need to be retrieved in local files
+		if strings.HasPrefix(outputName, commons.FileOutputPrefix) {
+			file := strings.TrimPrefix(outputName, commons.FileOutputPrefix)
 			log.Debugf("Handle file output:%q", file)
 			content, err := ioutil.ReadFile(path.Join(infraPath, file))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to retrieve file output from file:%q", file)
+				return errors.Wrapf(err, "Failed to retrieve file output from file:%q", file)
 			}
 			contentStr := strings.Trim(string(content), "\r\n")
-			err = storeOutput(store, k, contentStr)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to publish attribute value for output:%q, value:%q", k, contentStr)
-			}
+			workOutputs[outputPath] = contentStr
 		} else {
-			filteredOutputs[k] = v
+			// Outputs are retrieved from Terraform output command
+			output, ok := outputsList[outputName]
+			if !ok {
+				return errors.Errorf("failed to retrieve output %q in terraform result", outputName)
+			}
+			workOutputs[outputPath] = output.Value
 		}
 	}
-	return filteredOutputs, errGrp.Wait()
+
+	err = e.storeOutputs(store, workOutputs)
+	if err != nil {
+		return err
+	}
+	return errGrp.Wait()
+}
+
+func (e *defaultExecutor) storeOutputs(store consulutil.ConsulStore, outputs map[string]string) error {
+	// instance attributes values are stored by block
+	attributesBlock := make([]*deployments.AttributeData, 0)
+	for outputPath, outputValue := range outputs {
+		log.Debugf("outputPath=%q, outputValue=%q", outputPath, outputValue)
+		if strings.Contains(outputPath, "/attributes/") {
+			attr, err := deployments.BuildAttributeDataFromPath(outputPath)
+			attr.Value = outputValue
+			if err != nil {
+				return err
+			}
+
+			if attr.CapabilityName != "" {
+				err = deployments.SetInstanceCapabilityAttribute(attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.CapabilityName, attr.Name, attr.Value)
+				if err != nil {
+					return err
+				}
+			} else if attr.RequirementIndex != "" {
+				err = deployments.SetInstanceRelationshipAttribute(attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.RequirementIndex, attr.Name, attr.Value)
+				if err != nil {
+					return err
+				}
+			} else {
+				attributesBlock = append(attributesBlock, attr)
+			}
+		} else {
+			// if output is not an attribute, store its path/value directly
+			store.StoreConsulKeyAsString(outputPath, outputValue)
+		}
+	}
+	return deployments.SetInstanceListAttributes(attributesBlock)
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, outputs map[string]string, env []string) error {
@@ -309,70 +314,4 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 // in commands if duplicates only the last one is taken into account
 func mergeEnvironments(env []string) []string {
 	return append(os.Environ(), env...)
-}
-
-// Attributes are specifically stored via deployments.SetInstanceAttribute
-func storeOutput(store consulutil.ConsulStore, outputPath, outputValue string) error {
-	log.Debugf("outputPath=%q, outputValue=%q", outputPath, outputValue)
-	if strings.Contains(outputPath, "/attributes/") {
-		attrInfo := retrieveAttributeInfo(outputPath)
-		if attrInfo == nil {
-			return errors.Errorf("failed to retrieve attribute information with output path:%q", outputPath)
-		}
-		return attrInfo.saveAttributeValue(outputValue)
-	}
-	// if output is not an attribute, store its path/value directly
-	store.StoreConsulKeyAsString(outputPath, outputValue)
-	return nil
-}
-
-// Return attribute information from output path for:
-// - instance attribute:     _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
-// - capability attribute:   _yorc/deployments/<DEPLOYMENT_ID>/topology/instances/<NODE_NAME>/<INSTANCE_NAME>/capabilities/(/*)*/attributes/<ATTRIBUTE_NAME>
-// - relationship attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/relationship_instances/<NODE_NAME>/<REQUIREMENT_INDEX>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
-func retrieveAttributeInfo(outputPath string) *attrInfo {
-	// Find instance attribute path
-	match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
-	if match != nil && len(match) == 5 {
-		return &attrInfo{
-			deploymentID:  match[1],
-			nodeName:      match[2],
-			instanceName:  match[3],
-			attributeName: match[4],
-		}
-	}
-
-	// Find capabilities instance attribute path
-	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/capabilities/([/0-9a-zA-Z]+)/attributes/(\\w+)").FindStringSubmatch(outputPath)
-	if match != nil && len(match) == 6 {
-		return &attrInfo{
-			deploymentID:   match[1],
-			nodeName:       match[2],
-			instanceName:   match[3],
-			capabilityName: match[4],
-			attributeName:  match[5],
-		}
-	}
-
-	// Find relationship instance attribute path
-	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/relationship_instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(outputPath)
-	if match != nil && len(match) == 6 {
-		return &attrInfo{
-			deploymentID:     match[1],
-			nodeName:         match[2],
-			requirementIndex: match[3],
-			instanceName:     match[4],
-			attributeName:    match[5],
-		}
-	}
-	return nil
-}
-
-func (attr *attrInfo) saveAttributeValue(value string) error {
-	if attr.capabilityName != "" {
-		return deployments.SetInstanceCapabilityAttribute(attr.deploymentID, attr.nodeName, attr.instanceName, attr.capabilityName, attr.attributeName, value)
-	} else if attr.requirementIndex != "" {
-		return deployments.SetInstanceRelationshipAttribute(attr.deploymentID, attr.nodeName, attr.instanceName, attr.requirementIndex, attr.attributeName, value)
-	}
-	return deployments.SetInstanceAttribute(attr.deploymentID, attr.nodeName, attr.instanceName, attr.attributeName, value)
 }
