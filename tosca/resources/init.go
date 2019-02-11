@@ -12,22 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tosca
+package resources
 
 import (
-	"github.com/ystia/yorc/v3/log"
+	"log"
+
 	"github.com/ystia/yorc/v3/registry"
 )
 
 func init() {
 	reg := registry.GetRegistry()
-	// for _, defName := range AssetNames() {
-	// 	definition, err := Asset(defName)
-	// 	if err != nil {
-	// 		log.Panicf("Failed to load builtin Tosca definition file %q. %v", defName, err)
-	// 	}
-	// 	reg.AddToscaDefinition(defName, registry.BuiltinOrigin, definition)
-	// }
 	resources, err := getToscaResources()
 	if err != nil {
 		log.Panicf("Failed to load builtin Tosca definition. %v", err)

@@ -22,6 +22,7 @@ import (
 	_ "github.com/ystia/yorc/v3/commands/deployments/workflows"
 	_ "github.com/ystia/yorc/v3/commands/hostspool"
 	"github.com/ystia/yorc/v3/log"
+	_ "github.com/ystia/yorc/v3/tosca/resources"
 )
 
 func main() {

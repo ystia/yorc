@@ -79,7 +79,7 @@ dist: build
 test: generate header format
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@go test $(TESTARGS) -p 1 ./...
+	@go test -tags testing $(TESTARGS) -p 1 ./...
 endif
 
 
