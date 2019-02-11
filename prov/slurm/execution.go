@@ -103,6 +103,36 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		return nil, err
 	}
 
+	var userName, password, privateKey string
+	userNameValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_name")
+	if err != nil {
+		return nil, err
+	}
+	if userNameValue != nil {
+		userName = userNameValue.RawString()
+	}
+	passwordValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "password")
+	if err != nil {
+		return nil, err
+	}
+	if passwordValue != nil {
+		password = passwordValue.RawString()
+	}
+	privateKeyValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "private_key")
+	if err != nil {
+		return nil, err
+	}
+	if privateKeyValue != nil {
+		privateKey = privateKeyValue.RawString()
+	}
+
+	var sshClient *sshutil.SSHClient
+	sshClient, err = getSSHClient(userName, privateKey, password, cfg)
+	if err != nil {
+		return nil, err
+	}
+	execCommon.client = sshClient
+
 	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
 	if err != nil {
 		return nil, err
@@ -141,6 +171,12 @@ func (e *executionCommon) execute(ctx context.Context) error {
 	switch strings.ToLower(e.operation.Name) {
 	case strings.ToLower(tosca.RunnableSubmitOperationName):
 		log.Printf("Running the job: %s", e.operation.Name)
+
+		// Build Job Information
+		if err := e.buildJobInfo(ctx); err != nil {
+			return errors.Wrap(err, "failed to build job information")
+		}
+
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
 			return errors.Wrap(err, "failed to upload artifact")
@@ -150,11 +186,6 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
 				return errors.Wrap(err, "failed to upload operation implementation")
 			}
-		}
-
-		// Build Job Information
-		if err := e.buildJobInfo(ctx); err != nil {
-			return errors.Wrap(err, "failed to build job information")
 		}
 
 		// Run the command
@@ -398,7 +429,34 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	userName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "user_name")
+	if err != nil {
+		return err
+	}
+	if userName != nil && userName.RawString() != "" {
+		job.UserName = userName.RawString()
+	}
+
+	privateKey, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "private_key")
+	if err != nil {
+		return err
+	}
+	if privateKey != nil && privateKey.RawString() != "" {
+		job.PrivateKey = privateKey.RawString()
+	}
+
+	password, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "password")
+	if err != nil {
+		return err
+	}
+	if password != nil && password.RawString() != "" {
+		job.Password = password.RawString()
+	}
+
+	// Set jobInfo in executionCommon
 	e.jobInfo = &job
+
 	return nil
 }
 
@@ -614,7 +672,6 @@ func (e *executionCommon) resolveExecution() error {
 		return err
 	}
 
-	e.client, err = getSSHClient(e.jobInfo.UserName, e.jobInfo.PrivateKey, e.jobInfo.Password, e.cfg)
 	return err
 }
 
