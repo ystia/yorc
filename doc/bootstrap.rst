@@ -188,7 +188,8 @@ The following ``yorc bootstrap`` option are available:
   * ``--ansible_version`` Ansible version (default \ |ansible_version|\ )
   * ``--config_only`` Makes the bootstrapping abort right after exporting the inputs
   * ``--consul_download_url`` Consul download URL (default, Consul version compatible with this Yorc, under https://releases.hashicorp.com/consul/)
-  * ``--consul_port`` Consul port (default 8500)
+  * ``--consul_encrypt_key`` 16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic
+  * ``--consul_port`` Consul port (default 8543)
   * ``--credentials_user`` User Yorc uses to connect to Compute Nodes
   * ``--deployment_name`` Name of the deployment. If not specified deployment name is based on time.
   * ``--deployment_type`` Define deployment type: single_node or HA (default, single_node)
