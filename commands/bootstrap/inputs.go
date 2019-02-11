@@ -732,8 +732,8 @@ func getCAConfiguration(pConfig *YorcConfiguration, inputFileProvided bool, reso
 			Value string
 		}{}
 
-		prompt := &survey.Input{
-			Message: "Certificate authority private key passphrase (at least 4 characters):",
+		prompt := &survey.Password{
+			Message: "Certificate authority private key passphrase (required, at least 4 characters):",
 		}
 		question := &survey.Question{
 			Name:   "value",
@@ -809,7 +809,7 @@ func getCAConfiguration(pConfig *YorcConfiguration, inputFileProvided bool, reso
 			}{}
 
 			prompt := &survey.Input{
-				Message: "Path to PEM-encoded Certificate Authority (if none passed, a CA will be generated):",
+				Message: "Path to PEM-encoded Certificate Authority (if none passed, a Certificate Authority will be generated):",
 			}
 			question := &survey.Question{
 				Name:   "value",
@@ -823,8 +823,9 @@ func getCAConfiguration(pConfig *YorcConfiguration, inputFileProvided bool, reso
 		}
 
 		if pConfig.CAPEMFile == "" {
-			fmt.Println("Generating a PEM-encoded Certificate Authority")
 			pConfig.CAPEMFile = filepath.Join(resourcesPath, "ca.pem")
+			fmt.Printf("\nGenerating a PEM-encoded Certificate Authority %s\n", pConfig.CAPEMFile)
+			fmt.Println("This Certificate Authority should be imported in your Web brower as a trusted Certificate Authority")
 			cmdArgs := fmt.Sprintf("req -new -x509 -days 365 -key %s -sha256 -passin pass:%s -subj /CN=yorc/O=ystia/C=US -out %s",
 				pConfig.CAKeyFile, pConfig.CAPassPhrase, pConfig.CAPEMFile)
 			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)

@@ -77,7 +77,7 @@ func init() {
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
 	bootstrapCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "", false,
-		"insecure mode - no TLS configuration")
+		"Insecure mode - no TLS configuration")
 	viper.BindPFlag("review", bootstrapCmd.PersistentFlags().Lookup("review"))
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentID,
 		"deployment_name", "n", "", "Name of the deployment. If not specified deployment name is based on time.")
