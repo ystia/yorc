@@ -46,6 +46,7 @@ It requires the following packages to be installed on the local host:
   * python-pip
   * zip/unzip
   * openssh-client
+  * openssl (to generate certificates when they are not provided)
   * wget
 
 This basic installation on the local host will attempt to install without sudo privileges
@@ -123,8 +124,11 @@ required configuration values are missing, and will ask for missing values.
 These configuration values will allow you to specify:
 
   * optional Alien4Cloud configuration values
-  * Yorc configuration values, all optional, except from the path to a ssh private
-    key that will be used by the local orchestrator to connect to the bootstrapped setup
+  * Yorc configuration values, all optional, except from:
+    * the path to a ssh private key that will be used by the local orchestrator to connect to the bootstrapped setup
+    * the Certificate authority private key passphrase to use in the default secure mode
+      (a Certificate Authority private key and PEM-encoded Certificate Authority will be generated if not provided,
+       you should then import this Certitifcate Authority in your Web browser as a trusted Certificate Authority)
   * Infrastructure configuration with required configuration values depending on
     the infrastucture, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
   * Configuration of compute Nodes to create on demand,
@@ -190,6 +194,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--deployment_type`` Define deployment type: single_node or HA (default, single_node)
   * ``--follow`` Follow bootstrap deployment steps, logs, or none (default, steps)
   * ``--infrastructure`` Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool
+  * ``--insecure`` Insecure mode - no TLS configuration
   * ``--jdk_download_url`` Java Development Kit download URL (default, JDK downloaded from https://edelivery.oracle.com/otn-pub/java/jdk/)
   * ``--jdk_version`` Java Development Kit version (default 1.8.0-131-b11)
   * ``--resources_zip`` Path to bootstrap resources zip file (default, zip bundled within Yorc)
@@ -198,6 +203,9 @@ The following ``yorc bootstrap`` option are available:
   * ``--terraform_plugins_download_urls`` Terraform plugins download URLs (default, Terraform plugins compatible with this Yorc, under https://releases.hashicorp.com/terraform-provider-xxx/)
   * ``--values`` Path to file containing input values
   * ``--working_directory`` Working directory where to place deployment files (default, work)
+  * ``--yorc_ca_key_file`` Path to Certificate Authority private key, accessible locally
+  * ``--yorc_ca_passphrase`` Bootstrapped Yorc Home directory (default, /var/yorc)
+  * ``--yorc_ca_pem_file`` Path to PEM-encoded Certificate Authority, accessible locally
   * ``--yorc_data_dir`` Bootstrapped Yorc Home directory (default, /var/yorc)
   * ``--yorc_download_url`` Yorc download URL (default, current Yorc release under https://github.com/ystia/yorc/releases/)
   * ``--yorc_plugin_download_url`` Yorc plugin download URL (default, current Yorc plugin release under https://github.com/ystia/yorc-a4c-plugin/releases)
@@ -269,6 +277,14 @@ Example of a Google Cloud deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     google:
       # Path on local host to file containing Google service account private keys
@@ -297,6 +313,14 @@ Example of an AWS deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     aws:
       region: us-east-2
@@ -323,6 +347,14 @@ Example of an OpenStack deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     openstack:
       auth_url: http://10.1.2.3:5000/v2.0
@@ -354,6 +386,14 @@ Example of a Hosts Pool deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   compute:
     shareable: "false"
   hosts:
