@@ -104,26 +104,41 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 
 	var userName, password, privateKey string
-	userNameValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_name")
+	userNameValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "user")
 	if err != nil {
 		return nil, err
 	}
 	if userNameValue != nil {
 		userName = userNameValue.RawString()
+		log.Debugf("************* Got user name : %s", userName)
 	}
-	passwordValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "password")
+	token_type, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "token_type")
 	if err != nil {
 		return nil, err
 	}
-	if passwordValue != nil {
-		password = passwordValue.RawString()
-	}
-	privateKeyValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "private_key")
-	if err != nil {
-		return nil, err
-	}
-	if privateKeyValue != nil {
-		privateKey = privateKeyValue.RawString()
+	if token_type != nil {
+		switch token_type.RawString() {
+		case "password":
+			pwd, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "token")
+			if err != nil {
+				return nil, err
+			}
+			if pwd != nil {
+				password = pwd.RawString()
+				log.Debugf("************* Got password : %s", password)
+			}
+		case "private_key":
+			privateKeyValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "keys", "0")
+			if err != nil {
+				return nil, err
+			}
+			if privateKeyValue != nil {
+				privateKey = privateKeyValue.RawString()
+				log.Debugf("************* Got private key : %s", privateKey)
+			}
+		default:
+			return nil, errors.Errorf("Unsupported token_type %s. One of password or private_key expected", token_type.RawString())
+		}
 	}
 
 	var sshClient *sshutil.SSHClient
@@ -430,28 +445,40 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	}
 
-	userName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "user_name")
+	userNameValue, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "user_account", "user")
 	if err != nil {
 		return err
 	}
-	if userName != nil && userName.RawString() != "" {
-		job.UserName = userName.RawString()
+	if userNameValue != nil {
+		job.UserName = userNameValue.RawString()
 	}
-
-	privateKey, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "private_key")
+	token_type, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "user_account", "token_type")
 	if err != nil {
 		return err
 	}
-	if privateKey != nil && privateKey.RawString() != "" {
-		job.PrivateKey = privateKey.RawString()
-	}
-
-	password, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "password")
-	if err != nil {
-		return err
-	}
-	if password != nil && password.RawString() != "" {
-		job.Password = password.RawString()
+	if token_type != nil {
+		switch token_type.RawString() {
+		case "password":
+			pwd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "user_account", "token")
+			if err != nil {
+				return err
+			}
+			if pwd != nil {
+				job.Password = pwd.RawString()
+				log.Debugf("************* Got password : %s", job.Password)
+			}
+		case "private_key":
+			privateKeyValue, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "user_account", "keys", "0")
+			if err != nil {
+				return err
+			}
+			if privateKeyValue != nil {
+				job.PrivateKey = privateKeyValue.RawString()
+				log.Debugf("************* Got private key : %s", job.PrivateKey)
+			}
+		default:
+			return errors.Errorf("Unsupported token_type %s. One of password or private_key expected", token_type.RawString())
+		}
 	}
 
 	// Set jobInfo in executionCommon

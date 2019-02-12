@@ -37,6 +37,11 @@ node_types:
         type: string
         required: false
         description: Specify a name for the job allocation. The specified name will appear along with the job id.
+      user_account:
+        type: tosca.datatypes.Credential
+        description: >
+           Provide user credentials for connection to slurm client node
+        required: false
     attributes:
       cuda_visible_devices:
         type: string
@@ -47,7 +52,6 @@ node_types:
       partition:
         type: string
         description: Slurm partition where the nodes are deployed.
-
 
   yorc.nodes.slurm.Job:
     derived_from: org.alien4cloud.nodes.Job
@@ -105,18 +109,11 @@ node_types:
           Time interval duration used for job monitoring as "5s" or "300ms"
           Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
         required: false
-      user_name:
-        type: string
+      user_account:
+        type: tosca.datatypes.Credential
+        description: >
+           Provide user credentials for connection to slurm client node
         required: false
-        description: Specify a user name for the job allocation.
-      password:
-        type: string
-        required: false
-        description: Specify a user password for the job allocation. If user_name defined, this or private_key, must also be defined.
-      private_key:
-        type: string
-        required: false
-        description: Specify a private key for the job allocation. If user_name defined, this or password, must also be defined.
     attributes:
       job_id:
         type: string

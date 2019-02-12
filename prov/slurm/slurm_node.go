@@ -55,41 +55,45 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 		node.memory = re.FindString(strings.Replace(memory.RawString(), " ", "", -1))
 	}
 
-	user, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "user")
+	// Check if user credentials provided in node definition
+	user, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "user")
 	if err != nil {
 		return err
 	}
-	if user != nil && user.RawString() != "" {
-		log.Debugf("Got user name from enpoint capability, property credentials : %s", user.RawString())
+	if user != nil {
 		node.userName = user.RawString()
+		log.Debugf("Got user name from user_account property : %s", node.userName)
 	}
 
-	token_type, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "token_type")
-	if token_type != nil && token_type.RawString() != "" {
-		log.Debugf("Got token_type from enpoint capability, property credentials : %s", token_type.RawString())
+	// Check for token-type
+	token_type, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "token_type")
+	if err != nil {
+		return err
 	}
-
-	if token_type.RawString() == "password" {
-		pwd, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "token")
-		if err != nil {
-			return err
+	if token_type != nil {
+		switch token_type.RawString() {
+		case "password":
+			pwd, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "token")
+			if err != nil {
+				return err
+			}
+			if pwd != nil {
+				node.password = pwd.RawString()
+				log.Debugf("Got password from user_account property : %s", node.password)
+			}
+		case "private_key":
+			privateKey, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "keys", "0")
+			if err != nil {
+				return err
+			}
+			if privateKey != nil {
+				node.privateKey = privateKey.RawString()
+				log.Debugf("Got private key from user_account property : %s", node.privateKey)
+			}
+		default:
+			// password or private_key expected as token_type
+			return errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", token_type.RawString())
 		}
-		if pwd != nil && pwd.RawString() != "" {
-			log.Debugf("Got password from enpoint capability, property credentials : %s", pwd.RawString())
-			node.password = pwd.RawString()
-		}
-	} else if token_type.RawString() == "private_key" {
-		privateKey, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "keys", "0")
-		if err != nil {
-			return err
-		}
-		if privateKey != nil && privateKey.RawString() != "" {
-			log.Debugf("Got private key from enpoint capability, property credentials : %s", privateKey.RawString())
-			node.privateKey = privateKey.RawString()
-		}
-	} else if node.userName != "" {
-		// If user name provided, then password or private_key expected as token_type
-		return errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", token_type.RawString())
 	}
 
 	// Set the job name property
