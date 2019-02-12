@@ -135,7 +135,14 @@ func (sw *SSHSessionWrapper) RunCommand(ctx context.Context, cmd string) error {
 		}
 	}()
 
-	return errors.Wrap(sw.session.Run(cmd), "failed to run ssh command")
+	err := sw.session.Run(cmd)
+	if err != nil {
+		// Get stderr
+		stdout, _ := ioutil.ReadAll(sw.Stdout)
+		stderr, _ := ioutil.ReadAll(sw.Stderr)
+		return errors.Wrapf(err, "failed to run ssh command, stderr: %q, stdout: %q", stderr, stdout)
+	}
+	return nil
 }
 
 // ReadPrivateKey returns an authentication method relying on private/public key pairs
