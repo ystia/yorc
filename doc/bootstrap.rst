@@ -125,10 +125,9 @@ These configuration values will allow you to specify:
 
   * optional Alien4Cloud configuration values
   * Yorc configuration values, all optional, except from:
-    * the path to a ssh private key that will be used by the local orchestrator to connect to the bootstrapped setup
-    * the Certificate authority private key passphrase to use in the default secure mode
-      (a Certificate Authority private key and PEM-encoded Certificate Authority will be generated if not provided,
-       you should then import this Certitifcate Authority in your Web browser as a trusted Certificate Authority)
+      * the path to a ssh private key that will be used by the local orchestrator to connect to the bootstrapped setup
+      * the Certificate authority private key passphrase to use in the default secure mode
+        (while the other properties, Certificate Authority private key and PEM-encoded Certificate Authority, are optional. If not provided, they will be generated, and the generated Certificate Authority at `work/bootstrapResources/ca.pem` can then be imported in your Web browser as a trusted Certificate Authority)
   * Infrastructure configuration with required configuration values depending on
     the infrastucture, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
   * Configuration of compute Nodes to create on demand,
