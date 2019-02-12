@@ -100,7 +100,7 @@ have its port 8088 open.
 Bootstrap process overview
 --------------------------
 
-The command ``yorc bootstrap`` will configure on the local host a basic setup with 
+The command ``yorc bootstrap`` will configure on the local host a basic setup with
 Yorc and a Consul data store.
 
 This basic setup will then be used to bootstrap the full stack Alien4Cloud/Yorc
@@ -117,7 +117,7 @@ Configuration values can be provided by the user:
  * using ``yorc bootstrap`` command line options
  * using environment variables.
 
-You can combine these modes, ``yorc bootstrap`` will check in any case if 
+You can combine these modes, ``yorc bootstrap`` will check in any case if
 required configuration values are missing, and will ask for missing values.
 
 These configuration values will allow you to specify:
@@ -136,7 +136,7 @@ Yorc plugin Documentation at https://yorc-a4c-plugin.readthedocs.io/en/latest/lo
 For example, in the :ref:`Google Configuration file example <yorc_google_example_section>`, you can see on-demand ``compute``  and ``address`` configuration values.
 
 Once configuration settings are provided, ``yorc bootstrap`` will proceed to the
-full stack deployment, showing deployment steps progress (by default, but you can see 
+full stack deployment, showing deployment steps progress (by default, but you can see
 deployment logs instead trough the option ``--follow logs`` described below).
 
 Once the deployment is finished, the orchestrator on the local host is still running,
@@ -152,7 +152,7 @@ To clean the local host setup, run:
     ./yorc bootstrap cleanup
 
 This will only clean the local host environment, it won't undeploy the bootstrapped
-setup installed on remote hosts. 
+setup installed on remote hosts.
 
 Bootstrapping the setup in interactive mode
 -------------------------------------------
@@ -204,7 +204,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--yorc_port`` Yorc HTTP REST API port (default 8800)
   * ``--yorc_private_key_file`` Path to ssh private key accessible locally
   * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
-  
+
 
 In addition, similarly to the configuration of infrastructures in ``yorc server``
 command described at :ref:`Infrastructures Configuration <infrastructures_configuration>`, you can use options to
@@ -214,7 +214,7 @@ define infrastructure and on-demand resources configuration values, for example 
 
 The option ``--resources_zip`` is an advanced usage option allowing you to change
 the bootstrap deployment description. You need to clone first the Yorc source code repository at
-https://github.com/ystia/yorc, go into to directory ``commands``, change deployment 
+https://github.com/ystia/yorc, go into to directory ``commands``, change deployment
 description files under ``bootstrap/resources/topology``, then zip the content of ``bootstrap/resources/``
 so that this zip will be used to perform the bootstrap deployment.
 
@@ -393,18 +393,18 @@ Example of a Hosts Pool deployment configuration file
 
 
 Exporting and loading an interactive configuration file
-------------------------------------------
+-------------------------------------------------------
 
-When deploying, the final configuration of the bootstrapping is automatically exported to a file. The name of the 
-file is the deployment id, which is a timestamp of current year to second. You can create a custom deployment id 
+When deploying, the final configuration of the bootstrapping is automatically exported to a file. The name of the
+file is the deployment id, which is a timestamp of current year to second. You can create a custom deployment id
 using ''-n'' option :
 
 .. parsed-literal::
 
-    ./yorc bootstrap -n a_deploy_name 
+    ./yorc bootstrap -n a_deploy_name
 
 If you specify an already existing name (an input config file of the same name this already exists), an unique name will
-be created, of the form ''nameN'', where N is an integer, generated incrementally. 
+be created, of the form ''nameN'', where N is an integer, generated incrementally.
 
 You can then load a config file using the "-v" option :
 
@@ -414,11 +414,11 @@ You can then load a config file using the "-v" option :
 
 Please note than if a config is loaded using this option, it will not be exported again.
 
-If you wish to only export the interactive configuration without doing an actual bootstrap, just set the ''--config_only'' flag : 
+If you wish to only export the interactive configuration without doing an actual bootstrap, just set the ''--config_only'' flag:
 
 .. parsed-literal::
 
-    ./yorc bootstrap --config_only 
+    ./yorc bootstrap --config_only
 
 it will cause the yorc invocation to terminate straight after the export of interactive config.
 
