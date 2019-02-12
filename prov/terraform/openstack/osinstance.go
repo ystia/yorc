@@ -349,7 +349,7 @@ func (g *osGenerator) generateOSInstance(ctx context.Context, kv *api.KV, cfg co
 	}
 
 	// Provide output for access IP and private IP
-	accessIPKey := nodeName + "-" + instanceName + "-publicIP"
+	accessIPKey := nodeName + "-" + instanceName + "-IPAddress"
 	commons.AddOutput(infrastructure, accessIPKey, &commons.Output{Value: accessIP})
 	outputs[path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address")] = accessIPKey
 
