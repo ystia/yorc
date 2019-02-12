@@ -70,18 +70,15 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 
 	if token_type.RawString() == "password" {
-
-		pwd, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "keys", "0")
+		pwd, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "token")
 		if err != nil {
 			return err
 		}
 		if pwd != nil && pwd.RawString() != "" {
-			log.Debugf("Got pwd from enpoint capability, property credentials : %s", pwd.RawString())
+			log.Debugf("Got password from enpoint capability, property credentials : %s", pwd.RawString())
 			node.password = pwd.RawString()
 		}
-
 	} else if token_type.RawString() == "private_key" {
-
 		privateKey, err := deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, "endpoint", "credentials", "keys", "0")
 		if err != nil {
 			return err
