@@ -20,6 +20,7 @@
 ### ENHANCEMENTS
 
 * Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
+* Publish value change event for instance attributes ([GH-222](https://github.com/ystia/yorc/issues/222))
 
 ## 3.2.0-M1 (January 28, 2019)
 
