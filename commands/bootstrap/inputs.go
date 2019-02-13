@@ -826,7 +826,7 @@ func getCAConfiguration(pConfig *YorcConfiguration, inputFileProvided bool, reso
 			pConfig.CAPEMFile = filepath.Join(resourcesPath, "ca.pem")
 			fmt.Printf("\nGenerating a PEM-encoded Certificate Authority %s\n", pConfig.CAPEMFile)
 			fmt.Println("This Certificate Authority should be imported in your Web brower as a trusted Certificate Authority")
-			cmdArgs := fmt.Sprintf("req -new -x509 -days 365 -key %s -sha256 -passin pass:%s -subj /CN=yorc/O=ystia/C=US -out %s",
+			cmdArgs := fmt.Sprintf("req -new -x509 -days 3650 -key %s -sha256 -passin pass:%s -subj /CN=yorc/O=ystia/C=US -out %s",
 				pConfig.CAKeyFile, pConfig.CAPassPhrase, pConfig.CAPEMFile)
 			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
 			if err := cmd.Run(); err != nil {
