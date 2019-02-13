@@ -20,6 +20,13 @@ type infrastructure struct {
 	nodes []*nodeAllocation
 }
 
+// UserAccount represents the Slurm user account with credentials
+type UserAccount struct {
+	UserName   string `json:"user_name,omitempty"`
+	Password   string `json:"password,omitempty"`
+	PrivateKey string `json:"private_key,omitempty"`
+}
+
 type nodeAllocation struct {
 	cpu          string
 	memory       string
@@ -27,9 +34,7 @@ type nodeAllocation struct {
 	constraint   string
 	partition    string
 	jobName      string
-	userName     string
-	password     string
-	privateKey   string
+	userAccount  *UserAccount
 	instanceName string
 }
 
@@ -49,9 +54,7 @@ type jobInfo struct {
 	Inputs                 map[string]string `json:"inputs,omitempty"`
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
 	OperationRemoteExecDir string            `json:"operation_remote_exec_dir,omitempty"`
-	UserName               string            `json:"user_name,omitempty"`
-	Password               string            `json:"password,omitempty"`
-	PrivateKey             string            `json:"private_key,omitempty"`
+	UserAccount            *UserAccount      `json:"user_account,omitempty"`
 }
 
 type jobInfoShort struct {

@@ -96,13 +96,13 @@ func getSSHClient(userName string, privateKey string, password string, cfg confi
 
 // getUserAccount returns user credentials from a node property having type tosca.datatypes.Credential.
 // the property name is provided by nodePropertyName parameter, but its type is supposed to be tosca.datatypes.Credential
-func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodePropertyName string) (string, string, string, error) {
+func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodePropertyName string) (*UserAccount, error) {
 	var userName, password, privateKey string
 
 	// Check if user credentials provided in node definition
 	user, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "user")
 	if err != nil {
-		return userName, password, privateKey, err
+		return nil, err
 	}
 	if user != nil {
 		userName = user.RawString()
@@ -110,16 +110,16 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodeProper
 	}
 
 	// Check for token-type
-	token_type, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "token_type")
+	tokenType, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "token_type")
 	if err != nil {
-		return userName, password, privateKey, err
+		return nil, err
 	}
-	if token_type != nil {
-		switch token_type.RawString() {
+	if tokenType != nil {
+		switch tokenType.RawString() {
 		case "password":
 			pwd, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "token")
 			if err != nil {
-				return userName, password, privateKey, err
+				return nil, err
 			}
 			if pwd != nil {
 				password = pwd.RawString()
@@ -128,7 +128,7 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodeProper
 		case "private_key":
 			privateKeyVal, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "keys", "0")
 			if err != nil {
-				return userName, password, privateKey, err
+				return nil, err
 			}
 			if privateKeyVal != nil {
 				privateKey = privateKeyVal.RawString()
@@ -136,10 +136,10 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodeProper
 			}
 		default:
 			// password or private_key expected as token_type
-			return userName, password, privateKey, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", token_type.RawString())
+			return nil, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", tokenType.RawString())
 		}
 	}
-	return userName, password, privateKey, nil
+	return &UserAccount{UserName: userName, PrivateKey: privateKey, Password: password}, nil
 
 }
 

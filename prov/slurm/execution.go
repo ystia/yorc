@@ -103,12 +103,12 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		return nil, err
 	}
 	// Get user credentials from user-account node property
-	userName, password, privateKey, err := getUserAccount(kv, deploymentID, nodeName, "user_account")
+	userAccount, err := getUserAccount(kv, deploymentID, nodeName, "user_account")
 	if err != nil {
 		return nil, err
 	}
 	// Create sshClient using user credentials from user-account property if the are provided, or from yorc config otherwise
-	execCommon.client, err = getSSHClient(userName, privateKey, password, cfg)
+	execCommon.client, err = getSSHClient(userAccount.UserName, userAccount.PrivateKey, userAccount.Password, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal stored Slurm job information")
 	}
-	log.Debugf("***** Unmarshaled Job info for task %s. Got user name info : %s", e.taskID, jobInfo.UserName)
+	log.Debugf("Unmarshal Job info for task %s. Got user name info : %s", e.taskID, jobInfo.UserAccount.UserName)
 	return jobInfo, nil
 }
 
@@ -256,9 +256,9 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
 	data["remoteExecDirectory"] = e.jobInfo.OperationRemoteExecDir
 	data["outputs"] = strings.Join(e.jobInfo.Outputs, ",")
-	data["userName"] = e.jobInfo.UserName
-	data["password"] = e.jobInfo.Password
-	data["privateKey"] = e.jobInfo.PrivateKey
+	data["userName"] = e.jobInfo.UserAccount.UserName
+	data["password"] = e.jobInfo.UserAccount.Password
+	data["privateKey"] = e.jobInfo.UserAccount.PrivateKey
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
@@ -411,7 +411,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Get user credentials from user-account property, if values are provided
-	job.UserName, job.Password, job.PrivateKey, err = getUserAccount(e.kv, e.deploymentID, e.NodeName, "user_account")
+	job.UserAccount, err = getUserAccount(e.kv, e.deploymentID, e.NodeName, "user_account")
 	if err != nil {
 		return err
 	}

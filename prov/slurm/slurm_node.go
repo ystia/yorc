@@ -55,7 +55,7 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 
 	// Get user credentials from user-account property, if values are provided
-	node.userName, node.password, node.privateKey, err = getUserAccount(kv, deploymentID, nodeName, "user_account")
+	node.userAccount, err = getUserAccount(kv, deploymentID, nodeName, "user_account")
 	if err != nil {
 		return err
 	}
