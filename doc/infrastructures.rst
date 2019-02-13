@@ -124,11 +124,11 @@ Slurm
 `Slurm <https://slurm.schedmd.com/>`_ is an open source, fault-tolerant, and highly scalable cluster management and job scheduling system for large and small Linux clusters.
 It is wildly used in High Performance Computing and it is the default scheduler of the `Bull Super Computer Suite <https://atos.net/en/products/high-performance-computing-hpc>`_ .
 
-Yorc interacts with Slurm to allocate nodes on its cluster but also to run Slurm jobs.
+Yorc interacts with Slurm to allocate nodes on its cluster but also to run jobs.
 
-Jobs have been modeled in Tosca and this allows Yorc to execute them, either as simple jobs or as ``Singularity`` jobs.
+Slurm jobs have been modeled in Tosca and this allows Yorc to execute them, either as regular jobs or as ``Singularity`` jobs.
 
-`Singularity <https://www.sylabs.io/singularity/>`_ is a container system similar to Docker but designed to integrate well HPC environments. and let users execute a command inside a Singularity or Docker container as a job submission.
+`Singularity <https://www.sylabs.io/singularity/>`_ is a container system similar to Docker but designed to integrate well HPC environments. Singularity allows users execute a command inside a Singularity or a Docker container, as a job submission.
 See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
 
 Yorc supports the following resources on Slurm:

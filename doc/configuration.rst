@@ -984,7 +984,7 @@ If no file path is specified in ``application_credentials`` and no file content 
 .. _option_infra_aws:
 
 AWS
-~~~~~~~~~~
+~~~
 
 AWS infrastructure key name is ``aws`` in lower case.
 
@@ -1002,7 +1002,7 @@ AWS infrastructure key name is ``aws`` in lower case.
 .. _option_infra_slurm:
 
 Slurm
-~~~~~~~~~~
+~~~~~
 
 Slurm infrastructure key name is ``slurm`` in lower case.
 
@@ -1010,7 +1010,7 @@ Slurm infrastructure key name is ``slurm`` in lower case.
 |     Option Name                  |                          Description                             | Data Type |                     Required                      | Default |
 |                                  |                                                                  |           |                                                   |         |
 +==================================+==================================================================+===========+===================================================+=========+
-| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes                                               |         |
+| ``user_name``                    | SSH Username to be used to connect to the Slurm Client's node    | string    | yes (see below for alternatives)                  |         |
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 | ``password``                     | SSH Password to be used to connect to the Slurm Client's node    | string    | Either this or ``private_key`` should be provided |         |
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
@@ -1024,6 +1024,11 @@ Slurm infrastructure key name is ``slurm`` in lower case.
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 | ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                | string    | no                                                |   5s    |
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+
+An alternative way to specify user credentials for SSH connection to the Slurm Client's node (user_name, password or private_key), is to provide them as application properties.
+In this case, Yorc gives priority to the application provided properties. 
+Moreover, if all the applications provide their own user credentials, the configuration properties user_name, password and private_key, can be omitted.
+See `Working with jobs <https://yorc-a4c-plugin.readthedocs.io/en/latest/jobs.html>`_ for more information.
 
 Vault configuration
 -------------------
