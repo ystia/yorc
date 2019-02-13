@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* SSH Session pool: Panic if connection failed, this impacts Slurm infrastructure ([GH-315](https://github.com/ystia/yorc/issues/315))
+
 ## 3.1.1 (February 06, 2019)
 
 ### BUG FIXES
@@ -10,13 +14,13 @@
 * Can't deploy applications using a secured yorc/consul ([GH-274](https://github.com/ystia/yorc/issues/274))
 * Unable to purge an application that appears in the list ([GH-238](https://github.com/ystia/yorc/issues/238))
 * K8S jobs namespace should not be removed if its provided ([GH-245](https://github.com/ystia/yorc/issues/245))
-* Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283)
-* Interface name is not retrieved from custom command Rest request ([GH-287](https://github.com/ystia/yorc/issues/287)
-* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289)
-* All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291)
+* Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283))
+* Interface name is not retrieved from custom command Rest request ([GH-287](https://github.com/ystia/yorc/issues/287))
+* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289))
+* All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291))
 * Missing events for uninstall workflow in purge task ([GH-302](https://github.com/ystia/yorc/issues/302)
-* It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306)
-* Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308)
+* It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306))
+* Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308))
 
 ## 3.1.0 (December 20, 2018)
 
