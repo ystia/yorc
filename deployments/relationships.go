@@ -16,12 +16,13 @@ package deployments
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strings"
 
-	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+
 	"github.com/ystia/yorc/events"
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/helper/consulutil"
