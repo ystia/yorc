@@ -16,6 +16,7 @@
 * All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291)
 * It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306)
 * Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308)
+* SSH Session pool: Panic if connection failed, this impacts Slurm infrastructure ([GH-315](https://github.com/ystia/yorc/issues/315))
 
 ### ENHANCEMENTS
 
