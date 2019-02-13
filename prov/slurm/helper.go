@@ -123,7 +123,7 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodeProper
 			}
 			if pwd != nil {
 				password = pwd.RawString()
-				log.Debugf("Got password from user_account property : %s", password)
+				log.Debugf("Got password from user_account property")
 			}
 		case "private_key":
 			privateKeyVal, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "keys", "0")
@@ -132,7 +132,7 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodeProper
 			}
 			if privateKeyVal != nil {
 				privateKey = privateKeyVal.RawString()
-				log.Debugf("Got private key from user_account property : %s", privateKey)
+				log.Debugf("Got private key from user_account property")
 			}
 		default:
 			// password or private_key expected as token_type
