@@ -493,7 +493,7 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 	}
 	// useless as we will delete the task at the end of the function
 	// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
-	log.Printf("Action:%+v successfully executed", action)
+	log.Printf("Action with ID:%s successfully executed", action.ID)
 	return nil
 }
 

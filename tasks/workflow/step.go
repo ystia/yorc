@@ -326,7 +326,7 @@ func (s *step) runActivity(wfCtx context.Context, kv *api.KV, cfg config.Configu
 				action.AsyncOperation.WorkflowStepInfo = eventInfo
 				// Register scheduled action for asynchronous execution
 				id, err := scheduling.RegisterAction(w.consulClient, deploymentID, timeInterval, action)
-				log.Debugf("Scheduled action;%+v has been registered with timeInterval:%s and ID:%q", action, timeInterval.String(), id)
+				log.Debugf("Scheduled action with ID;%q has been registered with timeInterval:%s and ID:%q", action.ID, timeInterval.String(), id)
 				if err != nil {
 					return err
 				}
