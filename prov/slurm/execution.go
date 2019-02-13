@@ -102,51 +102,16 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
-
-	var userName, password, privateKey string
-	userNameValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "user")
+	// Get user credentials from user-account node property
+	userName, password, privateKey, err := getUserAccount(kv, deploymentID, nodeName, "user_account")
 	if err != nil {
 		return nil, err
 	}
-	if userNameValue != nil {
-		userName = userNameValue.RawString()
-		log.Debugf("************* Got user name : %s", userName)
-	}
-	token_type, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "token_type")
+	// Create sshClient using user credentials from user-account property if the are provided, or from yorc config otherwise
+	execCommon.client, err = getSSHClient(userName, privateKey, password, cfg)
 	if err != nil {
 		return nil, err
 	}
-	if token_type != nil {
-		switch token_type.RawString() {
-		case "password":
-			pwd, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "token")
-			if err != nil {
-				return nil, err
-			}
-			if pwd != nil {
-				password = pwd.RawString()
-				log.Debugf("************* Got password : %s", password)
-			}
-		case "private_key":
-			privateKeyValue, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "user_account", "keys", "0")
-			if err != nil {
-				return nil, err
-			}
-			if privateKeyValue != nil {
-				privateKey = privateKeyValue.RawString()
-				log.Debugf("************* Got private key : %s", privateKey)
-			}
-		default:
-			return nil, errors.Errorf("Unsupported token_type %s. One of password or private_key expected", token_type.RawString())
-		}
-	}
-
-	var sshClient *sshutil.SSHClient
-	sshClient, err = getSSHClient(userName, privateKey, password, cfg)
-	if err != nil {
-		return nil, err
-	}
-	execCommon.client = sshClient
 
 	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
 	if err != nil {

@@ -22,8 +22,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/deployments"
 	"github.com/ystia/yorc/helper/sshutil"
 	"github.com/ystia/yorc/log"
 	"golang.org/x/crypto/ssh"
@@ -90,6 +92,55 @@ func getSSHClient(userName string, privateKey string, password string, cfg confi
 		Host:   cfg.Infrastructures[infrastructureName].GetString("url"),
 		Port:   port,
 	}, nil
+}
+
+// getUserAccount returns user credentials from a node property having type tosca.datatypes.Credential.
+// the property name is provided by nodePropertyName parameter, but its type is supposed to be tosca.datatypes.Credential
+func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodePropertyName string) (string, string, string, error) {
+	var userName, password, privateKey string
+
+	// Check if user credentials provided in node definition
+	user, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "user")
+	if err != nil {
+		return userName, password, privateKey, err
+	}
+	if user != nil {
+		userName = user.RawString()
+		log.Debugf("Got user name from user_account property : %s", userName)
+	}
+
+	// Check for token-type
+	token_type, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "token_type")
+	if err != nil {
+		return userName, password, privateKey, err
+	}
+	if token_type != nil {
+		switch token_type.RawString() {
+		case "password":
+			pwd, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "token")
+			if err != nil {
+				return userName, password, privateKey, err
+			}
+			if pwd != nil {
+				password = pwd.RawString()
+				log.Debugf("Got password from user_account property : %s", password)
+			}
+		case "private_key":
+			privateKeyVal, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "keys", "0")
+			if err != nil {
+				return userName, password, privateKey, err
+			}
+			if privateKeyVal != nil {
+				privateKey = privateKeyVal.RawString()
+				log.Debugf("Got private key from user_account property : %s", privateKey)
+			}
+		default:
+			// password or private_key expected as token_type
+			return userName, password, privateKey, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", token_type.RawString())
+		}
+	}
+	return userName, password, privateKey, nil
+
 }
 
 // checkInfraConfig checks slurm infrastructure mandatory configuration parameters :
