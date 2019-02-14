@@ -21,8 +21,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/prov/terraform/commons"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func testSimplePersistentDisk(t *testing.T, kv *api.KV, cfg config.Configuration) {

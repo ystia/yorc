@@ -20,7 +20,8 @@ import (
 	"os/exec"
 
 	gplugin "github.com/hashicorp/go-plugin"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 // NewClient returns a properly configured plugin client for a given plugin path

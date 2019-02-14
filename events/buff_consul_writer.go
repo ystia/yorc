@@ -19,7 +19,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // A BufferedLogEntryWriter is a Writer that buffers writes and flushes its buffer as an event log on a regular basis (every 5s)

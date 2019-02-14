@@ -15,12 +15,12 @@
 package google
 
 import (
+	"encoding/json"
 	"testing"
 
-	"encoding/json"
-
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/prov/terraform/commons"
+
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func Test_addOutput(t *testing.T) {

@@ -15,18 +15,19 @@
 package rest
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/prov/hostspool"
-	"github.com/ystia/yorc/tasks/collector"
-	"github.com/ystia/yorc/testutil"
 	"golang.org/x/crypto/ssh"
-	"net/http"
-	"net/http/httptest"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/prov/hostspool"
+	"github.com/ystia/yorc/v3/tasks/collector"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 type mockSSHClient struct {

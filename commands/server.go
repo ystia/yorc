@@ -22,10 +22,11 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/server"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/server"
 )
 
 func init() {

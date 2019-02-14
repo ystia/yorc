@@ -44,12 +44,11 @@ var _TaskStatusMap = map[TaskStatus]string{
 	4: _TaskStatusName[24:32],
 }
 
-// String implements the Stringer interface.
-func (x TaskStatus) String() string {
-	if str, ok := _TaskStatusMap[x]; ok {
+func (i TaskStatus) String() string {
+	if str, ok := _TaskStatusMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("TaskStatus(%d)", x)
+	return fmt.Sprintf("TaskStatus(%d)", i)
 }
 
 var _TaskStatusValue = map[string]TaskStatus{
@@ -63,7 +62,7 @@ var _TaskStatusValue = map[string]TaskStatus{
 // ParseTaskStatus attempts to convert a string to a TaskStatus
 func ParseTaskStatus(name string) (TaskStatus, error) {
 	if x, ok := _TaskStatusValue[name]; ok {
-		return x, nil
+		return TaskStatus(x), nil
 	}
 	return TaskStatus(0), fmt.Errorf("%s is not a valid TaskStatus", name)
 }
@@ -106,12 +105,11 @@ var _TaskTypeMap = map[TaskType]string{
 	9: _TaskTypeName[72:82],
 }
 
-// String implements the Stringer interface.
-func (x TaskType) String() string {
-	if str, ok := _TaskTypeMap[x]; ok {
+func (i TaskType) String() string {
+	if str, ok := _TaskTypeMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("TaskType(%d)", x)
+	return fmt.Sprintf("TaskType(%d)", i)
 }
 
 var _TaskTypeValue = map[string]TaskType{
@@ -130,7 +128,7 @@ var _TaskTypeValue = map[string]TaskType{
 // ParseTaskType attempts to convert a string to a TaskType
 func ParseTaskType(name string) (TaskType, error) {
 	if x, ok := _TaskTypeValue[name]; ok {
-		return x, nil
+		return TaskType(x), nil
 	}
 	return TaskType(0), fmt.Errorf("%s is not a valid TaskType", name)
 }

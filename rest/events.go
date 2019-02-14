@@ -15,16 +15,16 @@
 package rest
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
 
-	"encoding/json"
-
 	"github.com/julienschmidt/httprouter"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/log"
 )
 
 func (s *Server) pollEvents(w http.ResponseWriter, r *http.Request) {

@@ -15,12 +15,12 @@
 package deployments
 
 import (
+	"path"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/helper/consulutil"
-
-	"path"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 // DockerHubURL is the official URL for the docker hub

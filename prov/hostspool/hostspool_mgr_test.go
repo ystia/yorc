@@ -26,10 +26,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/helper/sshutil"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
 )
 
 var dummySSHkey = `-----BEGIN RSA PRIVATE KEY-----

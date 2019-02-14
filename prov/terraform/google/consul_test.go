@@ -17,8 +17,8 @@ package google
 import (
 	"testing"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/testutil"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start

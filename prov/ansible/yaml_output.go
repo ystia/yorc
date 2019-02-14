@@ -22,10 +22,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ystia/yorc/events"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Regular expression for a line like:

@@ -22,9 +22,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/vault"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/vault"
 )
 
 type clientBuilder struct {

@@ -28,9 +28,9 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/helper/sshutil"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
 )
 
 const (

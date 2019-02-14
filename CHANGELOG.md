@@ -22,6 +22,8 @@
 
 * Bootstrap a secure Yorc setup ([GH-179](https://github.com/ystia/yorc/issues/179))
 * Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
+* Move to Go modules to manage dependencies ([GH-183](https://github.com/ystia/yorc/issues/183))
+* Document How to create a Yorc Plugin ([GH-119](https://github.com/ystia/yorc/issues/119))
 
 ## 3.2.0-M1 (January 28, 2019)
 

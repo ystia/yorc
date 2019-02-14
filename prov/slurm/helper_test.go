@@ -21,7 +21,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/ystia/yorc/helper/sshutil"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,8 +29,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/config"
-	"os"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/sshutil"
 )
 
 // MockSSHSession allows to mock an SSH session

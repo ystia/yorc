@@ -15,14 +15,15 @@
 package openstack
 
 import (
+	"path"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/ystia/yorc/log"
-	"path"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 func testGeneratePoolIP(t *testing.T, srv1 *testutil.TestServer, kv *api.KV) {

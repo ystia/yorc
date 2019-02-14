@@ -21,10 +21,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/testutil"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/ziputil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/server"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/ziputil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/server"
 )
 
 const defaultWorkingDirectory string = "work"

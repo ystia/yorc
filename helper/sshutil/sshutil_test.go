@@ -20,10 +20,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/log"
-	"golang.org/x/crypto/ssh"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 func TestSSHAgent(t *testing.T) {

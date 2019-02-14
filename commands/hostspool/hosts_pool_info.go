@@ -23,9 +23,10 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/helper/tabutil"
-	"github.com/ystia/yorc/rest"
+
+	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v3/helper/tabutil"
+	"github.com/ystia/yorc/v3/rest"
 )
 
 func init() {

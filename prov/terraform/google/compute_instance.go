@@ -21,19 +21,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/log"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/pathutil"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/prov/terraform/commons"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/pathutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/helper/stringutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,

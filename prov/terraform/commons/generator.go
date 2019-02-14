@@ -20,10 +20,11 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // FileOutputPrefix is the prefix to identify file output
