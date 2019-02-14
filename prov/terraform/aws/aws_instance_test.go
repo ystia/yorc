@@ -26,6 +26,7 @@ import (
 
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )

@@ -23,8 +23,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 

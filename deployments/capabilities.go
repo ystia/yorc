@@ -23,10 +23,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/tosca"
-	"github.com/ystia/yorc/v3/events"
 )
 
 // HasScalableCapability check if the given nodeName in the specified deployment, has in this capabilities a Key named scalable
