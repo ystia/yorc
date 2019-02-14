@@ -24,15 +24,22 @@ import (
 	"github.com/alecthomas/participle/lexer"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/helper/collections"
 )
 
+//Filter is a general abstrac filtering type
+type Filter interface {
+	Matches(labels map[string]string) (bool, error)
+}
+
 // FilterFromString generates a Filter from a given input string
-func FilterFromString(input string) (*Filter, error) {
-	filter := &Filter{}
-	err := filterParser.ParseString(input, filter)
-	return filter, errors.Wrap(err, "failed to parse given filter string")
+func FilterFromString(input string) (Filter, error) {
+	pfilter := &ParsedFilter{}
+	err := filterParser.ParseString(input, pfilter)
+	if err != nil {
+		return &CompositeFilter{}, errors.Wrap(err, "failed to parse given filter string")
+	}
+	filter, err := pfilter.createFilter()
+	return filter, err
 }
 
 var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
@@ -45,10 +52,10 @@ var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
 		`|(?P<Ident>[-\d\w_\./\\]+)`+
 		`|(?P<SetMarks>[(),])`)), "Keyword"), "String")
 
-var filterParser = participle.MustBuild(&Filter{}, fLexer)
+var filterParser = participle.MustBuild(&ParsedFilter{}, fLexer)
 
-// Filter is public for use by reflexion but it should be considered as this whole package as internal and not used directly
-type Filter struct {
+// ParsedFilter is public for use by reflexion but it should be considered as this whole package as internal and not used directly
+type ParsedFilter struct {
 	LabelName          string              `parser:"@(Ident|String)"`
 	EqOperator         *EqOperator         `parser:"[ @@ "`
 	SetOperator        *SetOperator        `parser:"| @@ "`
@@ -56,21 +63,8 @@ type Filter struct {
 }
 
 // Matches implementation of labelsutil.Filter.Matches()
-func (f *Filter) Matches(labels map[string]string) (bool, error) {
-	val, ok := labels[f.LabelName]
-	if !ok {
-		return false, nil
-	}
-	if f.EqOperator != nil {
-		return f.EqOperator.matches(val)
-	}
-	if f.SetOperator != nil {
-		return f.SetOperator.matches(val)
-	}
-	if f.ComparableOperator != nil {
-		return f.ComparableOperator.matches(val)
-	}
-	return true, nil
+func (f *ParsedFilter) createFilter() (Filter, error) {
+
 }
 
 // EqOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
@@ -86,77 +80,22 @@ func (o *EqOperator) matches(value string) (bool, error) {
 	return strings.Join(o.Values, " ") == value, nil
 }
 
+func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
+	str := regexp.QuoteMeta(strings.Join(o.Values, " "))
+
+	if o.Type == "==" {
+		return &RegexFilter{labelKey, Matches, str}, nil
+	}
+
+	return &RegexFilter{labelKey, Differs, str}, nil
+
+}
+
 // ComparableOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
 type ComparableOperator struct {
 	Type  string  `parser:"@CompOperators"`
 	Value float64 `parser:"@Number"`
 	Unit  *string `parser:"[@(Ident|String|Number)]"`
-}
-
-func compareFloats(op string, v1, v2 float64) (bool, error) {
-	switch op {
-	case ">":
-		return v1 > v2, nil
-	case ">=":
-		return v1 >= v2, nil
-	case "<":
-		return v1 < v2, nil
-	case "<=":
-		return v1 <= v2, nil
-	default:
-		return false, errors.Errorf("Unsupported comparator %q", op)
-	}
-}
-
-func compareDurations(op string, v1, v2 time.Duration) (bool, error) {
-	return compareFloats(op, float64(v1), float64(v2))
-}
-
-func compareUInts(op string, v1, v2 uint64) (bool, error) {
-	return compareFloats(op, float64(v1), float64(v2))
-}
-
-func (o *ComparableOperator) matches(value string) (bool, error) {
-
-	//done
-	if o.Unit == nil {
-
-	}
-
-	oValueAsString := strconv.FormatFloat(o.Value, 'f', -1, 64)
-	oDuration, err := time.ParseDuration(oValueAsString + *o.Unit)
-
-	if err == nil {
-		vDuration, err := time.ParseDuration(value)
-		if err != nil {
-			return false, errors.Wrap(err, "expecting a duration for a comparison filter")
-		}
-		return compareDurations(o.Type, vDuration, oDuration)
-	}
-	//done
-
-	oBytes, err := humanize.ParseBytes(oValueAsString + *o.Unit)
-
-	if err == nil {
-		vBytes, err := humanize.ParseBytes(value)
-		if err != nil {
-			return false, errors.Wrap(err, "expecting a bytes notation for a comparison filter")
-		}
-		return compareUInts(o.Type, vBytes, oBytes)
-	}
-
-	oSI, oUnit, err := humanize.ParseSI(oValueAsString + *o.Unit)
-	if err == nil {
-		vSI, vUnit, err := humanize.ParseSI(value)
-		if err != nil {
-			return false, errors.Wrap(err, "expecting a international system of unit notation for a comparison filter")
-		}
-		if oUnit != vUnit {
-			return false, errors.Errorf("Units mismatch for comparison filter (can't compare %q with %q", oUnit, vUnit)
-		}
-		return compareFloats(o.Type, vSI, oSI)
-	}
-	return false, errors.Errorf("Unsupported unit %q for comparison filter", o.Type)
 }
 
 // SetOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
@@ -165,18 +104,38 @@ type SetOperator struct {
 	Values []string `parser:"@(Ident|String|Number) {','  @(Ident|String|Number)}')'"`
 }
 
-func (o *SetOperator) matches(value string) (bool, error) {
-	if o.Type == "NOT IN" {
-		return !collections.ContainsString(o.Values, value), nil
-	}
-	return collections.ContainsString(o.Values, value), nil
-}
+/* ###################################################### */
+/* ###################################################### */
+/* ###################################################### */
 
 /*  NEW VERSION BEGINS HERE  */
 
-/* ###################################################### */
-/* ###################################################### */
-/* ###################################################### */
+/* NEW PARSER BEGINS HERE */
+
+/* old grammar :
+STRING :== ""
+NUMBER :==
+IDENT :==
+ABSPRES :== "in" | "not in"
+COMPOP :== "<" | ">" | "<=" | ">="
+EQOP :== "=="" | "!=" | "="
+
+FILTEREXPR :== IDENT FILTER
+FILTER :== SETFILTER | COMPFILTER | EQFILTER
+SETFILTER :== ABSPRES '('  (IDENT | STRING | NUMBER) {','  (Ident|String|Number)} ')'
+COMPFILTER :== COMPOP NUMBER [(IDENT|STRING|NUMBER)]"
+EQFILTER :== EQOP  (IDENT | STRING | NUMBER) { (Ident|String|Number)}
+*/
+
+/* new grammar :
+STRING :== "..."
+NUMBER :==
+IDENT :==
+
+
+*/
+
+/* NEW FILTER BEGINS HERE */
 
 //CompositionStrategy is used to define the type of combination used into composite filter
 type CompositionStrategy int
