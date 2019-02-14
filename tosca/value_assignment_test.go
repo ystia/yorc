@@ -21,8 +21,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/log"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 func TestValueAssignment_GetLiteral(t *testing.T) {

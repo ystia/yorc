@@ -21,8 +21,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 )
 
 func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID string, nodeName, instanceName string, infra *infrastructure) error {

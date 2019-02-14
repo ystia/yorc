@@ -20,8 +20,9 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/consulutil"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 // ConfigManager allows to send configuration to the plugin

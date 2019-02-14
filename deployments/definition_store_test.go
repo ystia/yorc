@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/prov"
 )
 
 func testDefinitionStore(t *testing.T, kv *api.KV) {

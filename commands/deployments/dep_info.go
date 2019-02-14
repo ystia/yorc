@@ -15,31 +15,27 @@
 package deployments
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/tasks"
-
-	"path"
-
-	"os"
-
-	"bytes"
-	"strconv"
-
-	"net/http"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/helper/tabutil"
-	"github.com/ystia/yorc/rest"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/tabutil"
+	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 var commErrorMsg = httputil.YorcAPIDefaultErrorMsg

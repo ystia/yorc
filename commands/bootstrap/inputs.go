@@ -28,18 +28,17 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/rest"
-
-	"github.com/ystia/yorc/tosca"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/ystia/yorc/commands"
-	"github.com/ystia/yorc/config"
-
 	survey "gopkg.in/AlecAivazis/survey.v1"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/commands"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 var inputValues TopologyValues
@@ -592,7 +591,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 
 	// Get on-demand resources definition for this infrastructure type
 	onDemandResourceName := fmt.Sprintf("yorc-%s-types.yml", infrastructureType)
-	data, err = tosca.Asset(onDemandResourceName)
+
+	data, err = registry.GetRegistry().GetToscaDefinition(onDemandResourceName)
+	if err != nil {
+		return err
+	}
 	if err := yaml.Unmarshal(data, &topology); err != nil {
 		return err
 	}

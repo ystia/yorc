@@ -18,14 +18,13 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-
-	"github.com/ystia/yorc/log"
-
 	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/ystia/yorc/commands/httputil"
+
+	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 func init() {

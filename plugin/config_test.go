@@ -21,7 +21,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/v3/config"
 )
 
 type mockConfigManager struct {

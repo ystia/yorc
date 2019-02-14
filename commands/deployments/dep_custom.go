@@ -22,12 +22,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ystia/yorc/rest"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/ystia/yorc/commands/httputil"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/commands/httputil"
+	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 func init() {

@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/events"
 )
 
 // DelegateExecutor is the interface that wraps the ExecDelegate method

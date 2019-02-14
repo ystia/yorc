@@ -21,7 +21,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Cmd represents an external command being prepared or run.

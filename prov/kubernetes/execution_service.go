@@ -18,9 +18,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 const (

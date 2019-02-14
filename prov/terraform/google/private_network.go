@@ -17,16 +17,18 @@ package google
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/terraform/commons"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func (g *googleGenerator) generatePrivateNetwork(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID,

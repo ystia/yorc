@@ -19,12 +19,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/tosca"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
+
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 type typeMissingError struct {

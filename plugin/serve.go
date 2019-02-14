@@ -21,11 +21,11 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/vault"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/vault"
 )
 
 const (

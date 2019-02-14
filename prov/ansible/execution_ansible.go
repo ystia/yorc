@@ -21,13 +21,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
 
-	"strings"
-
-	"github.com/ystia/yorc/events"
+	"github.com/ystia/yorc/v3/events"
 )
 
 const uploadArtifactsPlaybook = `

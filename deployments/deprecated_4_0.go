@@ -16,7 +16,8 @@ package deployments
 
 import (
 	"github.com/hashicorp/consul/api"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // This file contains deprecated functions that will be removed by Yorc 4.0

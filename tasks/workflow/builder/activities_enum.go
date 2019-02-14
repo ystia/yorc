@@ -42,12 +42,11 @@ var _ActivityTypeMap = map[ActivityType]string{
 	3: _ActivityTypeName[31:37],
 }
 
-// String implements the Stringer interface.
-func (x ActivityType) String() string {
-	if str, ok := _ActivityTypeMap[x]; ok {
+func (i ActivityType) String() string {
+	if str, ok := _ActivityTypeMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("ActivityType(%d)", x)
+	return fmt.Sprintf("ActivityType(%d)", i)
 }
 
 var _ActivityTypeValue = map[string]ActivityType{
@@ -64,7 +63,7 @@ var _ActivityTypeValue = map[string]ActivityType{
 // ParseActivityType attempts to convert a string to a ActivityType
 func ParseActivityType(name string) (ActivityType, error) {
 	if x, ok := _ActivityTypeValue[name]; ok {
-		return x, nil
+		return ActivityType(x), nil
 	}
 	return ActivityType(0), fmt.Errorf("%s is not a valid ActivityType", name)
 }

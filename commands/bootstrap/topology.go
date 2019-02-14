@@ -27,9 +27,9 @@ import (
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/ziputil"
-	"github.com/ystia/yorc/rest"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/ziputil"
+	"github.com/ystia/yorc/v3/rest"
 )
 
 // AnsibleConfiguration provides Ansible user-defined settings

@@ -21,6 +21,7 @@ work
 **/debug
 build/consul
 build/*.zip
+build/bin
 /doc/_build/*
 /doc/.doctrees
 /dist
@@ -32,5 +33,4 @@ build/coverprofiles/*
 /testdata/infra/openstack/terraform.tfstate*
 
 # Generated sources
-/tosca/assets.go
 inputsaves/

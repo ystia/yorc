@@ -20,9 +20,10 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/prov"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/prov"
 )
 
 // DelegateExecutor is an extension of prov.DelegateExecutor that expose its supported node types

@@ -23,7 +23,8 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/config"
+
+	"github.com/ystia/yorc/v3/config"
 )
 
 // Test the following args:
