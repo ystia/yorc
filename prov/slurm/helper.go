@@ -97,8 +97,6 @@ func getSSHClient(userName string, privateKey string, password string, cfg confi
 // getUserAccount returns user credentials from a node property, or a capability property.
 // the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
 func getUserAccount(kv *api.KV, deploymentID string, nodeName string, capabilityName, propertyName string) (*UserAccount, error) {
-	var userName, password, privateKey string
-
 	// Check if user credentials provided in node definition
 	userName, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "user")
 	if err != nil {
@@ -113,9 +111,11 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, capability
 	if err != nil {
 		return nil, err
 	}
+
+	var password, privateKey string
 	switch tokenType {
 	case "password":
-		password, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "token")
+		password, err = getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "token")
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +123,7 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, capability
 			log.Debugf("Got password from user_account property")
 		}
 	case "private_key":
-		privateKey, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "keys", "0")
+		privateKey, err = getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "keys", "0")
 		if err != nil {
 			return nil, err
 		}
