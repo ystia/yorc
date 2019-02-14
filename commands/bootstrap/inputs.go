@@ -15,6 +15,8 @@
 package bootstrap
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -25,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/ystia/yorc/helper/collections"
 	"github.com/ystia/yorc/rest"
 
@@ -76,6 +79,18 @@ var (
 			description: "Path to ssh private key accessible locally",
 			value:       "",
 		},
+		"yorc.ca_passphrase": defaultInputType{
+			description: "Certificate authority private key passphrase",
+			value:       "",
+		},
+		"yorc.ca_key_file": defaultInputType{
+			description: "Path to Certificate Authority private key, accessible locally",
+			value:       "",
+		},
+		"yorc.ca_pem_file": defaultInputType{
+			description: "Path to PEM-encoded Certificate Authority, accessible locally",
+			value:       "",
+		},
 		"yorc.workers_number": defaultInputType{
 			description: "Number of Yorc workers handling bootstrap deployment tasks",
 			value:       config.DefaultWorkersNumber,
@@ -118,7 +133,11 @@ var (
 		},
 		"consul.port": defaultInputType{
 			description: "Consul port",
-			value:       8500,
+			value:       8543,
+		},
+		"consul.encrypt_key": defaultInputType{
+			description: "16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic",
+			value:       "",
 		},
 	}
 
@@ -426,10 +445,27 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		return err
 	}
 
-	// Update Yorc private key content if needed
-	if inputValues.Yorc.PrivateKeyContent == "" {
+	fmt.Println("\nGetting Yorc configuration")
 
-		fmt.Println("\nGetting Yorc configuration")
+	// Set yorc and Alien4Cloud protocol
+	if insecure {
+		inputValues.Yorc.Protocol = "http"
+		inputValues.Alien4cloud.Protocol = "http"
+	} else {
+		inputValues.Yorc.Protocol = "https"
+		inputValues.Alien4cloud.Protocol = "https"
+	}
+
+	// Get path where to store files to be used by the local Yorc
+	// when bootstrapping the remote Yorc
+	resourcesAbsolutePath, err := filepath.Abs(resourcesPath)
+	if err != nil {
+		return err
+	}
+
+	// Update Yorc private key content if needed
+
+	if inputValues.Yorc.PrivateKeyContent == "" {
 
 		if inputValues.Yorc.PrivateKeyFile == "" {
 			answer := struct {
@@ -457,18 +493,60 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		}
 		inputValues.Yorc.PrivateKeyContent = string(data[:])
 	} else {
-		// Store this content locally to be used by the local Yorc
-		// when bootstrapping the remote Yorc
-		absolutePath, err := filepath.Abs(resourcesPath)
-		if err != nil {
-			return err
-		}
-		inputValues.Yorc.PrivateKeyFile = filepath.Join(absolutePath, "yorc.pem")
+		inputValues.Yorc.PrivateKeyFile = filepath.Join(resourcesAbsolutePath, "yorc.pem")
 		err = ioutil.WriteFile(inputValues.Yorc.PrivateKeyFile, []byte(inputValues.Yorc.PrivateKeyContent), 0700)
 		if err != nil {
 			return err
 		}
 
+	}
+
+	if !insecure {
+		fmt.Println("\nGetting Certificate Authority configuration")
+		if err := getCAConfiguration(
+			&inputValues.Yorc,
+			inputFilePath != "",
+			resourcesAbsolutePath); err != nil {
+			return err
+		}
+
+	}
+
+	fmt.Println("\nGetting Consul configuration")
+	if insecure {
+		inputValues.Consul.Port = 8500
+	} else {
+		inputValues.Consul.TLSEnabled = true
+		inputValues.Consul.TLSForChecksEnabled = true
+
+		// Get or generate an encrytion key
+		if inputValues.Consul.EncryptKey == "" && inputFilePath == "" {
+
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic (if none set, one will be generated):",
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			inputValues.Consul.EncryptKey = strings.TrimSpace(answer.Value)
+		}
+
+		if inputValues.Consul.EncryptKey == "" {
+			fmt.Println("Generating a 16-bytes, Base64 encoded encryption key used to encrypt Consul network traffic")
+			inputValues.Consul.EncryptKey, err = generateConsulEncryptKey()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	fmt.Println("\nGetting Infrastructure configuration")
@@ -629,6 +707,143 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	}
 	return nil
 
+}
+
+// generateConsulEncryptKey generates a 16-bytes, Base64 encoded value of an
+// encryption key used to encrypt Consul network traffic
+func generateConsulEncryptKey() (string, error) {
+	bKey := make([]byte, 16)
+	_, err := rand.Read(bKey)
+	if err != nil {
+		return "", errors.Wrapf(err, "Error generating Consul encrypt key")
+	}
+
+	return base64.StdEncoding.EncodeToString(bKey), nil
+}
+
+// getCAConfiguration asks for a CA passphrase if not provided, then gets
+// the content of Certificate Authority and key if provided by the user or generates
+// a key and certificate authority
+func getCAConfiguration(pConfig *YorcConfiguration, inputFileProvided bool, resourcesPath string) error {
+
+	// Mandatory parameter: CA key passphrase
+	if pConfig.CAPassPhrase == "" {
+		answer := struct {
+			Value string
+		}{}
+
+		prompt := &survey.Password{
+			Message: "Certificate authority private key passphrase (required, at least 4 characters):",
+		}
+		question := &survey.Question{
+			Name:   "value",
+			Prompt: prompt,
+			Validate: func(val interface{}) error {
+				// Must be at least 4 characters
+				str := val.(string)
+				if len(str) < 4 {
+					return fmt.Errorf("You entered %d characters, but should provide at least 4 characters", len(str))
+				}
+				return nil
+			},
+		}
+		if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+			return err
+		}
+
+		pConfig.CAPassPhrase = strings.TrimSpace(answer.Value)
+	}
+
+	// Entering interactive mode if one of CA or Key is defined and the other
+	// is not, if both are undefined they will be generated
+	askForInput := !inputFileProvided ||
+		((pConfig.CAKeyFile == "" || pConfig.CAPEMFile == "") &&
+			pConfig.CAKeyFile != pConfig.CAPEMFile)
+
+	// Get CA key or generate one
+	if pConfig.CAKeyContent == "" {
+
+		if pConfig.CAKeyFile == "" && askForInput {
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "Path to Certificate Authority private key (if none passed, a key will be generated):",
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			pConfig.CAKeyFile = strings.TrimSpace(answer.Value)
+		}
+
+		if pConfig.CAKeyFile == "" {
+			fmt.Println("Generating a CA key")
+			pConfig.CAKeyFile = filepath.Join(resourcesPath, "ca-key.pem")
+			cmdArgs := fmt.Sprintf("genrsa -aes256 -out %s -passout pass:%s 4096",
+				pConfig.CAKeyFile, pConfig.CAPassPhrase)
+			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
+			if err := cmd.Run(); err != nil {
+				return errors.Wrapf(err, "Failed to generate CA key running 'openssl %s'", cmdArgs)
+			}
+		}
+
+		data, err := ioutil.ReadFile(pConfig.CAKeyFile)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to read CA key file %s", pConfig.CAKeyFile)
+		}
+		pConfig.CAKeyContent = string(data[:])
+	}
+
+	// Get CA or generate one
+	if pConfig.CAPEMContent == "" {
+
+		if pConfig.CAPEMFile == "" && askForInput {
+			answer := struct {
+				Value string
+			}{}
+
+			prompt := &survey.Input{
+				Message: "Path to PEM-encoded Certificate Authority (if none passed, a Certificate Authority will be generated):",
+			}
+			question := &survey.Question{
+				Name:   "value",
+				Prompt: prompt,
+			}
+			if err := survey.Ask([]*survey.Question{question}, &answer); err != nil {
+				return err
+			}
+
+			pConfig.CAPEMFile = strings.TrimSpace(answer.Value)
+		}
+
+		if pConfig.CAPEMFile == "" {
+			pConfig.CAPEMFile = filepath.Join(resourcesPath, "ca.pem")
+			fmt.Printf("\nGenerating a PEM-encoded Certificate Authority %s\n", pConfig.CAPEMFile)
+			fmt.Println("This Certificate Authority should be imported in your Web brower as a trusted Certificate Authority")
+			cmdArgs := fmt.Sprintf("req -new -x509 -days 3650 -key %s -sha256 -passin pass:%s -subj /CN=yorc/O=ystia/C=US -out %s",
+				pConfig.CAKeyFile, pConfig.CAPassPhrase, pConfig.CAPEMFile)
+			cmd := exec.Command("openssl", strings.Split(cmdArgs, " ")...)
+			if err := cmd.Run(); err != nil {
+				return errors.Wrapf(err,
+					"Failed to generate a PEM-encoded Certificate Authority running 'openssl %s'",
+					cmdArgs)
+			}
+		}
+
+		data, err := ioutil.ReadFile(pConfig.CAPEMFile)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to read CA file %s", pConfig.CAPEMFile)
+		}
+		pConfig.CAPEMContent = string(data[:])
+	}
+
+	return nil
 }
 
 // reviewAndUpdateInputs allows the user to review and change deployment inputs

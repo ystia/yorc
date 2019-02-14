@@ -11,14 +11,16 @@
 * Purging n deployment in parallel, one can fail on error: Missing targetId for task with id ([GH-293](https://github.com/ystia/yorc/issues/293))
 * Deployment with a topology parsing error remains in initial status ([GH-283](https://github.com/ystia/yorc/issues/283))
 * Interface name is not retrieved from custom command Rest request ([GH-287](https://github.com/ystia/yorc/issues/287))
-* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289)
-* Missing events for uninstall workflow in purge task ([GH-302](https://github.com/ystia/yorc/issues/302)
-* All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291)
-* It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306)
-* Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308)
+* Instances are adding into topology before creating task ([GH-289](https://github.com/ystia/yorc/issues/289))
+* Missing events for uninstall workflow in purge task ([GH-302](https://github.com/ystia/yorc/issues/302))
+* All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291))
+* It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306))
+* Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308))
+* SSH Session pool: Panic if connection failed, this impacts Slurm infrastructure ([GH-315](https://github.com/ystia/yorc/issues/315))
 
 ### ENHANCEMENTS
 
+* Bootstrap a secure Yorc setup ([GH-179](https://github.com/ystia/yorc/issues/179))
 * Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
 * Slurm user credentails can be defined as slurm deployment topology properties, as an alternative to yorc configuration properties ([GH-281](https://github.com/ystia/yorc/issues/281))
 

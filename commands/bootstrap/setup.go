@@ -75,7 +75,8 @@ func setupYorcServer(workingDirectoryPath string) error {
 		WorkersNumber:    inputValues.Yorc.WorkersNumber,
 		Infrastructures:  inputValues.Infrastructures,
 		Terraform: config.Terraform{
-			PluginsDir: workDirAbsolutePath,
+			PluginsDir:         workDirAbsolutePath,
+			KeepGeneratedFiles: true,
 		},
 		Ansible: config.Ansible{
 			DebugExec:            true,
