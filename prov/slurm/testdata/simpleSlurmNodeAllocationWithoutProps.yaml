@@ -22,9 +22,6 @@ topology_template:
             default_instances: 1
         endpoint:
           properties:
-            credentials:
-              user: johndoe
-              token: "passpass"
             secure: true
             protocol: tcp
             network_name: PRIVATE
