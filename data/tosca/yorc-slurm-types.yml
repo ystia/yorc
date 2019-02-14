@@ -19,6 +19,16 @@ artifact_types:
     description: Slurm Job Container image deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
 
+capability_types:
+  yorc.capabilities.slurm.Endpoint:
+    derived_from: yorc.capabilities.Endpoint.ProvisioningAdmin
+    properties:
+      # Adds non required credentials
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        description: Credentials used to provision the resource
+        required: false
+
 node_types:
   yorc.nodes.slurm.Compute:
     derived_from: yorc.nodes.Compute
@@ -37,11 +47,6 @@ node_types:
         type: string
         required: false
         description: Specify a name for the job allocation. The specified name will appear along with the job id.
-      user_account:
-        type: tosca.datatypes.Credential
-        description: >
-           Provide user credentials for connection to slurm client node
-        required: false
     attributes:
       cuda_visible_devices:
         type: string

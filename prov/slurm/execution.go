@@ -103,7 +103,8 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		return nil, err
 	}
 	// Get user credentials from user-account node property
-	userAccount, err := getUserAccount(kv, deploymentID, nodeName, "user_account")
+	// Its not a capability, so capabilityName set to empty string
+	userAccount, err := getUserAccount(kv, deploymentID, nodeName, "", "user_account")
 	if err != nil {
 		return nil, err
 	}
@@ -410,8 +411,9 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	}
 
-	// Get user credentials from user-account property, if values are provided
-	job.UserAccount, err = getUserAccount(e.kv, e.deploymentID, e.NodeName, "user_account")
+	// Get user credentials from user-account node property, if values are provided
+	// Its not a capability property so capability name is empty
+	job.UserAccount, err = getUserAccount(e.kv, e.deploymentID, e.NodeName, "", "user_account")
 	if err != nil {
 		return err
 	}

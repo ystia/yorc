@@ -94,53 +94,75 @@ func getSSHClient(userName string, privateKey string, password string, cfg confi
 	}, nil
 }
 
-// getUserAccount returns user credentials from a node property having type tosca.datatypes.Credential.
-// the property name is provided by nodePropertyName parameter, but its type is supposed to be tosca.datatypes.Credential
-func getUserAccount(kv *api.KV, deploymentID string, nodeName string, nodePropertyName string) (*UserAccount, error) {
+// getUserAccount returns user credentials from a node property, or a capability property.
+// the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
+func getUserAccount(kv *api.KV, deploymentID string, nodeName string, capabilityName, propertyName string) (*UserAccount, error) {
 	var userName, password, privateKey string
 
 	// Check if user credentials provided in node definition
-	user, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "user")
+	userName, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "user")
 	if err != nil {
 		return nil, err
 	}
-	if user != nil {
-		userName = user.RawString()
+	if userName != "" {
 		log.Debugf("Got user name from user_account property : %s", userName)
 	}
 
 	// Check for token-type
-	tokenType, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "token_type")
+	tokenType, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "token_type")
 	if err != nil {
 		return nil, err
 	}
-	if tokenType != nil {
-		switch tokenType.RawString() {
-		case "password":
-			pwd, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "token")
-			if err != nil {
-				return nil, err
-			}
-			if pwd != nil {
-				password = pwd.RawString()
-				log.Debugf("Got password from user_account property")
-			}
-		case "private_key":
-			privateKeyVal, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, nodePropertyName, "keys", "0")
-			if err != nil {
-				return nil, err
-			}
-			if privateKeyVal != nil {
-				privateKey = privateKeyVal.RawString()
-				log.Debugf("Got private key from user_account property")
-			}
-		default:
-			// password or private_key expected as token_type
-			return nil, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", tokenType.RawString())
+	switch tokenType {
+	case "password":
+		password, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "token")
+		if err != nil {
+			return nil, err
 		}
+		if password != "" {
+			log.Debugf("Got password from user_account property")
+		}
+	case "private_key":
+		privateKey, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "keys", "0")
+		if err != nil {
+			return nil, err
+		}
+		if privateKey != "" {
+			log.Debugf("Got private key from user_account property")
+		}
+	default:
+		// password or private_key expected as token_type
+		return nil, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", tokenType)
 	}
+
 	return &UserAccount{UserName: userName, PrivateKey: privateKey, Password: password}, nil
 
+}
+
+func getPropertyValue(kv *api.KV, deploymentID string, nodeName string, capabilityName string, propertyName string, nestedKeys ...string) (string, error) {
+	var value string
+	var propValue *deployments.TOSCAValue
+	var err error
+	if capabilityName != "" {
+		if len(nestedKeys) == 1 {
+			propValue, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, nestedKeys[0])
+		} else {
+			propValue, err = deployments.GetCapabilityPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, nestedKeys[0], nestedKeys[1])
+		}
+	} else {
+		if len(nestedKeys) == 1 {
+			propValue, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName, nestedKeys[0])
+		} else {
+			propValue, err = deployments.GetNodePropertyValue(kv, deploymentID, nodeName, propertyName, nestedKeys[0], nestedKeys[1])
+		}
+	}
+	if err != nil {
+		return "", err
+	}
+	if propValue != nil {
+		value = propValue.RawString()
+	}
+	return value, nil
 }
 
 // checkInfraConfig checks slurm infrastructure mandatory configuration parameters :
