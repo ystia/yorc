@@ -397,7 +397,8 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 			if err = json.Unmarshal([]byte(input.Value), &args); err != nil {
 				return err
 			}
-		} else {
+			// User credentials are not supposed to be passed as inputs to job
+		} else if !strings.Contains(input.Name, "user_account") {
 			job.Inputs[input.Name] = input.Value
 		}
 	}

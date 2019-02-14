@@ -44,7 +44,7 @@ type actionData struct {
 }
 
 func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuration, taskID, deploymentID string, action *prov.Action) (bool, error) {
-	log.Debugf("Execute Action:%+v with taskID:%q, deploymentID:%q", action, taskID, deploymentID)
+	log.Debugf("Execute Action with ID:%q, taskID:%q, deploymentID:%q", action.ID, taskID, deploymentID)
 
 	if action.ActionType == "job-monitoring" {
 		deregister, err := o.monitorJob(ctx, cfg, deploymentID, action)
