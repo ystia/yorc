@@ -114,6 +114,13 @@ func getAlien4CloudVersionFromTOSCATypes() string {
 	return getVersionFromTOSCATypes("alien-base-types")
 }
 
+// getAlien4CloudForgeVersionFromTOSCATypes returns the ALien4Cloud Forge version
+// from the bundled resources zip file containing TOSCA types needed for the bootstrap
+func getAlien4CloudForgeVersionFromTOSCATypes() string {
+
+	return getVersionFromTOSCATypes("org.alien4cloud.alien4cloud.pub")
+}
+
 // getForgeDefaultVersion returns the Forge version from the bundled
 // resources zip file containing TOSCA types needed for the bootstrap
 func getForgeVersionFromTOSCATypes() string {

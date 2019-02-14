@@ -16,9 +16,11 @@
 * All ssh connections to Slurm are killed if ssh server has reached the max number of allowed sessions ([GH-291](https://github.com/ystia/yorc/issues/291))
 * It can take a considerable delay for a deployment to change status to UNDEPLOYMENT_IN_PROGRESS ([GH-306](https://github.com/ystia/yorc/issues/306))
 * Slurm job monitoring is not designed for concurrency ([GH-308](https://github.com/ystia/yorc/issues/308))
+* SSH Session pool: Panic if connection failed, this impacts Slurm infrastructure ([GH-315](https://github.com/ystia/yorc/issues/315))
 
 ### ENHANCEMENTS
 
+* Bootstrap a secure Yorc setup ([GH-179](https://github.com/ystia/yorc/issues/179))
 * Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
 * Move to Go modules to manage dependencies ([GH-183](https://github.com/ystia/yorc/issues/183))
 * Document How to create a Yorc Plugin ([GH-119](https://github.com/ystia/yorc/issues/119))

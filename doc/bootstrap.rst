@@ -23,7 +23,6 @@ The command ``yorc bootstrap`` can be used to bootstrap the full stack, from Ali
 to Yorc and its dependencies, over different types of infrastructures, on a single node
 or distributed on several nodes.
 
-
 Prerequisites
 -------------
 
@@ -46,6 +45,7 @@ It requires the following packages to be installed on the local host:
   * python-pip
   * zip/unzip
   * openssh-client
+  * openssl (to generate certificates when they are not provided)
   * wget
 
 This basic installation on the local host will attempt to install without sudo privileges
@@ -61,8 +61,8 @@ you could either add them yourself, with sudo privileges, running for example:
 Or you could create a python virtual environment, and let the Yorc bootstrap command
 install the ansible module within this virtual environment (operation which doesn't require sudo privileges).
 
-You can run these commands to create a virtual environment, here a virtual 
-environment called ``yorcenv`` :
+You can run these commands to create a virtual environment, here a virtual
+environment called ``yorcenv``:
 
 .. parsed-literal::
 
@@ -123,10 +123,12 @@ required configuration values are missing, and will ask for missing values.
 These configuration values will allow you to specify:
 
   * optional Alien4Cloud configuration values
-  * Yorc configuration values, all optional, except from the path to a ssh private
-    key that will be used by the local orchestrator to connect to the bootstrapped setup
+  * Yorc configuration values, all optional, except from:
+      * the path to a ssh private key that will be used by the local orchestrator to connect to the bootstrapped setup
+      * the Certificate authority private key passphrase to use in the default secure mode
+        (while the other properties, Certificate Authority private key and PEM-encoded Certificate Authority, are optional. If not provided, they will be generated, and the generated Certificate Authority at ``work/bootstrapResources/ca.pem`` can then be imported in your Web browser as a trusted Certificate Authority)
   * Infrastructure configuration with required configuration values depending on
-    the infrastucture, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
+    the infrastructure, as described at :ref:`Infrastructures Configuration <infrastructures_configuration>`
   * Configuration of compute Nodes to create on demand,
   * User used to connect to these compute nodes,
   * Configuration of the connection to public network created on demand.
@@ -184,12 +186,14 @@ The following ``yorc bootstrap`` option are available:
   * ``--ansible_version`` Ansible version (default \ |ansible_version|\ )
   * ``--config_only`` Makes the bootstrapping abort right after exporting the inputs
   * ``--consul_download_url`` Consul download URL (default, Consul version compatible with this Yorc, under https://releases.hashicorp.com/consul/)
-  * ``--consul_port`` Consul port (default 8500)
+  * ``--consul_encrypt_key`` 16-bytes, Base64 encoded value of an encryption key used to encrypt Consul network traffic
+  * ``--consul_port`` Consul port (default 8543)
   * ``--credentials_user`` User Yorc uses to connect to Compute Nodes
   * ``--deployment_name`` Name of the deployment. If not specified deployment name is based on time.
   * ``--deployment_type`` Define deployment type: single_node or HA (default, single_node)
   * ``--follow`` Follow bootstrap deployment steps, logs, or none (default, steps)
   * ``--infrastructure`` Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool
+  * ``--insecure`` Insecure mode - no TLS configuration
   * ``--jdk_download_url`` Java Development Kit download URL (default, JDK downloaded from https://edelivery.oracle.com/otn-pub/java/jdk/)
   * ``--jdk_version`` Java Development Kit version (default 1.8.0-131-b11)
   * ``--resources_zip`` Path to bootstrap resources zip file (default, zip bundled within Yorc)
@@ -198,13 +202,16 @@ The following ``yorc bootstrap`` option are available:
   * ``--terraform_plugins_download_urls`` Terraform plugins download URLs (default, Terraform plugins compatible with this Yorc, under https://releases.hashicorp.com/terraform-provider-xxx/)
   * ``--values`` Path to file containing input values
   * ``--working_directory`` Working directory where to place deployment files (default, work)
+  * ``--yorc_ca_key_file`` Path to Certificate Authority private key, accessible locally
+  * ``--yorc_ca_passphrase`` Bootstrapped Yorc Home directory (default, /var/yorc)
+  * ``--yorc_ca_pem_file`` Path to PEM-encoded Certificate Authority, accessible locally
   * ``--yorc_data_dir`` Bootstrapped Yorc Home directory (default, /var/yorc)
   * ``--yorc_download_url`` Yorc download URL (default, current Yorc release under https://github.com/ystia/yorc/releases/)
   * ``--yorc_plugin_download_url`` Yorc plugin download URL (default, current Yorc plugin release under https://github.com/ystia/yorc-a4c-plugin/releases)
   * ``--yorc_port`` Yorc HTTP REST API port (default 8800)
   * ``--yorc_private_key_file`` Path to ssh private key accessible locally
   * ``--yorc_workers_number`` Number of Yorc workers handling bootstrap deployment tasks (default 30)
-
+  
 
 In addition, similarly to the configuration of infrastructures in ``yorc server``
 command described at :ref:`Infrastructures Configuration <infrastructures_configuration>`, you can use options to
@@ -269,6 +276,14 @@ Example of a Google Cloud deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     google:
       # Path on local host to file containing Google service account private keys
@@ -297,6 +312,14 @@ Example of an AWS deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certifcate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     aws:
       region: us-east-2
@@ -323,6 +346,14 @@ Example of an OpenStack deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certificate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   infrastructures:
     openstack:
       auth_url: http://10.1.2.3:5000/v2.0
@@ -354,6 +385,14 @@ Example of a Hosts Pool deployment configuration file
     # Path to private key file on local host
     # used to connect to hosts on the bootstrapped setup
     private_key_file: /home/myuser/.ssh/yorc.pem
+    # Path to Certificate Authority private key, accessible locally
+    # If no key ile provided, one will be generated
+    ca_key_file: /home/myuser//ca-key.pem
+    # Certificate authority private key passphrase
+    ca_passphrase: changeme
+    # Path to PEM-encoded Certificate Authority, accessible locally
+    # If not provided, a Certificate Authority will be generated
+    ca_pem_file: /home/myuser/ca.pem
   compute:
     shareable: "false"
   hosts:
@@ -498,3 +537,4 @@ You can now resume the bootstrap deployment running :
 .. parsed-literal::
 
     ./yorc deployments tasks resume <deployment ID>
+

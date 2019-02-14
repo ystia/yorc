@@ -146,8 +146,17 @@ func (p *pool) getConn(k, addr string, config *ssh.ClientConfig) *conn {
 	p.tab[k] = c
 	p.mu.Unlock()
 	c.netC, c.c, c.err = p.dial("tcp", addr, config)
-	c.name = fmt.Sprintf("%s-%s-%x", addr, config.User, c.c.SessionID())
-	metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "creations", c.name}), 1)
+	// Add context to the error if any
+	c.err = errors.Wrapf(c.err, "failed to open connection on %s", addr)
+	if c.err == nil {
+		// Connection succeeded
+		c.name = fmt.Sprintf("%s-%s-%x", addr, config.User, c.c.SessionID())
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "creations", c.name}), 1)
+	} else {
+		// Connection failed
+		c.name = fmt.Sprintf("%s-%s", addr, config.User)
+		metrics.IncrCounter(metricsutil.CleanupMetricKey([]string{"ssh-connections-pool", "create-failed", c.name}), 1)
+	}
 	close(c.ok)
 	return c
 }
