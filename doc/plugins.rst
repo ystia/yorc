@@ -131,7 +131,7 @@ entry-point with the following code:
   }
 
 This establishes the main function to produce a valid, executable Go binary. The contents of
-the main function consume Yorc's plugin library. This library deals with all the communication
+the main function consumes Yorc's plugin library. This library deals with all the communication
 between Yorc and the plugin.
 
 Next, build the plugin using the Go toolchain:
@@ -154,7 +154,7 @@ Load custom TOSCA definitions
 
 You can instruct Yorc to make available some TOSCA definitions as builtin into Yorc.
 To do so you need to get the definition content using the way you want. For simplicity we will
-use a simple go string variable in the bellow example. Then you need to update ``ServeOpts`` in
+use a simple go string variable in the below example. Then you need to update ``ServeOpts`` in
 your main function.
 
 .. code-block:: Go
@@ -289,8 +289,8 @@ Implement an operation executor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An operation executor could be implemented exactly in the same way than a delegate executor,
-expect that it need to support two different functions, ``ExecOperation`` and ``ExecOperationAsync``.
-The first one is the more common usecase while the latest is designed to handle asynchronous
+except that it need to support two different functions, ``ExecOperation`` and ``ExecOperationAsync``.
+The first one is the more common use case while the latest is designed to handle asynchronous
 (non-blocking for long running) operations, like jobs execution typically.
 In this guide we will focus on ``ExecOperation`` please read our documentation about jobs for more
 details on asynchronous operations.
