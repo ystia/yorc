@@ -22,7 +22,7 @@
 
 * Bootstrap a secure Yorc setup ([GH-179](https://github.com/ystia/yorc/issues/179))
 * Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
-* Slurm user credentails can be defined as slurm deployment topology properties, as an alternative to yorc configuration properties ([GH-281](https://github.com/ystia/yorc/issues/281))
+* Slurm user credentials can be defined as slurm deployment topology properties, as an alternative to yorc configuration properties ([GH-281](https://github.com/ystia/yorc/issues/281))
 
 ## 3.2.0-M1 (January 28, 2019)
 
