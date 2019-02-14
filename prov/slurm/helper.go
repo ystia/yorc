@@ -22,11 +22,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
-	"github.com/hashicorp/consul/api"
 
 	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 )
