@@ -22,8 +22,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/prov"
 )
 
 type actionOperator struct {

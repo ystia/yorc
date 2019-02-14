@@ -21,7 +21,8 @@ import (
 	"text/template"
 
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/prov"
+
+	"github.com/ystia/yorc/v3/prov"
 )
 
 func TestAnsibleTemplate(t *testing.T) {

@@ -14,7 +14,7 @@
 
 package hostspool
 
-import "github.com/ystia/yorc/registry"
+import "github.com/ystia/yorc/v3/registry"
 
 func init() {
 	reg := registry.GetRegistry()

@@ -27,10 +27,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/scheduling"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/scheduling"
 )
 
 type jobLog struct {

@@ -16,17 +16,17 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"path"
 	"strconv"
+	"strings"
 	"time"
-
-	"encoding/json"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"strings"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // PublishAndLogAttributeValueChange publishes a value change for a given attribute instance of a given node and log this change into the log API

@@ -17,7 +17,7 @@ package builder
 import (
 	"strings"
 
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 func isAsyncOperation(operation string) bool {

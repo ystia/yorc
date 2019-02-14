@@ -15,15 +15,17 @@
 package hostspool
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/helper/consulutil"
 	"path"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 func (cm *consulManager) UpdateConnection(hostname string, conn Connection) error {

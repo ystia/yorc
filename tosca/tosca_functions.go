@@ -20,7 +20,8 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Operator is the keyword of a given TOSCA operation

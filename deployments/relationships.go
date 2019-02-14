@@ -23,9 +23,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 // GetRelationshipPropertyValueFromRequirement returns the value of a relationship's property identified by a requirement index on a node

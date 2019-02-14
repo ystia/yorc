@@ -21,8 +21,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
 	"vbom.ml/util/sortorder"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 // GetRequirementKeyByNameForNode returns path to requirement which name match with defined requirementName for a given node name

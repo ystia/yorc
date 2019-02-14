@@ -15,13 +15,15 @@
 package collector
 
 import (
-	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/testutil"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/tasks"
 	"path"
 	"strconv"
 	"testing"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/testutil"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func populateKV(t *testing.T, srv *testutil.TestServer) {

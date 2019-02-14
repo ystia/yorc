@@ -23,9 +23,10 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/hostspool"
+
+	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/hostspool"
 )
 
 func (s *Server) deleteHostInPool(w http.ResponseWriter, r *http.Request) {

@@ -19,8 +19,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/log"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Internal type used to uniquely identify the errorgroup in a context

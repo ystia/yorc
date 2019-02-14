@@ -23,13 +23,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tosca"
-
 	"vbom.ml/util/sortorder"
+
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // IsNodeDerivedFrom check if the node's type is derived from another type.

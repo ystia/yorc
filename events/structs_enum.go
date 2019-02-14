@@ -54,12 +54,11 @@ var _StatusChangeTypeMap = map[StatusChangeType]string{
 	7: _StatusChangeTypeName[67:81],
 }
 
-// String implements the Stringer interface.
-func (x StatusChangeType) String() string {
-	if str, ok := _StatusChangeTypeMap[x]; ok {
+func (i StatusChangeType) String() string {
+	if str, ok := _StatusChangeTypeMap[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("StatusChangeType(%d)", x)
+	return fmt.Sprintf("StatusChangeType(%d)", i)
 }
 
 var _StatusChangeTypeValue = map[string]StatusChangeType{
@@ -84,7 +83,7 @@ var _StatusChangeTypeValue = map[string]StatusChangeType{
 // ParseStatusChangeType attempts to convert a string to a StatusChangeType
 func ParseStatusChangeType(name string) (StatusChangeType, error) {
 	if x, ok := _StatusChangeTypeValue[name]; ok {
-		return x, nil
+		return StatusChangeType(x), nil
 	}
 	return StatusChangeType(0), fmt.Errorf("%s is not a valid StatusChangeType", name)
 }

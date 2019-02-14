@@ -25,9 +25,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/testutil"
+
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 func testLogAnsibleOutputInConsul(t *testing.T, kv *api.KV) {

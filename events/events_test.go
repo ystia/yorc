@@ -15,21 +15,21 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"path"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"context"
-	"github.com/stretchr/testify/assert"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/testutil"
-	"path"
-	"strings"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {

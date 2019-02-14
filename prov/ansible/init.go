@@ -14,7 +14,7 @@
 
 package ansible
 
-import "github.com/ystia/yorc/registry"
+import "github.com/ystia/yorc/v3/registry"
 
 const (
 	implementationArtifactBash         = "tosca.artifacts.Implementation.Bash"

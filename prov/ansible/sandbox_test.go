@@ -26,8 +26,9 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/testutil"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 func newMockDockerClient(t *testing.T, doer func(*http.Request) (*http.Response, error)) *client.Client {

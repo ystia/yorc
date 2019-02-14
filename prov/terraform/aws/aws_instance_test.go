@@ -17,18 +17,17 @@ package aws
 import (
 	"context"
 	"path"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/prov/terraform/commons"
-	"strconv"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func loadTestYaml(t *testing.T, kv *api.KV) string {

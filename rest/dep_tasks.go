@@ -15,16 +15,15 @@
 package rest
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 
-	"encoding/json"
-	"io/ioutil"
-
-	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func (s *Server) tasksPreChecks(w http.ResponseWriter, r *http.Request, id, taskID string) bool {
