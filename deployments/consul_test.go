@@ -26,7 +26,7 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 	kv := client.KV()
 	defer srv.Stop()
 
-	t.Run("groupDeploymentsArtifacts", func(t *testing.T) {
+	t.Run("groupDeployments", func(t *testing.T) {
 		t.Run("testArtifacts", func(t *testing.T) {
 			testArtifacts(t, srv, kv)
 		})
@@ -98,6 +98,9 @@ func TestRunConsulDeploymentsPackageTests(t *testing.T) {
 		})
 		t.Run("testIssueGetEmptyPropOnRelationship", func(t *testing.T) {
 			testIssueGetEmptyPropOnRelationship(t, kv)
+		})
+		t.Run("testAttributeNotifications", func(t *testing.T) {
+			testAttributeNotifications(t, kv)
 		})
 	})
 }

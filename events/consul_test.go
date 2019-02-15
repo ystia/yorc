@@ -72,5 +72,8 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 		t.Run("TestLogsSortedByTimestamp", func(t *testing.T) {
 			testLogsSortedByTimestamp(t, kv)
 		})
+		t.Run("TestAttributeValueChange", func(t *testing.T) {
+			testconsulAttributeValueChange(t, kv)
+		})
 	})
 }

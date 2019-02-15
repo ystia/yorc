@@ -971,7 +971,15 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 		}
 	}
 
-	enhanceWorkflows(consulStore, kv, deploymentID)
+	err = enhanceWorkflows(consulStore, kv, deploymentID)
+	if err != nil {
+		return err
+	}
+
+	err = enhanceAttributes(consulStore, kv, deploymentID, nodes)
+	if err != nil {
+		return err
+	}
 	return errGroup.Wait()
 }
 
@@ -1318,6 +1326,36 @@ func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deployment
 	}
 	if wasUpdated {
 		storeWorkflow(consulStore, deploymentID, "run", wf)
+	}
+	return nil
+}
+
+// enhanceAttributes walk through the topology nodes an for each of them if needed it creates instances attributes notifications
+// to allow resolving any attribute when one is updated
+func enhanceAttributes(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string, nodes []string) error {
+	for _, nodeName := range nodes {
+		// retrieve all node attributes
+		attributes, err := GetNodeAttributesNames(kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+
+		// retrieve all node instances
+		instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+
+		// 1. Add attribute notifications
+		// 2. Resolve attributes and publish default values when not nil or empty
+		for _, instanceName := range instances {
+			for _, attribute := range attributes {
+				err := addAttributeNotifications(consulStore, kv, deploymentID, nodeName, instanceName, attribute)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }

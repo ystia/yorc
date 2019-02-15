@@ -26,6 +26,7 @@ import (
 
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
@@ -55,8 +56,8 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	g := awsGenerator{}
 	infrastructure := commons.Infrastructure{}
 	env := make([]string, 0)
-
-	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, make(map[string]string), &env)
+	outputs := make(map[string]string, 0)
+	err := g.generateAWSInstance(context.Background(), kv, cfg, deploymentID, "ComputeAWS", "0", &infrastructure, outputs, &env)
 	require.Nil(t, err)
 
 	require.Len(t, infrastructure.Resource["aws_instance"], 1)
@@ -98,6 +99,14 @@ func testSimpleAWSInstance(t *testing.T, kv *api.KV, cfg config.Configuration) {
 	assert.Equal(t, "TF_VAR_private_key="+string(yorcPem), env[0], "env var for private key expected")
 
 	require.NotContains(t, infrastructure.Resource, "aws_eip_association")
+
+	require.Len(t, outputs, 6, "six outputs are expected")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "ComputeAWS", "0", "attributes/public_address"), "expected public_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "ComputeAWS", "0", "attributes/public_dns"), "expected public_dns instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "ComputeAWS", "0", "attributes/public_ip_address"), "expected public_ip_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "ComputeAWS", "0", "attributes/ip_address"), "expected ip_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "ComputeAWS", "0", "attributes/private_address"), "expected private_address instance attribute output")
+	require.Contains(t, outputs, path.Join(consulutil.DeploymentKVPrefix, deploymentID+"/topology/instances/", "ComputeAWS", "0", "/capabilities/endpoint/attributes/ip_address"), "expected capability endpoint ip_address instance attribute output")
 }
 
 func testSimpleAWSInstanceWithPrivateKey(t *testing.T, kv *api.KV, cfg config.Configuration) {
