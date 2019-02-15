@@ -141,7 +141,7 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 
 	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
 	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(infra.nodes[0].userAccount.UserName, infra.nodes[0].userAccount.PrivateKey, infra.nodes[0].userAccount.Password, cfg)
+	sshClient, err := getSSHClient(infra.nodes[0].credentials.UserName, infra.nodes[0].credentials.PrivateKey, infra.nodes[0].credentials.Password, cfg)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err
@@ -171,7 +171,7 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 
 	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
 	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(infra.nodes[0].userAccount.UserName, infra.nodes[0].userAccount.PrivateKey, infra.nodes[0].userAccount.Password, cfg)
+	sshClient, err := getSSHClient(infra.nodes[0].credentials.UserName, infra.nodes[0].credentials.PrivateKey, infra.nodes[0].credentials.Password, cfg)
 	if err != nil {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
 		return err

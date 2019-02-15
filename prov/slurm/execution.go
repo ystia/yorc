@@ -102,14 +102,14 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
-	// Get user credentials from user-account node property
+	// Get user credentials from credentials node property
 	// Its not a capability, so capabilityName set to empty string
-	userAccount, err := getUserAccount(kv, deploymentID, nodeName, "", "user_account")
+	creds, err := getUserCredentials(kv, deploymentID, nodeName, "", "credentials")
 	if err != nil {
 		return nil, err
 	}
-	// Create sshClient using user credentials from user-account property if the are provided, or from yorc config otherwise
-	execCommon.client, err = getSSHClient(userAccount.UserName, userAccount.PrivateKey, userAccount.Password, cfg)
+	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
+	execCommon.client, err = getSSHClient(creds.UserName, creds.PrivateKey, creds.Password, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal stored Slurm job information")
 	}
-	log.Debugf("Unmarshal Job info for task %s. Got user name info : %s", e.taskID, jobInfo.UserAccount.UserName)
+	log.Debugf("Unmarshal Job info for task %s. Got user name info : %s", e.taskID, jobInfo.Credentials.UserName)
 	return jobInfo, nil
 }
 
@@ -257,9 +257,9 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
 	data["remoteExecDirectory"] = e.jobInfo.OperationRemoteExecDir
 	data["outputs"] = strings.Join(e.jobInfo.Outputs, ",")
-	data["userName"] = e.jobInfo.UserAccount.UserName
-	data["password"] = e.jobInfo.UserAccount.Password
-	data["privateKey"] = e.jobInfo.UserAccount.PrivateKey
+	data["userName"] = e.jobInfo.Credentials.UserName
+	data["password"] = e.jobInfo.Credentials.Password
+	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
@@ -398,7 +398,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 				return err
 			}
 			// User credentials are not supposed to be passed as inputs to job
-		} else if !strings.Contains(input.Name, "user_account") {
+		} else if !strings.Contains(input.Name, "credentials") {
 			job.Inputs[input.Name] = input.Value
 		}
 	}
@@ -412,9 +412,9 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	}
 
-	// Get user credentials from user-account node property, if values are provided
+	// Get user credentials from credentials node property, if values are provided
 	// Its not a capability property so capability name is empty
-	job.UserAccount, err = getUserAccount(e.kv, e.deploymentID, e.NodeName, "", "user_account")
+	job.Credentials, err = getUserCredentials(e.kv, e.deploymentID, e.NodeName, "", "credentials")
 	if err != nil {
 		return err
 	}

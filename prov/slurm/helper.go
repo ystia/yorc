@@ -95,16 +95,16 @@ func getSSHClient(userName string, privateKey string, password string, cfg confi
 	}, nil
 }
 
-// getUserAccount returns user credentials from a node property, or a capability property.
+// getUserCredentials returns user credentials from a node property, or a capability property.
 // the property name is provided by propertyName parameter, and its type is supposed to be tosca.datatypes.Credential
-func getUserAccount(kv *api.KV, deploymentID string, nodeName string, capabilityName, propertyName string) (*UserAccount, error) {
+func getUserCredentials(kv *api.KV, deploymentID string, nodeName string, capabilityName, propertyName string) (*UserCredentials, error) {
 	// Check if user credentials provided in node definition
 	userName, err := getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "user")
 	if err != nil {
 		return nil, err
 	}
 	if userName != "" {
-		log.Debugf("Got user name from user_account property : %s", userName)
+		log.Debugf("Got user name from credentials property : %s", userName)
 	}
 
 	// Check for token-type
@@ -121,7 +121,7 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, capability
 			return nil, err
 		}
 		if password != "" {
-			log.Debugf("Got password from user_account property")
+			log.Debugf("Got password from credentials property")
 		}
 	case "private_key":
 		privateKey, err = getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "keys", "0")
@@ -129,14 +129,14 @@ func getUserAccount(kv *api.KV, deploymentID string, nodeName string, capability
 			return nil, err
 		}
 		if privateKey != "" {
-			log.Debugf("Got private key from user_account property")
+			log.Debugf("Got private key from credentials property")
 		}
 	default:
 		// password or private_key expected as token_type
-		return nil, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key extected", tokenType)
+		return nil, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key expected", tokenType)
 	}
 
-	return &UserAccount{UserName: userName, PrivateKey: privateKey, Password: password}, nil
+	return &UserCredentials{UserName: userName, PrivateKey: privateKey, Password: password}, nil
 
 }
 
