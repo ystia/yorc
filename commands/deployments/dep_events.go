@@ -196,6 +196,9 @@ func formatEvent(event json.RawMessage, colorize bool) string {
 	case events.StatusChangeTypeAlienTask:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (Execution)\t Execution: %q\t Workflow: %s\t Instance: %s\t Step: %s\t Node: %s\t Operation: %s%s\t Status: %s\n", ts, data[events.EDeploymentID.String()],
 			data[events.ETaskID.String()], data[events.ETaskExecutionID.String()], data[events.EWorkflowID.String()], data[events.EInstanceID.String()], data[events.EWorkflowStepID.String()], data[events.ENodeID.String()], data[events.EOperationName.String()], formatOptionalInfo(data), data[events.EStatus.String()])
+	case events.StatusChangeTypeAttributeValue:
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Node: %s\t Instance: %s\t Attribute: %s\t Value: %s\t Status: %s\t\n", ts, data[events.EDeploymentID.String()], data[events.ENodeID.String()], data[events.EInstanceID.String()], data[events.EAttributeName.String()], data[events.EAttributeValue.String()], data[events.EStatus.String()])
+
 	}
 
 	return ret

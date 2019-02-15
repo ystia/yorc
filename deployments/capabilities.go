@@ -16,12 +16,14 @@ package deployments
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
+	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/tosca"
@@ -352,6 +354,10 @@ func SetInstanceCapabilityAttributeComplex(deploymentID, nodeName, instanceName,
 	attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
 	_, errGrp, store := consulutil.WithContext(context.Background())
 	storeComplexType(store, attrPath, attributeValue)
+	err := notifyAndPublishCapabilityAttributeValueChange(consulutil.GetKV(), deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
+	if err != nil {
+		return err
+	}
 	return errGrp.Wait()
 }
 
@@ -376,6 +382,10 @@ func SetCapabilityAttributeComplexForAllInstances(kv *api.KV, deploymentID, node
 	for _, instanceName := range ids {
 		attrPath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology/instances", nodeName, instanceName, "capabilities", capabilityName, "attributes", attributeName)
 		storeComplexType(store, attrPath, attributeValue)
+		err = notifyAndPublishCapabilityAttributeValueChange(kv, deploymentID, nodeName, instanceName, capabilityName, attributeName, attributeValue)
+		if err != nil {
+			return err
+		}
 	}
 	return errGrp.Wait()
 }
@@ -433,4 +443,24 @@ func GetNodeTypeCapabilityPropertyValue(kv *api.KV, deploymentID, nodeType, capa
 		return nil, nil
 	}
 	return GetNodeTypeCapabilityPropertyValue(kv, deploymentID, parentType, capabilityName, propertyName, propDataType, nestedKeys...)
+}
+
+func notifyAndPublishCapabilityAttributeValueChange(kv *api.KV, deploymentID, nodeName, instanceName, capabilityName, attributeName string, attributeValue interface{}) error {
+	sValue, ok := attributeValue.(string)
+	if ok {
+		// First, Publish event
+		capabilityAttribute := fmt.Sprintf("capabilities.%s.%s", capabilityName, attributeName)
+		_, err := events.PublishAndLogAttributeValueChange(context.Background(), deploymentID, nodeName, instanceName, capabilityAttribute, sValue, "updated")
+		if err != nil {
+			return err
+		}
+	}
+	// Next, notify dependent attributes if existing
+	an := &AttributeNotifier{
+		NodeName:       nodeName,
+		InstanceName:   instanceName,
+		AttributeName:  attributeName,
+		CapabilityName: capabilityName,
+	}
+	return an.NotifyValueChange(kv, deploymentID)
 }

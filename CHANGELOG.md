@@ -22,6 +22,7 @@
 
 * Bootstrap a secure Yorc setup ([GH-179](https://github.com/ystia/yorc/issues/179))
 * Yorc bootstrap should save input values used to bootstrap a setup ([GH-248](https://github.com/ystia/yorc/issues/248))
+* Publish value change event for instance attributes ([GH-222](https://github.com/ystia/yorc/issues/222))
 * Move to Go modules to manage dependencies ([GH-183](https://github.com/ystia/yorc/issues/183))
 * Document How to create a Yorc Plugin ([GH-119](https://github.com/ystia/yorc/issues/119))
 

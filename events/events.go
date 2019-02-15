@@ -29,6 +29,41 @@ import (
 	"github.com/ystia/yorc/v3/log"
 )
 
+// PublishAndLogAttributeValueChange publishes a value change for a given attribute instance of a given node and log this change into the log API
+//
+// PublishAndLogAttributeValueChange returns the published event id
+func PublishAndLogAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName, attributeName, value, status string) (string, error) {
+	ctx = AddLogOptionalFields(ctx, LogOptionalFields{NodeID: nodeName, InstanceID: instanceName})
+
+	info := make(Info)
+	info[ENodeID] = nodeName
+	info[EInstanceID] = instanceName
+	info[EAttributeName] = attributeName
+	info[EAttributeValue] = value
+	e, err := newStatusChange(StatusChangeTypeAttributeValue, info, deploymentID, status)
+	if err != nil {
+		return "", err
+	}
+	id, err := e.register()
+	if err != nil {
+		return "", err
+	}
+	WithContextOptionalFields(ctx).NewLogEntry(LogLevelINFO, deploymentID).Registerf("Attribute value for node %q, instance %q changed to %q", nodeName, instanceName, value)
+	return id, nil
+}
+
+// PublishAndLogMapAttributeValueChange publishes a map attribute/value change for a given attribute instance of a given node and log this change into the log API
+// This function doesn't return any published event id
+func PublishAndLogMapAttributeValueChange(ctx context.Context, deploymentID, nodeName, instanceName string, attributesValues map[string]string, status string) error {
+	for attr, attrVal := range attributesValues {
+		_, err := PublishAndLogAttributeValueChange(ctx, deploymentID, nodeName, instanceName, attr, attrVal, status)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // InstanceStatusChange publishes a status change for a given instance of a given node
 //
 // InstanceStatusChange returns the published event id

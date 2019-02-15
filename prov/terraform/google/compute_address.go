@@ -99,13 +99,9 @@ func (g *googleGenerator) generateComputeAddress(ctx context.Context, kv *api.KV
 		ipAddress = fmt.Sprintf("${google_compute_address.%s.address}", computeAddress.Name)
 	}
 
-	// Provide Consul Key for attribute ip_address
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-	consulKeyIPAddr := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/ip_address"),
-		Value: ipAddress}
-
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr)
-	commons.AddResource(infrastructure, "consul_keys", computeAddress.Name, &consulKeys)
+	// Provide output for attribute ip_address
+	addressKey := nodeName + "-" + instanceName + "-address"
+	commons.AddOutput(infrastructure, addressKey, &commons.Output{Value: ipAddress})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = addressKey
 	return nil
 }
