@@ -25,6 +25,7 @@
 * Publish value change event for instance attributes ([GH-222](https://github.com/ystia/yorc/issues/222))
 * Move to Go modules to manage dependencies ([GH-183](https://github.com/ystia/yorc/issues/183))
 * Document How to create a Yorc Plugin ([GH-119](https://github.com/ystia/yorc/issues/119))
+* Slurm user credentials can be defined as slurm deployment topology properties, as an alternative to yorc configuration properties ([GH-281](https://github.com/ystia/yorc/issues/281))
 
 ## 3.2.0-M1 (January 28, 2019)
 

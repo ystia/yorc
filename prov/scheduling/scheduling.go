@@ -31,7 +31,7 @@ import (
 
 // RegisterAction allows to register a scheduled action and to start scheduling it
 func RegisterAction(client *api.Client, deploymentID string, timeInterval time.Duration, action *prov.Action) (string, error) {
-	log.Debugf("Action:%+v has been requested to be registered for scheduling with [deploymentID:%q, timeInterval:%q]", action, deploymentID, timeInterval.String())
+	log.Debugf("Action with ID:%q has been requested to be registered for scheduling with [deploymentID:%q, timeInterval:%q]", action.ID, deploymentID, timeInterval.String())
 	id := uuid.NewV4().String()
 
 	// Check mandatory parameters

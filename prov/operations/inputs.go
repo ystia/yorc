@@ -125,8 +125,6 @@ func ResolveInputsWithInstances(kv *api.KV, deploymentID, nodeName, taskID strin
 			}
 		}
 	}
-
-	log.Debugf("Resolved env inputs: %s", envInputs)
 	return envInputs, varInputsNames, nil
 }
 

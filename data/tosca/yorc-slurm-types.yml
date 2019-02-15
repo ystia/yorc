@@ -19,6 +19,16 @@ artifact_types:
     description: Slurm Job Container image deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
 
+capability_types:
+  yorc.capabilities.slurm.Endpoint:
+    derived_from: yorc.capabilities.Endpoint.ProvisioningAdmin
+    properties:
+      # Adds non required credentials
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        description: Credentials used to provision the resource
+        required: false
+
 node_types:
   yorc.nodes.slurm.Compute:
     derived_from: yorc.nodes.Compute
@@ -47,7 +57,6 @@ node_types:
       partition:
         type: string
         description: Slurm partition where the nodes are deployed.
-
 
   yorc.nodes.slurm.Job:
     derived_from: org.alien4cloud.nodes.Job
@@ -104,6 +113,11 @@ node_types:
         description: >
           Time interval duration used for job monitoring as "5s" or "300ms"
           Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+        required: false
+      credentials:
+        type: tosca.datatypes.Credential
+        description: >
+           Provide user credentials for connection to slurm client node
         required: false
     attributes:
       job_id:
