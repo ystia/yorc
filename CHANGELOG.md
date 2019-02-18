@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 3.2.0-M2 (February 15, 2019)
+
 ### DEPENDENCIES
 
 * Technical update to use Alien4Cloud 2.1.1 (Used in bootstrap)
