@@ -20,12 +20,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+/*
 func filterFromString(t *testing.T, input string) *Filter {
 	filter := &Filter{}
 	err := filterParser.ParseString(input, filter)
 	require.NoError(t, err)
 	return filter
-}
+}*/
 
 func TestFiltersExistsMatching(t *testing.T) {
 

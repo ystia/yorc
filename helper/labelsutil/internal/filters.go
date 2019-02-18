@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,8 +35,11 @@ type Filter interface {
 // FilterFromString generates a Filter from a given input string
 func FilterFromString(input string) (Filter, error) {
 	pfilter := &ParsedFilter{}
+	fmt.Println("point1")
 	err := filterParser.ParseString(input, pfilter)
+	fmt.Println("point2")
 	if err != nil {
+		fmt.Println("point3")
 		return &CompositeFilter{}, errors.Wrap(err, "failed to parse given filter string")
 	}
 	filter, err := pfilter.createFilter()
@@ -64,20 +68,27 @@ type ParsedFilter struct {
 
 // Matches implementation of labelsutil.Filter.Matches()
 func (f *ParsedFilter) createFilter() (Filter, error) {
-
+	fmt.Println("filter has label name " + f.LabelName)
+	fmt.Println("creating filter")
+	if f.EqOperator != nil {
+		fmt.Println("eq")
+		return f.EqOperator.createFilter(f.LabelName)
+	} else if f.SetOperator != nil {
+		fmt.Println("set")
+		return f.SetOperator.createFilter(f.LabelName)
+	} else if f.ComparableOperator != nil {
+		fmt.Println("comp")
+		return f.ComparableOperator.createFilter(f.LabelName)
+	} else {
+		fmt.Println("exists")
+		return &KeyFilter{f.LabelName, Present}, nil
+	}
 }
 
 // EqOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
 type EqOperator struct {
 	Type   string   `parser:"@EqOperators"`
 	Values []string `parser:"@(Ident|String|Number) {@(Ident|String|Number)}"`
-}
-
-func (o *EqOperator) matches(value string) (bool, error) {
-	if o.Type == "!=" {
-		return strings.Join(o.Values, " ") != value, nil
-	}
-	return strings.Join(o.Values, " ") == value, nil
 }
 
 func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
@@ -98,10 +109,47 @@ type ComparableOperator struct {
 	Unit  *string `parser:"[@(Ident|String|Number)]"`
 }
 
+func (o *ComparableOperator) createFilter(labelKey string) (Filter, error) {
+	var cop ComparisonOperator
+	switch o.Type {
+	case "<=":
+		cop = Infeq
+	case ">=":
+		cop = Supeq
+	case "<":
+		cop = Inf
+	case ">":
+		cop = Sup
+	}
+
+	return &ComparisonFilter{labelKey, cop, o.Value, *o.Unit}, nil
+}
+
 // SetOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
 type SetOperator struct {
 	Type   string   `parser:"@Keyword '(' "`
 	Values []string `parser:"@(Ident|String|Number) {','  @(Ident|String|Number)}')'"`
+}
+
+func (o *SetOperator) createFilter(labelKey string) (Filter, error) {
+
+	rstrat := Matches
+	if o.Type == "NOT IN" {
+		rstrat = Differs
+	}
+
+	var filters []Filter
+	for _, val := range o.Values {
+		str := regexp.QuoteMeta(val)
+		filters = append(filters, &RegexFilter{labelKey, rstrat, str})
+	}
+
+	cstrat := Or
+	if o.Type == "NOT IN" {
+		cstrat = And
+	}
+
+	return &CompositeFilter{cstrat, filters}, nil
 }
 
 /* ###################################################### */
