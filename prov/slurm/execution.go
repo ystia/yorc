@@ -419,6 +419,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return err
 	}
 
+	// Reservation
+	if res, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "reservation"); err != nil {
+		return err
+	} else if res != nil && res.RawString() != "" {
+		job.Reservation = res.RawString()
+	}
+
 	// Set jobInfo in executionCommon
 	e.jobInfo = &job
 
@@ -448,6 +455,10 @@ func (e *executionCommon) fillJobCommandOpts() string {
 			opts += fmt.Sprintf(" --%s", opt)
 		}
 	}
+	if e.jobInfo.Reservation != "" {
+		opts += fmt.Sprintf(" --reservation=%s", e.jobInfo.Reservation)
+	}
+	log.Debugf("opts=%q", opts)
 	return opts
 }
 
