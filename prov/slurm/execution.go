@@ -425,7 +425,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	} else if acc != nil && acc.RawString() != "" {
 		job.Account = acc.RawString()
 	} else if e.cfg.Infrastructures[infrastructureName].GetBool("enforce_job_accounting") {
-		return errors.Errorf("Job account must be set in enforced accounting configuration")
+		return errors.Errorf("Job account must be set as configuration enforced job accounting")
 	}
 
 	// Set jobInfo in executionCommon
