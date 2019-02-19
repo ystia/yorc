@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### BUG FIXES
+
+* Yorc panics on segmentation violation attempting to deploy Ystia Forge Slurm topology ([GH-321](https://github.com/ystia/yorc/issues/321))
+
 ### FEATURES
 
 * Yorc supports Slurm Accounting ([GH-280](https://github.com/ystia/yorc/issues/280))
