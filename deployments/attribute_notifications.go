@@ -83,7 +83,7 @@ type notifiedAttribute struct {
 // - relationship attribute: _yorc/deployments/<DEPLOYMENT_ID>/topology/relationship_instances/<NODE_NAME>/<REQUIREMENT_INDEX>/<INSTANCE_NAME>/attributes/<ATTRIBUTE_NAME>
 func BuildAttributeDataFromPath(aPath string) (*AttributeData, error) {
 	// Find instance attribute path
-	match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(aPath)
+	match := regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-_]+)/topology/instances/([0-9a-zA-Z-_]+)/([0-9a-zA-Z-]*)/attributes/(\\w+)").FindStringSubmatch(aPath)
 	if match != nil && len(match) == 5 {
 		return &AttributeData{
 			DeploymentID: match[1],
@@ -94,7 +94,7 @@ func BuildAttributeDataFromPath(aPath string) (*AttributeData, error) {
 	}
 
 	// Find capabilities instance attribute path
-	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]*)/capabilities/([/0-9a-zA-Z]+)/attributes/(\\w+)").FindStringSubmatch(aPath)
+	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-_]+)/topology/instances/([0-9a-zA-Z-_]+)/([0-9a-zA-Z-]*)/capabilities/([/0-9a-zA-Z]+)/attributes/(\\w+)").FindStringSubmatch(aPath)
 	if match != nil && len(match) == 6 {
 		return &AttributeData{
 			DeploymentID:   match[1],
@@ -106,7 +106,7 @@ func BuildAttributeDataFromPath(aPath string) (*AttributeData, error) {
 	}
 
 	// Find relationship instance attribute path
-	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-]+)/topology/relationship_instances/([0-9a-zA-Z-]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(aPath)
+	match = regexp.MustCompile(consulutil.DeploymentKVPrefix + "/([0-9a-zA-Z-_]+)/topology/relationship_instances/([0-9a-zA-Z-_]+)/([0-9a-zA-Z-]+)/([/0-9a-zA-Z]*)/attributes/(\\w+)").FindStringSubmatch(aPath)
 	if match != nil && len(match) == 6 {
 		return &AttributeData{
 			DeploymentID:     match[1],
