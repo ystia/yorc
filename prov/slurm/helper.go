@@ -104,7 +104,7 @@ func getUserCredentials(kv *api.KV, deploymentID string, nodeName string, capabi
 		return nil, err
 	}
 	if userName != "" {
-		log.Debugf("Got user name from credentials property : %s", userName)
+		log.Debugf("Got user name %s from property %s", userName, propertyName)
 	}
 
 	// Check for token-type
@@ -112,6 +112,8 @@ func getUserCredentials(kv *api.KV, deploymentID string, nodeName string, capabi
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debugf("Got token_type %s from property %s", tokenType, propertyName)
 
 	var password, privateKey string
 	switch tokenType {
@@ -121,7 +123,7 @@ func getUserCredentials(kv *api.KV, deploymentID string, nodeName string, capabi
 			return nil, err
 		}
 		if password != "" {
-			log.Debugf("Got password from credentials property")
+			log.Debugf("Got password from property")
 		}
 	case "private_key":
 		privateKey, err = getPropertyValue(kv, deploymentID, nodeName, capabilityName, propertyName, "keys", "0")
@@ -129,11 +131,16 @@ func getUserCredentials(kv *api.KV, deploymentID string, nodeName string, capabi
 			return nil, err
 		}
 		if privateKey != "" {
-			log.Debugf("Got private key from credentials property")
+			log.Debugf("Got private key from property")
 		}
 	default:
 		// password or private_key expected as token_type
-		return nil, errors.Errorf("Unsupported token_type in compute endpoint credentials %s. One of password or private_key expected", tokenType)
+		if capabilityName != "" {
+			return nil, errors.Errorf("Unsupported token_type %s in capability %s property %s. One of password or private_key expected", tokenType, capabilityName, propertyName)
+		} else {
+			return nil, errors.Errorf("Unsupported token_type %s in property %s. One of password or private_key expected", tokenType, propertyName)
+		}
+
 	}
 
 	return &UserCredentials{UserName: userName, PrivateKey: privateKey, Password: password}, nil

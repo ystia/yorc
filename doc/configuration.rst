@@ -1024,6 +1024,8 @@ Slurm infrastructure key name is ``slurm`` in lower case.
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 | ``job_monitoring_time_interval`` | Default duration for job monitoring time interval                | string    | no                                                |   5s    |
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``enforce_job_accounting``       | If set to true, Tosca job account property must be set to be run | boolean   | no                                                |  false  |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 An alternative way to specify user credentials for SSH connection to the Slurm Client's node (user_name, password or private_key), is to provide them as application properties.
 In this case, Yorc gives priority to the application provided properties. 
