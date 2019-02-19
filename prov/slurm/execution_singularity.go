@@ -56,7 +56,7 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 		}
 
 		// Run the command
-		err := e.runJobCommand(ctx)
+		err := e.prepareJob(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
@@ -88,35 +88,26 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionSingularity) runJobCommand(ctx context.Context) error {
+func (e *executionSingularity) prepareJob(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
 	e.jobInfo.OperationRemoteExecDir = e.OperationRemoteBaseDir
-	if e.jobInfo.BatchMode {
-		// get outputs for batch mode
-		err := e.searchForBatchOutputs(ctx)
-		if err != nil {
-			return err
-		}
-		return e.runBatchMode(ctx, opts)
-	}
 
-	err := e.runInteractiveMode(ctx, opts)
+	// get outputs for batch mode
+	err := e.findOutputs(ctx)
 	if err != nil {
 		return err
 	}
-
-	// retrieve jobInfo
-	return e.retrieveJobID(ctx)
+	return e.runSingularityJob(ctx, opts)
 }
 
-func (e *executionSingularity) searchForBatchOutputs(ctx context.Context) error {
+func (e *executionSingularity) findOutputs(ctx context.Context) error {
 	outputs := parseOutputConfigFromOpts(e.jobInfo.Opts)
 	e.jobInfo.Outputs = outputs
 	log.Debugf("job outputs:%+v", e.jobInfo.Outputs)
 	return nil
 }
 
-func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) error {
+func (e *executionSingularity) runSingularityJob(ctx context.Context, opts string) error {
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for k, v := range e.jobInfo.Inputs {
@@ -133,7 +124,7 @@ func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) er
 		return errors.Wrap(err, output)
 	}
 	output = strings.Trim(output, "\n")
-	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
+	if e.jobInfo.ID, err = retrieveJobIDFromOutput(output); err != nil {
 		return err
 	}
 	// Set default output if nothing is specified by user

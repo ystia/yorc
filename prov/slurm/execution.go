@@ -170,7 +170,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		}
 
 		// Run the command
-		err := e.runJobCommand(ctx)
+		err := e.prepareJob(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
@@ -253,7 +253,6 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["taskID"] = e.taskID
 	data["jobID"] = e.jobInfo.ID
 	data["stepName"] = e.stepName
-	data["isBatch"] = strconv.FormatBool(e.jobInfo.BatchMode)
 	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
 	data["remoteExecDirectory"] = e.jobInfo.OperationRemoteExecDir
 	data["outputs"] = strings.Join(e.jobInfo.Outputs, ",")
@@ -261,31 +260,6 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["password"] = e.jobInfo.Credentials.Password
 	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
-}
-
-func (e *executionCommon) retrieveJobID(ctx context.Context) error {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debugf("Task has been cancelled. The job information polling is stopping now")
-			return nil
-		case <-ticker.C:
-			jobInfo, err := getJobInfo(e.client, "", e.jobInfo.Name)
-			if err != nil {
-				_, notFound := err.(*noJobFound)
-				// If job is not found, we assume it still hasn't be created
-				if !notFound {
-					return err
-				}
-			} else if jobInfo.ID != "" {
-				// JobID has been retrieved
-				e.jobInfo.ID = jobInfo.ID
-				return nil
-			}
-		}
-	}
 }
 
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
@@ -359,17 +333,6 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 			job.MonitoringTimeInterval = 5 * time.Second
 		}
 	}
-
-	// BatchMode default is true
-	var batchMode = true
-	if bm, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "batch"); err != nil {
-		return err
-	} else if bm != nil && bm.RawString() != "" {
-		if batchMode, err = strconv.ParseBool(bm.RawString()); err != nil {
-			return err
-		}
-	}
-	job.BatchMode = batchMode
 
 	var extraOpts []string
 	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
@@ -464,55 +427,23 @@ func (e *executionCommon) fillJobCommandOpts() string {
 	return opts
 }
 
-func (e *executionCommon) runJobCommand(ctx context.Context) error {
+func (e *executionCommon) prepareJob(ctx context.Context) error {
 	opts := e.fillJobCommandOpts()
 	execFile := ""
 	if e.Primary != "" {
 		execFile = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
+		e.jobInfo.OperationRemoteExecDir = path.Dir(execFile)
+	} else {
+		e.jobInfo.OperationRemoteExecDir = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
-	if e.jobInfo.BatchMode {
-		if e.Primary != "" {
-			e.jobInfo.OperationRemoteExecDir = path.Dir(execFile)
-		} else {
-			e.jobInfo.OperationRemoteExecDir = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
-		}
-		err := e.findBatchOutput(ctx)
-		if err != nil {
-			return err
-		}
-		return e.runBatchMode(ctx, opts, execFile)
-	}
-	err := e.runInteractiveMode(ctx, opts, execFile)
+	err := e.findOutputs(ctx)
 	if err != nil {
 		return err
 	}
-	// retrieve jobInfo
-	return e.retrieveJobID(ctx)
+	return e.runJob(ctx, opts, execFile)
 }
 
-func (e *executionCommon) runInteractiveMode(ctx context.Context, opts, execFile string) error {
-	// Add inputs as env variables
-	var exports string
-	for k, v := range e.jobInfo.Inputs {
-		log.Debugf("Add env var with key:%q and value:%q", k, v)
-		export := fmt.Sprintf("export %s=%s;", k, v)
-		exports += export
-	}
-	// srun stdout/stderr is redirected on output file and run in asynchronous mode
-	redirectFile := stringutil.UniqueTimestampedName("yorc_", "")
-	e.jobInfo.Outputs = []string{redirectFile}
-	cmd := fmt.Sprintf("%ssrun %s %s %s > %s &", exports, opts, execFile, strings.Join(e.jobInfo.ExecArgs, " "), redirectFile)
-	cmd = strings.Trim(cmd, "")
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		log.Debugf("stderr:%q", output)
-		return errors.Wrap(err, output)
-	}
-	return nil
-}
-
-func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile string) error {
+func (e *executionCommon) runJob(ctx context.Context, opts, execFile string) error {
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for _, arg := range e.jobInfo.ExecArgs {
@@ -535,7 +466,7 @@ func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile strin
 		return errors.Wrap(err, output)
 	}
 	output = strings.Trim(output, "\n")
-	if e.jobInfo.ID, err = parseJobIDFromBatchOutput(output); err != nil {
+	if e.jobInfo.ID, err = retrieveJobIDFromOutput(output); err != nil {
 		return err
 	}
 	// Set default output if nothing is specified by user
@@ -547,7 +478,7 @@ func (e *executionCommon) runBatchMode(ctx context.Context, opts, execFile strin
 	return nil
 }
 
-func (e *executionCommon) findBatchOutput(ctx context.Context) error {
+func (e *executionCommon) findOutputs(ctx context.Context) error {
 	pathExecFile := path.Join(e.OverlayPath, e.Primary)
 	script, err := os.Open(pathExecFile)
 	if err != nil {

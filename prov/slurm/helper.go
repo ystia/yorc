@@ -341,7 +341,7 @@ func cancelJobID(jobID string, client *sshutil.SSHClient) error {
 	return nil
 }
 
-func parseJobIDFromBatchOutput(out string) (string, error) {
+func retrieveJobIDFromOutput(out string) (string, error) {
 	// expected: "Submitted batch job 4507"
 	reBatch := regexp.MustCompile(reSbatch)
 	if !reBatch.MatchString(out) {

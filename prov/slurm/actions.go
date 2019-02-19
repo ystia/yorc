@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -37,7 +36,6 @@ type actionData struct {
 	stepName            string
 	jobID               string
 	taskID              string
-	isBatch             bool
 	remoteBaseDirectory string
 	remoteExecDirectory string
 	outputs             []string
@@ -75,15 +73,6 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	if !ok {
 		return true, errors.Errorf("Missing mandatory information stepName for actionType:%q", action.ActionType)
 	}
-	// Check isBatch
-	isBatchStr, ok := action.Data["isBatch"]
-	if !ok {
-		return true, errors.Errorf("Missing mandatory information isBatch for actionType:%q", action.ActionType)
-	}
-	actionData.isBatch, err = strconv.ParseBool(isBatchStr)
-	if err != nil {
-		return true, errors.Errorf("Invalid information isBatch for actionType:%q", action.ActionType)
-	}
 	// Check remoteBaseDirectory
 	actionData.remoteBaseDirectory, ok = action.Data["remoteBaseDirectory"]
 	if !ok {
@@ -100,10 +89,6 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		return true, errors.Errorf("Missing mandatory information outputs for actionType:%q", action.ActionType)
 	}
 	actionData.outputs = strings.Split(outputStr, ",")
-	if !actionData.isBatch && len(actionData.outputs) != 1 {
-		return true, errors.Errorf("Incorrect outputs files nb:%d for interactive job with id:%q. Only one is required.", len(actionData.outputs), actionData.jobID)
-	}
-	// remoteExecDirectory can be empty for interactive jobs
 	actionData.remoteExecDirectory = action.Data["remoteExecDirectory"]
 
 	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
@@ -130,23 +115,15 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 func (o *actionOperator) endJob(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Job with JobID:%s is DONE", actionData.jobID))
-	// If batch job, cleanup needs to be processed after logging output files
-	if actionData.isBatch {
-		err := o.endBatchOutput(ctx, deploymentID, actionData, sshClient)
-		if err != nil {
-			return errors.Wrapf(err, "failed to handle batch outputs with jobID:%q", actionData.jobID)
-		}
-		o.cleanUp(actionData, sshClient)
-	} else {
-		err := o.endInteractiveOutput(ctx, deploymentID, actionData, sshClient)
-		if err != nil {
-			return errors.Wrapf(err, "failed to handle interactive output with jobID:%q", actionData.jobID)
-		}
+	err := o.endJobOutput(ctx, deploymentID, actionData, sshClient)
+	if err != nil {
+		return errors.Wrapf(err, "failed to handle job outputs with jobID:%q", actionData.jobID)
 	}
+	o.cleanUp(actionData, sshClient)
 	return nil
 }
 
-func (o *actionOperator) endBatchOutput(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) error {
+func (o *actionOperator) endJobOutput(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) error {
 	// Look for outputs with relative path
 	relOutputs := make([]string, 0)
 	for _, output := range actionData.outputs {
@@ -195,28 +172,6 @@ func (o *actionOperator) displayTempOutput(ctx context.Context, deploymentID str
 		}
 		o.logFile(ctx, deploymentID, tempFile, sshClient)
 	}
-}
-
-func (o *actionOperator) endInteractiveOutput(ctx context.Context, deploymentID string, actionData *actionData, sshClient *sshutil.SSHClient) error {
-	// rename the output file and copy it into specific output folder
-	newName := fmt.Sprintf("slurm-%s.out", actionData.jobID)
-	outputDir := fmt.Sprintf("job_" + actionData.jobID + "_outputs")
-	cmd := fmt.Sprintf("mkdir %s", outputDir)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := sshClient.RunCommand(cmd)
-	if err != nil {
-		return errors.Wrap(err, output)
-	}
-
-	newPath := path.Join(outputDir, newName)
-	// Move the file in the output dir
-	cmd = fmt.Sprintf("mv %s %s", actionData.outputs[0], newPath)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err = sshClient.RunCommand(cmd)
-	if err != nil {
-		return errors.Wrap(err, output)
-	}
-	return o.logFile(ctx, deploymentID, newPath, sshClient)
 }
 
 func (o *actionOperator) cleanUp(actionData *actionData, sshClient *sshutil.SSHClient) {

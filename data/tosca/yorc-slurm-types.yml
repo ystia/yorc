@@ -89,11 +89,6 @@ node_types:
           Set a limit on the total run time of the job allocation.
           Time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
         required: false
-      batch:
-        type: boolean
-        description: True if the job is run on batch mode.
-        required: false
-        default: true
       extra_options:
         type: list
         description: >
