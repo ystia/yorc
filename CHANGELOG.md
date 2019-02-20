@@ -9,6 +9,7 @@
 ### FEATURES
 
 * Yorc supports Slurm Accounting ([GH-280](https://github.com/ystia/yorc/issues/280))
+* Yorc supports Slurm reservation ([GH-132](https://github.com/ystia/yorc/issues/132))
 
 ## 3.2.0-M2 (February 15, 2019)
 
