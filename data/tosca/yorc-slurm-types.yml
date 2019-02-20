@@ -47,6 +47,10 @@ node_types:
         type: string
         required: false
         description: Specify a name for the job allocation. The specified name will appear along with the job id.
+      reservation:
+        type: string
+        description: >
+          Allocate resources from the named reservation.
     attributes:
       cuda_visible_devices:
         type: string
@@ -118,6 +122,10 @@ node_types:
         type: string
         description: >
           Charge resources used by this job to specified account.
+      reservation:
+        type: string
+        description: >
+          Allocate resources for the job from the named reservation.
     attributes:
       job_id:
         type: string

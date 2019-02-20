@@ -53,6 +53,7 @@ func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configur
 	require.Equal(t, "xyz", infrastructure.nodes[0].jobName)
 	require.Equal(t, "johndoe", infrastructure.nodes[0].credentials.UserName)
 	require.Equal(t, "passpass", infrastructure.nodes[0].credentials.Password)
+	require.Equal(t, "resa_123", infrastructure.nodes[0].reservation)
 }
 
 func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg config.Configuration) {
