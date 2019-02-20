@@ -305,7 +305,7 @@ func TestPrivateKey(t *testing.T) {
 func TestParseJobIDFromSbatchOut(t *testing.T) {
 	t.Parallel()
 	str := "Submitted batch job 4567"
-	ret, err := retrieveJobIDFromOutput(str)
+	ret, err := retrieveJobID(str)
 	require.Nil(t, err, "unexpected error")
 	require.Equal(t, "4567", ret, "unexpected JobID parsing")
 }

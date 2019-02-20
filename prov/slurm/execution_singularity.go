@@ -88,7 +88,7 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 }
 
 func (e *executionSingularity) prepareJob(ctx context.Context) error {
-	opts := e.fillJobCommandOpts()
+	opts := e.fillJobOpts()
 	e.jobInfo.OperationRemoteExecDir = e.OperationRemoteBaseDir
 
 	// get outputs for batch mode
@@ -123,7 +123,7 @@ func (e *executionSingularity) runSingularityJob(ctx context.Context, opts strin
 		return errors.Wrap(err, output)
 	}
 	output = strings.Trim(output, "\n")
-	if e.jobInfo.ID, err = retrieveJobIDFromOutput(output); err != nil {
+	if e.jobInfo.ID, err = retrieveJobID(output); err != nil {
 		return err
 	}
 	// Set default output if nothing is specified by user

@@ -58,6 +58,7 @@ type jobInfo struct {
 	Credentials            *UserCredentials  `json:"credentials,omitempty"`
 	Account                string            `json:"account,omitempty"`
 	Reservation            string            `json:"reservation,omitempty"`
+	Command                string            `json:"command,omitempty"`
 }
 
 type jobInfoShort struct {

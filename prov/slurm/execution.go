@@ -170,7 +170,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		}
 
 		// Run the command
-		err := e.prepareJob(ctx)
+		err := e.runJob(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
@@ -370,9 +370,11 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 
 	// Retrieve job id from attribute if it was previously set (otherwise will be retrieved when running the job)
 	// TODO(loicalbertin) right now I can't see any notion of multi-instances for Slurm jobs but this sounds bad to me
-	_, job.ID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+	id, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
 	if err != nil {
 		return err
+	} else if id != nil && id.RawString() != "" {
+		job.ID = id.String()
 	}
 
 	// Get user credentials from credentials node property, if values are provided
@@ -398,13 +400,22 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		job.Reservation = res.RawString()
 	}
 
+	// Command
+	if cmd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "exec_command"); err != nil {
+		return err
+	} else if cmd != nil && cmd.RawString() != "" {
+		job.Command = cmd.RawString()
+	} else if e.Primary == "" {
+		return errors.Errorf("Either job exec_command property must be filled or executable artifact must be provided")
+	}
+
 	// Set jobInfo in executionCommon
 	e.jobInfo = &job
 
 	return nil
 }
 
-func (e *executionCommon) fillJobCommandOpts() string {
+func (e *executionCommon) fillJobOpts() string {
 	var opts string
 	opts += fmt.Sprintf(" --job-name=%s", e.jobInfo.Name)
 
@@ -438,23 +449,18 @@ func (e *executionCommon) fillJobCommandOpts() string {
 	return opts
 }
 
-func (e *executionCommon) prepareJob(ctx context.Context) error {
-	opts := e.fillJobCommandOpts()
+func (e *executionCommon) runJob(ctx context.Context) error {
+	opts := e.fillJobOpts()
 	execFile := ""
 	if e.Primary != "" {
 		execFile = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
 		e.jobInfo.OperationRemoteExecDir = path.Dir(execFile)
-	} else {
-		e.jobInfo.OperationRemoteExecDir = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name)
 	}
-	err := e.findOutputs(ctx)
+	err := e.findOutputLocations(ctx)
 	if err != nil {
 		return err
 	}
-	return e.runJob(ctx, opts, execFile)
-}
 
-func (e *executionCommon) runJob(ctx context.Context, opts, execFile string) error {
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for _, arg := range e.jobInfo.ExecArgs {
@@ -469,15 +475,22 @@ func (e *executionCommon) runJob(ctx context.Context, opts, execFile string) err
 		export := fmt.Sprintf("export %s=%s;", k, v)
 		exports += export
 	}
-	cmd := fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		log.Debugf("stderr:%q", output)
-		return errors.Wrap(err, output)
+
+	var cmd string
+	if execFile != "" {
+		cmd = fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
+	} else {
+		cmd = fmt.Sprintf("%ssbatch %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
 	}
-	output = strings.Trim(output, "\n")
-	if e.jobInfo.ID, err = retrieveJobIDFromOutput(output); err != nil {
+
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	out, err := e.client.RunCommand(cmd)
+	if err != nil {
+		log.Debugf("stderr:%q", out)
+		return errors.Wrap(err, out)
+	}
+	out = strings.Trim(out, "\n")
+	if e.jobInfo.ID, err = retrieveJobID(out); err != nil {
 		return err
 	}
 	// Set default output if nothing is specified by user
@@ -489,7 +502,12 @@ func (e *executionCommon) runJob(ctx context.Context, opts, execFile string) err
 	return nil
 }
 
-func (e *executionCommon) findOutputs(ctx context.Context) error {
+func (e *executionCommon) findOutputLocations(ctx context.Context) error {
+	if e.Primary == "" {
+		e.jobInfo.Outputs = parseOutputConfigFromOpts(e.jobInfo.Opts)
+		return nil
+	}
+
 	pathExecFile := path.Join(e.OverlayPath, e.Primary)
 	script, err := os.Open(pathExecFile)
 	if err != nil {

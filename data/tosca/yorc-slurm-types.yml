@@ -107,6 +107,10 @@ node_types:
         required: false
         entry_schema:
           type: string
+      exec_command:
+        type: string
+        description: Command run by the job instead of executable or inside a container if associated to an image artifact.
+        required: false
       monitoring_time_interval:
         type: string
         description: >
@@ -144,11 +148,3 @@ node_types:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.SlurmJob
-
-  yorc.nodes.slurm.SingularityJob:
-    derived_from: yorc.nodes.slurm.Job
-    properties:
-      exec_command:
-        type: string
-        description: If this property is filled. The specified command is executed with singularity exec instead of default singularity run.
-        required: false
