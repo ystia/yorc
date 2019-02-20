@@ -55,7 +55,7 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 		}
 
 		// Run the command
-		err := e.prepareJob(ctx)
+		err := e.runSingularityJob(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
@@ -87,26 +87,24 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionSingularity) prepareJob(ctx context.Context) error {
-	opts := e.fillJobOpts()
-	e.jobInfo.OperationRemoteExecDir = e.OperationRemoteBaseDir
-
-	// get outputs for batch mode
-	err := e.findOutputs(ctx)
-	if err != nil {
-		return err
-	}
-	return e.runSingularityJob(ctx, opts)
-}
-
-func (e *executionSingularity) findOutputs(ctx context.Context) error {
+//FIXME duplicated code with runJob
+func (e *executionSingularity) findOutputLocations(ctx context.Context) error {
 	outputs := parseOutputConfigFromOpts(e.jobInfo.Opts)
 	e.jobInfo.Outputs = outputs
 	log.Debugf("job outputs:%+v", e.jobInfo.Outputs)
 	return nil
 }
 
-func (e *executionSingularity) runSingularityJob(ctx context.Context, opts string) error {
+//FIXME duplicated code with runJob
+func (e *executionSingularity) runSingularityJob(ctx context.Context) error {
+	opts := e.fillJobOpts()
+	e.jobInfo.OperationRemoteExecDir = e.OperationRemoteBaseDir
+
+	// get outputs for batch mode
+	err := e.findOutputLocations(ctx)
+	if err != nil {
+		return err
+	}
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for k, v := range e.jobInfo.Inputs {
