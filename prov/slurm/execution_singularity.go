@@ -26,7 +26,6 @@ import (
 
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/stringutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/tasks"
 	"github.com/ystia/yorc/v3/tosca"
@@ -133,28 +132,6 @@ func (e *executionSingularity) runSingularityJob(ctx context.Context, opts strin
 		e.jobInfo.Outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
 	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
-	return nil
-}
-
-func (e *executionSingularity) runInteractiveMode(ctx context.Context, opts string) error {
-	// Add inputs as env variables
-	var exports string
-	for k, v := range e.jobInfo.Inputs {
-		log.Debugf("Add env var with key:%q and value:%q", k, v)
-		export := fmt.Sprintf("export %s=%s;", k, v)
-		exports += export
-	}
-	redirectFile := stringutil.UniqueTimestampedName("yorc_", "")
-	e.jobInfo.Outputs = []string{redirectFile}
-
-	cmd := fmt.Sprintf("%ssrun %s singularity %s %s %s %s > %s &", exports, opts, e.singularityInfo.command, strings.Join(e.jobInfo.ExecArgs, " "), e.singularityInfo.imageURI, e.singularityInfo.exec, redirectFile)
-	cmd = strings.Trim(cmd, "")
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	output, err := e.client.RunCommand(cmd)
-	if err != nil {
-		log.Debugf("stderr:%q", output)
-		return errors.Wrap(err, output)
-	}
 	return nil
 }
 
