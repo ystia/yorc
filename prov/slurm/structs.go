@@ -36,6 +36,7 @@ type nodeAllocation struct {
 	jobName      string
 	credentials  *UserCredentials
 	instanceName string
+	reservation  string
 }
 
 type jobInfo struct {
@@ -56,6 +57,7 @@ type jobInfo struct {
 	OperationRemoteExecDir string            `json:"operation_remote_exec_dir,omitempty"`
 	Credentials            *UserCredentials  `json:"credentials,omitempty"`
 	Account                string            `json:"account,omitempty"`
+	Reservation            string            `json:"reservation,omitempty"`
 }
 
 type jobInfoShort struct {

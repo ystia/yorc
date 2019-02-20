@@ -428,6 +428,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return errors.Errorf("Job account must be set as configuration enforced job accounting")
 	}
 
+	// Reservation
+	if res, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "reservation"); err != nil {
+		return err
+	} else if res != nil && res.RawString() != "" {
+		job.Reservation = res.RawString()
+	}
+
 	// Set jobInfo in executionCommon
 	e.jobInfo = &job
 
@@ -457,6 +464,10 @@ func (e *executionCommon) fillJobCommandOpts() string {
 			opts += fmt.Sprintf(" --%s", opt)
 		}
 	}
+	if e.jobInfo.Reservation != "" {
+		opts += fmt.Sprintf(" --reservation=%s", e.jobInfo.Reservation)
+	}
+	log.Debugf("opts=%q", opts)
 	if e.jobInfo.Account != "" {
 		opts += fmt.Sprintf(" --account=%s", e.jobInfo.Account)
 	}

@@ -106,6 +106,15 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	// Check that is userName provided, then password or privateKey provided also
 	// Otherwise, raise error, event ...
 
+	// Set the node partition property from Tosca slurm.Compute property
+	reservation, err := deployments.GetNodePropertyValue(kv, deploymentID, nodeName, "reservation")
+	if err != nil {
+		return err
+	}
+	if reservation != nil {
+		node.reservation = reservation.RawString()
+	}
+
 	infra.nodes = append(infra.nodes, node)
 	return nil
 }
