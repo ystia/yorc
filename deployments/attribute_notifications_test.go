@@ -32,6 +32,7 @@ func TestBuildAttributeData(t *testing.T) {
 		{"PathWithNodeAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/instances/Compute//attributes/public_ip_address"}, &AttributeData{DeploymentID: "welcomeApp-Environment", NodeName: "Compute", InstanceName: "", CapabilityName: "", Name: "public_ip_address"}},
 		{"PathWithCapabilityAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/instances/Compute/0/capabilities/endpoint/attributes/ip_address"}, &AttributeData{DeploymentID: "welcomeApp-Environment", NodeName: "Compute", InstanceName: "0", CapabilityName: "endpoint", Name: "ip_address"}},
 		{"PathWithRelationshipAttribute", args{"_yorc/deployments/welcomeApp-Environment/topology/relationship_instances/MyVolume/0/1/attributes/device"}, &AttributeData{DeploymentID: "welcomeApp-Environment", NodeName: "MyVolume", InstanceName: "1", RequirementIndex: "0", CapabilityName: "", Name: "device"}},
+		{"AnotherPathWithAttribute", args{"_yorc/deployments/slurmApp-Environment/topology/instances/ComputeSlurmCtl_address/0/attributes/ip_address"}, &AttributeData{DeploymentID: "slurmApp-Environment", NodeName: "ComputeSlurmCtl_address", InstanceName: "0", CapabilityName: "", Name: "ip_address"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

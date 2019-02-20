@@ -56,6 +56,7 @@ type jobInfo struct {
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
 	OperationRemoteExecDir string            `json:"operation_remote_exec_dir,omitempty"`
 	Credentials            *UserCredentials  `json:"credentials,omitempty"`
+	Account                string            `json:"account,omitempty"`
 	Reservation            string            `json:"reservation,omitempty"`
 }
 

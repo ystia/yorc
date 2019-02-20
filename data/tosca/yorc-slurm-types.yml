@@ -123,6 +123,10 @@ node_types:
         description: >
            Provide user credentials for connection to slurm client node
         required: false
+      account:
+        type: string
+        description: >
+          Charge resources used by this job to specified account.
       reservation:
         type: string
         description: >

@@ -241,11 +241,10 @@ func (e *defaultExecutor) storeOutputs(store consulutil.ConsulStore, outputs map
 		log.Debugf("outputPath=%q, outputValue=%q", outputPath, outputValue)
 		if strings.Contains(outputPath, "/attributes/") {
 			attr, err := deployments.BuildAttributeDataFromPath(outputPath)
-			attr.Value = outputValue
 			if err != nil {
 				return err
 			}
-
+			attr.Value = outputValue
 			if attr.CapabilityName != "" {
 				err = deployments.SetInstanceCapabilityAttribute(attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.CapabilityName, attr.Name, attr.Value)
 				if err != nil {
