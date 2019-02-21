@@ -120,6 +120,8 @@ func generateNodeAllocation(ctx context.Context, kv *api.KV, cfg config.Configur
 	}
 	if account != nil {
 		node.account = account.RawString()
+	} else if cfg.Infrastructures[infrastructureName].GetBool("enforce_accounting") {
+		return errors.Errorf("Compute account must be set as configuration enforces accounting")
 	}
 
 	infra.nodes = append(infra.nodes, node)

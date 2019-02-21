@@ -50,7 +50,7 @@ node_types:
       account:
         type: string
         description: >
-          Charge resources used by this allocation to specified account.
+          Charge resources used by this allocation to specified account. May be mandatory according to configuration.
       reservation:
         type: string
         description: >
