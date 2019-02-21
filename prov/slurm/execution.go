@@ -170,7 +170,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		}
 
 		// Run the command
-		err := e.runJob(ctx)
+		err := e.prepareAndRunJob(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
 			return errors.Wrap(err, "failed to run command")
@@ -449,8 +449,10 @@ func (e *executionCommon) fillJobOpts() string {
 	return opts
 }
 
-func (e *executionCommon) runJob(ctx context.Context) error {
+func (e *executionCommon) prepareAndRunJob(ctx context.Context) error {
+	var cmd string
 	opts := e.fillJobOpts()
+	exports := e.buildExportVars()
 	execFile := ""
 	if e.Primary != "" {
 		execFile = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
@@ -461,6 +463,15 @@ func (e *executionCommon) runJob(ctx context.Context) error {
 		return err
 	}
 
+	if execFile != "" {
+		cmd = fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
+	} else {
+		cmd = fmt.Sprintf("%ssbatch %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
+	}
+	return e.runJob(ctx, cmd)
+}
+
+func (e *executionCommon) buildExportVars() string {
 	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for _, arg := range e.jobInfo.ExecArgs {
@@ -475,14 +486,10 @@ func (e *executionCommon) runJob(ctx context.Context) error {
 		export := fmt.Sprintf("export %s=%s;", k, v)
 		exports += export
 	}
+	return exports
+}
 
-	var cmd string
-	if execFile != "" {
-		cmd = fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
-	} else {
-		cmd = fmt.Sprintf("%ssbatch %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
-	}
-
+func (e *executionCommon) runJob(ctx context.Context, cmd string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	out, err := e.client.RunCommand(cmd)
 	if err != nil {

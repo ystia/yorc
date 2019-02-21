@@ -130,7 +130,7 @@ func (o *actionOperator) endJobOutput(ctx context.Context, deploymentID string, 
 		if !path.IsAbs(output) {
 			relOutputs = append(relOutputs, output)
 		} else {
-			o.logFile(ctx, deploymentID, output, sshClient)
+			o.logFile(ctx, deploymentID, output, sshClient, false)
 		}
 	}
 
@@ -153,7 +153,7 @@ func (o *actionOperator) endJobOutput(ctx context.Context, deploymentID string, 
 			if err != nil {
 				return errors.Wrap(err, output)
 			}
-			err = o.logFile(ctx, deploymentID, newPath, sshClient)
+			err = o.logFile(ctx, deploymentID, newPath, sshClient, false)
 			if err != nil {
 				return err
 			}
@@ -170,7 +170,8 @@ func (o *actionOperator) displayTempOutput(ctx context.Context, deploymentID str
 		} else {
 			tempFile = path.Join(actionData.remoteExecDirectory, output)
 		}
-		o.logFile(ctx, deploymentID, tempFile, sshClient)
+		// log file ignoring errors as outputs can not yet be created if job is pending
+		o.logFile(ctx, deploymentID, tempFile, sshClient, true)
 	}
 }
 
@@ -183,12 +184,12 @@ func (o *actionOperator) cleanUp(actionData *actionData, sshClient *sshutil.SSHC
 	}
 }
 
-func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath string, sshClient *sshutil.SSHClient) error {
+func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath string, sshClient *sshutil.SSHClient, ignoreErrors bool) error {
 	var err error
 	cmd := fmt.Sprintf("cat %s", filePath)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := sshClient.RunCommand(cmd)
-	if err != nil {
+	if !ignoreErrors && err != nil {
 		log.Debugf("an error:%+v occurred during logging file:%q", err, filePath)
 		return errors.Wrapf(err, "failed to log file:%q", filePath)
 	}
