@@ -15,7 +15,6 @@
 package internal
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -35,11 +34,8 @@ type Filter interface {
 // FilterFromString generates a Filter from a given input string
 func FilterFromString(input string) (Filter, error) {
 	pfilter := &ParsedFilter{}
-	fmt.Println("point1")
 	err := filterParser.ParseString(input, pfilter)
-	fmt.Println("point2")
 	if err != nil {
-		fmt.Println("point3")
 		return &CompositeFilter{}, errors.Wrap(err, "failed to parse given filter string")
 	}
 	filter, err := pfilter.createFilter()
@@ -68,19 +64,13 @@ type ParsedFilter struct {
 
 // Matches implementation of labelsutil.Filter.Matches()
 func (f *ParsedFilter) createFilter() (Filter, error) {
-	fmt.Println("filter has label name " + f.LabelName)
-	fmt.Println("creating filter")
 	if f.EqOperator != nil {
-		fmt.Println("eq")
 		return f.EqOperator.createFilter(f.LabelName)
 	} else if f.SetOperator != nil {
-		fmt.Println("set")
 		return f.SetOperator.createFilter(f.LabelName)
 	} else if f.ComparableOperator != nil {
-		fmt.Println("comp")
 		return f.ComparableOperator.createFilter(f.LabelName)
 	} else {
-		fmt.Println("exists")
 		return &KeyFilter{f.LabelName, Present}, nil
 	}
 }
@@ -94,7 +84,7 @@ type EqOperator struct {
 func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 	str := regexp.QuoteMeta(strings.Join(o.Values, " "))
 
-	if o.Type == "==" {
+	if o.Type == "==" || o.Type == "=" {
 		return &RegexFilter{labelKey, Matches, str}, nil
 	}
 
@@ -122,7 +112,12 @@ func (o *ComparableOperator) createFilter(labelKey string) (Filter, error) {
 		cop = Sup
 	}
 
-	return &ComparisonFilter{labelKey, cop, o.Value, *o.Unit}, nil
+	unit := ""
+	if o.Unit != nil {
+		unit = *o.Unit
+	}
+
+	return &ComparisonFilter{labelKey, cop, o.Value, unit}, nil
 }
 
 // SetOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
@@ -155,33 +150,6 @@ func (o *SetOperator) createFilter(labelKey string) (Filter, error) {
 /* ###################################################### */
 /* ###################################################### */
 /* ###################################################### */
-
-/*  NEW VERSION BEGINS HERE  */
-
-/* NEW PARSER BEGINS HERE */
-
-/* old grammar :
-STRING :== ""
-NUMBER :==
-IDENT :==
-ABSPRES :== "in" | "not in"
-COMPOP :== "<" | ">" | "<=" | ">="
-EQOP :== "=="" | "!=" | "="
-
-FILTEREXPR :== IDENT FILTER
-FILTER :== SETFILTER | COMPFILTER | EQFILTER
-SETFILTER :== ABSPRES '('  (IDENT | STRING | NUMBER) {','  (Ident|String|Number)} ')'
-COMPFILTER :== COMPOP NUMBER [(IDENT|STRING|NUMBER)]"
-EQFILTER :== EQOP  (IDENT | STRING | NUMBER) { (Ident|String|Number)}
-*/
-
-/* new grammar :
-STRING :== "..."
-NUMBER :==
-IDENT :==
-
-
-*/
 
 /* NEW FILTER BEGINS HERE */
 
@@ -343,7 +311,7 @@ func (f *ComparisonFilter) Matches(labels map[string]string) (bool, error) {
 	case utBytes:
 		filterValue, labelValue, err = bytesToFloat64(f.Value, f.Unit, lvalS)
 	case utSI:
-		filterValue, labelValue, err = bytesToFloat64(f.Value, f.Unit, lvalS)
+		filterValue, labelValue, err = siToFloat64(f.Value, f.Unit, lvalS)
 	default:
 		return false, errors.New("Comparison filter found an unkwnown unit type : " + f.Unit)
 	}
@@ -355,17 +323,17 @@ func (f *ComparisonFilter) Matches(labels map[string]string) (bool, error) {
 	//then we compare values
 	switch f.Cop {
 	case Inf:
-		return (filterValue < labelValue), nil
+		return (labelValue < filterValue), nil
 	case Sup:
-		return (filterValue > labelValue), nil
+		return (labelValue > filterValue), nil
 	case Infeq:
-		return (filterValue <= labelValue), nil
+		return (labelValue <= filterValue), nil
 	case Supeq:
-		return (filterValue >= labelValue), nil
+		return (labelValue >= filterValue), nil
 	case Eq:
-		return (filterValue == labelValue), nil
+		return (labelValue == filterValue), nil
 	case Neq:
-		return (filterValue != labelValue), nil
+		return (labelValue != filterValue), nil
 	}
 
 	return false, errors.New("Comparison Filter has wrong comparison operator")
