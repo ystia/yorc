@@ -21,6 +21,7 @@ topology_template:
         constraint: "[rack1|rack2|rack3|rack4]"
         job_name: xyz
         reservation: resa_123
+        account: account_test
       capabilities:
         host:
           properties:
