@@ -386,12 +386,12 @@ func TestGetJobInfo(t *testing.T) {
 	}{
 		{"TestWithJobID", args{&MockSSHClient{
 			MockRunCommand: func(cmd string) (string, error) {
-				return "my_test,123,RUNNING", nil
-			}}, "123", ""}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING"}, false, nil},
+				return "my_test,123,RUNNING,None,1:35", nil
+			}}, "123", ""}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING", reason: "None", time: "1:35"}, false, nil},
 		{"TestWithJobName", args{&MockSSHClient{
 			MockRunCommand: func(cmd string) (string, error) {
-				return "my_test,123,RUNNING", nil
-			}}, "", "my_test"}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING"}, false, nil},
+				return "my_test,123,RUNNING,None,1:23", nil
+			}}, "", "my_test"}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING", reason: "None", time: "1:23"}, false, nil},
 		{"TestWithoutParams", args{&MockSSHClient{
 			MockRunCommand: func(cmd string) (string, error) {
 				return "", nil

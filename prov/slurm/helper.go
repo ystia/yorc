@@ -413,9 +413,9 @@ func parseKeyValue(str string) (bool, string, string) {
 func getJobInfo(client sshutil.Client, jobID, jobName string) (*jobInfoShort, error) {
 	var cmd string
 	if jobID != "" {
-		cmd = fmt.Sprintf("squeue --noheader --job=%s -o \"%%j,%%A,%%T\"", jobID)
+		cmd = fmt.Sprintf("squeue --noheader --job=%s -o \"%%j,%%A,%%T,%%r,%%M\"", jobID)
 	} else if jobName != "" {
-		cmd = fmt.Sprintf("squeue --noheader --name=%s -o \"%%j,%%A,%%T\"", jobName)
+		cmd = fmt.Sprintf("squeue --noheader --name=%s -o \"%%j,%%A,%%T,%%r,%%M\"", jobName)
 	}
 
 	if cmd == "" {
@@ -429,11 +429,11 @@ func getJobInfo(client sshutil.Client, jobID, jobName string) (*jobInfoShort, er
 	out := strings.Trim(output, "\" \t\n\x00")
 	if out != "" {
 		d := strings.Split(out, ",")
-		if len(d) != 3 {
+		if len(d) != 5 {
 			log.Debugf("Unexpected format job information:%q", out)
 			return nil, errors.Errorf("Unexpected format:%q for command:%q", cmd, out)
 		}
-		info := &jobInfoShort{name: d[0], ID: d[1], state: d[2]}
+		info := &jobInfoShort{name: d[0], ID: d[1], state: d[2], reason: d[3], time: d[4]}
 		return info, nil
 	}
 	return nil, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q, name:%q", jobID, jobName)}

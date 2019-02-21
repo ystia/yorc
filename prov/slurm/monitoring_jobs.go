@@ -107,7 +107,7 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
 	}
 
-	mess := fmt.Sprintf("Job Name:%s, Job ID:%s, Job State:%s", info.name, info.ID, info.state)
+	mess := fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Reason:%s, Execution Time:%s", info.name, info.ID, info.state, info.reason, info.time)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mess)
 	o.displayTempOutput(ctx, deploymentID, actionData, sshClient)
 	return false, nil
@@ -158,6 +158,7 @@ func (o *actionOperator) endJobOutput(ctx context.Context, deploymentID string, 
 				return err
 			}
 		}
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("outputs are available in folder:%q in %s's home directory", outputDir, sshClient.Config.User))
 	}
 	return nil
 }

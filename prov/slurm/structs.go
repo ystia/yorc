@@ -62,9 +62,11 @@ type jobInfo struct {
 }
 
 type jobInfoShort struct {
-	ID    string
-	name  string
-	state string
+	ID     string
+	name   string
+	state  string
+	reason string
+	time   string
 }
 
 type singularityInfo struct {
