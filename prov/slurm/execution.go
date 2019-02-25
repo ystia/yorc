@@ -161,7 +161,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 		}
 		if e.Primary != "" {
 			// Copy the operation implementation
-			if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
+			if err := e.uploadArtifact(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
 				return errors.Wrap(err, "failed to upload operation implementation")
 			}
 		}
@@ -254,16 +254,7 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["userName"] = e.jobInfo.Credentials.UserName
 	data["password"] = e.jobInfo.Credentials.Password
 	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
-
-	// related artifacts
-	artifacts := make([]string, 0, len(e.Artifacts))
-	for _, art := range e.Artifacts {
-		artifacts = append(artifacts, art)
-	}
-	if e.Primary != "" {
-		artifacts = append(artifacts, e.Primary)
-	}
-	data["artifacts"] = strings.Join(artifacts, ",")
+	data["artifacts"] = strings.Join(e.jobInfo.Artifacts, ",")
 
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
@@ -415,11 +406,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return errors.Errorf("Either job exec_command property must be filled or executable artifact must be provided")
 	}
 
-	// Working directory
+	// Working directory: default is user's home
 	if wd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "working_directory"); err != nil {
 		return err
 	} else if wd != nil && wd.RawString() != "" {
 		job.WorkingDir = wd.RawString()
+	} else {
+		job.WorkingDir = "~"
 	}
 
 	// Set jobInfo in executionCommon
@@ -467,7 +460,7 @@ func (e *executionCommon) prepareAndRunJob(ctx context.Context) error {
 	opts := e.fillJobOpts()
 	exports := e.buildExportVars()
 	if e.Primary != "" {
-		cmd = fmt.Sprintf("sbatch -D %s%s %s %s", e.jobInfo.WorkingDir, exports, opts, e.Primary)
+		cmd = fmt.Sprintf("mkdir -p %s;sbatch -D %s%s %s %s", e.jobInfo.WorkingDir, e.jobInfo.WorkingDir, exports, opts, path.Join(e.jobInfo.WorkingDir, path.Base(e.Primary)))
 	} else {
 		cmd = fmt.Sprintf("sbatch%s %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
 	}
@@ -522,7 +515,7 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 				if fileInfo.IsDir() {
 					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, e.OverlayPath)
 				}
-				return e.uploadFile(ctx, sourcePath, e.OverlayPath)
+				return e.uploadArtifact(ctx, sourcePath, e.OverlayPath)
 			})
 		}(artPath)
 	}
@@ -536,24 +529,28 @@ func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath st
 		}
 		log.Debugf("Walk path:%s", pathFile)
 		if !info.IsDir() {
-			return e.uploadFile(ctx, pathFile, artifactBaseDir)
+			return e.uploadArtifact(ctx, pathFile, artifactBaseDir)
 		}
 		return nil
 	})
 }
 
-func (e *executionCommon) uploadFile(ctx context.Context, pathFile, artifactBaseDir string) error {
+func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifactBaseDir string) error {
 	// Read file in bytes
 	source, err := ioutil.ReadFile(pathFile)
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("uploadFile file from source path:%q to working directory:%q", pathFile, e.jobInfo.WorkingDir)
-	if err := e.client.CopyFile(bytes.NewReader(source), e.jobInfo.WorkingDir, "0755"); err != nil {
+	remotePath := path.Join(e.jobInfo.WorkingDir, path.Base(pathFile))
+	log.Debugf("uploadArtifact file from source path:%q to:%q", pathFile, remotePath)
+	if err := e.client.CopyFile(bytes.NewReader(source), remotePath, "0755"); err != nil {
 		log.Debugf("an error occurred:%+v", err)
 		return err
 	}
+
+	// Add file to job artifact's list
+	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, path.Base(pathFile))
 	return nil
 }
 

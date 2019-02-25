@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"path"
+	"strings"
 
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/events"
@@ -55,8 +56,9 @@ func (o *actionOperator) ExecAction(ctx context.Context, cfg config.Configuratio
 
 func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuration, deploymentID string, action *prov.Action) (bool, error) {
 	var (
-		err error
-		ok  bool
+		err        error
+		deregister bool
+		ok         bool
 	)
 
 	actionData := &actionData{}
@@ -79,6 +81,11 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 	actionData.taskID, ok = action.Data["taskID"]
 	if !ok {
 		return true, errors.Errorf("Missing mandatory information taskID for actionType:%q", action.ActionType)
+	}
+	// Check artifacts (optional)
+	artifactsStr, ok := action.Data["artifacts"]
+	if ok {
+		actionData.artifacts = strings.Split(artifactsStr, ",")
 	}
 
 	// Get a sshClient to connect to slurm client node, and execute slurm commands such as squeue, or system commands such as cp, mv, mkdir, etc.
@@ -109,16 +116,27 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		o.logFile(ctx, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), sshClient, true)
 	}
 
-	//TODO return job success/failure and handle all other job state codes
-	if info["JobState"] == "COMPLETED" || info["JobState"] == "CANCELLED" || info["JobState"] == "FAILED" || info["JobState"] == "STOPPED" {
-		// Cleanup
+	// See if monitoring must be continued and set job state if terminated
+	switch info["JobState"] {
+	case "COMPLETED":
+		// job has been done successfully : unregister monitoring
+		deregister = true
+	case "RUNNING", "PENDING", "COMPLETING", "CONFIGURING", "SIGNALING", "RESIZING":
+		// job's still running or its state is about to be set definitively: monitoring is keeping on
+	default:
+		// Other cases as FAILED, CANCELLED, STOPPED, SUSPENDED, TIMEOUT, etc : error is return with job state and job info is logged
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(fmt.Sprintf("job info:%+v", info))
+		deregister = true
+		err = errors.Errorf("job with ID:%q finished unsuccessfully with state:%q", actionData.jobID, info["JobState"])
+	}
+
+	// cleanup if needed
+	if deregister {
 		if !cfg.Infrastructures[infrastructureName].GetBool("keep_artifacts") {
 			o.removeArtifacts(actionData, sshClient)
 		}
-		// deregister monitoring
-		return true, nil
 	}
-	return false, nil
+	return deregister, err
 }
 
 func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshutil.SSHClient) {
@@ -137,6 +155,7 @@ func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath str
 	var err error
 	cmd := fmt.Sprintf("cat %s", filePath)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("File %s:", filePath))
 	output, err := sshClient.RunCommand(cmd)
 	if !ignoreErrors && err != nil {
 		log.Debugf("an error:%+v occurred during logging file:%q", err, filePath)
