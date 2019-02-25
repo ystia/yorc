@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -44,10 +45,11 @@ func FilterFromString(input string) (Filter, error) {
 
 var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
 	`(\s+)`+
-		`|(?P<Keyword>(?i)IN|NOT IN)`+
+		`|(?P<Keyword>(?i)IN|NOT IN|NOTIN)`+
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 		`|(?P<String>'[^']*'|"[^"]*")`+
-		`|(?P<EqOperators>!=|==|=)`+
+		`|(?P<EqOperator>!=|==|=)`+
+		//`|(?P<RegexOperator>=~|!~)`+
 		`|(?P<CompOperators><=|>=|[<>])`+
 		`|(?P<Ident>[-\d\w_\./\\]+)`+
 		`|(?P<SetMarks>[(),])`)), "Keyword"), "String")
@@ -77,19 +79,55 @@ func (f *ParsedFilter) createFilter() (Filter, error) {
 
 // EqOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
 type EqOperator struct {
-	Type   string   `parser:"@EqOperators"`
-	Values []string `parser:"@(Ident|String|Number) {@(Ident|String|Number)}"`
+	Type   string   `parser:"@EqOperator"`
+	ValueS *string  `parser:"@(String"`
+	ValueN *float64 `parser:"| Number"`
+	ValueU *string  `parser:"[(Ident|String|Number)])"`
 }
 
 func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
-	str := regexp.QuoteMeta(strings.Join(o.Values, " "))
 
-	if o.Type == "==" || o.Type == "=" {
-		return &RegexFilter{labelKey, Matches, str}, nil
+	if o.ValueS != nil {
+		fmt.Println("comparison filter detected : " + labelKey + " " + o.Type + " " + *o.ValueS + " ?")
+		str := regexp.QuoteMeta(*o.ValueS)
+
+		if o.Type == "==" || o.Type == "=" {
+			return &RegexFilter{labelKey, Matches, str}, nil
+		}
+
+		return &RegexFilter{labelKey, Differs, str}, nil
 	}
 
-	return &RegexFilter{labelKey, Differs, str}, nil
+	fmt.Println("comparison filter detected : " + labelKey + " " + o.Type + " " + strconv.FormatFloat(*o.ValueN, 'f', -1, 64) + " ?")
 
+	var cop ComparisonOperator
+	switch o.Type {
+	case "==":
+		cop = Eq
+	case "!=":
+		cop = Neq
+	}
+
+	unit := ""
+	if o.ValueU != nil {
+		unit = *o.ValueU
+	}
+
+	return &ComparisonFilter{labelKey, cop, *o.ValueN, unit}, nil
+}
+
+//RegexOperator is #fixme implements this description
+type RegexOperator struct {
+	Type  string `parser:"@RegexOperator"`
+	Value string `parser:"@String"`
+}
+
+func (o *RegexOperator) createFilter(labelKey string) (Filter, error) {
+	if o.Type == "~=" || o.Type == "=" {
+		return &RegexFilter{labelKey, Contains, o.Value}, nil
+	}
+
+	return &RegexFilter{labelKey, Excludes, o.Value}, nil
 }
 
 // ComparableOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
@@ -129,19 +167,16 @@ type SetOperator struct {
 func (o *SetOperator) createFilter(labelKey string) (Filter, error) {
 
 	rstrat := Matches
-	if o.Type == "NOT IN" {
+	cstrat := Or
+	if o.Type == "NOT IN" || o.Type == "NOTIN" {
 		rstrat = Differs
+		cstrat = And
 	}
 
 	var filters []Filter
 	for _, val := range o.Values {
 		str := regexp.QuoteMeta(val)
 		filters = append(filters, &RegexFilter{labelKey, rstrat, str})
-	}
-
-	cstrat := Or
-	if o.Type == "NOT IN" {
-		cstrat = And
 	}
 
 	return &CompositeFilter{cstrat, filters}, nil
@@ -331,6 +366,7 @@ func (f *ComparisonFilter) Matches(labels map[string]string) (bool, error) {
 	case Supeq:
 		return (labelValue >= filterValue), nil
 	case Eq:
+		fmt.Println("comparing " + fmt.Sprintf("%f", labelValue) + " == " + fmt.Sprintf("%f", filterValue) + " : " + strconv.FormatBool(labelValue == filterValue))
 		return (labelValue == filterValue), nil
 	case Neq:
 		return (labelValue != filterValue), nil

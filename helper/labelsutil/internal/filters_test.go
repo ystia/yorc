@@ -71,13 +71,11 @@ func TestFiltersEqMatching(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"TestEqString", `l1=v1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestEqStringQuote", `l1="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestEqStringNoMatchKey", `l3=v1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
-		{"TestEqStringNoMatchValue", `l1=v2`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
-		{"TestNotEqString", `l1!=v2`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestEqStringNoMatchKey", `l3="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestEqStringNoMatchValue", `l1="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 		{"TestNotEqStringQuote", `l1!="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotEqStringNoMatchKey", `l3!=v1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotEqStringNoMatchKey", `l3!="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -119,6 +117,15 @@ func TestFiltersCompareMatching(t *testing.T) {
 		{"TestCompFloatGETrue", `l1 >= 1.80e-10`, args{map[string]string{"l1": "1.80e-10", "m2": "v2"}}, true, false},
 		{"TestCompFloatGEFalse", `l1 >= 10.0`, args{map[string]string{"l1": "-20.0", "m2": "v2"}}, false, false},
 		{"TestCompFloatGENoKey", `l3 >= 10.0`, args{map[string]string{"l1": "20.0", "m2": "v2"}}, false, false},
+
+		{"TestCompFloatEqTrue", `l1 == 5`, args{map[string]string{"l1": "5", "m2": "v2"}}, true, false},
+		{"TestCompFloatEqTrueDiffStr", `l1 == 5.0`, args{map[string]string{"l1": "5", "m2": "v2"}}, false, false},
+		{"TestCompFloatEqFalse", `l1 == 10`, args{map[string]string{"l1": "50.0", "m2": "v2"}}, false, false},
+		{"TestCompFloatEqNoKey", `l3 == 10`, args{map[string]string{"l1": "50.0", "m2": "v2"}}, false, false},
+		{"TestCompFloatNeqTrue", `l1 != 1.0`, args{map[string]string{"l1": "5.0", "m2": "v2"}}, true, false},
+		{"TestCompFloatNeqFalse", `l1 != 10`, args{map[string]string{"l1": "10", "m2": "v2"}}, false, false},
+		{"TestCompFloatNeqFalseDiffStr", `l1 != 10.0`, args{map[string]string{"l1": "10", "m2": "v2"}}, true, false},
+		{"TestCompFloatNeqNoKey", `l3 != 10`, args{map[string]string{"l1": "50.0", "m2": "v2"}}, false, false},
 
 		{"TestCompDurationLTTrue", `l1 < 10s`, args{map[string]string{"l1": "5s", "m2": "v2"}}, true, false},
 		{"TestCompDurationLTFalse", `l1 < 10ms`, args{map[string]string{"l1": "50.0ms", "m2": "v2"}}, false, false},
