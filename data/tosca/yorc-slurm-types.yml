@@ -100,6 +100,14 @@ node_types:
         required: false
         entry_schema:
           type: string
+      working_directory:
+        type: string
+        description: Directory where the batch script or command will be executed. Default is home's related user.
+        required: false
+      exec_command:
+        type: string
+        description: Command run by the job instead of executable or inside a container if associated to an image artifact.
+        required: false
       exec_args:
         type: list
         description: >
@@ -107,10 +115,6 @@ node_types:
         required: false
         entry_schema:
           type: string
-      exec_command:
-        type: string
-        description: Command run by the job instead of executable or inside a container if associated to an image artifact.
-        required: false
       monitoring_time_interval:
         type: string
         description: >

@@ -36,7 +36,6 @@ import (
 	"github.com/ystia/yorc/v3/events"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/helper/sshutil"
-	"github.com/ystia/yorc/v3/helper/stringutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
 	"github.com/ystia/yorc/v3/prov/operations"
@@ -67,37 +66,35 @@ func (jid *noJobFound) Error() string {
 }
 
 type executionCommon struct {
-	kv                     *api.KV
-	cfg                    config.Configuration
-	deploymentID           string
-	taskID                 string
-	client                 *sshutil.SSHClient
-	NodeName               string
-	operation              prov.Operation
-	OperationRemoteBaseDir string
-	NodeType               string
-	OverlayPath            string
-	Artifacts              map[string]string
-	EnvInputs              []*operations.EnvInput
-	VarInputsNames         []string
-	NodePath               string
-	Primary                string
-	nodeInstances          []string
-	jobInfo                *jobInfo
-	stepName               string
+	kv             *api.KV
+	cfg            config.Configuration
+	deploymentID   string
+	taskID         string
+	client         *sshutil.SSHClient
+	NodeName       string
+	operation      prov.Operation
+	NodeType       string
+	OverlayPath    string
+	Artifacts      map[string]string
+	EnvInputs      []*operations.EnvInput
+	VarInputsNames []string
+	NodePath       string
+	Primary        string
+	nodeInstances  []string
+	jobInfo        *jobInfo
+	stepName       string
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, stepName string, operation prov.Operation) (execution, error) {
 	execCommon := &executionCommon{kv: kv,
-		cfg:                    cfg,
-		deploymentID:           deploymentID,
-		NodeName:               nodeName,
-		operation:              operation,
-		VarInputsNames:         make([]string, 0),
-		EnvInputs:              make([]*operations.EnvInput, 0),
-		taskID:                 taskID,
-		OperationRemoteBaseDir: stringutil.UniqueTimestampedName(".yorc_", ""),
-		stepName:               stepName,
+		cfg:            cfg,
+		deploymentID:   deploymentID,
+		NodeName:       nodeName,
+		operation:      operation,
+		VarInputsNames: make([]string, 0),
+		EnvInputs:      make([]*operations.EnvInput, 0),
+		taskID:         taskID,
+		stepName:       stepName,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -253,12 +250,21 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["taskID"] = e.taskID
 	data["jobID"] = e.jobInfo.ID
 	data["stepName"] = e.stepName
-	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
-	data["remoteExecDirectory"] = e.jobInfo.OperationRemoteExecDir
-	data["outputs"] = strings.Join(e.jobInfo.Outputs, ",")
+	data["workingDir"] = e.jobInfo.WorkingDir
 	data["userName"] = e.jobInfo.Credentials.UserName
 	data["password"] = e.jobInfo.Credentials.Password
 	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
+
+	// related artifacts
+	artifacts := make([]string, 0, len(e.Artifacts))
+	for _, art := range e.Artifacts {
+		artifacts = append(artifacts, art)
+	}
+	if e.Primary != "" {
+		artifacts = append(artifacts, e.Primary)
+	}
+	data["artifacts"] = strings.Join(artifacts, ",")
+
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
@@ -409,6 +415,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		return errors.Errorf("Either job exec_command property must be filled or executable artifact must be provided")
 	}
 
+	// Working directory
+	if wd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "working_directory"); err != nil {
+		return err
+	} else if wd != nil && wd.RawString() != "" {
+		job.WorkingDir = wd.RawString()
+	}
+
 	// Set jobInfo in executionCommon
 	e.jobInfo = &job
 
@@ -453,37 +466,27 @@ func (e *executionCommon) prepareAndRunJob(ctx context.Context) error {
 	var cmd string
 	opts := e.fillJobOpts()
 	exports := e.buildExportVars()
-	execFile := ""
 	if e.Primary != "" {
-		execFile = path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, e.Primary)
-		e.jobInfo.OperationRemoteExecDir = path.Dir(execFile)
-	}
-	err := e.findOutputLocations(ctx)
-	if err != nil {
-		return err
-	}
-
-	if execFile != "" {
-		cmd = fmt.Sprintf("%scd %s;sbatch %s %s", exports, path.Dir(execFile), opts, path.Base(execFile))
+		cmd = fmt.Sprintf("sbatch -D %s%s %s %s", e.jobInfo.WorkingDir, exports, opts, e.Primary)
 	} else {
-		cmd = fmt.Sprintf("%ssbatch %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
+		cmd = fmt.Sprintf("sbatch%s %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
 	}
 	return e.runJob(ctx, cmd)
 }
 
 func (e *executionCommon) buildExportVars() string {
-	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
+	// Use sbatch --export VAR=VAL option
 	var exports string
 	for _, arg := range e.jobInfo.ExecArgs {
 		if is, key, val := parseKeyValue(arg); is {
 			log.Debugf("Add env var with key:%q and value:%q", key, val)
-			export := fmt.Sprintf("export %s=%s;", key, val)
+			export := fmt.Sprintf(" --export %s=%s", key, val)
 			exports += export
 		}
 	}
 	for k, v := range e.jobInfo.Inputs {
 		log.Debugf("Add env var with key:%q and value:%q", k, v)
-		export := fmt.Sprintf("export %s=%s;", k, v)
+		export := fmt.Sprintf(" --export %s=%s", k, v)
 		exports += export
 	}
 	return exports
@@ -500,41 +503,7 @@ func (e *executionCommon) runJob(ctx context.Context, cmd string) error {
 	if e.jobInfo.ID, err = retrieveJobID(out); err != nil {
 		return err
 	}
-	// Set default output if nothing is specified by user
-	// this is the default output generated by sbatch
-	if len(e.jobInfo.Outputs) == 0 {
-		e.jobInfo.Outputs = []string{fmt.Sprintf("slurm-%s.out", e.jobInfo.ID)}
-	}
 	log.Debugf("JobID:%q", e.jobInfo.ID)
-	return nil
-}
-
-func (e *executionCommon) findOutputLocations(ctx context.Context) error {
-	if e.Primary == "" {
-		e.jobInfo.Outputs = parseOutputConfigFromOpts(e.jobInfo.Opts)
-		return nil
-	}
-
-	pathExecFile := path.Join(e.OverlayPath, e.Primary)
-	script, err := os.Open(pathExecFile)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to open file with path:%q", pathExecFile)
-	}
-
-	var all = true
-	outputs := parseOutputConfigFromOpts(e.jobInfo.Opts)
-	log.Debugf("outputs:%+v", outputs)
-	if len(outputs) > 0 {
-		// options override SBATCH parameters, only get srun outputs options
-		all = false
-	}
-
-	o, err := parseOutputConfigFromBatchScript(script, all)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to parse batch file to retrieve outputs with path:%q", pathExecFile)
-	}
-	e.jobInfo.Outputs = append(outputs, o...)
-	log.Debugf("job outputs:%+v", e.jobInfo.Outputs)
 	return nil
 }
 
@@ -574,20 +543,14 @@ func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath st
 }
 
 func (e *executionCommon) uploadFile(ctx context.Context, pathFile, artifactBaseDir string) error {
-	relPath, err := filepath.Rel(artifactBaseDir, pathFile)
-	if err != nil {
-		return err
-	}
-
 	// Read file in bytes
 	source, err := ioutil.ReadFile(pathFile)
 	if err != nil {
 		return err
 	}
 
-	remotePath := path.Join(e.OperationRemoteBaseDir, e.NodeName, e.operation.Name, relPath)
-	log.Debugf("uploadFile file from source path:%q to remote relative path:%q", pathFile, remotePath)
-	if err := e.client.CopyFile(bytes.NewReader(source), remotePath, "0755"); err != nil {
+	log.Debugf("uploadFile file from source path:%q to working directory:%q", pathFile, e.jobInfo.WorkingDir)
+	if err := e.client.CopyFile(bytes.NewReader(source), e.jobInfo.WorkingDir, "0755"); err != nil {
 		log.Debugf("an error occurred:%+v", err)
 		return err
 	}

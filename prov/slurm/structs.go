@@ -54,11 +54,11 @@ type jobInfo struct {
 	Outputs                []string          `json:"outputs,omitempty"`
 	Inputs                 map[string]string `json:"inputs,omitempty"`
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
-	OperationRemoteExecDir string            `json:"operation_remote_exec_dir,omitempty"`
 	Credentials            *UserCredentials  `json:"credentials,omitempty"`
 	Account                string            `json:"account,omitempty"`
 	Reservation            string            `json:"reservation,omitempty"`
 	Command                string            `json:"command,omitempty"`
+	WorkingDir             string            `json:"working_directory,omitempty"`
 }
 
 type jobInfoShort struct {

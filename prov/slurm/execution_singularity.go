@@ -89,12 +89,9 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 
 func (e *executionSingularity) prepareAndRunSingularityJob(ctx context.Context) error {
 	opts := e.fillJobOpts()
-	e.jobInfo.OperationRemoteExecDir = e.OperationRemoteBaseDir
-	e.jobInfo.Outputs = parseOutputConfigFromOpts(e.jobInfo.Opts)
-	log.Debugf("job outputs:%+v", e.jobInfo.Outputs)
 	exports := e.buildExportVars()
 	innerCmd := fmt.Sprintf("%ssrun singularity %s %s %s", exports, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
-	cmd := fmt.Sprintf("mkdir -p %s;cd %s;sbatch %s --wrap=\"%s\"", e.OperationRemoteBaseDir, e.OperationRemoteBaseDir, opts, innerCmd)
+	cmd := fmt.Sprintf("sbatch -D %s %s --wrap=\"%s\"", e.jobInfo.WorkingDir, opts, innerCmd)
 	return e.runJob(ctx, cmd)
 }
 
