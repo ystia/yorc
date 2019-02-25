@@ -204,10 +204,14 @@ func TestFiltersSetMatching(t *testing.T) {
 		{"TestSetInStringQuote", `l1 in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestSetInStringNoMatchKey", `l3 in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 		{"TestSetInStringNoMatchValue", `l1 in ("v2", "v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
-		{"TestNotInString", `l1 not in (v2)`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotInString", `l1 not in ("v2","v3","v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotInStringQuote", `l1 not in ("v2")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotInStringNoMatchKey", `l3 not in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotSPACEInString", `l1 not in (v2)`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotSPACEInString", `l1 not in ("v2","v3","v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotSPCACEInStringQuote", `l1 not in ("v2")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotSPACEInStringNoMatchKey", `l3 not in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotInString", `l1 notin (v2)`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotInString", `l1 notin ("v2","v3","v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotInStringQuote", `l1 notin ("v2")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotInStringNoMatchKey", `l3 notin ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
