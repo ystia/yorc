@@ -47,6 +47,10 @@ node_types:
         type: string
         required: false
         description: Specify a name for the job allocation. The specified name will appear along with the job id.
+      account:
+        type: string
+        description: >
+          Charge resources used by this allocation to specified account. May be mandatory according to configuration.
       reservation:
         type: string
         description: >
@@ -126,7 +130,7 @@ node_types:
       account:
         type: string
         description: >
-          Charge resources used by this job to specified account.
+          Charge resources used by this job to specified account. May be mandatory according to configuration.
       reservation:
         type: string
         description: >

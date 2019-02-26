@@ -36,6 +36,7 @@ type nodeAllocation struct {
 	jobName      string
 	credentials  *UserCredentials
 	instanceName string
+	account      string
 	reservation  string
 }
 
