@@ -341,29 +341,28 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 	job.Opts = extraOpts
 
-	var execArgs []string
 	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "exec_args"); err != nil {
 		return err
 	} else if ea != nil && ea.RawString() != "" {
-		if err = json.Unmarshal([]byte(ea.RawString()), &execArgs); err != nil {
+		if err = json.Unmarshal([]byte(ea.RawString()), &job.ExecArgs); err != nil {
 			return err
 		}
 	}
 
-	var args []string
-	job.Inputs = make(map[string]string)
-	for _, input := range e.EnvInputs {
-		if input.Name == "args" && input.Value != "" {
-			if err = json.Unmarshal([]byte(input.Value), &args); err != nil {
-				return err
-			}
-			// User credentials are not supposed to be passed as inputs to job
-		} else if !strings.Contains(input.Name, "credentials") {
-			job.Inputs[input.Name] = input.Value
+	if envVars, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "env_vars"); err != nil {
+		return err
+	} else if envVars != nil && envVars.RawString() != "" {
+		if err = json.Unmarshal([]byte(envVars.RawString()), &job.EnvVars); err != nil {
+			return err
 		}
 	}
 
-	job.ExecArgs = append(execArgs, args...)
+	job.Inputs = make(map[string]string)
+	for _, input := range e.EnvInputs {
+		if !strings.Contains(input.Name, "credentials") {
+			job.Inputs[input.Name] = input.Value
+		}
+	}
 
 	// Retrieve job id from attribute if it was previously set (otherwise will be retrieved when running the job)
 	// TODO(loicalbertin) right now I can't see any notion of multi-instances for Slurm jobs but this sounds bad to me
@@ -458,20 +457,23 @@ func (e *executionCommon) fillJobOpts() string {
 func (e *executionCommon) prepareAndRunJob(ctx context.Context) error {
 	var cmd string
 	opts := e.fillJobOpts()
-	exports := e.buildExportVars()
+	exports := e.buildEnvVars()
 	if e.Primary != "" {
 		cmd = fmt.Sprintf("mkdir -p %s;%ssbatch -D %s %s %s", e.jobInfo.WorkingDir, exports, e.jobInfo.WorkingDir, opts, path.Join(e.jobInfo.WorkingDir, path.Base(e.Primary)))
 	} else {
-		cmd = fmt.Sprintf("sbatch%s %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
+		var args string
+		if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
+			args = strings.Join(e.jobInfo.ExecArgs, " ")
+		}
+		cmd = fmt.Sprintf("sbatch%s %s --wrap=\"%s %s\"", exports, opts, e.jobInfo.Command, args)
 	}
 	return e.runJob(ctx, cmd)
 }
 
-func (e *executionCommon) buildExportVars() string {
-	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
+func (e *executionCommon) buildEnvVars() string {
 	var exports string
-	for _, arg := range e.jobInfo.ExecArgs {
-		if is, key, val := parseKeyValue(arg); is {
+	for _, v := range e.jobInfo.EnvVars {
+		if is, key, val := parseKeyValue(v); is {
 			log.Debugf("Add env var with key:%q and value:%q", key, val)
 			export := fmt.Sprintf("export %s=%s;", key, val)
 			exports += export

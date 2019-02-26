@@ -51,6 +51,7 @@ type jobInfo struct {
 	BatchMode              bool              `json:"batch_mode,omitempty"`
 	Opts                   []string          `json:"opts,omitempty"`
 	ExecArgs               []string          `json:"exec_args,omitempty"`
+	EnvVars                []string          `json:"env_vars,omitempty"`
 	Outputs                []string          `json:"outputs,omitempty"`
 	Inputs                 map[string]string `json:"inputs,omitempty"`
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`

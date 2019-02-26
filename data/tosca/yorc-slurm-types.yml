@@ -106,12 +106,19 @@ node_types:
         required: false
       exec_command:
         type: string
-        description: Command run by the job instead of executable or inside a container if associated to an image artifact.
+        description: >
+          Allows a job to run a command instead of a batch script if no artifact is provided. In case of an image artifact, the command is run inside the container.
         required: false
       exec_args:
         type: list
         description: >
-         This define all arguments passed to the executable run by the job.
+          If exec_command is provided, here can be defined all arguments passed to the command.
+        required: false
+        entry_schema:
+          type: string
+      env_vars:
+        type: list
+        description: Environment variables to pass to the job execution.
         required: false
         entry_schema:
           type: string

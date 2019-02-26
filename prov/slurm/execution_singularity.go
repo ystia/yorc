@@ -89,8 +89,12 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 
 func (e *executionSingularity) prepareAndRunSingularityJob(ctx context.Context) error {
 	opts := e.fillJobOpts()
-	exports := e.buildExportVars()
-	innerCmd := fmt.Sprintf("%ssrun singularity %s %s %s", exports, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
+	exports := e.buildEnvVars()
+	var args string
+	if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
+		args = strings.Join(e.jobInfo.ExecArgs, " ")
+	}
+	innerCmd := fmt.Sprintf("%ssrun singularity %s %s %s %s", exports, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec, args)
 	cmd := fmt.Sprintf("mkdir -p %s;sbatch -D %s %s --wrap=\"%s\"", e.jobInfo.WorkingDir, e.jobInfo.WorkingDir, opts, innerCmd)
 	return e.runJob(ctx, cmd)
 }
