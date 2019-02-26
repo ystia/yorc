@@ -49,16 +49,8 @@ type execution interface {
 	execute(ctx context.Context) error
 }
 
-type operationNotImplemented struct {
-	msg string
-}
-
 type noJobFound struct {
 	msg string
-}
-
-func (oni operationNotImplemented) Error() string {
-	return oni.msg
 }
 
 func (jid *noJobFound) Error() string {
@@ -194,7 +186,12 @@ func (e *executionCommon) execute(ctx context.Context) error {
 				return err
 			}
 			// Not cancelling within the same task try to get jobID from attribute
-			_, jobID, err = deployments.GetInstanceAttribute(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+			id, err := deployments.GetInstanceAttributeValue(e.kv, e.deploymentID, e.NodeName, "0", "job_id")
+			if err != nil {
+				return err
+			} else if id != nil && id.RawString() != "" {
+				jobID = id.String()
+			}
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).Registerf(
 				"Slurm job cancellation called from a dedicated \"cancel\" workflow. JobID retrieved from node %q attribute. This may cause issues if multiple workflows are running in parallel. Prefer using a workflow cancellation.", e.NodeName)
 		} else {
@@ -331,15 +328,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	var extraOpts []string
 	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
 		return err
 	} else if extra != nil && extra.RawString() != "" {
-		if err = json.Unmarshal([]byte(extra.RawString()), &extraOpts); err != nil {
+		if err = json.Unmarshal([]byte(extra.RawString()), &job.Opts); err != nil {
 			return err
 		}
 	}
-	job.Opts = extraOpts
 
 	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "exec_args"); err != nil {
 		return err

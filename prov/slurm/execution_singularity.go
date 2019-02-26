@@ -33,7 +33,7 @@ import (
 
 type executionSingularity struct {
 	*executionCommon
-	singularityInfo *singularityInfo
+	singularityJobInfo *singularityJobInfo
 }
 
 func (e *executionSingularity) execute(ctx context.Context) error {
@@ -94,13 +94,13 @@ func (e *executionSingularity) prepareAndRunSingularityJob(ctx context.Context) 
 	if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
 		args = strings.Join(e.jobInfo.ExecArgs, " ")
 	}
-	innerCmd := fmt.Sprintf("%ssrun singularity %s %s %s %s", exports, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec, args)
+	innerCmd := fmt.Sprintf("%ssrun singularity %s %s %s %s", exports, e.singularityJobInfo.command, e.singularityJobInfo.imageURI, e.singularityJobInfo.exec, args)
 	cmd := fmt.Sprintf("mkdir -p %s;sbatch -D %s %s --wrap=\"%s\"", e.jobInfo.WorkingDir, e.jobInfo.WorkingDir, opts, innerCmd)
 	return e.runJob(ctx, cmd)
 }
 
 func (e *executionSingularity) buildSingularityInfo(ctx context.Context) error {
-	singularityInfo := singularityInfo{}
+	singularityInfo := singularityJobInfo{}
 	for _, input := range e.EnvInputs {
 		if input.Name == "exec_command" && input.Value != "" {
 			singularityInfo.exec = input.Value
@@ -118,27 +118,27 @@ func (e *executionSingularity) buildSingularityInfo(ctx context.Context) error {
 		singularityInfo.command = "run"
 	}
 	log.Debugf("singularity Info:%+v", singularityInfo)
-	e.singularityInfo = &singularityInfo
+	e.singularityJobInfo = &singularityInfo
 	return e.resolveContainerImage()
 }
 
 func (e *executionSingularity) resolveContainerImage() error {
 	switch {
 	// Docker image
-	case strings.HasPrefix(e.singularityInfo.imageName, "docker://"):
+	case strings.HasPrefix(e.singularityJobInfo.imageName, "docker://"):
 		if err := e.buildImageURI("docker://"); err != nil {
 			return err
 		}
 		// Singularity image
-	case strings.HasPrefix(e.singularityInfo.imageName, "shub://"):
+	case strings.HasPrefix(e.singularityJobInfo.imageName, "shub://"):
 		if err := e.buildImageURI("shub://"); err != nil {
 			return err
 		}
 		// File image
-	case strings.HasSuffix(e.singularityInfo.imageName, ".simg") || strings.HasSuffix(e.singularityInfo.imageName, ".img"):
-		e.singularityInfo.imageURI = e.singularityInfo.imageName
+	case strings.HasSuffix(e.singularityJobInfo.imageName, ".simg") || strings.HasSuffix(e.singularityJobInfo.imageName, ".img"):
+		e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
 	default:
-		return errors.Errorf("Unable to resolve container image URI from image name:%q", e.singularityInfo.imageName)
+		return errors.Errorf("Unable to resolve container image URI from image name:%q", e.singularityJobInfo.imageName)
 	}
 	return nil
 }
@@ -149,7 +149,7 @@ func (e *executionSingularity) buildImageURI(prefix string) error {
 		return err
 	}
 	if repoName == "" {
-		e.singularityInfo.imageURI = e.singularityInfo.imageName
+		e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
 	} else {
 		repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
 		if err != nil {
@@ -157,18 +157,18 @@ func (e *executionSingularity) buildImageURI(prefix string) error {
 		}
 		// Just ignore default public Docker and Singularity registries
 		if repoURL == deployments.DockerHubURL || repoURL == deployments.SingularityHubURL {
-			e.singularityInfo.imageURI = e.singularityInfo.imageName
+			e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
 		} else if repoURL != "" {
 			urlStruct, err := url.Parse(repoURL)
 			if err != nil {
 				return err
 			}
-			tabs := strings.Split(e.singularityInfo.imageName, prefix)
+			tabs := strings.Split(e.singularityJobInfo.imageName, prefix)
 			imageURI := prefix + path.Join(urlStruct.Host, tabs[1])
 			log.Debugf("imageURI:%q", imageURI)
-			e.singularityInfo.imageURI = imageURI
+			e.singularityJobInfo.imageURI = imageURI
 		} else {
-			e.singularityInfo.imageURI = e.singularityInfo.imageName
+			e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
 		}
 	}
 	return nil

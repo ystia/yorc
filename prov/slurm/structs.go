@@ -43,17 +43,14 @@ type nodeAllocation struct {
 type jobInfo struct {
 	ID                     string            `json:"id,omitempty"`
 	Name                   string            `json:"name,omitempty"`
-	State                  string            `json:"state,omitempty"`
 	Tasks                  int               `json:"tasks,omitempty"`
 	Cpus                   int               `json:"cpus,omitempty"`
 	Nodes                  int               `json:"nodes,omitempty"`
 	Mem                    int               `json:"mem,omitempty"`
 	MaxTime                string            `json:"max_time,omitempty"`
-	BatchMode              bool              `json:"batch_mode,omitempty"`
 	Opts                   []string          `json:"opts,omitempty"`
 	ExecArgs               []string          `json:"exec_args,omitempty"`
 	EnvVars                []string          `json:"env_vars,omitempty"`
-	Outputs                []string          `json:"outputs,omitempty"`
 	Inputs                 map[string]string `json:"inputs,omitempty"`
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
 	Credentials            *UserCredentials  `json:"credentials,omitempty"`
@@ -64,15 +61,7 @@ type jobInfo struct {
 	Artifacts              []string          `json:"artifacts,omitempty"`
 }
 
-type jobInfoShort struct {
-	ID     string
-	name   string
-	state  string
-	reason string
-	time   string
-}
-
-type singularityInfo struct {
+type singularityJobInfo struct {
 	imageName string
 	imageURI  string
 	command   string

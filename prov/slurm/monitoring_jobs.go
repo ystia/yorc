@@ -99,21 +99,30 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		return true, errors.Wrapf(err, "failed to get job info with jobID:%q", actionData.jobID)
 	}
 
-	mess := fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Reason:%s, Execution Time:%s", info["JobName"], info["JobId"], info["JobState"], info["Reason"], info["RunTime"])
+	var mess string
+	if info["Reason"] != "None" {
+		mess = fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Reason:%s, Execution Time:%s", info["JobName"], info["JobId"], info["JobState"], info["Reason"], info["RunTime"])
+	} else {
+		mess = fmt.Sprintf("Job Name:%s, ID:%s, State:%s, Execution Time:%s", info["JobName"], info["JobId"], info["JobState"], info["RunTime"])
+	}
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(mess)
 
 	stdOut, existStdOut := info["StdOut"]
-	if existStdOut {
-		o.logFile(ctx, deploymentID, stdOut, sshClient, true)
-	}
 	stdErr, existStdErr := info["StdErr"]
-	if existStdErr {
-		o.logFile(ctx, deploymentID, stdErr, sshClient, true)
+	if existStdOut && existStdErr && stdOut == stdErr {
+		o.logFile(ctx, deploymentID, stdOut, "StdOut/StdErr", sshClient)
+	} else {
+		if existStdOut {
+			o.logFile(ctx, deploymentID, stdOut, "StdOut", sshClient)
+		}
+		if existStdErr {
+			o.logFile(ctx, deploymentID, stdErr, "StdErr", sshClient)
+		}
 	}
 
 	// See default output if nothing is specified here
 	if !existStdOut && !existStdErr {
-		o.logFile(ctx, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), sshClient, true)
+		o.logFile(ctx, deploymentID, fmt.Sprintf("slurm-%s.out", actionData.jobID), "StdOut/Stderr", sshClient)
 	}
 
 	// See if monitoring must be continued and set job state if terminated
@@ -130,9 +139,9 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 		err = errors.Errorf("job with ID:%q finished unsuccessfully with state:%q", actionData.jobID, info["JobState"])
 	}
 
-	// cleanup if needed
-	if deregister {
-		if !cfg.Infrastructures[infrastructureName].GetBool("keep_artifacts") {
+	// cleanup except if error occurred or explicitly specified in config
+	if deregister && err == nil {
+		if !cfg.Infrastructures[infrastructureName].GetBool("keep_job_remote_artifacts") {
 			o.removeArtifacts(actionData, sshClient)
 		}
 	}
@@ -143,7 +152,7 @@ func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshu
 	for _, art := range actionData.artifacts {
 		p := path.Join(actionData.workingDir, art)
 		log.Debugf("Remove artifact %q", p)
-		cmd := fmt.Sprintf("rm -rf %s", p)
+		cmd := fmt.Sprintf("rm -f %s", p)
 		_, err := sshClient.RunCommand(cmd)
 		if err != nil {
 			log.Printf("an error:%+v occurred during removing artifact %q", err, p)
@@ -151,16 +160,16 @@ func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshu
 	}
 }
 
-func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath string, sshClient *sshutil.SSHClient, ignoreErrors bool) error {
-	var err error
+func (o *actionOperator) logFile(ctx context.Context, deploymentID, filePath, fileType string, sshClient *sshutil.SSHClient) {
 	cmd := fmt.Sprintf("cat %s", filePath)
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("File %s:", filePath))
 	output, err := sshClient.RunCommand(cmd)
-	if !ignoreErrors && err != nil {
-		log.Debugf("an error:%+v occurred during logging file:%q", err, filePath)
-		return errors.Wrapf(err, "failed to log file:%q", filePath)
+	if err != nil {
+		mess := fmt.Sprintf("an error:%+v occurred during logging file:%q", err, filePath)
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelWARN, deploymentID).RegisterAsString(mess)
 	}
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("\n" + output)
-	return nil
+	if strings.TrimSpace(output) != "" {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("%s %s:", fileType, filePath))
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("\n" + output)
+	}
 }
