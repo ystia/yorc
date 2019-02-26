@@ -49,7 +49,7 @@ var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 		`|(?P<String>'[^']*'|"[^"]*")`+
 		`|(?P<EqOperator>!=|==|=)`+
-		//`|(?P<RegexOperator>=~|!~)`+
+		`|(?P<RegexOperator>~=|!~)`+
 		`|(?P<CompOperators><=|>=|[<>])`+
 		`|(?P<Ident>[-\d\w_\./\\]+)`+
 		`|(?P<SetMarks>[(),])`)), "Keyword"), "String")
@@ -61,7 +61,8 @@ type ParsedFilter struct {
 	LabelName          string              `parser:"@(Ident|String)"`
 	EqOperator         *EqOperator         `parser:"[ @@ "`
 	SetOperator        *SetOperator        `parser:"| @@ "`
-	ComparableOperator *ComparableOperator `parser:"| @@ ]"`
+	ComparableOperator *ComparableOperator `parser:"| @@ "`
+	RegexOperator      *RegexOperator      `parser:"| @@ ]"`
 }
 
 // Matches implementation of labelsutil.Filter.Matches()
@@ -119,11 +120,11 @@ func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 //RegexOperator is #fixme implements this description
 type RegexOperator struct {
 	Type  string `parser:"@RegexOperator"`
-	Value string `parser:"@String"`
+	Value string `parser:"@(Ident|String|Number)"`
 }
 
 func (o *RegexOperator) createFilter(labelKey string) (Filter, error) {
-	if o.Type == "~=" || o.Type == "=" {
+	if o.Type == "~=" {
 		return &RegexFilter{labelKey, Contains, o.Value}, nil
 	}
 

@@ -228,3 +228,33 @@ func TestFiltersSetMatching(t *testing.T) {
 		})
 	}
 }
+
+func TestFiltersRegexMatching(t *testing.T) {
+
+	type args struct {
+		labels map[string]string
+	}
+	tests := []struct {
+		name    string
+		filter  string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"TestRegexp", `l1 ~= vv`, args{map[string]string{"l1": "vv", "m2": "v2"}}, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, err := FilterFromString(tt.filter)
+			require.NoError(t, err)
+			got, err := f.Matches(tt.args.labels)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Filter.Matches() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Filter.Matches() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
