@@ -43,14 +43,29 @@ func FilterFromString(input string) (Filter, error) {
 	return filter, err
 }
 
+const (
+	in      string = "IN"
+	notIn   string = "NOT IN"
+	notin   string = "NOTIN"
+	eqOp    string = "="
+	deqOp   string = "=="
+	neqOp   string = "!="
+	reqOp   string = "~="
+	nreqOp  string = "!~"
+	supOp   string = ">"
+	infOp   string = "<"
+	supeqOp string = ">="
+	infeqOp string = "<="
+)
+
 var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
 	`(\s+)`+
-		`|(?P<Keyword>(?i)IN|NOT IN|NOTIN)`+
+		`|(?P<Keyword>(?i)`+in+`|`+notIn+`|`+notin+`)`+
 		`|(?P<Number>[-+]?\d*\.?\d+([eE][-+]?\d+)?)`+
 		`|(?P<String>'[^']*'|"[^"]*")`+
-		`|(?P<EqOperator>!=|==|=)`+
-		`|(?P<RegexOperator>~=|!~)`+
-		`|(?P<CompOperators><=|>=|[<>])`+
+		`|(?P<EqOperator>`+neqOp+`|`+deqOp+`|`+eqOp+`)`+
+		`|(?P<RegexOperator>`+reqOp+`|`+nreqOp+`)`+
+		`|(?P<CompOperators>`+infeqOp+`|`+supeqOp+`|[`+infOp+supOp+`])`+
 		`|(?P<Ident>[-\d\w_\./\\]+)`+
 		`|(?P<SetMarks>[(),])`)), "Keyword"), "String")
 
@@ -92,7 +107,7 @@ func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 		fmt.Println("comparison filter detected : " + labelKey + " " + o.Type + " " + *o.ValueS + " ?")
 		str := regexp.QuoteMeta(*o.ValueS)
 
-		if o.Type == "==" || o.Type == "=" {
+		if o.Type == deqOp || o.Type == eqOp {
 			return &RegexFilter{labelKey, Matches, str}, nil
 		}
 
@@ -103,9 +118,9 @@ func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 
 	var cop ComparisonOperator
 	switch o.Type {
-	case "==":
+	case deqOp, eqOp:
 		cop = Eq
-	case "!=":
+	case neqOp:
 		cop = Neq
 	}
 
@@ -124,7 +139,7 @@ type RegexOperator struct {
 }
 
 func (o *RegexOperator) createFilter(labelKey string) (Filter, error) {
-	if o.Type == "~=" {
+	if o.Type == nreqOp {
 		return &RegexFilter{labelKey, Contains, o.Value}, nil
 	}
 
@@ -141,13 +156,13 @@ type ComparableOperator struct {
 func (o *ComparableOperator) createFilter(labelKey string) (Filter, error) {
 	var cop ComparisonOperator
 	switch o.Type {
-	case "<=":
+	case infeqOp:
 		cop = Infeq
-	case ">=":
+	case supeqOp:
 		cop = Supeq
-	case "<":
+	case infOp:
 		cop = Inf
-	case ">":
+	case supOp:
 		cop = Sup
 	}
 
@@ -169,7 +184,7 @@ func (o *SetOperator) createFilter(labelKey string) (Filter, error) {
 
 	rstrat := Matches
 	cstrat := Or
-	if o.Type == "NOT IN" || o.Type == "NOTIN" {
+	if o.Type == notIn || o.Type == notin {
 		rstrat = Differs
 		cstrat = And
 	}
