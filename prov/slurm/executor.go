@@ -28,7 +28,6 @@ import (
 	"github.com/ystia/yorc/v3/config"
 	"github.com/ystia/yorc/v3/deployments"
 	"github.com/ystia/yorc/v3/events"
-	"github.com/ystia/yorc/v3/helper/sshutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/prov"
 	"github.com/ystia/yorc/v3/tasks"
@@ -138,19 +137,11 @@ func (e *defaultExecutor) uninstallNode(ctx context.Context, kv *api.KV, cfg con
 
 func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Creating the slurm infrastructure")
-
-	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
-	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(infra.nodes[0].credentials.UserName, infra.nodes[0].credentials.PrivateKey, infra.nodes[0].credentials.Password, cfg)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
-		return err
-	}
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(ctx context.Context, comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.createNodeAllocation(ctx, kv, comp, deploymentID, nodeName, sshClient)
+				return e.createNodeAllocation(ctx, cfg, kv, comp, deploymentID, nodeName)
 			})
 		}(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: compute.instanceName}), compute)
 	}
@@ -168,19 +159,11 @@ func (e *defaultExecutor) createInfrastructure(ctx context.Context, kv *api.KV, 
 
 func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName string, infra *infrastructure) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString("Destroying the slurm infrastructure")
-
-	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
-	// or if not provided, the user credentials specified in the Yorc configuration
-	sshClient, err := getSSHClient(infra.nodes[0].credentials.UserName, infra.nodes[0].credentials.PrivateKey, infra.nodes[0].credentials.Password, cfg)
-	if err != nil {
-		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
-		return err
-	}
 	var g errgroup.Group
 	for _, compute := range infra.nodes {
 		func(ctx context.Context, comp *nodeAllocation) {
 			g.Go(func() error {
-				return e.destroyNodeAllocation(ctx, kv, comp, deploymentID, nodeName, sshClient)
+				return e.destroyNodeAllocation(ctx, cfg, kv, comp, deploymentID, nodeName)
 			})
 		}(events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.InstanceID: compute.instanceName}), compute)
 	}
@@ -196,10 +179,19 @@ func (e *defaultExecutor) destroyInfrastructure(ctx context.Context, kv *api.KV,
 	return nil
 }
 
-func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, sshClient *sshutil.SSHClient) error {
+func (e *defaultExecutor) createNodeAllocation(ctx context.Context, cfg config.Configuration, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Creating node allocation for: deploymentID:%q, node name:%q", deploymentID, nodeName))
+
+	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
+	// or if not provided, the user credentials specified in the Yorc configuration
+	sshClient, err := getSSHClient(nodeAlloc.credentials.UserName, nodeAlloc.credentials.PrivateKey, nodeAlloc.credentials.Password, cfg)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
 	// salloc cmd
-	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag, sallocReservationFlag string
+	var sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag, sallocReservationFlag, sallocAccountFlag string
 	if nodeAlloc.cpu != "" {
 		sallocCPUFlag = fmt.Sprintf(" -c %s", nodeAlloc.cpu)
 	}
@@ -217,6 +209,9 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}
 	if nodeAlloc.reservation != "" {
 		sallocReservationFlag = fmt.Sprintf(" --reservation=%q", nodeAlloc.reservation)
+	}
+	if nodeAlloc.account != "" {
+		sallocAccountFlag = fmt.Sprintf(" --account=%q", nodeAlloc.account)
 	}
 
 	// salloc command can potentially be a long synchronous command according to the slurm cluster state
@@ -284,7 +279,7 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	}()
 
 	// Run the salloc command
-	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag, sallocReservationFlag))
+	sallocCmd := strings.TrimSpace(fmt.Sprintf("salloc --no-shell -J %s%s%s%s%s%s%s%s", nodeAlloc.jobName, sallocCPUFlag, sallocMemFlag, sallocPartitionFlag, sallocGresFlag, sallocConstraintFlag, sallocReservationFlag, sallocAccountFlag))
 	err = sessionWrapper.RunCommand(ctxAlloc, sallocCmd)
 	if err != nil {
 		return errors.Wrap(err, "Failed to allocate Slurm resource")
@@ -336,8 +331,17 @@ func (e *defaultExecutor) createNodeAllocation(ctx context.Context, kv *api.KV, 
 	return nil
 }
 
-func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string, sshClient *sshutil.SSHClient) error {
+func (e *defaultExecutor) destroyNodeAllocation(ctx context.Context, cfg config.Configuration, kv *api.KV, nodeAlloc *nodeAllocation, deploymentID, nodeName string) error {
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).RegisterAsString(fmt.Sprintf("Destroying node allocation for: deploymentID:%q, node name:%q, instance name:%q", deploymentID, nodeName, nodeAlloc.instanceName))
+
+	// Return an sshClient configured using the user credentials provided in the yorc.nodes.slurm.Compute node definition,
+	// or if not provided, the user credentials specified in the Yorc configuration
+	sshClient, err := getSSHClient(nodeAlloc.credentials.UserName, nodeAlloc.credentials.PrivateKey, nodeAlloc.credentials.Password, cfg)
+	if err != nil {
+		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, deploymentID).RegisterAsString(err.Error())
+		return err
+	}
+
 	// scancel cmd
 	jobID, err := deployments.GetInstanceAttributeValue(kv, deploymentID, nodeName, nodeAlloc.instanceName, "job_id")
 	if err != nil {

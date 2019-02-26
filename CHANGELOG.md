@@ -5,6 +5,7 @@
 ### BUG FIXES
 
 * Yorc panics on segmentation violation attempting to deploy Ystia Forge Slurm topology ([GH-321](https://github.com/ystia/yorc/issues/321))
+* Panic can append when undeploying Slurm computes ([GH-326](https://github.com/ystia/yorc/issues/326))
 
 ### FEATURES
 

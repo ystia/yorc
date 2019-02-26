@@ -49,6 +49,10 @@ if [[ -z "$(which go)" ]]; then
     error_exit "go program should be present in your path"
 fi
 
+if [[ ${BUILD_ARGS} == *"-tags"* ]]; then
+    error_exit "Variable BUILD_ARGS (\"${BUILD_ARGS}\") contains -tags option, this is deprecated. Use BUILD_TAGS variable to provide a tag list (space-separated) instead."
+fi 
+
 for tool in $@; do
     #Suppress trailing /... in url if any
     tool="${tool%%/...*}"

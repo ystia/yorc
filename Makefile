@@ -19,8 +19,8 @@ VETARGS?=-all -asmdecl -atomic -bool -buildtags -copylocks -methods \
          -nilfunc -printf -rangeloops -shift -structtags -unsafeptr
 
 VERSION:=$(shell grep "yorc_version" versions.yaml | awk '{print $$2}')
-BUILD_TAG:=$(shell echo `expr match "$(BUILD_ARGS)" '-tags \([A-Za-z0-9]*\)'`)
-VERSION:=$(if $(BUILD_TAG),$(VERSION)+$(BUILD_TAG),$(VERSION))
+VERSION_META:=$(shell echo `echo $(BUILD_TAGS) | tr ' ' '.'`)
+VERSION:=$(if $(VERSION_META),$(VERSION)+$(VERSION_META),$(VERSION))
 COMMIT_HASH=$(shell git rev-parse HEAD)
 ANSIBLE_VERSION=$(shell grep "ansible_version" versions.yaml | awk '{print $$2}')
 CONSUL_VERSION=$(shell grep "consul_version" versions.yaml | awk '{print $$2}')
@@ -43,7 +43,7 @@ export CGO_ENABLED=0
 
 build: test
 	@echo "--> Running go build"
-	@go build -o yorc $(BUILD_ARGS) -ldflags "-X $(YORC_PACKAGE)/commands.version=v$(VERSION) -X $(YORC_PACKAGE)/commands.gitCommit=$(COMMIT_HASH) \
+	@go build -o yorc -tags "$(BUILD_TAGS)" $(BUILD_ARGS) -ldflags "-X $(YORC_PACKAGE)/commands.version=v$(VERSION) -X $(YORC_PACKAGE)/commands.gitCommit=$(COMMIT_HASH) \
 	 -X $(YORC_PACKAGE)/commands.TfConsulPluginVersion=$(TF_CONSUL_PLUGIN_VERSION) \
 	 -X $(YORC_PACKAGE)/commands.TfAWSPluginVersion=$(TF_AWS_PLUGIN_VERSION) \
 	 -X $(YORC_PACKAGE)/commands.TfOpenStackPluginVersion=$(TF_OPENSTACK_PLUGIN_VERSION) \
@@ -79,12 +79,12 @@ dist: build
 test: generate header format
 ifndef SKIP_TESTS
 	@echo "--> Running go test"
-	@go test -tags testing $(TESTARGS) -p 1 ./...
+	@go test -tags "testing $(BUILD_TAGS)" $(TESTARGS) -p 1 ./...
 endif
 
 
 cover:
-	@go test -p 1 -cover $(COVERARGS) ./...  
+	@go test -tags "testing $(BUILD_TAGS)"  -p 1 -cover $(COVERARGS) ./...  
 
 format:
 	@echo "--> Running go fmt"
