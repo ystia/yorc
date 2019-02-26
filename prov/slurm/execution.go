@@ -460,7 +460,7 @@ func (e *executionCommon) prepareAndRunJob(ctx context.Context) error {
 	opts := e.fillJobOpts()
 	exports := e.buildExportVars()
 	if e.Primary != "" {
-		cmd = fmt.Sprintf("mkdir -p %s;sbatch -D %s%s %s %s", e.jobInfo.WorkingDir, e.jobInfo.WorkingDir, exports, opts, path.Join(e.jobInfo.WorkingDir, path.Base(e.Primary)))
+		cmd = fmt.Sprintf("mkdir -p %s;%ssbatch -D %s %s %s", e.jobInfo.WorkingDir, exports, e.jobInfo.WorkingDir, opts, path.Join(e.jobInfo.WorkingDir, path.Base(e.Primary)))
 	} else {
 		cmd = fmt.Sprintf("sbatch%s %s --wrap=\"%s\"", exports, opts, e.jobInfo.Command)
 	}
@@ -468,19 +468,21 @@ func (e *executionCommon) prepareAndRunJob(ctx context.Context) error {
 }
 
 func (e *executionCommon) buildExportVars() string {
-	// Use sbatch --export VAR=VAL option
+	// Exec args are passed via env var to sbatch script if "key1=value1, key2=value2" format
 	var exports string
 	for _, arg := range e.jobInfo.ExecArgs {
 		if is, key, val := parseKeyValue(arg); is {
 			log.Debugf("Add env var with key:%q and value:%q", key, val)
-			export := fmt.Sprintf(" --export %s=%s", key, val)
+			export := fmt.Sprintf("export %s=%s;", key, val)
 			exports += export
 		}
 	}
 	for k, v := range e.jobInfo.Inputs {
 		log.Debugf("Add env var with key:%q and value:%q", k, v)
-		export := fmt.Sprintf(" --export %s=%s", k, v)
-		exports += export
+		if strings.TrimSpace(k) != "" && strings.TrimSpace(v) != "" {
+			export := fmt.Sprintf("export %s=%s;", k, v)
+			exports += export
+		}
 	}
 	return exports
 }

@@ -372,7 +372,7 @@ func retrieveJobID(out string) (string, error) {
 
 func parseKeyValue(str string) (bool, string, string) {
 	keyVal := strings.Split(str, "=")
-	if len(keyVal) == 2 && keyVal[0] != "" && keyVal[1] != "" {
+	if len(keyVal) == 2 && strings.TrimSpace(keyVal[0]) != "" && strings.TrimSpace(keyVal[1]) != "" {
 		return true, keyVal[0], keyVal[1]
 	}
 	return false, "", ""
