@@ -74,7 +74,7 @@ func TestFiltersEqMatching(t *testing.T) {
 		{"TestEqStringQuote", `l1="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestEqStringNoMatchKey", `l3="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 		{"TestEqStringNoMatchValue", `l1="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
-		{"TestNotEqStringQuote", `l1!="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotEqString", `l1!="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestNotEqStringNoMatchKey", `l3!="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 	}
 	for _, tt := range tests {
@@ -241,7 +241,11 @@ func TestFiltersRegexMatching(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"TestRegexp", `l1 ~= vv`, args{map[string]string{"l1": "vv", "m2": "v2"}}, true, false},
+		{"TestRegexpContainsOnMatchingString", `lr1 ~= "vv"`, args{map[string]string{"lr1": "vv", "m2": "v2"}}, true, false},
+		{"TestRegexpContainsOnNonMatchingString", `lr1 ~= "vv"`, args{map[string]string{"lr1": "vvvvv", "m2": "v2"}}, true, false},
+		{"TestRegexpNotExcluding", `lr1 !~ "vv"`, args{map[string]string{"lr1": "vvvvv", "m2": "v2"}}, false, false},
+		{"TestRegexpExcluding", `lr1 !~ "vv"`, args{map[string]string{"lr1": "aaaaa", "m2": "v2"}}, true, false},
+		{"TestRegexpFullMatchString", `lr1 ~= "^vv$"`, args{map[string]string{"lr1": "vv", "m2": "v2"}}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

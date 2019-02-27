@@ -65,9 +65,12 @@ var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
 		`|(?P<String>'[^']*'|"[^"]*")`+
 		`|(?P<EqOperator>`+neqOp+`|`+deqOp+`|`+eqOp+`)`+
 		`|(?P<RegexOperator>`+reqOp+`|`+nreqOp+`)`+
+		//`|(?P<Regex>Ll*)`+
 		`|(?P<CompOperators>`+infeqOp+`|`+supeqOp+`|[`+infOp+supOp+`])`+
 		`|(?P<Ident>[-\d\w_\./\\]+)`+
 		`|(?P<SetMarks>[(),])`)), "Keyword"), "String")
+
+//`|(?P<Regex>^.+$)`
 
 var filterParser = participle.MustBuild(&ParsedFilter{}, fLexer)
 
@@ -88,7 +91,10 @@ func (f *ParsedFilter) createFilter() (Filter, error) {
 		return f.SetOperator.createFilter(f.LabelName)
 	} else if f.ComparableOperator != nil {
 		return f.ComparableOperator.createFilter(f.LabelName)
+	} else if f.RegexOperator != nil {
+		return f.RegexOperator.createFilter(f.LabelName)
 	} else {
+		fmt.Println("returning key filter for label " + f.LabelName)
 		return &KeyFilter{f.LabelName, Present}, nil
 	}
 }
@@ -104,7 +110,6 @@ type EqOperator struct {
 func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 
 	if o.ValueS != nil {
-		fmt.Println("comparison filter detected : " + labelKey + " " + o.Type + " " + *o.ValueS + " ?")
 		str := regexp.QuoteMeta(*o.ValueS)
 
 		if o.Type == deqOp || o.Type == eqOp {
@@ -113,8 +118,6 @@ func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 
 		return &RegexFilter{labelKey, Differs, str}, nil
 	}
-
-	fmt.Println("comparison filter detected : " + labelKey + " " + o.Type + " " + strconv.FormatFloat(*o.ValueN, 'f', -1, 64) + " ?")
 
 	var cop ComparisonOperator
 	switch o.Type {
@@ -135,15 +138,16 @@ func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 //RegexOperator is #fixme implements this description
 type RegexOperator struct {
 	Type  string `parser:"@RegexOperator"`
-	Value string `parser:"@(Ident|String|Number)"`
+	Value string `parser:"@String"`
 }
 
 func (o *RegexOperator) createFilter(labelKey string) (Filter, error) {
+	fmt.Println("creating a regex operator filter")
 	if o.Type == nreqOp {
-		return &RegexFilter{labelKey, Contains, o.Value}, nil
+		return &RegexFilter{labelKey, Excludes, o.Value}, nil
 	}
 
-	return &RegexFilter{labelKey, Excludes, o.Value}, nil
+	return &RegexFilter{labelKey, Contains, o.Value}, nil
 }
 
 // ComparableOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
@@ -284,31 +288,28 @@ type RegexFilter struct {
 // Matches implementation of labelsutil.Filter.Matches()
 func (f *RegexFilter) Matches(labels map[string]string) (bool, error) {
 	value, exists := labels[f.LabelKey]
+
 	if !exists {
 		return false, nil
 	}
 	reg := f.Regex
 
-	//removing ^ prefix and $ suffix if existing
-	reg = strings.TrimPrefix(reg, "^")
-	reg = strings.TrimSuffix(reg, "$")
-
 	if (f.Strat == Matches) || (f.Strat == Differs) {
+		//removing ^ prefix and $ suffix if existing
 		//adding ^ prefix and $ suffix
+		reg = strings.TrimPrefix(reg, "^")
+		reg = strings.TrimSuffix(reg, "$")
 		reg = "^" + reg + "$"
 	}
 
+	fmt.Println(" comparing " + value + " " + strconv.Itoa(int(f.Strat)) + " " + reg)
+
+	contains, err := regexp.MatchString(reg, value)
 	switch f.Strat {
-	case Contains:
-		return regexp.MatchString(reg, value)
-	case Excludes:
-		contains, err := regexp.MatchString(reg, value)
+	case Contains, Matches:
+		return contains, err
+	case Excludes, Differs:
 		return !contains, err
-	case Matches:
-		return regexp.MatchString(reg, value)
-	case Differs:
-		matches, err := regexp.MatchString(reg, value)
-		return !matches, err
 	}
 
 	return true, nil
