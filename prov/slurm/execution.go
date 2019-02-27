@@ -441,17 +441,24 @@ func (e *executionCommon) buildJobOpts() string {
 	return opts
 }
 
+func (e *executionCommon) buildArgs() string {
+	var args string
+	if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
+		for _, arg := range e.jobInfo.ExecArgs {
+			args += " " + fmt.Sprintf("'%s'", strings.Replace(arg, "'", "\\'", -1))
+		}
+	}
+	log.Debugf("args=%q", args)
+	return args
+}
+
 func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 	var cmd string
 	opts := e.buildJobOpts()
 	exports := e.buildEnvVars()
 	workingDirCmd := e.addWorkingDirCmd()
 	if e.jobInfo.Command != "" {
-		var args string
-		if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
-			args = strings.Join(e.jobInfo.ExecArgs, " ")
-		}
-		cmd = fmt.Sprintf("%ssbatch%s -D %s%s --wrap=\"%s %s\"", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, e.jobInfo.Command, args)
+		cmd = fmt.Sprintf("%ssbatch%s -D %s%s --wrap=\"%s %s\"", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, e.jobInfo.Command, e.buildArgs())
 	} else {
 		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, path.Join(e.jobInfo.WorkingDir, path.Base(e.Primary)))
 	}

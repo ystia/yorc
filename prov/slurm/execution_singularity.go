@@ -91,15 +91,11 @@ func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Contex
 	workingDirCmd := e.addWorkingDirCmd()
 	var inner string
 	if e.jobInfo.Command != "" {
-		var args string
-		if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
-			args = strings.Join(e.jobInfo.ExecArgs, " ")
-		}
-		inner = fmt.Sprintf("%ssrun singularity exec %s %s %s", exports, e.imageURI, e.jobInfo.Command, args)
+		inner = fmt.Sprintf("srun singularity exec %s %s %s", e.imageURI, e.jobInfo.Command, e.buildArgs())
 	} else {
-		inner = fmt.Sprintf("%ssrun singularity run %s", exports, e.imageURI)
+		inner = fmt.Sprintf("srun singularity run %s", e.imageURI)
 	}
-	cmd := fmt.Sprintf("%ssbatch -D %s%s --wrap=\"%s\"", workingDirCmd, e.jobInfo.WorkingDir, opts, inner)
+	cmd := fmt.Sprintf("%s%ssbatch -D %s%s --wrap=\"%s\"", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, inner)
 	return e.submitJob(ctx, cmd)
 }
 
