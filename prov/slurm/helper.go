@@ -33,8 +33,6 @@ import (
 )
 
 const reSbatch = `^Submitted batch job (\d+)`
-const reOutput = `--output=(\w+.*\w+)|-o (\w+.*\w+ )`
-const reOutputSBATCH = `^#SBATCH --output=(\w+.*\w+)|^#SBATCH -o (\w+.*\w+ )`
 
 // getSSHClient returns a SSH client with slurm credentials from node or job configuration provided by the deployment,
 // or by the yorc slurm configuration
