@@ -22,5 +22,3 @@ JobId=6260 JobName=test-salloc-Environment
    StdOut=/home_nfs/john/file.out
    StdErr=/home_nfs/john/file.err
    Power= SICP=0
-
-[benoists@rangiroa ~]$ 
