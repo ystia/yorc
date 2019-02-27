@@ -60,10 +60,3 @@ type jobInfo struct {
 	WorkingDir             string            `json:"working_directory,omitempty"`
 	Artifacts              []string          `json:"artifacts,omitempty"`
 }
-
-type singularityJobInfo struct {
-	imageName string
-	imageURI  string
-	command   string
-	exec      string
-}

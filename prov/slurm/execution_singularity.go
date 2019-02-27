@@ -33,7 +33,7 @@ import (
 
 type executionSingularity struct {
 	*executionCommon
-	singularityJobInfo *singularityJobInfo
+	imageURI string
 }
 
 func (e *executionSingularity) execute(ctx context.Context) error {
@@ -42,25 +42,23 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
 	case strings.ToLower(tosca.RunnableSubmitOperationName):
-
-		log.Printf("Running the job: %s", e.operation.Name)
+		log.Printf("Submit the job: %s", e.operation.Name)
+		if e.Primary == "" {
+			return errors.New("Image artifact is mandatory and must be filled in the operation implementation")
+		}
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
 			return errors.Wrap(err, "failed to build job information")
 		}
-
 		// Build singularity information
-		if err := e.buildSingularityInfo(ctx); err != nil {
+		if err := e.resolveImageURI(ctx); err != nil {
 			return errors.Wrap(err, "failed to build singularity information")
 		}
-
-		// Run the command
-		err := e.prepareAndRunSingularityJob(ctx)
+		err := e.prepareAndSubmitSingularityJob(ctx)
 		if err != nil {
 			events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelERROR, e.deploymentID).RegisterAsString(err.Error())
-			return errors.Wrap(err, "failed to run command")
+			return errors.Wrapf(err, "failed to submit job with ID:%s", e.jobInfo.ID)
 		}
-
 		jobInfoJSON, err := json.Marshal(e.jobInfo)
 		if err != nil {
 			return errors.Wrap(err, "Failed to marshal Slurm job information")
@@ -87,69 +85,52 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 	return nil
 }
 
-func (e *executionSingularity) prepareAndRunSingularityJob(ctx context.Context) error {
-	opts := e.fillJobOpts()
+func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Context) error {
+	opts := e.buildJobOpts()
 	exports := e.buildEnvVars()
-	var args string
-	if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
-		args = strings.Join(e.jobInfo.ExecArgs, " ")
-	}
-	innerCmd := fmt.Sprintf("%ssrun singularity %s %s %s %s", exports, e.singularityJobInfo.command, e.singularityJobInfo.imageURI, e.singularityJobInfo.exec, args)
-	cmd := fmt.Sprintf("mkdir -p %s;sbatch -D %s %s --wrap=\"%s\"", e.jobInfo.WorkingDir, e.jobInfo.WorkingDir, opts, innerCmd)
-	return e.runJob(ctx, cmd)
-}
-
-func (e *executionSingularity) buildSingularityInfo(ctx context.Context) error {
-	singularityInfo := singularityJobInfo{}
-	for _, input := range e.EnvInputs {
-		if input.Name == "exec_command" && input.Value != "" {
-			singularityInfo.exec = input.Value
-			singularityInfo.command = "exec"
+	workingDirCmd := e.addWorkingDirCmd()
+	var inner string
+	if e.jobInfo.Command != "" {
+		var args string
+		if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
+			args = strings.Join(e.jobInfo.ExecArgs, " ")
 		}
+		inner = fmt.Sprintf("%ssrun singularity exec %s %s %s", exports, e.imageURI, e.jobInfo.Command, args)
+	} else {
+		inner = fmt.Sprintf("%ssrun singularity run %s", exports, e.imageURI)
 	}
-
-	singularityInfo.imageName = e.Primary
-	if singularityInfo.imageName == "" {
-		return errors.New("The image name is mandatory and must be filled in the operation artifact implementation")
-	}
-
-	// Default singularity command is "run"
-	if singularityInfo.command == "" {
-		singularityInfo.command = "run"
-	}
-	log.Debugf("singularity Info:%+v", singularityInfo)
-	e.singularityJobInfo = &singularityInfo
-	return e.resolveContainerImage()
+	cmd := fmt.Sprintf("%ssbatch -D %s%s --wrap=\"%s\"", workingDirCmd, e.jobInfo.WorkingDir, opts, inner)
+	return e.submitJob(ctx, cmd)
 }
 
-func (e *executionSingularity) resolveContainerImage() error {
+func (e *executionSingularity) resolveImageURI(ctx context.Context) error {
 	switch {
 	// Docker image
-	case strings.HasPrefix(e.singularityJobInfo.imageName, "docker://"):
-		if err := e.buildImageURI("docker://"); err != nil {
+	case strings.HasPrefix(e.Primary, "docker://"):
+		if err := e.buildImageURI(ctx, "docker://"); err != nil {
 			return err
 		}
-		// Singularity image
-	case strings.HasPrefix(e.singularityJobInfo.imageName, "shub://"):
-		if err := e.buildImageURI("shub://"); err != nil {
+	// Singularity image
+	case strings.HasPrefix(e.Primary, "shub://"):
+		if err := e.buildImageURI(ctx, "shub://"); err != nil {
 			return err
 		}
-		// File image
-	case strings.HasSuffix(e.singularityJobInfo.imageName, ".simg") || strings.HasSuffix(e.singularityJobInfo.imageName, ".img"):
-		e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
+	// File image
+	case strings.HasSuffix(e.Primary, ".simg") || strings.HasSuffix(e.Primary, ".img"):
+		e.imageURI = e.Primary
 	default:
-		return errors.Errorf("Unable to resolve container image URI from image name:%q", e.singularityJobInfo.imageName)
+		return errors.Errorf("Unable to resolve image URI from image with name:%q", e.Primary)
 	}
 	return nil
 }
 
-func (e *executionSingularity) buildImageURI(prefix string) error {
+func (e *executionSingularity) buildImageURI(ctx context.Context, prefix string) error {
 	repoName, err := deployments.GetOperationImplementationRepository(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
 	if err != nil {
 		return err
 	}
 	if repoName == "" {
-		e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
+		e.imageURI = e.Primary
 	} else {
 		repoURL, err := deployments.GetRepositoryURLFromName(e.kv, e.deploymentID, repoName)
 		if err != nil {
@@ -157,18 +138,18 @@ func (e *executionSingularity) buildImageURI(prefix string) error {
 		}
 		// Just ignore default public Docker and Singularity registries
 		if repoURL == deployments.DockerHubURL || repoURL == deployments.SingularityHubURL {
-			e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
+			e.imageURI = e.Primary
 		} else if repoURL != "" {
 			urlStruct, err := url.Parse(repoURL)
 			if err != nil {
 				return err
 			}
-			tabs := strings.Split(e.singularityJobInfo.imageName, prefix)
+			tabs := strings.Split(e.Primary, prefix)
 			imageURI := prefix + path.Join(urlStruct.Host, tabs[1])
 			log.Debugf("imageURI:%q", imageURI)
-			e.singularityJobInfo.imageURI = imageURI
+			e.imageURI = imageURI
 		} else {
-			e.singularityJobInfo.imageURI = e.singularityJobInfo.imageName
+			e.imageURI = e.Primary
 		}
 	}
 	return nil
