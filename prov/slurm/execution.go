@@ -77,9 +77,14 @@ type executionCommon struct {
 	nodeInstances  []string
 	jobInfo        *jobInfo
 	stepName       string
+	isSingularity  bool
 }
 
 func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, nodeName, stepName string, operation prov.Operation) (execution, error) {
+	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
+	if err != nil {
+		return nil, err
+	}
 	execCommon := &executionCommon{kv: kv,
 		cfg:            cfg,
 		deploymentID:   deploymentID,
@@ -89,6 +94,7 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 		EnvInputs:      make([]*operations.EnvInput, 0),
 		taskID:         taskID,
 		stepName:       stepName,
+		isSingularity:  isSingularity,
 	}
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
@@ -101,11 +107,6 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	}
 	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
 	execCommon.client, err = getSSHClient(creds.UserName, creds.PrivateKey, creds.Password, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +229,12 @@ func (e *executionCommon) resolveOperation() error {
 	if err != nil {
 		return err
 	}
-	_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+	// Need to exclude import path from Primary for Image artifact
+	if e.isSingularity {
+		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationWithoutImportPath(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+	} else {
+		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+	}
 	if err != nil {
 		return err
 	}
@@ -445,7 +451,7 @@ func (e *executionCommon) buildArgs() string {
 	var args string
 	if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
 		for _, arg := range e.jobInfo.ExecArgs {
-			args += " " + fmt.Sprintf("'%s'", strings.Replace(arg, "'", "\\'", -1))
+			args += " " + fmt.Sprintf("'%s'", strings.Replace(arg, "'", `\"`, -1))
 		}
 	}
 	log.Debugf("args=%q", args)

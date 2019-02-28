@@ -69,6 +69,43 @@ func (inf inputNotFound) Error() string {
 
 const implementationArtifactsExtensionsPath = "implementation_artifacts_extensions"
 
+// GetOperationPathAndPrimaryImplementationWithoutImportPath does the same as GetOperationPathAndPrimaryImplementation except it excludes import path in primary value
+func GetOperationPathAndPrimaryImplementationWithoutImportPath(kv *api.KV, deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName string) (string, string, error) {
+	var typeOrNodeTemplate string
+	var err error
+	if nodeTemplateImpl == "" {
+		typeOrNodeTemplate = nodeTypeImpl
+	} else {
+		typeOrNodeTemplate = nodeTemplateImpl
+	}
+
+	operationPath := getOperationPath(deploymentID, nodeTemplateImpl, nodeTypeImpl, operationName)
+	kvp, _, err := kv.Get(path.Join(operationPath, "implementation/primary"), nil)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on template/type %q", operationName, typeOrNodeTemplate)
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		return operationPath, string(kvp.Value), nil
+	}
+
+	// then check operation file
+	kvp, _, err = kv.Get(path.Join(operationPath, "implementation/file"), nil)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on template/type %q", operationName, typeOrNodeTemplate)
+	}
+	if kvp != nil && len(kvp.Value) > 0 {
+		return operationPath, string(kvp.Value), nil
+	}
+
+	// Not found here check the type hierarchy
+	parentType, err := GetParentType(kv, deploymentID, nodeTypeImpl)
+	if err != nil || parentType == "" {
+		return "", "", err
+	}
+
+	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName, true)
+}
+
 // GetOperationPathAndPrimaryImplementation traverses the type hierarchy to find an operation matching the given operationName.
 //
 // First, it checks the node template if operation implementation is present
@@ -118,10 +155,10 @@ func GetOperationPathAndPrimaryImplementation(kv *api.KV, deploymentID, nodeTemp
 		return "", "", err
 	}
 
-	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
+	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName, false)
 }
 
-func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentID, nodeType, operationName string) (string, string, error) {
+func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentID, nodeType, operationName string, excludeImportPath bool) (string, string, error) {
 	// First check if operation exists in current nodeType
 	operationPath := getOperationPath(deploymentID, "", nodeType, operationName)
 	importPath, err := GetTypeImportPath(kv, deploymentID, nodeType)
@@ -133,6 +170,9 @@ func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
+		if excludeImportPath {
+			return operationPath, string(kvp.Value), nil
+		}
 		return operationPath, path.Join(importPath, string(kvp.Value)), nil
 	}
 
@@ -142,6 +182,9 @@ func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
+		if excludeImportPath {
+			return operationPath, string(kvp.Value), nil
+		}
 		return operationPath, path.Join(importPath, string(kvp.Value)), nil
 	}
 
@@ -151,7 +194,7 @@ func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return "", "", err
 	}
 
-	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
+	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName, excludeImportPath)
 }
 
 // This function return the path for a given operation
