@@ -42,6 +42,8 @@ func TestFiltersExistsMatching(t *testing.T) {
 	}{
 		{"TestExists", `l1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestExistsFalse", `l3`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotExists", `!l3`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotExistsFalse", `!l1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

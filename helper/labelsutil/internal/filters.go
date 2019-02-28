@@ -56,6 +56,7 @@ const (
 	infOp   string = "<"
 	supeqOp string = ">="
 	infeqOp string = "<="
+	nexists string = `!`
 )
 
 var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
@@ -65,6 +66,8 @@ var fLexer = lexer.Unquote(lexer.Upper(lexer.Must(lexer.Regexp(
 		`|(?P<String>'[^']*'|"[^"]*")`+
 		`|(?P<EqOperator>`+neqOp+`|`+deqOp+`|`+eqOp+`)`+
 		`|(?P<RegexOperator>`+reqOp+`|`+nreqOp+`)`+
+
+		`|(?P<NotExists>(?i)`+nexists+`)`+
 		//`|(?P<Regex>Ll*)`+
 		`|(?P<CompOperators>`+infeqOp+`|`+supeqOp+`|[`+infOp+supOp+`])`+
 		`|(?P<Ident>[-\d\w_\./\\]+)`+
@@ -76,6 +79,7 @@ var filterParser = participle.MustBuild(&ParsedFilter{}, fLexer)
 
 // ParsedFilter is public for use by reflexion but it should be considered as this whole package as internal and not used directly
 type ParsedFilter struct {
+	NotExists          *string             `parser:"[@NotExists]"`
 	LabelName          string              `parser:"@(Ident|String)"`
 	EqOperator         *EqOperator         `parser:"[ @@ "`
 	SetOperator        *SetOperator        `parser:"| @@ "`
@@ -94,7 +98,9 @@ func (f *ParsedFilter) createFilter() (Filter, error) {
 	} else if f.RegexOperator != nil {
 		return f.RegexOperator.createFilter(f.LabelName)
 	} else {
-		fmt.Println("returning key filter for label " + f.LabelName)
+		if f.NotExists != nil {
+			return &KeyFilter{f.LabelName, Absent}, nil
+		}
 		return &KeyFilter{f.LabelName, Present}, nil
 	}
 }
