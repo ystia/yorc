@@ -33,7 +33,8 @@ import (
 
 type executionSingularity struct {
 	*executionCommon
-	imageURI string
+	imageURI       string
+	commandOptions []string
 }
 
 func (e *executionSingularity) execute(ctx context.Context) error {
@@ -52,7 +53,11 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 		}
 		// Build singularity information
 		if err := e.resolveImageURI(ctx); err != nil {
-			return errors.Wrap(err, "failed to build singularity information")
+			return errors.Wrap(err, "failed to resolve singularity image URI")
+		}
+		// Retrieve singularity options command
+		if err := e.getSingularityCommandOptions(); err != nil {
+			return errors.Wrap(err, "failed to retrieve singularity command options")
 		}
 		err := e.prepareAndSubmitSingularityJob(ctx)
 		if err != nil {
@@ -89,11 +94,12 @@ func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Contex
 	opts := e.buildJobOpts()
 	exports := e.buildEnvVars()
 	workingDirCmd := e.addWorkingDirCmd()
+	singularityOpts := strings.Join(e.commandOptions, " ")
 	var inner string
 	if e.jobInfo.Command != "" {
-		inner = fmt.Sprintf("srun singularity exec %s %s %s", e.imageURI, e.jobInfo.Command, e.buildArgs())
+		inner = fmt.Sprintf("srun singularity exec %s %s %s %s", singularityOpts, e.imageURI, e.jobInfo.Command, e.buildArgs())
 	} else {
-		inner = fmt.Sprintf("srun singularity run %s", e.imageURI)
+		inner = fmt.Sprintf("srun singularity run %s %s", singularityOpts, e.imageURI)
 	}
 	cmd := fmt.Sprintf("%s%ssbatch -D %s%s --wrap=\"%s\"", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, inner)
 	return e.submitJob(ctx, cmd)
@@ -146,6 +152,17 @@ func (e *executionSingularity) buildImageURI(ctx context.Context, prefix string)
 			e.imageURI = imageURI
 		} else {
 			e.imageURI = e.Primary
+		}
+	}
+	return nil
+}
+
+func (e *executionSingularity) getSingularityCommandOptions() error {
+	if o, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "options"); err != nil {
+		return err
+	} else if o != nil && o.RawString() != "" {
+		if err = json.Unmarshal([]byte(o.RawString()), &e.commandOptions); err != nil {
+			return err
 		}
 	}
 	return nil

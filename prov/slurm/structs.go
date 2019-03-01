@@ -49,7 +49,7 @@ type jobInfo struct {
 	Mem                    int               `json:"mem,omitempty"`
 	MaxTime                string            `json:"max_time,omitempty"`
 	Opts                   []string          `json:"opts,omitempty"`
-	ExecArgs               []string          `json:"exec_args,omitempty"`
+	Args                   []string          `json:"args,omitempty"`
 	EnvVars                []string          `json:"env_vars,omitempty"`
 	Inputs                 map[string]string `json:"inputs,omitempty"`
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`

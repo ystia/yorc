@@ -341,10 +341,10 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "exec_args"); err != nil {
+	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "args"); err != nil {
 		return err
 	} else if ea != nil && ea.RawString() != "" {
-		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.ExecArgs); err != nil {
+		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.Args); err != nil {
 			return err
 		}
 	}
@@ -397,12 +397,12 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Command
-	if cmd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "exec_command"); err != nil {
+	if cmd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "command"); err != nil {
 		return err
 	} else if cmd != nil && cmd.RawString() != "" {
 		e.jobInfo.Command = cmd.RawString()
 	} else if e.Primary == "" {
-		return errors.Errorf("Either job exec_command property must be filled or executable artifact must be provided")
+		return errors.Errorf("Either job command property must be filled or batch script must be provided")
 	}
 
 	// Working directory: default is user's home
@@ -449,8 +449,8 @@ func (e *executionCommon) buildJobOpts() string {
 
 func (e *executionCommon) buildArgs() string {
 	var args string
-	if e.jobInfo.ExecArgs != nil && len(e.jobInfo.ExecArgs) > 0 {
-		for _, arg := range e.jobInfo.ExecArgs {
+	if e.jobInfo.Args != nil && len(e.jobInfo.Args) > 0 {
+		for _, arg := range e.jobInfo.Args {
 			args += " " + fmt.Sprintf("'%s'", strings.Replace(arg, "'", `\"`, -1))
 		}
 	}

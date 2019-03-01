@@ -108,15 +108,15 @@ node_types:
         type: string
         description: Directory where the batch script or command will be executed. Default is home's related user.
         required: false
-      exec_command:
+      command:
         type: string
         description: >
-          Allows a job to run a command instead of a batch script if no artifact is provided. In case of an image artifact, the command is run inside the container.
+          Allows a job to run a command instead of a batch script if none is provided.
         required: false
-      exec_args:
+      args:
         type: list
         description: >
-          If exec_command is provided, here can be defined all arguments passed to the command.
+          If command is provided, this allows to define arguments passed to the command.
         required: false
         entry_schema:
           type: string
@@ -163,3 +163,17 @@ node_types:
           implementation:
             file: "embedded"
             type: yorc.artifacts.Deployment.SlurmJob
+
+  yorc.nodes.slurm.SingularityJob:
+    derived_from: yorc.nodes.slurm.Job
+    properties:
+      command:
+        type: string
+        description: If this property is filled, the specified command is executed within the container with "singularity exec" instead of default "singularity run".
+        required: false
+      options:
+        type: list
+        description: Options passed to the "singularity run" or "singularity exec" command.
+        required: false
+        entry_schema:
+          type: string
