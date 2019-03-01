@@ -50,17 +50,51 @@ It is strongly recommended to associate labels to your hosts. Labels allow to fi
 
 .. _yorc_infras_hostspool_filters_section:
 
-Filters Grammar
-^^^^^^^^^^^^^^^
+Filter on label existence
+^^^^^^^^^^^^^^^^^^^^^^^^^
+These filters are used to check wether a label has been defined or not for the host, regardless of its value
 
-There are four kinds of filters supported by Yorc:
+ * ``label_identifier`` will match if a label with the given identifier is defined. Example : ``gpu``
+ * ``!label_identifier`` will match if no label  with the  given identifier has been defined for the host. Example : ``!gpu``
 
-  * Filters based on the presence of a label ``label_identifier`` will match if a label with the given name is associated with a host whatever its value is.
-  * Filters based on equality to a value ``label_identifier (=|==|!=) value`` will match if the value associated with the given label is equals (``=`` and ``==``) or different (``!=``) to the given value
-  * Filters based on sets ``label_identifier (in | not in) (value [, other_value])`` will match if the value associated with the given label is one (``in``) or is not one (``not in``) of the given values
-  * Filters based on comparisons ``label_identifier (< | <= | > | >=) number[unit]`` will match if the value associated with the given label is a number and matches the comparison sign. A unit could be associated 
-    with the number, currently supported units are golang durations ("ns", "us" , "ms", "s", "m" or "h"), bytes units ("B", "KiB", "KB", "MiB",	"MB", "GiB", "GB", "TiB", "TB", "PiB", "PB", "EiB", "EB") and
-    `International System of Units (SI) <https://en.wikipedia.org/wiki/Metric_prefix>`_. The case of the unit does not matter.  
+Filter on string value
+^^^^^^^^^^^^^^^^^^^^^^
+These filters are used to check wether a label value is matching a string. String value has to be between simple or double quotes : ``""`` or ``''``. 
+
+
+* ``label_identifier = "wanted_value"`` and ``label_identifier ==`wanted_value'`` will match if the label with the given name has ``wanted_value`` as a value. Example : ``somename = "somevalue"``
+
+* ``label_identifier != "wanted_value"`` will match if the label with the given name has not ``wanted_value`` as a value. Example : ``somename != "somevalue"``
+
+
+Filter on numeric value
+^^^^^^^^^^^^^^^^^^^^^^^
+These filters are used to check how a label value compares to a numeric value. Numeric value is a number written without quotes and  an optional unit. Currently supported units are golang durations ("ns", "us" , "ms", "s", "m" or "h"), bytes units ("B", "KiB", "KB", "MiB",	"MB", "GiB", "GB", "TiB", "TB", "PiB", "PB", "EiB", "EB") and `International System of Units (SI) <https://en.wikipedia.org/wiki/Metric_prefix>`_. The case of the unit does not matter.  
+
+
+* ``label_identifier == wanted_value`` and ``label_identifier == wanted_value`` will match if the label with the given name has a value equal to ``wanted_value``. Example : ``somename = 100``
+* ``label_identifier != wanted_value`` will match if the label with the given name has a value different from ``wanted_value``. Example : ``somename != 100``
+* ``label_identifier > wanted_value`` will match if the label with the given name has a value strictly superior to ``wanted_value``. Example : ``somename > 100``
+* ``label_identifier < wanted_value`` will match if the label with the given name has a value strictly inferior to ``wanted_value``. Example : ``somename < 100``
+* ``label_identifier >= wanted_value`` will match if the label with the given name has a value superior or equal to ``wanted_value``. Example : ``somename >= 100``
+* ``label_identifier <= wanted_value`` will match if the label with the given name has a value  inferior or equal to ``wanted_value``. Example : ``somename <= 100``
+
+
+Filter on regex value
+^^^^^^^^^^^^^^^^^^^^^
+These filters are used to check if a label value contains or excludes a regex. Regex value has to be between simple or double quotes : ``""`` or ``''``. "Contains" means that the value (string) of the label contains at least one substring matching the regex. "Excludes" means that the value (string) of the label contains no substring matching the regex.
+
+* ``label_identifier ~= "wanted_value"``will match if the label with the given name has a value containing ``wanted_value``. Example : ``somename ~= "(a|bc)+"``
+
+* ``label_identifier !~ "wanted_value"`` will match if the label with the given name has a value excluding ``wanted_value`` . Example : ``somename !~ "(a|bc)+"``
+
+Filter on set appartenance
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+These filters are used to check is a label value is matching with one of the value of a set. 
+
+* ``label_identifier in ("firstval", "secondval")`` will match if the label with the given name has for value ``firstval`` or  ``secondval``. Example : ``somename in ("gpu", "cpu", "none")`` 
+* ``label_identifier not in ("firstval", "secondval")`` and ``label_identifier notin ("firstval", "secondval")`` will match if the label with the given name has not for value ``firstval`` or  ``secondval``. Example : ``somename notin ("gpu", "cpu", "none")``
+
 
 Here are some example:
 
