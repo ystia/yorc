@@ -526,9 +526,9 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 					return err
 				}
 				if fileInfo.IsDir() {
-					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, e.OverlayPath)
+					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, path.Dir(sourcePath))
 				}
-				return e.uploadArtifact(ctx, sourcePath, e.OverlayPath)
+				return e.uploadArtifact(ctx, sourcePath, path.Dir(artPath))
 			})
 		}(artPath)
 	}
@@ -549,13 +549,17 @@ func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath st
 }
 
 func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifactBaseDir string) error {
+	relPath, err := filepath.Rel(artifactBaseDir, pathFile)
+	if err != nil {
+		return err
+	}
 	// Read file in bytes
 	source, err := ioutil.ReadFile(pathFile)
 	if err != nil {
 		return err
 	}
 
-	remotePath := path.Join(e.jobInfo.WorkingDir, path.Base(pathFile))
+	remotePath := path.Join(e.jobInfo.WorkingDir, relPath)
 	log.Debugf("uploadArtifact file from source path:%q to:%q", pathFile, remotePath)
 	if err := e.client.CopyFile(bytes.NewReader(source), remotePath, "0755"); err != nil {
 		return err

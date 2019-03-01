@@ -35,6 +35,7 @@ type executionSingularity struct {
 	*executionCommon
 	imageURI       string
 	commandOptions []string
+	debug          bool
 }
 
 func (e *executionSingularity) execute(ctx context.Context) error {
@@ -55,9 +56,13 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 		if err := e.resolveImageURI(ctx); err != nil {
 			return errors.Wrap(err, "failed to resolve singularity image URI")
 		}
-		// Retrieve singularity options command
-		if err := e.getSingularityCommandOptions(); err != nil {
+		// Retrieve singularity job props
+		if err := e.getSingularityProps(); err != nil {
 			return errors.Wrap(err, "failed to retrieve singularity command options")
+		}
+		// Copy the artifacts
+		if err := e.uploadArtifacts(ctx); err != nil {
+			return errors.Wrap(err, "failed to upload artifact")
 		}
 		err := e.prepareAndSubmitSingularityJob(ctx)
 		if err != nil {
@@ -95,11 +100,15 @@ func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Contex
 	exports := e.buildEnvVars()
 	workingDirCmd := e.addWorkingDirCmd()
 	singularityOpts := strings.Join(e.commandOptions, " ")
+	var debug string
+	if e.debug {
+		debug = "-d -v -x"
+	}
 	var inner string
 	if e.jobInfo.Command != "" {
-		inner = fmt.Sprintf("srun singularity exec %s %s %s %s", singularityOpts, e.imageURI, e.jobInfo.Command, e.buildArgs())
+		inner = fmt.Sprintf("srun singularity %s exec %s %s %s %s", debug, singularityOpts, e.imageURI, e.jobInfo.Command, e.buildArgs())
 	} else {
-		inner = fmt.Sprintf("srun singularity run %s %s", singularityOpts, e.imageURI)
+		inner = fmt.Sprintf("srun singularity %s run %s %s", debug, singularityOpts, e.imageURI)
 	}
 	cmd := fmt.Sprintf("%s%ssbatch -D %s%s --wrap=\"%s\"", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, inner)
 	return e.submitJob(ctx, cmd)
@@ -157,13 +166,17 @@ func (e *executionSingularity) buildImageURI(ctx context.Context, prefix string)
 	return nil
 }
 
-func (e *executionSingularity) getSingularityCommandOptions() error {
+func (e *executionSingularity) getSingularityProps() error {
+	var err error
 	if o, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "options"); err != nil {
 		return err
 	} else if o != nil && o.RawString() != "" {
 		if err = json.Unmarshal([]byte(o.RawString()), &e.commandOptions); err != nil {
 			return err
 		}
+	}
+	if e.debug, err = deployments.GetBooleanNodeProperty(e.kv, e.deploymentID, e.NodeName, "debug"); err != nil {
+		return err
 	}
 	return nil
 }
