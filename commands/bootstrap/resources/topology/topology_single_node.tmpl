@@ -306,6 +306,7 @@ topology_template:
             - call_operation: Configure.post_configure_source
           on_success:
             - Infrastructure_yorcConfigInfrastructureHostedOnYorcYorcServerConfig_post_configure_target
+            - Infrastructure_infraSecretsHostedOnVault_post_configure_source
             - YorcServer_configured
         VaultServer_created:
           target: VaultServer
@@ -778,6 +779,14 @@ topology_template:
           operation_host: TARGET
           activities:
             - call_operation: Configure.post_configure_target
+          on_success:
+            - YorcServer_configured
+        Infrastructure_infraSecretsHostedOnVault_post_configure_source:
+          target: Infrastructure
+          target_relationship: infraSecretsHostedOnVault
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
           on_success:
             - YorcServer_configured
         YorcOnDemandLocationResources_initial:
