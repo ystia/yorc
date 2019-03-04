@@ -106,11 +106,11 @@ func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Contex
 	}
 	var inner string
 	if e.jobInfo.Command != "" {
-		inner = fmt.Sprintf("srun singularity %s exec %s %s %s %s", debug, singularityOpts, e.imageURI, e.jobInfo.Command, e.buildArgs())
+		inner = fmt.Sprintf("srun singularity %s exec %s %s %s %s", debug, singularityOpts, e.imageURI, e.jobInfo.Command, strings.Join(e.jobInfo.Args, " "))
 	} else {
 		inner = fmt.Sprintf("srun singularity %s run %s %s", debug, singularityOpts, e.imageURI)
 	}
-	cmd := fmt.Sprintf("%s%ssbatch -D %s%s --wrap=\"%s\"", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, inner)
+	cmd := fmt.Sprintf("%s%ssbatch -D %s%s --wrap='%s'", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, inner)
 	return e.submitJob(ctx, cmd)
 }
 
@@ -171,7 +171,7 @@ func (e *executionSingularity) getSingularityProps() error {
 	if o, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "options"); err != nil {
 		return err
 	} else if o != nil && o.RawString() != "" {
-		if err = json.Unmarshal([]byte(o.RawString()), &e.commandOptions); err != nil {
+		if e.jobInfo.Args, err = rawList(o.RawString()); err != nil {
 			return err
 		}
 	}

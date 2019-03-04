@@ -388,3 +388,14 @@ func getJobInfo(client sshutil.Client, jobID string) (map[string]string, error) 
 	}
 	return nil, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q", jobID)}
 }
+
+func rawList(val string) ([]string, error) {
+	if !strings.HasPrefix(val, "[") || !strings.HasSuffix(val, "]") {
+		return nil, errors.Errorf("Failed to parse list from value:%q", val)
+	}
+	tr := val[1 : len(val)-1]
+	tab := strings.FieldsFunc(tr, func(r rune) bool {
+		return r == ','
+	})
+	return tab, nil
+}

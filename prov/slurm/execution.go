@@ -74,6 +74,7 @@ type executionCommon struct {
 	VarInputsNames []string
 	NodePath       string
 	Primary        string
+	PrimaryFile    string
 	nodeInstances  []string
 	jobInfo        *jobInfo
 	stepName       string
@@ -152,16 +153,31 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			// If both primary artifact is provided (script) and command: return an error
 			return errors.Errorf("Either a script artifact or a command must be provided, but not both.")
 		}
+		// Retrieve primary file
+		if e.Primary != "" {
+			var err error
+			e.PrimaryFile, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+			if err != nil {
+				return err
+			}
+
+			// Add the primary artifact to the artifacts map if not already included
+			var is bool
+			if !e.isSingularity && e.Primary != "" {
+				for _, artPath := range e.Artifacts {
+					if strings.HasPrefix(e.Primary, artPath) {
+						is = true
+					}
+				}
+				if !is {
+					e.Artifacts[e.PrimaryFile] = e.Primary
+				}
+			}
+		}
 
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
 			return errors.Wrap(err, "failed to upload artifact")
-		}
-		if e.Primary != "" {
-			// Copy the operation implementation
-			if err := e.uploadArtifact(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
-				return errors.Wrap(err, "failed to upload operation implementation")
-			}
 		}
 		err := e.prepareAndSubmitJob(ctx)
 		if err != nil {
@@ -340,15 +356,13 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 			return err
 		}
 	}
-
 	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "args"); err != nil {
 		return err
 	} else if ea != nil && ea.RawString() != "" {
-		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.Args); err != nil {
+		if e.jobInfo.Args, err = rawList(ea.RawString()); err != nil {
 			return err
 		}
 	}
-
 	if envVars, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "env_vars"); err != nil {
 		return err
 	} else if envVars != nil && envVars.RawString() != "" {
@@ -433,9 +447,7 @@ func (e *executionCommon) buildJobOpts() string {
 		opts += fmt.Sprintf(" --time=%s", e.jobInfo.MaxTime)
 	}
 	if e.jobInfo.Opts != nil && len(e.jobInfo.Opts) > 0 {
-		for _, opt := range e.jobInfo.Opts {
-			opts += fmt.Sprintf(" --%s", opt)
-		}
+		opts += fmt.Sprintf(" %s", strings.Join(e.jobInfo.Opts, " "))
 	}
 	if e.jobInfo.Reservation != "" {
 		opts += fmt.Sprintf(" --reservation=%s", e.jobInfo.Reservation)
@@ -447,26 +459,15 @@ func (e *executionCommon) buildJobOpts() string {
 	return opts
 }
 
-func (e *executionCommon) buildArgs() string {
-	var args string
-	if e.jobInfo.Args != nil && len(e.jobInfo.Args) > 0 {
-		for _, arg := range e.jobInfo.Args {
-			args += " " + fmt.Sprintf("'%s'", strings.Replace(arg, "'", `\"`, -1))
-		}
-	}
-	log.Debugf("args=%q", args)
-	return args
-}
-
 func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 	var cmd string
 	opts := e.buildJobOpts()
 	exports := e.buildEnvVars()
 	workingDirCmd := e.addWorkingDirCmd()
 	if e.jobInfo.Command != "" {
-		cmd = fmt.Sprintf("%ssbatch%s -D %s%s --wrap=\"%s %s\"", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, e.jobInfo.Command, e.buildArgs())
+		cmd = fmt.Sprintf("%ssbatch%s -D %s%s --wrap='%s %s'", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, e.jobInfo.Command, strings.Join(e.jobInfo.Args, " "))
 	} else {
-		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, path.Join(e.jobInfo.WorkingDir, path.Base(e.Primary)))
+		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
 	}
 	return e.submitJob(ctx, cmd)
 }
@@ -516,8 +517,8 @@ func (e *executionCommon) submitJob(ctx context.Context, cmd string) error {
 func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 	log.Debugf("Upload artifacts to remote host")
 	var g errgroup.Group
-	for _, artPath := range e.Artifacts {
-		log.Debugf("handle artifact path:%q", artPath)
+	for artName, artPath := range e.Artifacts {
+		log.Debugf("handle artifact path:%q, name:%q", artPath, artName)
 		func(artPath string) {
 			g.Go(func() error {
 				sourcePath := path.Join(e.OverlayPath, artPath)
@@ -528,7 +529,7 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 				if fileInfo.IsDir() {
 					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, path.Dir(sourcePath))
 				}
-				return e.uploadArtifact(ctx, sourcePath, path.Dir(artPath))
+				return e.uploadArtifact(ctx, sourcePath, path.Dir(sourcePath))
 			})
 		}(artPath)
 	}
@@ -549,6 +550,7 @@ func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath st
 }
 
 func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifactBaseDir string) error {
+	log.Debugf("artifactBaseDir:%s", artifactBaseDir)
 	relPath, err := filepath.Rel(artifactBaseDir, pathFile)
 	if err != nil {
 		return err
@@ -566,7 +568,7 @@ func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifact
 	}
 
 	// Add artifact to job artifact's list
-	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, path.Base(pathFile))
+	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, relPath)
 	return nil
 }
 
