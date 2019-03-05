@@ -153,26 +153,17 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			// If both primary artifact is provided (script) and command: return an error
 			return errors.Errorf("Either a script artifact or a command must be provided, but not both.")
 		}
-		// Retrieve primary file
-		if e.Primary != "" {
-			var err error
-			e.PrimaryFile, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
-			if err != nil {
-				return err
+
+		// Add the primary artifact to the artifacts map if not already included
+		var is bool
+		if e.Primary != "" && e.PrimaryFile != "" {
+			for _, artPath := range e.Artifacts {
+				if strings.HasPrefix(e.Primary, artPath) {
+					is = true
+				}
 			}
-
-
-			// Add the primary artifact to the artifacts map if not already included
-			var is bool
-			if !e.isSingularity && e.Primary != "" {
-				for _, artPath := range e.Artifacts {
-					if strings.HasPrefix(e.Primary, artPath) {
-						is = true
-					}
-				}
-				if !is {
-					e.Artifacts[e.PrimaryFile] = e.Primary
-				}
+			if !is {
+				e.Artifacts[e.PrimaryFile] = e.Primary
 			}
 		}
 
@@ -243,30 +234,6 @@ func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
 	}
 	log.Debugf("Unmarshal Job info for task %s. Got user name info : %s", e.taskID, jobInfo.Credentials.UserName)
 	return jobInfo, nil
-}
-
-func (e *executionCommon) resolveOperation() error {
-	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
-	var err error
-	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
-	if err != nil {
-		return err
-	}
-	// Need to exclude import path from Primary for Image artifact
-	if e.isSingularity {
-		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementationWithoutImportPath(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
-	} else {
-		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
-	}
-	if err != nil {
-		return err
-	}
-	e.Primary = strings.TrimSpace(e.Primary)
-	if e.operation.ImplementedInType == "yorc.nodes.slurm.Job" && e.Primary == "embedded" {
-		e.Primary = ""
-	}
-	log.Debugf("primary implementation: %q", e.Primary)
-	return e.resolveInstances()
 }
 
 func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
@@ -581,6 +548,46 @@ func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifact
 		return err
 	}
 	return nil
+}
+
+func (e *executionCommon) resolveOperation() error {
+	e.NodePath = path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology/nodes", e.NodeName)
+	var err error
+	e.NodeType, err = deployments.GetNodeType(e.kv, e.deploymentID, e.NodeName)
+	if err != nil {
+		return err
+	}
+
+	// Only Submit operation need to retrieve primary/operation implementation file
+	if strings.ToLower(e.operation.Name) != strings.ToLower(tosca.RunnableSubmitOperationName) {
+		return nil
+	}
+
+	// Only operation file is required for Singularity execution
+	if e.isSingularity {
+		e.Primary, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+	} else {
+		_, e.Primary, err = deployments.GetOperationPathAndPrimaryImplementation(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.operation.ImplementedInType, e.operation.Name)
+	}
+	if err != nil {
+		return err
+	}
+	e.Primary = strings.TrimSpace(e.Primary)
+	if e.operation.ImplementedInType == "yorc.nodes.slurm.Job" && e.Primary == "embedded" {
+		e.Primary = ""
+	}
+
+	// Get operation implementation file for upload purpose
+	if !e.isSingularity && e.Primary != "" {
+		var err error
+		e.PrimaryFile, err = deployments.GetOperationImplementationFile(e.kv, e.deploymentID, e.operation.ImplementedInNodeTemplate, e.NodeType, e.operation.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Debugf("primary implementation: %q", e.Primary)
+	return e.resolveInstances()
 }
 
 func (e *executionCommon) resolveInstances() error {
