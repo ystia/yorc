@@ -28,14 +28,15 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/collections"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/registry"
-	"github.com/ystia/yorc/tosca"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/collections"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // Internal type used to uniquely identify the errorgroup in a context
@@ -970,7 +971,15 @@ func enhanceNodes(ctx context.Context, kv *api.KV, deploymentID string) error {
 		}
 	}
 
-	enhanceWorkflows(consulStore, kv, deploymentID)
+	err = enhanceWorkflows(consulStore, kv, deploymentID)
+	if err != nil {
+		return err
+	}
+
+	err = enhanceAttributes(consulStore, kv, deploymentID, nodes)
+	if err != nil {
+		return err
+	}
 	return errGroup.Wait()
 }
 
@@ -1317,6 +1326,36 @@ func enhanceWorkflows(consulStore consulutil.ConsulStore, kv *api.KV, deployment
 	}
 	if wasUpdated {
 		storeWorkflow(consulStore, deploymentID, "run", wf)
+	}
+	return nil
+}
+
+// enhanceAttributes walk through the topology nodes an for each of them if needed it creates instances attributes notifications
+// to allow resolving any attribute when one is updated
+func enhanceAttributes(consulStore consulutil.ConsulStore, kv *api.KV, deploymentID string, nodes []string) error {
+	for _, nodeName := range nodes {
+		// retrieve all node attributes
+		attributes, err := GetNodeAttributesNames(kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+
+		// retrieve all node instances
+		instances, err := GetNodeInstancesIds(kv, deploymentID, nodeName)
+		if err != nil {
+			return err
+		}
+
+		// 1. Add attribute notifications
+		// 2. Resolve attributes and publish default values when not nil or empty
+		for _, instanceName := range instances {
+			for _, attribute := range attributes {
+				err := addAttributeNotifications(consulStore, kv, deploymentID, nodeName, instanceName, attribute)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }

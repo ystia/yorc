@@ -20,6 +20,8 @@ topology_template:
         gres: gpu:1
         constraint: "[rack1|rack2|rack3|rack4]"
         job_name: xyz
+        reservation: resa_123
+        account: account_test
       capabilities:
         host:
           properties:
@@ -32,6 +34,9 @@ topology_template:
             default_instances: 1
         endpoint:
           properties:
+            credentials:
+              user: johndoe
+              token: "passpass"
             secure: true
             protocol: tcp
             network_name: PRIVATE

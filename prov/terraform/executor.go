@@ -17,25 +17,25 @@ package terraform
 import (
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
-	"io/ioutil"
-	"path"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/terraform/commons"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tosca"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/executil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 type defaultExecutor struct {
@@ -185,16 +185,6 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 		return nil
 	}
 
-	// Filter and handle file output
-	filteredOutputs, err := e.handleFileOutputs(ctx, kv, infraPath, outputs)
-	if err != nil {
-		return err
-	}
-
-	if len(filteredOutputs) == 0 {
-		return nil
-	}
-
 	type tfJSONOutput struct {
 		Sensitive bool   `json:"sensitive,omitempty"`
 		Type      string `json:"type,omitempty"`
@@ -214,39 +204,66 @@ func (e *defaultExecutor) retrieveOutputs(ctx context.Context, kv *api.KV, infra
 		return errors.Wrap(err, "Failed to retrieve the infrastructure outputs via terraform")
 	}
 	_, errGrp, store := consulutil.WithContext(ctx)
-	for outPath, outName := range filteredOutputs {
-		output, ok := outputsList[outName]
-		if !ok {
-			return errors.Errorf("failed to retrieve output %q in terraform result", outName)
-		}
-		store.StoreConsulKeyAsString(outPath, output.Value)
-	}
 
-	return errGrp.Wait()
-}
-
-// File outputs are outputs that terraform can't resolve and which need to be retrieved in local files
-func (e *defaultExecutor) handleFileOutputs(ctx context.Context, kv *api.KV, infraPath string, outputs map[string]string) (map[string]string, error) {
-	filteredOutputs := make(map[string]string, 0)
-	for k, v := range outputs {
-		if strings.HasPrefix(v, commons.FileOutputPrefix) {
-			file := strings.TrimPrefix(v, commons.FileOutputPrefix)
+	workOutputs := make(map[string]string)
+	for outputPath, outputName := range outputs {
+		// File outputs are outputs that terraform can't resolve and which need to be retrieved in local files
+		if strings.HasPrefix(outputName, commons.FileOutputPrefix) {
+			file := strings.TrimPrefix(outputName, commons.FileOutputPrefix)
 			log.Debugf("Handle file output:%q", file)
 			content, err := ioutil.ReadFile(path.Join(infraPath, file))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to retrieve file output from file:%q", file)
+				return errors.Wrapf(err, "Failed to retrieve file output from file:%q", file)
 			}
 			contentStr := strings.Trim(string(content), "\r\n")
-			// Store keyValue in Consul
-			_, err = kv.Put(&api.KVPair{Key: k, Value: []byte(contentStr)}, nil)
-			if err != nil {
-				return nil, errors.Wrap(err, consulutil.ConsulGenericErrMsg)
-			}
+			workOutputs[outputPath] = contentStr
 		} else {
-			filteredOutputs[k] = v
+			// Outputs are retrieved from Terraform output command
+			output, ok := outputsList[outputName]
+			if !ok {
+				return errors.Errorf("failed to retrieve output %q in terraform result", outputName)
+			}
+			workOutputs[outputPath] = output.Value
 		}
 	}
-	return filteredOutputs, nil
+
+	err = e.storeOutputs(store, workOutputs)
+	if err != nil {
+		return err
+	}
+	return errGrp.Wait()
+}
+
+func (e *defaultExecutor) storeOutputs(store consulutil.ConsulStore, outputs map[string]string) error {
+	// instance attributes values are stored by block
+	attributesBlock := make([]*deployments.AttributeData, 0)
+	for outputPath, outputValue := range outputs {
+		log.Debugf("outputPath=%q, outputValue=%q", outputPath, outputValue)
+		if strings.Contains(outputPath, "/attributes/") {
+			attr, err := deployments.BuildAttributeDataFromPath(outputPath)
+			if err != nil {
+				return err
+			}
+			attr.Value = outputValue
+			if attr.CapabilityName != "" {
+				err = deployments.SetInstanceCapabilityAttribute(attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.CapabilityName, attr.Name, attr.Value)
+				if err != nil {
+					return err
+				}
+			} else if attr.RequirementIndex != "" {
+				err = deployments.SetInstanceRelationshipAttribute(attr.DeploymentID, attr.NodeName, attr.InstanceName, attr.RequirementIndex, attr.Name, attr.Value)
+				if err != nil {
+					return err
+				}
+			} else {
+				attributesBlock = append(attributesBlock, attr)
+			}
+		} else {
+			// if output is not an attribute, store its path/value directly
+			store.StoreConsulKeyAsString(outputPath, outputValue)
+		}
+	}
+	return deployments.SetInstanceListAttributes(attributesBlock)
 }
 
 func (e *defaultExecutor) applyInfrastructure(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, infrastructurePath string, outputs map[string]string, env []string) error {

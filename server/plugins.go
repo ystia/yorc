@@ -17,25 +17,25 @@ package server
 // Initialization imports
 import (
 	// Registering AWS delegate executor in the registry
-	_ "github.com/ystia/yorc/prov/terraform/aws"
+	_ "github.com/ystia/yorc/v3/prov/terraform/aws"
 	// Registering Google Cloud delegate executor in the registry
-	_ "github.com/ystia/yorc/prov/terraform/google"
+	_ "github.com/ystia/yorc/v3/prov/terraform/google"
 	// Registering openstack delegate executor in the registry
-	_ "github.com/ystia/yorc/prov/terraform/openstack"
+	_ "github.com/ystia/yorc/v3/prov/terraform/openstack"
 	// Registering ansible operation executor in the registry
-	_ "github.com/ystia/yorc/prov/ansible"
+	_ "github.com/ystia/yorc/v3/prov/ansible"
 	// Registering kubernetes operation executor in the registry
-	_ "github.com/ystia/yorc/prov/kubernetes"
+	_ "github.com/ystia/yorc/v3/prov/kubernetes"
 	// Registering slurm delegate executor in the registry
-	_ "github.com/ystia/yorc/prov/slurm"
+	_ "github.com/ystia/yorc/v3/prov/slurm"
 	// Registering hosts pool delegate executor in the registry
-	_ "github.com/ystia/yorc/prov/hostspool"
+	_ "github.com/ystia/yorc/v3/prov/hostspool"
 	// Registering builtin Tosca definition files
-	_ "github.com/ystia/yorc/tosca"
+	_ "github.com/ystia/yorc/v3/tosca"
 	// Registering builtin HashiCorp Vault Client Builder
-	_ "github.com/ystia/yorc/vault/hashivault"
+	_ "github.com/ystia/yorc/v3/vault/hashivault"
 	// Registering builtin activity hooks
-	_ "github.com/ystia/yorc/prov/validation"
+	_ "github.com/ystia/yorc/v3/prov/validation"
 )
 
 import (
@@ -45,10 +45,10 @@ import (
 	gplugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/plugin"
-	"github.com/ystia/yorc/registry"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/plugin"
+	"github.com/ystia/yorc/v3/registry"
 )
 
 type pluginManager struct {

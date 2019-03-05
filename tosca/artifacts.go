@@ -16,7 +16,8 @@ package tosca
 
 import (
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 // ArtifactDefMap is a map of ArtifactDefinition

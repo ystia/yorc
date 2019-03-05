@@ -18,8 +18,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ystia/yorc/log"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 func TestFunctionParsing(t *testing.T) {

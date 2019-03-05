@@ -29,19 +29,19 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/metricsutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/operations"
-	"github.com/ystia/yorc/prov/scheduling"
-	"github.com/ystia/yorc/registry"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tasks/workflow/builder"
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/metricsutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/operations"
+	"github.com/ystia/yorc/v3/prov/scheduling"
+	"github.com/ystia/yorc/v3/registry"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tasks/workflow/builder"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // worker concern is to execute a task execution received from the dispatcher
@@ -493,7 +493,7 @@ func (w *worker) runAction(ctx context.Context, t *taskExecution) error {
 	}
 	// useless as we will delete the task at the end of the function
 	// checkAndSetTaskStatus(t.cc.KV(), t.taskID, tasks.TaskStatusDONE)
-	log.Printf("Action:%+v successfully executed", action)
+	log.Printf("Action with ID:%s successfully executed", action.ID)
 	return nil
 }
 

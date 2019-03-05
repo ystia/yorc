@@ -18,7 +18,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 
-	"github.com/ystia/yorc/config"
+	"github.com/ystia/yorc/v3/config"
 )
 
 func getResourcesPrefix(cfg config.Configuration, deploymentID string) string {

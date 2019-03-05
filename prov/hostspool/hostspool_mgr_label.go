@@ -22,8 +22,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 func (cm *consulManager) AddLabels(hostname string, labels map[string]string) error {

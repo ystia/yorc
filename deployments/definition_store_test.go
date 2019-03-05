@@ -24,8 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/prov"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
 )
 
 func testDefinitionStore(t *testing.T, kv *api.KV) {
@@ -1020,4 +1021,29 @@ func testRunnableWorkflowsAutoCancel(t *testing.T, kv *api.KV) {
 	assert.Contains(t, wf.Steps["Job_run"].OnCancel, "yorc_automatic_cancellation_of_Job_run")
 	assert.Contains(t, wf.Steps["Job_submit"].OnCancel, "yorc_automatic_cancellation_of_Job_submit")
 
+}
+
+// Testing topology template metadata
+func testAttributeNotifications(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	log.SetDebug(true)
+
+	// Storing the Deployment definition
+	deploymentID := strings.Replace(t.Name(), "/", "_", -1)
+	err := StoreDeploymentDefinition(context.Background(), kv, deploymentID, "testdata/test_topology.yml")
+	require.NoError(t, err, "Failed to store test topology deployment definition")
+
+	// Check the attributes notifications
+	expectedKeyValuePairs := map[string]string{
+		"topology/instances/TestContainer/0/attribute_notifications/public_ip_address/0":                "TestComponent/0/attributes/url",
+		"topology/instances/TestContainer/0/capabilities/endpoint/attribute_notifications/ip_address/0": "TestComponent/0/attributes/url_from_cap",
+		"topology/instances/TestComponent/0/outputs/standard/create/attribute_notifications/URL/0":      "TestComponent/0/attributes/url_from_output",
+	}
+	for key, expectedValue := range expectedKeyValuePairs {
+		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
+		kvp, _, err := kv.Get(consulKey, nil)
+		require.NoError(t, err, "Error getting value for key %s", consulKey)
+		require.NotNil(t, kvp, "Unexpected null value for key %s", consulKey)
+		assert.Equal(t, expectedValue, string(kvp.Value), "Wrong value for key %s", key)
+	}
 }

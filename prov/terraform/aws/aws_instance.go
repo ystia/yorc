@@ -17,20 +17,19 @@ package aws
 import (
 	"context"
 	"fmt"
+	"net"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"net"
-	"strconv"
-
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/terraform/commons"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg config.Configuration, deploymentID, nodeName, instanceName string, infrastructure *commons.Infrastructure, outputs map[string]string, env *[]string) error {
@@ -146,17 +145,15 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 	// Add the AWS instance
 	commons.AddResource(infrastructure, "aws_instance", instance.Tags.Name, &instance)
 
-	// Provide Consul Keys
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
+	// Provide private_address attribute output
+	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
+	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: fmt.Sprintf("${aws_instance.%s.private_ip}", instance.Tags.Name)})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
 
-	//Private IP Address
-	consulKeyPrivateAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/private_address"), Value: fmt.Sprintf("${aws_instance.%s.private_ip}", instance.Tags.Name)}
-
-	// Specific DNS attribute
-	consulKeyPublicDNS := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_dns"), Value: fmt.Sprintf("${aws_instance.%s.public_dns}", instance.Tags.Name)}
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyPrivateAddr, consulKeyPublicDNS)
-
-	commons.AddResource(infrastructure, "consul_keys", instance.Tags.Name, &consulKeys)
+	// Provide specific DNS attribute attribute
+	publicDNSKey := nodeName + "-" + instanceName + "-publicDNS"
+	commons.AddOutput(infrastructure, publicDNSKey, &commons.Output{Value: fmt.Sprintf("${aws_instance.%s.public_dns}", instance.Tags.Name)})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/public_dns")] = publicDNSKey
 
 	// If any Elastic IP is provided without any network requirement, EIP is anyway associated to the compute instance
 	// Check existing network requirement otherwise
@@ -195,14 +192,14 @@ func (g *awsGenerator) generateAWSInstance(ctx context.Context, kv *api.KV, cfg 
 		accessIP = fmt.Sprintf("${aws_instance.%s.public_ip}", instance.Tags.Name)
 	}
 
-	// IP Address capability
-	capabilityIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"), Value: accessIP}
-	// Default TOSCA Attributes
-	consulKeyIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/ip_address"), Value: accessIP}
-	consulKeyPublicAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_address"), Value: accessIP}
-	// For backward compatibility...
-	consulKeyPublicIPAddr := commons.ConsulKey{Path: path.Join(instancesKey, instanceName, "/attributes/public_ip_address"), Value: accessIP}
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, consulKeyPublicAddr, consulKeyPublicIPAddr, capabilityIPAddr)
+	// public_address/ ip_address output attributes
+	accessIPKey := nodeName + "-" + instanceName + "-publicIP"
+	commons.AddOutput(infrastructure, accessIPKey, &commons.Output{Value: accessIP})
+	outputs[path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address")] = accessIPKey
+	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
+
+	outputs[path.Join(instancesKey, instanceName, "/attributes/public_address")] = accessIPKey
+	outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = accessIPKey
 
 	// Add Connection check
 	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Tags.Name, env); err != nil {

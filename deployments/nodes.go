@@ -23,13 +23,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tosca"
-
 	"vbom.ml/util/sortorder"
+
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 // IsNodeDerivedFrom check if the node's type is derived from another type.
@@ -773,14 +772,26 @@ func CreateNewNodeStackInstances(kv *api.KV, deploymentID, nodeName string, inst
 
 // createNodeInstance creates required elements for a new node
 func createNodeInstance(kv *api.KV, consulStore consulutil.ConsulStore, deploymentID, nodeName, instanceName string) {
-
 	instancePath := path.Join(consulutil.DeploymentKVPrefix, deploymentID, "topology", "instances", nodeName)
-
+	toscaID := nodeName + "-" + instanceName
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/state"), tosca.NodeStateInitial.String())
 	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_name"), nodeName)
-	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), nodeName+"-"+instanceName)
+	consulStore.StoreConsulKeyAsString(path.Join(instancePath, instanceName, "attributes/tosca_id"), toscaID)
+	// Publish a status change event and attribute update
+	_, err := events.PublishAndLogInstanceStatusChange(nil, kv, deploymentID, nodeName, instanceName, tosca.NodeStateInitial.String())
+	if err != nil {
+		log.Printf("%+v", err)
+	}
+
 	// Publish a status change event
-	events.PublishAndLogInstanceStatusChange(nil, kv, deploymentID, nodeName, instanceName, tosca.NodeStateInitial.String())
+	attrs := make(map[string]string)
+	attrs["state"] = tosca.NodeStateInitial.String()
+	attrs["tosca_name"] = nodeName
+	attrs["tosca_id"] = toscaID
+	err = events.PublishAndLogMapAttributeValueChange(nil, deploymentID, nodeName, instanceName, attrs, "updated")
+	if err != nil {
+		log.Printf("%+v", err)
+	}
 }
 
 // DoesNodeExist checks if a given node exist in a deployment

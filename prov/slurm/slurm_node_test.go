@@ -22,8 +22,9 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
 )
 
 func loadTestYaml(t *testing.T, kv *api.KV) string {
@@ -50,6 +51,10 @@ func testSimpleSlurmNodeAllocation(t *testing.T, kv *api.KV, cfg config.Configur
 	require.Equal(t, "2G", infrastructure.nodes[0].memory)
 	require.Equal(t, "4", infrastructure.nodes[0].cpu)
 	require.Equal(t, "xyz", infrastructure.nodes[0].jobName)
+	require.Equal(t, "johndoe", infrastructure.nodes[0].credentials.UserName)
+	require.Equal(t, "passpass", infrastructure.nodes[0].credentials.Password)
+	require.Equal(t, "resa_123", infrastructure.nodes[0].reservation)
+	require.Equal(t, "account_test", infrastructure.nodes[0].account)
 }
 
 func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg config.Configuration) {
@@ -67,6 +72,8 @@ func testSimpleSlurmNodeAllocationWithoutProps(t *testing.T, kv *api.KV, cfg con
 	require.Equal(t, "", infrastructure.nodes[0].partition)
 	require.Equal(t, "", infrastructure.nodes[0].memory)
 	require.Equal(t, "", infrastructure.nodes[0].cpu)
+	require.Equal(t, "", infrastructure.nodes[0].credentials.UserName)
+	require.Equal(t, "", infrastructure.nodes[0].credentials.Password)
 	require.Equal(t, "simpleSlurmNodeAllocationWithoutProps", infrastructure.nodes[0].jobName)
 }
 

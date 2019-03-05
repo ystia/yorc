@@ -15,13 +15,15 @@
 package rest
 
 import (
-	"github.com/julienschmidt/httprouter"
-	"github.com/pkg/errors"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
 	"net/http"
 	"path"
 	"strings"
+
+	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
+
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tasks"
 )
 
 func (s *Server) taskQueryPreChecks(w http.ResponseWriter, r *http.Request, taskID string) bool {

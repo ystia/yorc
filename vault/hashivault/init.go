@@ -14,7 +14,7 @@
 
 package hashivault
 
-import "github.com/ystia/yorc/registry"
+import "github.com/ystia/yorc/v3/registry"
 
 func init() {
 	registry.GetRegistry().RegisterVaultClientBuilder("hashicorp", &clientBuilder{}, registry.BuiltinOrigin)

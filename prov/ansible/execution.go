@@ -35,24 +35,23 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-
+	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/helper/pathutil"
-	"github.com/ystia/yorc/helper/provutil"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/operations"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tosca"
-	"golang.org/x/crypto/ssh"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/executil"
+	"github.com/ystia/yorc/v3/helper/pathutil"
+	"github.com/ystia/yorc/v3/helper/provutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/helper/stringutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/operations"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 const taskContextOutput = "task_context"
@@ -1053,6 +1052,27 @@ func (e *executionCommon) executeWithCurrentInstance(ctx context.Context, retry 
 					if err = consulutil.StoreConsulKeyAsString(path.Join(consulutil.DeploymentKVPrefix, e.deploymentID, "topology", e.Outputs[line[0]]), line[1]); err != nil {
 						return err
 					}
+
+					// Notify attributes on value change
+					ind := strings.LastIndex(e.Outputs[line[0]], "/outputs/")
+					if ind != -1 {
+						outputPath := e.Outputs[line[0]][ind+len("/outputs/"):]
+						data := strings.Split(outputPath, "/")
+						if len(data) > 2 {
+							notifier := &deployments.OperationOutputNotifier{
+								InstanceName:  instanceID,
+								NodeName:      e.NodeName,
+								InterfaceName: data[0],
+								OperationName: data[1],
+								OutputName:    data[2],
+							}
+							err = notifier.NotifyValueChange(e.kv, e.deploymentID)
+							if err != nil {
+								return err
+							}
+						}
+					}
+
 				} else {
 					tasks.SetTaskData(e.kv, e.taskID, e.NodeName+"-"+instanceID+"-"+strings.Join(splits[0:len(splits)-1], "_"), line[1])
 				}

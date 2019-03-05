@@ -34,8 +34,8 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/net/context"
 
-	"github.com/ystia/yorc/helper/executil"
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/helper/executil"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // Client is interface allowing running command
@@ -43,11 +43,36 @@ type Client interface {
 	RunCommand(string) (string, error)
 }
 
+// TODO(loicalbertin) sshSession and SSHSessionWrapper may be merged
+
 // SSHSessionWrapper is a wrapper with a piped SSH session
 type SSHSessionWrapper struct {
 	session *sshSession
 	Stdout  io.Reader
 	Stderr  io.Reader
+}
+
+// StdinPipe returns a pipe that will be connected to the
+// remote command's standard input when the command starts.
+func (sw *SSHSessionWrapper) StdinPipe() (io.WriteCloser, error) {
+	return sw.session.StdinPipe()
+}
+
+// Close closes the session
+func (sw *SSHSessionWrapper) Close() error {
+	return sw.session.Close()
+}
+
+// RequestPty requests the association of a pty with the session on the remote host.
+func (sw *SSHSessionWrapper) RequestPty(term string, h, w int, termmodes ssh.TerminalModes) error {
+	return sw.session.RequestPty(term, h, w, termmodes)
+}
+
+// Start runs cmd on the remote host. Typically, the remote
+// server passes cmd to the shell for interpretation.
+// A Session only accepts one call to Run, Start or Shell.
+func (sw *SSHSessionWrapper) Start(cmd string) error {
+	return sw.session.Start(cmd)
 }
 
 // SSHClient is a client SSH

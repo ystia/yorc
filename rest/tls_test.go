@@ -25,8 +25,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/log"
 )
 
 func testSSLREST(t *testing.T, client *api.Client, srv *testutil.TestServer) {

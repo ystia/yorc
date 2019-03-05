@@ -21,19 +21,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ystia/yorc/log"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/pathutil"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/prov/terraform/commons"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/pathutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/helper/stringutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/terraform/commons"
 )
 
 func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.KV,
@@ -239,51 +238,35 @@ func (g *googleGenerator) generateComputeInstance(ctx context.Context, kv *api.K
 		return err
 	}
 
-	// Provide Consul Keys
-	consulKeys := commons.ConsulKeys{Keys: []commons.ConsulKey{}}
-
 	// Define the private IP address using the value exported by Terraform
 	privateIP := fmt.Sprintf("${google_compute_instance.%s.network_interface.0.address}",
 		instance.Name)
 
-	consulKeyPrivateAddr := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/private_address"),
-		Value: privateIP}
-
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyPrivateAddr)
+	privateIPKey := nodeName + "-" + instanceName + "-privateIP"
+	commons.AddOutput(infrastructure, privateIPKey, &commons.Output{Value: privateIP})
+	outputs[path.Join(instancesKey, instanceName, "/attributes/private_address")] = privateIPKey
 
 	// Define the public IP using the value exported by Terraform
 	// except if it was specified the instance shouldn't have a public address
-	var accessIP string
+	var accessIP, accessIPKey string
 	if noAddress {
 		accessIP = privateIP
+		accessIPKey = privateIPKey
 	} else {
 		accessIP = fmt.Sprintf("${google_compute_instance.%s.network_interface.0.access_config.0.assigned_nat_ip}",
 			instance.Name)
-		consulKeyPublicAddr := commons.ConsulKey{
-			Path:  path.Join(instancesKey, instanceName, "/attributes/public_address"),
-			Value: accessIP}
-		// For backward compatibility...
-		consulKeyPublicIPAddr := commons.ConsulKey{
-			Path:  path.Join(instancesKey, instanceName, "/attributes/public_ip_address"),
-			Value: accessIP}
 
-		consulKeys.Keys = append(consulKeys.Keys, consulKeyPublicAddr,
-			consulKeyPublicIPAddr)
+		publicIPKey := nodeName + "-" + instanceName + "-publicIP"
+		accessIPKey = publicIPKey
+		commons.AddOutput(infrastructure, publicIPKey, &commons.Output{Value: accessIP})
+
+		outputs[path.Join(instancesKey, instanceName, "/attributes/public_address")] = publicIPKey
+		outputs[path.Join(instancesKey, instanceName, "/attributes/public_ip_address")] = publicIPKey
 	}
 
-	// IP ComputeAddress capability
-	capabilityIPAddr := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address"),
-		Value: accessIP}
-	// Default TOSCA Attributes
-	consulKeyIPAddr := commons.ConsulKey{
-		Path:  path.Join(instancesKey, instanceName, "/attributes/ip_address"),
-		Value: accessIP}
-
-	consulKeys.Keys = append(consulKeys.Keys, consulKeyIPAddr, capabilityIPAddr)
-
-	commons.AddResource(infrastructure, "consul_keys", instance.Name, &consulKeys)
+	// ip_adress attribute and endpoint capability
+	outputs[path.Join(instancesKey, instanceName, "/capabilities/endpoint/attributes/ip_address")] = accessIPKey
+	outputs[path.Join(instancesKey, instanceName, "/attributes/ip_address")] = accessIPKey
 
 	// Add Connection check
 	if err = commons.AddConnectionCheckResource(infrastructure, user, privateKey, accessIP, instance.Name, env); err != nil {

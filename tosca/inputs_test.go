@@ -18,8 +18,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/log"
 	"gopkg.in/yaml.v2"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 func TestInput_UnmarshalYAML(t *testing.T) {

@@ -22,17 +22,16 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/ystia/yorc/prov/scheduling/scheduler"
-
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov/monitoring"
-	"github.com/ystia/yorc/rest"
-	"github.com/ystia/yorc/tasks/workflow"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov/monitoring"
+	"github.com/ystia/yorc/v3/prov/scheduling/scheduler"
+	"github.com/ystia/yorc/v3/rest"
+	"github.com/ystia/yorc/v3/tasks/workflow"
 )
 
 // RunServer starts the Yorc server

@@ -14,6 +14,12 @@
 # limitations under the License.
 
 #set -x
+export GO111MODULE=on 
+
+if [[ -z "$(which addlicense)" ]] ; then
+    >&2 echo "addlicense binary not in path. Should perform 'make tools'."
+    exit 1
+fi
 
 LICENSE="apache"
 OWNER="Bull S.A.S. Atos Technologies - Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois, France."

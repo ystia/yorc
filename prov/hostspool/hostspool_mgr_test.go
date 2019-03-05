@@ -26,10 +26,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/labelsutil"
-	"github.com/ystia/yorc/helper/sshutil"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/labelsutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
 )
 
 var dummySSHkey = `-----BEGIN RSA PRIVATE KEY-----
@@ -536,9 +537,9 @@ func createHosts(hostsNumber int) []Host {
 				Port:     uint64(i + 1),
 			},
 			Labels: map[string]string{
-				"label1": "value1" + suffix,
-				"label2": "value2" + suffix,
-				"label3": "value3" + suffix,
+				"label1": "'value1" + suffix + "'",
+				"label2": "'value2" + suffix + "'",
+				"label3": "'value3" + suffix + "'",
 			},
 		}
 	}
@@ -648,9 +649,9 @@ func testConsulManagerApply(t *testing.T, cc *api.Client) {
 				Port:     uint64(i + 1),
 			},
 			Labels: map[string]string{
-				"label1": "value1" + suffix,
-				"label2": "value2" + suffix,
-				"label3": "value3" + suffix,
+				"label1": "'value1" + suffix + "'",
+				"label2": "'value2" + suffix + "'",
+				"label3": "'value3" + suffix + "'",
 			},
 		})
 	}

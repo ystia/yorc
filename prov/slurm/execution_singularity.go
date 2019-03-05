@@ -22,15 +22,14 @@ import (
 	"path"
 	"strings"
 
-	"github.com/ystia/yorc/tosca"
-
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/tasks"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/stringutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 type executionSingularity struct {
@@ -125,8 +124,8 @@ func (e *executionSingularity) runBatchMode(ctx context.Context, opts string) er
 		export := fmt.Sprintf("export %s=%s;", k, v)
 		exports += export
 	}
-	innerCmd := fmt.Sprintf("%ssrun %s singularity %s %s %s", exports, opts, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
-	cmd := fmt.Sprintf("mkdir -p %s;cd %s;sbatch --wrap=\"%s\"", e.OperationRemoteBaseDir, e.OperationRemoteBaseDir, innerCmd)
+	innerCmd := fmt.Sprintf("%ssrun singularity %s %s %s", exports, e.singularityInfo.command, e.singularityInfo.imageURI, e.singularityInfo.exec)
+	cmd := fmt.Sprintf("mkdir -p %s;cd %s;sbatch %s --wrap=\"%s\"", e.OperationRemoteBaseDir, e.OperationRemoteBaseDir, opts, innerCmd)
 	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
 	output, err := e.client.RunCommand(cmd)
 	if err != nil {

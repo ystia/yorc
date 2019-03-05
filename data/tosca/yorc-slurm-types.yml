@@ -19,6 +19,16 @@ artifact_types:
     description: Slurm Job Container image deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
 
+capability_types:
+  yorc.capabilities.slurm.Endpoint:
+    derived_from: yorc.capabilities.Endpoint.ProvisioningAdmin
+    properties:
+      # Adds non required credentials
+      credentials:
+        type: yorc.datatypes.ProvisioningCredential
+        description: Credentials used to provision the resource
+        required: false
+
 node_types:
   yorc.nodes.slurm.Compute:
     derived_from: yorc.nodes.Compute
@@ -37,6 +47,14 @@ node_types:
         type: string
         required: false
         description: Specify a name for the job allocation. The specified name will appear along with the job id.
+      account:
+        type: string
+        description: >
+          Charge resources used by this allocation to specified account. May be mandatory according to configuration.
+      reservation:
+        type: string
+        description: >
+          Allocate resources from the named reservation.
     attributes:
       cuda_visible_devices:
         type: string
@@ -47,7 +65,6 @@ node_types:
       partition:
         type: string
         description: Slurm partition where the nodes are deployed.
-
 
   yorc.nodes.slurm.Job:
     derived_from: org.alien4cloud.nodes.Job
@@ -105,6 +122,19 @@ node_types:
           Time interval duration used for job monitoring as "5s" or "300ms"
           Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
         required: false
+      credentials:
+        type: tosca.datatypes.Credential
+        description: >
+           Provide user credentials for connection to slurm client node
+        required: false
+      account:
+        type: string
+        description: >
+          Charge resources used by this job to specified account. May be mandatory according to configuration.
+      reservation:
+        type: string
+        description: >
+          Allocate resources for the job from the named reservation.
     attributes:
       job_id:
         type: string

@@ -31,17 +31,17 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ystia/yorc/config"
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/helper/sshutil"
-	"github.com/ystia/yorc/helper/stringutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/prov/operations"
-	"github.com/ystia/yorc/tasks"
-	"github.com/ystia/yorc/tosca"
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/sshutil"
+	"github.com/ystia/yorc/v3/helper/stringutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/prov/operations"
+	"github.com/ystia/yorc/v3/tasks"
+	"github.com/ystia/yorc/v3/tosca"
 )
 
 type execution interface {
@@ -102,6 +102,17 @@ func newExecution(kv *api.KV, cfg config.Configuration, taskID, deploymentID, no
 	if err := execCommon.resolveOperation(); err != nil {
 		return nil, err
 	}
+	// Get user credentials from credentials node property
+	// Its not a capability, so capabilityName set to empty string
+	creds, err := getUserCredentials(kv, deploymentID, nodeName, "", "credentials")
+	if err != nil {
+		return nil, err
+	}
+	// Create sshClient using user credentials from credentials property if the are provided, or from yorc config otherwise
+	execCommon.client, err = getSSHClient(creds.UserName, creds.PrivateKey, creds.Password, cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	isSingularity, err := deployments.IsTypeDerivedFrom(kv, deploymentID, operation.ImplementationArtifact, artifactImageImplementation)
 	if err != nil {
@@ -141,6 +152,12 @@ func (e *executionCommon) execute(ctx context.Context) error {
 	switch strings.ToLower(e.operation.Name) {
 	case strings.ToLower(tosca.RunnableSubmitOperationName):
 		log.Printf("Running the job: %s", e.operation.Name)
+
+		// Build Job Information
+		if err := e.buildJobInfo(ctx); err != nil {
+			return errors.Wrap(err, "failed to build job information")
+		}
+
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
 			return errors.Wrap(err, "failed to upload artifact")
@@ -150,11 +167,6 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			if err := e.uploadFile(ctx, path.Join(e.OverlayPath, e.Primary), e.OverlayPath); err != nil {
 				return errors.Wrap(err, "failed to upload operation implementation")
 			}
-		}
-
-		// Build Job Information
-		if err := e.buildJobInfo(ctx); err != nil {
-			return errors.Wrap(err, "failed to build job information")
 		}
 
 		// Run the command
@@ -208,6 +220,7 @@ func (e *executionCommon) getJobInfoFromTaskContext() (*jobInfo, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal stored Slurm job information")
 	}
+	log.Debugf("Unmarshal Job info for task %s. Got user name info : %s", e.taskID, jobInfo.Credentials.UserName)
 	return jobInfo, nil
 }
 
@@ -244,6 +257,9 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["remoteBaseDirectory"] = e.OperationRemoteBaseDir
 	data["remoteExecDirectory"] = e.jobInfo.OperationRemoteExecDir
 	data["outputs"] = strings.Join(e.jobInfo.Outputs, ",")
+	data["userName"] = e.jobInfo.Credentials.UserName
+	data["password"] = e.jobInfo.Credentials.Password
+	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
 
@@ -381,7 +397,8 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 			if err = json.Unmarshal([]byte(input.Value), &args); err != nil {
 				return err
 			}
-		} else {
+			// User credentials are not supposed to be passed as inputs to job
+		} else if !strings.Contains(input.Name, "credentials") {
 			job.Inputs[input.Name] = input.Value
 		}
 	}
@@ -394,7 +411,33 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Get user credentials from credentials node property, if values are provided
+	// Its not a capability property so capability name is empty
+	job.Credentials, err = getUserCredentials(e.kv, e.deploymentID, e.NodeName, "", "credentials")
+	if err != nil {
+		return err
+	}
+
+	// Job account
+	if acc, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "account"); err != nil {
+		return err
+	} else if acc != nil && acc.RawString() != "" {
+		job.Account = acc.RawString()
+	} else if e.cfg.Infrastructures[infrastructureName].GetBool("enforce_accounting") {
+		return errors.Errorf("Job account must be set as configuration enforces accounting")
+	}
+
+	// Reservation
+	if res, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "reservation"); err != nil {
+		return err
+	} else if res != nil && res.RawString() != "" {
+		job.Reservation = res.RawString()
+	}
+
+	// Set jobInfo in executionCommon
 	e.jobInfo = &job
+
 	return nil
 }
 
@@ -421,6 +464,14 @@ func (e *executionCommon) fillJobCommandOpts() string {
 			opts += fmt.Sprintf(" --%s", opt)
 		}
 	}
+	if e.jobInfo.Reservation != "" {
+		opts += fmt.Sprintf(" --reservation=%s", e.jobInfo.Reservation)
+	}
+	log.Debugf("opts=%q", opts)
+	if e.jobInfo.Account != "" {
+		opts += fmt.Sprintf(" --account=%s", e.jobInfo.Account)
+	}
+	log.Debugf("opts=%q", opts)
 	return opts
 }
 
@@ -610,7 +661,6 @@ func (e *executionCommon) resolveExecution() error {
 		return err
 	}
 
-	e.client, err = GetSSHClient(e.cfg)
 	return err
 }
 

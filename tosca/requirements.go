@@ -17,12 +17,11 @@ package tosca
 import (
 	"fmt"
 	"strconv"
-
 	"strings"
 
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/log"
+	"github.com/ystia/yorc/v3/log"
 )
 
 // RequirementDefinitionMap is a map of RequirementDefinition indexed by name

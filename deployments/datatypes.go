@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 
-	"github.com/ystia/yorc/helper/consulutil"
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 // GetTypePropertyDataType returns the type of a property as defined in its property definition

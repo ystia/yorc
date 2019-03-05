@@ -15,16 +15,15 @@
 package plugin
 
 import (
-	"net/rpc"
-
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/prov"
-
 	"context"
+	"net/rpc"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/config"
+
+	"github.com/ystia/yorc/v3/config"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/prov"
 )
 
 // InfraUsageCollector is an extension of prov.InfraStructureUsageCollector

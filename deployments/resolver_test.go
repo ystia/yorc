@@ -20,18 +20,17 @@ import (
 	"reflect"
 	"testing"
 
-	yaml "gopkg.in/yaml.v2"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	yaml "gopkg.in/yaml.v2"
 
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/log"
-	"github.com/ystia/yorc/prov"
-	"github.com/ystia/yorc/testutil"
-	"github.com/ystia/yorc/tosca"
-	"github.com/ystia/yorc/vault"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/log"
+	"github.com/ystia/yorc/v3/prov"
+	"github.com/ystia/yorc/v3/testutil"
+	"github.com/ystia/yorc/v3/tosca"
+	"github.com/ystia/yorc/v3/vault"
 )
 
 func testResolver(t *testing.T, kv *api.KV) {

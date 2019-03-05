@@ -20,15 +20,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
 
-	"strings"
-
-	"github.com/ystia/yorc/deployments"
-	"github.com/ystia/yorc/events"
-	"github.com/ystia/yorc/prov/operations"
+	"github.com/ystia/yorc/v3/deployments"
+	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/prov/operations"
 )
 
 const scriptCustomWrapper = `#!/usr/bin/env bash

@@ -15,21 +15,21 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"path"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"context"
-	"github.com/stretchr/testify/assert"
-	"github.com/ystia/yorc/helper/consulutil"
-	"github.com/ystia/yorc/testutil"
-	"path"
-	"strings"
+	"github.com/ystia/yorc/v3/helper/consulutil"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 func testConsulPubSubStatusChange(t *testing.T, kv *api.KV) {
@@ -500,6 +500,54 @@ func testconsulAlienTaskStatusChange(t *testing.T, kv *api.KV) {
 		assert.Equal(t, "step1", event[EWorkflowStepID.String()])
 		assert.Equal(t, "node1", event[ENodeID.String()])
 	}
+}
+
+func testconsulAttributeValueChange(t *testing.T, kv *api.KV) {
+	t.Parallel()
+	ctx := context.Background()
+	deploymentID := testutil.BuildDeploymentID(t)
+	type args struct {
+		nodeName       string
+		instance       string
+		attributeName  string
+		attributeValue string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"TestUpdateAttribute", args{"Compute", "0", "public_ip_address", "1.2.3.4"}, false},
+	}
+	ids := make([]string, 0)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := PublishAndLogAttributeValueChange(ctx, deploymentID, tt.args.nodeName, tt.args.instance, tt.args.attributeName, tt.args.attributeValue, "updated")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PublishAndLogAttributeValueChange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != "" {
+				ids = append(ids, got)
+			}
+		})
+	}
+
+	prefix := path.Join(consulutil.EventsPrefix, deploymentID)
+	kvps, _, err := kv.List(prefix, nil)
+	assert.Nil(t, err)
+	assert.Len(t, kvps, len(tests))
+
+	for index, kvp := range kvps {
+		assert.Equal(t, ids[index], strings.TrimPrefix(kvp.Key, prefix+"/"))
+		tc := tests[index]
+		event := toStatusChangeMap(t, string(kvp.Value))
+		assert.Equal(t, tc.args.nodeName, event[ENodeID.String()])
+		assert.Equal(t, tc.args.instance, event[EInstanceID.String()])
+		assert.Equal(t, tc.args.attributeName, event[EAttributeName.String()])
+		assert.Equal(t, tc.args.attributeValue, event[EAttributeValue.String()])
+	}
+
 }
 
 func testconsulGetStatusEvents(t *testing.T, kv *api.KV) {

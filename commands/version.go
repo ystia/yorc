@@ -17,9 +17,9 @@ package commands
 import (
 	"fmt"
 
-	"github.com/ystia/yorc/helper/consulutil"
-
 	"github.com/spf13/cobra"
+
+	"github.com/ystia/yorc/v3/helper/consulutil"
 )
 
 var version = "unknown phantom version"

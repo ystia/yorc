@@ -20,7 +20,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
-	"github.com/ystia/yorc/log"
+
+	"github.com/ystia/yorc/v3/log"
 )
 
 var consulClient *api.Client

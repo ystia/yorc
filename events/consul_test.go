@@ -17,7 +17,7 @@ package events
 import (
 	"testing"
 
-	"github.com/ystia/yorc/testutil"
+	"github.com/ystia/yorc/v3/testutil"
 )
 
 // The aim of this function is to run all package tests with consul server dependency with only one consul server start
@@ -71,6 +71,9 @@ func TestRunConsulEventsPackageTests(t *testing.T) {
 		})
 		t.Run("TestLogsSortedByTimestamp", func(t *testing.T) {
 			testLogsSortedByTimestamp(t, kv)
+		})
+		t.Run("TestAttributeValueChange", func(t *testing.T) {
+			testconsulAttributeValueChange(t, kv)
 		})
 	})
 }

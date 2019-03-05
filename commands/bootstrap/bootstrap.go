@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/ystia/yorc/commands"
+	"github.com/ystia/yorc/v3/commands"
 )
 
 // Variables with an uknown values are initialized in the root Makefile
@@ -76,6 +76,9 @@ func init() {
 	bootstrapCmd.PersistentFlags().StringVarP(&workingDirectoryPath,
 		"working_directory", "w", "work", "Working directory where to place deployment files")
 	viper.BindPFlag("working_directory", bootstrapCmd.PersistentFlags().Lookup("working_directory"))
+	bootstrapCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "", false,
+		"Insecure mode - no TLS configuration")
+	viper.BindPFlag("review", bootstrapCmd.PersistentFlags().Lookup("review"))
 	bootstrapCmd.PersistentFlags().StringVarP(&deploymentID,
 		"deployment_name", "n", "", "Name of the deployment. If not specified deployment name is based on time.")
 	viper.BindPFlag("deployment_name", bootstrapCmd.PersistentFlags().Lookup("deployment_name"))
@@ -126,6 +129,7 @@ var reviewInputs bool
 var resourcesZipFilePath string
 var workingDirectoryPath string
 var inputsPath string
+var insecure bool
 var deploymentID string
 var configOnly bool
 
