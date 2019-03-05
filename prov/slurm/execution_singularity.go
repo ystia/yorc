@@ -171,7 +171,7 @@ func (e *executionSingularity) getSingularityProps() error {
 	if o, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "options"); err != nil {
 		return err
 	} else if o != nil && o.RawString() != "" {
-		if e.jobInfo.Args, err = rawList(o.RawString()); err != nil {
+		if err = json.Unmarshal([]byte(o.RawString()), &e.commandOptions); err != nil {
 			return err
 		}
 	}

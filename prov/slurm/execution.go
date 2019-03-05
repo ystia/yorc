@@ -167,12 +167,6 @@ func (e *executionCommon) execute(ctx context.Context) error {
 			}
 		}
 
-		// Add artifact to job artifact's list for monitoring actions
-		e.jobInfo.Artifacts = make([]string, 0)
-		for k := range e.Artifacts {
-			e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, k)
-		}
-
 		// Copy the artifacts
 		if err := e.uploadArtifacts(ctx); err != nil {
 			return errors.Wrap(err, "failed to upload artifact")
@@ -333,7 +327,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "args"); err != nil {
 		return err
 	} else if ea != nil && ea.RawString() != "" {
-		if e.jobInfo.Args, err = rawList(ea.RawString()); err != nil {
+		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.Args); err != nil {
 			return err
 		}
 	}
@@ -490,6 +484,12 @@ func (e *executionCommon) submitJob(ctx context.Context, cmd string) error {
 
 func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 	log.Debugf("Upload artifacts to remote host")
+	// Add artifact to job artifact's list for monitoring actions
+	e.jobInfo.Artifacts = make([]string, 0)
+	for k := range e.Artifacts {
+		e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, k)
+	}
+
 	var g errgroup.Group
 	for artName, artPath := range e.Artifacts {
 		log.Debugf("handle artifact path:%q, name:%q", artPath, artName)
