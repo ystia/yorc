@@ -7,4 +7,9 @@
             node: YorcServer
             capability: org.ystia.yorc.pub.capabilities.YorcConfigContainer
             relationship: org.ystia.yorc.linux.ansible.relationships.YorcConfigGoogleHostedOnYorc
+        - infraSecretsHostedOnVault:
+            type_requirement: host
+            node: VaultServer
+            capability: org.alien4cloud.vault.pub.capabilities.VaultServer
+            relationship: org.ystia.yorc.linux.ansible.relationships.GoogleSecretsOnVault
 {{ end }}
