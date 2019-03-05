@@ -15,7 +15,6 @@
 package internal
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -141,14 +140,13 @@ func (o *EqOperator) createFilter(labelKey string) (Filter, error) {
 	return &ComparisonFilter{labelKey, cop, *o.ValueN, unit}, nil
 }
 
-//RegexOperator is #fixme implements this description
+// RegexOperator is public for use by reflexion but it should be considered as this whole package as internal and not used directly
 type RegexOperator struct {
 	Type  string `parser:"@RegexOperator"`
 	Value string `parser:"@String"`
 }
 
 func (o *RegexOperator) createFilter(labelKey string) (Filter, error) {
-	fmt.Println("creating a regex operator filter")
 	if o.Type == nreqOp {
 		return &RegexFilter{labelKey, Excludes, o.Value}, nil
 	}
@@ -211,8 +209,6 @@ func (o *SetOperator) createFilter(labelKey string) (Filter, error) {
 /* ###################################################### */
 /* ###################################################### */
 /* ###################################################### */
-
-/* NEW FILTER BEGINS HERE */
 
 //CompositionStrategy is used to define the type of combination used into composite filter
 type CompositionStrategy int
@@ -308,8 +304,6 @@ func (f *RegexFilter) Matches(labels map[string]string) (bool, error) {
 		reg = "^" + reg + "$"
 	}
 
-	fmt.Println(" comparing " + value + " " + strconv.Itoa(int(f.Strat)) + " " + reg)
-
 	contains, err := regexp.MatchString(reg, value)
 	switch f.Strat {
 	case Contains, Matches:
@@ -389,7 +383,6 @@ func (f *ComparisonFilter) Matches(labels map[string]string) (bool, error) {
 	case Supeq:
 		return (labelValue >= filterValue), nil
 	case Eq:
-		fmt.Println("comparing " + fmt.Sprintf("%f", labelValue) + " == " + fmt.Sprintf("%f", filterValue) + " : " + strconv.FormatBool(labelValue == filterValue))
 		return (labelValue == filterValue), nil
 	case Neq:
 		return (labelValue != filterValue), nil
