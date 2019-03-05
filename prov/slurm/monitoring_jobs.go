@@ -150,12 +150,14 @@ func (o *actionOperator) monitorJob(ctx context.Context, cfg config.Configuratio
 
 func (o *actionOperator) removeArtifacts(actionData *actionData, sshClient *sshutil.SSHClient) {
 	for _, art := range actionData.artifacts {
-		p := path.Join(actionData.workingDir, art)
-		log.Debugf("Remove artifact %q", p)
-		cmd := fmt.Sprintf("rm -f %s", p)
-		_, err := sshClient.RunCommand(cmd)
-		if err != nil {
-			log.Printf("an error:%+v occurred during removing artifact %q", err, p)
+		if art != "" {
+			p := path.Join(actionData.workingDir, art)
+			log.Debugf("Remove artifact %q", p)
+			cmd := fmt.Sprintf("rm -rf %s", p)
+			_, err := sshClient.RunCommand(cmd)
+			if err != nil {
+				log.Printf("an error:%+v occurred during removing artifact %q", err, p)
+			}
 		}
 	}
 }

@@ -272,7 +272,13 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["userName"] = e.jobInfo.Credentials.UserName
 	data["password"] = e.jobInfo.Credentials.Password
 	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
-	data["artifacts"] = strings.Join(e.jobInfo.Artifacts, ",")
+
+	// retrieve artifacts names for removal
+	artNames := make([]string, 0)
+	for k := range e.Artifacts {
+		artNames = append(artNames, k)
+	}
+	data["artifacts"] = strings.Join(artNames, ",")
 
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
@@ -566,9 +572,6 @@ func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifact
 	if err := e.client.CopyFile(bytes.NewReader(source), remotePath, "0755"); err != nil {
 		return err
 	}
-
-	// Add artifact to job artifact's list
-	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, relPath)
 	return nil
 }
 
