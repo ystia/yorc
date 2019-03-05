@@ -424,8 +424,12 @@ func rawToFloat64(fval float64, lvalS string) (float64, float64, error) {
 	return fval, lval, nil
 }
 
+func f64ToStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
 func durationToFloat64(fval float64, funit string, lvalS string) (float64, float64, error) {
-	fvalStr := strconv.FormatFloat(fval, 'f', -1, 64)
+	fvalStr := f64ToStr(fval)
 	//no error possible, if we enter this function we already know the filter unit is duration
 	fDuration, _ := time.ParseDuration(fvalStr + funit)
 
@@ -438,7 +442,7 @@ func durationToFloat64(fval float64, funit string, lvalS string) (float64, float
 }
 
 func bytesToFloat64(fval float64, funit string, lvalS string) (float64, float64, error) {
-	fvalStr := strconv.FormatFloat(fval, 'f', -1, 64)
+	fvalStr := f64ToStr(fval)
 	//no error possible, if we enter this function we already know the filter unit is bytes
 	fBytes, _ := humanize.ParseBytes(fvalStr + funit)
 
