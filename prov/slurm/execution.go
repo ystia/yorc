@@ -161,6 +161,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 				return err
 			}
 
+
 			// Add the primary artifact to the artifacts map if not already included
 			var is bool
 			if !e.isSingularity && e.Primary != "" {
@@ -173,6 +174,12 @@ func (e *executionCommon) execute(ctx context.Context) error {
 					e.Artifacts[e.PrimaryFile] = e.Primary
 				}
 			}
+		}
+
+		// Add artifact to job artifact's list for monitoring actions
+		e.jobInfo.Artifacts = make([]string, 0)
+		for k := range e.Artifacts {
+			e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, k)
 		}
 
 		// Copy the artifacts
@@ -272,13 +279,7 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 	data["userName"] = e.jobInfo.Credentials.UserName
 	data["password"] = e.jobInfo.Credentials.Password
 	data["privateKey"] = e.jobInfo.Credentials.PrivateKey
-
-	// retrieve artifacts names for removal
-	artNames := make([]string, 0)
-	for k := range e.Artifacts {
-		artNames = append(artNames, k)
-	}
-	data["artifacts"] = strings.Join(artNames, ",")
+	data["artifacts"] = strings.Join(e.jobInfo.Artifacts, ",")
 
 	return &prov.Action{ActionType: "job-monitoring", Data: data}
 }
@@ -535,32 +536,39 @@ func (e *executionCommon) uploadArtifacts(ctx context.Context) error {
 				if fileInfo.IsDir() {
 					return e.walkArtifactDirectory(ctx, sourcePath, fileInfo, path.Dir(sourcePath))
 				}
-				return e.uploadArtifact(ctx, sourcePath, path.Dir(sourcePath))
+				return e.uploadArtifact(ctx, sourcePath, artName)
 			})
 		}(artPath)
 	}
 	return g.Wait()
 }
 
-func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath string, fileInfo os.FileInfo, artifactBaseDir string) error {
+func (e *executionCommon) walkArtifactDirectory(ctx context.Context, rootPath string, fileInfo os.FileInfo, artifactBaseName string) error {
 	return filepath.Walk(rootPath, func(pathFile string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		log.Debugf("Walk path:%s", pathFile)
 		if !info.IsDir() {
-			return e.uploadArtifact(ctx, pathFile, artifactBaseDir)
+			return e.uploadArtifact(ctx, pathFile, artifactBaseName)
 		}
 		return nil
 	})
 }
 
-func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifactBaseDir string) error {
-	log.Debugf("artifactBaseDir:%s", artifactBaseDir)
-	relPath, err := filepath.Rel(artifactBaseDir, pathFile)
-	if err != nil {
-		return err
+func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifactBaseName string) error {
+	log.Debugf("artifactBaseName:%s", artifactBaseName)
+	var relPath string
+	if strings.HasSuffix(pathFile, artifactBaseName) {
+		relPath = artifactBaseName
+	} else {
+		var err error
+		relPath, err = filepath.Rel(artifactBaseName, pathFile)
+		if err != nil {
+			return err
+		}
 	}
+
 	// Read file in bytes
 	source, err := ioutil.ReadFile(pathFile)
 	if err != nil {

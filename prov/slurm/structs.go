@@ -58,4 +58,5 @@ type jobInfo struct {
 	Reservation            string            `json:"reservation,omitempty"`
 	Command                string            `json:"command,omitempty"`
 	WorkingDir             string            `json:"working_directory,omitempty"`
+	Artifacts              []string          `json:"artifacts,omitempty"`
 }
