@@ -97,7 +97,7 @@ node_types:
           Set a limit on the total run time of the job allocation.
           Time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
         required: false
-      extra_options:
+      extra_job_options:
         type: list
         description: >
          This define all other slurm job options with the format opt=value (ex: mpi=pmi2 or partition=MyPartition).

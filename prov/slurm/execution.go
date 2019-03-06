@@ -318,7 +318,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "extra_options"); err != nil {
+	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "extra_job_options"); err != nil {
 		return err
 	} else if extra != nil && extra.RawString() != "" {
 		if err = json.Unmarshal([]byte(extra.RawString()), &e.jobInfo.Opts); err != nil {
