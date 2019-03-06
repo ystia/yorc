@@ -163,7 +163,7 @@ func (e *executionSingularity) buildImageURI(ctx context.Context, prefix string)
 
 func (e *executionSingularity) getSingularityProps() error {
 	var err error
-	if o, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "options"); err != nil {
+	if o, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "singularity_command_options"); err != nil {
 		return err
 	} else if o != nil && o.RawString() != "" {
 		if err = json.Unmarshal([]byte(o.RawString()), &e.commandOptions); err != nil {

@@ -171,7 +171,7 @@ node_types:
         type: string
         description: If this property is filled, the specified command is executed within the container with "singularity exec" instead of default "singularity run".
         required: false
-      options:
+      singularity_command_options:
         type: list
         description: Options passed to the "singularity run" or "singularity exec" command.
         required: false
