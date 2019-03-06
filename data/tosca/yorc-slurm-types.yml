@@ -100,7 +100,7 @@ node_types:
       extra_job_options:
         type: list
         description: >
-         This define all other slurm job options with the format opt=value (ex: mpi=pmi2 or partition=MyPartition).
+          This define all other slurm job options (ex: --mpi=pmi2 or --partition=MyPartition).
         required: false
         entry_schema:
           type: string
