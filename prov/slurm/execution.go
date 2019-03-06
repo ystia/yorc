@@ -44,6 +44,7 @@ import (
 )
 
 const home = "~"
+const batchScript = "b.batch"
 
 type execution interface {
 	resolveExecution() error
@@ -429,15 +430,27 @@ func (e *executionCommon) buildJobOpts() string {
 
 func (e *executionCommon) prepareAndSubmitJob(ctx context.Context) error {
 	var cmd string
-	opts := e.buildJobOpts()
-	exports := e.buildEnvVars()
-	workingDirCmd := e.addWorkingDirCmd()
 	if e.jobInfo.Command != "" {
-		cmd = fmt.Sprintf("%ssbatch%s -D %s%s --wrap='%s %s'", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, e.jobInfo.Command, strings.Join(e.jobInfo.Args, " "))
+		inner := fmt.Sprintf("%s %s", e.jobInfo.Command, quoteArgs(e.jobInfo.Args))
+		cmd = e.wrapCommand(inner)
 	} else {
-		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
+		cmd = fmt.Sprintf("%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), e.jobInfo.WorkingDir, e.buildJobOpts(), path.Join(e.jobInfo.WorkingDir, e.PrimaryFile))
 	}
 	return e.submitJob(ctx, cmd)
+}
+
+func (e *executionCommon) wrapCommand(innerCmd string) string {
+	pathScript := path.Join(e.jobInfo.WorkingDir, batchScript)
+	// Add the script to the artifact's list
+	e.jobInfo.Artifacts = append(e.jobInfo.Artifacts, batchScript)
+	// Write script
+	cat := fmt.Sprintf(`cat <<'EOF' > %s
+#!/bin/bash
+
+%s
+EOF
+`, pathScript, innerCmd)
+	return fmt.Sprintf("%s%s%ssbatch -D %s%s %s", e.addWorkingDirCmd(), e.buildEnvVars(), cat, e.jobInfo.WorkingDir, e.buildJobOpts(), pathScript)
 }
 
 func (e *executionCommon) addWorkingDirCmd() string {
@@ -468,7 +481,7 @@ func (e *executionCommon) buildEnvVars() string {
 }
 
 func (e *executionCommon) submitJob(ctx context.Context, cmd string) error {
-	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %q", cmd))
+	events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelDEBUG, e.deploymentID).RegisterAsString(fmt.Sprintf("Run the command: %s", cmd))
 	out, err := e.client.RunCommand(cmd)
 	if err != nil {
 		log.Debugf("stderr:%q", out)

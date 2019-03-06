@@ -96,22 +96,17 @@ func (e *executionSingularity) execute(ctx context.Context) error {
 }
 
 func (e *executionSingularity) prepareAndSubmitSingularityJob(ctx context.Context) error {
-	opts := e.buildJobOpts()
-	exports := e.buildEnvVars()
-	workingDirCmd := e.addWorkingDirCmd()
-	singularityOpts := strings.Join(e.commandOptions, " ")
-	var debug string
+	var debug, inner string
 	if e.debug {
-		debug = "-d -v -x"
+		debug = "-d -v"
 	}
-	var inner string
+	cmdOpts := strings.Join(e.commandOptions, " ")
 	if e.jobInfo.Command != "" {
-		inner = fmt.Sprintf("srun singularity %s exec %s %s %s %s", debug, singularityOpts, e.imageURI, e.jobInfo.Command, strings.Join(e.jobInfo.Args, " "))
+		inner = fmt.Sprintf("srun singularity %s exec %s %s %s %s", debug, cmdOpts, e.imageURI, e.jobInfo.Command, quoteArgs(e.jobInfo.Args))
 	} else {
-		inner = fmt.Sprintf("srun singularity %s run %s %s", debug, singularityOpts, e.imageURI)
+		inner = fmt.Sprintf("srun singularity %s run %s %s", debug, cmdOpts, e.imageURI)
 	}
-	cmd := fmt.Sprintf("%s%ssbatch -D %s%s --wrap='%s'", workingDirCmd, exports, e.jobInfo.WorkingDir, opts, inner)
-	return e.submitJob(ctx, cmd)
+	return e.submitJob(ctx, e.wrapCommand(inner))
 }
 
 func (e *executionSingularity) resolveImageURI(ctx context.Context) error {

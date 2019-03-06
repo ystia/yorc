@@ -388,3 +388,15 @@ func getJobInfo(client sshutil.Client, jobID string) (map[string]string, error) 
 	}
 	return nil, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q", jobID)}
 }
+
+func quoteArgs(t []string) string {
+	var args string
+	for _, v := range t {
+		if !strings.HasPrefix(v, "'") && !strings.HasSuffix(v, "'") {
+			v = strings.Replace(v, "'", "\"", -1)
+			v = "'" + v + "'"
+		}
+		args += v + " "
+	}
+	return args
+}
