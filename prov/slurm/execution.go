@@ -557,10 +557,7 @@ func (e *executionCommon) uploadArtifact(ctx context.Context, pathFile, artifact
 
 	remotePath := path.Join(e.jobInfo.WorkingDir, relPath)
 	log.Debugf("uploadArtifact file from source path:%q to:%q", pathFile, remotePath)
-	if err := e.client.CopyFile(bytes.NewReader(source), remotePath, "0755"); err != nil {
-		return err
-	}
-	return nil
+	return e.client.CopyFile(bytes.NewReader(source), remotePath, "0755")
 }
 
 func (e *executionCommon) resolveOperation() error {
