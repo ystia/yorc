@@ -177,7 +177,7 @@ node_types:
         required: false
         entry_schema:
           type: string
-      debug:
+      singularity_debug:
         type: boolean
         description: Print all debug and verbose information during singularity execution
         required: false

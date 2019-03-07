@@ -170,7 +170,7 @@ func (e *executionSingularity) getSingularityProps() error {
 			return err
 		}
 	}
-	if e.debug, err = deployments.GetBooleanNodeProperty(e.kv, e.deploymentID, e.NodeName, "debug"); err != nil {
+	if e.debug, err = deployments.GetBooleanNodeProperty(e.kv, e.deploymentID, e.NodeName, "singularity_debug"); err != nil {
 		return err
 	}
 	return nil

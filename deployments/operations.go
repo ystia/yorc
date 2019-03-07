@@ -118,10 +118,10 @@ func GetOperationPathAndPrimaryImplementation(kv *api.KV, deploymentID, nodeTemp
 		return "", "", err
 	}
 
-	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName, false)
+	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
 }
 
-func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentID, nodeType, operationName string, excludeImportPath bool) (string, string, error) {
+func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentID, nodeType, operationName string) (string, string, error) {
 	// First check if operation exists in current nodeType
 	operationPath := getOperationPath(deploymentID, "", nodeType, operationName)
 	importPath, err := GetTypeImportPath(kv, deploymentID, nodeType)
@@ -133,9 +133,6 @@ func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
-		if excludeImportPath {
-			return operationPath, string(kvp.Value), nil
-		}
 		return operationPath, path.Join(importPath, string(kvp.Value)), nil
 	}
 
@@ -145,9 +142,6 @@ func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return "", "", errors.Wrapf(err, "Failed to retrieve primary implementation for operation %q on type %q", operationName, nodeType)
 	}
 	if kvp != nil && len(kvp.Value) > 0 {
-		if excludeImportPath {
-			return operationPath, string(kvp.Value), nil
-		}
 		return operationPath, path.Join(importPath, string(kvp.Value)), nil
 	}
 
@@ -157,7 +151,7 @@ func getOperationPathAndPrimaryImplementationForNodeType(kv *api.KV, deploymentI
 		return "", "", err
 	}
 
-	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName, excludeImportPath)
+	return getOperationPathAndPrimaryImplementationForNodeType(kv, deploymentID, parentType, operationName)
 }
 
 // This function return the path for a given operation
