@@ -12,7 +12,7 @@ artifact_types:
   yorc.artifacts.Deployment.SlurmJob:
     description: Slurm Job deployment descriptor
     derived_from: tosca.artifacts.Deployment
-  yorc.artifacts.Deployment.SlurmJobBin:
+  yorc.artifacts.Deployment.SlurmJobBatch:
     description: Slurm Job binary deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
   yorc.artifacts.Deployment.SlurmJobImage:
