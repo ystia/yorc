@@ -443,7 +443,7 @@ topology_template:
             - set_state: initial
           on_success:
             - ConsulAgentVaultServer_creating
-       ConsulAgentVaultServer_creating:
+        ConsulAgentVaultServer_creating:
           target: ConsulAgentVaultServer
           activities:
             - set_state: creating
@@ -602,6 +602,10 @@ topology_template:
             - call_operation: Configure.post_configure_source
           on_success:
             - Infrastructure_yorcConfigInfrastructureHostedOnYorcYorcServerConfig_post_configure_target
+            {{if not .Insecure}}
+            - Infrastructure_infraSecretsHostedOnVault_post_configure_source
+            {{end}}
+            - YorcServer_configured
         ComputeYorc_install:
           target: YorcCompute
           activities:
@@ -1322,6 +1326,16 @@ topology_template:
             - call_operation: Configure.post_configure_target
           on_success:
             - YorcServer_configured
+        {{if not .Insecure}}
+        Infrastructure_infraSecretsHostedOnVault_post_configure_source:
+          target: Infrastructure
+          target_relationship: infraSecretsHostedOnVault
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
+          on_success:
+            - YorcServer_configured
+        {{end}}
         YorcOnDemandLocationResources_initial:
           target: YorcOnDemandLocationResources
           activities:
@@ -1391,13 +1405,13 @@ topology_template:
             - set_state: stopping
           on_success:
             - VaultServer_stopped
-         VaultServer_stopped:
+        VaultServer_stopped:
           target: VaultServer
           activities:
             - set_state: stopped
           on_success:
             - VaultServer_deleting
-       VaultServer_deleting:
+        VaultServer_deleting:
           target: VaultServer
           activities:
             - set_state: deleting
