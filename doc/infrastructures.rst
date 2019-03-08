@@ -52,14 +52,14 @@ It is strongly recommended to associate labels to your hosts. Labels allow to fi
 
 Filter on label existence
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-These filters are used to check wether a label has been defined or not for the host, regardless of its value
+These filters are used to check whether a label has been defined or not for the host, regardless of its value
 
  * ``label_identifier`` will match if a label with the given identifier is defined. Example : ``gpu``
  * ``!label_identifier`` will match if no label  with the  given identifier has been defined for the host. Example : ``!gpu``
 
 Filter on string value
 ^^^^^^^^^^^^^^^^^^^^^^
-These filters are used to check wether a label value is matching a string. String value has to be between simple or double quotes : ``""`` or ``''``. 
+These filters are used to check whether a label value is matching a string. String value has to be between simple or double quotes : ``""`` or ``''``. 
 
 
 * ``label_identifier = "wanted_value"`` and ``label_identifier ==`wanted_value'`` will match if the label with the given name has ``wanted_value`` as a value. Example : ``somename = "somevalue"``

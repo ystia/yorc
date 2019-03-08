@@ -36,7 +36,7 @@ func FilterFromString(input string) (Filter, error) {
 	pfilter := &ParsedFilter{}
 	err := filterParser.ParseString(input, pfilter)
 	if err != nil {
-		return &CompositeFilter{}, errors.Wrap(err, "failed to parse given filter string")
+		return nil, errors.Wrap(err, "failed to parse given filter string : "+input)
 	}
 	filter, err := pfilter.createFilter()
 	return filter, err
@@ -272,11 +272,11 @@ type RegexStrategy int
 const (
 	//Contains is used to check if the label contains the regex of the filter
 	Contains RegexStrategy = iota
-	//Excludes is used to check wether the label does not contains the regex of the filter
+	//Excludes is used to check whether the label does not contains the regex of the filter
 	Excludes RegexStrategy = iota
-	//Matches is used to check wether the label matches strictly the regex
+	//Matches is used to check whether the label matches strictly the regex
 	Matches RegexStrategy = iota
-	//Differs is used to check wether the label differs from the regex
+	//Differs is used to check whether the label differs from the regex
 	Differs RegexStrategy = iota
 )
 
