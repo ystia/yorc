@@ -19,6 +19,54 @@ artifact_types:
     description: Slurm Job Container image deployment descriptor
     derived_from: yorc.artifacts.Deployment.SlurmJob
 
+data_types:
+  yorc.datatypes.slurm.JobOptions:
+    derived_from: tosca.datatypes.Root
+    properties:
+      name:
+        type: string
+        description: The slurm job name.
+        required: false
+      tasks:
+        description: Number of tasks to run.
+        type: integer
+        required: false
+        default: 1
+      nodes:
+        description: Number of nodes allocated to the job.
+        type: integer
+        required: false
+        default: 1
+      cpus_per_task:
+        description: Number of cpus allocated per task.
+        type: integer
+        required: false
+      mem_per_node:
+        type: integer
+        description: The memory per node in GB required to the job.
+        required: false
+      time:
+        type: string
+        description: >
+          Set a limit on the total run time of the job allocation.
+          Time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+        required: false
+      account:
+        type: string
+        description: >
+          Charge resources used by this job to specified account. May be mandatory according to configuration.
+      reservation:
+        type: string
+        description: >
+          Allocate resources for the job from the named reservation.
+      extra_options:
+        type: list
+        description: >
+          This define all other slurm job options (ex: --mpi=pmi2 or --partition=MyPartition).
+        required: false
+        entry_schema:
+          type: string
+
 capability_types:
   yorc.capabilities.slurm.Endpoint:
     derived_from: yorc.capabilities.Endpoint.ProvisioningAdmin
@@ -69,41 +117,11 @@ node_types:
   yorc.nodes.slurm.Job:
     derived_from: org.alien4cloud.nodes.Job
     properties:
-      name:
-        type: string
-        description: The slurm job name.
-        required: false
-      tasks:
-        description: Number of tasks to run.
-        type: integer
-        required: false
-        default: 1
-      nodes:
-        description: Number of nodes allocated to the job.
-        type: integer
-        required: false
-        default: 1
-      cpus_per_task:
-        description: Number of cpus allocated per task.
-        type: integer
-        required: false
-      mem_per_node:
-        type: integer
-        description: The memory per node in GB required to the job.
-        required: false
-      time:
-        type: string
+      job_properties:
+        type: yorc.datatypes.slurm.JobOptions
         description: >
-          Set a limit on the total run time of the job allocation.
-          Time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+          Job properties used for Slurm sbatch execution. See Slurm documentation (https://slurm.schedmd.com/sbatch.html) for more details.
         required: false
-      extra_job_options:
-        type: list
-        description: >
-          This define all other slurm job options (ex: --mpi=pmi2 or --partition=MyPartition).
-        required: false
-        entry_schema:
-          type: string
       working_directory:
         type: string
         description: Directory where the batch script or command will be executed. Default is home's related user.
@@ -137,14 +155,6 @@ node_types:
         description: >
            Provide user credentials for connection to slurm client node
         required: false
-      account:
-        type: string
-        description: >
-          Charge resources used by this job to specified account. May be mandatory according to configuration.
-      reservation:
-        type: string
-        description: >
-          Allocate resources for the job from the named reservation.
     attributes:
       job_id:
         type: string

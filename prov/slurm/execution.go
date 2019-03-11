@@ -145,7 +145,7 @@ func (e *executionCommon) execute(ctx context.Context) error {
 	// Fill log optional fields for log registration
 	switch strings.ToLower(e.operation.Name) {
 	case strings.ToLower(tosca.RunnableSubmitOperationName):
-		log.Printf("Submit the job: %s", e.operation.Name)
+		log.Debugf("Submit the job: %s", e.operation.Name)
 		// Build Job Information
 		if err := e.buildJobInfo(ctx); err != nil {
 			return errors.Wrap(err, "failed to build job information")
@@ -249,7 +249,7 @@ func (e *executionCommon) buildJobMonitoringAction() *prov.Action {
 func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	// Get main properties from node
 	e.jobInfo = &jobInfo{}
-	jobName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "name")
+	jobName, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "name")
 	if err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		e.jobInfo.Name = jobName.RawString()
 	}
 
-	if ts, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "tasks"); err != nil {
+	if ts, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "tasks"); err != nil {
 		return err
 	} else if ts != nil && ts.RawString() != "" {
 		if e.jobInfo.Tasks, err = strconv.Atoi(ts.RawString()); err != nil {
@@ -271,7 +271,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	var nodes = 1
-	if ns, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "nodes"); err != nil {
+	if ns, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "nodes"); err != nil {
 		return err
 	} else if ns != nil && ns.RawString() != "" {
 		if nodes, err = strconv.Atoi(ns.RawString()); err != nil {
@@ -280,7 +280,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 	e.jobInfo.Nodes = nodes
 
-	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "mem_per_node"); err != nil {
+	if m, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "mem_per_node"); err != nil {
 		return err
 	} else if m != nil && m.RawString() != "" {
 		if e.jobInfo.Mem, err = strconv.Atoi(m.RawString()); err != nil {
@@ -288,7 +288,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "cpus_per_task"); err != nil {
+	if c, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "cpus_per_task"); err != nil {
 		return err
 	} else if c != nil && c.RawString() != "" {
 		if e.jobInfo.Cpus, err = strconv.Atoi(c.RawString()); err != nil {
@@ -296,7 +296,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if maxTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "time"); err != nil {
+	if maxTime, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "time"); err != nil {
 		return err
 	} else if maxTime != nil {
 		e.jobInfo.MaxTime = maxTime.RawString()
@@ -318,7 +318,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		}
 	}
 
-	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "extra_job_options"); err != nil {
+	if extra, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "extra_options"); err != nil {
 		return err
 	} else if extra != nil && extra.RawString() != "" {
 		if err = json.Unmarshal([]byte(extra.RawString()), &e.jobInfo.Opts); err != nil {
@@ -364,7 +364,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Job account
-	if acc, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "account"); err != nil {
+	if acc, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "account"); err != nil {
 		return err
 	} else if acc != nil && acc.RawString() != "" {
 		e.jobInfo.Account = acc.RawString()
@@ -373,7 +373,7 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 	}
 
 	// Reservation
-	if res, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "reservation"); err != nil {
+	if res, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "job_properties", "reservation"); err != nil {
 		return err
 	} else if res != nil && res.RawString() != "" {
 		e.jobInfo.Reservation = res.RawString()
