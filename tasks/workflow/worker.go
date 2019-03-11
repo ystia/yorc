@@ -318,7 +318,7 @@ func (w *worker) runCustomCommand(ctx context.Context, t *taskExecution) error {
 	}
 
 	ctx = operations.SetOperationLogFields(ctx, op)
-	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName})
+	ctx = events.AddLogOptionalFields(ctx, events.LogOptionalFields{events.NodeID: nodeName, events.OperationName: op.Name})
 
 	err = func() error {
 		defer metrics.MeasureSince(metricsutil.CleanupMetricKey([]string{"executor", "operation", t.targetID, nodeType, op.Name}), time.Now())
