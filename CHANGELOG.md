@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+## 3.2.0-M3 (March 11, 2019)
+
 ### BUG FIXES
 
 * Yorc panics on segmentation violation attempting to deploy Ystia Forge Slurm topology ([GH-321](https://github.com/ystia/yorc/issues/321))
