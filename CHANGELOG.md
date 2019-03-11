@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
+* Refactor Slurm jobs ([GH-220](https://github.com/ystia/yorc/issues/220))
+
 ## 3.2.0-M3 (March 11, 2019)
 
 ### BUG FIXES
@@ -13,10 +17,6 @@
 
 * Yorc supports Slurm Accounting ([GH-280](https://github.com/ystia/yorc/issues/280))
 * Yorc supports Slurm reservation ([GH-132](https://github.com/ystia/yorc/issues/132))
-
-### ENHANCEMENTS
-
-* Refactor Slurm jobs ([GH-220](https://github.com/ystia/yorc/issues/220))
 
 ## 3.2.0-M2 (February 15, 2019)
 
