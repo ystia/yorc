@@ -111,6 +111,7 @@ on several nodes as described in :ref:`Run Yorc in HA mode <yorc_ha_section>`, u
 command line option ``--deployment_type HA`` described below.
 
 When flag ``--insecure`` is not specified, a secured installation will performed:
+
   * TLS with mutual authentication between components will be configured,
   * a Vault will be installed and used to store infrastructure credentials.
 
