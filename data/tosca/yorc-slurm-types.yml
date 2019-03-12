@@ -117,7 +117,7 @@ node_types:
   yorc.nodes.slurm.Job:
     derived_from: org.alien4cloud.nodes.Job
     properties:
-      job_properties:
+      slurm_options:
         type: yorc.datatypes.slurm.JobOptions
         description: >
           Job properties used for Slurm sbatch execution. See Slurm documentation (https://slurm.schedmd.com/sbatch.html) for more details.
