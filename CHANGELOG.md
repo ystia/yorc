@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+### ENHANCEMENTS
+
 * Bootstrap Yorc with a Vault instance ([GH-282](https://github.com/ystia/yorc/issues/282))
 
 ## 3.2.0-M3 (March 11, 2019)
