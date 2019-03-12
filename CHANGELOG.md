@@ -6,6 +6,10 @@
 
 * Bootstrap Yorc with a Vault instance ([GH-282](https://github.com/ystia/yorc/issues/282))
 
+### BUG FIXES
+
+* Deployment fails on error "socket: too many open files" ([GH-334](https://github.com/ystia/yorc/issues/334))
+
 ## 3.2.0-M3 (March 11, 2019)
 
 ### BUG FIXES
