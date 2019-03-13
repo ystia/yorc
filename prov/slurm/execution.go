@@ -325,21 +325,6 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 			return err
 		}
 	}
-	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "args"); err != nil {
-		return err
-	} else if ea != nil && ea.RawString() != "" {
-		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.Args); err != nil {
-			return err
-		}
-	}
-	if envVars, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "env_vars"); err != nil {
-		return err
-	} else if envVars != nil && envVars.RawString() != "" {
-		if err = json.Unmarshal([]byte(envVars.RawString()), &e.jobInfo.EnvVars); err != nil {
-			return err
-		}
-	}
-
 	e.jobInfo.Inputs = make(map[string]string)
 	for _, input := range e.EnvInputs {
 		if !strings.Contains(input.Name, "credentials") {
@@ -379,8 +364,22 @@ func (e *executionCommon) buildJobInfo(ctx context.Context) error {
 		e.jobInfo.Reservation = res.RawString()
 	}
 
-	// Command
-	if cmd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "command"); err != nil {
+	// Execution options
+	if ea, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "args"); err != nil {
+		return err
+	} else if ea != nil && ea.RawString() != "" {
+		if err = json.Unmarshal([]byte(ea.RawString()), &e.jobInfo.Args); err != nil {
+			return err
+		}
+	}
+	if envVars, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "env_vars"); err != nil {
+		return err
+	} else if envVars != nil && envVars.RawString() != "" {
+		if err = json.Unmarshal([]byte(envVars.RawString()), &e.jobInfo.EnvVars); err != nil {
+			return err
+		}
+	}
+	if cmd, err := deployments.GetNodePropertyValue(e.kv, e.deploymentID, e.NodeName, "execution_options", "command"); err != nil {
 		return err
 	} else if cmd != nil && cmd.RawString() != "" {
 		e.jobInfo.Command = cmd.RawString()

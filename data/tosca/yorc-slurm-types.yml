@@ -67,6 +67,28 @@ data_types:
         entry_schema:
           type: string
 
+  yorc.datatypes.slurm.ExecutionOptions:
+    derived_from: tosca.datatypes.Root
+    properties:
+      command:
+        type: string
+        description: >
+          Allows a job to run a command instead of a batch script if none is provided.
+        required: false
+      args:
+        type: list
+        description: >
+          If command is provided, this allows to define arguments passed to the command.
+        required: false
+        entry_schema:
+          type: string
+      env_vars:
+        type: list
+        description: Environment variables to pass to the job execution.
+        required: false
+        entry_schema:
+          type: string
+
 capability_types:
   yorc.capabilities.slurm.Endpoint:
     derived_from: yorc.capabilities.Endpoint.ProvisioningAdmin
@@ -126,24 +148,10 @@ node_types:
         type: string
         description: Directory where the batch script or command will be executed. Default is home's related user.
         required: false
-      command:
-        type: string
+      execution_options:
+        type: yorc.datatypes.slurm.ExecutionOptions
         description: >
-          Allows a job to run a command instead of a batch script if none is provided.
-        required: false
-      args:
-        type: list
-        description: >
-          If command is provided, this allows to define arguments passed to the command.
-        required: false
-        entry_schema:
-          type: string
-      env_vars:
-        type: list
-        description: Environment variables to pass to the job execution.
-        required: false
-        entry_schema:
-          type: string
+          Properties used for the execution itself.
       monitoring_time_interval:
         type: string
         description: >
@@ -177,10 +185,6 @@ node_types:
   yorc.nodes.slurm.SingularityJob:
     derived_from: yorc.nodes.slurm.Job
     properties:
-      command:
-        type: string
-        description: If this property is filled, the specified command is executed within the container with "singularity exec" instead of default "singularity run".
-        required: false
       singularity_command_options:
         type: list
         description: Options passed to the "singularity run" or "singularity exec" command.
