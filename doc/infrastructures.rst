@@ -76,7 +76,7 @@ These filters are used to check how a label value compares to a numeric value. N
 * ``label_identifier != wanted_value`` will match if the label with the given name has a value different from ``wanted_value``. Example : ``somename != 100``
 * ``label_identifier > wanted_value`` will match if the label with the given name has a value strictly superior to ``wanted_value``. Example : ``somename > 100``
 * ``label_identifier < wanted_value`` will match if the label with the given name has a value strictly inferior to ``wanted_value``. Example : ``somename < 100``
-* ``label_identifier >= wanted_value`` will match if the label with the given name has a value superior or equal to ``wanted_value``. Example : ``somename >= 100``
+* ``label_identifier >= wanted_value`` will match if the label with the given name has a value superior or equal to ``wanted_value``. Example : ``somename >= 100 ms``
 * ``label_identifier <= wanted_value`` will match if the label with the given name has a value  inferior or equal to ``wanted_value``. Example : ``somename <= 100``
 
 
