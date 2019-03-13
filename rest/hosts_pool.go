@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
@@ -191,10 +192,16 @@ func (s *Server) getHostInPool(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) listHostsInPool(w http.ResponseWriter, r *http.Request) {
 	filtersString := r.URL.Query()["filter"]
+
 	filters := make([]labelsutil.Filter, len(filtersString))
 	for i := range filtersString {
 		var err error
-		filters[i], err = labelsutil.CreateFilter(filtersString[i])
+		str, err := url.QueryUnescape(filtersString[i])
+		if err != nil {
+			writeError(w, r, newBadRequestError(err))
+			return
+		}
+		filters[i], err = labelsutil.CreateFilter(str)
 		if err != nil {
 			writeError(w, r, newBadRequestError(err))
 			return
