@@ -62,7 +62,7 @@ Filter on string value
 These filters are used to check whether a label value is matching a string. String value has to be between simple or double quotes : ``""`` or ``''``. 
 
 
-* ``label_identifier = "wanted_value"`` and ``label_identifier ==`wanted_value'`` will match if the label with the given name has ``wanted_value`` as a value. Example : ``somename = "somevalue"``
+* ``label_identifier = "wanted_value"`` and ``label_identifier =='wanted_value'`` will match if the label with the given name has ``wanted_value`` as a value. Example : ``somename = "somevalue"``
 
 * ``label_identifier != "wanted_value"`` will match if the label with the given name has not ``wanted_value`` as a value. Example : ``somename != "somevalue"``
 
