@@ -84,7 +84,7 @@ Filter on regex value
 ^^^^^^^^^^^^^^^^^^^^^
 These filters are used to check if a label value contains or excludes a regex. Regex value has to be between simple or double quotes : ``""`` or ``''``. "Contains" means that the value (string) of the label contains at least one substring matching the regex. "Excludes" means that the value (string) of the label contains no substring matching the regex.
 
-* ``label_identifier ~= "wanted_value"``will match if the label with the given name has a value containing ``wanted_value``. Example : ``somename ~= "(a|bc)+"``
+* ``label_identifier ~= "wanted_value"`` will match if the label with the given name has a value containing ``wanted_value``. Example : ``somename ~= "(a|bc)+"``
 
 * ``label_identifier !~ "wanted_value"`` will match if the label with the given name has a value excluding ``wanted_value`` . Example : ``somename !~ "(a|bc)+"``
 
