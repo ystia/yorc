@@ -20,18 +20,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/ystia/yorc/v3/config"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/ystia/yorc/v3/config"
-	"github.com/ystia/yorc/v3/helper/sshutil"
 )
 
 // MockSSHSession allows to mock an SSH session
@@ -305,37 +300,9 @@ func TestPrivateKey(t *testing.T) {
 func TestParseJobIDFromSbatchOut(t *testing.T) {
 	t.Parallel()
 	str := "Submitted batch job 4567"
-	ret, err := parseJobIDFromBatchOutput(str)
+	ret, err := retrieveJobID(str)
 	require.Nil(t, err, "unexpected error")
 	require.Equal(t, "4567", ret, "unexpected JobID parsing")
-}
-
-func TestParseOutputConfigFromBatchScriptWithAll(t *testing.T) {
-	t.Parallel()
-	expected := []string{"c.out", "file", "b.out"}
-	data, err := os.Open("testdata/submit.sh")
-	require.Nil(t, err, "unexpected error while opening test file")
-	outputParams, err := parseOutputConfigFromBatchScript(data, true)
-	require.Nil(t, err, "unexpected error while parsing output params from test file")
-	require.Equal(t, expected, outputParams)
-}
-
-func TestParseOutputConfigFromBatchScript(t *testing.T) {
-	t.Parallel()
-	expected := []string{"file", "b.out"}
-	data, err := os.Open("testdata/submit.sh")
-	require.Nil(t, err, "unexpected error while opening test file")
-	outputParams, err := parseOutputConfigFromBatchScript(data, false)
-	require.Nil(t, err, "unexpected error while parsing output params from test file")
-	require.Equal(t, expected, outputParams)
-}
-
-func TestParseOutputConfigFromOpts(t *testing.T) {
-	t.Parallel()
-	expected := []string{"b.out"}
-	data := []string{"--output=b.out"}
-	outputParams := parseOutputConfigFromOpts(data)
-	require.Equal(t, expected, outputParams)
 }
 
 func TestParseKeyValue(t *testing.T) {
@@ -369,55 +336,17 @@ func TestParseKeyValue(t *testing.T) {
 
 }
 
-func TestGetJobInfo(t *testing.T) {
+func TestParseJob(t *testing.T) {
 	t.Parallel()
-	type args struct {
-		sshCli  sshutil.Client
-		jobID   string
-		jobName string
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		want    *jobInfoShort
-		wantErr bool
-		err     error
-	}{
-		{"TestWithJobID", args{&MockSSHClient{
-			MockRunCommand: func(cmd string) (string, error) {
-				return "my_test,123,RUNNING", nil
-			}}, "123", ""}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING"}, false, nil},
-		{"TestWithJobName", args{&MockSSHClient{
-			MockRunCommand: func(cmd string) (string, error) {
-				return "my_test,123,RUNNING", nil
-			}}, "", "my_test"}, &jobInfoShort{ID: "123", name: "my_test", state: "RUNNING"}, false, nil},
-		{"TestWithoutParams", args{&MockSSHClient{
-			MockRunCommand: func(cmd string) (string, error) {
-				return "", nil
-			}}, "", ""}, nil, true, nil},
-		{"TestWithMalformedOutput", args{&MockSSHClient{
-			MockRunCommand: func(cmd string) (string, error) {
-				return "MALFORMED", nil
-			}}, "123", ""}, nil, true, nil},
-		{"TestWithJobNotFound", args{&MockSSHClient{
-			MockRunCommand: func(cmd string) (string, error) {
-				return "", nil
-			}}, "123", ""}, nil, true, &noJobFound{msg: fmt.Sprintf("no information found for job with id:%q, name:%q", "123", "")}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			info, err := getJobInfo(tt.args.sshCli, tt.args.jobID, tt.args.jobName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TestGetJobInfo() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err != nil && tt.err != nil && !reflect.DeepEqual(err, tt.err) {
-				t.Errorf("TestGetJobInfo() error = %v, expected err:%v", err, tt.err)
-			}
-			if !reflect.DeepEqual(info, tt.want) {
-				t.Fatalf("TestGetJobInfo() = %v, want %v", info, tt.want)
-			}
-		})
-	}
+	data, err := os.Open("testdata/scontrol.txt")
+	require.Nil(t, err, "unexpected error while opening test file")
+	info, err := parseJobInfo(data)
+	require.Nil(t, err, "unexpected error while parsing job info")
+	require.Equal(t, "hpda19", info["NodeList"], "unexpected value for \"NodeList\" key")
+	require.Equal(t, "/home_nfs/john/file.out", info["StdOut"], "unexpected value for \"StdOut\" key")
+	require.Equal(t, "None", info["Reason"], "unexpected value for \"Reason\" key")
+	require.Equal(t, "/home_nfs/john/file.err", info["StdErr"], "unexpected value for \"StdErr\" key")
+	require.Equal(t, "RUNNING", info["JobState"], "unexpected value for \"JobState\" key")
+	require.Equal(t, "test-salloc-Environment", info["JobName"], "unexpected value for \"JobName\" key")
+	require.Equal(t, "2-19:42:53", info["RunTime"], "unexpected value for \"RunTime\" key")
 }
