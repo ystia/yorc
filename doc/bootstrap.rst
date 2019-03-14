@@ -110,6 +110,11 @@ You can deploy the full stack either on a single node (by default), or distribut
 on several nodes as described in :ref:`Run Yorc in HA mode <yorc_ha_section>`, using ``yorc bootstrap``
 command line option ``--deployment_type HA`` described below.
 
+When flag ``--insecure`` is not specified, a secured installation will performed:
+
+  * TLS with mutual authentication between components will be configured,
+  * a Vault will be installed and used to store infrastructure credentials.
+
 Configuration values can be provided by the user:
 
  * in interactive mode,
@@ -193,7 +198,7 @@ The following ``yorc bootstrap`` option are available:
   * ``--deployment_type`` Define deployment type: single_node or HA (default, single_node)
   * ``--follow`` Follow bootstrap deployment steps, logs, or none (default, steps)
   * ``--infrastructure`` Define the type of infrastructure where to deploy Yorc: google, openstack, aws, hostspool
-  * ``--insecure`` Insecure mode - no TLS configuration
+  * ``--insecure`` Insecure mode - no TLS configuration, no Vault to store secrets
   * ``--jdk_download_url`` Java Development Kit download URL (default, JDK downloaded from https://edelivery.oracle.com/otn-pub/java/jdk/)
   * ``--jdk_version`` Java Development Kit version (default 1.8.0-131-b11)
   * ``--resources_zip`` Path to bootstrap resources zip file (default, zip bundled within Yorc)
@@ -201,6 +206,8 @@ The following ``yorc bootstrap`` option are available:
   * ``--terraform_download_url`` Terraform download URL (default, Terraform version compatible with this Yorc, under https://releases.hashicorp.com/terraform/)
   * ``--terraform_plugins_download_urls`` Terraform plugins download URLs (default, Terraform plugins compatible with this Yorc, under https://releases.hashicorp.com/terraform-provider-xxx/)
   * ``--values`` Path to file containing input values
+  * ``--vault_download_url`` Hashicorp Vault download URL (default "https://releases.hashicorp.com/vault/1.0.3/vault_1.0.3_linux_amd64.zip")
+  * ``--vault_port`` Vault port (default 8200)
   * ``--working_directory`` Working directory where to place deployment files (default, work)
   * ``--yorc_ca_key_file`` Path to Certificate Authority private key, accessible locally
   * ``--yorc_ca_passphrase`` Bootstrapped Yorc Home directory (default, /var/yorc)

@@ -46,6 +46,7 @@ func (cfg Configuration) buildConsulClientInstance() (*api.Client, error) {
 	consulCustomConfig := api.DefaultConfig()
 	consulCustomConfig.Transport.MaxIdleConnsPerHost = cfg.Consul.PubMaxRoutines
 	consulCustomConfig.Transport.MaxIdleConns = cfg.Consul.PubMaxRoutines
+	consulCustomConfig.Transport.MaxConnsPerHost = cfg.Consul.PubMaxRoutines
 	consulCustomConfig.Transport.IdleConnTimeout = 10 * time.Second
 	consulCustomConfig.Transport.TLSHandshakeTimeout = cfg.Consul.TLSHandshakeTimeout
 	log.Debugf("consul http Transport config: %+v", consulCustomConfig.Transport)

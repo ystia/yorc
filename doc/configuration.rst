@@ -1026,6 +1026,8 @@ Slurm infrastructure key name is ``slurm`` in lower case.
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 | ``enforce_accounting``           | If true, account properties are mandatory for jobs and computes  | boolean   | no                                                |  false  |
 +----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
+| ``keep_job_remote_artifacts``    | If true, job artifacts are not deleted at the end of the job.    | boolean   | no                                                |  false  |
++----------------------------------+------------------------------------------------------------------+-----------+---------------------------------------------------+---------+
 
 An alternative way to specify user credentials for SSH connection to the Slurm Client's node (user_name, password or private_key), is to provide them as application properties.
 In this case, Yorc gives priority to the application provided properties. 
