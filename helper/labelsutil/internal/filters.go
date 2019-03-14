@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-//Filter is a general abstrac filtering type
+// Filter is a general abstract filtering type
 type Filter interface {
 	Matches(labels map[string]string) (bool, error)
 }

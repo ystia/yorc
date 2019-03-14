@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -47,7 +46,7 @@ func init() {
 			}
 			q := request.URL.Query()
 			for i := range filters {
-				q.Add("filter", url.QueryEscape(filters[i]))
+				q.Add("filter", (filters[i]))
 			}
 			request.URL.RawQuery = q.Encode()
 			request.Header.Add("Accept", "application/json")

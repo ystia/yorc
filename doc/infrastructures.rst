@@ -62,11 +62,11 @@ Filter on string value
 These filters are used to check whether a label value is matching a string. String value has to be between simple or double quotes : ``""`` or ``''``. 
 
 
-* ``label_identifier = "wanted_value"`` and ``label_identifier ==`wanted_value'`` will match if the label with the given name has ``wanted_value`` as a value. Example : ``somename = "somevalue"``
+* ``label_identifier = "wanted_value"`` and ``label_identifier =='wanted_value'`` will match if the label with the given name has ``wanted_value`` as a value. Example : ``somename = "somevalue"``
 
 * ``label_identifier != "wanted_value"`` will match if the label with the given name has not ``wanted_value`` as a value. Example : ``somename != "somevalue"``
 
-Please note that when used through Yorc CLI interface, the filter has to be between simple quotes, and the filter value has to be between simple quotes : ``yorc hp list -f 'somename="someval"'`` is a valid command, while ``yorc hp list -f somename="someval"`` and ``yorc hp list -f "somename='someval'"`` are not.
+Please note that when used through Yorc CLI interface, the filter has to be between double quotes ``""``, and the filter value has to be between simple quotes ``'`` : ``yorc hp list -f "somename='someval'"`` is a valid command, while ``yorc hp list -f somename="someval"`` and ``yorc hp list -f 'somename="someval"'`` are not.
 
 
 Filter on numeric value
@@ -78,7 +78,7 @@ These filters are used to check how a label value compares to a numeric value. N
 * ``label_identifier != wanted_value`` will match if the label with the given name has a value different from ``wanted_value``. Example : ``somename != 100``
 * ``label_identifier > wanted_value`` will match if the label with the given name has a value strictly superior to ``wanted_value``. Example : ``somename > 100``
 * ``label_identifier < wanted_value`` will match if the label with the given name has a value strictly inferior to ``wanted_value``. Example : ``somename < 100``
-* ``label_identifier >= wanted_value`` will match if the label with the given name has a value superior or equal to ``wanted_value``. Example : ``somename >= 100``
+* ``label_identifier >= wanted_value`` will match if the label with the given name has a value superior or equal to ``wanted_value``. Example : ``somename >= 100 ms``
 * ``label_identifier <= wanted_value`` will match if the label with the given name has a value  inferior or equal to ``wanted_value``. Example : ``somename <= 100``
 
 
@@ -86,7 +86,7 @@ Filter on regex value
 ^^^^^^^^^^^^^^^^^^^^^
 These filters are used to check if a label value contains or excludes a regex. Regex value has to be between simple or double quotes : ``""`` or ``''``. "Contains" means that the value (string) of the label contains at least one substring matching the regex. "Excludes" means that the value (string) of the label contains no substring matching the regex.
 
-* ``label_identifier ~= "wanted_value"``will match if the label with the given name has a value containing ``wanted_value``. Example : ``somename ~= "(a|bc)+"``
+* ``label_identifier ~= "wanted_value"`` will match if the label with the given name has a value containing ``wanted_value``. Example : ``somename ~= "(a|bc)+"``
 
 * ``label_identifier !~ "wanted_value"`` will match if the label with the given name has a value excluding ``wanted_value`` . Example : ``somename !~ "(a|bc)+"``
 
