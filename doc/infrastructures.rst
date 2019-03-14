@@ -94,9 +94,10 @@ Filter on set appartenance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 These filters are used to check is a label value is matching with one of the value of a set. 
 
-* ``label_identifier in ("firstval", "secondval")`` will match if the label with the given name has for value ``firstval`` or  ``secondval``. Example : ``somename in ("gpu", "cpu", "none")`` 
-* ``label_identifier not in ("firstval", "secondval")`` and ``label_identifier notin ("firstval", "secondval")`` will match if the label with the given name has not for value ``firstval`` or  ``secondval``. Example : ``somename notin ("gpu", "cpu", "none")``
+* ``label_identifier in (firstval, "secondval")`` will match if the label with the given name has for value ``firstval`` or  ``secondval``. Example : ``somename in (gpu, cpu, none)`` 
+* ``label_identifier not in ("firstval", "secondval")`` and ``label_identifier notin (firstval, secondval)`` will match if the label with the given name has not for value ``firstval`` or  ``secondval``. Example : ``somename notin (gpu, cpu, none)``
 
+Please note that quote around the values are optional, and that the values will always be considered as strings here. Therefore, ``label_identifier in (100)`` will not match if the string value of the label is ``100.0``.
 
 Here are some example:
 
