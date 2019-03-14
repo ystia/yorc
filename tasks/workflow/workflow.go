@@ -105,7 +105,5 @@ func updateTaskStatusAccordingToWorkflowStatus(ctx context.Context, kv *api.KV, 
 	} else {
 		events.WithContextOptionalFields(ctx).NewLogEntry(events.LogLevelINFO, deploymentID).Registerf("Workflow %q ended without error", workflowName)
 	}
-
-	events.PublishAndLogWorkflowStatusChange(ctx, kv, deploymentID, taskID, workflowName, status.String())
-	return status, errors.Wrapf(checkAndSetTaskStatus(kv, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
+	return status, errors.Wrapf(checkAndSetTaskStatus(ctx, kv, deploymentID, taskID, status), "Failed to update task status to %q with TaskID: %q", status, taskID)
 }

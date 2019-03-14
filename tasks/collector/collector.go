@@ -111,7 +111,6 @@ func (c *Collector) ResumeTask(taskID string) error {
 	}
 
 	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
-	tasks.EmitTaskEventWithContextualLogs(nil, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusRUNNING.String())
 	return nil
 }
 
@@ -197,7 +196,6 @@ func (c *Collector) registerTask(targetID string, taskType tasks.TaskType, data 
 		}
 	}
 	tasks.EmitTaskEventWithContextualLogs(ctx, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusINITIAL.String())
-	tasks.EmitTaskEventWithContextualLogs(ctx, c.consulClient.KV(), targetID, taskID, taskType, workflowName, tasks.TaskStatusRUNNING.String())
 	return taskID, nil
 }
 

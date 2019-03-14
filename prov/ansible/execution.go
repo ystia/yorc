@@ -61,6 +61,7 @@ host_key_checking=False
 timeout=30
 stdout_callback = yaml
 retry_files_save_path = #PLAY_PATH#
+nocows = 1
 `
 const ansibleFactCaching = `
 gathering = smart
