@@ -102,6 +102,12 @@ type CredentialsConfiguration struct {
 	Keys map[string]string
 }
 
+// VaultConfiguration provides Vault user-defined settings
+type VaultConfiguration struct {
+	DownloadURL string `yaml:"download_url" mapstructure:"download_url"`
+	Port        int
+}
+
 // TopologyValues provides inputs to the topology templates
 type TopologyValues struct {
 	Ansible         AnsibleConfiguration
@@ -117,6 +123,8 @@ type TopologyValues struct {
 	Jdk             JdkConfiguration
 	Location        LocationConfiguration
 	Hosts           []rest.HostConfig
+	Vault           VaultConfiguration
+	Insecure        bool
 }
 
 // formatAsYAML is a function used in templates to output the yaml representation
