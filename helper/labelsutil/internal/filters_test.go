@@ -20,12 +20,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+/*
 func filterFromString(t *testing.T, input string) *Filter {
 	filter := &Filter{}
 	err := filterParser.ParseString(input, filter)
 	require.NoError(t, err)
 	return filter
-}
+}*/
 
 func TestFiltersExistsMatching(t *testing.T) {
 
@@ -41,6 +42,8 @@ func TestFiltersExistsMatching(t *testing.T) {
 	}{
 		{"TestExists", `l1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestExistsFalse", `l3`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotExists", `!l3`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotExistsFalse", `!l1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -70,13 +73,11 @@ func TestFiltersEqMatching(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"TestEqString", `l1=v1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestEqStringQuote", `l1="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestEqStringNoMatchKey", `l3=v1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
-		{"TestEqStringNoMatchValue", `l1=v2`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
-		{"TestNotEqString", `l1!=v2`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotEqStringQuote", `l1!="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotEqStringNoMatchKey", `l3!=v1`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestEqStringNoMatchKey", `l3="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestEqStringNoMatchValue", `l1="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotEqString", `l1!="v2"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotEqStringNoMatchKey", `l3!="v1"`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,6 +119,15 @@ func TestFiltersCompareMatching(t *testing.T) {
 		{"TestCompFloatGETrue", `l1 >= 1.80e-10`, args{map[string]string{"l1": "1.80e-10", "m2": "v2"}}, true, false},
 		{"TestCompFloatGEFalse", `l1 >= 10.0`, args{map[string]string{"l1": "-20.0", "m2": "v2"}}, false, false},
 		{"TestCompFloatGENoKey", `l3 >= 10.0`, args{map[string]string{"l1": "20.0", "m2": "v2"}}, false, false},
+
+		{"TestCompFloatEqTrue", `l1 == 5`, args{map[string]string{"l1": "5", "m2": "v2"}}, true, false},
+		{"TestCompFloatEqTrueDiffStr", `l1 == 5.0`, args{map[string]string{"l1": "5", "m2": "v2"}}, false, false},
+		{"TestCompFloatEqFalse", `l1 == 10`, args{map[string]string{"l1": "50.0", "m2": "v2"}}, false, false},
+		{"TestCompFloatEqNoKey", `l3 == 10`, args{map[string]string{"l1": "50.0", "m2": "v2"}}, false, false},
+		{"TestCompFloatNeqTrue", `l1 != 1.0`, args{map[string]string{"l1": "5.0", "m2": "v2"}}, true, false},
+		{"TestCompFloatNeqFalse", `l1 != 10`, args{map[string]string{"l1": "10", "m2": "v2"}}, false, false},
+		{"TestCompFloatNeqFalseDiffStr", `l1 != 10.0`, args{map[string]string{"l1": "10", "m2": "v2"}}, true, false},
+		{"TestCompFloatNeqNoKey", `l3 != 10`, args{map[string]string{"l1": "50.0", "m2": "v2"}}, false, false},
 
 		{"TestCompDurationLTTrue", `l1 < 10s`, args{map[string]string{"l1": "5s", "m2": "v2"}}, true, false},
 		{"TestCompDurationLTFalse", `l1 < 10ms`, args{map[string]string{"l1": "50.0ms", "m2": "v2"}}, false, false},
@@ -196,10 +206,52 @@ func TestFiltersSetMatching(t *testing.T) {
 		{"TestSetInStringQuote", `l1 in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
 		{"TestSetInStringNoMatchKey", `l3 in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
 		{"TestSetInStringNoMatchValue", `l1 in ("v2", "v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
-		{"TestNotInString", `l1 not in (v2)`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotInString", `l1 not in ("v2","v3","v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotInStringQuote", `l1 not in ("v2")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
-		{"TestNotInStringNoMatchKey", `l3 not in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotSPACEInString", `l1 not in (v2)`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotSPACEInString", `l1 not in ("v2","v3","v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotSPCACEInStringQuote", `l1 not in ("v2")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotSPACEInStringNoMatchKey", `l3 not in ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+		{"TestNotInString", `l1 notin (v2)`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotInString", `l1 notin ("v2","v3","v4")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotInStringQuote", `l1 notin ("v2")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, true, false},
+		{"TestNotInStringNoMatchKey", `l3 notin ("v1")`, args{map[string]string{"l1": "v1", "m2": "v2"}}, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, err := FilterFromString(tt.filter)
+			require.NoError(t, err)
+			got, err := f.Matches(tt.args.labels)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Filter.Matches() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Filter.Matches() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFiltersRegexMatching(t *testing.T) {
+
+	type args struct {
+		labels map[string]string
+	}
+	tests := []struct {
+		name    string
+		filter  string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"TestRegexpContainsOnMatchingString", `lr1 ~= "vv"`, args{map[string]string{"lr1": "vv", "m2": "v2"}}, true, false},
+		{"TestRegexpContainsOnContainingString", `lr1 ~= "vv"`, args{map[string]string{"lr1": "vvvvv", "m2": "v2"}}, true, false},
+		{"TestRegexpExcludingOnContainingString", `lr1 !~ "vv"`, args{map[string]string{"lr1": "vvvvv", "m2": "v2"}}, false, false},
+		{"TestRegexpExcludingOnNonMatching", `lr1 !~ "vv"`, args{map[string]string{"lr1": "aaaaa", "m2": "v2"}}, true, false},
+		{"TestRegexpFullMatch", `lr1 ~= "^vv$"`, args{map[string]string{"lr1": "vv", "m2": "v2"}}, true, false},
+		{"TestRegexpFullMatchRejection", `lr1 ~= "^vv$"`, args{map[string]string{"lr1": "vvv", "m2": "v2"}}, false, false},
+		{"TestRegexpFullExcludingMatchingString", `lr1 !~ "^vv$"`, args{map[string]string{"lr1": "vv", "m2": "v2"}}, false, false},
+		{"TestRegexpFullExcludingOnContainingString", `lr1 !~ "^vv$"`, args{map[string]string{"lr1": "vvvv", "m2": "v2"}}, true, false},
+		{"TestRegexpFullExcludingOnNonMatchingString", `lr1 !~ "^vv$"`, args{map[string]string{"lr1": "aaaa", "m2": "v2"}}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
