@@ -66,6 +66,8 @@ These filters are used to check whether a label value is matching a string. Stri
 
 * ``label_identifier != "wanted_value"`` will match if the label with the given name has not ``wanted_value`` as a value. Example : ``somename != "somevalue"``
 
+Please note that when used through Yorc CLI interface, the filter has to be between simple quotes, and the filter value has to be between simple quotes : ``yorc hp list -f 'somename="someval"'`` is a valid command, while ``yorc hp list -f somename="someval"`` and ``yorc hp list -f "somename='someval'"`` are not.
+
 
 Filter on numeric value
 ^^^^^^^^^^^^^^^^^^^^^^^
