@@ -34,6 +34,8 @@ imports:
   - org.alien4cloud.java.jdk.linux/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.alien4cloud.alien4cloud.config.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
   - org.alien4cloud.cloudify.hostpool.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/types.yml
+  - org.alien4cloud.vault.pub/{{getAlien4CloudForgeVersionFromTOSCATypes}}/type.yml
+  - org.alien4cloud.vault.vault_sh/{{getAlien4CloudForgeVersionFromTOSCATypes}}/type.yml
   - org.ystia.terraform.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
   - org.ystia.ansible.pub/{{getForgeVersionFromTOSCATypes}}/types.yaml
 
@@ -162,6 +164,13 @@ topology_template:
             node: ConsulServer
             capability: org.alien4cloud.consul.pub.capabilities.ConsulAgent
             relationship: org.ystia.yorc.linux.ansible.relationships.JoinConsulAgent
+        {{if not .Insecure}}
+        - connectToVaultServer:
+            type_requirement: vault
+            node: VaultServer
+            capability: org.alien4cloud.vault.pub.capabilities.VaultServer
+            relationship: org.ystia.yorc.linux.ansible.relationships.ConnectsToVaultServer
+        {{end}}
         - dependsOnAnsibleRuntimeAnsibleRuntimeFeature:
             type_requirement: ansible
             node: AnsibleRuntime
@@ -219,6 +228,29 @@ topology_template:
             secure: false
             network_name: PRIVATE
             initiator: source
+    {{if not .Insecure}}
+    VaultServer:
+      type: org.alien4cloud.vault.vault_sh.nodes.VaultServer
+      properties:
+        port: {{.Vault.Port}}
+        download_url: "{{.Vault.DownloadURL}}"
+        install_dir: "/var/vault"
+        tls_disable: false
+        auto_unsealed: true
+        ldap_enable: false
+        ca_pem: |{{indent .Yorc.CAPEMContent 10}}
+        ca_key: |{{indent .Yorc.CAKeyContent 10}}
+        ca_passphrase: "{{.Yorc.CAPassPhrase}}"
+      requirements:
+        - consul:
+            node: ConsulServer
+            capability: org.ystia.yorc.experimental.consul.pub.capabilities.ConsulServer
+            relationship: org.alien4cloud.vault.relationships.ConnectToConsulAgent
+        - host:
+            node: YorcCompute
+            capability: tosca.capabilities.Container
+            relationship: tosca.relationships.HostedOn
+    {{end}}
     TerraformRuntime:
       type: org.ystia.terraform.linux.terraform.nodes.TerraformRuntime
       properties:
@@ -257,6 +289,9 @@ topology_template:
             - JDK_initial
             - ConsulServer_initial
             - YorcServer_initial
+            {{if not .Insecure}}
+            - VaultServer_initial
+            {{end}}
         JDK_creating:
           target: JDK
           activities:
@@ -277,13 +312,40 @@ topology_template:
             - call_operation: Configure.post_configure_source
           on_success:
             - Infrastructure_yorcConfigInfrastructureHostedOnYorcYorcServerConfig_post_configure_target
+            {{if not .Insecure}}
+            - Infrastructure_infraSecretsHostedOnVault_post_configure_source
+            {{end}}
             - YorcServer_configured
+        {{if not .Insecure}}
+        VaultServer_created:
+          target: VaultServer
+          activities:
+            - set_state: created
+          on_success:
+            - VaultServer_configuring
+        {{end}}
         YorcPlugin_creating:
           target: YorcPlugin
           activities:
             - set_state: creating
           on_success:
             - YorcPlugin_created
+        {{if not .Insecure}}
+        VaultServer_consul_pre_configure_source:
+          target: VaultServer
+          target_relationship: consul
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.pre_configure_source
+          on_success:
+            - VaultServer_configured
+        VaultServer_started:
+          target: VaultServer
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_initial
+        {{end}}
         YorcOnDemandLocationResources_created:
           target: YorcOnDemandLocationResources
           activities:
@@ -338,6 +400,14 @@ topology_template:
             - set_state: starting
           on_success:
             - ConsulServer_start
+        {{if not .Insecure}}
+        VaultServer_start:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - VaultServer_started
+        {{end}}
         YorcServer_joinConsulAgentConsulServerConsul_agent_pre_configure_source:
           target: YorcServer
           target_relationship: joinConsulAgentConsulServerConsul_agent
@@ -346,6 +416,14 @@ topology_template:
             - call_operation: Configure.pre_configure_source
           on_success:
             - YorcServer_configure
+        {{if not .Insecure}}
+        VaultServer_starting:
+          target: VaultServer
+          activities:
+            - set_state: starting
+          on_success:
+            - VaultServer_start
+        {{end}}
         AnsibleRuntime_starting:
           target: AnsibleRuntime
           activities:
@@ -365,6 +443,14 @@ topology_template:
           on_success:
             - ConsulServer_configuring
             - AnsibleRuntime_initial
+        {{if not .Insecure}}
+        VaultServer_configured:
+          target: VaultServer
+          activities:
+            - set_state: configured
+          on_success:
+            - VaultServer_starting
+        {{end}}
         Infrastructure_starting:
           target: Infrastructure
           activities:
@@ -558,6 +644,14 @@ topology_template:
             - set_state: initial
           on_success:
             - ConsulServer_creating
+        {{if not .Insecure}}
+        VaultServer_initial:
+          target: VaultServer
+          activities:
+            - set_state: initial
+          on_success:
+            - VaultServer_creating
+        {{end}}
         JDK_created:
           target: JDK
           activities:
@@ -624,6 +718,16 @@ topology_template:
             - set_state: creating
           on_success:
             - Infrastructure_created
+        {{if not .Insecure}}
+        YorcServer_connectToVaultServer_post_configure_source:
+          target: YorcServer
+          target_relationship: connectToVaultServer
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
+          on_success:
+            - YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source
+        {{end}}
         YorcPlugin_initial:
           target: YorcPlugin
           activities:
@@ -635,7 +739,18 @@ topology_template:
           activities:
             - set_state: started
           on_success:
+            {{if not .Insecure}}
+            - VaultServer_initial
+            {{end}}
             - YorcServer_initial
+        {{if not .Insecure}}
+        VaultServer_creating:
+          target: VaultServer
+          activities:
+            - set_state: creating
+          on_success:
+            - VaultServer_create
+        {{end}}
         AnsibleRuntime_configured:
           target: AnsibleRuntime
           activities:
@@ -692,6 +807,16 @@ topology_template:
             - call_operation: Configure.post_configure_target
           on_success:
             - YorcServer_configured
+        {{if not .Insecure}}
+        Infrastructure_infraSecretsHostedOnVault_post_configure_source:
+          target: Infrastructure
+          target_relationship: infraSecretsHostedOnVault
+          operation_host: SOURCE
+          activities:
+            - call_operation: Configure.post_configure_source
+          on_success:
+            - YorcServer_configured
+        {{end}}
         YorcOnDemandLocationResources_initial:
           target: YorcOnDemandLocationResources
           activities:
@@ -758,19 +883,39 @@ topology_template:
           activities:
             - call_operation: Standard.configure
           on_success:
+            {{if not .Insecure}}
+            - YorcServer_connectToVaultServer_post_configure_source
+            {{else}}
             - YorcServer_dependsOnTerraformRuntimeTerraformRuntimeFeature_post_configure_source
+            {{end}}
         YorcPlugin_created:
           target: YorcPlugin
           activities:
             - set_state: created
           on_success:
             - YorcPlugin_configuring
+        {{if not .Insecure}}
+        VaultServer_create:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.create
+          on_success:
+            - VaultServer_created
+        {{end}}
         JDK_started:
           target: JDK
           activities:
             - set_state: started
           on_success:
             - Alien4Cloud_initial
+        {{if not .Insecure}}
+        VaultServer_configuring:
+          target: VaultServer
+          activities:
+            - set_state: configuring
+          on_success:
+            - VaultServer_consul_pre_configure_source
+        {{end}}
     uninstall:
       steps:
         Infrastructure_deleted:
@@ -797,6 +942,14 @@ topology_template:
             - set_state: stopping
           on_success:
             - YorcServer_stop
+        {{if not .Insecure}}
+        VaultServer_stopping:
+          target: VaultServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - VaultServer_stopped
+        {{end}}
         A4C_Yorc_uninstall:
           target: YorcCompute
           activities:
@@ -962,6 +1115,14 @@ topology_template:
             - set_state: stopping
           on_success:
             - AnsibleRuntime_stopped
+        {{if not .Insecure}}
+        VaultServer_deleting:
+          target: VaultServer
+          activities:
+            - set_state: deleting
+          on_success:
+            - VaultServer_deleted
+        {{end}}
         TerraformRuntime_deleting:
           target: TerraformRuntime
           activities:
@@ -989,6 +1150,9 @@ topology_template:
             - A4C_Yorc_uninstall
             - AnsibleRuntime_stopping
             - ConsulServer_stopping
+            {{if not .Insecure}}
+            - VaultServer_stopping
+            {{end}}
         ConsulServer_stopped:
           target: ConsulServer
           activities:
@@ -1001,6 +1165,15 @@ topology_template:
             - set_state: deleted
           on_success:
             - A4C_Yorc_uninstall
+        {{if not .Insecure}}
+        VaultServer_deleted:
+          target: VaultServer
+          activities:
+            - set_state: deleted
+          on_success:
+            - A4C_Yorc_uninstall
+            - ConsulServer_stopping
+        {{end}}
         YorcOnDemandLocationResources_stopping:
           target: YorcOnDemandLocationResources
           activities:
@@ -1013,6 +1186,14 @@ topology_template:
             - set_state: deleting
           on_success:
             - YorcPlugin_deleted
+        {{if not .Insecure}}
+        VaultServer_stopped:
+          target: VaultServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - VaultServer_deleting
+        {{end}}
         Infrastructure_deleting:
           target: Infrastructure
           activities:
@@ -1074,6 +1255,9 @@ topology_template:
           activities:
             - set_state: started
           on_success:
+            {{if not .Insecure}}
+            - VaultServer_starting
+            {{end}}
             - YorcServer_starting
         Infrastructure_starting:
           target: Infrastructure
@@ -1125,6 +1309,14 @@ topology_template:
           target: YorcOnDemandLocationResources
           activities:
             - set_state: started
+        {{if not .Insecure}}
+        VaultServer_started:
+          target: VaultServer
+          activities:
+            - set_state: started
+          on_success:
+            - YorcServer_starting
+        {{end}}
         YorcPlugin_starting:
           target: YorcPlugin
           activities:
@@ -1142,6 +1334,9 @@ topology_template:
           activities:
             - delegate: start
           on_success:
+            {{if not .Insecure}}
+            - VaultServer_starting
+            {{end}}
             - TerraformRuntime_starting
             - JDK_starting
             - ConsulServer_starting
@@ -1192,6 +1387,20 @@ topology_template:
             - set_state: starting
           on_success:
             - ConsulServer_start
+        {{if not .Insecure}}
+        VaultServer_start:
+          target: VaultServer
+          activities:
+            - call_operation: Standard.start
+          on_success:
+            - VaultServer_started
+        VaultServer_starting:
+          target: VaultServer
+          activities:
+            - set_state: starting
+          on_success:
+            - VaultServer_start
+        {{end}}
         YorcPlugin_started:
           target: YorcPlugin
           activities:
@@ -1271,6 +1480,9 @@ topology_template:
           activities:
             - set_state: stopped
           on_success:
+            {{if not .Insecure}}
+            - VaultServer_stopping
+            {{end}}
             - TerraformRuntime_stopping
             - A4C_Yorc_stop
             - AnsibleRuntime_stopping
@@ -1325,6 +1537,21 @@ topology_template:
             - set_state: stopping
           on_success:
             - TerraformRuntime_stopped
+        {{if not .Insecure}}
+        VaultServer_stopping:
+          target: VaultServer
+          activities:
+            - set_state: stopping
+          on_success:
+            - VaultServer_stopped
+        VaultServer_stopped:
+          target: VaultServer
+          activities:
+            - set_state: stopped
+          on_success:
+            - A4C_Yorc_stop
+            - ConsulServer_stopping
+        {{end}}
         YorcPlugin_stopped:
           target: YorcPlugin
           activities:
@@ -1364,6 +1591,20 @@ topology_template:
             - set_state: submitted
           on_success:
             - YorcPlugin_executed
+        {{if not .Insecure}}
+        VaultServer_submitting:
+          target: VaultServer
+          activities:
+            - set_state: submitting
+          on_success:
+            - VaultServer_submitted
+        VaultServer_submitted:
+          target: VaultServer
+          activities:
+            - set_state: submitted
+          on_success:
+            - VaultServer_executing
+        {{end}}
         YorcServer_executed:
           target: YorcServer
           activities:
@@ -1371,6 +1612,14 @@ topology_template:
           on_success:
             - Infrastructure_submitted
             - YorcPlugin_submitted
+        {{if not .Insecure}}
+        VaultServer_executed:
+          target: VaultServer
+          activities:
+            - set_state: executed
+          on_success:
+            - YorcServer_submitting
+        {{end}}
         TerraformRuntime_executed:
           target: TerraformRuntime
           activities:
@@ -1444,10 +1693,118 @@ topology_template:
           activities:
             - set_state: executed
           on_success:
+            {{if not .Insecure}}
+            - VaultServer_submitting
+            {{end}}
             - YorcServer_submitted
+        {{if not .Insecure}}
+        VaultServer_executing:
+          target: VaultServer
+          activities:
+            - set_state: executing
+          on_success:
+            - VaultServer_executed
+        {{end}}
         ConsulServer_submitted:
           target: ConsulServer
           activities:
             - set_state: submitted
           on_success:
             - ConsulServer_executed
+    cancel:
+      steps:
+        YorcPlugin_cancelling:
+          target: YorcPlugin
+          activities:
+            - set_state: cancelling
+          on_success:
+            - YorcPlugin_cancelled
+        ConsulServer_cancelling:
+          target: ConsulServer
+          activities:
+            - set_state: cancelling
+          on_success:
+            - ConsulServer_cancelled
+        AnsibleRuntime_cancelling:
+          target: AnsibleRuntime
+          activities:
+            - set_state: cancelling
+          on_success:
+            - AnsibleRuntime_cancelled
+        ConsulServer_cancelled:
+          target: ConsulServer
+          activities:
+            - set_state: cancelled
+        ComputeAddress_cancelling:
+          target: ComputeAddress
+          activities:
+            - set_state: cancelling
+          on_success:
+            - ComputeAddress_cancelled
+        ComputeAddress_cancelled:
+          target: ComputeAddress
+          activities:
+            - set_state: cancelled
+        {{if not .Insecure}}
+        VaultServer_cancelling:
+          target: VaultServer
+          activities:
+            - set_state: cancelling
+          on_success:
+            - VaultServer_cancelled
+        {{end}}
+        TerraformRuntime_cancelling:
+          target: TerraformRuntime
+          activities:
+            - set_state: cancelling
+          on_success:
+            - TerraformRuntime_cancelled
+        YorcPlugin_cancelled:
+          target: YorcPlugin
+          activities:
+            - set_state: cancelled
+        TerraformRuntime_cancelled:
+          target: TerraformRuntime
+          activities:
+            - set_state: cancelled
+        OracleJDK_cancelled:
+          target: OracleJDK
+          activities:
+            - set_state: cancelled
+        Alien4Cloud_cancelling:
+          target: Alien4Cloud
+          activities:
+            - set_state: cancelling
+          on_success:
+            - Alien4Cloud_cancelled
+        OracleJDK_cancelling:
+          target: OracleJDK
+          activities:
+            - set_state: cancelling
+          on_success:
+            - OracleJDK_cancelled
+        Alien4Cloud_cancelled:
+          target: Alien4Cloud
+          activities:
+            - set_state: cancelled
+        AnsibleRuntime_cancelled:
+          target: AnsibleRuntime
+          activities:
+            - set_state: cancelled
+        {{if not .Insecure}}
+        VaultServer_cancelled:
+          target: VaultServer
+          activities:
+            - set_state: cancelled
+        {{end}}
+        YorcServer_cancelled:
+          target: YorcServer
+          activities:
+            - set_state: cancelled
+        YorcServer_cancelling:
+          target: YorcServer
+          activities:
+            - set_state: cancelling
+          on_success:
+            - YorcServer_cancelled
+

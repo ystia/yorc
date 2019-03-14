@@ -140,6 +140,17 @@ var (
 		},
 	}
 
+	vaultDefaultInputs = map[string]defaultInputType{
+		"vault.download_url": defaultInputType{
+			description: "Hashicorp Vault download URL",
+			value:       "https://releases.hashicorp.com/vault/1.0.3/vault_1.0.3_linux_amd64.zip",
+		},
+		"vault.port": defaultInputType{
+			description: "Vault port",
+			value:       8200,
+		},
+	}
+
 	terraformDefaultInputs = map[string]defaultInputType{
 		"terraform.download_url": defaultInputType{
 			description: "Terraform download URL",
@@ -233,6 +244,7 @@ func setBootstrapExtraParams(args []string, cmd *cobra.Command) error {
 		yorcPluginDefaultInputs,
 		alien4CloudDefaultInputs,
 		consulDefaultInputs,
+		vaultDefaultInputs,
 		terraformDefaultInputs,
 		jdkDefaultInputs,
 		credentialsInputs,
@@ -362,6 +374,8 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 	if inputValues.Infrastructures == nil {
 		inputValues.Infrastructures = configuration.Infrastructures
 	}
+
+	inputValues.Insecure = insecure
 
 	//recovering infra type if needed
 	if infrastructureType == "" {
@@ -700,6 +714,11 @@ func initializeInputs(inputFilePath, resourcesPath string, configuration config.
 		if err := prepareGoogleInfraInputs(); err != nil {
 			return err
 		}
+	}
+
+	// In insecure mode, the infrastructure secrets will not be stored in vault
+	if insecure {
+		inputValues.Infrastructures[infrastructureType].Set("use_vault", false)
 	}
 
 	exportInputs()
