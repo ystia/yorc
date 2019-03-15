@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/errors"
 	"github.com/ystia/yorc/v3/events"
+	"github.com/ystia/yorc/v3/helper/collections"
 	"github.com/ystia/yorc/v3/helper/consulutil"
 	"github.com/ystia/yorc/v3/log"
 	"github.com/ystia/yorc/v3/tosca"
@@ -437,13 +438,21 @@ func (anh *attributeNotificationsHandler) findAttributeNotifier(operands []strin
 		return nil, errors.Errorf("expecting two or three parameters for a non-relationship context get_attribute function (%s)", funcString)
 	}
 
-	var node string
+	var node, capName, attrName string
 	var err error
+
+	if len(operands) == 2 {
+		attrName = operands[1]
+	} else {
+		attrName = operands[2]
+		capName = operands[1]
+	}
+
 	switch operands[0] {
 	case funcKeywordSELF:
 		node = anh.attribute.nodeName
 	case funcKeywordHOST:
-		node, err = GetHostedOnNode(anh.kv, anh.deploymentID, anh.attribute.nodeName)
+		node, err = resolveHostNotifier(anh.kv, anh.deploymentID, anh.attribute.nodeName, attrName)
 		if err != nil {
 			return nil, err
 		}
@@ -456,14 +465,10 @@ func (anh *attributeNotificationsHandler) findAttributeNotifier(operands []strin
 	}
 
 	notifier := &AttributeNotifier{
-		NodeName:     node,
-		InstanceName: anh.attribute.instanceName,
-	}
-	if len(operands) == 2 {
-		notifier.AttributeName = operands[1]
-	} else {
-		notifier.CapabilityName = operands[1]
-		notifier.AttributeName = operands[2]
+		NodeName:       node,
+		InstanceName:   anh.attribute.instanceName,
+		AttributeName:  attrName,
+		CapabilityName: capName,
 	}
 	return notifier, nil
 }
@@ -531,4 +536,25 @@ func getNotifiedAttribute(notification string) (*notifiedAttribute, error) {
 		}
 	}
 	return attribData, nil
+}
+
+// resolveHostNotifier retrieves the node name hosting the provided nodeName having the provided attributeName in the "HostedOn" relationship stack
+// If no host node is found with the related attributeName, root hosting node (compute) is returned as attribute can not be defined in Tosca (as public_ip_address for compatibility)
+func resolveHostNotifier(kv *api.KV, deploymentID, nodeName, attributeName string) (string, error) {
+	hostNode, err := GetHostedOnNode(kv, deploymentID, nodeName)
+	if err != nil {
+		return "", err
+	}
+	if hostNode == "" {
+		return nodeName, nil
+	}
+	attributes, err := GetNodeAttributesNames(kv, deploymentID, hostNode)
+	if err != nil {
+		return "", err
+	}
+	if collections.ContainsString(attributes, attributeName) {
+		return hostNode, nil
+	}
+
+	return resolveHostNotifier(kv, deploymentID, hostNode, attributeName)
 }
