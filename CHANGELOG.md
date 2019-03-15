@@ -14,6 +14,7 @@
 ### BUG FIXES
 
 * Deployment fails on error "socket: too many open files" ([GH-334](https://github.com/ystia/yorc/issues/334))
+* Attribute notification is not correctly set with HOST keyword ([GH-338](https://github.com/ystia/yorc/issues/338))
 
 ## 3.2.0-M3 (March 11, 2019)
 
