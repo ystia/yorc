@@ -185,7 +185,7 @@ func formatEvent(event json.RawMessage, colorize bool) string {
 	case events.StatusChangeTypeDeployment:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Deployment Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.EStatus.String()])
 	case events.StatusChangeTypeCustomCommand:
-		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (custom command)\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EStatus.String()])
+		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (custom command)\t Operation: %s\t Node: %s\t Instance: %s\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EOperationName.String()], data[events.ENodeID.String()], data[events.EInstanceID.String()], data[events.EStatus.String()])
 	case events.StatusChangeTypeScaling:
 		ret = fmt.Sprintf("%s:\t Deployment: %s\t Task %q (scaling)\t Status: %s\n", ts, data[events.EDeploymentID.String()], data[events.ETaskID.String()], data[events.EStatus.String()])
 	case events.StatusChangeTypeWorkflow:

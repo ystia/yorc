@@ -662,7 +662,7 @@ func getLogContent(t *testing.T, log []byte) string {
 	return data["content"].(string)
 }
 
-func TestEnrichInfoFromContext(t *testing.T) {
+func TestBuildInfoFromContext(t *testing.T) {
 	type args struct {
 		lof LogOptionalFields
 	}
