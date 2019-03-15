@@ -5,11 +5,17 @@
 ### ENHANCEMENTS
 
 * Bootstrap Yorc with a Vault instance ([GH-282](https://github.com/ystia/yorc/issues/282))
+* Refactor Slurm jobs ([GH-220](https://github.com/ystia/yorc/issues/220))
+
+### FEATURES
+
+* Yorc hostspool now allows more filtering ([GH-89](https://github.com/ystia/yorc/issues/89))
 
 ### BUG FIXES
 
 * Deployment fails on error "socket: too many open files" ([GH-334](https://github.com/ystia/yorc/issues/334))
 * Yorc bootstrap does not correctly treat default alien4cloud version download ([GH-286](https://github.com/ystia/yorc/issues/286))
+* Attribute notification is not correctly set with HOST keyword ([GH-338](https://github.com/ystia/yorc/issues/338))
 
 ## 3.2.0-M3 (March 11, 2019)
 

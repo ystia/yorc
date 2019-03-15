@@ -43,33 +43,20 @@ type nodeAllocation struct {
 type jobInfo struct {
 	ID                     string            `json:"id,omitempty"`
 	Name                   string            `json:"name,omitempty"`
-	State                  string            `json:"state,omitempty"`
 	Tasks                  int               `json:"tasks,omitempty"`
 	Cpus                   int               `json:"cpus,omitempty"`
 	Nodes                  int               `json:"nodes,omitempty"`
 	Mem                    int               `json:"mem,omitempty"`
 	MaxTime                string            `json:"max_time,omitempty"`
-	BatchMode              bool              `json:"batch_mode,omitempty"`
 	Opts                   []string          `json:"opts,omitempty"`
-	ExecArgs               []string          `json:"exec_args,omitempty"`
-	Outputs                []string          `json:"outputs,omitempty"`
+	Args                   []string          `json:"args,omitempty"`
+	EnvVars                []string          `json:"env_vars,omitempty"`
 	Inputs                 map[string]string `json:"inputs,omitempty"`
 	MonitoringTimeInterval time.Duration     `json:"monitoring_time_interval,omitempty"`
-	OperationRemoteExecDir string            `json:"operation_remote_exec_dir,omitempty"`
 	Credentials            *UserCredentials  `json:"credentials,omitempty"`
 	Account                string            `json:"account,omitempty"`
 	Reservation            string            `json:"reservation,omitempty"`
-}
-
-type jobInfoShort struct {
-	ID    string
-	name  string
-	state string
-}
-
-type singularityInfo struct {
-	imageName string
-	imageURI  string
-	command   string
-	exec      string
+	Command                string            `json:"command,omitempty"`
+	WorkingDir             string            `json:"working_directory,omitempty"`
+	Artifacts              []string          `json:"artifacts,omitempty"`
 }

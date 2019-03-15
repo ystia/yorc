@@ -1035,9 +1035,10 @@ func testAttributeNotifications(t *testing.T, kv *api.KV) {
 
 	// Check the attributes notifications
 	expectedKeyValuePairs := map[string]string{
-		"topology/instances/TestContainer/0/attribute_notifications/public_ip_address/0":                "TestComponent/0/attributes/url",
-		"topology/instances/TestContainer/0/capabilities/endpoint/attribute_notifications/ip_address/0": "TestComponent/0/attributes/url_from_cap",
-		"topology/instances/TestComponent/0/outputs/standard/create/attribute_notifications/URL/0":      "TestComponent/0/attributes/url_from_output",
+		"topology/instances/TestCompute/0/attribute_notifications/public_ip_address/0":                "TestComponent/0/attributes/url",
+		"topology/instances/TestCompute/0/capabilities/endpoint/attribute_notifications/ip_address/0": "TestComponent/0/attributes/url_from_cap",
+		"topology/instances/TestContainer/0/attribute_notifications/my_attribute/0":                   "TestComponent/0/attributes/url_from_my_attribute",
+		"topology/instances/TestComponent/0/outputs/standard/create/attribute_notifications/URL/0":    "TestComponent/0/attributes/url_from_output",
 	}
 	for key, expectedValue := range expectedKeyValuePairs {
 		consulKey := path.Join(consulutil.DeploymentKVPrefix, deploymentID, key)
