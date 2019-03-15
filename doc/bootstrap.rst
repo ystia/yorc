@@ -160,6 +160,7 @@ To clean the local host setup, run:
 
 This will only clean the local host environment, it won't undeploy the bootstrapped
 setup installed on remote hosts.
+It stops the local yorc and consul servers, cleans files in working directory except from downloaded bundles, on purpose as some of them take time to be downloaded.
 
 Bootstrapping the setup in interactive mode
 -------------------------------------------
